@@ -1,5 +1,5 @@
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
-index efcf02d75..215324107 100644
+index efcf02d75..acb0987fb 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -6,6 +6,13 @@
@@ -16,7 +16,7 @@ index efcf02d75..215324107 100644
  #include "include/common.hh"
  #include "include/scan_callback.hh"
  #include "include/transaction.hh"
-@@ -26,12 +33,106 @@ using namespace std;
+@@ -26,12 +33,108 @@ using namespace std;
  
  #define MSK_TID 0b11111111
  
@@ -32,7 +32,8 @@ index efcf02d75..215324107 100644
 +#if CICADA_FWD_COUNT
 +  uint64_t triggers = 0, attempts = 0, success = 0;
 +  uint64_t read_mismatch = 0, write_constraint = 0, conflict = 0;
-+  uint64_t ineligible = 0, special_after_forward = 0, f_aborts = 0;
++  uint64_t ineligible = 0, no_target = 0;
++  uint64_t special_after_forward = 0, f_aborts = 0;
 +  uint64_t advance_clock_sum = 0, pos_before_sum = 0, pos_after_sum = 0;
 +#endif
 +};
@@ -56,6 +57,7 @@ index efcf02d75..215324107 100644
 +                << ",\"write_constraint\":" << c.write_constraint
 +                << ",\"conflict\":" << c.conflict
 +                << ",\"ineligible\":" << c.ineligible
++                << ",\"no_target\":" << c.no_target
 +                << ",\"special_after_forward\":" << c.special_after_forward
 +                << ",\"f_aborts\":" << c.f_aborts
 +                << ",\"advance_clock_sum\":" << c.advance_clock_sum
@@ -123,7 +125,7 @@ index efcf02d75..215324107 100644
    /**
     * Allocate timestamp in read phase.
     */
-@@ -100,6 +201,132 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+@@ -100,6 +203,132 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
     * Scan to the area to be viewed
     */
    ver = tuple->ldAcqLatest();
@@ -158,12 +160,12 @@ index efcf02d75..215324107 100644
 +        hot = hot->ldAcqNext();
 +      }
 +      if (!oldest) {
-+        FWD_COUNT(slot, ineligible);
++        FWD_COUNT(slot, no_target);
 +      } else {
 +        uint64_t clock = oldest->ldAcqWts() >> 8;
 +        uint64_t bump = thid_ <= (oldest->ldAcqWts() & 255);
 +        if (clock >= (std::numeric_limits<uint64_t>::max() >> 8) - bump) {
-+          FWD_COUNT(slot, ineligible);
++          FWD_COUNT(slot, no_target);
 +        } else {
 +          uint64_t target = ((clock + bump) << 8) | thid_;
 +          FWD_COUNT(slot, attempts);
@@ -256,7 +258,7 @@ index efcf02d75..215324107 100644
    while (ver->ldAcqWts() > trts) {
      later_ver = ver;
      ver = ver->ldAcqNext();
-@@ -175,6 +402,10 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -175,6 +404,10 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
  
    ver = read_internal(s, key, tuple);
@@ -267,7 +269,7 @@ index efcf02d75..215324107 100644
    if (ver == nullptr) return Status::WARN_NOT_FOUND;
  
    /**
-@@ -298,6 +529,15 @@ FINISH_WRITE:
+@@ -298,6 +531,15 @@ FINISH_WRITE:
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -283,7 +285,7 @@ index efcf02d75..215324107 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +586,15 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -346,6 +588,15 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -299,7 +301,7 @@ index efcf02d75..215324107 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +666,16 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -417,6 +668,16 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -316,7 +318,7 @@ index efcf02d75..215324107 100644
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -457,6 +716,9 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -457,6 +718,9 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
      }
    }
  
@@ -326,7 +328,7 @@ index efcf02d75..215324107 100644
    return Status::OK;
  }
  
-@@ -743,6 +1005,11 @@ void TxExecutor::gcpv() {
+@@ -743,6 +1007,11 @@ void TxExecutor::gcpv() {
   * @return void
   */
  void TxExecutor::abort() {
@@ -338,7 +340,7 @@ index efcf02d75..215324107 100644
    // remove inserted records
    for (auto& we : write_set_) {
      if (we.op_ == OpType::INSERT) {
-@@ -893,6 +1160,11 @@ void TxExecutor::mainte() {
+@@ -893,6 +1162,11 @@ void TxExecutor::mainte() {
  }
  
  void TxExecutor::writePhase() {

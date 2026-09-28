@@ -104,3 +104,83 @@ def test_figure_full_shape():
     finally:
         import matplotlib.pyplot as plt
         plt.close(fig)
+
+
+def _fwd_thread(**changes):
+    row = {key: 0 for key in driver.FWD_FIELDS}
+    row["thid"] = 1
+    row.update(changes)
+    return row
+
+
+def test_counter_schema_rejects_missing_extra_and_non_integer():
+    long = {"threads": [{"thid": 1, "long": 1, "commits": 2, "aborts": 0}]}
+    for bad in ({key: val for key, val in _fwd_thread(attempts=1).items() if key != "success"},
+                {**_fwd_thread(), "surplus": 0}, _fwd_thread(attempts=True),
+                _fwd_thread(attempts=-1)):
+        text = "CICADA_FWD_V1 " + json.dumps({"threads": [bad]}) + "\n"
+        text += "CICADA_LONGTX_V1 " + json.dumps(long) + "\n"
+        with pytest.raises(ValueError, match="counter thread schema invalid"):
+            driver.parse_counter_lines(text, "count")
+    long["threads"][0]["aborts"] = "0"
+    with pytest.raises(ValueError, match="counter thread schema invalid"):
+        driver.parse_counter_lines("CICADA_FWD_V1 {\"threads\": []}\nCICADA_LONGTX_V1 " +
+                                   json.dumps(long), "count")
+
+
+def test_smoke_requires_c_attempts_and_f_aborts_not_success():
+    def record(policy, values):
+        return {"workload": "many_ops", "build_kind": "count", "policy": policy,
+                "fwd_counters": {"threads": [_fwd_thread(**values)]}}
+    c = record("c", {"attempts": 5, "success": 0})
+    f = record("f", {"f_aborts": 3})
+    assert driver.smoke_count_status([c, f]) == {
+        "c_attempts": 5, "c_success": 0, "f_aborts": 3, "accepted": True}
+    assert not driver.smoke_count_status([c])["accepted"]
+    assert not driver.smoke_count_status([f])["accepted"]
+
+
+def test_inert_normalization_ignores_markers_and_blank_lines(monkeypatch):
+    samples = iter((b"# 1 one\n token\n\nnext\n", b"# 2 two\n token\n \t\nnext\n",
+                    b"# 1 one\n token\nnext\n", b"# 2 two\n token\nchanged\n"))
+    monkeypatch.setattr(driver, "checked", lambda *a, **k: SimpleNamespace(stdout=next(samples)))
+    entry = {"arguments": ["c++", "-c", "one.cc"], "directory": "/tmp"}
+    assert driver._preprocess(entry) == driver._preprocess(entry)
+    assert driver._preprocess(entry) != driver._preprocess(entry)
+
+
+def test_aggregate_jobs_excludes_smoke_and_rejects_duplicate_rep():
+    def record(rep, policy="c", kind="count"):
+        return {"valid": True, "workload": "many_ops", "gc_inter_us": 100, "k": 3,
+                "policy": policy, "build_kind": kind, "rep": rep,
+                "perf_eligible": False, "throughput": 10,
+                "fwd_counters": {"threads": [_fwd_thread(thid=47, attempts=5, success=2,
+                                                         no_target=1, f_aborts=3)]},
+                "thread_num": 48, "long_threads": 4}
+    def job(command, records, job_id="one"):
+        return {"command": command, "all_pass": True, "job_id": job_id,
+                "hostname": "node", "conditions": {"zipf": .9}, "records": records}
+    smoke = job("smoke", [record(0)], "smoke")
+    run = job("run", [record(0)], "run")
+    cell = driver.aggregate_jobs([smoke, run])["cells"]["many_ops/gc=100/k=3"]
+    assert cell["c_summary"]["attempts"] == 5
+    assert cell["thread_summary"]["c"]["long"]["attempts"] == 5
+    assert cell["thread_summary"]["c"]["normal"]["attempts"] == 0
+    assert cell["input_jobs"] == [{"job_id": "run", "hostname": "node", "skew": .9}]
+    with pytest.raises(ValueError, match="duplicate record"):
+        driver.aggregate_jobs([run, job("run", [record(0)], "other")])
+
+
+def test_long_completion_zero_denominator_is_missing():
+    assert driver._completion({"commits": 0, "aborts": 0}) is None
+    assert driver._completion({"commits": 3, "aborts": 1}) == .75
+
+
+def test_aggregate_cli_requires_explicit_raw_but_no_cache(tmp_path):
+    with pytest.raises(SystemExit, match="2"):
+        driver.main(["aggregate", "--output", str(tmp_path)])
+    raw = tmp_path / "run.json"
+    raw.write_text(json.dumps({"command": "run", "all_pass": True, "job_id": "j",
+                               "hostname": "n", "conditions": {"zipf": .9}, "records": []}))
+    assert driver.main(["aggregate", "--raw", str(raw), "--output", str(tmp_path)]) == 0
+    assert json.loads((tmp_path / "aggregate.json").read_text())["cells"] == {}

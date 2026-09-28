@@ -38,6 +38,10 @@ MACROS = {"stock": ("CICADA_LONGTX",), "fwd": ("CICADA_FWD_ENABLE", "CICADA_LONG
 WORKLOADS = ("normal", "many_ops", "wait_after_reads")
 GC_VALUES = (10, 100, 1000)
 COUNTER_PREFIXES = ("CICADA_FWD_V1 ", "CICADA_LONGTX_V1 ")
+FWD_FIELDS = frozenset(("thid", "triggers", "attempts", "success", "read_mismatch",
+    "write_constraint", "conflict", "ineligible", "no_target", "special_after_forward",
+    "f_aborts", "advance_clock_sum", "pos_before_sum", "pos_after_sum"))
+LONGTX_FIELDS = frozenset(("thid", "long", "commits", "aborts"))
 MAX_CAPTURE = 65536
 
 
@@ -137,7 +141,7 @@ def _preprocess(entry: dict) -> str:
         clean.append(arg)
     result = checked([*clean, "-E"], cwd=Path(entry["directory"]), timeout=180)
     return sha_bytes(b"\n".join(line for line in result.stdout.splitlines()
-                                  if not line.lstrip().startswith(b"#")))
+                     if line.strip() and not line.lstrip().startswith(b"#")))
 
 
 def _inert_receipt(source: Path, scratch: Path, args: list[str], cxx: str) -> dict:
@@ -150,7 +154,8 @@ def _inert_receipt(source: Path, scratch: Path, args: list[str], cxx: str) -> di
     before = {name: _preprocess(entry) for name, entry in entries.items()}
     with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
         after = {name: _preprocess(entry) for name, entry in entries.items()}
-    receipt = {"gate": False, "pin_sha256": before, "patched_sha256": after,
+    receipt = {"gate": False, "normalization": "remove lines beginning with # after leading whitespace and whitespace-only lines",
+               "pin_sha256": before, "patched_sha256": after,
                "matched": before == after}
     if not receipt["matched"]:
         error = RuntimeError("inert preprocessing mismatch")
@@ -208,9 +213,15 @@ def parse_counter_lines(stdout: str, kind: str) -> tuple[dict | None, dict]:
         if len(lines) != expected:
             raise ValueError(f"{prefix.strip()} expected {expected} lines, found {len(lines)}")
         values.append(json.loads(lines[0]) if expected else None)
-    for value in values:
-        if value is not None and not isinstance(value.get("threads"), list):
+    for value, fields in zip(values, (FWD_FIELDS, LONGTX_FIELDS)):
+        if value is None:
+            continue
+        if not isinstance(value, dict) or not isinstance(value.get("threads"), list):
             raise ValueError("counter threads missing")
+        for thread in value["threads"]:
+            if not isinstance(thread, dict) or thread.keys() != fields or any(
+                    type(v) is not int or v < 0 for v in thread.values()):
+                raise ValueError("counter thread schema invalid")
     return values[0], values[1]
 
 
@@ -257,6 +268,7 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
     except subprocess.TimeoutExpired as exc:
         code, stdout, stderr = 124, exc.stdout or b"", exc.stderr or b""
     record = {**common, **spec, "schema_version": "vhash-forwarding-record/v1",
+              "thread_num": 48, "long_threads": 0 if spec["workload"] == "normal" else 4,
               "perf_eligible": perf_eligible(spec["build_kind"]),
               "verification_status": "未検証の診断値", "argv": argv,
               "hostname": socket.gethostname(), "started": start, "ended": now(),
@@ -280,11 +292,24 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
     return record
 
 
-def _sum_threads(counter: dict | None, keys: tuple[str, ...], *, long_only=False) -> dict:
+def _sum_threads(counter: dict | None, keys: tuple[str, ...], *, long_only=False,
+                 thread_num=48, long_threads=0) -> dict:
     if counter is None:
         return {}
-    threads = [t for t in counter["threads"] if not long_only or t.get("long")]
-    return {key: sum(int(t.get(key, 0)) for t in threads) for key in keys}
+    threads = [t for t in counter["threads"] if not long_only or
+               (t["thid"] != 0 and t["thid"] >= thread_num - long_threads)]
+    return {key: sum(t[key] for t in threads) for key in keys}
+
+
+def _split_threads(counter: dict, keys: tuple[str, ...], record: dict) -> dict:
+    long_ids = lambda t: t["thid"] != 0 and t["thid"] >= record["thread_num"] - record["long_threads"]
+    return {group: {key: sum(t[key] for t in counter["threads"] if long_ids(t) == is_long)
+                    for key in keys} for group, is_long in (("long", True), ("normal", False))}
+
+
+def _completion(counts: dict) -> float | None:
+    total = counts["commits"] + counts["aborts"]
+    return counts["commits"] / total if total else None
 
 
 def aggregate(raw: dict) -> dict:
@@ -296,18 +321,33 @@ def aggregate(raw: dict) -> dict:
         cell = cells.setdefault(key, {"workload": record["workload"],
                  "gc_inter_us": record["gc_inter_us"], "k": record["k"],
                  "throughput": {arm: [] for arm in ("stock", "c", "f")},
-                 "c_counters": [], "f_counters": [], "longtx": {arm: [] for arm in ("stock", "c", "f")}})
+                 "c_counters": [], "f_counters": [], "longtx": {arm: [] for arm in ("stock", "c", "f")},
+                 "counter_by_thread": {arm: [] for arm in ("c", "f")},
+                 "input_jobs": [], "skew": record.get("skew", 0.9)})
+        if cell["skew"] != record.get("skew", 0.9):
+            raise ValueError("mixed skew in aggregate cell")
+        source = {name: record.get(name) for name in ("job_id", "hostname", "skew")}
+        if source not in cell["input_jobs"]:
+            cell["input_jobs"].append(source)
         arm = record["policy"]
         if record["perf_eligible"]:
             cell["throughput"][arm].append({"rep": record["rep"], "value": record["throughput"]})
-            cell["longtx"][arm].append(_sum_threads(record["longtx_counters"],
-                                                         ("commits", "aborts"), long_only=True))
+            long_counts = _sum_threads(record["longtx_counters"], ("commits", "aborts"),
+                 long_only=True, thread_num=record.get("thread_num", 48),
+                 long_threads=record.get("long_threads", 0 if record["workload"] == "normal" else 4))
+            cell["longtx"][arm].append({**long_counts, "rep": record["rep"],
+                                          "completion_rate": _completion(long_counts)})
         else:
             values = _sum_threads(record["fwd_counters"],
                 ("triggers", "attempts", "success", "read_mismatch", "write_constraint",
-                 "conflict", "ineligible", "special_after_forward", "f_aborts",
+                 "conflict", "ineligible", "no_target", "special_after_forward", "f_aborts",
                  "advance_clock_sum", "pos_before_sum", "pos_after_sum"))
             cell["c_counters" if arm == "c" else "f_counters"].append(values)
+            cell["counter_by_thread"][arm].append(_split_threads(record["fwd_counters"],
+                ("attempts", "success", "read_mismatch", "write_constraint", "conflict",
+                 "ineligible", "no_target", "f_aborts"),
+                {"thread_num": record.get("thread_num", 48),
+                 "long_threads": record.get("long_threads", 0 if record["workload"] == "normal" else 4)}))
     for cell in cells.values():
         for arm, source in (("c", "c_counters"), ("f", "f_counters")):
             rows = cell[source]
@@ -320,9 +360,53 @@ def aggregate(raw: dict) -> dict:
                   if rows else None)
             for arm, rows in cell["longtx"].items()
         }
+        for arm, counts in cell["longtx_summary"].items():
+            if counts is not None:
+                counts["completion_rate"] = _completion(counts)
+        cell["thread_summary"] = {
+            arm: {group: ({key: sum(row[group][key] for row in rows) for key in rows[0][group]}
+                         if rows else None) for group in ("long", "normal")}
+            for arm, rows in cell["counter_by_thread"].items()}
     return {"schema_version": "vhash-forwarding-aggregate/v1",
             "verification_status": "未検証の診断値", "conditions": raw.get("conditions", {}),
             "cells": cells}
+
+
+def aggregate_jobs(jobs: list[dict]) -> dict:
+    seen = set()
+    records = []
+    conditions = None
+    for job in jobs:
+        if job.get("command") != "run" or job.get("all_pass") is not True:
+            continue
+        if conditions is None:
+            conditions = job.get("conditions", {})
+        elif conditions != job.get("conditions", {}):
+            raise ValueError("inconsistent job conditions")
+        for record in job["records"]:
+            if not record.get("valid"):
+                raise ValueError("all_pass job contains invalid record")
+            key = tuple(record[name] for name in ("workload", "gc_inter_us", "k",
+                                            "policy", "build_kind", "rep"))
+            if key in seen:
+                raise ValueError(f"duplicate record: {key}")
+            seen.add(key)
+            records.append({**record, "job_id": job["job_id"],
+                            "hostname": job["hostname"],
+                            "skew": record.get("skew", job["conditions"]["zipf"])})
+    return aggregate({"conditions": conditions or {}, "records": records})
+
+
+def smoke_count_status(records: list[dict]) -> dict:
+    counts = {"c_attempts": 0, "c_success": 0, "f_aborts": 0}
+    for record in records:
+        if record["workload"] != "many_ops" or record["build_kind"] != "count":
+            continue
+        keymap = {"c": (("attempts", "c_attempts"), ("success", "c_success")),
+                  "f": (("f_aborts", "f_aborts"),)}
+        for field, destination in keymap[record["policy"]]:
+            counts[destination] += _sum_threads(record["fwd_counters"], (field,))[field]
+    return {**counts, "accepted": counts["c_attempts"] > 0 and counts["f_aborts"] > 0}
 
 
 def _write(path: Path, data: dict) -> None:
@@ -333,28 +417,25 @@ def _write(path: Path, data: dict) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("smoke", "run", "aggregate"))
-    parser.add_argument("--third-party-cache", type=Path, required=True)
+    parser.add_argument("--third-party-cache", type=Path)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--workload", choices=WORKLOADS)
     parser.add_argument("--k-sweep", action="store_true")
-    parser.add_argument("--raw", type=Path, help="aggregate input JSON")
+    parser.add_argument("--raw", type=Path, action="append", help="explicit aggregate input JSON; repeat for each job")
     args = parser.parse_args(argv)
-    if not args.third_party_cache.is_absolute():
+    if args.command != "aggregate" and args.third_party_cache is None:
+        parser.error("smoke and run require --third-party-cache")
+    if args.third_party_cache is not None and not args.third_party_cache.is_absolute():
         parser.error("--third-party-cache must be an absolute path")
     if args.command == "run" and args.workload is None:
         parser.error("run requires --workload")
     if args.k_sweep and args.workload != "many_ops":
         parser.error("--k-sweep requires --workload many_ops")
     if args.command == "aggregate":
-        files = [args.raw] if args.raw else sorted(args.output.glob("raw-*.json"))
-        if not files:
-            parser.error("no raw JSON input")
-        merged = {"conditions": {}, "records": []}
-        for path in files:
-            raw = json.loads(path.read_text())
-            merged["conditions"] = raw.get("conditions", {})
-            merged["records"].extend(raw["records"])
-        _write(args.output / "aggregate.json", aggregate(merged))
+        if not args.raw:
+            parser.error("aggregate requires one or more --raw JSON files")
+        _write(args.output / "aggregate.json", aggregate_jobs(
+            [json.loads(path.read_text()) for path in args.raw]))
         return 0
     started = now()
     job = {"schema_version": "vhash-forwarding-job/v1", "git_head": None,
@@ -399,16 +480,17 @@ def main(argv: list[str] | None = None) -> int:
                                                "gate_receipts": gates}
                     common = {"git_head": job["git_head"], "ccbench_pin": pin.CURRENT_PIN,
                               "patch_sha256": job["patch_sha256"],
-                              "inert_receipt": job["inert_receipt"]}
+                              "inert_receipt": job["inert_receipt"], "job_id": job["job_id"]}
                     for spec in plan_runs(args.command, args.workload, args.k_sweep):
                         if args.command == "smoke" and spec["build_kind"] != "count" and \
                                 not job.get("smoke_count_checked"):
                             many = [r for r in job["records"] if r["workload"] == "many_ops"
                                     and r["build_kind"] == "count"]
-                            attempts = sum(_sum_threads(r["fwd_counters"], ("attempts",))
-                                           .get("attempts", 0) for r in many)
+                            status = smoke_count_status(many)
+                            job["smoke_fallback"] = [{"k": 3, "skew": 0.9,
+                                 "condition": "C attempts > 0 and F f_aborts > 0", "result": status}]
                             for k, skew in ((1, 0.9), (1, 0.99)):
-                                if attempts:
+                                if status["accepted"]:
                                     break
                                 for index, policy in enumerate(("c", "f")):
                                     extra = dict(workload="many_ops", gc_inter_us=100,
@@ -421,11 +503,13 @@ def main(argv: list[str] | None = None) -> int:
                                     _write(output, job)
                                     if not result["valid"]:
                                         raise RuntimeError("invalid smoke fallback")
-                                    attempts += _sum_threads(result["fwd_counters"],
-                                                             ("attempts",))["attempts"]
+                                status = smoke_count_status(job["records"])
+                                job["smoke_fallback"].append({"k": k, "skew": skew,
+                                     "condition": "C attempts > 0 and F f_aborts > 0", "result": status})
+                                _write(output, job)
                             job["smoke_count_checked"] = True
-                            if not attempts:
-                                raise RuntimeError("many_ops forwarding attempts remain zero after smoke fallback")
+                            if not status["accepted"]:
+                                raise RuntimeError("many_ops C attempts or F f_aborts remain zero after smoke fallback")
                         binary, gates = binaries[spec["build_kind"]]
                         record = _run_binary(binary, spec, common, gates)
                         job["records"].append(record)
