@@ -28561,3 +28561,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 生死確認の使い捨て driver は `git archive` で source を取り出すだけで tree 照合をしておらず、gitlink の有無を観測していなかった (単位 11 の probe は gitlink を照合から除外して記録していた)。親は「生死確認の全段が成立した」ことを、その driver が測っていない性質にまで広げて裁定の根拠に書いた。
 - 恒久対応: 裁定・brief に「実測で問題なし」と書く前に、その実測が当の性質を観測したかを確かめる (観測していなければ「未実測」と書き、既存 probe の扱いを引く)。memory `ruling-cites-only-observed-properties`。検査器側は D2275 項 5 で gitlink を照合から除外し旧新一致を確かめる形に改めた。記録 = `output/insights/2026-09-27/t2854-d297-header-v2/README.md` §5.3。
 - 再発検知: 実構成の判定 job が source 照合で止まる (fail-closed)。裁定の「問題なし」は根拠の実測 ID と観測項目を併記させる。
+
+### F1056. izanagi が CCBench に作った branch が CCBench の CI の format で落ち続け、現 pin もその状態だった [手順漏れ]
+
+- 事象: GitHub の CCBench の Actions で、izanagi が push した branch `izanagi-mocc-pin-e9e477ca` (e9e477ca、2026-09-20)・`izanagi-mocc-xp-instrumentation` (C `681066606`、現 pin、2026-09-21)・`izanagi-tpcc-v3-trace` (a6f2c7410、2026-09-22) は、どれも build は success、format (`.github/workflows/format.yml`、clang-format 14 の `--dry-run --Werror`) は failure だった。手元の clang-format 14 で C2' の変える 4 file を測ると、違反は C の時点で `cc/mocc/transaction.cc` 26・`cc/silo/transaction.cc` 17・`include/trace.hh` 3。ユーザーは第 39 回の裁定で「あなたの仕事はのちにCI落ちしたりしていた。CCBench CIが通る品質を意識してください」と指摘した。
+- 根本原因: CCBench への変更の検査を izanagi 側の検査 (TRACE=0 の前処理・逆アセンブルの一致、D297、計算ノードでの build・trace の確認) に限り、上流の CI の 2 本 (build・format) を通すことを手順に入れていなかった。format は CI でしか落ちないので、push 後の失敗が誰にも読まれず pin まで進んだ。
+- 恒久対応: D2277 項 1・2 (pin を進める先は CCBench の CI が緑の tip に限る、CCBench の変更は build と format を CI と同じ手順で通す)。memory `ccbench-changes-must-pass-upstream-ci`。
+- 再発検知: pin 前進 wave が GitHub の CI の結果 (build・format) を gitlink 更新の前に確かめる (D2277 項 1 (3))。
