@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 61 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-three
+Claim boundary: the supply domain contains the 63 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-five
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -77,7 +77,16 @@ _SILO_OWNER = ("cc/silo/transaction.cc",)
 _SS2PL_OWNER = ("cc/ss2pl/transaction.cc",)
 _MOCC_OWNER = ("cc/mocc/transaction.cc",)
 _SI_OWNER = ("cc/si/transaction.cc",)
+_CICADA_OWNER = ("cc/cicada/transaction.cc",)
 _DEFINE_SPECS = {
+    "IZANAGI_CICADA_VLIFE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
+    ),
+    "IZANAGI_CICADA_LONGTX": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
+    ),
     "SILO_POLICY_VARIANT": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-function-policy-variant.patch",
@@ -354,6 +363,12 @@ def _request_spec(request: DefineRequest) -> DefineSpec:
     return DEFINE_SPECS[request.macro]
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "IZANAGI_CICADA_VLIFE": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE",
+    ),
+    "IZANAGI_CICADA_LONGTX": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_LONGTX",
+    ),
     "SILO_POLICY_VARIANT": (
         "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT",
     ),
@@ -486,6 +501,8 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
 }
 _CONDITIONAL_BRANCH_SITE_COUNTS = {
+    "IZANAGI_CICADA_VLIFE": 31,
+    "IZANAGI_CICADA_LONGTX": 1,
     "SILO_POLICY_VARIANT": 15,
     "IZANAGI_SILO_POLICY_PROBE": 21,
     "IZANAGI_SILO_LADDER_RUNG1": 2,
@@ -511,6 +528,14 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": 5,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
+    "IZANAGI_CICADA_VLIFE": (
+        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 8),
+        ("cc/cicada/util.cc", "#if IZANAGI_CICADA_VLIFE", 1),
+        ("cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_VLIFE", 4),
+    ),
+    "IZANAGI_CICADA_LONGTX": (
+        ("cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_LONGTX", 2),
+    ),
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),
 }
 
