@@ -73321,3 +73321,74 @@ D2186 以降の「送信は人間手番 (継続)」はこれで終わる。返�
   既存の記録で識別でき、WAL の `workload` key の意味 (検証記録の `{"tag": ...}`) と二義になる。
 - search config へ workload を記録して campaign lock を分ける — `run_campaign` が evaluate へ渡さない現状では実行引数と結び付かない。探索設計の段で決める。
 - 57:43 以外の s1 cell (pay20 / pay70) や s2 を検証経路へ通す — D2238 の受理外で、受理を広げるのは認定の設計変更である。
+
+## D2277. 全 5 項の裁定 — CCBench の pin を C2' 系へ進めるのは CCBench の CI を通した tip に限り、MOCC の read-heavy は比較に普通に使ったうえで MOCC の欠陥を直し、探索の独立反復の再提示は T-2871 → T-2867 の後に置く (2026-09-29)
+
+**決定 (ユーザー裁定):** 索引 5 項の説明と推奨に対し、ユーザーは 2026-09-28 (0 時台 JST) に次のとおり回答した (逐語)。
+「1, 推奨通り。あなたの仕事はのちにCI落ちしたりしていた。CCBench CIが通る品質を意識してください。2, 普通に使います。そして修理もします。例えば、PostgreSQLなどでバグがあった時、過去にそれが使われたすべての研究論文の結果は意味のないものになったでしょうか？そうではない。もちろんバグは直す必要があります。他推奨通り」
+項 1 は推奨どおりに品質の条件を足し、項 2 は推奨 (a) を採らずユーザーの指示に従い、項 3〜5 は推奨どおり。下の番号は会話の索引番号と一致する。
+本決定は裁定記録であり、実装・記帳・送信が完了したことを意味しない。各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。
+
+**窓と収集:** 窓は entry 1898〜1905 (第 38 回 D2272 が収集した entry 1895 と提示後の 1896・1897 の次)、決定は D2273〜D2276。収集は main `19d3f2bae` (entry 1902) で始め、
+提示の後に別 session の通知を受けて local main を読み直し `51f896352` (entry 1905) で索引を改訂した (新項 = T-2854 の問い 2 と T-2872)。次の一手 104 項を carry 鎖の実体まで解決した (未解決 0)。
+見送り台帳の相乗りは T-1015 (`orchestrator/tests/conftest.py`) と T-436 (`docs/phase3.md`) が再成立したが D1780 (成立は着手命令ではない) で索引外。repo 外の rulings-inbox の新着なし、稼働 wave の handoff にユーザー裁定待ちなし。
+
+**相談の採否:** 別系統モデル (read-only、`--lane sol`、medium) を 4 本。最初の 2 本 (推奨の当否 A・索引漏れ B) は投げ文の出力節に `## 総括` の指定を書き忘れ、2 attempt とも `f43_fragment` で不受理 (既知型の再発)。
+本文は artifact dir に残り、親が原典で検算して使った。A は項 push・収載維持に同意し、索引外に置いた T-2850 の「条件見直しを立てない」に反対した (D2274 項 4 の job をまたぐ claim の拒否が新事実) → 採用して索引項 3 を新設した。
+A の「T-2871 は T-2867 の見積りの前提ではない、は根拠不足」も採用した。B は漏れ 0。追加の 2 本 (C = 新 2 項の当否、D = 漏れ) は受理。C は両項の起草推奨に同意し、較正は系列の着手時に取る・GitHub からの取得確認を gitlink 更新の前に置く・
+「stock 自体が非直列化可能」と断定しない・上流は「追記」でなく追加報告の要否として扱う、の 4 点の修正を求めた (採用)。D は漏れ 0。
+
+### 項 1 — T-2854 問い 2: CCBench の pin を C2' 系へ進める。ただし CCBench の CI (build と format) が緑の tip に限る
+
+対象: T-2854。資料: D2255 項 4、D2275、D2260 項 4、D2150、D2184、D16・D18・D20、insight `output/insights/2026-09-27/t2854-d297-header-v2/README.md` §3・§7。
+
+**決定:** pin を C `68106660` から C2' 系へ進めることを承認する。ユーザーの条件 (「CCBench CIが通る品質を意識してください」) に従い、進める先は CCBench の CI が緑の tip に限る。CCBench の CI は
+`.github/workflows/build.yml` (top-level cmake の Release・sanitizer なしで全 protocol を build) と `.github/workflows/format.yml` (`cc` `include` `common` の追跡 `*.cc` `*.hh` `*.cpp` に clang-format 14 の `--dry-run --Werror`) の 2 本である。
+pin 前進 wave (AI、CCBench 側の変更は Codex author) は次の順で行う。
+(1) C2' の上に、C 以降に izanagi が足した整形違反を clang-format 14 で直す commit を乗せ (意味を変えない整形だけ)、build と format の 2 本を CI と同じ手順で通す。
+(2) 新しい tip について D297 検査器 (規則 v2) の判定を C 基点で取り直す (D2275 の pass は C2' `40a7f4ac` に限った結果で、別の tip へ流用しない)。
+(3) 新しい tip を別名の branch として人間が push し (D16、同名への force push はしない)、GitHub の CI (build・format) が緑で、かつ GitHub から当の commit を取得できることを確かめてから、gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` を同時に更新する (先例 D2150 / D2184)。
+(4) patch 54 本の厳密適用を最初に測る (insight §7)。較正は前進 wave で一律に取り直さず、新 pin の値を使う系列の着手時に取る。C を束縛する較正記録の bytes は保持する (D2184)。
+si の trace v2 (`patches/instr-si-trace-v2.patch`、T-2847) は branch へ移さず patch のまま据え置く (D2260 項 4 の諮問への答え)。1 タスクの job 合計が 2 node 時間以上になる投入は見積りを示してユーザー確認を取る (D2212 項 4)。
+C2' 系の D297 pass と TPC-C の certified は、上の (2) の結果が出るまで名乗らない。規律 1・2 は不変。
+
+**実測 (本記録の時点):** GitHub の CCBench の Actions では、izanagi が push した branch は `izanagi-mocc-pin-e9e477ca` (e9e477ca、2026-09-20)・`izanagi-mocc-xp-instrumentation` (C `681066606`、現 pin、2026-09-21)・
+`izanagi-tpcc-v3-trace` (a6f2c7410、2026-09-22) のどれも build は success、format は failure だった。手元の clang-format 14 で C2' の変える 4 file を測ると、違反は C の時点で `cc/mocc/transaction.cc` 26・`cc/silo/transaction.cc` 17・`include/trace.hh` 3・`include/tpcc.hh` 0、
+C2' で 36・23・25・0 だった。ユーザーの「のちにCI落ちしたりしていた」は、この format の失敗を指すと読める (build の失敗は上の 3 branch に無い)。C2' の branch `izanagi-tpcc-v3-silo-mocc` はユーザーが既に push していた (GitHub の ref は `40a7f4acb`)。
+
+**理由:** TPC-C 段 1 の trace 認定 (T-2855 の段 2、T-2866 の探索 loop、T-2851 の TPC-C 側) の前提で、主経路 (TPC-C での CC 自動合成) に直結する。CCBench は上流の研究基盤であり、izanagi の変更も上流の CI を通る品質で作る (ユーザー指示)。
+整形の commit を乗せると tip の bytes が変わるので、改訂後の検査器の判定を新しい tip で取り直すまで pass と呼ばない (D2255 項 4、規律 7 の「測定時点の事実」)。
+
+**却下した選択肢:** C2' `40a7f4ac` をそのまま pin にする — format の CI が赤のままになる。C のまま据え置く — TPC-C の認定が進まない。si の v2 も branch へ移して一度に進める — D297 の判定と波及の確認を重ねる。
+
+### 項 2 — T-2872: MOCC の read-heavy は比較に普通に使い、MOCC の欠陥は直す
+
+対象: T-2872。資料: D2261 項 6、D2272 項 8、insight `output/insights/2026-09-27/t2868-mocc-g2-cause/README.md` §0・§4・§6、`output/insights/2026-09-27/t2849-mocc-conn/README.md` §10。
+
+**決定:** MOCC の read-heavy (48 thread・1,000,000 record・rr95・zipf 0.9) は比較から外さず、他の cell と同じく普通に使う。あわせて MOCC の欠陥を直す。
+t2849 の read-heavy の stock 比・終点選択・certified 終点は、pin C の MOCC 実装の上で得た測定として記録どおり有効に扱い、欠陥の存在だけを理由に無効にしない (規律 7)。論文ではこの cell の stock に同じ形の G2 が観測されたこと (3/109) を事実として書く。
+修理は AI の手番とする — (iii) MOCC 本体の欠陥と (iv) trace hook の記録誤りを切り分け (観測者効果の小さい計器、既往 T-2774 §7・T-2779 §3)、本体の欠陥なら CCBench の MOCC を直す。
+CCBench の変更は Codex author が行い、項 1 と同じく CCBench の CI (build・format) を通す。上流への push・PR・追加報告は人間の判断 (D16・D18・D20)。修理後の版で測り直すかは、修理が pin に入る時点で改めて示す。
+規律 2 は不変である — anomaly を検出した候補は即 reject し、正しさゲートを緩めない。D2261 項 6 の「原因が決まるまで論文の主張に使わない」は、read-heavy の比較の使用については本決定で置き換える。
+
+**理由:** ユーザー発話「PostgreSQLなどでバグがあった時、過去にそれが使われたすべての研究論文の結果は意味のないものになったでしょうか？そうではない。もちろんバグは直す必要があります。」
+基盤の欠陥はその上で得た測定の事実を消さず、欠陥は直すべきものである。原因は未分離なので「MOCC は非直列化可能」とは断定しない (相談 C)。
+
+**却下した選択肢:** (a) read-heavy を比較・主張から外す — 起草推奨・相談 C の同意。ユーザーはこれを採らなかった。(b) 注記だけで残し直さない — 欠陥を放置する。(c) 反復を増やして率を推定してから決める — 決定を変えない費用。
+
+### 項 3 — T-2850: 再提示の条件は維持し、T-2871 → T-2867 → 再提示の順に置く
+
+対象: T-2850 (T-2851 の YCSB 側を含む)。資料: D2272 項 2・4、D2273、D2274 項 4、草稿 `docs/silo-policy-generator-contrast-preregistration.md` §10〜§12。
+
+**決定:** D2272 項 2 の再提示条件 (T-2869 の扱いと T-2867 の見積りが揃う) を維持する。T-2869 は D2273 で揃った。T-2867 の見積りは、方策軸の系列を job をまたいで回す修復 T-2871 (D2274 項 4) → T-2867 の実装と生死確認 (C++ 形・IR 形・機械生成 IR) の後に揃う。
+揃った時点で AI が両者を並べて順番と規模を再提示する。T-2851 の YCSB 側の発効はこれに従って待つ。
+
+**理由:** 前回見送った理由 (S1 空間で言えることが狭い、n = 10 の分類が弱い、LLM の待ちが node 上に残る) は T-2867 と無関係に残っており、今切り離しても同じ材料で同じ問いになる。主経路に近いのは T-2867 である。
+
+**却下した選択肢:** 再提示を T-2867 から切り離して近く出す — 再び見送りになる見込みが高い。
+
+### 項 4 — Git: push は済んだ
+
+**決定:** 本記録の時点で origin/main = local main = `51f896352` で未 push 0 (ユーザーが push した)。CCBench の `izanagi-tpcc-v3-silo-mocc` も GitHub にある (`40a7f4acb`)。
+
+### 項 5 — 収載維持 7 件 (T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708) は変更なし
