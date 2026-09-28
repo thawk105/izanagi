@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from .model import State, Txn, Version, enabled_steps
+from .model import State, Txn, Version, enabled_steps, visible, _hot
 
 NAMES = tuple(f"S{i}" for i in range(1, 11))
 
@@ -27,21 +27,28 @@ def scenario(name):
         state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
                       (_t("T", 45, ("R", "A"), ("R", "B")),
                        _t("W", 70, ("W", "B"))), 1)
-        predicate = lambda b, a, x: x.thread == "T" and x.operation in ("read", "cold_read") and any(
-            t.id == "T" and t.cand_ts > t.start for t in b.txns) and any(
-            v.id == "W:B" for v in b.versions)
+        def predicate(b, a, x):
+            t = next(t for t in b.txns if t.id == "T")
+            return (x.thread == "T" and x.operation in ("forward_check", "forward_commit")
+                    and bool(t.forward_hot) and
+                    not _hot(b, next(v for v in b.versions if v.id == t.forward_hot)))
     elif name == "S3":
         state = State((_v("A", 10), _v("A", 20), _v("A", 55),
                        _v("B", 40), _v("B", 60)),
                       (_t("T", 45, ("R", "B"), ("R", "A")),), 1)
-        predicate = lambda b, a, x: x.operation == "reclaim" and any(
-            t.phase == "f_publish" for t in b.txns)
+        predicate = lambda b, a, x: x.thread == "GC" and x.operation in ("read_floor", "reclaim") and any(
+            t.phase == "f_publish" and t.cand_ts > t.start and t.start == 45
+            and (old := visible(b, "A", t.start)) is not None
+            and old.status == "COMMITTED" and not old.reclaimed for t in b.txns)
     elif name == "S4":
         state = State((_v("A", 10), _v("B", 40), _v("B", 60)),
                       (_t("T", 45, ("R", "B")),
                        _t("W", 43, ("W", "B"))), 2)
         predicate = lambda b, a, x: x.operation.startswith("decide_") and x.thread == "W" and any(
-            v.status == "PENDING" and v.key == "B" and v.wts <= 45 for v in b.versions)
+            t.id == "T" and t.phase == "ops" and t.pc == 0 and
+            (pending := visible(b, "B", t.cand_ts)) is not None and
+            pending.id == "W:B" and pending.status == "PENDING"
+            for t in b.txns)
     elif name == "S5":
         state = State((_v("A", 100), _v("B", 101)),
                       (_t("T", 130, ("R", "A"), ("W", "B")),
@@ -69,7 +76,9 @@ def scenario(name):
                       (_t("T", 70, ("R", "A"), ("W", "B")),
                        _t("W", 50, ("R", "B"), ("W", "A")),
                        _t("P", 40, ("W", "A"))), 1)
-        predicate = lambda b, a, x: x.operation == "write_rts_check" and x.thread == "W"
+        predicate = lambda b, a, x: (x.thread == "W" and x.operation == "write_rts_check"
+                                     and any(v.id == "P:A" and v.status == "PENDING"
+                                             for v in b.versions))
     elif name == "S9":
         state = State((_v("A", 10), _v("B", 11)),
                       (_t("T", 60, ("R", "A"), ("W", "B")),
@@ -89,6 +98,29 @@ def scenario(name):
     else:
         raise KeyError(name)
     return state, predicate
+
+
+def danger_witness(name):
+    """Unsafe outcomes, distinct from the interruption-window witnesses."""
+    if name == "S3":
+        return lambda b, a, x: (x.operation == "reclaim" and x.version == "A20"
+                                and any(t.phase == "f_publish" and t.start == 45
+                                        and (old := visible(b, "A", t.start)) is not None
+                                        and old.id == x.version for t in b.txns))
+    if name == "S8":
+        def danger(b, a, x, trace):
+            if x.thread != "W" or x.operation != "decide_committed":
+                return False
+            if not any(v.id == "P:A" and v.status == "ABORTED" for v in b.versions):
+                return False
+            steps = trace()
+            check = next((i for i, step in enumerate(steps) if step.thread == "W"
+                          and step.operation == "write_rts_check" and step.version == "P:A"), None)
+            abort = next((i for i, step in enumerate(steps) if step.thread == "P"
+                          and step.operation == "decide_aborted"), None)
+            return check is not None and abort is not None and check < abort
+        return danger
+    raise KeyError(name)
 
 
 def handmade_j1(cycle=True):

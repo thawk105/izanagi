@@ -13,7 +13,14 @@ def _rw_successors(versions, key, read_version):
 
 def _needed_future(before, t, v):
     remaining = t.ops[t.pc:]
-    if not any(op == "R" and key == v.key for op, key in remaining):
+    prior_writes = {key for op, key in t.ops[:t.pc] if op == "W"}
+    external_read = False
+    for op, key in remaining:
+        if op == "R" and key == v.key and key not in prior_writes:
+            external_read = True
+        if op == "W":
+            prior_writes.add(key)
+    if not external_read:
         return False
     successors = [x for x in before.versions if x.key == v.key and x.status == "COMMITTED"
                   and x.wts > v.wts and x.wts <= t.cand_ts]

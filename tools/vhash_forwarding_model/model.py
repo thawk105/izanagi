@@ -13,11 +13,12 @@ all transactions are registered initially; using an older floor is conservative.
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
+from inspect import signature
 from time import perf_counter
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Version:
     id: str
     key: str
@@ -28,7 +29,7 @@ class Version:
     reclaimed: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Txn:
     id: str
     start: int
@@ -47,6 +48,7 @@ class Txn:
     pending: tuple[str, ...] = ()
     observed_end: tuple[tuple[str, int], ...] = ()
     observed_rts: tuple[tuple[str, int], ...] = ()
+    forward_hot: str = ""
 
     def __post_init__(self):
         if not self.cand_ts:
@@ -55,12 +57,13 @@ class Txn:
             object.__setattr__(self, "gc_floor", self.start)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class State:
     versions: tuple[Version, ...]
     txns: tuple[Txn, ...]
     k: int = 1
     gc_seen: int | None = None
+    _cached_hash: int = field(init=False, compare=False, repr=False)
 
     def __post_init__(self):
         initial = [v.wts for v in self.versions if v.owner == "initial"]
@@ -68,9 +71,13 @@ class State:
         assert len(initial + starts) == len(set(initial + starts))
         assert all(len(t.ops) <= 3 for t in self.txns)
         assert self.k in (1, 2)
+        object.__setattr__(self, "_cached_hash", hash((self.versions, self.txns, self.k, self.gc_seen)))
+
+    def __hash__(self):
+        return self._cached_hash
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Step:
     thread: str
     operation: str
@@ -107,11 +114,11 @@ def check_timestamp_uniqueness(s: State) -> None:
 
 
 def _put_txn(s: State, t: Txn) -> State:
-    return replace(s, txns=tuple(t if x.id == t.id else x for x in s.txns))
+    return State(s.versions, tuple(t if x.id == t.id else x for x in s.txns), s.k, s.gc_seen)
 
 
 def _put_version(s: State, v: Version) -> State:
-    return replace(s, versions=tuple(v if x.id == v.id else x for x in s.versions))
+    return State(tuple(v if x.id == v.id else x for x in s.versions), s.txns, s.k, s.gc_seen)
 
 
 def _version(s: State, vid: str) -> Version:
@@ -156,14 +163,18 @@ def _next_free(s: State, minimum: int) -> int:
     return minimum
 
 
-def _forward_target(s: State, t: Txn, key: str) -> int:
+def _forward_target(s: State, t: Txn, key: str) -> tuple[int, str, str]:
     h = [v for v in _ordered(s, key)[:s.k] if v.status == "COMMITTED" and v.wts > t.cand_ts]
     if not h:
-        return 0
+        return 0, "", ""
     chosen = min(h, key=lambda v: v.wts)
+    if chosen.reclaimed:
+        return 0, chosen.id, ""
     target = _next_free(s, chosen.wts + 1)
     v = visible(s, key, target)
-    return target if v and v.id == chosen.id else 0
+    if v and v.reclaimed:
+        return 0, v.id, ""
+    return (target if v and v.id == chosen.id else 0), "", chosen.id
 
 
 def _read(s: State, t: Txn, key: str, *, cold: bool = False,
@@ -177,6 +188,8 @@ def _read(s: State, t: Txn, key: str, *, cold: bool = False,
                  read_log=t.read_log + ((key, v.id),),
                  refs=t.refs + (v.id,))
     ordinary = visible(s, key, t.cand_ts)
+    if ordinary and ordinary.reclaimed:
+        return s, Step(t.id, "touch_reclaimed", ordinary.id)
     changed_u5 = "U5" in faults and ordinary is not None and ordinary.id != v.id
     return _put_txn(s, nt), Step(t.id, "cold_read" if cold else "read", v.id,
                                 "U5" if changed_u5 else "")
@@ -202,13 +215,18 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
             return s, Step(t.id, "touch_reclaimed", v.id)
         if _hot(s, v):
             return _read(s, t, key, faults=faults)
-        target = _forward_target(s, t, key) if not t.pending and not t.fixed else 0
+        target, touched, hot = _forward_target(s, t, key) if not t.pending and not t.fixed else (0, "", "")
+        if touched:
+            return s, Step(t.id, "touch_reclaimed", touched)
         if target:
             ends = tuple((vid, _end(s, _version(s, vid))) for _, vid in t.read_log)
-            nt = replace(t, phase="f_rts", target=target, index=0, observed_end=ends)
+            nt = replace(t, phase="f_rts", target=target, index=0, observed_end=ends,
+                         forward_hot=hot)
             if "U3a" in faults:
                 nt = replace(nt, gc_floor=target)
             ordinary = visible(s, key, t.cand_ts)
+            if ordinary and ordinary.reclaimed:
+                return s, Step(t.id, "touch_reclaimed", ordinary.id)
             changed_u5 = "U5" in faults and ordinary is not None and ordinary.id != v.id
             return _put_txn(s, nt), Step(t.id, "forward_candidate", v.id,
                                         "U3a" if "U3a" in faults else "U5" if changed_u5 else "")
@@ -231,7 +249,10 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                 ok = v.wts <= t.target < dict(t.observed_end).get(vid, 10**9)
                 fault = "U6"
             else:
-                ok = visible(s, v.key, t.target).id == vid if visible(s, v.key, t.target) else False
+                selected = visible(s, v.key, t.target)
+                if selected and selected.reclaimed:
+                    return s, Step(t.id, "touch_reclaimed", selected.id)
+                ok = bool(selected and selected.id == vid)
                 fault = "U1f" if "U1f" in faults else ""
             nt = _abort_or_next(t, ok)
             return _put_txn(s, nt), Step(t.id, "forward_check", vid, fault)
@@ -240,9 +261,9 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                                                                                    "U1f" if "U1f" in faults else "")
     if t.phase == "f_commit":
         if t.failed:
-            nt = replace(t, phase="fallback", target=0, failed=False)
+            nt = replace(t, phase="fallback", target=0, failed=False, forward_hot="")
             return _put_txn(s, nt), Step(t.id, "forward_fallback")
-        nt = replace(t, cand_ts=t.target, phase="f_publish",
+        nt = replace(t, cand_ts=t.target, phase="f_publish", forward_hot="",
                      confirmed=t.confirmed + tuple((vid, t.target) for _, vid in t.read_log))
         return _put_txn(s, nt), Step(t.id, "forward_commit")
     if t.phase == "f_publish":
@@ -258,7 +279,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
         key = keys[t.index]
         vid = f"{t.id}:{key}"
         v = Version(vid, key, t.cand_ts, t.cand_ts, "PENDING", t.id)
-        ns = replace(s, versions=s.versions + (v,))
+        ns = State(s.versions + (v,), s.txns, s.k, s.gc_seen)
         nt = replace(t, index=t.index + 1, pending=t.pending + (vid,))
         return _put_txn(ns, nt), Step(t.id, "install", vid)
     if t.phase in ("v_rts", "v_check"):
@@ -277,6 +298,8 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                 ok, fault = True, "U2"
             else:
                 vis = _validation_visible(s, v.key, t.cand_ts, t.id)
+                if vis and vis.reclaimed:
+                    return s, Step(t.id, "touch_reclaimed", vis.id)
                 ok, fault = bool(vis and vis.id == vid and not v.reclaimed), "U1v" if "U1v" in faults else ""
             return _put_txn(s, _abort_or_next(t, ok)), Step(t.id, "validate_read", vid, fault)
         ns = _put_version(s, replace(v, rts=max(v.rts, t.cand_ts)))
@@ -291,6 +314,8 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
         older = [v for v in _ordered(s, key) if v.wts < t.cand_ts]
         checked = []
         for v in older:
+            if v.reclaimed:
+                return s, Step(t.id, "touch_reclaimed", v.id)
             checked.append(v)
             if protocol == "v0" or v.status == "COMMITTED":
                 break
@@ -300,7 +325,8 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                                            "")
     if t.phase == "decision":
         status = "ABORTED" if t.failed else "COMMITTED"
-        ns = replace(s, versions=tuple(replace(v, status=status) if v.id in t.pending else v for v in s.versions))
+        ns = State(tuple(replace(v, status=status) if v.id in t.pending else v for v in s.versions),
+                   s.txns, s.k, s.gc_seen)
         return _put_txn(ns, replace(t, phase="release")), Step(t.id, "decide_" + status.lower())
     if t.phase == "release":
         return _put_txn(s, replace(t, phase="done", refs=())), Step(t.id, "release_refs", fault="U3b" if "U3b" in faults else "")
@@ -311,7 +337,7 @@ def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
     active = [t for t in s.txns if t.phase != "done"]
     b = min((t.gc_floor for t in active), default=max((v.wts for v in s.versions), default=0) + 1)
     if s.gc_seen != b:
-        return [(replace(s, gc_seen=b), Step("GC", "read_floor"))]
+        return [(State(s.versions, s.txns, s.k, b), Step("GC", "read_floor"))]
     out = []
     refs = {vid for t in s.txns for vid in t.refs}
     for v in s.versions:
@@ -342,6 +368,29 @@ def changed_step_in_trace(trace: list[Step], fault: str) -> bool:
     return any(step.fault == fault for step in trace)
 
 
+def fault_changes_forward_check(initial: State, trace: list[Step], fault: str,
+                                o1: bool = False) -> bool:
+    """Compare each faulty forwarding step with the sound check in that state."""
+    assert fault in ("U1f", "U6")
+    state = initial
+    for step in trace:
+        if step.fault == fault and step.operation in ("forward_check", "forward_rts"):
+            t = next(t for t in state.txns if t.id == step.thread)
+            v = _version(state, step.version)
+            selected = visible(state, v.key, t.target)
+            sound_ok = bool(selected and selected.id == v.id and not selected.reclaimed)
+            if step.operation == "forward_rts":
+                faulty_ok = True  # U1f has already checked and now skips the check.
+            else:
+                next_state, _ = txn_step(state, t, "v1", frozenset((fault,)), o1)
+                faulty_ok = not next(x for x in next_state.txns if x.id == t.id).failed
+            if faulty_ok != sound_ok:
+                return True
+        state = next(n for n, x in enabled_steps(
+            state, "v1", frozenset((fault,)), o1) if x == step)
+    return False
+
+
 def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False) -> State:
     s = initial
     for step in trace:
@@ -353,7 +402,7 @@ def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False)
 
 
 def explore(initial: State, protocol="v1", fault="", witness=None, max_states=None,
-            o1=False, max_seconds=None, all_transitions=False):
+            o1=False, max_seconds=None, all_transitions=False, danger=None):
     """Explore every enabled edge, including edges to states already visited.
 
     J1 and J2 depend only on committed transactions and committed versions, so
@@ -364,6 +413,8 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     from .judge import judge
     faults = frozenset((fault,)) if fault else frozenset()
     began = perf_counter()
+    witness_uses_trace = witness is not None and len(signature(witness).parameters) == 4
+    danger_uses_trace = danger is not None and len(signature(danger).parameters) == 4
     queue = deque([initial])
     parent = {initial: None}
     check_timestamp_uniqueness(initial)
@@ -371,6 +422,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     violation_kinds = {"J1": set(), "J2": set(), "J3": set()}
     counterexample = None
     witness_trace = None
+    danger_trace = None
     terminals = deadlocks = 0
     timed_out = False
     def trace(s):
@@ -390,7 +442,8 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             if any(t.phase != "done" for t in s.txns):
                 deadlocks += 1
         for ns, step in steps:
-            check_timestamp_uniqueness(ns)
+            if ns not in parent:
+                check_timestamp_uniqueness(ns)
             relevant = (all_transitions or step.operation.startswith("decide_")
                         or step.operation in ("reclaim", "touch_reclaimed"))
             if not relevant and not witness:
@@ -408,8 +461,16 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                     candidate_trace = candidate_trace or trace(s) + [step]
                     if name in ("J1", "J3") and counterexample is None:
                         counterexample = {"judge": name, "reason": reason, "steps": candidate_trace}
-            if witness and witness(s, ns, step) and witness_trace is None:
-                witness_trace = trace(s) + [step]
+            if witness and witness_trace is None:
+                reached = (witness(s, ns, step, lambda: trace(s) + [step])
+                           if witness_uses_trace else witness(s, ns, step))
+                if reached:
+                    witness_trace = trace(s) + [step]
+            if danger and danger_trace is None:
+                reached = (danger(s, ns, step, lambda: trace(s) + [step])
+                           if danger_uses_trace else danger(s, ns, step))
+                if reached:
+                    danger_trace = trace(s) + [step]
             if ns in parent:
                 continue
             parent[ns] = (s, step)
@@ -422,7 +483,8 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                            "complete": not timed_out and (not bool(max_states) or len(parent) < max_states)},
             "verdicts": verdicts, "counterexample": counterexample,
             "violation_kinds": {k: sorted(v) for k, v in violation_kinds.items()},
-            "witness": {"reached": witness_trace is not None, "steps": witness_trace or []}}
+            "witness": {"reached": witness_trace is not None, "steps": witness_trace or []},
+            "danger": {"reached": danger_trace is not None, "steps": danger_trace or []}}
 
 
 def aborted_after_fault(initial: State, fault: str, o1: bool = False) -> list[Step] | None:

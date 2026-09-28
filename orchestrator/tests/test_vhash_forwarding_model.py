@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from concurrent.futures import ProcessPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,9 +13,11 @@ import vhash_forwarding_model as forwarding  # noqa: E402
 from vhash_forwarding_model import model  # noqa: E402
 from vhash_forwarding_model.judge import j1, j3, judge  # noqa: E402
 from vhash_forwarding_model.model import (Step, explore, replay, changed_step_in_trace,
-                                           enabled_steps, aborted_after_fault)  # noqa: E402
+                                           enabled_steps, aborted_after_fault, txn_step,
+                                           fault_changes_forward_check)  # noqa: E402
 from vhash_forwarding_model.scenarios import (handmade_j1, handmade_j3,
-                                               handmade_future_forward, s8_prefix)  # noqa: E402
+                                               handmade_future_forward, s8_prefix,
+                                               danger_witness)  # noqa: E402
 
 
 def test_j1_handmade_positive_and_negative():
@@ -41,23 +43,28 @@ def test_all_scenario_witnesses_and_v1_bounds():
             prefix, state = s8_prefix()
             assert replay(initial, prefix, "v1") == state
             initial = state
-        result = explore(initial, "v1", witness=witness)
+        result = explore(initial, "v1", witness=witness,
+                         danger=danger_witness(name) if name in ("S3", "S8") else None)
         assert result["statistics"]["complete"], name
         assert result["witness"]["reached"], name
         assert result["verdicts"]["J1"] is None, name
         assert result["verdicts"]["J3"] is None, name
         if name == "S3":
-            assert result["witness"]["steps"][-1].operation == "reclaim"
+            assert result["witness"]["steps"][-1].operation in ("read_floor", "reclaim")
+            assert not result["danger"]["reached"]
+        if name == "S8":
+            assert not result["danger"]["reached"]
 
 
 def test_v0_s8_cycle_and_replay():
     initial, witness = forwarding.scenario("S8")
     prefix, state = s8_prefix()
     assert replay(initial, prefix, "v0") == state
-    result = explore(state, "v0", witness=witness)
+    result = explore(state, "v0", witness=witness, danger=danger_witness("S8"))
     counterexample = result["counterexample"]
     assert result["statistics"]["complete"]
     assert counterexample and counterexample["judge"] == "J1"
+    assert result["danger"]["reached"]
     final = replay(initial, prefix + counterexample["steps"], "v0")
     assert j1(final) == counterexample["reason"]
 
@@ -75,10 +82,13 @@ def test_single_rule_faults_detected_and_replay():
              ("U4", "S7", "J3"))
     for fault, name, expected in cases:
         initial, witness = forwarding.scenario(name)
-        result = explore(initial, "v1", fault, witness)
+        result = explore(initial, "v1", fault, witness,
+                         danger=danger_witness("S3") if name == "S3" else None)
         counterexample = result["counterexample"]
         assert result["statistics"]["complete"], fault
         assert counterexample and counterexample["judge"] == expected, fault
+        if name == "S3":
+            assert result["danger"]["reached"]
         steps = counterexample["steps"]
         assert changed_step_in_trace(steps, fault), fault
         before = replay(initial, steps[:-1], "v1", fault)
@@ -150,6 +160,31 @@ def test_j3_future_forward_version():
     assert j3(before, after, Step("GC", "reclaim", "A30"))["reason"] == "future_read"
 
 
+def test_reclaimed_version_metadata_routes():
+    base, _ = forwarding.scenario("S1")
+    extra = model.Version("A60", "A", 60, 60, reclaimed=True)
+    t = next(t for t in base.txns if t.id == "T")
+    for phase, kwargs, expected in (
+        ("ops", {}, "A60"),
+        ("f_check", {"target": 70, "read_log": (("A", "A10"),)}, "A60"),
+        ("v_check", {"read_log": (("A", "A10"),)}, "A60"),
+        ("w_check", {"index": 0}, "A60"),
+    ):
+        actor = replace(t, phase=phase, ops=(("W", "A"),) if phase == "w_check" else t.ops,
+                        **kwargs)
+        state = replace(base, versions=base.versions + (extra,), txns=(actor, base.txns[1]))
+        after, step = txn_step(state, actor, "v1", frozenset())
+        assert after == state and step == Step("T", "touch_reclaimed", expected)
+        assert j3(state, after, step)["reason"] == "use_after_free"
+    cold, _ = forwarding.scenario("S2")
+    actor = replace(cold.txns[0], ops=(("R", "B"),))
+    versions = tuple(replace(v, reclaimed=True) if v.id == "B60" else v for v in cold.versions)
+    state = replace(cold, versions=versions, txns=(actor, cold.txns[1]))
+    after, step = txn_step(state, actor, "v1", frozenset())
+    assert after == state and step == Step("T", "touch_reclaimed", "B60")
+    assert j3(state, after, step)["reason"] == "use_after_free"
+
+
 def test_fault_then_failed_commit_validation():
     for fault, name in (("U1f", "S6"), ("U5", "S1"), ("U6", "S6")):
         initial, _ = forwarding.scenario(name)
@@ -179,7 +214,7 @@ def test_scenario_witness_order_and_s5_writer_abort():
         elif name == "S2":
             assert operations.index("forward_candidate") < next(
                 i for i, x in enumerate(steps) if x.operation == "install" and x.version == "W:B")
-            assert steps[-1].operation in ("read", "cold_read")
+            assert steps[-1].thread == "T" and steps[-1].operation == "forward_check"
         elif name == "S5":
             assert next(i for i, x in enumerate(steps) if x.thread == "T" and x.operation == "validate_read") < next(
                 i for i, x in enumerate(steps) if x.operation == "install" and x.version == "W:A")
@@ -226,16 +261,15 @@ def test_s10_write_skew_search_results():
     assert len(initial.txns) == 2
     assert all(len(t.ops) <= 3 for t in initial.txns)
     expected = (
-        ("v0", "", False, (False, False, False), 12887),
-        ("v1", "", False, (False, False, False), 12887),
-        ("v1", "", True, (False, False, False), 10589),
-        ("v1", "U1f", False, (False, False, False), 12921),
-        ("v1", "U6", False, (False, False, False), 12263),
-        ("v1", "U1f", True, (True, True, False), 10599),
-        ("v1", "U6", True, (True, True, False), 9941),
+        ("v0", "", False, (False, False, False), 12905),
+        ("v1", "", False, (False, False, False), 12905),
+        ("v1", "", True, (False, False, False), 10607),
+        ("v1", "U1f", False, (False, False, False), 12939),
+        ("v1", "U6", False, (False, False, False), 12281),
+        ("v1", "U1f", True, (True, True, False), 10617),
+        ("v1", "U6", True, (True, True, False), 9959),
     )
-    with ProcessPoolExecutor(max_workers=4) as pool:
-        results = list(pool.map(_s10_search, expected))
+    results = [_s10_search(case) for case in expected]
     for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):
         assert result["statistics"]["complete"]
         assert result["statistics"]["visited"] == visited
@@ -252,3 +286,4 @@ def test_s10_write_skew_search_results():
         assert bool(result["counterexample"]) == bool(o1 and fault)
         if o1 and fault:
             assert result["counterexample"]["judge"] == "J1"
+            assert fault_changes_forward_check(initial, result["counterexample"]["steps"], fault, o1)
