@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from unittest.mock import patch
+from contextlib import nullcontext
 
 from orchestrator.campaign import vhash_cicada_vlife as V
 
@@ -231,6 +233,101 @@ def test_smoke_recomputes_calibration_and_requires_success():
         rejected()
 
 
+def test_delay_compile_selects_unique_ycsb_target():
+    with tempfile.TemporaryDirectory(prefix="cvl-commands-") as td:
+        build = Path(td)
+        source = build / "source"
+        rows = [
+            {"directory": td, "file": str(source / "cc/cicada/transaction.cc"),
+             "arguments": ["c++", "-c", "transaction.cc", "-o", f"{name}.dir/transaction.cc.o"]}
+            for name in ("tpcc_cicada.exe", "ycsb_cicada.exe", "bomb_cicada.exe")
+        ]
+        for row, name in zip(rows, ("tpcc", "ycsb", "bomb")):
+            row["arguments"].insert(1, "-DTARGET=" + name)
+        def write(value):
+            (build / "compile_commands.json").write_text(json.dumps(value))
+        with patch.object(V.subprocess, "run") as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = ""
+            run.return_value.stderr = ""
+            write(rows)
+            result = V._delay_compile(source, build)
+            assert result["rc"] == 0
+            assert "ycsb_cicada.exe.dir/transaction.cc.o" not in result["argv"]
+            assert "-DTARGET=ycsb" in run.call_args.args[0]
+            assert run.call_count == 1
+            run.reset_mock()
+            output_row = {**rows[1], "output": "ycsb_cicada.exe.dir/transaction.cc.o",
+                          "arguments": ["c++", "-DTARGET=ycsb", "-c", "transaction.cc"]}
+            write([rows[0], output_row])
+            assert V._delay_compile(source, build)["rc"] == 0
+            assert "-DTARGET=ycsb" in run.call_args.args[0]
+            run.reset_mock()
+            write([rows[0], rows[2]])
+            for value in (None, [rows[1], {**rows[1], "output": "ycsb_cicada.exe.dir/other.o"}]):
+                if value is not None:
+                    write(value)
+                try:
+                    V._delay_compile(source, build)
+                except RuntimeError:
+                    pass
+                else:
+                    raise AssertionError("non-unique ycsb command accepted")
+            assert run.call_count == 0
+
+
+def test_smoke_delay_failure_preserves_other_stages_and_rejects_measure():
+    with tempfile.TemporaryDirectory(prefix="cvl-failed-smoke-") as td:
+        root = Path(td)
+        out = root / "smoke.json"
+        binaries = {name: root / name for name in ("stock", "default", "enabled")}
+        def build(_source, location, _toolchain, _dependencies, _macros):
+            name = location.name.removesuffix("-build")
+            return binaries[name], {"sha256": name}
+        calibration = {"l3_bytes": 1000000,
+                       "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
+                                  for n, rss in ((1000000, 1000), (2000000, 5000),
+                                                 (4000000, 8000))},
+                       "selected_records": 2000000}
+        with (patch.object(V.site_policy, "current_site", return_value="compute"),
+              patch.object(V.site_policy, "refuses_heavy_work", return_value=False),
+              patch.object(V, "_assert_single_tenant"),
+              patch.object(V.compute, "_load_policy", return_value={}),
+              patch.object(V.compute, "_resolve_toolchain", return_value={}),
+              patch.object(V.compute, "_prepare_dependencies", return_value={}),
+              patch.object(V, "checkout", return_value=nullcontext(str(root))),
+              patch.object(V, "applied", return_value=nullcontext()),
+              patch.object(V, "_build_variant", side_effect=build),
+              patch.object(V, "_delay_compile", side_effect=RuntimeError("delay broke")),
+              patch.object(V, "_normalized_disassembly", return_value="text"),
+              patch.object(V, "_normalized_rodata", return_value="rodata"),
+              patch.object(V, "_absence", return_value={"nm": True, "strings": True}),
+              patch.object(V, "_calibrate", return_value=calibration),
+              patch.object(V, "_run", return_value={"rc": 0, "parsed": _payload()})):
+            assert V.main(["smoke", "--third-party-cache", td, "--policy", str(root),
+                           "--out", str(out)]) == 1
+        raw = json.loads(out.read_text())
+        assert "delay broke" in raw["delay_compile"]["error"]
+        assert raw["delay_compile"]["stderr_tail"] == ""
+        assert set(raw["builds"]) == {"stock", "default", "enabled"}
+        assert raw["witness"]["normalized_objdump_equal"]
+        assert raw["calibration"]["selected_records"] == 2000000
+        assert raw["short_run"]["rc"] == 0
+        assert "error" in raw
+        try:
+            V._smoke_records(out)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("failed smoke accepted by measure")
+        measure = root / "measure.json"
+        with (patch.object(V.site_policy, "current_site", return_value="compute"),
+              patch.object(V.site_policy, "refuses_heavy_work", return_value=False)):
+            assert V.main(["measure", "--third-party-cache", td,
+                           "--smoke-json", str(out), "--out", str(measure)]) == 1
+        assert "failed smoke JSON" in json.loads(measure.read_text())["error"]
+
+
 def test_patch_default_preprocess_matches_stock():
     stock = ROOT / "external/ccbench"
     patch = ROOT / "patches/instr-cicada-version-lifetime.patch"
@@ -252,7 +349,9 @@ def _run():
              test_real_patch_define_registry_and_rejection,
              test_patch_default_preprocess_matches_stock,
              test_smoke_identity_binds_records,
-             test_smoke_recomputes_calibration_and_requires_success)
+             test_smoke_recomputes_calibration_and_requires_success,
+             test_delay_compile_selects_unique_ycsb_target,
+             test_smoke_delay_failure_preserves_other_stages_and_rejects_measure)
     failed = 0
     for test in tests:
         try:

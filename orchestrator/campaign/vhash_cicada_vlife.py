@@ -191,7 +191,9 @@ def _checked(argv: list[str], *, cwd: Path | None = None, timeout: int = 900) ->
     result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
                             timeout=timeout, check=False)
     if result.returncode:
-        raise RuntimeError(f"command failed rc={result.returncode}: {argv}: {result.stderr[-2000:]}")
+        error = RuntimeError(f"command failed rc={result.returncode}: {argv}: {result.stderr[-2000:]}")
+        error.stderr = result.stderr
+        raise error
     return result
 
 
@@ -311,6 +313,8 @@ def _smoke_records(path: Path) -> int:
     raw = json.loads(path.read_text())
     if not isinstance(raw, dict) or raw.get("command") != "smoke" or raw.get("schema_version") != 1:
         raise ValueError("smoke JSON required")
+    if "error" in raw:
+        raise ValueError("failed smoke JSON")
     if raw.get("ccbench_commit") != PIN or raw.get("patch_sha256") != hashlib.sha256(PATCH.read_bytes()).hexdigest():
         raise ValueError("smoke build identity mismatch")
     witness = raw.get("witness")
@@ -357,8 +361,16 @@ def _absence(binary: Path) -> dict:
 
 def _delay_compile(source: Path, build: Path) -> dict:
     commands = json.loads((build / "compile_commands.json").read_text())
+    def target_output(row: dict) -> bool:
+        args = row.get("arguments") or shlex.split(row["command"])
+        outputs = [row.get("output", "")]
+        outputs += [args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "-o"]
+        outputs += [arg[2:] for arg in args if arg.startswith("-o") and arg != "-o"]
+        return any("ycsb_cicada" in str(output) for output in outputs)
+
     rows = [row for row in commands
-            if str(row["file"]).endswith("/cc/cicada/transaction.cc")]
+            if str(row["file"]).endswith("/cc/cicada/transaction.cc")
+            and target_output(row)]
     if len(rows) != 1:
         raise RuntimeError("Cicada transaction compile command not unique")
     row = rows[0]
@@ -424,39 +436,108 @@ def _calibrate(stock_binary: Path, scratch: Path) -> dict:
     return result
 
 
-def _smoke(scratch: Path, toolchain: dict, dependencies: dict) -> dict:
-    builds = {}
+def _stage_error(exc: Exception) -> dict:
+    stderr = getattr(exc, "stderr", "")
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode("utf-8", errors="replace")
+    return {"error": type(exc).__name__ + ": " + str(exc),
+            "stderr_tail": (stderr or "")[-2000:]}
+
+
+def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
+           result: dict | None = None) -> dict:
+    result = {} if result is None else result
+    builds = result.setdefault("builds", {})
     binaries = {}
+
+    def stage(key: str, action, *, container: dict = result, valid=None):
+        try:
+            value = action()
+            if valid is not None and not valid(value):
+                container[key] = {**value, **_stage_error(
+                    RuntimeError(f"{key} did not succeed"))}
+                container[key]["stderr_tail"] = str(value.get("stderr", ""))[-2000:]
+                return None
+            container[key] = value
+            return value
+        except Exception as exc:
+            container[key] = _stage_error(exc)
+            return None
+
+    def build(name: str, macros: tuple[str, ...]):
+        value = stage(name, lambda: _build_variant(
+            source, scratch / f"{name}-build", toolchain, dependencies, macros),
+            container=builds)
+        if value is not None:
+            binaries[name], builds[name] = value
+
+    def skipped(key: str, reason: str):
+        result[key] = {"error": "DependencyError: " + reason, "stderr_tail": ""}
+
     with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as path:
         source = Path(path)
-        binaries["stock"], builds["stock"] = _build_variant(
-            source, scratch / "stock-build", toolchain, dependencies, ())
-        delay = _delay_compile(source, scratch / "stock-build")
-        with applied(str(PATCH), PIN, str(source)):
-            binaries["default"], builds["default"] = _build_variant(
-                source, scratch / "default-build", toolchain, dependencies, ())
-            binaries["enabled"], builds["enabled"] = _build_variant(
-                source, scratch / "enabled-build", toolchain, dependencies, MACROS)
-    stock_text = _normalized_disassembly(binaries["stock"])
-    default_text = _normalized_disassembly(binaries["default"])
-    stock_rodata = _normalized_rodata(binaries["stock"])
-    default_rodata = _normalized_rodata(binaries["default"])
-    witness = {
-        "normalized_objdump_equal": stock_text == default_text,
-        "stock_objdump_sha256": hashlib.sha256(stock_text.encode()).hexdigest(),
-        "default_objdump_sha256": hashlib.sha256(default_text.encode()).hexdigest(),
-        "normalized_rodata_equal": stock_rodata == default_rodata,
-        "stock_rodata_sha256": hashlib.sha256(stock_rodata.encode()).hexdigest(),
-        "default_rodata_sha256": hashlib.sha256(default_rodata.encode()).hexdigest(),
-        "stock_absence": _absence(binaries["stock"]),
-        "default_absence": _absence(binaries["default"]),
-    }
-    calibration = _calibrate(binaries["stock"], scratch)
-    flags = _flags("A-none-gc10", calibration["selected_records"], locks.CLK)
-    flags["extime"] = 1
-    short = _run(binaries["enabled"], flags, cwd=scratch)
-    return {"builds": builds, "witness": witness, "delay_compile": delay,
-            "calibration": calibration, "short_run": short}
+        build("stock", ())
+        if "stock" in binaries:
+            stage("delay_compile", lambda: _delay_compile(source, scratch / "stock-build"),
+                  valid=lambda value: value["rc"] == 0)
+        else:
+            skipped("delay_compile", "stock build failed")
+        try:
+            with applied(str(PATCH), PIN, str(source)):
+                build("default", ())
+                build("enabled", MACROS)
+        except Exception as exc:
+            for name in ("default", "enabled"):
+                builds.setdefault(name, _stage_error(exc))
+
+    def witness():
+        stock_text = _normalized_disassembly(binaries["stock"])
+        default_text = _normalized_disassembly(binaries["default"])
+        stock_rodata = _normalized_rodata(binaries["stock"])
+        default_rodata = _normalized_rodata(binaries["default"])
+        return {
+            "normalized_objdump_equal": stock_text == default_text,
+            "stock_objdump_sha256": hashlib.sha256(stock_text.encode()).hexdigest(),
+            "default_objdump_sha256": hashlib.sha256(default_text.encode()).hexdigest(),
+            "normalized_rodata_equal": stock_rodata == default_rodata,
+            "stock_rodata_sha256": hashlib.sha256(stock_rodata.encode()).hexdigest(),
+            "default_rodata_sha256": hashlib.sha256(default_rodata.encode()).hexdigest(),
+            "stock_absence": _absence(binaries["stock"]),
+            "default_absence": _absence(binaries["default"]),
+        }
+
+    if "stock" in binaries and "default" in binaries:
+        stage("witness", witness, valid=lambda value:
+              value["normalized_objdump_equal"] and value["normalized_rodata_equal"]
+              and all(value["stock_absence"].values())
+              and all(value["default_absence"].values()))
+    else:
+        skipped("witness", "stock or default build failed")
+    if "stock" in binaries:
+        stage("calibration", lambda: _calibrate(binaries["stock"], scratch),
+              valid=lambda value: all(
+                  probe["rc"] == 0 and probe["maxrss_kb"] is not None
+                  for probe in value["probes"].values()))
+    else:
+        skipped("calibration", "stock build failed")
+    if "enabled" in binaries and "error" not in result["calibration"]:
+        def short_run():
+            flags = _flags("A-none-gc10", result["calibration"]["selected_records"], locks.CLK)
+            flags["extime"] = 1
+            return _run(binaries["enabled"], flags, cwd=scratch)
+        stage("short_run", short_run,
+              valid=lambda value: value["rc"] == 0 and value["parsed"] is not None)
+    else:
+        skipped("short_run", "enabled build or calibration failed")
+    return result
+
+
+def _smoke_success(body: dict) -> bool:
+    return (all(name in body.get("builds", {}) and
+                "error" not in body["builds"][name]
+                for name in ("stock", "default", "enabled"))
+            and all(key in body and "error" not in body[key]
+                    for key in ("delay_compile", "witness", "calibration", "short_run")))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -469,63 +550,63 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--smoke-json", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
-    ids = select_conditions(args.conditions)
     if args.command == "measure" and args.smoke_json is None:
         parser.error("measure requires --smoke-json")
-    records = _smoke_records(args.smoke_json) if args.command == "measure" else None
     if args.out.exists():
         raise FileExistsError(args.out)
-    site = site_policy.current_site(require_evidence=True)
-    if site_policy.refuses_heavy_work(site):
-        print(site_policy.heavy_work_refusal(site, "Cicada lifetime diagnostics"), file=sys.stderr)
-        return 2
-    _assert_single_tenant()
-    policy = compute._load_policy(args.policy.resolve(strict=True))
-    toolchain = compute._resolve_toolchain(policy)
-    with tempfile.TemporaryDirectory(prefix="cicada-vlife-") as td:
-        scratch = Path(td)
-        dependencies = compute._prepare_dependencies(
-            ROOT, policy, args.third_party_cache.resolve(strict=True), scratch, toolchain)
-        if args.command == "smoke":
-            result_body = _smoke(scratch, toolchain, dependencies)
-        else:
-            with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as stock_path:
-                # Stock build prepares Masstree artifacts used by the enabled build.
-                _, dependency_stock_build = _build_variant(
-                    Path(stock_path), scratch / "dependency-stock-build",
-                    toolchain, dependencies, ())
-            with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as path:
-                source = Path(path)
-                with applied(str(PATCH), PIN, str(source)):
-                    binary, build = _build_variant(source, scratch/"build", toolchain,
-                                                   dependencies, MACROS)
-                    runs = {id_: [
-                        _run(binary, _flags(id_, records, locks.CLK), cwd=scratch)
-                        for _ in range(3)
-                    ] for id_ in ids}
-            result_body = {"dependency_stock_build": dependency_stock_build,
-                           "build": build, "runs": runs,
-                           "conditions": {id_: CONDITIONS[id_] for id_ in ids},
-                           "records": records}
     result = {"schema_version": 1, "command": args.command,
               "ccbench_commit": PIN, "patch_sha256": hashlib.sha256(PATCH.read_bytes()).hexdigest(),
-              "site": site, "toolchain": toolchain, **result_body,
               "throughput_interpretation": "diagnostic, not performance"}
+    try:
+        site = site_policy.current_site(require_evidence=True)
+        result["site"] = site
+        if site_policy.refuses_heavy_work(site):
+            print(site_policy.heavy_work_refusal(site, "Cicada lifetime diagnostics"), file=sys.stderr)
+            return 2
+        ids = select_conditions(args.conditions)
+        records = _smoke_records(args.smoke_json) if args.command == "measure" else None
+        _assert_single_tenant()
+        policy = compute._load_policy(args.policy.resolve(strict=True))
+        toolchain = compute._resolve_toolchain(policy)
+        result["toolchain"] = toolchain
+        with tempfile.TemporaryDirectory(prefix="cicada-vlife-") as td:
+            scratch = Path(td)
+            dependencies = compute._prepare_dependencies(
+                ROOT, policy, args.third_party_cache.resolve(strict=True), scratch, toolchain)
+            if args.command == "smoke":
+                _smoke(scratch, toolchain, dependencies, result)
+            else:
+                with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as stock_path:
+                    # Stock build prepares Masstree artifacts used by the enabled build.
+                    _, dependency_stock_build = _build_variant(
+                        Path(stock_path), scratch / "dependency-stock-build",
+                        toolchain, dependencies, ())
+                with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as path:
+                    source = Path(path)
+                    with applied(str(PATCH), PIN, str(source)):
+                        binary, build = _build_variant(source, scratch/"build", toolchain,
+                                                       dependencies, MACROS)
+                        runs = {id_: [
+                            _run(binary, _flags(id_, records, locks.CLK), cwd=scratch)
+                            for _ in range(3)
+                        ] for id_ in ids}
+                result.update({"dependency_stock_build": dependency_stock_build,
+                               "build": build, "runs": runs,
+                               "conditions": {id_: CONDITIONS[id_] for id_ in ids},
+                               "records": records})
+    except Exception as exc:
+        result.update(_stage_error(exc))
+    if args.command == "smoke" and "error" not in result and not _smoke_success(result):
+        result["error"] = "RuntimeError: smoke stage failed"
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("x", encoding="utf-8") as handle:
         handle.write(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
     if args.command == "smoke":
-        good = (result_body["witness"]["normalized_objdump_equal"]
-                and result_body["witness"]["normalized_rodata_equal"]
-                and all(result_body["witness"]["stock_absence"].values())
-                and all(result_body["witness"]["default_absence"].values())
-                and all(probe["rc"] == 0 and probe["maxrss_kb"] is not None
-                        for probe in result_body["calibration"]["probes"].values())
-                and result_body["short_run"]["rc"] == 0
-                and result_body["short_run"]["parsed"] is not None)
+        good = "error" not in result and _smoke_success(result)
     else:
-        good = all(run["rc"] == 0 and run["parsed"] is not None
-                   for reps in result_body["runs"].values() for run in reps)
+        good = "error" not in result and all(
+            run["rc"] == 0 and run["parsed"] is not None
+            for reps in result["runs"].values() for run in reps)
     return 0 if good else 1
 
 
