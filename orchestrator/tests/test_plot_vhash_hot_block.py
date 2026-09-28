@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import copy
@@ -172,6 +173,33 @@ def test_checksum_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cel
 def test_paranoid_string_rejected(tmp_path): reject(tmp_path, lambda d: d["env"].update(perf_event_paranoid="0"), "perf_event_paranoid")
 def test_perf_ops_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["perf"].update(ops=801), "perf.ops mismatch")
 def test_ns_per_op_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0]["reps"][0].update(ns_per_op=999), "ns_per_op mismatch")
+def test_bench_round_trip_ns_per_op_accepted(tmp_path):
+    compiler = shutil.which("g++-12")
+    assert compiler, "g++-12 required for producer format check"
+    source = tmp_path / "print_cell.cc"
+    source.write_text(
+        '#define main benchmark_main\n'
+        f'#include "{REPO / "tools/vhash_microbench/hot_block_bench.cc"}"\n'
+        '#undef main\n'
+        'int main() {\n'
+        '  std::vector<ArmData> arms{{"contig_scalar", 32, {{100000001, 42, 0}}}};\n'
+        '  print_cell(1000000, 42, 1, 0, arms);\n'
+        '}\n', encoding="utf-8")
+    binary = tmp_path / "print_cell"
+    build = subprocess.run([compiler, *(
+        "-O3 -DNDEBUG -std=c++20 -Wall -Wextra -Werror -fno-tree-vectorize "
+        "-mavx2 -mbmi -mbmi2 -mpopcnt").split(), str(source), "-o", str(binary)],
+        capture_output=True, text=True)
+    assert build.returncode == 0, build.stderr
+    run = subprocess.run([str(binary)], capture_output=True, text=True)
+    assert run.returncode == 0, run.stderr
+    rep = json.loads(run.stdout)["arms"][0]["reps"][0]
+    cell = fixture_document()[0]["cells"][0]
+    cell["ops"] = 1000000
+    for arm in cell["arms"]:
+        arm["perf"]["ops"] = cell["ops"]
+        arm["reps"] = [dict(rep, rep=index) for index in range(8)]
+    plot_module().validate_cell(cell)
 def test_footprint_product_mismatch_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0]["arms"][0].update(footprint_bytes=1), "footprint mismatch")
 def test_shared_value_pool_type_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0].update(shared_value_pool_bytes=-1), "shared_value_pool_bytes")
 def test_shared_value_pool_bool_rejected(tmp_path): reject(tmp_path, lambda d: d["cells"][0].update(shared_value_pool_bytes=True), "shared_value_pool_bytes")

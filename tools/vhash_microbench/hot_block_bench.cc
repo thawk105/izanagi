@@ -8,6 +8,7 @@
 #include <cstring>
 #include <deque>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -663,6 +664,7 @@ struct ArmData {
 };
 static void print_cell(uint64_t ops,uint64_t expected,size_t nkeys,size_t shared_value_pool_bytes,
                        const std::vector<ArmData>& measured) {
+  std::cout << std::setprecision(17);
   std::cout << "{\"ops\":" << ops << ",\"expected_checksum\":" << expected
             << ",\"shared_value_pool_bytes\":" << shared_value_pool_bytes << ",\"arms\":[";
   for (size_t a=0;a<measured.size();++a) {
