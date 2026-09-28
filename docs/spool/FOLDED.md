@@ -5544,3 +5544,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:vhash-related-work-open":"[T-2873]"},"authored":"2026-09-29","base":"539556aa126fca308fff08f72297a0b869fda119","content_sha256":"74c4d85165d77f68f674ebcf31f0d1ba831e1071054e6fc522124c5ba5b568aa","seq":1,"tested_tip":"419560ca1b4237d1b41ec20db5cbde278028565c","wave":"dev-wave-vhash-related-work","wave_ref":"refs/heads/worktree-dev-wave-vhash-related-work"}
 - {"allocations":{"F:dblp-bot-challenge-http200":"F1057"},"authored":"2026-09-29","base":"539556aa126fca308fff08f72297a0b869fda119","content_sha256":"62891b1cf38c571b42fff48b304e2ad39eb5773bb6119e951e68bb767cc7ffd4","seq":2,"tested_tip":"419560ca1b4237d1b41ec20db5cbde278028565c","wave":"dev-wave-vhash-related-work","wave_ref":"refs/heads/worktree-dev-wave-vhash-related-work"}
+
+- {"allocations":{},"authored":"2026-09-29","base":"f6772df03adeaf6a96f4381a650a1a081b61a60f","content_sha256":"6736b735ca0b2de4769ca314299b259a5dba07043156561134798298e7b65617","seq":1,"tested_tip":"92bf3da51439740bc4b41443c9e275e13b3df398","wave":"dev-wave-t2853-r2-fig8b","wave_ref":"refs/heads/dev-wave-t2853-r2-fig8b"}
