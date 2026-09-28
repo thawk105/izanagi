@@ -220,7 +220,9 @@ def parse_counter_lines(stdout: str, kind: str) -> tuple[dict | None, dict]:
             raise ValueError("counter threads missing")
         for thread in value["threads"]:
             if not isinstance(thread, dict) or thread.keys() != fields or any(
-                    type(v) is not int or v < 0 for v in thread.values()):
+                    (type(v) is not bool if key == "long" else
+                     type(v) is not int or v < 0)
+                    for key, v in thread.items()):
                 raise ValueError("counter thread schema invalid")
     return values[0], values[1]
 
@@ -383,6 +385,15 @@ def aggregate_jobs(jobs: list[dict]) -> dict:
             conditions = job.get("conditions", {})
         elif conditions != job.get("conditions", {}):
             raise ValueError("inconsistent job conditions")
+        workloads = ({job["workload"]} if job.get("workload") else
+                     {record["workload"] for record in job["records"]})
+        if not workloads:
+            raise ValueError(f"run job {job.get('job_id')} has no records")
+        expected = {tuple(spec[name] for name in ("workload", "gc_inter_us", "k",
+                    "policy", "build_kind", "rep"))
+                    for workload in workloads
+                    for spec in plan_runs("run", workload, job.get("k_sweep", False))}
+        actual = set()
         for record in job["records"]:
             if not record.get("valid"):
                 raise ValueError("all_pass job contains invalid record")
@@ -391,9 +402,16 @@ def aggregate_jobs(jobs: list[dict]) -> dict:
             if key in seen:
                 raise ValueError(f"duplicate record: {key}")
             seen.add(key)
+            actual.add(key)
             records.append({**record, "job_id": job["job_id"],
                             "hostname": job["hostname"],
                             "skew": record.get("skew", job["conditions"]["zipf"])})
+        missing = expected - actual
+        if missing:
+            raise ValueError(f"run job {job.get('job_id')} missing planned cell: {sorted(missing)[0]}")
+        extra = actual - expected
+        if extra:
+            raise ValueError(f"run job {job.get('job_id')} has unplanned cell: {sorted(extra)[0]}")
     return aggregate({"conditions": conditions or {}, "records": records})
 
 
@@ -441,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
     job = {"schema_version": "vhash-forwarding-job/v1", "git_head": None,
            "ccbench_pin": pin.CURRENT_PIN, "patch_sha256": sha_file(PATCH),
            "verification_status": "未検証の診断値", "command": args.command,
+           "workload": args.workload, "k_sweep": args.k_sweep,
            "hostname": socket.gethostname(), "started": started, "ended": None,
            "job_id": socket.gethostname() + "-" + started,
            "conditions": {"threads": 48, "tuples": 1000000, "zipf": 0.9,

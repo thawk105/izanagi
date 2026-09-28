@@ -114,7 +114,7 @@ def _fwd_thread(**changes):
 
 
 def test_counter_schema_rejects_missing_extra_and_non_integer():
-    long = {"threads": [{"thid": 1, "long": 1, "commits": 2, "aborts": 0}]}
+    long = {"threads": [{"thid": 1, "long": False, "commits": 2, "aborts": 0}]}
     for bad in ({key: val for key, val in _fwd_thread(attempts=1).items() if key != "success"},
                 {**_fwd_thread(), "surplus": 0}, _fwd_thread(attempts=True),
                 _fwd_thread(attempts=-1)):
@@ -126,6 +126,26 @@ def test_counter_schema_rejects_missing_extra_and_non_integer():
     with pytest.raises(ValueError, match="counter thread schema invalid"):
         driver.parse_counter_lines("CICADA_FWD_V1 {\"threads\": []}\nCICADA_LONGTX_V1 " +
                                    json.dumps(long), "count")
+
+
+def test_counter_schema_matches_patch_boolean_long():
+    # The patch streams is_long as JSON true/false, and counts as integers.
+    for value in (False, True):
+        line = ('CICADA_FWD_V1 ' + json.dumps({"threads": [_fwd_thread()]}) + '\n' +
+                'CICADA_LONGTX_V1 ' + json.dumps({"schema": 1, "threads": [
+                    {"thid": 1, "long": value, "commits": 3, "aborts": 0}]}) + '\n')
+        assert driver.parse_counter_lines(line, "count")[1]["threads"][0]["long"] is value
+    for bad in ({"long": 0}, {"commits": True}, {"aborts": -1},
+                {"commits": "3"}, {"extra": 0}):
+        row = {"thid": 1, "long": False, "commits": 3, "aborts": 0, **bad}
+        line = ('CICADA_FWD_V1 {"threads": []}\nCICADA_LONGTX_V1 ' +
+                json.dumps({"threads": [row]}))
+        with pytest.raises(ValueError, match="counter thread schema invalid"):
+            driver.parse_counter_lines(line, "count")
+    row = {"thid": 1, "long": False, "commits": 3}
+    with pytest.raises(ValueError, match="counter thread schema invalid"):
+        driver.parse_counter_lines('CICADA_FWD_V1 {"threads": []}\nCICADA_LONGTX_V1 ' +
+                                   json.dumps({"threads": [row]}), "count")
 
 
 def test_smoke_requires_c_attempts_and_f_aborts_not_success():
@@ -150,25 +170,29 @@ def test_inert_normalization_ignores_markers_and_blank_lines(monkeypatch):
 
 
 def test_aggregate_jobs_excludes_smoke_and_rejects_duplicate_rep():
-    def record(rep, policy="c", kind="count"):
-        return {"valid": True, "workload": "many_ops", "gc_inter_us": 100, "k": 3,
-                "policy": policy, "build_kind": kind, "rep": rep,
-                "perf_eligible": False, "throughput": 10,
-                "fwd_counters": {"threads": [_fwd_thread(thid=47, attempts=5, success=2,
-                                                         no_target=1, f_aborts=3)]},
+    def record(spec):
+        special = spec["gc_inter_us"] == 100 and spec["policy"] == "c" and \
+                  spec["build_kind"] == "count" and spec["k"] == 3
+        return {**spec, "valid": True, "perf_eligible": spec["build_kind"] != "count",
+                "throughput": 10, "longtx_counters": {"threads": []},
+                "fwd_counters": {"threads": [_fwd_thread(thid=47,
+                    attempts=5 if special else 0, success=2 if special else 0,
+                    no_target=1 if special else 0, f_aborts=3 if special else 0)]},
                 "thread_num": 48, "long_threads": 4}
     def job(command, records, job_id="one"):
         return {"command": command, "all_pass": True, "job_id": job_id,
-                "hostname": "node", "conditions": {"zipf": .9}, "records": records}
-    smoke = job("smoke", [record(0)], "smoke")
-    run = job("run", [record(0)], "run")
+                "hostname": "node", "conditions": {"zipf": .9}, "records": records,
+                "workload": "many_ops", "k_sweep": False}
+    records = [record(spec) for spec in driver.plan_runs("run", "many_ops")]
+    smoke = job("smoke", records, "smoke")
+    run = job("run", records, "run")
     cell = driver.aggregate_jobs([smoke, run])["cells"]["many_ops/gc=100/k=3"]
     assert cell["c_summary"]["attempts"] == 5
     assert cell["thread_summary"]["c"]["long"]["attempts"] == 5
     assert cell["thread_summary"]["c"]["normal"]["attempts"] == 0
     assert cell["input_jobs"] == [{"job_id": "run", "hostname": "node", "skew": .9}]
     with pytest.raises(ValueError, match="duplicate record"):
-        driver.aggregate_jobs([run, job("run", [record(0)], "other")])
+        driver.aggregate_jobs([run, job("run", records, "other")])
 
 
 def test_long_completion_zero_denominator_is_missing():
@@ -180,7 +204,51 @@ def test_aggregate_cli_requires_explicit_raw_but_no_cache(tmp_path):
     with pytest.raises(SystemExit, match="2"):
         driver.main(["aggregate", "--output", str(tmp_path)])
     raw = tmp_path / "run.json"
-    raw.write_text(json.dumps({"command": "run", "all_pass": True, "job_id": "j",
+    raw.write_text(json.dumps({"command": "smoke", "all_pass": True, "job_id": "j",
                                "hostname": "n", "conditions": {"zipf": .9}, "records": []}))
     assert driver.main(["aggregate", "--raw", str(raw), "--output", str(tmp_path)]) == 0
     assert json.loads((tmp_path / "aggregate.json").read_text())["cells"] == {}
+
+
+def _complete_job(workload, *, k_sweep=False):
+    records = []
+    for spec in driver.plan_runs("run", workload, k_sweep):
+        records.append({**spec, "valid": True, "perf_eligible": spec["build_kind"] != "count",
+                        "throughput": 10, "thread_num": 48,
+                        "long_threads": 0 if workload == "normal" else 4,
+                        "longtx_counters": {"threads": [
+                            {"thid": 47, "long": workload != "normal", "commits": 3, "aborts": 0}]},
+                        "fwd_counters": {"threads": [_fwd_thread()]}})
+    return {"command": "run", "all_pass": True, "job_id": workload,
+            "hostname": "node", "conditions": {"zipf": .9}, "workload": workload,
+            "k_sweep": k_sweep, "records": records}
+
+
+def test_aggregate_requires_every_planned_cell():
+    jobs = [_complete_job(w) for w in driver.WORKLOADS]
+    cells = driver.aggregate_jobs(jobs)["cells"]
+    assert len(cells) == 9
+    for job in jobs:
+        for gc in driver.GC_VALUES:
+            assert len(cells[f'{job["workload"]}/gc={gc}/k=3']["throughput"]["stock"]) == 3
+    missing = _complete_job("normal")
+    missing["records"] = [r for r in missing["records"] if not (
+        r["gc_inter_us"] == 100 and r["policy"] == "f" and
+        r["build_kind"] == "fwd" and r["rep"] == 2)]
+    with pytest.raises(ValueError, match=r"missing planned cell: .*'normal', 100, 3, 'f', 'fwd', 2"):
+        driver.aggregate_jobs([missing])
+    empty = _complete_job("normal")
+    empty["records"] = []
+    with pytest.raises(ValueError, match="has no records"):
+        driver.aggregate_jobs([empty])
+    smoke = _complete_job("normal")
+    smoke["command"] = "smoke"
+    assert driver.aggregate_jobs([smoke])["cells"] == {}
+
+
+def test_aggregate_k_sweep_requires_extra_cells():
+    job = _complete_job("many_ops", k_sweep=True)
+    assert len(driver.aggregate_jobs([job])["cells"]) == 5
+    job["records"] = [r for r in job["records"] if r["k"] != 8]
+    with pytest.raises(ValueError, match=r"missing planned cell: .*100, 8"):
+        driver.aggregate_jobs([job])
