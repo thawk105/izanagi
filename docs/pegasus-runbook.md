@@ -621,6 +621,11 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   `Pegasus dispatch setup failure: ValueError: walltime は HH:MM:SS 形式で指定してください` と
   rc=16 (`kind=infra`, `reason=setup-failure`, `child_started=false`) になる。秒数は受理しない
   (2026-09-14 [T-1643] 実測)。
+  **全体時間上限は「投入時刻 + walltime + `--overall-grace` (既定 300 秒)」で、RUN を観測するまでは
+  待ち行列の時間も含む。** 混雑時は `--queue-wait-timeout` より先にこの上限に達し、dispatcher が
+  qdel して `overall-timeout` (rc=16、子は一度も走らない) で終わる (2026-09-29 request 33801.nqsv が
+  walltime 30 分 + 300 秒の 35 分 QUE のまま空振り)。待ち行列を待たせたいときは `--overall-grace` を
+  `--queue-wait-timeout` 以上にする。
 - **`mutation` task の射程 (D842)。** 変異 wrapper 1 呼び出しを計算ノードの 1 job へ束ねる。
   **既存の `--runner-mode dispatch` 経路を置き換えるものではなく、並存する。**
   束ねた job の内側は local 実行になるため、**変異対象が runner 実行経路
