@@ -31,6 +31,11 @@ title: VHash と timestamp forwarding の論文ストーリー系列を新設し
   `git archive ... HEAD` の 30 秒 timeout (`subprocess.TimeoutExpired`) で落ちた。本 branch の差分は docs と spool fragment だけで
   この経路に触れない。同じ tip で 3 件だけを計算ノードへ投げた単独再走 (request 33958.nqsv) は `3 passed in 11.11s`。
   混雑時の共有 FS による一過性で、本 branch に帰属しないと判定した。
+- 同じく 07:31 JST の受入 (tip 58c6906aa、main da4068e0e) で `orchestrator/tests/test_t810_coordinator.py` の 3 件
+  (`test_prepare_group_accepts_external_root_with_anchor_union`・`test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir`・
+  `test_prepare_group_rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で落ちた。
+  本 branch は worktree 登録の経路に触れない。3 件だけの計算ノード単独再走は `3 passed in 5.27s`。受入中の並行 session による
+  worktree 登録の変化と読み、本 branch に帰属しないと判定した。
 
 ## 次の一手差分
 
