@@ -34,6 +34,8 @@ PREFIX = "IZANAGI_CICADA_VLIFE_JSON "
 K = (1, 2, 3, 4, 8)
 SITES = ("read_update", "read_ronly", "blind_write", "rmw_latest",
          "precheck", "install", "readcheck", "writecheck")
+POSITION_ORIGIN = ["latest"] * 6 + ["scan_start"] * 2
+TIME_BOUNDS = [1 << i for i in range(41)] + [18446744073709551615]
 MACROS = ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX")
 CONDITIONS = {
     f"{w}-{l}-gc{gc}": dict(
@@ -90,7 +92,8 @@ def parse_vlife_line(stdout: str) -> dict:
         return result
     payload = json.loads(lines[0], object_pairs_hook=unique_pairs)
     if not isinstance(payload, dict) or set(payload) != {
-        "schema_version", "clocks_per_us", "bucket_bounds", "sites", "build", "workers",
+        "schema_version", "clocks_per_us", "bucket_bounds", "time_bucket_bounds",
+        "position_origin", "sites", "build", "workers",
     }:
         raise ValueError("schema fields")
     if _nonnegative(payload["schema_version"]) != 1:
@@ -104,6 +107,10 @@ def parse_vlife_line(stdout: str) -> dict:
         raise ValueError("bucket bounds")
     if payload["sites"] != list(SITES):
         raise ValueError("site names")
+    if _vector(payload["time_bucket_bounds"], 42) != TIME_BOUNDS:
+        raise ValueError("time bucket bounds")
+    if payload["position_origin"] != POSITION_ORIGIN:
+        raise ValueError("position origin")
     build = payload["build"]
     if not isinstance(build, dict) or set(build) != {
         "reuse_version", "inline_version_opt", "longtx",
@@ -114,11 +121,12 @@ def parse_vlife_line(stdout: str) -> dict:
     workers = payload["workers"]
     if not isinstance(workers, list) or not workers:
         raise ValueError("workers")
-    scalars = {"readonly_attempt", "readonly_commit", "read_zero",
+    scalars = {"readonly_attempt", "readonly_commit",
                "install", "detach", "gc_negative"}
     vectors = {"no_scan": 8, "deep": 5, "candidate": 5, "readonly_deep": 5,
-               "gc_boundary_us": 18, "gc_publish_us": 18,
-               "age_create_us": 18, "age_overwrite_us": 18,
+               "deep_read_zero": 5, "candidate_read_zero": 5,
+               "gc_boundary_us": 42, "gc_publish_us": 42,
+               "age_create_us": 42, "age_overwrite_us": 42,
                "attempts": 2, "commits": 2, "aborts": 2,
                "operations": 2, "cycles": 2}
     for worker in workers:
@@ -137,6 +145,12 @@ def parse_vlife_line(stdout: str) -> dict:
             _vector(worker[field], n)
         if any(a > b for a, b in zip(worker["candidate"], worker["deep"])):
             raise ValueError("candidate exceeds deep")
+        if any(a > b for a, b in zip(worker["deep_read_zero"], worker["deep"])):
+            raise ValueError("zero-read exceeds deep")
+        if any(a > b or a > c for a, b, c in zip(
+            worker["candidate_read_zero"], worker["candidate"], worker["deep_read_zero"]
+        )):
+            raise ValueError("zero-read candidate exceeds denominator")
         if any(x > sum(worker["hops"][0]) for x in worker["deep"]):
             raise ValueError("deep exceeds update reads")
         if any(x > sum(worker["hops"][1]) for x in worker["readonly_deep"]):
@@ -155,8 +169,11 @@ def summarize(payload: dict) -> dict:
     deep = [sum(w["deep"][i] for w in workers) for i in range(5)]
     candidate = [sum(w["candidate"][i] for w in workers) for i in range(5)]
     readonly = [sum(w["readonly_deep"][i] for w in workers) for i in range(5)]
+    zero = [sum(w["deep_read_zero"][i] for w in workers) for i in range(5)]
+    candidate_zero = [sum(w["candidate_read_zero"][i] for w in workers) for i in range(5)]
     return {
         "deep": deep, "candidate": candidate, "readonly_deep": readonly,
+        "deep_read_zero": zero, "candidate_read_zero": candidate_zero,
         "candidate_rate": [candidate[i]/deep[i] if deep[i] else None for i in range(5)],
         "logical_version_delta": sum(w["install"]-w["detach"] for w in workers),
         "readonly_attempts": sum(w["readonly_attempt"] for w in workers),
@@ -283,6 +300,24 @@ def _normalized_disassembly(binary: Path) -> str:
     return output
 
 
+def _normalized_rodata(binary: Path) -> str:
+    output = _checked(["objdump", "-s", "-j", ".rodata", str(binary)]).stdout
+    output = re.sub(r"(?m)^.*: +file format .*$", "", output)
+    return re.sub(r"(?m)^ *[0-9a-f]+ +", "ADDR ", output)
+
+
+def _smoke_records(path: Path) -> int:
+    raw = json.loads(path.read_text())
+    if not isinstance(raw, dict) or raw.get("command") != "smoke" or raw.get("schema_version") != 1:
+        raise ValueError("smoke JSON required")
+    if raw.get("ccbench_commit") != PIN or raw.get("patch_sha256") != hashlib.sha256(PATCH.read_bytes()).hexdigest():
+        raise ValueError("smoke build identity mismatch")
+    records = raw.get("calibration", {}).get("selected_records")
+    if type(records) is not int or records not in (1000000, 2000000, 4000000):
+        raise ValueError("invalid calibrated records")
+    return records
+
+
 def _absence(binary: Path) -> dict:
     outputs = {tool: _checked([tool, "-C", str(binary)] if tool == "nm"
                               else [tool, "-a", str(binary)]).stdout
@@ -327,6 +362,7 @@ def _calibrate(stock_binary: Path, scratch: Path) -> dict:
                if row.get("field", "").strip(":") == "L3 cache"), None)
     result = {"lscpu_json": cpu, "l3": l3, "probes": {}}
     for records in (1000000, 2000000, 4000000):
+        _assert_single_tenant()
         flags = _flags("A-none-gc10", records, locks.CLK)
         flags.update(rratio=100, ycsb_rratio=100, extime=1)
         argv = ["/usr/bin/time", "-f", "IZANAGI_MAXRSS_KB %M",
@@ -374,10 +410,15 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict) -> dict:
                 source, scratch / "enabled-build", toolchain, dependencies, MACROS)
     stock_text = _normalized_disassembly(binaries["stock"])
     default_text = _normalized_disassembly(binaries["default"])
+    stock_rodata = _normalized_rodata(binaries["stock"])
+    default_rodata = _normalized_rodata(binaries["default"])
     witness = {
         "normalized_objdump_equal": stock_text == default_text,
         "stock_objdump_sha256": hashlib.sha256(stock_text.encode()).hexdigest(),
         "default_objdump_sha256": hashlib.sha256(default_text.encode()).hexdigest(),
+        "normalized_rodata_equal": stock_rodata == default_rodata,
+        "stock_rodata_sha256": hashlib.sha256(stock_rodata.encode()).hexdigest(),
+        "default_rodata_sha256": hashlib.sha256(default_rodata.encode()).hexdigest(),
         "stock_absence": _absence(binaries["stock"]),
         "default_absence": _absence(binaries["default"]),
     }
@@ -396,12 +437,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--policy", type=Path,
                         default=ROOT / "tools/pegasus/mocc_trace_v1_policy.json")
     parser.add_argument("--conditions", default="A-none-gc10")
-    parser.add_argument("--records", type=int)
+    parser.add_argument("--smoke-json", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     ids = select_conditions(args.conditions)
-    if args.command == "measure" and (args.records is None or args.records <= 0):
-        parser.error("measure requires positive --records")
+    if args.command == "measure" and args.smoke_json is None:
+        parser.error("measure requires --smoke-json")
+    records = _smoke_records(args.smoke_json) if args.command == "measure" else None
     if args.out.exists():
         raise FileExistsError(args.out)
     site = site_policy.current_site(require_evidence=True)
@@ -419,6 +461,7 @@ def main(argv: list[str] | None = None) -> int:
             result_body = _smoke(scratch, toolchain, dependencies)
         else:
             with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as stock_path:
+                # Stock build prepares Masstree artifacts used by the enabled build.
                 _, dependency_stock_build = _build_variant(
                     Path(stock_path), scratch / "dependency-stock-build",
                     toolchain, dependencies, ())
@@ -428,13 +471,13 @@ def main(argv: list[str] | None = None) -> int:
                     binary, build = _build_variant(source, scratch/"build", toolchain,
                                                    dependencies, MACROS)
                     runs = {id_: [
-                        _run(binary, _flags(id_, args.records, locks.CLK), cwd=scratch)
+                        _run(binary, _flags(id_, records, locks.CLK), cwd=scratch)
                         for _ in range(3)
                     ] for id_ in ids}
             result_body = {"dependency_stock_build": dependency_stock_build,
                            "build": build, "runs": runs,
                            "conditions": {id_: CONDITIONS[id_] for id_ in ids},
-                           "records": args.records}
+                           "records": records}
     result = {"schema_version": 1, "command": args.command,
               "ccbench_commit": PIN, "patch_sha256": hashlib.sha256(PATCH.read_bytes()).hexdigest(),
               "site": site, "toolchain": toolchain, **result_body,
@@ -444,6 +487,7 @@ def main(argv: list[str] | None = None) -> int:
         handle.write(json.dumps(result, indent=2, ensure_ascii=False) + "\n")
     if args.command == "smoke":
         good = (result_body["witness"]["normalized_objdump_equal"]
+                and result_body["witness"]["normalized_rodata_equal"]
                 and all(result_body["witness"]["stock_absence"].values())
                 and all(result_body["witness"]["default_absence"].values())
                 and all(probe["rc"] == 0 and probe["maxrss_kb"] is not None

@@ -38,6 +38,24 @@ def _hist(run, field, site=None):
     return np.sum([w[field][site] for w in workers], axis=0)
 
 
+def _bucket_quantile(hist, bounds, q):
+    count = int(np.sum(hist))
+    if not count:
+        return 0.0
+    return float(bounds[np.searchsorted(np.cumsum(hist), q * count, side="left")])
+
+
+def _condition_caption(raw):
+    rows = raw["conditions"].values()
+    workloads = sorted({(x["ycsb_rratio"], x["ycsb_zipf_skew"]) for x in rows})
+    longtx = sorted({cid.split("-")[1] for cid in raw["conditions"]})
+    gc = sorted({x["gc_inter_us"] for x in rows})
+    return (f"YCSB 10 ops, payload 4 B; read ratio/skew {workloads}; "
+            f"long tx {longtx}; gc_inter_us {gc}; N={raw['records']:,}; "
+            f"3 s, {len(next(iter(raw['runs'].values())))} repetitions; "
+            "read positions start at latest; validation positions start at scan start")
+
+
 def _validate(raw):
     if raw.get("schema_version") != 1 or raw.get("command") != "measure":
         raise ValueError("measure raw JSON required")
@@ -82,7 +100,8 @@ def _layout(fig):
 
 
 def _save(fig, out, stem, provenance):
-    fig.tight_layout(pad=2)
+    fig.text(0.01, 0.01, provenance["condition_caption"], fontsize=8, wrap=True)
+    fig.tight_layout(rect=(0, 0.06, 1, 1), pad=2)
     _layout(fig)
     for extension in (".png", ".pdf"):
         fig.savefig(out / (stem + extension), dpi=180)
@@ -101,6 +120,7 @@ def render(raw_path: Path, out: Path):
         "input_sha256": hashlib.sha256(raw_bytes).hexdigest(),
         "records": raw["records"], "conditions": raw["conditions"],
         "n_reps": 3, "throughput_interpretation": "diagnostic, not performance",
+        "condition_caption": _condition_caption(raw),
         "replicate_summaries": {
             cid: [V.summarize(run["parsed"]) for run in runs]
             for cid, runs in raw["runs"].items()
@@ -108,18 +128,20 @@ def render(raw_path: Path, out: Path):
     }
     conditions = sorted(raw["runs"])
     # Figure 1: representative read, write, and validation sites.
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    for ax, site in zip(axes.flat, (0, 1, 2, 6)):
+    fig, axes = plt.subplots(3, 2, figsize=(14, 13))
+    for ax, (field, site) in zip(axes.flat,
+                                 (("hops", 0), ("hops", 1), ("hops", 2),
+                                  ("hops", 6), ("position", 0), ("position", 1))):
         for cid in conditions:
             shares = []
             for run in raw["runs"][cid]:
-                h = _hist(run, "hops", site)
+                h = _hist(run, field, site)
                 shares.append(h / h.sum() if h.sum() else np.zeros_like(h, dtype=float))
             means, errors = zip(*(_ci([row[i] for row in shares]) for i in range(18)))
             ax.errorbar(range(18), means, yerr=errors, label=cid,
                         alpha=0.7, linewidth=1)
-        ax.set(xlabel="Hop bucket (0–8 exact; final overflow)",
-               ylabel="Site search share", title=V.SITES[site])
+        ax.set(xlabel=f"{field} bucket (0–8 exact; final overflow)",
+               ylabel="Site share", title=f"{V.SITES[site]} {field}")
     axes[0, 0].legend(fontsize=5, ncol=4)
     _save(fig, out, "search_length", provenance)
 
@@ -142,34 +164,37 @@ def render(raw_path: Path, out: Path):
     axes[0].legend(fontsize=6, ncol=4)
     _save(fig, out, "k_candidates", provenance)
 
-    # Figure 3: GC boundary age (timestamp space), real publish interval, logical lives.
-    fig, axes = plt.subplots(3, 1, figsize=(11, 10), sharex=True)
-    metrics = (
-        lambda r: float(np.dot(_hist(r, "gc_boundary_us"), np.arange(18)) /
-                        max(1, _hist(r, "gc_boundary_us").sum())),
-        lambda r: float(np.dot(_hist(r, "gc_publish_us"), np.arange(18)) /
-                        max(1, _hist(r, "gc_publish_us").sum())),
-        lambda r: float(raw["records"] + sum(w["install"]-w["detach"]
-                                            for w in r["parsed"]["workers"])),
-    )
+    # Figure 3: time bucket upper bounds and connected logical versions.
+    fig, axes = plt.subplots(5, 1, figsize=(11, 16), sharex=True)
+    metrics = ("gc_boundary_us", "gc_publish_us", "age_create_us",
+               "age_overwrite_us", "logical_versions")
     groups = {}
     for cid in conditions:
         prefix, gc = cid.rsplit("-gc", 1)
         groups.setdefault(prefix, []).append((int(gc), cid))
-    for ax, metric, ylabel in zip(
-        axes, metrics,
-        ("Boundary age bucket, ts space", "Publish interval bucket, rdtscp",
-         "Connected logical versions"),
-    ):
+    for ax, metric, ylabel in zip(axes, metrics,
+        ("Boundary age (ts space), µs", "Publish interval (rdtscp), µs",
+         "Reclaim age from creation (ts space), µs",
+         "Reclaim age from overwrite (ts space), µs",
+         "Connected logical versions")):
         for group, rows in sorted(groups.items()):
             rows.sort()
-            values, errors = zip(*(_ci([metric(r) for r in raw["runs"][cid]])
-                                   for _, cid in rows))
-            ax.errorbar([gc for gc, _ in rows], values, yerr=errors,
-                        marker="o", label=group)
+            quantiles = (None,) if metric == "logical_versions" else (0.5, 0.9)
+            for quantile in quantiles:
+                def value(run):
+                    if quantile is None:
+                        return float(raw["records"] + sum(
+                            w["install"]-w["detach"] for w in run["parsed"]["workers"]))
+                    return _bucket_quantile(_hist(run, metric), V.TIME_BOUNDS, quantile)
+                values, errors = zip(*(_ci([value(r) for r in raw["runs"][cid]])
+                                       for _, cid in rows))
+                ax.errorbar([gc for gc, _ in rows], values, yerr=errors,
+                            marker="o", label=f"{group} p{int(quantile*100)}" if quantile else group)
         ax.set_ylabel(ylabel)
+        if metric != "logical_versions":
+            ax.set_yscale("symlog", linthresh=1)
     axes[0].set_title("Cicada GC and logical version lifetime")
-    axes[0].legend(fontsize=7, ncol=4)
+    axes[0].legend(fontsize=6, ncol=4)
     axes[-1].set_xscale("log")
     axes[-1].set_xticks((10, 1000, 100000), ("10", "1,000", "100,000"))
     axes[-1].set_xlabel("gc_inter_us")
@@ -191,6 +216,8 @@ def selftest():
             p["workers"][0]["install"] = rep
             p["workers"][0]["gc_boundary_us"][rep] = 1
             p["workers"][0]["gc_publish_us"][rep] = 1
+            p["workers"][0]["age_create_us"][rep] = 1
+            p["workers"][0]["age_overwrite_us"][rep] = 1
             line = V.PREFIX + json.dumps(p)
             rows.append({"rc": 0, "stdout": line, "vlife_json_line": line, "parsed": p})
         runs[cid] = rows
