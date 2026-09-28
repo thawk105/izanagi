@@ -3,7 +3,7 @@
 - 着手: 2026-09-29 (dev-wave `dev-wave-vhash-forwarding-model`、背景 job、ユーザー就寝中)
 - 依頼: `/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_4.txt` (並行 VHash wave の md_4)
 - 実装: `tools/vhash_forwarding_model/` (model・judge・scenarios・cli) と `orchestrator/tests/test_vhash_forwarding_model.py`。実装 commit は本 README と同じ branch の「VHash forwarding 小モデル」3 commit (最後が fix5〜7 統合、その後に CLI の fix8)
-- 出典メモ: `docs/paper-story-vhash/source-memo-2026-09-29.md` (構想の記録であり一次資料ではない)。本資料の「メモ §N」はこの file の節番号。本 wave の着手時点と記録時点では同 directory が local main に未着地で、同じ中身の複製 `/work/1/SFC/tanab/tmp/vhash-2026-09-29/docs-snapshot/` を読んだ
+- 出典メモ: `docs/paper-story-vhash/source-memo-2026-09-29.md` (構想の記録であり一次資料ではない)。本資料の「メモ §N」はこの file の節番号。本 wave の着手時点では同 directory が local main に未着地で、同じ中身の複製 `/work/1/SFC/tanab/tmp/vhash-2026-09-29/docs-snapshot/` を読んだ (land 前の main 取り込みで着地を確認)
 
 ## 0. 一目でわかる結論
 

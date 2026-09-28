@@ -4,12 +4,12 @@ ledger: worklog
 authored: 2026-09-29
 wave: dev-wave-vhash-forwarding-model
 seq: 1
-title: VHash の選択的 forwarding を小さいモデルで書き、10 場面の割り込みを全探索した。v0 (出典メモ §4 の Cicada 前提を模した書き込み検査) は 3 txn で閉路反例を出し、規則 R9' を足した v1 と v1+O1 (確認済み区間で commit 時検証を省く) は固定場面の範囲で反例なし (コード + test + insight、branch worktree-dev-wave-vhash-forwarding-model)
+title: [T-2877] VHash の選択的 forwarding を小さいモデルで書き、10 場面の割り込みを全探索した。v0 (出典メモ §4 の Cicada 前提を模した書き込み検査) は 3 txn で閉路反例を出し、規則 R9' を足した v1 と v1+O1 (確認済み区間で commit 時検証を省く) は固定場面の範囲で反例なし (コード + test + insight、branch worktree-dev-wave-vhash-forwarding-model)
 ---
 
 ## 本文
 
-- 依頼: 並行 VHash wave の md_4 (`/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_4.txt`、出典メモ §29 段階 2)。ユーザー就寝中のため、判断は codex の相談・レビューで決めた (マネージャーの連絡 2026-09-29 03:22)。対象 item (「選択的 forwarding のプロトコルを小さいモデルで書き」) は wave 開始時点・land 準備時点の local main に無く、完了・更新の行を書けない。
+- 依頼: 並行 VHash wave の md_4 (`/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_4.txt`、出典メモ §29 段階 2)。ユーザー就寝中のため、判断は codex の相談・レビューで決めた (マネージャーの連絡 2026-09-29 03:22)。対象 item [T-2877] は wave 開始時点の local main に無く、受入全走 2 回目の後の main 前進 merge で現れたので、完了として閉じた (記録の変更に伴い受入を取り直した)。
 - 正本: `output/insights/2026-09-29/vhash-forwarding-model/README.md` (仕様、場面、63 構成の結果表、反例の最短列、規則と反例の対応表、範囲と確かめていないこと、変異検査)。設計判断は {{D:vhash-forwarding-model-spec}}。
 - 素材: v0 の直前版だけの rts 検査は PENDING 版に遮られて閉路反例を出し、R9' で消える (一次資料 §7.1)。出典メモ §13.1・§13.3・§14.1・§15.2・§15.3 の各点は 1 規則だけを崩した危ない版の反例で裏付けた (同 §0・§7.3)。
 - 段 3 相談 2 本 (レンズ: 正しさ境界 / 実効性・過剰): 所見はすべて real・採用。最重要は v0 の PENDING 越しの検査漏れの予想 (探索で確認) と、GC 判定の恒偽化の指摘。親の予想「最終検証があれば v0 に serializability の反例は出ない」は撤回した。
@@ -21,6 +21,12 @@ title: VHash の選択的 forwarding を小さいモデルで書き、10 場面�
 - エージェント工数: Codex plan 1・consult 2・author 1・fix 9 巡・review 3 (段 6 の 2 本 + 段 7 の docs 1 本)・focus 2 (いずれも gpt-6-sol / medium)。子の worktree `.claude/worktrees/vhash-fwd-author` (branch vhash-fwd-author, vhash-fwd-fix1〜9)。計算ノード: 焦点走 1 本 (queue 待ち 900 秒で未実走)、変異の dispatch 本走 13 request (11 変異すべて事前登録どおり、一次資料 §8・§11)。本走は 13 request を直列に queue するので混雑時に約 1.5 時間かかった。runner 経路を含まない変異なら D842 の束ね経路 (`--task mutation`) で 1 job にできた。
 
 ## 次の一手差分
+
+### 完了
+
+- [T-2877] 選択的 forwarding のプロトコル (仕様 v0 / v1 と選択肢 O1) を小さいモデルで書き、reader・writer・forwarding・GC の割り込みを 10 場面の固定初期状態から全探索して、serializability (依存グラフの閉路) と GC 安全を判定した。v0 の反例から規則 R9' を足し、規則と反例の対応表を一次資料に残した (`output/insights/2026-09-29/vhash-forwarding-model/README.md`)。範囲外 (lock-free 性、弱いメモリ、途中入場、read-only 経路、不在キー等) は未主張と明記した。
+  remaining: none
+  base: be51a6c2d813ca8ddcb1f5d45d5eb47d83a065ac0dc21b78193f44402ac1165c
 
 ### 新規
 
