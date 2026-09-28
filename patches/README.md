@@ -13,6 +13,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
 | Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
+| Cicada 計装 (`instr-cicada-trace.patch`、Cicada の `#if TRACE` trace v2) と broken-cicada 3 本 | verifier 入力 (C / R / W / E) と、その positive control | **out-of-tree patch** (計装は試作・実走用で、`izanagi-trace` 枝への移送と pin 前進は人間判断。壊しは永久) |
 | broken-mocc (わざと壊した mocc。[T-2294] の 3 本と後続の hot-update-unlock・skip-canonical-restore) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 | 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 (現行契約は entry 数 1 固定) |
 
@@ -841,6 +842,33 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
 - **駆動の正本 = `orchestrator/campaign/vhash_cicada_vlife.py`** (sub-command `smoke` / `measure`、materializer は NON_ADMISSIBLE、
   2 macro は condition gate の supply・meaning を通す)。measure は smoke JSON の witness と較正 (N の選定) を再計算して束縛する。
   作図 `tools/plotting/plot_vhash_cicada_vlife.py` (複数 raw を併合、図 3 枚)。
+
+---
+
+## instr-cicada-trace.patch / broken-cicada-{skip-read-recheck,no-rts-update,stale-read-ro}.patch — Cicada の trace と正例 (VHash 論文の前提 G0、2026-09-29)
+
+pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 の本来の置き場 (`izanagi-trace` 枝) への移送と pin 前進は
+人間の判断なので、gitlink を動かさずに**試作・実走用の out-of-tree patch** として置く (si の [T-2847] と同じ根拠。D16 の T-109 例外は流用しない、D579)。
+`patches/ledger.json` には登録しない (entries 1 件固定)。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| instr-cicada-trace | なし (無条件の計装) | `cc/cicada/` の `#if TRACE` 内だけ。書く txn は `cpv()` 後・set clear 前、read-only txn は `commit()` の早期 return 前に trace v2 (C / R / W / E) を出す。版 = wts の上下 32 bit (`hi = wts>>32`、`lo = wts & 0xffffffff`)、初期版 (`initial_wts`) は genesis `(1,0)`。R の版は `ReadElement` に読んだ時点で保存した wts (commit 時の値との食い違い件数を `CICADA_TRACE_READ_WTS_MISMATCH n=` で出す)。`ycsb_cicada.cc` の main で `initial_wts` を渡し、TRACE build は `CICADA_TRACE_INITIAL_WTS=` を出す (未設定で emit に達したら異常終了)。`INLINE_VERSION_OPT` かつ `INLINE_VERSION_PROMOTION` の組合せは TRACE=1 で `#error` (D1464 の区別は未実装)。`#else` 側の `#line` で TRACE=0 の行番号を保つ |
+| broken-cicada-skip-read-recheck | なし | validation の read set 再検査で、読んだ版が今の可視版と違っても abort しない |
+| broken-cicada-no-rts-update | なし | `readTimestampUpdateInValidation()` の呼出しを外す |
+| broken-cicada-stale-read-ro | なし | read-only txn の可視版選択で、txn 内の偶数番目の読みに限り可視版の 1 つ古い committed 版を選ぶ |
+
+- **重ね方:** 壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
+  instr が `cc/cicada/` の 4 file)。壊しは裸マクロを持たない無条件 patch なので、既定で重ならず、正例の build にだけ当てる。
+  新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない (条件 gate の定義一覧・裸マクロ登録の照合を変えない)。
+- **発火診断 (壊しだけ):** 事象を commit した txn の分だけ stderr の `CICADA_BREAK_EVENT slug= tx_wts= key= a_wts= b_wts=` に全件出し、
+  終了時に `CICADA_BREAK_FIRED slug= reached= changed= committed=` を出す。verifier の判定には使わず、repo 外起動器の帰属解析だけに使う。
+- **Cicada の判定の上限:** X / P / I の証拠面が無いので、巡回があれば non-serializable、無ければ indeterminate で、certified にはならない。
+- **実証:** stock (instr のみ) は YCSB の K・W・R cell の 7 走行で巡回 0・integrity 数値項目 0・C 行 = commit 数。壊し 3 本は全部
+  non-serializable で、判定器の代表 witness 20 件中 20 件が壊した経路に帰属した。TRACE=0 は YCSB target の 3 TU で命令列が pin と一致
+  (tpcc / bomb / sbomb の TU は未比較)。未対応 = scan の phantom・insert / delete・版昇格・`group_commit>0`・YCSB 以外。
+  駆動は repo 外の起動器 (si の起動器を雛形に target `ycsb_cicada.exe`・`--protocol cicada`)。記録は `output/insights/2026-09-29/vhash-cicada-verifier/`。
+- **pin 前進時:** 4 本とも pin C に対して作った。pin を進めたら厳密適用と生死確認を取り直す。
 
 ---
 

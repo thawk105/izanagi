@@ -420,6 +420,10 @@ def _tmp_trace_files(files: dict[str, str]) -> str:
 
 
 _V2_FIXTURE_FILES = (
+    "cicada_g1_genesis_readonly/trace_0.log",
+    "cicada_g1_genesis_readonly/trace_1.log",
+    "cicada_g2_write_skew/trace_0.log",
+    "cicada_g2_write_skew/trace_1.log",
     "g1_serial/trace_0.log",
     "g2_rmw_chain/trace_0.log",
     "g3_readonly/trace_0.log",
@@ -2108,6 +2112,65 @@ def test_epoch_rw_successor_order_g2():
     ]
 
 
+def test_cicada_g1_genesis_readonly_versions():
+    trace_dir = os.path.join(FIX, "cicada_g1_genesis_readonly")
+    res = verify_trace_dir(
+        trace_dir, protocol="cicada", ccbench_root=REAL_CCBENCH_ROOT,
+    )
+    assert res.serializable and res.total_cycles == 0 and not res.anomalies
+    assert (res.n_txns, res.n_reads, res.n_writes) == (6, 6, 3)
+    for name in (
+        "orphan_reads", "version_dups", "dup_txids", "genesis_commits",
+        "missing_txids", "write_version_mismatch", "malformed_keys",
+        "framing_violations", "lock_coverage_violations",
+        "write_intent_violations", "permutation_violations",
+        "existence_violations",
+    ):
+        assert getattr(res.integrity, name) == 0, name
+    assert res.integrity.proof_surfaces.as_record() == {
+        "protocol": "cicada", "X": "unavailable", "P": "unavailable",
+        "I": "unavailable",
+    }
+    assert res.verdict == "indeterminate" and not res.certified
+
+    txns, _issues = parse_trace_dir(trace_dir)
+    by_txid = {txn.txid: txn for txn in txns}
+    key = "0000000000000001"
+    assert by_txid[1].writes == []
+    assert by_txid[1].reads[0].ver == (1, 0)
+    assert by_txid[4].reads[0].ver == (1, 4294967295)
+    assert by_txid[5].reads[0].ver == (2, 0)
+    from orchestrator.verifier.parse import _parse_trace_dir_compact
+    dsg = DSG.from_compact(_parse_trace_dir_compact(trace_dir))
+    assert dsg.versions[key] == [
+        (1, 2147483648), (1, 4294967295), (2, 0),
+    ]
+
+
+def test_cicada_g2_write_skew_versions_and_reasons():
+    res = verify_trace_dir(
+        os.path.join(FIX, "cicada_g2_write_skew"),
+        protocol="cicada", ccbench_root=REAL_CCBENCH_ROOT,
+    )
+    assert not res.serializable and res.verdict == "non-serializable"
+    assert res.total_cycles >= 1 and not res.certified
+    assert res.integrity.orphan_reads == 0
+    assert res.integrity.version_dups == 0
+    assert res.integrity.framing_violations == 0
+    g2 = [a for a in res.anomalies if a.phenomenon == "G2"]
+    assert g2
+    reasons = {
+        (edge.src, edge.dst, reason.etype, reason.key,
+         reason.u_ver, reason.v_ver)
+        for anomaly in g2 for edge in anomaly.edges for reason in edge.reasons
+        if reason.etype == RW
+    }
+    assert reasons == {
+        (0, 1, RW, "0000000000000001", (1, 0), (2, 0)),
+        (1, 0, RW, "0000000000000002", (1, 0), (1, 2147483648)),
+    }
+
+
 def test_real_silo_edge_type_combinations_are_exact():
     txns, _issues = parse_trace_dir(REAL_SILO_FIXTURE)
     dsg = DSG(txns)
@@ -2909,6 +2972,11 @@ def _capacity_compare_tuple_graph(compact):
 def test_capacity_all_fixture_results_match_frozen_baseline():
     # Frozen by the parent using 947fd160a, never regenerated from this builder.
     frozen = {
+        # Cicada entries computed with the 51f896352 verifier (production unchanged).
+        'cicada_g1_genesis_readonly':
+            '3561f40bc3d87782c41c2e4235952a6e27e9a069175712f81a91dab02d786ec9',
+        'cicada_g2_write_skew':
+            '2fbfe1f9c36624357bb50fb8b0bf6c22eb43c725e274676e6f36b0cc72adaf65',
         'g1_serial':
             '6ad7f8866e63185f8f9ee59a7f6fa3d181ba89a48804a46dbe461ab61787847a',
         'g2_rmw_chain':

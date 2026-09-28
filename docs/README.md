@@ -97,6 +97,10 @@
   非 LLM (random・進化、型付き IR 上) を同じ評価数で比べる対照の事前登録 ([T-2867]、D2259 の後継)。**草稿で未発効**。4 arm × n = 12・
   write-heavy、族 A (同じ IR) と族 B (空間拡張) の分離、共通の初期点、1 評価 1 job と 429 の保留 (D2258 の継承と変更点)、
   既存機構の流用可否、node 時間と LLM 直列時間の見積り、規模の択一の正本。**実装・試走・本走・計算投入の認可ではない**
+- `workload-description-critic-intervention-preregistration.md` — VLDB 差分分析 P5 ([T-2852]) の事前登録。LLM (K0) に見せる
+  workload 記述 (正・伏せ・rh への入替) × critic の有無を S1-wh で比べる。**草稿で未発効**。表示の 3 経路と残る露出、失敗理由の写しを
+  両水準に渡して規律 3 を保つ critic なしの定義、周辺対比 3 つの族、出力の人手分類 (受理・拒否・原文なしの 3 母集団)、試走 v2 の単価による
+  見積りと規模の択一、発効前の予備の観察の開示、未解決事項 (D2272 項 2 の 3 理由) の正本。**実装・本走・計算投入の認可ではない**
 - `b10-multinode-formal-run-design.md` — B-10 正式系列を複数ノードへ分散する設計 ([T-1905])。
   分散単位 4 案の判定、律速が正しさ検査であることと多重化が正しさ受領証の発行境界に当たる事実、
   投入前の必須修正、ユーザー裁定へ返す項目。**投入の承認ではない**
@@ -135,6 +139,8 @@
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `paper-story-backoff/` — adaptive backoff 単独論文 (2 本目) のストーリー。`paper-story/` と同じ凍結契約、
   正典は decisions / worklog / insights。本体論文との境界は同 README
+- `paper-story-vhash/` — VHash (少数版の hot 配置) と選択的 timestamp forwarding による MVCC の版探索・GC 論文 (3 本目) の
+  ストーリー。`paper-story/` と同じ凍結契約。出発点のユーザー提供メモと、並行 wave の成果物の置き場は同 README
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。
   未解決点の処遇は D674 で確定済み。素材の到達状況 (task catalog・price snapshot) は同書 §13 と総括が正本

@@ -1,0 +1,97 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 7200,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m1-measurement-cfg-without-iteration",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "                **cfg.search_config, 'policy_iteration': iteration})\n",
+     "new": "                **cfg.search_config})\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_orders_candidate_then_stock_in_one_session",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_reused_identity_keeps_one_shot_claim",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_stock_failure_returns_one_after_candidate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-no-counter-save-before-measurement",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "    state.iteration += 1\n    L.save_loop_state(layout, state)\n    evaluation_cfg = ",
+     "new": "    state.iteration += 1\n    evaluation_cfg = "
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-stock-result-reads-series-layout",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "    return _stock_result(layout, summary)\n",
+     "new": "    return _stock_result(exploration_campaign_layout(str(ident.campaign_id(replace(cfg, search_config={key: value for key, value in cfg.search_config.items() if key != 'policy_iteration'})))), summary)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_reused_identity_keeps_one_shot_claim",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-history-written-to-measurement-layout",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        _append_history(layout, state.iteration, proposal,\n                        {**out, 'measurement_campaign_id': measurement_campaign_id})\n",
+     "new": "        _append_history(evaluation_layout, state.iteration, proposal,\n                        {**out, 'measurement_campaign_id': measurement_campaign_id})\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-admitted-view-reads-series-layout",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        view = require_admitted_campaign(evaluation_layout.root,\n",
+     "new": "        view = require_admitted_campaign(layout.root,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_reused_identity_keeps_one_shot_claim",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
