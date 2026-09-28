@@ -81,6 +81,28 @@ def test_gate_rejection_stops_build(monkeypatch, tmp_path):
     assert spawned == []
 
 
+@pytest.mark.parametrize("kind", ("stock", "fwd", "count"))
+def test_gate_args_exclude_cicada_defines_but_build_keeps_them(monkeypatch, tmp_path, kind):
+    monkeypatch.setattr(driver.compute, "_common_configure_args", lambda **kwargs: [])
+    gate_calls, commands = [], []
+    def gate(source, macro, args, cxx):
+        gate_calls.append((macro, tuple(args)))
+        return {"admission": {"admitted": True}}
+    def checked(argv, **kwargs):
+        commands.append(argv)
+    monkeypatch.setattr(driver, "_condition_gate", gate)
+    monkeypatch.setattr(driver, "checked", checked)
+    build = tmp_path / "build"
+    binary = build / "cc/cicada/ycsb_cicada.exe"
+    binary.parent.mkdir(parents=True)
+    binary.touch()
+    driver._build_variant(tmp_path, build, kind, {}, {"cxx_path": "/fake/c++"})
+    assert [macro for macro, _ in gate_calls] == list(driver.MACROS[kind])
+    assert all("CICADA_" not in arg for _, args in gate_calls for arg in args)
+    assert [arg for arg in commands[0] if arg.startswith("-DCMAKE_CXX_FLAGS=")] == [
+        "-DCMAKE_CXX_FLAGS=" + " ".join("-D" + macro + "=1" for macro in driver.MACROS[kind])]
+
+
 def test_figure_full_shape():
     import matplotlib
     matplotlib.use("Agg")

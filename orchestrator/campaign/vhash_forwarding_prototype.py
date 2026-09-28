@@ -67,8 +67,7 @@ def checked(argv: list[str], *, timeout: int = 300, cwd: Path | None = None):
 def build_args(dependencies: dict, toolchain: dict, kind: str) -> list[str]:
     args = [a for a in compute._common_configure_args(trace=0, toolchain=toolchain,
              dependencies=dependencies) if a not in compute.STOCK_G.cmake_defines()]
-    return [*args, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-            "-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in MACROS[kind])]
+    return [*args, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
 
 
 def _condition_gate(source: Path, macro: str, args: list[str], cxx: str) -> dict:
@@ -107,6 +106,8 @@ def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
     if len(receipts) != len(MACROS[kind]) or any(
             r["admission"]["admitted"] is not True for r in receipts):
         raise RuntimeError("condition gate rejected before build")
+    args.append("-DCMAKE_CXX_FLAGS=" + " ".join(
+        "-D" + macro + "=1" for macro in MACROS[kind]))
     configure = ["cmake", "-S", str(source), "-B", str(build),
                  "-DCMAKE_CXX_COMPILER=" + toolchain["cxx_path"], *args]
     checked(configure, timeout=600)
