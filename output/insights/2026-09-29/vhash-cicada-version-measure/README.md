@@ -167,7 +167,7 @@ MinRts 公開 3,893 件を記録。raw は `raw/smoke4.json.gz`。
   final-j3 `d9ee45a9…`、smoke4 `901a6910…` (全桁は `figures/*.provenance.json` の `inputs` と `analysis/summary.json`)。
 - 計算ノード job: 34016.nqsv (j0)、34017〜34019.nqsv (j3・j2・j1 の順に受理)、各 Elapse 125〜128 s、2026-09-29 07:49〜07:52 JST に 4 ノード並列。checkout は detached worktree `vhash-cvl-q{0..3}` @ 2e56d5fed。
 - 予備走 measure-j0 (33967.nqsv、patch 修正前) と smoke1〜3 は結果に使っていない。repo 外 `/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/raw/` に置いた (永続を保証しない)。
-- 計算ノードの使用は smoke 4 本・予備走 1 本・本計測 4 本で Elapse 合計約 900 秒 (約 0.25 node 時間) と、変異本走 1 本 (§9)。2 node 時間未満。
+- 計算ノードの使用は smoke 4 本・予備走 1 本・本計測 4 本で Elapse 合計約 900 秒と、変異本走 1 本 1546 秒 (§9)。合計約 2,450 秒 (約 0.68 node 時間) で、2 node 時間未満。
 
 ## 8. 限界
 
@@ -187,7 +187,13 @@ MinRts 公開 3,893 件を記録。raw は `raw/smoke4.json.gz`。
   Codex `role=author` の実装子 1 本と fix 子 6 本。
 - 段 3 相談 1 本 (条件付き GO)、段 6 レビュー 1 本 (NO-GO → fix1)、焦点再レビュー 3 本 (fix2・fix3/4 後)、計算ノード smoke で見つかった実機 blocker 2 件 (fix3・fix4)。
   裁定と所見は `verbatim/`。
-- 変異 MUT-1〜MUT-10 と等価変異 EQ-1 は login の自走 probe で登録どおり (各 1 node が赤、等価は赤なし) を確認し、本走は計算ノードで `--task mutation` に束ねた (結果は worklog)。
+- 変異 MUT-1〜MUT-10 と等価変異 EQ-1 (spec `mutation/mutation-spec-final.json`) は、login の自走 probe (`mutation/login-probe-2e56d5fed.json`) で
+  登録どおり (各 1 node が赤、等価は赤なし) を確認してから、本走を計算ノードの 1 job (34027.nqsv、`--task mutation`、commit 2e56d5fed、Elapse 1546 s) に束ねた。
+  台帳 `mutation/mutation-ledger-final.json`: baseline PASSED、registered 11 = recorded 11 = matching 11 (KILLED 10、SURVIVED 1 = EQ-1)。
+  wrapper は最後の「共有木の観測 bytes が走行前後で不変」の検査だけで rc=125 を返した (`mutation/mutation-wrapper-receipt.json`、child_rc=0、
+  `shared_snapshot_matches=false`)。走行中 (08:17〜08:43) に別 wave が local main へ land して main checkout の観測値が動いたためで、
+  変異の結果は固定 commit の使い捨て worktree で取れている。wave worktree は走行中に変異対象の file を変えていない (変異は別の木 `vhash-cvl-mut4` で実行)。
+  MUT-2・MUT-3・MUT-6・MUT-10 が殺す test は patch の文字列または前処理を見る検査で、C++ の実行時挙動 (境界・公開判定) は計算ノードの smoke と計測で確かめた範囲に限る。
 - md_2 の指示との食い違い: 「`patches/ledger.json` の entry」は作らなかった。同台帳は D18 第 4 類 ability probe 専用で、
   `orchestrator/campaign/silo_ladder_rung1_contract.py` が entry 数 1 を要求し、既存の診断計器 (instr-*) も README だけに登録されている。`patches/README.md` に登録した。
 
