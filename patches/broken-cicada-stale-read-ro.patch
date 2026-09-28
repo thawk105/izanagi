@@ -1,0 +1,100 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -23,6 +23,42 @@
+ extern void cicadaLeaderWork();
+ 
+ using namespace std;
++
++// reached: even read-only reads examined; changed: reads selecting an older committed version;
++ // committed: changed events in transactions that committed (including events
++ // beyond the per-thread stderr limit of 200).
++ namespace {
++ struct BreakEvent { uint64_t tx, a, b; std::string key; };
++ std::atomic<uint64_t> break_reached{0}, break_changed{0}, break_committed{0};
++ thread_local std::vector<BreakEvent> break_pending;
++ thread_local unsigned break_printed = 0;
++ std::string break_hex(const std::string& key) {
++   static constexpr char digits[] = "0123456789abcdef";
++   std::string out;
++   for (unsigned char c : key) { out += digits[c >> 4]; out += digits[c & 15]; }
++   return out;
++ }
++ void break_commit() {
++   for (const auto& e : break_pending) {
++     break_committed.fetch_add(1, std::memory_order_relaxed);
++     if (break_printed++ < 200)
++       std::fprintf(stderr, "CICADA_BREAK_EVENT slug=stale-read-ro tx_wts=%llu key=%s a_wts=%llu b_wts=%llu\n",
++                    static_cast<unsigned long long>(e.tx),
++                    break_hex(e.key).c_str(),
++                    static_cast<unsigned long long>(e.a),
++                    static_cast<unsigned long long>(e.b));
++   }
++   break_pending.clear();
++ }
++ struct BreakReport {
++   ~BreakReport() {
++     std::fprintf(stderr, "CICADA_BREAK_FIRED slug=stale-read-ro reached=%llu changed=%llu committed=%llu\n",
++                  static_cast<unsigned long long>(break_reached.load()),
++                  static_cast<unsigned long long>(break_changed.load()),
++                  static_cast<unsigned long long>(break_committed.load()));
++   }
++ } break_report;
++ }  // namespace
+ 
+ #define MSK_TID 0b11111111
+ 
+@@ -32,6 +68,7 @@
+  * @return void
+  */
+ void TxExecutor::begin() {
++  break_pending.clear();
+   /**
+    * Allocate timestamp in read phase.
+    */
+@@ -117,6 +154,21 @@
+     if (ver == nullptr) return nullptr;
+   }
+ #endif
++
++  if (this->is_ronly_ && ver->ldAcqStatus() == VersionStatus::committed &&
++      (read_set_.size() + 1) % 2 == 0) {
++    break_reached.fetch_add(1, std::memory_order_relaxed);
++    Version* older = ver->ldAcqNext();
++    while (older && older->ldAcqStatus() != VersionStatus::committed)
++      older = older->ldAcqNext();
++    if (older) {
++      const uint64_t skipped_wts = ver->ldAcqWts();
++      ver = older;
++      break_changed.fetch_add(1, std::memory_order_relaxed);
++      break_pending.push_back({this->wts_.ts_, ver->ldAcqWts(),
++                               skipped_wts, std::string(key)});
++    }
++  }
+ 
+   if (ver->ldAcqStatus() == VersionStatus::deleted) {
+     // TODO: try another version?
+@@ -743,6 +795,7 @@
+  * @return void
+  */
+ void TxExecutor::abort() {
++  break_pending.clear();
+   // remove inserted records
+   for (auto& we : write_set_) {
+     if (we.op_ == OpType::INSERT) {
+@@ -912,6 +965,7 @@
+ #else
+ #line 909
+ #endif
++  break_commit();
+   this->wts_.set_clockBoost(0);
+   read_set_.clear();
+   write_set_.clear();
+@@ -942,6 +996,7 @@
+ #else
+ #line 934
+ #endif
++    break_commit();
+     read_set_.clear();
+     node_map_.clear();
+     return true;
