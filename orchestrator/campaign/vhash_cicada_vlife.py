@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -312,9 +313,37 @@ def _smoke_records(path: Path) -> int:
         raise ValueError("smoke JSON required")
     if raw.get("ccbench_commit") != PIN or raw.get("patch_sha256") != hashlib.sha256(PATCH.read_bytes()).hexdigest():
         raise ValueError("smoke build identity mismatch")
-    records = raw.get("calibration", {}).get("selected_records")
-    if type(records) is not int or records not in (1000000, 2000000, 4000000):
-        raise ValueError("invalid calibrated records")
+    witness = raw.get("witness")
+    if not isinstance(witness, dict) or any(
+        witness.get(key) is not True for key in
+        ("normalized_objdump_equal", "normalized_rodata_equal")
+    ) or any(
+        not isinstance(witness.get(side), dict) or
+        any(witness[side].get(tool) is not True for tool in ("nm", "strings"))
+        for side in ("stock_absence", "default_absence")
+    ):
+        raise ValueError("smoke binary witness failed")
+    short = raw.get("short_run")
+    if not isinstance(short, dict) or type(short.get("rc")) is not int or short["rc"] != 0 or not isinstance(short.get("parsed"), dict):
+        raise ValueError("smoke short run failed")
+    calibration = raw.get("calibration")
+    if not isinstance(calibration, dict):
+        raise ValueError("smoke calibration missing")
+    l3_bytes = calibration.get("l3_bytes")
+    if type(l3_bytes) not in (int, float) or not math.isfinite(l3_bytes) or l3_bytes <= 0:
+        raise ValueError("invalid L3 size")
+    probes = calibration.get("probes")
+    if not isinstance(probes, dict) or set(probes) != {"1000000", "2000000", "4000000"}:
+        raise ValueError("incomplete calibration probes")
+    for probe in probes.values():
+        if not isinstance(probe, dict) or type(probe.get("rc")) is not int or probe["rc"] != 0 or type(probe.get("maxrss_kb")) is not int or probe["maxrss_kb"] <= 0:
+            raise ValueError("failed calibration probe")
+    eligible = [n for n in (1000000, 2000000, 4000000)
+                if probes[str(n)]["maxrss_kb"] * 1024 > 4 * l3_bytes]
+    expected = eligible[0] if eligible else 1000000
+    records = calibration.get("selected_records")
+    if type(records) is not int or records != expected:
+        raise ValueError("calibrated records do not match probes")
     return records
 
 

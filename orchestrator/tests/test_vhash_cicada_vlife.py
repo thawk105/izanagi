@@ -171,7 +171,17 @@ def test_smoke_identity_binds_records():
         path = Path(td) / "smoke.json"
         raw = {"schema_version": 1, "command": "smoke", "ccbench_commit": V.PIN,
                "patch_sha256": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),
-               "calibration": {"selected_records": 2000000}}
+               "witness": {"normalized_objdump_equal": True,
+                           "normalized_rodata_equal": True,
+                           "stock_absence": {"nm": True, "strings": True},
+                           "default_absence": {"nm": True, "strings": True}},
+               "short_run": {"rc": 0, "parsed": _payload()},
+               "calibration": {"l3_bytes": 1000000,
+                               "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
+                                          for n, rss in ((1000000, 1000),
+                                                         (2000000, 5000),
+                                                         (4000000, 8000))},
+                               "selected_records": 2000000}}
         path.write_text(json.dumps(raw))
         assert V._smoke_records(path) == 2000000
         raw["patch_sha256"] = "0" * 64
@@ -182,6 +192,43 @@ def test_smoke_identity_binds_records():
             pass
         else:
             raise AssertionError("mismatched patch accepted")
+
+
+def test_smoke_recomputes_calibration_and_requires_success():
+    with tempfile.TemporaryDirectory(prefix="cvl-smoke-selection-") as td:
+        path = Path(td) / "smoke.json"
+        raw = {"schema_version": 1, "command": "smoke", "ccbench_commit": V.PIN,
+               "patch_sha256": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),
+               "witness": {"normalized_objdump_equal": True,
+                           "normalized_rodata_equal": True,
+                           "stock_absence": {"nm": True, "strings": True},
+                           "default_absence": {"nm": True, "strings": True}},
+               "short_run": {"rc": 0, "parsed": _payload()},
+               "calibration": {"l3_bytes": 1000000,
+                               "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
+                                          for n, rss in ((1000000, 1000),
+                                                         (2000000, 5000),
+                                                         (4000000, 8000))},
+                               "selected_records": 4000000}}
+        def rejected():
+            path.write_text(json.dumps(raw))
+            try:
+                V._smoke_records(path)
+            except ValueError:
+                return
+            raise AssertionError("invalid smoke accepted")
+        rejected()  # MUT-8: 2M is the smallest passing probe, not 4M.
+        raw["calibration"]["selected_records"] = 2000000
+        path.write_text(json.dumps(raw))
+        assert V._smoke_records(path) == 2000000
+        raw["witness"]["normalized_rodata_equal"] = False
+        rejected()
+        raw["witness"]["normalized_rodata_equal"] = True
+        raw["short_run"]["rc"] = 1
+        rejected()
+        raw["short_run"]["rc"] = 0
+        raw["calibration"]["probes"]["2000000"]["rc"] = 1
+        rejected()
 
 
 def test_patch_default_preprocess_matches_stock():
@@ -204,7 +251,8 @@ def _run():
              test_k_boundary_and_condition_subset,
              test_real_patch_define_registry_and_rejection,
              test_patch_default_preprocess_matches_stock,
-             test_smoke_identity_binds_records)
+             test_smoke_identity_binds_records,
+             test_smoke_recomputes_calibration_and_requires_success)
     failed = 0
     for test in tests:
         try:
