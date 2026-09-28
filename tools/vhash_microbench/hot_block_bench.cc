@@ -514,9 +514,44 @@ static uint64_t contribution(Result r,size_t bytes,bool read_value) {
     for (size_t i=0;i<bytes;++i) value_sum+=r.value[i];
   return r.id*8+static_cast<uint64_t>(r.kind)+value_sum;
 }
+// Hull-Dobell full-period LCG modulo a power of two. Cycle-walking skips the
+// unused tail, so every n consecutive selections visit each key exactly once.
+static size_t read_sequence_mask(size_t n) {
+  size_t power=1;
+  while (power<n) {
+    if (power>SIZE_MAX/2) throw std::runtime_error("read key count too large");
+    power*=2;
+  }
+  return power-1;
+}
+static size_t next_read_index(size_t idx,size_t n,size_t mask,
+                              uint64_t selected_id,uint64_t zero) {
+  do { idx=(idx*1664525ULL+1013904223ULL)&mask; } while (idx>=n);
+  return idx ^ (selected_id & zero);
+}
+static int key_sequence_check(size_t n) {
+  if (!n) throw std::runtime_error("read key count must be positive");
+  const size_t mask=read_sequence_mask(n);
+  std::vector<uint8_t> seen(n,0);
+  size_t idx=0,other=0,visited=0;
+  bool independent=true;
+  for (size_t i=0;i<n;++i) {
+    if (!seen[idx]) { seen[idx]=1; ++visited; }
+    idx=next_read_index(idx,n,mask,1000,0);
+    other=next_read_index(other,n,mask,2000+i,0);
+    independent &= idx==other;
+  }
+  const bool passed=visited==n && idx==0 && independent;
+  std::cout << "{\"n_keys\":" << n << ",\"visited\":" << visited
+            << ",\"repeats\":" << (idx==0?"true":"false")
+            << ",\"id_independent\":" << (independent?"true":"false")
+            << ",\"passed\":" << (passed?"true":"false") << "}\n";
+  return passed?0:1;
+}
 static uint64_t expected_read(size_t nkeys,size_t k,size_t depth,size_t bytes,
                               const std::string& mode,const std::string& pattern,uint64_t ops) {
   uint64_t total=0,idx=0;
+  const size_t mask=read_sequence_mask(nkeys);
   const uint64_t ts=100000-depth;
   for (uint64_t op=0;op<ops;++op) {
     Result r{NOT_FOUND,0,nullptr};
@@ -535,7 +570,7 @@ static uint64_t expected_read(size_t nkeys,size_t k,size_t depth,size_t bytes,
       break;
     }
     total+=r.id*8+static_cast<uint64_t>(r.kind);
-    idx=(idx*1664525ULL+r.id+1013904223ULL)%nkeys;
+    idx=next_read_index(idx,nkeys,mask,0,0);
   }
   return total;
 }
@@ -863,6 +898,9 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
   }
   std::vector<size_t>().swap(value_slots);
   const uint64_t ts=100000-depth;
+  const size_t sequence_mask=read_sequence_mask(nkeys);
+  volatile uint64_t opaque_zero=0;
+  const uint64_t zero=opaque_zero;
   auto run_read=[&](size_t arm_index,uint64_t ops)->uint64_t {
     const auto& batch=*batches[arm_index];
     const SelectView fn=select_function(arms[arm_index]);
@@ -870,7 +908,7 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
     for (uint64_t i=0;i<ops;++i) {
       const Result r=fn(batch,idx,ts);
       checksum+=contribution(r,bytes,mode!="none");
-      idx=(idx*1664525ULL+r.id+1013904223ULL)%nkeys;
+      idx=next_read_index(idx,nkeys,sequence_mask,r.id,zero);
     }
     return checksum;
   };
@@ -917,6 +955,8 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
 int main(int argc,char** argv) {
   try {
     if (argc==2 && std::string(argv[1])=="--selfcheck") return selfcheck();
+    if (argc==3 && std::string(argv[1])=="--key-sequence-check")
+      return key_sequence_check(std::stoull(argv[2]));
     std::string json,arms_text,control,ack,footprint_json; unsigned reps=1; uint64_t ops=0;
     for (int i=1;i<argc;++i) {
       std::string arg=argv[i];

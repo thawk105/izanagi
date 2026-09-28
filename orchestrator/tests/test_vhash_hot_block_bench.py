@@ -48,6 +48,22 @@ def test_cpp_selfcheck(tmp_path):
     assert result["failures"] == []
 
 
+def test_read_key_sequence_full_period(tmp_path):
+    compiler = shutil.which("g++-12")
+    assert compiler, "g++-12 required for the acceptance bench"
+    binary = tmp_path / "hot_block_bench"
+    build = subprocess.run([compiler, *bench.FLAGS, str(SOURCE), "-o", str(binary)],
+                           capture_output=True, text=True)
+    assert build.returncode == 0, build.stderr
+    for n in (1775815, 1720320, 2293760, 1251142, 2752512, 1, 2, 3, 64, 1351):
+        check = subprocess.run([str(binary), "--key-sequence-check", str(n)],
+                               capture_output=True, text=True)
+        assert check.returncode == 0, f"n={n}: {check.stderr} {check.stdout}"
+        result = json.loads(check.stdout)
+        assert result == {"n_keys": n, "visited": n, "repeats": True,
+                          "id_independent": True, "passed": True}
+
+
 def test_manifest_counts_and_duplicates():
     cells = bench.make_manifest()
     assert {group: sum(c["group"] == group for c in cells)
@@ -182,13 +198,14 @@ def _run():
     with tempfile.TemporaryDirectory(prefix="vhash-hot-test-") as directory:
         tmp_path = pathlib.Path(directory)
         test_cpp_selfcheck(tmp_path)
+        test_read_key_sequence_full_period(tmp_path)
         test_manifest_counts_and_duplicates()
         test_objdump_scalar_vector_rejection()
         test_cell_contract_and_footprint(tmp_path)
         test_skewed_write_capacity_precedes_timing(tmp_path)
         test_perf_csv_requires_complete_unmultiplexed_events()
         test_node_stride_and_hot_cold_slot(tmp_path)
-    print("7 tests passed")
+    print("8 tests passed")
     return 0
 
 
