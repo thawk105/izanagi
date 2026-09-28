@@ -1,0 +1,15 @@
+tree=/work/1/SFC/tanab/tmp/t2853-r2-fig8b-20260928/submit-tree-c1
+head=0600887d92538b3f34d894f9674d202d0a29a578
+porcelain_all_lines=0
+ignored_freeze_lines=0
+prereg_ancestor=yes
+prereg_bytes=match
+prereg_symlink=no
+gitlink=160000 commit 511c9538e4e8efa54b45cda62e72389ed3b706ec	external/ccbench
+ccbench_commit_available=yes
+ccbench_head=511c9538e4e8efa54b45cda62e72389ed3b706ec
+job_script_sha_worktree=c0635ef3c1fa7a589a2c08d079e9ade844e3d100367916f1460026df905b4e5c
+job_script_sha_head=c0635ef3c1fa7a589a2c08d079e9ade844e3d100367916f1460026df905b4e5c
+expected_freeze=EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+staging_gflags=missing head= dirty=0
+staging_glog=missing head= dirty=0
