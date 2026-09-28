@@ -103,6 +103,33 @@ def test_gate_args_exclude_cicada_defines_but_build_keeps_them(monkeypatch, tmp_
         "-DCMAKE_CXX_FLAGS=" + " ".join("-D" + macro + "=1" for macro in driver.MACROS[kind])]
 
 
+def test_dependency_build_is_ungated_and_has_no_cicada_define(monkeypatch, tmp_path):
+    monkeypatch.setattr(driver.compute, "_common_configure_args", lambda **kwargs: [])
+    monkeypatch.setattr(driver, "_condition_gate", lambda *args: pytest.fail("dependency entered gate"))
+    commands = []
+    monkeypatch.setattr(driver, "checked", lambda argv, **kwargs: commands.append(argv))
+    (tmp_path / "cc/cicada").mkdir(parents=True); (tmp_path / "cc/cicada/ycsb_cicada.exe").touch()
+    assert driver._build_variant(tmp_path, tmp_path, "dependency", {}, {"cxx_path": "/fake/c++"})[1] == []
+    assert len(commands) == 2 and not any("CICADA_" in arg for argv in commands for arg in argv)
+@pytest.mark.parametrize("fail_dependency", (False, True))
+def test_dependency_build_precedes_gate_and_failure_stops(monkeypatch, tmp_path, fail_dependency):
+    monkeypatch.setattr(driver, "checked", lambda *a, **k: SimpleNamespace(stdout=b"head\n"))
+    monkeypatch.setattr(driver, "_probe", lambda: {})
+    for name in ("_load_policy", "_resolve_toolchain", "_prepare_dependencies"):
+        monkeypatch.setattr(driver.compute, name, lambda *a: {})
+    monkeypatch.setattr(driver.patchharness, "checkout", lambda *a: nullcontext(tmp_path)); monkeypatch.setattr(driver.patchharness, "applied", lambda *a: nullcontext())
+    calls = []
+    def build(source, directory, kind, dependencies, toolchain):
+        calls.append(kind)
+        if kind != "dependency" or fail_dependency:
+            raise RuntimeError("stop")
+        return driver.PATCH, [], 1.25
+    monkeypatch.setattr(driver, "_build_variant", build)
+    assert driver.main(["smoke", "--third-party-cache", str(tmp_path), "--output", str(tmp_path)]) == 1
+    assert calls == (["dependency"] if fail_dependency else ["dependency", "stock"])
+    job = json.loads(next(tmp_path.glob("raw-smoke-*.json")).read_text())
+    assert ("dependency" in job["builds"]) is not fail_dependency and (fail_dependency or job["builds"]["dependency"]["seconds"] == 1.25)
+
 def test_figure_full_shape():
     import matplotlib
     matplotlib.use("Agg")

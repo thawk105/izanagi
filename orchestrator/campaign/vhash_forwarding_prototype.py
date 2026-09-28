@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "patches/cicada-forwarding-variant.patch"
 DEFAULT_OUTPUT = ROOT / "output/env/pegasus/vhash-forwarding-prototype"
 DRIVER_ID = "orchestrator.campaign.vhash_forwarding_prototype"
-MACROS = {"stock": ("CICADA_LONGTX",), "fwd": ("CICADA_FWD_ENABLE", "CICADA_LONGTX"),
+MACROS = {"dependency": (), "stock": ("CICADA_LONGTX",), "fwd": ("CICADA_FWD_ENABLE", "CICADA_LONGTX"),
           "count": ("CICADA_FWD_ENABLE", "CICADA_FWD_COUNT", "CICADA_LONGTX")}
 WORKLOADS = ("normal", "many_ops", "wait_after_reads")
 GC_VALUES = (10, 100, 1000)
@@ -98,7 +98,7 @@ def _condition_gate(source: Path, macro: str, args: list[str], cxx: str) -> dict
 
 def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
                    toolchain: dict) -> tuple[Path, list[dict], float]:
-    """Single Cicada build sink; one call for each of stock, fwd, count."""
+    """Single Cicada build sink, including the ungated dependency build."""
     start = time.monotonic()
     args = build_args(dependencies, toolchain, kind)
     receipts = [_condition_gate(source, macro, args, toolchain["cxx_path"])
@@ -106,8 +106,9 @@ def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
     if len(receipts) != len(MACROS[kind]) or any(
             r["admission"]["admitted"] is not True for r in receipts):
         raise RuntimeError("condition gate rejected before build")
-    args.append("-DCMAKE_CXX_FLAGS=" + " ".join(
-        "-D" + macro + "=1" for macro in MACROS[kind]))
+    if MACROS[kind]:
+        args.append("-DCMAKE_CXX_FLAGS=" + " ".join(
+            "-D" + macro + "=1" for macro in MACROS[kind]))
     configure = ["cmake", "-S", str(source), "-B", str(build),
                  "-DCMAKE_CXX_COMPILER=" + toolchain["cxx_path"], *args]
     checked(configure, timeout=600)
@@ -516,6 +517,11 @@ def main(argv: list[str] | None = None) -> int:
                 with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
                     binaries = {}
                     job["gate_receipts"] = {}
+                    binary, gates, seconds = _build_variant(source, scratch / "build-dependency",
+                                                           "dependency", deps, toolchain)
+                    job["builds"]["dependency"] = {"seconds": seconds,
+                                                    "binary_sha256": sha_file(binary),
+                                                    "gate_receipts": gates}
                     for kind in ("stock", "fwd", "count"):
                         binary, gates, seconds = _build_variant(source, scratch / ("build-" + kind),
                                                                kind, deps, toolchain)
