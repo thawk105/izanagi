@@ -1,19 +1,17 @@
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -23,6 +23,42 @@
+@@ -23,6 +23,39 @@
  extern void cicadaLeaderWork();
  
  using namespace std;
 +
 +// reached: read-set elements examined; changed: elements with rts below tx wts left unchanged;
-+ // committed: changed events in transactions that committed (including events
-+ // beyond the per-thread stderr limit of 200).
++ // committed: changed events in transactions that committed.
 + namespace {
 + struct BreakEvent { uint64_t tx, a, b; std::string key; };
 + std::atomic<uint64_t> break_reached{0}, break_changed{0}, break_committed{0};
 + thread_local std::vector<BreakEvent> break_pending;
-+ thread_local unsigned break_printed = 0;
 + std::string break_hex(const std::string& key) {
 +   static constexpr char digits[] = "0123456789abcdef";
 +   std::string out;
@@ -23,8 +21,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 + void break_commit() {
 +   for (const auto& e : break_pending) {
 +     break_committed.fetch_add(1, std::memory_order_relaxed);
-+     if (break_printed++ < 200)
-+       std::fprintf(stderr, "CICADA_BREAK_EVENT slug=no-rts-update tx_wts=%llu key=%s a_wts=%llu b_wts=%llu\n",
++     std::fprintf(stderr, "CICADA_BREAK_EVENT slug=no-rts-update tx_wts=%llu key=%s a_wts=%llu b_wts=%llu\n",
 +                    static_cast<unsigned long long>(e.tx),
 +                    break_hex(e.key).c_str(),
 +                    static_cast<unsigned long long>(e.a),
