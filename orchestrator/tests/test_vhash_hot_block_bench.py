@@ -64,6 +64,47 @@ def test_read_key_sequence_full_period(tmp_path):
                           "id_independent": True, "passed": True}
 
 
+def test_calibration_converges_and_fails_closed(tmp_path):
+    compiler = shutil.which("g++-12")
+    assert compiler, "g++-12 required for the acceptance bench"
+    harness = tmp_path / "calibration.cc"
+    harness.write_text('''
+#define main bench_main
+#include "hot_block_bench.cc"
+#undef main
+int main() {
+  std::vector<uint64_t> tried;
+  const uint64_t result=calibrate_ops(1000,[&](uint64_t ops) {
+    tried.push_back(ops);
+    return tried.size()<4 ? 90000000ULL : 100000000ULL;
+  },"read batch below 0.1 s");
+  if (tried!=std::vector<uint64_t>{1000,1501,2252,3379} || result!=3379) return 1;
+  tried.clear();
+  const uint64_t scaled=calibrate_ops(1000,[&](uint64_t ops) {
+    tried.push_back(ops);
+    return tried.size()==1 ? 50000000ULL : 100000000ULL;
+  },"read batch below 0.1 s");
+  if (tried!=std::vector<uint64_t>{1000,2401} || scaled!=2401) return 4;
+  tried.clear();
+  try {
+    calibrate_ops(1000,[&](uint64_t ops) {
+      tried.push_back(ops);
+      return 50000000ULL;
+    },"write batch below 0.1 s");
+    return 2;
+  } catch (const std::runtime_error& error) {
+    return tried.size()==12 && std::string(error.what())=="write batch below 0.1 s" ? 0 : 3;
+  }
+}
+''')
+    binary = tmp_path / "calibration"
+    build = subprocess.run([compiler, *bench.FLAGS, "-I", str(SOURCE.parent),
+                            str(harness), "-o", str(binary)], capture_output=True, text=True)
+    assert build.returncode == 0, build.stderr
+    result = subprocess.run([str(binary)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
 def test_manifest_counts_and_duplicates():
     cells = bench.make_manifest()
     assert {group: sum(c["group"] == group for c in cells)
@@ -199,13 +240,14 @@ def _run():
         tmp_path = pathlib.Path(directory)
         test_cpp_selfcheck(tmp_path)
         test_read_key_sequence_full_period(tmp_path)
+        test_calibration_converges_and_fails_closed(tmp_path)
         test_manifest_counts_and_duplicates()
         test_objdump_scalar_vector_rejection()
         test_cell_contract_and_footprint(tmp_path)
         test_skewed_write_capacity_precedes_timing(tmp_path)
         test_perf_csv_requires_complete_unmultiplexed_events()
         test_node_stride_and_hot_cold_slot(tmp_path)
-    print("8 tests passed")
+    print("9 tests passed")
     return 0
 
 

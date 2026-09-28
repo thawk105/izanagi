@@ -773,6 +773,20 @@ reference_write_model(size_t nkeys,size_t k,uint64_t ops) {
   }
   return model;
 }
+template <typename Probe>
+static uint64_t calibrate_ops(uint64_t ops, Probe probe, const char* failure) {
+  for (unsigned attempt=0;attempt<12;++attempt) {
+    const uint64_t shortest=probe(ops);
+    if (shortest>=100000000ULL) return ops;
+    if (attempt==11) throw std::runtime_error(failure);
+    const double factor=std::max(1.5,120000000.0/
+                               static_cast<double>(std::max<uint64_t>(1,shortest)));
+    const double next=static_cast<double>(ops)*factor+1.0;
+    if (next>static_cast<double>(UINT64_MAX)) throw std::runtime_error(failure);
+    ops=static_cast<uint64_t>(next);
+  }
+  throw std::runtime_error(failure);
+}
 static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode,
                       const std::vector<std::string>& arms,unsigned reps,uint64_t requested_ops,
                       const std::string& control,const std::string& ack,size_t memory_limit) {
@@ -803,9 +817,9 @@ static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode
       fastest=std::min(fastest,static_cast<double>(now_ns()-begin)/trial);
     }
     ops=std::max<uint64_t>(trial,static_cast<uint64_t>(100000000.0/std::max(1.0,fastest))+1);
-    for (unsigned attempt=0;attempt<3;++attempt) {
+    ops=calibrate_ops(ops,[&](uint64_t candidate) {
       uint64_t shortest=UINT64_MAX;
-      const size_t slots=maximum_write_inserts(nkeys,ops);
+      const size_t slots=maximum_write_inserts(nkeys,candidate);
       check_capacity(slots);
       for (const auto& arm:arms) {
         std::vector<WriteSet> keys;
@@ -813,15 +827,12 @@ static int write_cell(size_t k,size_t nkeys,size_t bytes,const std::string& mode
         for (size_t key=0;key<nkeys;++key)
           keys.push_back(write_initial(k,bytes,mode=="inline",arm,slots));
         const uint64_t begin=now_ns();
-        volatile uint64_t check=write_batch(keys,arm,insert_function(arm),ops,bytes,source);
+        volatile uint64_t check=write_batch(keys,arm,insert_function(arm),candidate,bytes,source);
         (void)check;
         shortest=std::min(shortest,now_ns()-begin);
       }
-      if (shortest>=100000000ULL) break;
-      if (attempt==2) throw std::runtime_error("write batch below 0.1 s");
-      ops=static_cast<uint64_t>(static_cast<double>(ops)*105000000.0/
-                                std::max<uint64_t>(1,shortest))+1;
-    }
+      return shortest;
+    },"write batch below 0.1 s");
   }
   const size_t slots=maximum_write_inserts(nkeys,ops);
   check_capacity(slots);
@@ -922,19 +933,16 @@ static int cell(const std::string& json,const std::vector<std::string>& arms,uns
       fastest=std::min(fastest,static_cast<double>(now_ns()-begin)/2000.0);
     }
     ops=std::max<uint64_t>(2000,static_cast<uint64_t>(100000000.0/std::max(1.0,fastest))+1);
-    for (unsigned attempt=0;attempt<3;++attempt) {
+    ops=calibrate_ops(ops,[&](uint64_t candidate) {
       uint64_t shortest=UINT64_MAX;
       for (size_t a=0;a<arms.size();++a) {
         const uint64_t begin=now_ns();
-        volatile uint64_t check=run_read(a,ops);
+        volatile uint64_t check=run_read(a,candidate);
         (void)check;
         shortest=std::min(shortest,now_ns()-begin);
       }
-      if (shortest>=100000000ULL) break;
-      if (attempt==2) throw std::runtime_error("read batch below 0.1 s");
-      ops=static_cast<uint64_t>(static_cast<double>(ops)*105000000.0/
-                                std::max<uint64_t>(1,shortest))+1;
-    }
+      return shortest;
+    },"read batch below 0.1 s");
   }
   const uint64_t expected=expected_read(nkeys,k,depth,bytes,mode,pattern,ops);
   for (unsigned rep=0;rep<reps;++rep) {
