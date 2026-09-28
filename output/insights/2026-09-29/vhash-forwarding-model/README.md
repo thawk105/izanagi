@@ -298,9 +298,10 @@ python3 tools/run_tests.py -q orchestrator/tests/test_vhash_forwarding_model.py
 
 - test: 新 test file の 17 件を login の bounded local 経路で pytest 実走し全件成功 (6.63 秒、最大 3.49 秒の S10 探索)。収集設定メタテストと合わせた焦点走 92 件も成功 (fix1〜4 統合時点)。
 - CLI 全 63 構成: 親が 3 回 (fix1〜4 統合後、fix5〜7 統合後、fix8 後) 実行した。1 回目と 2 回目の差は S10 の訪問状態数 7 行の +18 だけ (fix6 で txn に「選んだ hot 版 ID」を足したため。裁定済み)。2 回目と 3 回目は J1/J2/J3・訪問状態数・完了・witness が全行一致し、3 回目で危険結果 witness が評価されるようになった。`raw/` は 3 回目の出力。
-- 変異の login 自走: 実装の最終 commit で 1 回 (その前の commit でも 1 回、結果は全件同じ)。`mutation/selfrun-results.json`。
+- 変異の login 自走: 9f178c25a・7cf165a41・f0800e776 (fix9 後の最終実装) の 3 回で結果は全件同じ (KILLED 10・SURVIVED 1)。`mutation/selfrun-results.json` は f0800e776 の走行。dispatch 本走 (下) は 7cf165a41 で走らせ、fix9 は変異の置換対象の行を変えていない。
 - 変異の dispatch 本走: 2026-09-29 05:46〜07:16 JST (attempts file の開始・終了時刻)。collection・baseline・変異 11 の計 13 request (33843, 33886, 33888, 33890〜33892, 33931, 33936, 33948, 33949, 33953, 33961, 33962)。所要の大半は計算ノードの queue 待ち。wrapper rc=0、summary は KILLED 10・SURVIVED 1・MISMATCH 0・matching 11。
-- 受入全走: この記録の時点で未実施 (記録 commit の後に land 対象 tip で走らせる)。
+- 受入全走 1 回目 (2026-09-29 07:34〜07:50 JST、記録 commit の tip に local main 159999d44 を post-claim merge した木): 赤 2 件で停止。どちらも本 wave に帰属する: (1) `test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact` が model.py を「未レビューの性能計測 file」と検出 (探索の打ち切り判定の `perf_counter` が性能計測の述語に当たった。中身は所要の報告だけ)、(2) `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` が新 test file の自走 harness の欠落を検出。fix9 (Codex author) で `time.monotonic` への置き換えと自走 harness の追加を行った (inventory・allowlist には足していない)。親の焦点走がこの 2 群を含めていなかった (failures の F242 再発として記録)。
+- fix9 の後、実装 commit は f0800e776。探索の判定・結果に関わる変更は無い (fix9 の子が S8 v0・S10 U1f+O1 の CLI 結果の一致を確認)。
 
 ## 12. 次の一手 (次の版の論文ストーリーと C++ 試作への含意)
 
