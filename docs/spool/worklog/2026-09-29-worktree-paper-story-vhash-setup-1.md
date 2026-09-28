@@ -24,6 +24,13 @@ title: VHash と timestamp forwarding の論文ストーリー系列を新設し
 - 本エントリの land は、Pegasus の gen_S が 80〜90 本待ちの混雑で受入の shard が queue 待ち 900 秒で 8 回打ち切られ
   (テストは 0 件実行)、06:31 JST に門番経由の 9 回目で child-green になった。その後 main へ md_1 wave が着地したので
   取り込み直し、断片を直して受入をやり直した。
+- 受入の赤の帰属 (DW-O18): 07:07 JST の受入 (tip 5104356aa、main f6772df03) で
+  `orchestrator/tests/test_env_contract_activation.py` の 3 件
+  (`test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]`・同 `[modified]`・
+  `test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage`) が、テスト内の
+  `git archive ... HEAD` の 30 秒 timeout (`subprocess.TimeoutExpired`) で落ちた。本 branch の差分は docs と spool fragment だけで
+  この経路に触れない。同じ tip で 3 件だけを計算ノードへ投げた単独再走 (request 33958.nqsv) は `3 passed in 11.11s`。
+  混雑時の共有 FS による一過性で、本 branch に帰属しないと判定した。
 
 ## 次の一手差分
 
