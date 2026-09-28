@@ -790,7 +790,8 @@ def _policy_pair_case(tmp_path, valid_reservation_environment):
         'sys.exit(_policy_pair_child(sys.argv[1], sys.argv[2], sys.argv[3] == "crash"))\n',
         encoding='utf-8')
     env = {**os.environ, **valid_reservation_environment}
-    env['PYTHONPATH'] = str(ROOT) + os.pathsep + env.get('PYTHONPATH', '')
+    env['PYTHONPATH'] = os.pathsep.join((
+        str(ROOT), str(ROOT / 'orchestrator/tests'), env.get('PYTHONPATH', '')))
     def run(*, crash=False):
         return subprocess.run([sys.executable, str(harness), str(tmp_path),
             str(proposal), 'crash' if crash else 'run'], cwd=ROOT, env=env,

@@ -656,8 +656,7 @@ def main(argv=None):
             iteration = state.iteration + 1
             measurement_cfg = replace(cfg, search_config={
                 **cfg.search_config, 'policy_iteration': iteration})
-            measurement_layout = exploration_campaign_layout(
-                str(ident.campaign_id(measurement_cfg)))
+            measurement_layout = _campaign_layout(measurement_cfg)
             candidate_error = None
             with loop.authorization_session() as session:
                 try:
