@@ -6599,6 +6599,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — md_17 wave (Cicada の TPC-C trace) で、Codex author が重ね patch の `tpcc_cicada.cc` の `#else` 側に `#line 31` を書いた (正しくは 30。`#line N` は次の行を N にするので、元の 31 行目の文の前は 30)。同じ repo の既存計装 (`patches/instr-cicada-trace.patch` の ycsb hunk、元の 30 行目の前に `#line 29`) に答えがあった。`ERR` → `NNN` の `__LINE__` が `fprintf` の即値になるので、TRACE=0 の命令列比較を赤にする形だった。親が計算ノードへ投げる前の静的レビューで見つけ、fix 1 回で直した (実害なし、直した後の比較は 12 TU で一致)。恒久対応は F139 のまま (実機の書式は先例の実装で確かめてから書く)。
 
 - **再発: 2026-09-29** — [T-2872] の MOCC 診断 runner (job dir、Codex author) が計算ノードの smoke で 3 回止まった: (1) MOCC の `transaction.cc` も WORKLOADS 4 実行体へ compile されるので `compile_commands.json` の行が 4 本あり、1 本前提の行選択で停止、(2) macro off の前処理一致を `-E` の出力 (`#if` で飛ばした行を空行で埋める) で比べて必ず不一致、(3) probe の追加コードの符号付き/なし比較が CCBench の `-Wall -Wextra -Werror` で停止。(1) は同日 [T-2875] の再発と同じ形。親の login 簡易試験 (include を除いた `g++-11 -E -P`) は (2) を見逃した。段 5 の author prompt に「全 case の外部との交点を既存 driver と CCBench に照合した表を作らせる」を入れていなかった。smoke は 1 回 28〜34 秒で実害は時間だけ (4 回目で完走)。恒久対応は F139 のまま。記録 = `output/insights/2026-09-29/t2872-mocc-g2-split/README.md` §8。
+
+- **再発: 2026-09-29** — md_23 wave (VHash の hot block を Cicada に入れる) で、login の静的検査と前処理比較を通った patch が計算ノードの smoke1 (36580.nqsv、101 s) で条件 gate に拒否された。`CICADA_VHASH_COUNT` の分岐 20 site のうち 12 が `#if CICADA_VHASH_K` の内側にあり、gate の meaning の probe は K 未定義で owner TU を前処理するので 8 site しか観測できなかった。先例 (md_6 の `CICADA_FWD_COUNT` は companion `CICADA_FWD_ENABLE=1`) に答えがあり、段 4 の macro 設計で予見できた。companion `CICADA_VHASH_K=1` を固定して smoke2 で通った。実害は smoke 1 回分の時間だけ。恒久対応は F139 のまま (条件 gate に載せる macro は、他の macro の #if の内側に分岐を置くなら companion を設計の段で決める)。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
@@ -10227,6 +10229,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-19** — T-2724/T-2776の修復後受入tip `2027fd428`、8967.nqsv/bnode074/gw17で `test_sigterm_ignoring_child_is_killed` のcommunicateが10秒TimeoutExpiredとなりreceiptは未発行。全体は25251 passed /69 skipped /1 failed、当該launcher/test sourceは未変更。同tipの正規runner単独node走（既存設定NPROC=1）は1 passed/70.36秒。負荷の個別因果は未分離とし、検査・timeout・holdを変えず、既存の並列度設定16による全受入再走へ進む。一次資料は回収jobのacceptance-2.child.log、acceptance-2-shards、launcher-single.logと同insight README。
 
 - **再発: 2026-09-29** — VHash GC 接続の小モデル wave (dev-wave-vhash-gc-connection) で、親が fix3 の commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と、新 test file の所要計測の run_tests dispatch を同一 worktree からほぼ同時に投入し、監査の qsub 中の pending orphan hold (`phase: pending-qsub`) を所要計測が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。監査は request 34686.nqsv で走り切り rc=0、hold は監査の終端で自然に解除、所要計測は単独の再投入で 28 passed。qdel も hold の手動削除もしていない。既存恒久対応に修正すべき新事実はない。
+
+- **再発: 2026-09-29** — md_23 wave で、親が同じ detached 計測木から本走 6 job (perf 3・count 1・trace 2) を detach script で同時に投げ、1 本目の pending orphan hold を検知して 5 本が rc 16 (`child_started=false`、`reason=orphan-hold`) になった (親の操作ミス)。1 本目 (36631.nqsv) は走り切り、残り 5 本は同じ木から 1 本ずつ流す chain で通した。qdel も hold の手動削除もしていない。`DW-C00` の「同一 worktree の dispatch は全種直列」の読み落としで、既存の恒久対応に直すべき新事実はない。並列にしたい計測は、計測木を job の数だけ作ってから投げる。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
