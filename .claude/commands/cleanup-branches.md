@@ -43,17 +43,16 @@ final で裁定候補として返し、実装・記録は明示起動された�
 - 残す: main / primary checkout、§3 の占有、HEAD・tip が直近 (目安: 稼働 wave の開始以降か 6h 以内) に
   動いた木・branch、稼働 session (ListAgents・投げ文) の主題の木・branch (棚卸し後に同系列の新 wave が
   起動すればその系列も)、現行 docs (phase doc・worklog 末尾の次の一手・decisions) が残すと名指しした branch
-  (grep は main の tracked docs だけ、`main-worklog-*.md` 等の写しは数えない)、land 中の wave の branch、棚卸し後の新規
-- 原本の置き場 (insight「証拠の所在」等が計測原本の所在と名指しする木、`dev-wave-jobs/` の投入木を含む) と
-  未追跡 `output/` (`exploration/`・`env/`) の原本は、tar の写しが一致しても残して報告。登録だけ外す案も
-  Git の再現手順と submodule を壊すので不可。写しへの移管は insight 更新を伴うので別 dev-wave (F1034)
-- 他は施錠・ahead>0・未着地・dirty・rescue 判定不能でも消す。損失ゼロは要件でない (研究価値のない probe・
-  お試しは失われてよい)。範囲は AI が Codex 2 役 (決定役・攻撃役の read-only consult) に掛けて決め、
-  ユーザーへ確認・実行を回さない
-- 消す前に repo 外 `/work/1/SFC/tanab/dev-wave-jobs/cleanup-branches-<日付>/` へ退避: 削除 branch は 1 本の
-  bundle (`^main`、`create`+`verify`+`list-heads` 一致)、main に無い detached HEAD と submodule HEAD
+  (grep は main の tracked docs だけ、`main-worklog-*.md` 等の写しは数えない)、land 中の wave の branch、
+  稼働 wave の manifest (job dir の `child-worktrees.json`) に載る子木、棚卸し後の新規
+- 原本の置き場 (insight が名指す木・`dev-wave-jobs/` の投入木、未追跡 `output/` の原本) は写しがあっても、
+  登録だけ外す形でも消さず報告。移管は別 dev-wave (F1034)
+- 他は施錠・ahead>0・dirty・未着地・rescue 判定不能でも退避して消す。損失ゼロは要件でない。範囲は AI が
+  Codex 2 役 (決定役・攻撃役の read-only consult) で決め、ユーザーへ確認・実行を回さない
+- 消す前に repo 外 `/work/1/SFC/tanab/dev-wave-jobs/cleanup-branches-<日付>/` へ退避: ahead>0 の削除 branch は
+  1 本の bundle (`^main`、`create`+`verify`+`list-heads` 一致)、main に無い detached HEAD と submodule HEAD
   (main 側 module repo に無いもの) は木ごとの bundle、追跡差分は `diff HEAD --binary`、未追跡は
-  `ls-files -o --exclude-standard` と `output/` 下の ignored を tar (§3 の件数照合)
+  `ls-files -o --exclude-standard` と `output/` 下の ignored を tar (§3 の件数照合)。submodule 内の差分・未追跡も同様
 - ahead=0 は `git branch -d`、-d 拒否と ahead>0 は退避後に `-D`。名前と期待 tip の表で一括削除
 - 高い条件: 削除直前に tip・HEAD が棚卸し時と同じで占有が無いことを再確認し、外れたら残す。
   対象内で作業中は先に main checkout へ退出
@@ -71,7 +70,8 @@ rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁�
    land 調整役がいれば PRUNE OK を待つ。他 wave の撤去途中の登録が混ざれば、持ち主が同意した分を足した
    集合と完全一致した時だけ打ち、それ以外は real prune せず引渡し
 5. prune 後、ゴミ置き場の実体を `python3 tools/cleanup_remove_dirs.py -- <2 path>` で 2 本ずつ背景で消す
-   (渡した全 path を同時に rm する。Lustre では多並列にしない、1 本 75〜250 秒)。rc0 以外は残して報告
+   (渡した全 path を同時に rm する。Lustre では多並列にしない、1 本 75〜250 秒)。rc0 以外は残して報告。
+   全 job の終了 status と path 不在を確かめてから §4 へ
 
 撤去・削除 script は対象を本文に名指しする (計画 file から読む script は auto mode の判定が拒否する)。
 拒否されてもユーザーへ実行を回さない。名指しの形へ直して再申請し、なお拒否なら迂回せず final で報告する。
