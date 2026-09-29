@@ -286,8 +286,13 @@ def check_compile_commands(build, expected, trace, *, diag=False):
         for key in MACRO_NAMES:
             if key not in expected and key in defs:
                 raise RuntimeError(f'{name}: unexpected {key}')
-        if diag and not all(flag in argv for flag in ('-g', '-fno-omit-frame-pointer')):
-            raise RuntimeError(f'{name}: missing diagnostic compile flags')
+        if diag:
+            if not all(flag in argv for flag in ('-g', '-fno-omit-frame-pointer', '-UNDEBUG')):
+                raise RuntimeError(f'{name}: missing diagnostic compile flags')
+            # CMake places CMAKE_CXX_FLAGS_RELEASE after CMAKE_CXX_FLAGS.
+            if '-DNDEBUG' not in argv or max(i for i, flag in enumerate(argv) if flag == '-UNDEBUG') < max(
+                    i for i, flag in enumerate(argv) if flag == '-DNDEBUG'):
+                raise RuntimeError(f'{name}: NDEBUG remains enabled in diagnostic build')
         checked_names.append(name)
     return checked_names
 
@@ -365,7 +370,10 @@ def _build_variant(source, build, deps, toolchain, arm, kind, *, dependency=Fals
                                           build_log=build_log)
     flags = [*(f'-D{k}={v}' for k, v in macros.items())]
     if diag:
-        flags.extend(('-g', '-fno-omit-frame-pointer'))
+        flags.extend(('-g', '-fno-omit-frame-pointer', '-UNDEBUG'))
+        # Release adds -DNDEBUG after CMAKE_CXX_FLAGS; override its suffix so
+        # assertions remain enabled while retaining the Release optimization.
+        args.append('-DCMAKE_CXX_FLAGS_RELEASE=-O3 -DNDEBUG -UNDEBUG')
     if flags:
         args.append('-DCMAKE_CXX_FLAGS=' + ' '.join(flags))
     checked(['cmake', '-S', str(source), '-B', str(build),
@@ -640,11 +648,12 @@ def run_diagnostic(binary, spec, receipts, out, *, run_timeout=60, gdb_timeout=1
     except subprocess.TimeoutExpired as exc:
         timed_out, rc = True, None
         timed_out_stdout, timed_out_stderr = exc.stdout or b'', exc.stderr or b''
-    abnormal = timed_out or rc < 0
+    abnormal = timed_out or rc != 0
     result = {'build': name, 'perf_eligible': False, 'argv': argv,
               'returncode': rc, 'timeout': timed_out, 'abnormal': abnormal}
     if abnormal:
-        log = BuildLog(out / 'logs' / f'diag-{name}.log')
+        suffix = '' if spec['cell'] == 'rr50-wait1-gc10' else f"-{spec['cell']}"
+        log = BuildLog(out / 'logs' / f'diag-{name}{suffix}.log')
         try:
             log.record(argv, timed_out_stdout if timed_out else completed.stdout,
                        timed_out_stderr if timed_out else completed.stderr, rc,
@@ -878,22 +887,26 @@ def run_job(args):
                 else:
                     if args.command == 'smoke' and diagnostics:
                         manifest['diagnostics'] = {}
-                        for spec in plan_runs('rr50_wait', smoke=True):
-                            built = diagnostics.get((spec['arm'], spec['build_kind']))
-                            if built is None:
-                                continue
-                            name = f"{spec['arm']}-{spec['build_kind']}-diag"
-                            try:
-                                manifest['diagnostics'][name] = run_diagnostic(
-                                    built[0], spec, built[1], out,
-                                    run_timeout=args.diag_run_timeout,
-                                    gdb_timeout=args.diag_gdb_timeout)
-                                if manifest['diagnostics'][name]['abnormal']:
-                                    failures.append(name + '-run')
-                            except Exception as exc:
-                                failures.append(name + '-run')
-                                manifest['diagnostics'][name] = {'error': str(exc),
-                                                                  'perf_eligible': False}
+                        diagnostic_cells = ('rr50-wait1-gc10', 'rr95-ronly-gc10')
+                        for cell in diagnostic_cells:
+                            for spec in plan_runs('rr50_wait', smoke=True):
+                                spec = {**spec, 'cell': cell, 'extime': 3}
+                                built = diagnostics.get((spec['arm'], spec['build_kind']))
+                                if built is None:
+                                    continue
+                                name = f"{spec['arm']}-{spec['build_kind']}-diag"
+                                key = name if cell == diagnostic_cells[0] else f'{name}-{cell}'
+                                try:
+                                    manifest['diagnostics'][key] = run_diagnostic(
+                                        built[0], spec, built[1], out,
+                                        run_timeout=args.diag_run_timeout,
+                                        gdb_timeout=args.diag_gdb_timeout)
+                                    if manifest['diagnostics'][key]['abnormal']:
+                                        failures.append(key + '-run')
+                                except Exception as exc:
+                                    failures.append(key + '-run')
+                                    manifest['diagnostics'][key] = {'error': str(exc),
+                                                                    'perf_eligible': False}
                     for spec in plan_runs(args.group or 'rr50_wait', args.no_gen_perf,
                                           smoke=args.command == 'smoke'):
                         built = binaries.get((spec['arm'], spec['build_kind']))

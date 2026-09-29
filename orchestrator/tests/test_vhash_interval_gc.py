@@ -123,9 +123,15 @@ def test_compile_binding_positive_negative():
                 if kind in ('perf', 'count'):
                     diagnostic = json.loads(json.dumps(entries))
                     for entry in diagnostic[:3]:
-                        entry['arguments'][1:1] = ['-g', '-fno-omit-frame-pointer']
+                        entry['arguments'][1:1] = ['-g', '-fno-omit-frame-pointer',
+                                                   '-UNDEBUG', '-O3', '-DNDEBUG', '-UNDEBUG']
                     path.write_text(json.dumps(diagnostic))
                     assert len(d.check_compile_commands(build, expected, 0, diag=True)) == 3
+                    bad_order = json.loads(json.dumps(diagnostic))
+                    bad_order[0]['arguments'].append('-DNDEBUG')
+                    path.write_text(json.dumps(bad_order))
+                    raises(RuntimeError, d.check_compile_commands, build, expected, 0,
+                           diag=True)
                     diagnostic[0]['arguments'].remove('-g')
                     path.write_text(json.dumps(diagnostic))
                     raises(RuntimeError, d.check_compile_commands, build, expected, 0,
@@ -234,6 +240,7 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
         source = root / 'source'
         source.mkdir()
         attempted = []
+        diagnostic_specs = []
 
         @contextmanager
         def checkout(_pin):
@@ -275,8 +282,9 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
              patch.object(d, 'sha_file', side_effect=lambda path: d.digest(Path(path).read_bytes())
                           if Path(path).exists() else 'missing-test-patch'), \
              patch.object(d, 'run_binary', fake_run), \
-             patch.object(d, 'run_diagnostic', return_value={'abnormal': False,
-                          'perf_eligible': False}):
+             patch.object(d, 'run_diagnostic', side_effect=lambda _binary, spec, *_args,
+                          **_kwargs: (diagnostic_specs.append(dict(spec)) or
+                                      {'abnormal': False, 'perf_eligible': False})):
             raises(RuntimeError, d.run_job, args)
         assert attempted == ['dependency', 'stock-perf', 'min-perf', 'gen-perf',
                              'stock-count', 'min-count', 'gen-count',
@@ -288,8 +296,16 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
         assert manifest['status'] == 'failed'
         assert set(manifest['builds']) == set(attempted)
         assert set(manifest['diagnostics']) == {
-            f'{arm}-{kind}-diag' for arm in d.ARMS for kind in ('perf', 'count')}
-        assert all(not manifest['builds'][name]['perf_eligible'] for name in manifest['diagnostics'])
+            f'{arm}-{kind}-diag{suffix}' for arm in d.ARMS
+            for kind in ('perf', 'count') for suffix in ('', '-rr95-ronly-gc10')}
+        assert {(s['cell'], s['arm'], s['build_kind'], s['extime']) for s in diagnostic_specs} == {
+            (cell, arm, kind, 3) for cell in ('rr50-wait1-gc10', 'rr95-ronly-gc10')
+            for arm in d.ARMS for kind in ('perf', 'count')}
+        assert len(diagnostic_specs) == 12
+        assert all(not manifest['diagnostics'][name]['perf_eligible']
+                   for name in manifest['diagnostics'])
+        assert all(not manifest['builds'][name]['perf_eligible'] for name in attempted
+                   if name.endswith('-diag'))
         assert len(manifest['records']) == 5
         failed = manifest['builds']['min-perf']
         assert failed['ok'] is False and failed['rc'] == 2
@@ -334,7 +350,8 @@ def test_diagnostic_signal_reruns_gdb_once_and_logs_output():
              patch.object(d, 'bench_argv', return_value=['/fake/ycsb', '-extime=1']), \
              patch.object(d.shutil, 'which', return_value='/usr/bin/gdb'), \
              patch.object(d, 'run_measured', return_value=SimpleNamespace(
-                 returncode=-11, stdout=b'flags\n', stderr=b'')), \
+                 returncode=-6, stdout=b'flags\n',
+                 stderr=b'assertion failed: pinned version\nvariant=general\n')), \
              patch.object(d.subprocess, 'run', side_effect=fake_gdb):
             result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out)
         assert result['abnormal'] and result['perf_eligible'] is False
@@ -342,7 +359,10 @@ def test_diagnostic_signal_reruns_gdb_once_and_logs_output():
         assert calls[0] == ['/usr/bin/gdb', '-batch', '-ex', 'run',
                             '-ex', 'thread apply all bt 20', '--args',
                             '/fake/ycsb', '-extime=1']
-        assert b'full backtrace' in Path(result['log']['path']).read_bytes()
+        log = Path(result['log']['path']).read_bytes()
+        assert b'assertion failed: pinned version\nvariant=general\n' in log
+        assert log.index(b'assertion failed') < log.index(b'full backtrace')
+        assert result['returncode'] == -6
 
 
 def test_diagnostic_build_keeps_gate_and_adds_compile_flags():
@@ -369,9 +389,22 @@ def test_diagnostic_build_keeps_gate_and_adds_compile_flags():
         assert gates[0][0] == d.arm_macros('gen', 'count')
         assert gates[0][1] == ['-DCMAKE_BUILD_TYPE=Release']
         flags = next(value for value in commands[0] if value.startswith('-DCMAKE_CXX_FLAGS='))
-        assert '-g -fno-omit-frame-pointer' in flags
+        assert '-g -fno-omit-frame-pointer -UNDEBUG' in flags
+        release = next(value for value in commands[0]
+                       if value.startswith('-DCMAKE_CXX_FLAGS_RELEASE='))
+        assert release.endswith('-O3 -DNDEBUG -UNDEBUG')
         assert all(f'-D{key}={value}' in flags for key, value in gates[0][0].items())
         assert checks == [{'diag': True}]
+
+        commands.clear()
+        with patch.object(d, 'non_admissible_materializer'), \
+             patch.object(d, 'configure_args', return_value=['-DCMAKE_BUILD_TYPE=Release']), \
+             patch.object(d, 'gate', side_effect=fake_gate), \
+             patch.object(d, 'checked', side_effect=lambda argv, **kwargs: commands.append(argv)), \
+             patch.object(d, 'check_compile_commands'):
+            d._build_variant(build, build, {}, {'cxx_path': '/usr/bin/c++'},
+                             'gen', 'perf')
+        assert all('-UNDEBUG' not in arg for arg in commands[0])
 
 
 def test_diagnostic_missing_gdb_records_and_continues():
