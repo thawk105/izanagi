@@ -1,0 +1,72 @@
+start 2026-09-29 23:01:30 JST
+message: /work/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/G-message.txt sha256=ac9eaab8843e2e95c7be3255115ec7a7fbbf24134782b7d425477afa44a10a77
+input: cc/cicada/include/transaction.hh sha256=fc709b3efc66f23b4c12b521cfe7a2bf410d849f56b6067665e8ac7f8aa8f7dd
+input: cc/cicada/transaction.cc sha256=4ed8f5717be2e835d3ab959f314fa853541d900bf7d63f51f3011b4bc3c012ed
+sub HEAD before: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+Preparing worktree (detached HEAD 25898d00b)
+Updating files:  16% (65/405)Updating files:  17% (69/405)Updating files:  18% (73/405)Updating files:  19% (77/405)Updating files:  20% (81/405)Updating files:  21% (86/405)Updating files:  22% (90/405)Updating files:  23% (94/405)Updating files:  24% (98/405)Updating files:  25% (102/405)Updating files:  26% (106/405)Updating files:  27% (110/405)Updating files:  28% (114/405)Updating files:  29% (118/405)Updating files:  30% (122/405)Updating files:  31% (126/405)Updating files:  32% (130/405)Updating files:  33% (134/405)Updating files:  34% (138/405)Updating files:  35% (142/405)Updating files:  36% (146/405)Updating files:  37% (150/405)Updating files:  38% (154/405)Updating files:  39% (158/405)Updating files:  40% (162/405)Updating files:  41% (167/405)Updating files:  42% (171/405)Updating files:  43% (175/405)Updating files:  44% (179/405)Updating files:  45% (183/405)Updating files:  46% (187/405)Updating files:  47% (191/405)Updating files:  48% (195/405)Updating files:  48% (198/405)Updating files:  49% (199/405)Updating files:  50% (203/405)Updating files:  51% (207/405)Updating files:  52% (211/405)Updating files:  53% (215/405)Updating files:  54% (219/405)Updating files:  55% (223/405)Updating files:  56% (227/405)Updating files:  57% (231/405)Updating files:  58% (235/405)Updating files:  58% (238/405)Updating files:  59% (239/405)Updating files:  60% (243/405)Updating files:  61% (248/405)Updating files:  62% (252/405)Updating files:  63% (256/405)Updating files:  64% (260/405)Updating files:  65% (264/405)Updating files:  66% (268/405)Updating files:  67% (272/405)Updating files:  68% (276/405)Updating files:  68% (277/405)Updating files:  69% (280/405)Updating files:  70% (284/405)Updating files:  71% (288/405)Updating files:  72% (292/405)Updating files:  73% (296/405)Updating files:  74% (300/405)Updating files:  75% (304/405)Updating files:  76% (308/405)Updating files:  77% (312/405)Updating files:  78% (316/405)Updating files:  79% (320/405)Updating files:  80% (324/405)Updating files:  81% (329/405)Updating files:  81% (331/405)Updating files:  82% (333/405)Updating files:  83% (337/405)Updating files:  84% (341/405)Updating files:  85% (345/405)Updating files:  86% (349/405)Updating files:  87% (353/405)Updating files:  88% (357/405)Updating files:  89% (361/405)Updating files:  90% (365/405)Updating files:  91% (369/405)Updating files:  92% (373/405)Updating files:  93% (377/405)Updating files:  94% (381/405)Updating files:  95% (385/405)Updating files:  96% (389/405)Updating files:  97% (393/405)Updating files:  98% (397/405)Updating files:  99% (401/405)Updating files: 100% (405/405)Updating files: 100% (405/405), done.
+HEAD is now at 25898d00b style(trace): apply clang-format 14 to the izanagi trace changes
+Switched to a new branch 'izanagi-cicada-build-fix'
+cc/cicada/include/transaction.hh placed=cd4ab2a067fd30e8d2e29eb3c8f1af599cb02c0e expected=cd4ab2a067fd30e8d2e29eb3c8f1af599cb02c0e
+cc/cicada/transaction.cc placed=fc708fd15928848f1e48fdd2eb264f83e107ced1 expected=fc708fd15928848f1e48fdd2eb264f83e107ced1
+staged:
+:100644 100644 dbaeb1b3c cd4ab2a06 M	cc/cicada/include/transaction.hh
+:100644 100644 efcf02d75 fc708fd15 M	cc/cicada/transaction.cc
+modes unchanged
+[izanagi-cicada-build-fix 09b8eef43] fix(cicada): repair non-default build options that no longer compile
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+G = 09b8eef43bc3cba12b8e028bcbab18055a523258 parents: 09b8eef43bc3cba12b8e028bcbab18055a523258 25898d00b9a6bbf09329ff8e8318c77d4f08b46e tree: 3ed13669bf48d28122a6eb19b19c876046f1e165
+diff-tree F..G (raw):
+:100644 100644 dbaeb1b3c12ec3d912775130b1df892186a81225 cd4ab2a067fd30e8d2e29eb3c8f1af599cb02c0e M	cc/cicada/include/transaction.hh
+:100644 100644 efcf02d7509c0b81ea53f50330052dd42112c0b7 fc708fd15928848f1e48fdd2eb264f83e107ced1 M	cc/cicada/transaction.cc
+numstat F..G:
+2	2	cc/cicada/include/transaction.hh
+3	3	cc/cicada/transaction.cc
+message:
+fix(cicada): repair non-default build options that no longer compile
+
+Three #if branches of Cicada fell out of step with the code around them
+and stopped compiling. None of them is enabled in the default build, so
+the default build and CI did not notice.
+
+1. INLINE_VERSION_OPT=1 with INLINE_VERSION_PROMOTION=1
+   (cc/cicada/include/transaction.hh, inlineVersionPromotion):
+   the promotion still called write(), which was renamed to update().
+   GCC resolved the name to POSIX ::write(int, ...) and failed with
+   "cannot convert 'Storage' to 'int'". It now calls update(). The
+   promotion also appended the read to read_set_ a second time;
+   read_internal() already records it before calling the promotion, so
+   the second append is removed (the duplicate entry was validated
+   twice and was returned twice by scan()).
+
+2. The same options with ADD_ANALYSIS=1 (cc/cicada/transaction.cc,
+   read_internal): the promotion branch added "rdtscp() - start" to the
+   read latency, but read_internal() has no start variable. read()
+   already accounts for that latency, so the line is removed.
+
+3. WORKER1_INSERT_DELAY_RPHASE=1 (cc/cicada/transaction.cc, commit):
+   the branch used the undeclared names thid, clock_delay and
+   WORKER1_INSERT_DELAY_RPHASE_US. It now uses the member thid_,
+   sleepTics() from include/util.hh (already included), and the runtime
+   flag -worker1_insert_delay_rphase_us that README.md documents and
+   util.cc prints, which the branch never read before.
+
+Every change replaces lines inside those #if branches; no line is added
+or removed, so the default build preprocesses to the same output and
+keeps its line numbers (ERR expands __LINE__ via NNN in
+include/debug.hh).
+
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-5-1m; reasoning=unknown; role=manager
+
+sub HEAD after: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+branch ref: 09b8eef43bc3cba12b8e028bcbab18055a523258
+izanagi-tpcc-v3-silo-mocc-fmt: refs/heads/izanagi-tpcc-v3-silo-mocc-fmt
+/work/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/G.bundle is okay
+The bundle contains this ref:
+09b8eef43bc3cba12b8e028bcbab18055a523258 refs/heads/izanagi-cicada-build-fix
+The bundle records a complete history.
+09b8eef43bc3cba12b8e028bcbab18055a523258 refs/heads/izanagi-cicada-build-fix
+bundle bytes: 3191517 sha256: 69fdc2443fee4cbdcdaeb9a141e1ca84613ab190a0b62e447ba835d6d832b62f
+end 2026-09-29 23:02:39 JST
