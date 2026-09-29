@@ -49,19 +49,17 @@ class Txn:
     observed_end: tuple[tuple[str, int], ...] = ()
     observed_rts: tuple[tuple[str, int], ...] = ()
     forward_hot: str = ""
-    published_max: int = 0
     pressure_request: bool = False
     attempt_base: int = 0
     tried_targets: tuple[int, ...] = ()
     pressure_base_confirmed: int = 0
+    pressure_base_floor: int = 0
 
     def __post_init__(self):
         if not self.cand_ts:
             object.__setattr__(self, "cand_ts", self.start)
         if not self.gc_floor:
             object.__setattr__(self, "gc_floor", self.start)
-        if not self.published_max:
-            object.__setattr__(self, "published_max", self.start)
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,9 +277,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                      confirmed=t.confirmed + tuple((vid, t.target) for _, vid in t.read_log))
         return _put_txn(s, nt), Step(t.id, "forward_commit")
     if t.phase == "f_publish":
-        return _put_txn(s, replace(t, gc_floor=t.cand_ts, phase="ops",
-                                   published_max=max(t.published_max, t.cand_ts)
-                                   if pressure == "self" else t.published_max)), Step(t.id, "publish_floor")
+        return _put_txn(s, replace(t, gc_floor=max(t.gc_floor, t.cand_ts), phase="ops")), Step(t.id, "publish_floor")
     if t.phase == "fallback":
         return _read(s, t, t.ops[t.pc][1], cold=True, faults=faults)
     if t.phase in ("p_rts", "p_check"):
@@ -304,7 +300,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                                                         "UG3" if "UG3" in faults else "")
     if t.phase == "p_commit":
         if t.failed:
-            base = t.start if "UF1" in faults and t.published_max > t.start else t.attempt_base
+            base = t.start if "UF1" in faults and t.gc_floor > t.start else t.attempt_base
             nt = replace(t, cand_ts=base, phase="ops", target=0, failed=False,
                          pressure_request=False)
             return _put_txn(s, nt), Step(t.id, "pressure_fallback",
@@ -316,8 +312,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
         fault = "UG2" if "UG2" in faults else "UG2r" if "UG2r" in faults else ""
         return _put_txn(s, nt), Step(t.id, "pressure_commit", fault=fault)
     if t.phase == "p_publish":
-        nt = replace(t, gc_floor=t.cand_ts if "UG2" not in faults else t.gc_floor,
-                     published_max=max(t.published_max, t.cand_ts), phase="ops",
+        nt = replace(t, gc_floor=max(t.gc_floor, t.cand_ts) if "UG2" not in faults else t.gc_floor, phase="ops",
                      target=0, pressure_request=False)
         return _put_txn(s, nt), Step(t.id, "pressure_publish")
     if t.phase == "fixed":
@@ -422,9 +417,10 @@ def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = froze
                         continue
                     nt = replace(t, phase="p_rts", target=target, index=0, failed=False,
                                  attempt_base=t.cand_ts, pressure_base_confirmed=len(t.confirmed),
+                                 pressure_base_floor=t.gc_floor,
                                  tried_targets=t.tried_targets + (target,))
                     if "UG1" in faults:
-                        nt = replace(nt, gc_floor=target)
+                        nt = replace(nt, gc_floor=max(t.gc_floor, target))
                     yield _put_txn(s, nt), Step(t.id, "pressure_start", str(target),
                                                  "UG1" if "UG1" in faults else "")
         if revert_after_confirm and t.phase == "p_publish":
@@ -476,7 +472,8 @@ def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False,
 
 def explore(initial: State, protocol="v1", fault="", witness=None, max_states=None,
             o1=False, max_seconds=None, all_transitions=False, danger=None,
-            pressure="off", revert_after_confirm=False, state_invariant=None):
+            pressure="off", revert_after_confirm=False, state_invariant=None,
+            transition_invariant=None, collect_effects=True):
     """Explore every enabled edge, including edges to states already visited.
 
     J1 and J2 depend only on committed transactions and committed versions, so
@@ -500,9 +497,9 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     witness_trace = None
     danger_trace = None
     effects = None
-    if any(("WAIT", "") in t.ops for t in initial.txns):
+    if collect_effects and any(("WAIT", "") in t.ops for t in initial.txns):
         effects = {"waiting_states": 0, "max_B": None, "max_freed": None,
-                   "simultaneous": None, "max_delta_B": None, "max_delta_freed": None,
+                   "simultaneous": None, "attributable": None,
                    "g2": {"T_only": None, "both": None}}
     terminals = deadlocks = 0
     timed_out = False
@@ -519,28 +516,31 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
         s = queue.popleft()
         if effects is not None:
             from .gc_connection import effect_snapshot
-            waiting = [t for t in s.txns if t.phase == "ops" and t.pc < len(t.ops)
-                       and t.ops[t.pc] == ("WAIT", "")]
+            t = next((t for t in s.txns if t.id == "T"), None)
+            waiting = t is not None and t.phase == "ops" and t.pc < len(t.ops) and t.ops[t.pc] == ("WAIT", "")
             if waiting:
                 effects["waiting_states"] += 1
                 snap = effect_snapshot(s)
-                path = trace(s)
                 for key, value in (("max_B", snap["B"]), ("max_freed", snap["freed"])):
                     if effects[key] is None or value > effects[key]["value"]:
-                        effects[key] = {"value": value, "snapshot": snap, "steps": path}
-                if len(s.txns) >= 2 and {t.id for t in s.txns} >= {"T", "U"}:
-                    t = next(t for t in s.txns if t.id == "T")
+                        effects[key] = {"value": value, "snapshot": snap, "steps": trace(s)}
+                if any(x.id == "U" for x in s.txns):
                     u = next(t for t in s.txns if t.id == "U")
-                    label = "T_only" if t.gc_floor > t.start and u.gc_floor == u.start else (
-                        "both" if t.gc_floor > t.start and u.gc_floor > u.start else "")
-                    if label and effects["g2"][label] is None:
-                        effects["g2"][label] = {"snapshot": snap, "steps": path}
+                    both_wait = u.phase == "ops" and u.pc < len(u.ops) and u.ops[u.pc] == ("WAIT", "")
+                    label = "T_only" if both_wait and t.gc_floor > t.start and u.gc_floor == u.start else (
+                        "both" if both_wait and t.gc_floor > t.start and u.gc_floor > u.start else "")
+                    if label and (effects["g2"][label] is None or snap["B"] > effects["g2"][label]["snapshot"]["B"]):
+                        effects["g2"][label] = {"snapshot": snap, "steps": trace(s)}
         steps = list(enabled_steps(s, protocol, faults, o1, pressure, revert_after_confirm))
+        if pressure == "self":
+            steps.sort(key=lambda item: item[1].thread != "GC")
         if not steps:
             terminals += 1
             if any(t.phase != "done" for t in s.txns):
                 deadlocks += 1
         for ns, step in steps:
+            if transition_invariant is not None:
+                transition_invariant(s, ns, step)
             if ns not in parent:
                 check_timestamp_uniqueness(ns)
                 if state_invariant is not None:
@@ -573,18 +573,16 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                            if danger_uses_trace else danger(s, ns, step))
                 if reached:
                     danger_trace = trace(s) + [step]
-            if effects is not None and step.operation == "pressure_publish":
-                path = trace(s) + [step]
-                request_at = next((i for i in range(len(path) - 2, -1, -1)
-                                   if path[i].operation == "request_pressure" and path[i].version == step.thread), None)
-                if request_at is not None:
-                    before_request = replay(initial, path[:request_at], protocol, fault, o1,
-                                            pressure, revert_after_confirm)
-                    old, new = effect_snapshot(before_request), effect_snapshot(ns)
-                    for key, field in (("max_delta_B", "B"), ("max_delta_freed", "freed")):
-                        delta = new[field] - old[field]
-                        if effects[key] is None or delta > effects[key]["value"]:
-                            effects[key] = {"value": delta, "before": old, "after": new, "steps": path}
+            if effects is not None and step.operation == "pressure_publish" and step.thread == "T":
+                t = next(t for t in ns.txns if t.id == "T")
+                if t.phase == "ops" and t.pc < len(t.ops) and t.ops[t.pc] == ("WAIT", ""):
+                    control = _put_txn(ns, replace(t, gc_floor=t.pressure_base_floor))
+                    old, new = effect_snapshot(control), effect_snapshot(ns)
+                    delta_B, delta_freed = new["B"] - old["B"], new["freed"] - old["freed"]
+                    best = effects["attributable"]
+                    if best is None or (delta_B, delta_freed) > (best["delta_B"], best["delta_freed"]):
+                        effects["attributable"] = {"delta_B": delta_B, "delta_freed": delta_freed,
+                                                   "before": old, "after": new, "steps": trace(s) + [step]}
             if ns in parent:
                 continue
             parent[ns] = (s, step)
@@ -595,7 +593,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     if effects is not None and effects["max_B"] is not None and effects["max_freed"] is not None:
         mb, mf = effects["max_B"]["value"], effects["max_freed"]["value"]
         for state in parent:
-            t = next((x for x in state.txns if x.phase == "ops" and x.pc < len(x.ops)
+            t = next((x for x in state.txns if x.id == "T" and x.phase == "ops" and x.pc < len(x.ops)
                       and x.ops[x.pc] == ("WAIT", "")), None)
             if t is not None:
                 snap = effect_snapshot(state)

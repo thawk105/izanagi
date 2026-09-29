@@ -35,9 +35,16 @@ def scenario(name):
         state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
                       (_t("T", 45, ("R", "A"), ("WAIT", ""), ("R", "B")),
                        _t("W", 50, ("W", "A"))))
-        predicate = lambda b, a, x: x.operation == "read_floor" and any(
-            t.id == "T" and t.phase in ("p_rts", "p_check", "p_commit")
-            and t.cand_ts == t.start for t in a.txns)
+        def predicate(b, a, x, trace):
+            steps = trace()
+            install = next((i for i, step in enumerate(steps) if step.operation == "install"
+                            and step.version == "W:A"), None)
+            failed_check = next((i for i, step in enumerate(steps) if step.thread == "T"
+                                 and step.operation == "pressure_check"), None)
+            return (x.operation == "read_floor" and install is not None
+                    and failed_check is not None and install < failed_check < len(steps) - 1
+                    and any(t.id == "T" and t.failed and t.phase in ("p_check", "p_commit")
+                            and t.cand_ts == t.start for t in a.txns))
     elif name == "G4":
         state = State((_v("A", 20), _v("B", 40), _v("B", 60), _v("B", 80)),
                       (_t("T", 45, ("R", "A"), ("WAIT", ""), ("R", "B")),))
@@ -54,7 +61,7 @@ def scenario(name):
                       (_t("T", 45, ("R", "A"), ("WAIT", ""), ("R", "B")),
                        _t("W", 70, ("W", "A"))))
         predicate = lambda b, a, x: x.operation == "pressure_fallback" and any(
-            t.id == "T" and t.published_max > t.start for t in a.txns) and any(
+            t.id == "T" and t.gc_floor > t.start for t in a.txns) and any(
             v.id == "B40" and v.reclaimed for v in a.versions)
     elif name == "S1":
         state = State((_v("A", 10), _v("B", 11)),
@@ -143,7 +150,7 @@ def scenario(name):
 def danger_witness(name):
     """Unsafe outcomes, distinct from the interruption-window witnesses."""
     if name in ("G1", "G2"):
-        return lambda b, a, x: False
+        return None
     if name == "G3":
         return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(
             t.id == "T" and t.cand_ts == 45 and t.pc == 1 and t.phase in

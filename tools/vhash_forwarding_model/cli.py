@@ -48,7 +48,7 @@ def main(argv=None):
               "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"}
     population = {"versions": [asdict(v) for v in initial.versions],
                   "transactions": [asdict(t) for t in initial.txns]}
-    limits = {"keys": 2 if a.scenario in NAMES else 3, "transactions": 3,
+    limits = {"keys": 2, "transactions": 3,
               "operations_per_transaction": 3,
               "operations_including_WAIT": 4,
               "versions_per_key": 3, "K": [1, 2]}
