@@ -185,3 +185,8 @@ story 20260920b wave (`dev-wave-paper-story-20260920b`) が同じ節を編集中
   (裁定パッケージの控え)。
 - 工数: codex 4 本 (gpt-6-astra、段 6 read-only レビュー 12 call 180 秒、焦点再レビュー 3 本 = 6 call 119 秒 / 4 call 68 秒 / 4 call 62 秒、合計 26 call 429 秒)、計算ノード job 0、
   login node の読み取り検査 (script 9 本、repo 外) のみ。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が「pair 走の原本は無傷」の根拠として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair` は、2026-09-30 の掃除 wave で回収せずに撤去する。原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` と job dir の `originals-copy-20260920/` に残る。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

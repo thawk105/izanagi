@@ -1,0 +1,421 @@
+diff --git a/cc/cicada/include/tuple.hh b/cc/cicada/include/tuple.hh
+--- a/cc/cicada/include/tuple.hh
++++ b/cc/cicada/include/tuple.hh
+@@ -7,3 +7,11 @@
+ 
++#if !defined(CICADA_VHASH_K)
++#define CICADA_VHASH_K 0
++#endif
++#if CICADA_VHASH_K != 0 && CICADA_VHASH_K != 1 && CICADA_VHASH_K != 2 && \
++    CICADA_VHASH_K != 4 && CICADA_VHASH_K != 8
++#error "CICADA_VHASH_K must be 0, 1, 2, 4, or 8"
++#endif
+ #include "version.hh"
++#line 9
+ #include "time_stamp.hh"
+@@ -30,2 +38,61 @@
+   atomic<Version*> latest_;
++#if CICADA_VHASH_K
++  // A physical prefix, including pending and aborted versions.
++  std::atomic<uint64_t> vh_seq_{0};
++  std::atomic<uint32_t> vh_n_{0};
++  std::atomic<uint64_t> vh_wts_[CICADA_VHASH_K]{};
++  std::atomic<Version*> vh_ptr_[CICADA_VHASH_K]{};
++
++  struct VHashGuard {
++    Tuple* tuple;
++    uint64_t held_seq;
++    explicit VHashGuard(Tuple* t) : tuple(t) {
++      uint64_t seq = t->vh_seq_.load(std::memory_order_acquire);
++      for (;;) {
++        if (!(seq & 1) && t->vh_seq_.compare_exchange_weak(
++              seq, seq + 1, std::memory_order_acq_rel,
++              std::memory_order_acquire)) { held_seq = seq + 1; break; }
++        seq = t->vh_seq_.load(std::memory_order_acquire);
++      }
++      std::atomic_thread_fence(std::memory_order_release);
++    }
++    ~VHashGuard() { close(); }
++    void close() {
++      if (tuple) {
++        tuple->vh_seq_.store(held_seq + 1, std::memory_order_release);
++        tuple = nullptr;
++      }
++    }
++    VHashGuard(const VHashGuard&) = delete;
++    VHashGuard& operator=(const VHashGuard&) = delete;
++  };
++
++  void vh_init(Version* ver, uint64_t wts) {
++    vh_wts_[0].store(wts, std::memory_order_relaxed);
++    vh_ptr_[0].store(ver, std::memory_order_relaxed);
++    vh_n_.store(1, std::memory_order_relaxed);
++  }
++  // Caller holds the odd sequence. Insert at physical position p.
++  void vh_insert(size_t p, Version* ver, uint64_t wts) {
++    if (p >= CICADA_VHASH_K) return;
++    size_t n = vh_n_.load(std::memory_order_relaxed);
++    size_t next = n < CICADA_VHASH_K ? n + 1 : n;
++    for (size_t j = next - 1; j > p; --j) {
++      vh_wts_[j].store(vh_wts_[j-1].load(std::memory_order_relaxed),
++                       std::memory_order_relaxed);
++      vh_ptr_[j].store(vh_ptr_[j-1].load(std::memory_order_relaxed),
++                       std::memory_order_relaxed);
++    }
++    vh_wts_[p].store(wts, std::memory_order_relaxed);
++    vh_ptr_[p].store(ver, std::memory_order_relaxed);
++    vh_n_.store(next, std::memory_order_relaxed);
++  }
++  void vh_trim(uint64_t anchor_wts) {
++    uint32_t n = vh_n_.load(std::memory_order_relaxed);
++    while (n && vh_wts_[n-1].load(std::memory_order_relaxed) < anchor_wts)
++      --n;
++    vh_n_.store(n, std::memory_order_relaxed);
++  }
++#endif
++#line 31
+   atomic<uint64_t> min_wts_;
+@@ -92,3 +159,7 @@
+ #endif
++#if CICADA_VHASH_K
++    vh_init(latest_.load(std::memory_order_relaxed), param->initial_wts);
++#endif
+   }
++#line 94
+ 
+@@ -107,3 +178,7 @@
+ #endif
++#if CICADA_VHASH_K
++    vh_init(latest_.load(std::memory_order_relaxed), initial_wts);
++#endif
+   }
+ };
++#line 110
+diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -53,3 +53,18 @@
+ 
++#if CICADA_VHASH_COUNT
++  struct alignas(64) VHashStats {
++    uint64_t hot=0, odd=0, changed=0, cold=0;
++    uint64_t hops[7]{}; // 0, 1, 2, 3, 4-7, 8-15, 16+
++    uint64_t lag[18]{}; // [0], [1], [2,3], ... [2^15,2^16-1], [2^16,+inf)
++    uint64_t ro_commit=0, ro_abort=0, update_commit=0, update_abort=0;
++    uint64_t install_wait=0, install_hold=0, gc_hold=0;
++    uint64_t install_count=0, gc_count=0;
++  };
++  static VHashStats vh_stats_[256];
++#endif
++#if CICADA_VHASH_WL
++  bool vh_new_procedure_ = true;
++#endif
+   bool reconnoitering_ = false;
++#line 55
+   bool is_ronly_ = false;
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -26,3 +26,65 @@
+ 
++#if !defined(CICADA_VHASH_COUNT)
++#define CICADA_VHASH_COUNT 0
++#endif
++#if CICADA_VHASH_COUNT != 0 && CICADA_VHASH_COUNT != 1
++#error "CICADA_VHASH_COUNT must be 0 or 1"
++#endif
++#if !defined(CICADA_VHASH_WL)
++#define CICADA_VHASH_WL 0
++#endif
++#if CICADA_VHASH_WL != 0 && CICADA_VHASH_WL != 1
++#error "CICADA_VHASH_WL must be 0 or 1"
++#endif
++#if CICADA_VHASH_WL
++DEFINE_int32(vhash_ronly_pct, -1, "Read-only percent; -1 keeps YCSB generation");
++DECLARE_bool(ycsb_rmw);
++#endif
++#if CICADA_VHASH_COUNT
++TxExecutor::VHashStats TxExecutor::vh_stats_[256];
++namespace {
++unsigned vh_bucket(uint64_t n) {
++  if (n < 4) return unsigned(n);
++  if (n < 8) return 4;
++  if (n < 16) return 5;
++  return 6;
++}
++unsigned vh_lag_bucket(uint64_t n) {
++  if (!n) return 0;
++  unsigned b=1;
++  while (n >>= 1) { if (b == 17) break; ++b; }
++  return b;
++}
++struct VHashReport {
++  ~VHashReport() {
++    std::cout << "CICADA_VHASH_COUNT_JSON {\"schema_version\":1,\"k\":"
++              << CICADA_VHASH_K << ",\"sizeof_tuple\":" << sizeof(Tuple)
++              << ",\"workers\":[";
++    for (unsigned t=0; t<256; ++t) {
++      const auto& s=TxExecutor::vh_stats_[t];
++      if (t) std::cout << ',';
++      std::cout << "{\"thid\":" << t << ",\"hot\":" << s.hot
++                << ",\"fallback_odd\":" << s.odd
++                << ",\"fallback_changed\":" << s.changed
++                << ",\"cold\":" << s.cold << ",\"hops\":[";
++      for (unsigned i=0;i<7;++i) { if (i) std::cout << ','; std::cout << s.hops[i]; }
++      std::cout << "],\"snapshot_lag_ts\":[";
++      for (unsigned i=0;i<18;++i) { if (i) std::cout << ','; std::cout << s.lag[i]; }
++      std::cout << "],\"ro_commit\":" << s.ro_commit
++                << ",\"ro_abort\":" << s.ro_abort
++                << ",\"update_commit\":" << s.update_commit
++                << ",\"update_abort\":" << s.update_abort
++                << ",\"install_wait_cycles\":" << s.install_wait
++                << ",\"install_hold_cycles\":" << s.install_hold
++                << ",\"install_count\":" << s.install_count
++                << ",\"gc_hold_cycles\":" << s.gc_hold
++                << ",\"gc_count\":" << s.gc_count << '}';
++    }
++    std::cout << "]}" << std::endl;
++  }
++} vh_report;
++}
++#endif
+ #define MSK_TID 0b11111111
++#line 28
+ 
+@@ -34,2 +96,34 @@
+ void TxExecutor::begin() {
++#if CICADA_VHASH_WL
++  if (FLAGS_vhash_ronly_pct < -1 || FLAGS_vhash_ronly_pct > 100) {
++    fprintf(stderr, "invalid --vhash_ronly_pct: %d\n", FLAGS_vhash_ronly_pct);
++    exit(1);
++  }
++  if (vh_new_procedure_) {
++    if (FLAGS_vhash_ronly_pct >= 0) {
++      thread_local Xoroshiro128Plus draw;
++      thread_local bool initialized = false;
++      if (!initialized) { draw.init(); initialized = true; }
++      bool ro = (draw.next() % 100) < uint64_t(FLAGS_vhash_ronly_pct);
++      if (ro) {
++        for (auto& pro : pro_set_) pro.ope_ = Ope::READ;
++      } else {
++        bool has_write=false;
++        for (const auto& pro : pro_set_) if (pro.ope_ != Ope::READ) has_write=true;
++        if (!has_write) pro_set_.front().ope_ = FLAGS_ycsb_rmw ?
++            Ope::READ_MODIFY_WRITE : Ope::WRITE;
++      }
++      bool ronly=true, wonly=true;
++      for (const auto& pro : pro_set_) {
++        if (pro.ope_ == Ope::READ) wonly=false;
++        else ronly=false;
++      }
++      is_ronly_=ronly;
++      pro_set_.front().ronly_=ronly;
++      pro_set_.front().wonly_=wonly;
++    }
++    vh_new_procedure_=false;
++  }
++#endif
++#line 35
+   /**
+@@ -42,2 +136,7 @@
+   this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
++#if CICADA_VHASH_COUNT
++  if (is_ronly_)
++    ++vh_stats_[thid_].lag[vh_lag_bucket(wts_.ts_ >= rts_ ? wts_.ts_-rts_ : 0)];
++#endif
++#line 43
+   __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
+@@ -101,4 +200,59 @@
+    */
++#if CICADA_VHASH_COUNT && !CICADA_VHASH_K
++  uint64_t vh_hops = 0;
++#endif
++#if CICADA_VHASH_K
++  bool vh_used = false;
++#if CICADA_VHASH_COUNT
++  uint64_t vh_hops = 0;
++#endif
++  uint64_t s1 = tuple->vh_seq_.load(std::memory_order_acquire);
++  if (!(s1 & 1)) {
++    uint32_t n = tuple->vh_n_.load(std::memory_order_relaxed);
++    uint64_t wts[CICADA_VHASH_K];
++    Version* ptr[CICADA_VHASH_K];
++    for (uint32_t i=0; i<n; ++i) {
++      wts[i] = tuple->vh_wts_[i].load(std::memory_order_relaxed);
++      ptr[i] = tuple->vh_ptr_[i].load(std::memory_order_relaxed);
++    }
++    std::atomic_thread_fence(std::memory_order_acquire);
++    uint64_t s2 = tuple->vh_seq_.load(std::memory_order_relaxed);
++    if (s1 == s2 && n) {
++      vh_used = true;
++      uint32_t i=0;
++      while (i<n && wts[i]>trts) ++i;
++#if CICADA_VHASH_COUNT
++      vh_hops=i<n ? i : i-1; // ptr[n-1] is visited by the stock tail loop.
++#endif
++      if (i<n) {
++        ver=ptr[i];
++        later_ver=i ? ptr[i-1] : nullptr;
++      } else {
++        ver=ptr[n-1];
++        later_ver=n>1 ? ptr[n-2] : nullptr;
++#if CICADA_VHASH_COUNT
++        ++vh_stats_[thid_].cold;
++#endif
++      }
++    } else {
++#if CICADA_VHASH_COUNT
++      ++vh_stats_[thid_].changed;
++#endif
++    }
++  } else {
++#if CICADA_VHASH_COUNT
++    ++vh_stats_[thid_].odd;
++#endif
++  }
++  if (!vh_used) ver = tuple->ldAcqLatest();
++#if CICADA_VHASH_COUNT
++  else ++vh_stats_[thid_].hot;
++#endif
++#else
+   ver = tuple->ldAcqLatest();
++#endif
+   while (ver->ldAcqWts() > trts) {
++#if CICADA_VHASH_COUNT
++    ++vh_hops;
++#endif
+     later_ver = ver;
+@@ -107,2 +261,6 @@
+   }
++#if CICADA_VHASH_COUNT
++  ++vh_stats_[thid_].hops[vh_bucket(vh_hops)];
++#endif
++#line 108
+   while (ver->status_.load(memory_order_acquire) != VersionStatus::committed &&
+@@ -489,2 +647,14 @@
+     for (;;) {
++#if CICADA_VHASH_K
++#if CICADA_VHASH_COUNT
++      uint64_t vh_wait_start=rdtscp();
++#endif
++      Tuple::VHashGuard vh_guard((*itr).rcdptr_);
++#if CICADA_VHASH_COUNT
++      uint64_t vh_hold_start=rdtscp();
++      vh_stats_[thid_].install_wait += vh_hold_start-vh_wait_start;
++#endif
++      size_t vh_position=0;
++#endif
++#line 490
+       if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
+@@ -497,2 +667,6 @@
+       } else {
++#if CICADA_VHASH_K
++        (*itr).later_ver_ = nullptr;
++        ver = expected = (*itr).rcdptr_->ldAcqLatest();
++#else
+         if ((*itr).later_ver_) {
+@@ -503,2 +677,3 @@
+         }
++#endif
+         while (ver->ldAcqWts() > this->wts_.ts_) {
+@@ -507,3 +682,7 @@
+           ver = ver->ldAcqNext();
++#if CICADA_VHASH_K
++          ++vh_position;
++#endif
+         }
++#line 509
+       }
+@@ -518,2 +697,9 @@
+                 memory_order_acquire)) {
++#if CICADA_VHASH_K
++          (*itr).rcdptr_->vh_insert(vh_position, (*itr).new_ver_, this->wts_.ts_);
++#if CICADA_VHASH_COUNT
++          vh_stats_[thid_].install_hold += rdtscp()-vh_hold_start;
++          ++vh_stats_[thid_].install_count;
++#endif
++#endif
+           break;
+@@ -522,2 +708,4 @@
+         (*itr).new_ver_->strRelNext(ver);
++#line 522
++
+         if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
+@@ -525,2 +713,9 @@
+                                                    memory_order_acquire)) {
++#if CICADA_VHASH_K
++          (*itr).rcdptr_->vh_insert(vh_position, (*itr).new_ver_, this->wts_.ts_);
++#if CICADA_VHASH_COUNT
++          vh_stats_[thid_].install_hold += rdtscp()-vh_hold_start;
++          ++vh_stats_[thid_].install_count;
++#endif
++#endif
+           break;
+@@ -528,4 +723,10 @@
+       }
++#if CICADA_VHASH_K && CICADA_VHASH_COUNT
++      vh_stats_[thid_].install_hold += rdtscp()-vh_hold_start;
++      ++vh_stats_[thid_].install_count;
++#endif
+     }
+     (*itr).finish_version_install_ = true;
++#line 530
++
+   }
+@@ -745,2 +946,7 @@
+ void TxExecutor::abort() {
++#if CICADA_VHASH_COUNT
++  if (is_ronly_) ++vh_stats_[thid_].ro_abort;
++  else ++vh_stats_[thid_].update_abort;
++#endif
++#line 746
+   // remove inserted records
+@@ -830,2 +1036,9 @@
+ 
++    // The GC lock precedes the hot sequence lock.
++#if CICADA_VHASH_K
++    Tuple::VHashGuard vh_guard(tuple);
++#if CICADA_VHASH_COUNT
++    uint64_t vh_gc_start=rdtscp();
++#endif
++#endif
+     Version* delTarget =
+@@ -833,2 +1046,5 @@
+ 
++#if CICADA_VHASH_K
++    tuple->vh_trim(gcq_.front().ver_->wts_);
++#endif
+     // the thread detaches the rest of the version list from v
+@@ -837,3 +1053,12 @@
+     tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
++#if CICADA_VHASH_K
++#if CICADA_VHASH_COUNT
++    vh_stats_[thid_].gc_hold += rdtscp()-vh_gc_start;
++    ++vh_stats_[thid_].gc_count;
++#endif
++    vh_guard.close();
++#endif
+     gcAfterThisVersion(tuple, delTarget);
++#line 838
++
+     // releases the lock
+@@ -911,2 +1136,9 @@
+   read_set_.clear();
++#if CICADA_VHASH_COUNT
++  ++vh_stats_[thid_].update_commit;
++#endif
++#if CICADA_VHASH_WL
++  vh_new_procedure_=true;
++#endif
++#line 912
+   write_set_.clear();
+@@ -935,2 +1167,9 @@
+     read_set_.clear();
++#if CICADA_VHASH_COUNT
++    ++vh_stats_[thid_].ro_commit;
++#endif
++#if CICADA_VHASH_WL
++    vh_new_procedure_=true;
++#endif
++#line 936
+     node_map_.clear();

@@ -74247,3 +74247,79 @@ TPC-C 全 mix × 4 thread の `gc_records()` の ERR は、後から作られた
 - promotion の引数を無名にして未使用の警告を避ける — 計装 patch の hunk がその行を文脈に含み、G に当たらなくなる (段 6 レビューが検出)。
 - promotion の修正を取り消して compile できない状態に戻す — 欠陥の観測ができなくなり、ユーザーの「直したい」にも反する。
 - D297 検査器に cicada の macro を登録して C→G を判定させる — gate の変更で本件の範囲を超える。pin 前進の作業で扱う。
+
+## D2309. 原本を抱えた古い投入木と branch 91 本・11 本は回収せずに撤去し、D2242 決定 1 の「branch は残す」を解く (2026-09-30)
+
+**決定:**
+
+1. 2026-09-30 の棚卸しで、研究記録が原本の所在・固定 checkout・発効版として path を名指すために残していた worktree 91 本 (dev-wave-jobs 等の投入木 80 本と個別の木 11 本) と
+   local branch 11 本を、**回収せずに撤去する**。回収 (repo 外の恒久置き場 `izanagi-repro-archive` への新しい写し) は 0 件。
+   判定基準はユーザー方針 (2026-09-30、依頼 md_1) のとおり、(a) 論文の数値・図がその原本からしか得られない、(b) phase3 の現行タスクか worklog 末尾の次の一手が入力に取る、
+   (c) 有効な事前登録・凍結が入力に取る、のいずれかを一次資料で示せた系列だけを回収する。名指しされているだけ (経緯・所在の記述) は回収理由にしない。
+   調査の結果、(a)〜(c) に当たる系列は 0、コード・テストが木の path を読む箇所も 0 だった。T-2850 追補 3 が入力に取るのは main の祖先の commit `299aa022e` で、木ではない。
+2. 記録の付け替えは集約 insight `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とし、名指していた insight README の末尾に日付付きの追記節を足す。
+   結果稿・版・claim-evidence・receipt・MANIFEST・verbatim・raw (append-only の凍結物) は書き換えず、`docs/paper-story/README.md` の所在注記から訂正先を指す。
+3. B-5 の発効 commit `6fce61d6e` (唯一の ref が branch `worktree-dev-wave-t2797-b5-main-run`) は tag を作らず、branch の bundle で保全する。
+4. D2242 決定 1 の「branch `worktree-t2273-shard0-local-copy` は残す」を解き、bundle に退避してから削除する。
+
+**理由:**
+
+- 論文の主張は「どの仕組みで何が得られたか」と粗い時期で足り、bytes 級 provenance の保全は既定で最小側に倒す (ユーザー明言 2026-08-12)。数値・図はすべて repo 内の派生物 (insight・結果稿) にあり、
+  K2 3 組・B-5 試走・MOCC 疎通 21 本・T-2850 試走 v2 18 本・T-2865 段階 F の campaign 原本は既に `izanagi-repro-archive` に sha256 照合つきで写してある。
+- T-2871 生死確認の WAL 2 本は `output/insights/2026-09-29/gen-opt-evolution-design/README.md` §6.1 の内訳の生データとして名指されるが、同設計は未採用・本走未承認で、内訳値は同 README に転記済みなので (b) に当たらない
+  (攻撃役の指摘を採用)。前日の退避 tar に入っている。
+- tag は管理する ref を増やすだけで、論文稿の「branch にある」という所在の記述はどちらにしても注記で直す必要がある。発効 commit の差分は json 1 file・25 行で bundle から復元できる。
+- D2242 が branch を残した趣旨は決定 3 (中立な整理としての land を別判断に残す) にあり、その判断は D2243 項 2 が候補 (c) として不採用にした。branch を入力に取るタスクは無い。
+- 残し続ける費用は実測で重い: 2026-09-29 に worktree 216 本で `git worktree list` 7.2 秒・rescue gate が時間切れ・全 worktree の status 15 分超。
+
+**却下した選択肢:**
+
+- 名指しがある木を全部残す (前日の Codex 判断) — 経緯の記述を回収理由にすることになり、ユーザー方針に反する。
+- T-2871 の WAL 2 本を恒久置き場へ回収する (決定役の案) — (a)〜(c) を満たさない。
+- B-5 発効 commit に tag `archive/t2797-b5-effect` を作る (決定役の案) — 上記の理由で不要。
+- git の登録だけ外して directory を残す — 施錠・checkout と HEAD の対応・submodule 接続が壊れ、残した directory も再現に使えない (前日の決定役の判断を維持)。
+- 到達不能 object 台帳へ削除 commit を転記する — 人間の喪失受容を要する期限つき台帳で、`/cleanup-branches` §5 も別 wave への引き渡しとしている。bundle の所在を集約 insight に書くに留める。
+
+## D2310. stock Cicada の削除経路の欠陥は、回収側 (gc_records) が aborted の版を読み飛ばす形と、scan の key を Tuple の複写から取る形で直す。受理集合を変える直し方は採らず、CCBench の local branch 2 commit と同じ差分の out-of-tree patch に置く (2026-09-30)
+
+**決定:**
+1. 原因 (診断で 10/10 実測): 後発の Delivery の削除版が read set 再検査で abort し、`writeSetClean()` が aborted にしたまま版鎖の最上段に残るため、先発の削除を commit した thread の `gc_records()` が ERR する。
+2. 修理 1: `gc_records()` が最上段から続く aborted の版を何段でも読み飛ばし、到達した版が deleted なら回収、それ以外 (null・pending・committed) は ERR を残す。最上段の wts による待機判定、validation・commit・abort・版の install は変えない。
+3. 修理 2: 修理 1 で表に出た既存欠陥 (scan が最新版の body から key を取り、body の無い削除版が最上段の行で key が空になる) を、作成時に複写される `Tuple::body_` の key を使い、空なら従来どおり最新版から取る形で直す。上流の「1 課題 1 文脈」に合わせ別 commit・別 patch。
+4. 置き場: CCBench local branch `izanagi-cicada-gc-records-fix` (F `25898d00` の子 2 commit) と、同じ差分の `patches/fix-cicada-gc-records.patch`・`patches/fix-cicada-gc-records-scan-key.patch` (pin C → (計装) → 修理 1 → 修理 2 の順で厳密適用、`patches/ledger.json` には登録しない)。push と pin の前進は人間の手番 (D16・D18・D20)。
+5. 確認は事前登録した観測 (修理自身が出さない量) で判定した: 修理版の完走と同じ job の無修理版の ERR、修理版 trace の判定器の数値 (巡回・integrity・存在履歴・C 行)、削除を含まない cell の判定不変、TRACE=0 の命令列一致、ASan、変異 (1 段だけ読み飛ばす変異は KILLED、read 再検査の壊しは判定器が巡回として検出)。
+
+**理由:**
+- 修理 1 は回収の判定だけを変え、どの tx が commit / abort するかを変えない。安全性は (i) 削除版の上に install された版は read set 再検査か write set 検査で必ず abort する、(ii) 回収可の時点 (最上段の wts < MinRts) で版鎖に実行中の tx の版は無い (thread ごとの wts の単調性と公開 rts の関係、group_commit=0)、(iii) 読み飛ばす aborted 版と削除版はどこからも解放されない、に依る (一次資料 §2)。
+- ERR を残すので、本当に不整合な状態 (committed の版が最上段に来るなど) は従来どおり止まる。
+- 修理 2 がないと修理版の trace が判定器に掛からず、依頼の完了判定 (並行下の削除を含む trace の判定) が取れない。CC 自体でも空 key は read-own-reads の key 照合を誤らせうる。
+
+**却下した選択肢:**
+- abort 時に install 済みの版を版鎖から外す — 並行する CAS・読み手の走査・版の回収と再利用の全部に触れ、小さな修理にならない。
+- install 時に最新版が deleted / pending なら abort する — pending の削除と競合する経路を塞げず単独では足りず、受理集合を縮める。
+- ERR を外す — 本当の不整合を隠す。
+- 1 段だけ読み飛ばす — 診断で 2 段重なる例があり、変異走行で落ちた (KILLED)。
+- 修理 2 を別 wave に回す — 依頼の完了判定に必要。
+- ASan が見つけた `abort()` の use-after-free を同じ wave で直す — 削除経路と無関係の別の欠陥で、依頼の完了判定に要らない。次の一手に置いた。
+
+## D2311. VHash の hot block (構成 B) は、key ごとの seqlock で守る「物理的な版の列の先頭 K 件の {wts, Version*} の写し」として inert patch で Cicada に入れ、第 1 段の走査だけを置き換える。条件 gate への登録は自分の 3 macro と driver の行だけとし、COUNT には companion K=1 を固定する (2026-09-30)
+
+**決定:**
+1. **hot の中身:** key (Tuple) ごとに `latest_` の直後へ seq・件数・K 個の `{wts, Version*}` を置き、物理的な版の列の先頭 min(K, 長さ) 件を写す。ABORTED・PENDING の版も含み、状態は写さない。値は置かない。K はコンパイル時の値 (1/2/4/8) で K ごとに別 binary。
+2. **一貫した読み:** key ごとの seqlock (Boehm 2012 の形: 書き手は偶→奇の CAS acq_rel・release fence・relaxed store・奇→偶 release store、読み手は acquire load・relaxed load・acquire fence・再読込)。奇数か変化なら spin せず stock の走査へ落ちる。pointer は再確認の後だけ参照する。
+3. **読みと保守:** `read_internal` の第 1 段 (新しすぎる版を飛ばす走査) だけを hot の走査に置き換え、`later_ver` は物理の直前の記述子にする。第 2 段以降は stock のまま。validation の版の挿入 (位置探索と CAS) と GC の切り離しを書き区間の中で行い、GC は hot から古い記述子を消してから版を再利用へ回す。lock の順は `gc_lock_` → hot の一方向。
+4. **macro と登録:** `CICADA_VHASH_K`・`CICADA_VHASH_COUNT`・`CICADA_VHASH_WL` (IZANAGI_ 接頭辞なし、未定義で stock と前処理一致、分岐は owner TU `cc/cicada/transaction.cc` と include する 2 header だけ)。条件 gate (`orchestrator/campaign/condition_meaning_gate.py`) と連動する在庫へ、自分の 3 macro と新 driver の行だけを足す (依頼の所有の外だが、patch に新しい #if があると登録簿の test が赤になり build も gate を要するので必要最小、D2288 と同じ理由)。`CICADA_VHASH_COUNT` は分岐の多くが `#if CICADA_VHASH_K` の内側にあるので companion `CICADA_VHASH_K=1` を固定する (D2288 の `CICADA_FWD_COUNT` と同じ形)。
+5. **ro 指定率の制御は variant patch の WL に置き、stock 対照も同じ patch (K=0・WL=1) で build する** (計器 patch の中にしか無い制御では性能値を取れないため)。`patches/ledger.json` には載せない (D2279・D2288)。
+
+**理由:**
+- hot を「物理列の先頭の写し」に限ると、読み手が選ぶ版は seq を確かめた時点の物理列で stock の第 1 段が止まる版と同じになり、validation の read 再検査が辿り始める点も変わらない。安全性を stock へ帰着させて論じられる (一次資料 §2)。
+- 実測 (一次資料 `output/insights/2026-09-29/vhash-hot-block-cicada/README.md`): この実装で K = 1, 2, 4, 8 は 3 つの trace cell で判定器を通り (巡回なし、上限 indeterminate)、壊し 2 本は検出・帰属した。性能は ro 95% で stock 比 0.98〜1.01、更新中心で 0.23〜0.80 倍 (書き区間の待ちが主因)。
+- 値を置かないのは、Cicada の値が HeapObject の別確保であり、md_5 で K=8 の inline 値は最新版の読みで散在 linked より遅かったため。
+- smoke1 で COUNT の meaning が宣言 20 / 観測 8 で拒否された (gate の probe は K 未定義で前処理するので K の内側の分岐が見えない)。
+
+**却下した選択肢:**
+- ABORTED を hot から外して評価計画草稿 §2 の数え方に合わせる — `later_ver` の意味と物理列との一致が崩れる反例がある (段 2)。構成 D を作るときに「hot miss = 論理 K 境界」の対応を取り直す。
+- 挿入の CAS の後に hot を遅れて更新する (書き区間を CAS の外に出す) — 読み手が過去の列の状態を見る窓ができ、安全の論証が変わる。更新中心の費用を下げる本命の候補だが、本 wave では論証を書いていないので採らず、次の一手に回した。
+- 値も hot に置く — 上の理由。
+- 条件 gate の登録を避けて patch を patches/ の外に置く — 検査逃れで D18 の inert patch 方針から外れる。
+- 共通 header `include/ycsb.hh` に ro 指定率の制御を置く — 他 protocol の TU を変え、gate の owner TU の観測範囲の外になる (先例 md_15 は transaction.cc の begin() に置いた)。

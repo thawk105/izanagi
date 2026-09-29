@@ -314,3 +314,8 @@ roadmap §2 は「population、世代更新、選択、変異/交叉、必要な
 - 設計の正本: roadmap §1 (知識水準、主張の階層、候補の 3 分類)、§2 (層 2、探索戦略、リーク制御)、§5 (計算投入の確認)、§10 (スコープ外)。
 - 判断: D9、D792、D2212、D2214、D2216、D2220、D2222、D2226、D2234、D2240、D2250、D2251、D2256、D2258、D2263、D2281。[T-2852] の P5 の記録 (main `ab5fd6bd9`)。
 - 記録: `docs/related-work/shinka-deepdive.md`、`docs/archive/worklog-phase3-0702-0713.md` の 2026-07-07 (4)、`docs/silo-policy-generator-contrast-preregistration.md`、`docs/phase3-silo-policy-runbook.md`、`docs/pegasus-runbook.md` §7.5、`output/insights/2026-09-27/t2867-silo-policy-contrast-draft/README.md` §5、`output/insights/2026-09-29/t2871-policy-loop-iter/README.md`、`output/insights/2026-09-27/t2865-silo-policy-iter2/README.md`、`output/insights/2026-09-26/t2797-b5-cost-options/README.md`。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+§6.1 の内訳の生データとして名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2871-policy-loop-iter/trees/live/.../runs/wal.jsonl` 2 本は、2026-09-30 の掃除 wave で回収せずに撤去する (本設計は未採用で、内訳値は本文に転記済みのため回収の基準に当たらないと判定した)。WAL を含む木の未追跡物は前日の退避 tar に入っている (所在は集約 insight の表)。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
