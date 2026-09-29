@@ -81,7 +81,7 @@ def invoke(tmp_path, doc, mode="k", second=None):
     if second is not None: paths.append(write(tmp_path / "second.json", second))
     prefix = tmp_path / "figure"
     env = dict(os.environ, MPLCONFIGDIR=str(tmp_path / "mpl"), PYTHONDONTWRITEBYTECODE="1")
-    result = subprocess.run([sys.executable, str(SCRIPT), mode, str(prefix), *map(str, paths)], cwd=REPO, env=env, capture_output=True, text=True, timeout=120)
+    result = subprocess.run([sys.executable, "-B", str(SCRIPT), mode, str(prefix), *map(str, paths)], cwd=REPO, env=env, capture_output=True, text=True, timeout=120)
     return result, prefix, paths[0]
 
 def assert_empty(prefix):

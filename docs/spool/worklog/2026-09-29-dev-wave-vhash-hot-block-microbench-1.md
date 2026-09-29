@@ -17,7 +17,8 @@ title: [T-2878] VHash の hot block 配置を 1 キー版選択の微小計測�
 - 書き込み側の keyset 区分は成立しなかった (履歴を回収しない追記のため 1 キーの確保量が数 MB になり、key 数が 64 と 84〜420、hot block は両方 cache 内)。書き込みの値は「cache 内の hot block」の費用として報告した。
 - 変異: probe 1 走 (d0fe78c15、9 変異すべて赤を観測) → 本走 2 走 (b42cba01e) で 11 変異すべてが期待 node 集合と完全一致で KILLED (一次資料 §8)。M11 の走行で較正 test の補助 binary が計算ノードの repo 直下に core file を残し、次の harness 起動が untracked で止まった (消して再投入)。
 - 焦点走 1 回目は赤 2 件: perf file 台帳 (`test_official_perf_closure.py`) が作図器を未審査と判定 (作図器は記録済みの perf 値を読むだけで perf を起動しないと審査し、先例 `plot_s1_9pair.py` と同じく台帳へ 1 entry を登録、fix 巡 9)、もう 1 件は未 commit の fragment による作業木の変更集合検査の赤 (commit で解消)。
-- 工数: codex 子 = plan 1、consult 2、author 2、review 2、fix 10 (巡 1 が 2 本、巡 2〜9 が各 1 本)、focus 2。計測 job の合計 6,545 秒 (約 1.82 node 時間、無効にした初回分を含む)。変異・焦点走・受入の job は含まない。
+- 受入 1 回目 (claimed main 3bf2d0a16) は `1 failed, 27965 passed, 74 skipped`。赤は自 wave 起因: 作図テストの Python 子起動が `env=dict(os.environ, …, PYTHONDONTWRITEBYTECODE="1")` の形で、bytecode guard の浅い検査器 (`tools/check_subprocess_bytecode_guard.py`) が guard と認識しない。argv に `-B` を足した (fix 巡 10)。新規 test を足すときの repo 全体の検査器 (この checker) を子も親も焦点走に入れていなかった。
+- 工数: codex 子 = plan 1、consult 2、author 2、review 2、fix 11 (巡 1 が 2 本、巡 2〜10 が各 1 本)、focus 2。計測 job の合計 6,545 秒 (約 1.82 node 時間、無効にした初回分を含む)。変異・焦点走・受入の job は含まない。
 
 ## 次の一手差分
 
