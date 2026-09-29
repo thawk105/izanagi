@@ -1,0 +1,169 @@
+"""Pure contract checks for the interval GC compute driver."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import sys
+import tempfile
+
+from orchestrator.campaign import vhash_interval_gc as d
+
+
+def raises(exc, fn, *args, **kwargs):
+    try:
+        fn(*args, **kwargs)
+    except exc:
+        return
+    raise AssertionError(f'expected {exc.__name__}')
+
+
+def test_condition_table_and_group_partition():
+    assert len(d.CELLS) == 17
+    names = [name for group in d.GROUPS.values() for name in group]
+    assert len(d.GROUPS) >= 4 and len(names) == len(set(names))
+    assert set(names) == set(d.CELLS)
+    for rr in (50, 95):
+        for kind in ('wait1', 'wait10', 'many', 'ronly'):
+            for gc in (10, 100):
+                assert f'rr{rr}-{kind}-gc{gc}' in d.CELLS
+    assert d.CELLS['rr50-wait10-two-gc10']['long_threads'] == 2
+
+
+def test_arm_macro_sets():
+    assert d.arm_macros('stock', 'perf') == {'CICADA_INTERVAL_LONGTX': 1}
+    assert d.arm_macros('min', 'perf')['CICADA_INTERVAL_GC'] == 1
+    assert d.arm_macros('gen', 'perf')['CICADA_INTERVAL_GC'] == 2
+    assert d.arm_macros('stock', 'count')['CICADA_INTERVAL_COUNT'] == 1
+    assert 'CICADA_INTERVAL_COUNT' not in d.arm_macros('gen', 'perf')
+
+
+def test_order_rotation():
+    assert [d.order_rotation(rep) for rep in range(3)] == [
+        ('stock', 'min', 'gen'), ('min', 'gen', 'stock'), ('gen', 'stock', 'min')]
+    plan = d.plan_runs('rr50_wait')
+    cell = d.GROUPS['rr50_wait'][0]
+    for rep in range(3):
+        assert tuple(row['arm'] for row in plan if row['cell'] == cell and
+                     row['build_kind'] == 'perf' and row['rep'] == rep) == d.order_rotation(rep)
+
+
+def test_count_never_perf_eligible():
+    assert d.perf_eligible('count') is False
+    assert d.perf_eligible('perf') is True
+    assert all(not d.perf_eligible(row['build_kind']) for row in d.plan_runs('rr50_wait')
+               if row['build_kind'] == 'count')
+
+
+def test_gate_receipt_missing_rejected():
+    macros = d.arm_macros('min', 'count')
+    receipts = [{'macro': name, 'admission': {'admitted': True}} for name in macros]
+    d.assert_gate_receipts(macros, receipts)
+    raises(RuntimeError, d.assert_gate_receipts, macros, receipts[:-1])
+    bad = [dict(receipts[0], admission={'admitted': False}), *receipts[1:]]
+    raises(RuntimeError, d.assert_gate_receipts, macros, bad)
+
+
+def test_competing_pid_rejected():
+    original = d.competing_bench_pids
+    try:
+        d.competing_bench_pids = lambda: [123]
+        raises(RuntimeError, d.assert_solo)
+        d.competing_bench_pids = lambda: []
+        assert d.assert_solo()['competing'] == []
+    finally:
+        d.competing_bench_pids = original
+
+
+def test_compile_binding_positive_negative():
+    with tempfile.TemporaryDirectory() as tmp:
+        build = Path(tmp)
+        defs = {'TRACE': 0, 'ADD_ANALYSIS': 0, 'SINGLE_EXEC': 0,
+                **d.BASE, **d.arm_macros('min', 'perf')}
+        argv = ['c++', *(f'-D{k}={v}' for k, v in defs.items())]
+        entries = [{'file': str(build / f'cc/cicada/{name}'),
+                    'arguments': [*argv, '-o', f'CMakeFiles/ycsb_cicada.exe.dir/{name}.o']}
+                   for name in ('transaction.cc', 'util.cc', 'ycsb_cicada.cc')]
+        # A sibling target with different defines must not affect binding.
+        entries.append({'file': entries[0]['file'], 'arguments': ['c++', '-DTRACE=1',
+                       '-o', 'CMakeFiles/tpcc_cicada.exe.dir/transaction.cc.o']})
+        path = build / 'compile_commands.json'
+        path.write_text(json.dumps(entries))
+        assert len(d.check_compile_commands(build, d.arm_macros('min', 'perf'), 0)) == 3
+        entries[0]['arguments'][1] = '-DTRACE=1'
+        path.write_text(json.dumps(entries))
+        raises(RuntimeError, d.check_compile_commands, build, d.arm_macros('min', 'perf'), 0)
+
+
+def test_counter_lines_positive_negative():
+    good = ('CICADA_INTERVAL_V1 {"schema":1,"prune_success":4}\n'
+            'CICADA_IGC_LONGTX_V1 {"attempts":3,"commits":2,"aborts":1,'
+            '"residence_cycles_sum":40,"residence_cycles_max":20}\n')
+    assert d.parse_counters(good, 'count')[0]['prune_success'] == 4
+    raises(ValueError, d.parse_counters, good + good, 'count')
+    raises(ValueError, d.parse_counters, good, 'perf')
+    raises(ValueError, d.parse_counters, good.replace('"attempts":3', '"attempts":-3'), 'count')
+
+
+def test_smoke_candidate_delta():
+    counters = {'min': {'threads': [{'prune_success': 2}, {'prune_success': 3}]},
+                'gen': {'threads': [{'prune_success': 4}, {'prune_success': 5}]}}
+    assert d.smoke_candidate_delta(counters)['beyond_minimum_candidate'] == 4
+    raises(ValueError, d.smoke_candidate_delta,
+           {'min': {'threads': [{}]}, 'gen': counters['gen']})
+
+
+def test_overprune_parser_and_attribution():
+    stderr = 'CICADA_OVERPRUNE_EVENT tx_wts=4 key=0a removed_wts=30\nCICADA_OVERPRUNE_FIRED n=1\n'
+    diag = d.parse_overprune(stderr)
+    assert diag['fired'] == 1 and diag['events'][0]['removed_wts'] == 30
+    raises(ValueError, d.parse_overprune, stderr.replace('n=1', 'n=0'))
+    record = {'anomalies': [{'edges': [{'from': 7, 'to': 8,
+              'reasons': [{'key': '0a', 'u_ver': [1, 0]}]}]}]}
+    assert d.attribute_overprune(record, diag, {7}, 20)
+    assert not d.attribute_overprune(record, diag, {9}, 20)
+    assert not d.attribute_overprune(record, diag, {7}, 40)
+
+
+def test_broken_classification_positive_negative():
+    stock = {'total_cycles': 0, 'verdict': 'indeterminate'}
+    broken = {'verdict': 'non-serializable', 'total_cycles': 1,
+              'attributed_edges': [{'edge': {'from': 7}}],
+              'overprune': {'fired': 1}}
+    assert d.classify_broken(broken, stock) == '期待した経路で検出'
+    assert d.classify_broken({**broken, 'attributed_edges': []}, stock) != '期待した経路で検出'
+    assert d.classify_broken(broken, {**stock, 'total_cycles': 1}) == '対照異常'
+
+
+def test_aggregate_missing_cells_rejected():
+    raises(ValueError, d.aggregate, [])
+    records = []
+    for cell in d.CELLS:
+        for arm in d.ARMS:
+            for rep in range(3):
+                records.append({'valid': True, 'cell': cell, 'arm': arm,
+                                'build_kind': 'perf', 'perf_eligible': True,
+                                'rep': rep, 'throughput_tps': 100 + rep})
+            records.append({'valid': True, 'cell': cell, 'arm': arm,
+                            'build_kind': 'count', 'perf_eligible': False,
+                            'interval_counter': {'schema': 1}})
+    assert d.aggregate(records)['complete'] is True
+    raises(ValueError, d.aggregate, [r for r in records if r['cell'] != next(iter(d.CELLS))])
+
+
+def _run():
+    tests = [(name, value) for name, value in sorted(globals().items())
+             if name.startswith('test_') and callable(value)]
+    failures = 0
+    for name, test in tests:
+        try:
+            test()
+            print('PASS', name)
+        except Exception as exc:
+            failures += 1
+            print('FAIL', name, type(exc).__name__, exc)
+    print(f'{len(tests) - failures} passed, {failures} failed')
+    return int(bool(failures))
+
+
+if __name__ == '__main__':
+    sys.exit(_run())
