@@ -5643,3 +5643,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:land-knowhow-docs-rest":"[T-2909]"},"authored":"2026-09-29","base":"2e9514b736c5454ee68b7e09b6f109bf9c91b236","content_sha256":"f273545a9bf84ab858f3b7a7b2e4f34eccddc8d1681390264b1dd7fd24e741e3","seq":1,"tested_tip":"c94ddcc818fd1677a3972d0d03642b35cbd52a4f","wave":"dev-wave-land-knowhow-ops-docs","wave_ref":"refs/heads/dev-wave-land-knowhow-ops-docs"}
 - {"allocations":{},"authored":"2026-09-29","base":"2e9514b736c5454ee68b7e09b6f109bf9c91b236","content_sha256":"52f1603d7a7cb94ae2a69c161d30aa9d30b00620ad42ae234250005635aa5528","seq":2,"tested_tip":"c94ddcc818fd1677a3972d0d03642b35cbd52a4f","wave":"dev-wave-land-knowhow-ops-docs","wave_ref":"refs/heads/dev-wave-land-knowhow-ops-docs"}
+
+- {"allocations":{},"authored":"2026-09-29","base":"0a4746147c830772cadb6831ffbf181a166b9d31","content_sha256":"47bfeac461719c59b26287787b127958ed3b626bac27ea032d999ca31bc7a9b5","seq":1,"tested_tip":"eb259b1eb6f0c15e7729b63b44874ed4dab472eb","wave":"dev-wave-gen-opt-model-checker","wave_ref":"refs/heads/dev-wave-gen-opt-model-checker"}
