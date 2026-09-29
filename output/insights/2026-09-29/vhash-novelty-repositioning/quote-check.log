@@ -1,0 +1,40 @@
+OK	cockroachdb-sigmod2020.flat,	Advancing a transaction’s read timestamp from ta to tb > ta is possible if we can prove that none of the data that the transaction read at ta has been updated in the interval (ta , tb ].
+OK	hekaton-pvldb2011.flat,	All reads specify T’s begin time as the logical read time.
+OK	hana-hybridgc-sigmod2016.flat,hekaton_sigmod2013.flat,	Any version whose end timestamp is less than the current oldest active transaction in the system is not visible to any transaction and can be safely discarded.
+OK	cockroachdb-sigmod2020.flat,	Assuming it is successful, the value will now be returned by the read.
+OK	lomet2012.flat,	By choosing the earliest timestamp in the acceptable range, we hasten the time we can remove A.
+OK	tictoc-sigmod2016.flat,sundial.flat,	Concurrent Certifications by Intervals of Timestamps in Distributed Database Systems
+OK	alhomssi-leanstore-si-pvldb16-2023.flat,mvbt-arxiv2606.09133.flat,	Diva: Making MVCC Systems HTAP-Friendly
+OK	maat.flat,tictoc-sigmod2016.flat,sundial.flat,	Dynamic Timestamp Allocation for Transactions in Database Systems
+NG		Hekaton 2011 / TicToc
+OK	lsa-transact06.flat,sundial.flat,	In our measurements
+OK	lsa-transact06.flat,	In our measurements we keep a small number k of old variants for each object.
+OK	cicada-sigmod2017.flat,	It checks the front queue item to see if (v.wts) < min_rts.
+NG		Lomet 2012 / CockroachDB
+OK	lomet2012.flat,	New conflicts never grow the range [X.early, X.late) of a transaction.
+OK	freitag-pvldb2022.flat,mvbt-arxiv2606.09133.flat,	Rethink the Scan in MVCC Databases
+OK	shirakami.flat,	Setting a longer epoch reduces epoch carryover and the cost of garbage collection in multi-version environments.
+OK	sundial.flat,	Sundial works in a single-version database.
+OK	sundial.flat,	T.commit_ts is initialized to 0 when T begins.
+OK	tictoc-sigmod2016.flat,	The value of the old version does not need to be stored since transactions in TicToc always read the latest data version.
+OK	hekaton-pvldb2011.flat,	To check visibility transaction T scans its ReadSet and for each version read, checks whether the version is still visible as of the end of the transaction.
+NG		Updating timestamp interval for dynamic adjustment of serialization order in Optimistic Concurrency Control-Time Interval (OCCTI) protocol
+OK	lomet2012.flat,	Whenever a transaction accesses a resource and conflicts with another transaction, we adjust the range within which its timestamp must lie.
+OK	silo-sosp2013.flat,	Workers running very long transactions should periodically refresh their ew values to ensure the system makes progress.
+OK	shirakami.flat,	an S-LTX transaction may be placed earlier than its opening epoch by order forwarding.
+OK	rebirth-retire.flat,maat.flat,sundial.flat,tictoc-sigmod2016.flat,	dynamic timestamp
+OK	cidr2021-everything-is-a-transaction.flat,freitag-pvldb2022.flat,bottcher-pvldb2019.flat,cicada-sigmod2017.flat,ccbench-pvldb13-13-tanabe.flat,hana-hybridgc-sigmod2016.flat,bohm-pvldb2015.flat,ermia-sigmod2016.flat,alhomssi-leanstore-si-pvldb16-2023.flat,hekaton-pvldb2011.flat,morty.flat,lomet2012.flat,mvbt-arxiv2606.09133.flat,maat.flat,lsa-transact06.flat,hyper-mvcc-sigmod2015.flat,mv3c_arxiv.flat,hekaton_sigmod2013.flat,shirakami.flat,sundial.flat,steam-boettcher-pvldb13-2019.flat,wu-empirical-mvcc-pvldb10-2017.flat,tictoc-sigmod2016.flat,vdriver-techreport.flat,silo-sosp2013.flat,	garbage collection
+OK	cockroachdb-sigmod2020.flat,	is initialized to the current time but may move forward over the course of the transaction
+OK	lomet2012.flat,	it proceeds either concurrently with the writer by reading an earlier version, or by waiting for the writer to commit and then reading this new version.
+OK	shirakami.flat,	long read-write transactions
+NG		long transaction(s)
+OK	shirakami.flat,	order forwarding
+OK	hekaton-pvldb2011.flat,bohm-pvldb2015.flat,boksenbaum_vldb1984.flat,alhomssi-leanstore-si-pvldb16-2023.flat,shirakami.flat,morty.flat,lomet2012.flat,hyper-mvcc-sigmod2015.flat,hekaton_sigmod2013.flat,wu-empirical-mvcc-pvldb10-2017.flat,sundial.flat,tictoc-sigmod2016.flat,	serialization order
+OK	cockroachdb-sigmod2020.flat,	the transaction typically tries to prove that its prior reads remain valid at the new timestamp
+OK	lomet2012.flat,	the version of R accessed is the one with the largest timestamp less than X.early (after access is granted).
+OK	cockroachdb-sigmod2020.flat,hekaton_sigmod2013.flat,sundial.flat,	timestamp interval
+OK	freitag-pvldb2022.flat,lomet2012.flat,maat.flat,muhe_cidr2013.flat,rebirth-retire.flat,hyper-mvcc-sigmod2015.flat,hekaton_sigmod2013.flat,sundial.flat,wu-empirical-mvcc-pvldb10-2017.flat,alhomssi-leanstore-si-pvldb16-2023.flat,	timestamp range
+OK	lsa-transact06.flat,	to reduce the number of write/write conflicts and the memory footprint of the system (by facilitating that old versions be discarded earlier)
+OK	bohm-pvldb2015.flat,rebirth-retire.flat,vdriver-techreport.flat,	version traversal
+OK	lsa-transact06.flat,	we can actually take a snapshot of the future
+OK	lsa-transact06.flat,	we look for the most recent version ovi with a validity interval V that overlaps VT
