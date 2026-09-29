@@ -960,6 +960,33 @@ CCBench の C1' `6aa7a58f` (pin C の子、header 2 file だけ) にある。md_
   範囲読みの phantom・不在の読み・BOMB / SBOMB の trace・campaign 接続・certified は対象外。記録は `output/insights/2026-09-29/vhash-cicada-verifier-ext/`。
 - **pin 前進時:** C2' 系へ pin が進んだら、重ね順の厳密適用と生死確認を取り直す。
 
+## fix-cicada-gc-records.patch / fix-cicada-gc-records-scan-key.patch — stock Cicada の削除経路の欠陥 2 件の修理 ([T-2908]、2026-09-29〜30)
+
+上の「未対応」の F cell × 4 thread の異常終了を直す**挙動を変える修理** (inert patch ではない)。本来の置き場は CCBench の local branch
+`izanagi-cicada-gc-records-fix` (F `25898d00` の子 2 commit、push と pin の前進は人間の手番、D16・D18・D20) で、pin が C のうちに実験で
+使えるよう同じ差分を out-of-tree patch として置く。`patches/ledger.json` には登録しない (entries 1 件固定)。pin がこの 2 commit を含む tip へ
+進んだら 2 本とも不要になる。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| fix-cicada-gc-records | なし (無条件) | `cc/cicada/transaction.cc` の `gc_records()` だけ。最上段から続く aborted の版を何段でも読み飛ばし、到達した版が deleted なら従来どおり回収、それ以外 (null・pending・committed) は従来どおり `ERR`。最上段の wts による待機判定、validation・commit・abort は変えない |
+| fix-cicada-gc-records-scan-key | なし (無条件) | 同 file の `scan()` だけ。結果の key を最新版の body ではなく作成時に複写される `Tuple::body_` から取り、それが空なら従来どおり最新版から取る |
+
+- **欠陥:** (1) 後発の Delivery の削除版が read set 再検査で abort すると `writeSetClean()` が aborted にしたまま版鎖の最上段に残し、先発の削除を
+  commit した thread の `gc_records()` が `ERR` する (診断で 10/10 実測)。(2) (1) を直すと、最上段に body の無い削除版がある行を `scan()` が
+  空 key で read set に入れる既存欠陥が表に出る (trace の R 行の key が空になり判定器が parse error、read-own-reads の key 照合も誤りうる)。
+- **重ね方:** 2 本は行が離れていて独立に当たる。適用順は gc-records → scan-key。pin C 単独、pin C → `instr-cicada-trace.patch`、C1' →
+  instr → instr-tpcc、F 単独、F → instr → instr-tpcc (→ 壊し patch) のいずれの後にも厳密適用できる (git apply --check と patchharness の適用)。
+  `instr-cicada-version-lifetime.patch`・`cicada-forwarding-variant.patch` (+ `cicada-forwarding-gc.patch`) の後にも `git apply --check` は通った
+  (生死は未確認)。新しい `#if` 条件・`IZANAGI_` の語を含まない。
+- **実証 (F 基点、TRACE=0 は Release・sanitizer OFF):** 修理 2 本の F cell × t4 10/10・t8 10/10 が完走、同じ job の無修理は t4 5/5・t8 4/5 が
+  `gc_records` の ERR。pin C + 修理 2 本 3/3 完走。修理 2 本 + instr + instr-tpcc の F cell × t4 trace 3 本は巡回 0・integrity 数値項目と
+  存在履歴違反 0・C 行 = commit 数 (並行下の削除 890〜3,570 件、4 thread 全部)。M・R2 cell は修理前後とも合格。read 再検査の壊しを重ねると
+  non-serializable (巡回 386)。TRACE=0 は (修理) 対 (計装 + 修理) で tpcc の 3 TU の命令列が一致。上流 CI の format (clang-format 14、213 file)
+  と build (CI image、全 protocol) を CCBench の branch tip で手元通過。
+- **限界:** INLINE_VERSION_OPT=1 の insert 経路では空 key が残りうる (修理前と同じ)。`abort()` が insert した tuple を解放した後に
+  `writeSetClean()` が書く use-after-free (既存、ASan で検出) は直していない。記録は `output/insights/2026-09-29/vhash-cicada-gc-records-fix/`。
+
 ---
 
 ## トレース形式 (verifier = タスク2 の入力契約)
