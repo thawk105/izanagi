@@ -1,0 +1,369 @@
+record	judgement	claims	reason_code	note
+openalex:W3105733461	除外		X1	VANET の blockchain
+openalex:W7203695018	除外		X1	複合イベント処理の runtime (watermark は時刻の意味)
+openalex:W7203684722	除外		X4	W7203695018 と同題・同内容 (Zenodo の別版)
+openalex:W7213620875	除外		X1	OS のエージェント実行環境
+openalex:W7214107640	除外		X4	W7213620875 と同題 (Zenodo の別版)
+openalex:W2441046553	近傍	U0	GC	SAP HANA の hybrid GC (陽性対照)。tx の位置は動かさない (md_1 §6.3)
+openalex:W3161353204	除外		X1	分散 GC (プログラミング言語)
+openalex:W2012098586	除外		X4	W3161353204 と同題・同年
+openalex:W105746118	近傍	U0	GC	MVTO 型 STM と版の GC (S2 要約。arXiv 1305.6624 と同じ研究とみられる)。tx の位置を動かす記述なし
+openalex:W2120462664	除外		X1	時刻付きデータの分散 GC (tx でない)
+openalex:W4312585367	近傍	U0	GC	2 版 TO で GC の負担を減らす (mobile DBMS)。tx の位置は動かさない
+openalex:W1588087802	近傍	U0	GC	MVTO 型 STM と版の GC (arXiv 1305.6624 と同じ)
+openalex:W2369847330	除外		X1	参照計数と timestamp の GC (プログラミング言語)
+openalex:W2103252867	除外		X1	実時間共同編集
+openalex:W4410165809	近傍	U0	GC	MVCC の一般的説明と GC (tx の位置は動かさない)
+openalex:W7166178822	除外		X1	blockchain (DAG) の公平な順序付け
+openalex:W1561168897	除外		X1	因果論理プログラミング
+openalex:W7141709571	近傍	U0	GC	組込み DB の時間旅行問合せと GC 方針。tx の位置は動かさない
+openalex:W7141244902	除外		X4	W7141709571 と同題 (Zenodo の別版)
+openalex:W4206415463	除外		X2	DB 運用の書籍章 (データ損失の防止)
+openalex:W3032843849	近傍	U0,U1	GC	vDriver (陽性対照)。版の配置を timestamp・可視区間から決める = U1 の逆向き (md_1 §7)
+openalex:W2612369081	近傍	U2	TS	MV3C: validation 失敗部分だけ再実行 (md_1 K10)。既読値は読み直す向き
+openalex:W4414267088	近傍	U0,U2	TS	TuskFlow: 長い tx (mammoth) の周りで通常 tx を epoch 内で並べ替える。GC 境界への接続の記述なし (要旨)
+openalex:W2290562659	除外		X4	W2612369081 と同じ研究 (arXiv 版 MV3C、md_1 §11.1)
+openalex:W2011395086	近傍	U2	TS	Hekaton 2011 (§3.1 の表の行)。begin で読み end で commit、既読の可視性を commit 時に再確認
+openalex:W4232576131	除外		X3	MV2PL の衝突解決の正しさ基準 (tx の位置を後へ動かす記述なし)
+openalex:W1571391756	検出	U2	TS	SI-STM (TRANSACT 2006、本文を読んだ = reading-notes D)。tx の区間と重なる最も新しい版を選び、区間は読んだ版との交差で縮む (下端が後へ進む = 未来の snapshot)。登録した U2 の検出条件「後の時刻へ動いて最新でない版を選んで読む」を満たす。版の置き場所・アクセスコストは契機にしない。U0 については近傍: 鮮度の動機に「古い版を早く捨てられる」を挙げる (§3.1) が、測定実装は旧版を個数で制限し、tx の位置を保護下限として公開する規則は読んだ節に無い
+openalex:W2948526913	近傍	U0	LT	Azure SQL の constant time recovery。長い tx があってもログを切り詰める。tx の位置は動かさない
+openalex:W4226096483	近傍	U0	LT	Zen+: MVCC による適応実行で長い tx を扱う (Springer の要旨)。tx の位置を動かす・GC 境界に結ぶ記述なし
+openalex:W3094958164	近傍	U0	LT	CCBench (md_1 §2)。長い tx が GC を止める問題の分析
+openalex:W2376790310	近傍	U0	LT	空間 DB の長い tx と版管理 (版の削除に触れる)。tx の位置は動かさない
+openalex:W76927187	除外		X4	W2376790310 と同題・同年
+openalex:W2951675988	除外		X4	W2011395086 の arXiv 版
+openalex:W1488581316	近傍	U0	LT	SI の下での長い tx の直列化可能性。tx の位置は動かさない
+openalex:W4416949789	除外		X3	SSN の拡張 (commit 時の判定)。tx の位置を動かさない
+openalex:W4407357343	除外		X2	NVDIMM 上のページ単位ログ
+openalex:W3141978534	除外		X3	多版 STM の進行保証
+openalex:W4231526937	除外		X3	GPU HTM の SI
+openalex:W3088413096	除外		X4	W3094958164 の arXiv 拡張版
+openalex:W2763260107	除外		X2	tx 処理のプログラム解析・コンパイル
+openalex:W1887663709	近傍	U0	LT	長い tx のための ephemeral logging (ログの回収。版データではない、S2 要約)
+openalex:W2982402713	近傍	U0	GC	Steam (陽性対照、md_1 §6.3)
+openalex:W2604961016	近傍	U0	GC	Wu ほか 2017 (md_1 §6.3)
+openalex:W2112163169	近傍	U0	GC	長い問合せのための多版 locking と旧版の GC
+openalex:W2144457445	除外		X3	多版 STM の lock-free commit
+openalex:W2156774110	除外		X2	flash 上の多版索引の GC (tx の位置と無関係)
+openalex:W2151467437	近傍	U0	GC	SMV: 多版 STM の版保持量 (S2 要約)。tx の位置を動かす記述なし
+openalex:W2184750174	近傍	U0	GC	多版 STM で保持量を有界にする (S2 要約)
+openalex:W2949215527	近傍	U0	GC	最後の利用者が手放した時点で版を回収 (md_1 §10.1 の近傍)
+openalex:W185983079	除外		X3	TM の多版化の概説 (S2 要約)
+openalex:W4248334423	除外		X2	flash 上の多版索引の GC
+openalex:W2911883845	除外		X1	ソフトウェアの再利用
+openalex:W4281786663	近傍	U0,U1	GC	Diva: 版索引と版データを分けて回収と探索を独立に管理 (要旨)。本文未取得 (§6 取り寄せ)
+openalex:W4396642831	近傍	U0	LT	EPO-R: 長い tx 向け GC、回収の起動を read 時に移す (要旨)。tx の位置を動かす記述なし
+openalex:W2011948425	除外		X2	flash 上の多版索引データの GC (S2 要約)
+openalex:W3191976396	近傍	U0	GC	多版の GC の時間・空間の上界
+openalex:W4243593691	除外		X4	W2144457445 と同題
+openalex:W4318256799	除外		X2	GPU の多版 B 木
+openalex:W4380433263	近傍	U0,U1	GC	OneShotGC: 版の時間的な相関で置き場所をまとめて一括回収 = 時刻 → 配置 (U1 の逆向き)
+openalex:W1978014939	除外		X2	flash 上の多版 B+ 木
+openalex:W2974753923	除外		X4	arXiv 1709.01033 と同題・同著者 5 名 (Crossref)
+openalex:W4319781280	近傍	U0	LT	EPO-R (W4396642831 の会議版とみられる、別レコードとして判定)
+openalex:W4321446056	近傍	U0	GC	多版の回収手法の比較
+openalex:W4313305215	除外		X4	W4321446056 の arXiv 版
+openalex:W2054644843	近傍	U0	GC	読み取り専用 tx のための一時的な版と旧版の回収 (Mohan ほか)
+openalex:W2138900633	除外		X1	flash の FTL
+openalex:W1964093362	近傍	U0	GC	版の pool と旧版の回収 (1982)
+openalex:W2735433327	近傍	U0	GC	CMS: checkpoint 型多版 STM と無用な版の GC (S2 要約)
+openalex:W2752237977	除外		X3	多版 TM の starvation-freedom
+openalex:W2106721551	除外		X1	仮想ディスクの回収
+openalex:W4307933049	近傍	U0	GC	lock-free 範囲問合せと記憶回収 (データ構造)
+openalex:W3148454316	除外		X4	W2054644843 と同題
+openalex:W2965145891	除外		X3	多版 object STM の starvation-freedom (S2 要約)
+openalex:W2779812931	除外		X3	多版 object STM の合成可能性
+openalex:W4210431493	除外		X4	W4248334423 と同題・同年
+openalex:W7140861658	近傍	U0	GC	分岐つき MVCC の GC 境界 (md_1 §10.1 の近傍)
+openalex:W7140664505	除外		X4	W7140861658 と同題 (Zenodo の別版)
+openalex:W4366660200	近傍	U0	LT	LeanStore の頑健な SI (md_1 §6.2)
+openalex:W2934940564	近傍	U0	GC	MV-RLU: 自律的な並行 GC と版探索の削減
+openalex:W4238182976	除外		X4	W1964093362 と同題・同年
+openalex:W7125768695	除外		X2	MVCC による状態管理の概説
+openalex:W7164069675	除外		X3	多版 B 木の CC (cMVBT、md_1 §11.1)
+openalex:W4401375619	除外		X4	W4410565267 の SSRN 版 (Crossref の要旨が同文)
+openalex:W4410565267	近傍	U0	GC	NVM 上の OLTP の GC
+openalex:W7133038948	近傍	U1	PL	Epic: 決定的実行で版探索をなくす (GPU)
+openalex:W4404099742	近傍	U0	GC	Cheetah: non-visible write の省略と GC の再設計 (決定的 CC)
+openalex:W2923392890	除外		X3	多版 STM の starvation-freedom (S2 要約)
+openalex:W4285053347	除外		X4	arXiv 1709.01033 と同題
+openalex:W4230890328	除外		X1	ファイルシステムの版管理
+openalex:W3136241347	除外		X1	排水システム
+openalex:W2789480159	近傍	U0	GC	単一 writer の多版と精密な GC
+openalex:W2950697863	除外		X3	多版 object STM の合成可能性
+openalex:W3025161147	除外		X1	ソフトウェアの動的更新
+openalex:W3143695264	除外		X4	W4230890328 と同題
+openalex:W4396703747	除外		X1	ファイルシステムのデータ復旧
+openalex:W4413371885	除外		X2	LSM の GC と差分更新
+openalex:W4404569355	除外		X2	PostgreSQL・MariaDB の NVMe 性能
+openalex:W4309969205	除外		X1	ransomware
+openalex:W4407692299	除外		X1	ransomware の概説
+openalex:W3111035323	除外		X1	行政
+openalex:W3181252368	近傍	U0	GC	MV-RLU を含む学位論文 (W2934940564 と同内容を含む)
+openalex:W2212204050	近傍	U0	GC	更新前イメージによる一時的な版の pool (韓国語、2002)
+openalex:W179708265	除外		X1	文学
+openalex:W7162200876	除外		X2	AI 向け統合 storage engine (compaction と MVCC GC)
+openalex:W7162212150	除外		X4	W7162200876 と同題 (Zenodo の別版)
+openalex:W2196946741	除外		X1	Lua 言語
+openalex:W3137937555	除外		X3	多版 object STM の合成可能性 (学位論文)
+openalex:W2980468259	除外		X2	多版索引 (MV-PBT)
+openalex:W3014009825	除外		X4	W2980468259 と同じ研究
+openalex:W7214536697	除外		X1	哲学・物理
+openalex:W7214543125	除外		X1	哲学・物理
+openalex:W7167923977	除外		X1	物理
+openalex:W7167570603	除外		X1	物理
+openalex:W7164907471	除外		X1	物理
+openalex:W7206205310	除外		X1	物理
+openalex:W7169686446	除外		X1	物理
+openalex:W7202270615	除外		X1	物理
+openalex:W7168091720	除外		X1	物理
+openalex:W7170083742	除外		X1	物理
+openalex:W7171993511	除外		X1	物理
+openalex:W7170196929	除外		X1	物理
+openalex:W7169718899	除外		X1	物理
+openalex:W7204924991	除外		X1	物理
+openalex:W7168394655	除外		X1	物理
+openalex:W7168035841	除外		X1	物理
+openalex:W7169502126	除外		X1	物理
+openalex:W7168160247	除外		X1	物理
+openalex:W7130614376	除外		X1	暗号の宣伝文書
+openalex:W7124596282	除外		X1	暗号の宣伝文書
+arxiv:1305.6624v1	近傍	U0	GC	MVTO 型 STM と版の GC
+arxiv:2606.27250v1	除外		X1	blockchain (DAG)
+arxiv:1201.0228v1	近傍	U2	TS	Hekaton 2011 (PVLDB 版の arXiv 写し)
+arxiv:1603.00542v1	近傍	U2	TS	MV3C
+arxiv:2009.11558v2	近傍	U0	LT	CCBench 拡張版
+arxiv:2511.22956v1	除外		X3	SSN の拡張
+arxiv:1709.01033v5	除外		X3	多版 TM の starvation-freedom
+arxiv:1712.09803v6	除外		X3	多版 object STM の合成可能性
+arxiv:1803.08617v3	近傍	U0	GC	最後の利用者が手放した時点で版を回収
+arxiv:2108.02775v3	近傍	U0	GC	多版 GC の時間・空間の上界
+arxiv:2206.05821v1	除外		X1	ransomware
+arxiv:2210.17086v1	近傍	U0	GC	lock-free 範囲問合せと記憶回収
+arxiv:2212.13557v2	近傍	U0	GC	多版の回収手法の比較
+arxiv:2411.10005v1	除外		X2	PostgreSQL・MariaDB の NVMe 性能
+arxiv:2606.09133v1	除外		X3	多版 B 木の CC (cMVBT)
+arxiv:1910.08023v1	除外		X2	多版索引 (MV-PBT)
+arxiv:1805.04463v1	除外		X1	物理 (量子重力)
+arxiv:1106.5256v1	除外		X1	AI planning
+arxiv:1611.05557v1	近傍	U2	TS	PPCC: 実行中に確立した直列化順で commit (2PL より積極的)。位置を後へ進めて版を選ぶ記述なし
+arxiv:1612.07702v1	除外		X3	決定的 TM 実行 (事前順序)
+arxiv:1901.03772v1	除外		X3	分散 KVS の read-only tx (snapshot-queuing)
+arxiv:1901.06491v1	除外		X2	ログの並列化
+arxiv:1907.00736v2	除外		X1	packet switch
+arxiv:2606.15376v1	除外		X3	LLM エージェントの CC (修復型)
+arxiv:2609.20261v1	除外		X3	エージェントの直列化可能性の概念
+openalex:W3175782024	近傍	U1	PL	vWeaver: 版の列に探索構造を足して scan を速くする (要旨)。tx の位置は動かさない。本文未取得 (§6)
+openalex:W2988657817	除外		X2	FPGA 上の多版 KVS
+openalex:W4236776329	除外		X3	多版 OCC 型 STM (遅延 timestamp 計算)。位置を後へ動かして版を選ぶ記述なし
+openalex:W4392821717	近傍	U1	PL	版の列の pointer chasing を prefetch で隠す索引 (要旨)。tx の位置は動かさない
+openalex:W2946712038	除外		X1	版つき文書の情報検索
+openalex:W3204403191	除外		X3	RDMA 上の CC の比較枠組み
+openalex:W4312390758	除外		X3	RDMA のグラフ DB と MV-OCC
+openalex:W4392968147	近傍	U1	PL	版を意識したデータ配置 (最新版を B+ 木、旧版を範囲・epoch で分割) = 時刻 → 配置 (U1 の逆向き)
+openalex:W4404133399	除外		X2	分離メモリ上の KVS
+openalex:W7151275752	近傍	U1	PL	LiveBin: scan の可視性判定コストを下げる版つき索引 (要旨)。tx の位置は動かさない
+openalex:W2241060065	除外		X1	HPC の多版配列 (耐故障)
+openalex:W7159656484	除外		X1	物理
+openalex:W7170483959	除外		X4	W7159656484 と同題 (Zenodo の別版)
+openalex:W1517870510	近傍	U2	TS	Immortal DB: 版の timestamp を直列化順に合わせて遅延付与 (Lomet ほか)。tx の位置を後へ動かして非最新版を選ぶ記述なし
+openalex:W2172207436	近傍	U2	TS	Immortal DB のデモ版 (W1517870510 と同じ系)
+openalex:W2019580476	近傍	U2	TS	MVTO + freezing: 旧版を読ませて待ち・abort を避ける。位置を後へ動かす記述なし
+openalex:W4309852610	除外		X1	医学 (preprint 論)
+openalex:W7147007188	除外		X1	数学
+openalex:W3216379161	除外		X1	宇宙論のソフトウェア
+openalex:W7162460778	除外		X1	エネルギー予測のソフトウェア
+openalex:W7214355386	除外		X1	社会科学のデータ
+openalex:W7214394735	除外		X4	W7214355386 と同題
+openalex:W7207695936	除外		X4	W7214355386 と同題
+openalex:W2121941088	近傍	U2	TS	実時間 DB の直列化順の動的調整 (priority 付き lock)
+openalex:W2104731798	近傍	U2	TS	実時間 DB の直列化順の動的調整
+openalex:W2137825655	除外		X3	multidatabase の直列化可能性
+openalex:W2022436301	近傍	U2	TS	実時間の hybrid 方式で直列化順を動的調整 (S2 要約)
+openalex:W4232743681	要裁定	U2		要旨なし (OpenAlex・S2 とも)。題名は実時間 DB の直列化順の動的調整 (1993 年の報告書)
+openalex:W65972224	要裁定	U2		Bayer ほか 1982 (陽性対照)。要旨・本文なし (§6 取り寄せ 3)
+openalex:W2162477579	近傍	U2	TS	実時間 OCC の直列化順の動的調整
+openalex:W1837813942	近傍	U2	TS	OCC-DATI: validation で timestamp 区間により直列化順を調整 (single-version OCC)
+openalex:W1987844293	近傍	U2	TS	Lomet 2012 (陽性対照、§3.1 の表の行)
+openalex:W2112969934	近傍	U2	TS	priority ceiling と直列化順の動的調整
+openalex:W2114913558	除外		X3	分散 tx の直列化順の推論
+openalex:W2103184997	除外		X3	厳格な tx スケジューリング
+openalex:W2165620568	近傍	U2	TS	transaction-time DB で timestamp の選択を遅らせる (Jensen・Lomet)。版の選択と前進はない
+openalex:W2069413900	要裁定	U1,U2		OCC-TI (陽性対照、md_1 O09 の要裁定)。要旨は出版社が伏せ S2 要約もなし、本文未取得 (§6 取り寄せ 5)
+openalex:W2328249030	近傍	U2	TS	SSI の直列化順 timestamp を commit 時に寿命内で付与 (S2 要約)
+openalex:W1978569500	近傍	U2	TS	OCC-DA (混合 tx)
+openalex:W2348172073	近傍	U2	TS	分散 DB の直列化順の動的調整
+openalex:W1562569843	近傍	U2	TS	OCC/DTA: 動的 timestamp 調整 (mobile、S2 要約)
+openalex:W2101059883	除外		X3	multidatabase の deadlock なし CC
+openalex:W2123145425	除外		X2	cache-oblivious B 木の並行化
+openalex:W1572558145	要裁定	U2		alternative version (複数版) CC と直列化順の動的調整 (1997)。要旨なし・S2 要約は内容を述べない
+openalex:W2463790585	除外		X3	multidatabase の tx 管理
+openalex:W1567707405	近傍	U2	TS	firm deadline の OCC で直列化順を動的調整 (S2 要約)
+openalex:W2039732738	除外		X3	抽象データ型の hybrid CC
+openalex:W2151335884	除外		X3	multidatabase の大域 CC の理論 (S2 要約)
+openalex:W1977800003	要裁定	U2		mobile 分散実時間 DB の CC (2009)。要旨なし・S2 要約は性能だけ
+openalex:W2141367638	近傍	U2	TS	重要度つき OCC (直列化順の調整を含む、要旨)
+openalex:W4388545212	除外		X3	分散 DB の多段階直列化可能性
+openalex:W2370259841	近傍	U2	TS	直列化順の動的調整の改良
+openalex:W1979642600	除外		X3	投機的複製 (S2 要約)
+openalex:W2383536052	近傍	U2	TS	実時間 CC の直列化順の動的調整
+openalex:W2889707287	近傍	U2	TS	CockroachDB に衝突基準の動的 timestamp 割当てを入れる (2018、要旨)。GC・アクセスコストの記述なし
+openalex:W2141424706	除外		X3	STM の複製 (投機)
+openalex:W1752060354	除外		X3	分散 DB の混合 CC
+openalex:W49793530	近傍	U2	TS	broadcast 環境の timestamp 区間 OCC (S2 要約)
+openalex:W1505106752	近傍	U2	TS	OCC-DA (S2 要約)
+openalex:W2104674241	除外		X3	実時間の read-only tx を別算法で処理 (view consistency)
+openalex:W1979776771	近傍	U2	TS	衝突相手を後ろ向きに調整する実時間 OCC (S2 要約)
+openalex:W2096330195	近傍	U2	TS	多次元 timestamp で順序を遅延決定
+openalex:W2144099193	近傍	U2	TS	多次元 timestamp を動的に構成 (要旨、W2096330195 と同系だが同一の証拠なし)
+openalex:W2074001027	除外		X3	broadcast 環境の TO
+openalex:W2167689506	除外		X3	ROLL (要求順の連結リスト)
+openalex:W2078035797	除外		X3	分散 DB の CC の性能評価 (1981)
+openalex:W1807730651	近傍	U2	TS	分散実時間 OCC (直列化順の調整を含む、要旨)
+openalex:W4381329190	除外		X2	信頼実行つき RDB
+openalex:W2998577050	除外		X3	間欠電源システムの多版 CC
+openalex:W2055614504	除外		X3	priority 付き OCC (S2 要約)
+openalex:W634037861	除外		X2	実時間 DB の論文集全体 (個別論文でない)
+openalex:W2091638338	除外		X3	能動・実時間 DB の tx 管理 (事前宣言、S2 要約)
+openalex:W1984217250	除外		X3	複製原子データの理論
+openalex:W1537187615	近傍	U2	TS	Boksenbaum ほか VLDB 1984 (本文を読んだ、reading-notes C)。区間を両端から縮める。版の回収なし
+openalex:W2137699024	近傍	U2	TS	OCC-TI の拡張 (2002、要旨)。直列化順の動的調整の改良
+openalex:W2163077369	近傍	U2	TS	timestamp vector による実時間 OCC
+openalex:W1566490931	除外		X3	投機的 CC (S2 要約)
+openalex:W2181271464	要裁定	U2		1988 年の電子書籍版。要旨なし (OpenAlex・S2 とも)。同題の IEEE JSAC 1989 (W2124996927) と同じ研究かは独立証拠なし
+openalex:W2112234480	除外		X3	multidatabase の大域スケジューリング基準
+openalex:W2160069339	除外		X3	multidatabase の回復可能性
+openalex:W2100678869	近傍	U2	TS	実時間 tx スケジューリング (直列化順の調整、要旨)
+openalex:W1959689746	要裁定	U2		実時間の多版 CC で直列化順を動的調整 (要旨)。向きと読む版の選び方が要旨で決まらない
+openalex:W2146331671	要裁定	U2		DMVOCC-MVDA: 多版の直列化順の動的調整 (S2 要約)。向きと読む版の選び方が決まらない
+openalex:W4394923485	除外		X3	分離水準の実装の検証
+openalex:W2027606690	除外		X3	分散 DBMS の CC 法 (1987)
+openalex:W2103519358	近傍	U2	TS	実時間の hybrid 方式で直列化順を動的調整 (要旨)。前進と版選択の記述なし
+openalex:W2910367303	除外		X4	arXiv 1901.03772 (SSS) と同題
+openalex:W2016706552	除外		X3	broadcast 環境の mobile tx 検証
+openalex:W2124996927	近傍	U2	TS	衝突から直列化順を構成し古い (長い) 読み手の拒否を防ぐ (要旨)。前進と版選択の記述なし
+openalex:W2141759833	近傍	U2	TS	実時間 DB の実行順序の動的調整
+openalex:W2561771637	除外		X3	PPCC (arXiv 1611.05557 の雑誌版)
+openalex:W1972925764	除外		X3	能動複製の投機プロトコル
+openalex:W4414799010	除外		X1	点群の機械学習
+openalex:W2078820050	要裁定	U2		複数版と優先関係で衝突を解く実時間 CC (1997、S2 要約)。向きと読む版の選び方が決まらない
+openalex:W2100294438	近傍	U2	TS	実時間 OCC (tx の完了度)
+openalex:W2540963611	近傍	U2	TS	実時間 DB の衝突管理 (直列化順の調整)
+openalex:W2134312720	除外		X3	mobile broadcast の入れ子 tx のスケジューリング
+openalex:W1518330464	除外		X3	複製と動的多版 (read-only を replica へ)
+openalex:W2154690823	除外		X3	実時間多版 CC の正しさ解析 (MVSG)
+openalex:W1521914264	要裁定	U2		mobile 分散実時間の多版 OCC で直列化順を動的調整 (要旨)。向きと読む版の選び方が要旨で決まらない
+openalex:W2134155667	近傍	U2	TS	lock manager で timestamp を選ぶ (Lomet ほか 2006)。前進・版選択・GC の記述なし
+openalex:W2109671695	除外		X1	AI planning
+openalex:W2145122772	除外		X2	主記憶 DB の並列回復
+openalex:W2255398527	除外		X3	mobile multidatabase の tx 管理
+openalex:W1573550411	除外		X3	業務 tx の時間的忠実性 (S2 要約)
+openalex:W2485697469	除外		X3	入れ子 object の多段階 OCC
+openalex:W2150070317	除外		X3	broadcast 環境の TO
+openalex:W2981574289	除外		X3	状態機械複製の並行実行
+openalex:W2881874088	近傍	U2	TS	実時間 OCC の直列化順の動的調整
+openalex:W3016024602	要裁定	U2		多段階 secure DBMS の直列化順の動的調整 (1999)。要旨なし・DOI なし
+openalex:W1508825393	除外		X3	group communication による大域 CC (S2 要約)
+openalex:W2101242158	除外		X3	履歴による原子 object の実装
+openalex:W7204635131	除外		X1	機械学習 (MeshXL)
+openalex:W2062027862	近傍	U2	TS	P2P object DB の直列化順の動的調整 (OS-MDASO)
+openalex:W7204634983	除外		X4	W7204635131 と同題
+openalex:W3008451085	除外		X3	HTAP の PROMISE 型 commit
+openalex:W2890747251	要裁定	U2		hybrid 方式の直列化順の動的調整 (2012 表記)。要旨なし・DOI なし。W2022436301 と同じ研究かは独立証拠なし
+openalex:W7204663841	除外		X4	W7204635131 と同じ系
+openalex:W2561368256	除外		X3	Pot (決定的 TM)
+openalex:W2102682774	除外		X3	SEMMO (意味論的 CC)
+openalex:W2056859914	除外		X3	multidatabase の 3 段スケジューリング (S2 要約)
+openalex:W2353330372	除外		X3	多段階 tx スケジューリング
+openalex:W2896866600	近傍	U2	TS	実行中に tx の timestamp を変える TO (2017、要旨)。single-version (多版を要しないと明記)
+openalex:W2794226707	除外		X3	SOFRITAS (並行プログラムの直列化)
+openalex:W2965024626	除外		X4	W3008451085 の arXiv 版
+openalex:W2337194003	除外		X3	mobile tx の CC
+openalex:W82926969	除外		X3	grid tx の CC (S2 要約)
+openalex:W2131846228	除外		X2	移動体の索引
+openalex:W2160037888	近傍	U2	TS	firm 実時間の OCC (DASO、S2 要約)
+openalex:W2375978871	近傍	U2	TS	実時間 OCC (直列化順の調整)
+openalex:W2355488623	除外		X3	mobile 分散実時間の tx 処理
+openalex:W1580867976	除外		X3	実時間の投機的 CC
+openalex:W2379188747	除外		X3	組込み mobile 実時間 DB の CC
+openalex:W2379597573	除外		X3	mobile 分散 DB の実時間 tx 処理
+openalex:W1554995778	除外		X3	hard 実時間 tx の lock
+openalex:W2054131432	除外		X1	分散相互排除 (Maekawa)
+openalex:W130502531	除外		X3	mobile DB の TO 型 OCC
+openalex:W2081265490	除外		X3	broadcast 環境の OCC (更新優先)
+openalex:W2547283679	除外		X3	PPCC
+openalex:W2377879823	除外		X3	mobile の実時間入れ子 tx
+openalex:W3107888082	除外		X1	社会構造の模擬
+openalex:W4243564818	除外		X4	W2794226707 と同題
+openalex:W2348124185	除外		X3	multidatabase の耐故障 tx 管理
+openalex:W2901607274	除外		X3	階層的 CC (学位論文)
+openalex:W1570537129	要裁定	U2		優先度つき多版 2PL で直列化順を優先関係で調整 (要旨)。向きと読む版の選び方が要旨で決まらない
+openalex:W2905311136	除外		X1	型システム
+openalex:W2350454553	除外		X3	mobile 環境の CC
+openalex:W2050420169	要裁定	U2		多版と優先関係の実時間 CC (1997、S2 要約)。向きと読む版の選び方が決まらない
+openalex:W2402025198	要裁定	U2		多版と優先関係の実時間 CC (韓国語誌、要旨)。向きと読む版の選び方が要旨で決まらない
+openalex:W2388763418	除外		X3	mobile broadcast の 2 段 tx 処理
+openalex:W2053471922	除外		X3	BASIC (整合性モデル)
+openalex:W2349790884	除外		X3	mobile broadcast の性能
+openalex:W2374998066	除外		X3	broadcast の read-only tx
+openalex:W193935917	除外		X3	型つき object の CC
+openalex:W2350669281	近傍	U2	TS	時間区間による分散実時間 CC
+openalex:W7164896787	除外		X4	arXiv 2606.15376 (CoAgent) と同題
+openalex:W2154804789	除外		X3	型つき object の timestamp 区間 OCC (S2 要約)
+openalex:W4288637309	除外		X4	arXiv 1901.03772 (SSS) と同題
+openalex:W7135028353	除外		X3	分離水準の検証
+openalex:W4244082722	除外		X3	並行 object のモデル
+openalex:W3013630513	除外		X4	W3107888082 と同題
+openalex:W4415985562	除外		X1	LLM のグラフ理解
+openalex:W2801064489	除外		X2	grid NewSQL
+openalex:W4247661662	除外		X2	雑誌の目次
+openalex:W2348443056	除外		X3	分散 DB の複製整合
+openalex:W4235373374	要裁定	U2		1988 年の書籍の章「Timestamp Ordering Method」。要旨なし (OpenAlex・S2 とも)
+openalex:W2596483311	除外		X1	教育
+openalex:W4393323456	除外		X2	IoTDB の圧縮
+openalex:W4231846816	除外		X3	実時間ソフトウェアの試作 (Starlite)
+openalex:W2123554556	除外		X3	異種分散 DB の timestamp
+openalex:W4254752718	除外		X2	訂正記事 (Real-Time Systems 1992)
+openalex:W2203012675	除外		X2	cache-oblivious B 木
+openalex:W2157551386	除外		X3	高可用な原子 object
+openalex:W2261846664	除外		X3	多段階 secure DB の TO (韓国語)
+openalex:W7162987711	除外		X1	医用画像
+openalex:W4250568605	要裁定	U2		1988 年の書籍の章「Multiversion Timestamp Ordering Method」。要旨なし (OpenAlex・S2 とも)
+openalex:W7213662685	除外		X1	NLP のソフトウェア
+openalex:W4407273810	除外		X1	心理学
+openalex:W4413968267	除外		X2	ML 向け配列問合せ
+openalex:W4406840994	除外		X1	LLM のグラフ理解
+openalex:W7167225715	除外		X1	IoT の電力
+openalex:W7160311911	除外		X1	IoT の電力
+openalex:W7170967484	除外		X1	画像処理
+openalex:W7212321692	除外		X1	データ取得ソフトウェア
+openalex:W7171794867	除外		X1	radar 知覚
+openalex:W2948197446	除外		X2	多様なデータの管理 (学位論文)
+openalex:W2806581568	除外		X2	株価ストリームの索引
+openalex:W589814810	除外		X2	SQL の教科書
+openalex:W7135004135	除外		X1	LLM の産業利用 (フィンランド語)
+openalex:W207326370	除外		X4	W589814810 の第 3 版
+dblp:conf/date/LamWCHHPZ14	除外		X2	DOI で openalex:W4248334423 と同じ work (flash 上の多版索引の GC)
+dblp:conf/sigmod/LeeSPKNCSH16	近傍	U0	GC	DOI で openalex:W2441046553 と同じ work (SAP HANA、陽性対照)
+dblp:conf/spaa/Ben-DavidB0W19	近傍	U0	GC	DOI で arxiv:1803.08617v3 と同じ work
+dblp:conf/wdag/Ben-DavidBFRSW21	近傍	U0	GC	DOI で arxiv:2108.02775v3 と同じ work
+dblp:conf/ppopp/WeiBFR23	近傍	U0	GC	DOI で openalex:W4321446056 と同じ work
+dblp:journals/pvldb/BottcherL0K19	近傍	U0	GC	DOI で openalex:W2982402713 と同じ work (Steam、陽性対照)
+dblp:journals/todaes/HuangCLWH14	除外		X2	DOI で openalex:W2156774110 と同じ work
+dblp:journals/jsa/LamZCHHPW14	除外		X2	DOI で openalex:W2011948425 と同じ work
+dblp:journals/corr/abs-2108-02775	近傍	U0	GC	arXiv ID 2108.02775 で arxiv:2108.02775v3 と同じ work
+dblp:journals/corr/abs-2212-13557	近傍	U0	GC	DOI で openalex:W4313305215 (arXiv 2212.13557) と同じ work
+dblp:phd/basesearch/Jin17a	除外		X1	版つき文書の情報検索 (学位論文。ee は openalex:W2946712038 と同じ題の escholarship)
+dblp:conf/rtcsa/LindstromR99	近傍	U2	TS	DOI で openalex:W1837813942 と同じ work (OCC-DATI)
+dblp:conf/IEEEcloud/AroraBMAAXZZ18	近傍	U2	TS	DOI で openalex:W2889707287 と同じ work
+dblp:conf/rtas/LamLH95	近傍	U2	TS	DOI で openalex:W2162477579 と同じ work
+dblp:conf/icde/DaudjeeS06	除外		X3	DOI で openalex:W2114913558 と同じ work
+dblp:conf/icde/LometFWW12	近傍	U2	TS	DOI で openalex:W1987844293 と同じ work (Lomet 2012、陽性対照)
+dblp:conf/rtss/LeeS93	近傍	U2	TS	DOI で openalex:W2104731798 と同じ work
+dblp:conf/rtss/LinS90	近傍	U2	TS	DOI で openalex:W2121941088 と同じ work
+dblp:conf/rtdb/YoonP97	要裁定	U2		DBLP は題名だけで ee も DOI も無い。alternative version (複数版) CC と直列化順の動的調整 (openalex:W1572558145 と題が一致するが同一の独立証拠なし)
+dblp:conf/adbis/LeeH02	近傍	U2	TS	DOI で openalex:W49793530 と同じ work
+dblp:conf/ddb/BayerEHR82	要裁定	U2		Bayer ほか 1982 (陽性対照)。DBLP は題名だけ、本文未取得 (§6 取り寄せ 3)
+dblp:journals/ipl/KonanaLR97	要裁定	U1,U2		DOI で openalex:W2069413900 と同じ work (OCC-TI、陽性対照)。要旨も本文も未取得 (§6 取り寄せ 5)
+dblp:journals/is/ONeilO16	近傍	U2	TS	DOI で openalex:W2328249030 と同じ work
+dblp:journals/rts/SonLL92	近傍	U2	TS	DOI で openalex:W2022436301 と同じ work

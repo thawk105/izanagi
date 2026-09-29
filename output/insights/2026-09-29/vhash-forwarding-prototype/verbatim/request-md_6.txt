@@ -1,0 +1,35 @@
+md_6: Cicada に選択的 forwarding を試作する (GC は変えない)
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「Cicada に cold 境界 (論理的な K 版) で発火する選択的 forwarding」を含む item を grep して自分の対象とする (T 番号は固定しない。見つからなければ親セッションの登録がまだ main に無いだけなので、段 9 の main 取り込みの後にもう一度探し、それでも無いときだけ新規 item として登録する)。
+完了・更新の fragment にはその時点の実番号を書く。
+
+
+■ 目的
+出典メモ §29 の段階 3 と §25 の構成 C・F。物理的な hot 配置は作らず、「先頭から K 版より奥を辿る必要がある」ときに
+forwarding を試す論理的な発火条件で、forwarding そのものの成功率と費用対効果を測る。GC の保護は変えない (保守的に据え置く)。
+
+■ やること
+1. プロトコルを決める: 並行して md_4 がモデル検査をしているが、その結果を待たない。自分で仕様を書き、少なくとも次を守る: 前進先で既読の版がそのまま見えることを確かめる、reader と writer の両方が参加する順序付け (メモ §13.2)、rts を「見える区間の終わり」として使わない (メモ §13.3)、PENDING の書き込み版を置いた後は timestamp を動かさない (メモ §18.1)、失敗したら元の timestamp で奥を辿る。書き込み側の制約と timestamp の一意性 (メモ §10) をどう満たすかを明記する。
+2. inert variant patch として実装する (D18 の第 4 類。既定では stock と挙動が一致、例: patches/cicada-forwarding-variant.patch、Codex author)。knob: 無効 (stock) / C: 選択的 forwarding / F: 奥へ行くなら abort して新しい timestamp で再実行。K は knob にする。
+3. forwarding の計数を knob で取れるようにする: 試行・成功・前進幅・失敗の理由 (既読と合わない / 書き込み側の制約 / 競合 / 対象外)。計数入りビルドの throughput は性能値に使わない。
+4. 計測: 長いトランザクションの 2 型 (操作数が多い型・読み取り後に待つ型) と通常の YCSB、gc_inter_us 複数値で、stock・C・F を同時刻に並べる。読み取り後に待つ型で forwarding が発火しないこと (メモ §16.1) も記録する。
+5. 正しさ: 2026-09-29 時点で Cicada は検査器を通せない (md_3 が整備中)。この wave の性能値はすべて「未検証の診断値」と書き、serializable とは書かない。md_3 が main に着地していたら (段 9 の前に main を見る)、その検査器で variant を検査し、anomaly が出たら失格として記録する。
+
+■ 成果物
+- patches/ の variant patch と ledger の entry、計測 driver。
+- 一次資料: output/insights/<着手日>/vhash-forwarding-prototype/README.md (仕様、knob、計測条件表、図 = 条件別の forwarding 成功率・失敗理由の内訳・stock/C/F の比較、未検証である旨、次に要るもの)。
+- spool fragment (対象 item を完了または更新。仕様の選択は decisions fragment に)。
+
+■ 所有
+patches/cicada-forwarding-*.patch の新規 file、patches/ledger.json と patches/README.md の自分の entry、自分の計測 driver・一次資料・fragment。
+Cicada の検査用トレース (md_3) と診断計器 (md_2) は作らない。
+
+■ scope 外
+物理的な hot 配置 (VHash)、GC 保護の前進 (段階 5)、固定 snapshot・範囲読み取り・挿入・削除。
+
+■ 注意
+- 合計 2 node 時間未満。超える見込みなら common.txt 3 のとおり止める。
+- 設計の択一と正しさに関わる wave なので、軽量版でも段 2・段 3・段 6 を省かない。

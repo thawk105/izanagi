@@ -1,0 +1,315 @@
+{
+  "inputs": {
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-prototype-2026-09-29/analysis/aggregate.json": "69b2163dfabb9f6abeb92df7b11179bee71b35f769270c779694f909738df15d",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-prototype-2026-09-29/raw/raw-run-normal-2026-09-28T23-15-38.321991+00-00.json": "b4d6c5144645e889d79506268efe23db748534d236448d61737e632bc571ec79",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-prototype-2026-09-29/raw/raw-run-many_ops-2026-09-28T23-16-07.470058+00-00.json": "9f5436b5d1f428f203e041d02b75f84d5c4ce57cc17d3dddf19e00f6ad6ad090",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-prototype-2026-09-29/raw/raw-run-wait_after_reads-2026-09-28T23-37-10.202067+00-00.json": "5792204556cc65cb815c5c0a521f7b26c39b51bb087966723afa653dfa5b2b43"
+  },
+  "conditions": {
+    "threads": 48,
+    "tuples": 1000000,
+    "zipf": 0.9,
+    "rratio": 50,
+    "max_ope": 10,
+    "clocks_per_us": 2100
+  },
+  "major_values": {
+    "normal": {
+      "10": {
+        "attempts": 1131,
+        "success": 831,
+        "failure_reasons": {
+          "read_mismatch": 206,
+          "write_constraint": 84,
+          "conflict": 7,
+          "ineligible": 3
+        },
+        "no_target": 2358,
+        "c_ratios": [
+          1.0249940124989911,
+          1.0312627122272893,
+          0.9992404399536295
+        ],
+        "f_ratios": [
+          1.020841796329695,
+          1.019425621427195,
+          0.9923272868412327
+        ],
+        "long_commits_c": 0,
+        "long_commits_f": 0,
+        "f_aborts_long": 0,
+        "f_aborts_normal": 15638,
+        "completion_rate": {
+          "stock": null,
+          "c": null,
+          "f": null
+        }
+      },
+      "100": {
+        "attempts": 1686,
+        "success": 1262,
+        "failure_reasons": {
+          "read_mismatch": 269,
+          "write_constraint": 121,
+          "conflict": 15,
+          "ineligible": 19
+        },
+        "no_target": 3609,
+        "c_ratios": [
+          1.0100336229654727,
+          0.9745836601332443,
+          0.9763407083852634
+        ],
+        "f_ratios": [
+          0.9926440019124037,
+          0.9728218383476996,
+          0.9852264543360174
+        ],
+        "long_commits_c": 0,
+        "long_commits_f": 0,
+        "f_aborts_long": 0,
+        "f_aborts_normal": 20241,
+        "completion_rate": {
+          "stock": null,
+          "c": null,
+          "f": null
+        }
+      },
+      "1000": {
+        "attempts": 2069,
+        "success": 1547,
+        "failure_reasons": {
+          "read_mismatch": 307,
+          "write_constraint": 181,
+          "conflict": 14,
+          "ineligible": 20
+        },
+        "no_target": 4098,
+        "c_ratios": [
+          0.9708695200087145,
+          1.0360202263596126,
+          1.0488040564938994
+        ],
+        "f_ratios": [
+          0.9676176706509145,
+          0.9929626358591608,
+          0.9866088911266739
+        ],
+        "long_commits_c": 0,
+        "long_commits_f": 0,
+        "f_aborts_long": 0,
+        "f_aborts_normal": 36561,
+        "completion_rate": {
+          "stock": null,
+          "c": null,
+          "f": null
+        }
+      }
+    },
+    "many_ops": {
+      "10": {
+        "attempts": 4990,
+        "success": 933,
+        "failure_reasons": {
+          "read_mismatch": 3904,
+          "write_constraint": 133,
+          "conflict": 15,
+          "ineligible": 5
+        },
+        "no_target": 2911,
+        "c_ratios": [
+          0.9632255709569721,
+          0.9825609999335151,
+          1.0008925817894294
+        ],
+        "f_ratios": [
+          0.9481609442834775,
+          0.9806222990492653,
+          0.9676659869278205
+        ],
+        "long_commits_c": 0,
+        "long_commits_f": 0,
+        "f_aborts_long": 4062,
+        "f_aborts_normal": 12957,
+        "completion_rate": {
+          "stock": 0.0,
+          "c": 0.0,
+          "f": 0.0
+        }
+      },
+      "100": {
+        "attempts": 6232,
+        "success": 1094,
+        "failure_reasons": {
+          "read_mismatch": 4949,
+          "write_constraint": 161,
+          "conflict": 20,
+          "ineligible": 8
+        },
+        "no_target": 2735,
+        "c_ratios": [
+          1.05263255208,
+          1.0102870202213743,
+          0.9806144738572682
+        ],
+        "f_ratios": [
+          1.0202915370622427,
+          0.9897990636298506,
+          0.9934929607638686
+        ],
+        "long_commits_c": 0,
+        "long_commits_f": 0,
+        "f_aborts_long": 5198,
+        "f_aborts_normal": 13156,
+        "completion_rate": {
+          "stock": 0.0,
+          "c": 0.0,
+          "f": 0.0
+        }
+      },
+      "1000": {
+        "attempts": 6240,
+        "success": 1148,
+        "failure_reasons": {
+          "read_mismatch": 4876,
+          "write_constraint": 191,
+          "conflict": 19,
+          "ineligible": 6
+        },
+        "no_target": 3090,
+        "c_ratios": [
+          1.0095395385847616,
+          1.0313131313131314,
+          0.9627179502061771
+        ],
+        "f_ratios": [
+          0.9972639646902491,
+          0.9631565980731578,
+          1.00548882316782
+        ],
+        "long_commits_c": 0,
+        "long_commits_f": 0,
+        "f_aborts_long": 5695,
+        "f_aborts_normal": 14645,
+        "completion_rate": {
+          "stock": 0.0,
+          "c": 0.0,
+          "f": 0.0
+        }
+      }
+    },
+    "wait_after_reads": {
+      "10": {
+        "attempts": 1239,
+        "success": 921,
+        "failure_reasons": {
+          "read_mismatch": 198,
+          "write_constraint": 98,
+          "conflict": 6,
+          "ineligible": 16
+        },
+        "no_target": 2751,
+        "c_ratios": [
+          0.9648053552175688,
+          1.0017378750492463,
+          0.9727493961111747
+        ],
+        "f_ratios": [
+          0.9597010980498886,
+          0.9709395152093225,
+          0.9589111083370762
+        ],
+        "long_commits_c": 928,
+        "long_commits_f": 498,
+        "f_aborts_long": 149,
+        "f_aborts_normal": 34738,
+        "completion_rate": {
+          "stock": 0.0339242053789731,
+          "c": 0.04044454129439965,
+          "f": 0.020465192734445633
+        }
+      },
+      "100": {
+        "attempts": 1550,
+        "success": 1158,
+        "failure_reasons": {
+          "read_mismatch": 265,
+          "write_constraint": 109,
+          "conflict": 9,
+          "ineligible": 9
+        },
+        "no_target": 3269,
+        "c_ratios": [
+          1.0377698622996394,
+          1.0023616990603006,
+          0.9655962703036262
+        ],
+        "f_ratios": [
+          1.0216351374831676,
+          0.9611341922124218,
+          1.0087738335547165
+        ],
+        "long_commits_c": 540,
+        "long_commits_f": 680,
+        "f_aborts_long": 189,
+        "f_aborts_normal": 16442,
+        "completion_rate": {
+          "stock": 0.017908214898578783,
+          "c": 0.023706045041485577,
+          "f": 0.027331189710610933
+        }
+      },
+      "1000": {
+        "attempts": 1482,
+        "success": 1127,
+        "failure_reasons": {
+          "read_mismatch": 233,
+          "write_constraint": 103,
+          "conflict": 12,
+          "ineligible": 7
+        },
+        "no_target": 2806,
+        "c_ratios": [
+          1.009968198870396,
+          0.9713767578696529,
+          0.9642931142547824
+        ],
+        "f_ratios": [
+          1.0202810999891359,
+          0.9766019790754954,
+          0.9990222790868735
+        ],
+        "long_commits_c": 758,
+        "long_commits_f": 651,
+        "f_aborts_long": 278,
+        "f_aborts_normal": 22419,
+        "completion_rate": {
+          "stock": 0.03275892232330301,
+          "c": 0.0331583552055993,
+          "f": 0.026686890218906287
+        }
+      }
+    }
+  },
+  "jobs": [
+    {
+      "job_id": "bnode071-2026-09-28T23:15:38.321991+00:00",
+      "hostname": "bnode071",
+      "ccbench_pin": "6810666",
+      "patch_sha256": "90ac9128fdc52b0495259f06483cbe6eefeb3c5f6374cc0dcc5f01b247840ae5"
+    },
+    {
+      "job_id": "bnode089-2026-09-28T23:16:07.470058+00:00",
+      "hostname": "bnode089",
+      "ccbench_pin": "6810666",
+      "patch_sha256": "90ac9128fdc52b0495259f06483cbe6eefeb3c5f6374cc0dcc5f01b247840ae5"
+    },
+    {
+      "job_id": "bnode043-2026-09-28T23:37:10.202067+00:00",
+      "hostname": "bnode043",
+      "ccbench_pin": "6810666",
+      "patch_sha256": "90ac9128fdc52b0495259f06483cbe6eefeb3c5f6374cc0dcc5f01b247840ae5"
+    }
+  ],
+  "verification_status": "未検証の診断値"
+}
