@@ -1,5 +1,7 @@
 """Policy driver schema, gate order, and coder input boundaries."""
 import json
+import ast
+import hashlib
 import contextlib
 from dataclasses import replace
 from pathlib import Path
@@ -25,6 +27,212 @@ from orchestrator.campaign.model import Genome, WalRecord, STAGE_ABORT
 from orchestrator.campaign.model import STAGE_BENCH_DONE, STAGE_BUILD_START
 from orchestrator.campaign.pipeline import EvalResult, variant_id
 from orchestrator.verifier.model import Anomaly, Integrity, VerifyResult
+from orchestrator.tests.test_campaign import authorization_session_case
+
+
+def test_contrast_cfg_keeps_default_identity_and_separates_attempts():
+    from orchestrator.campaign import ident
+    baseline = P.default_cfg(form='ir')
+    assert P.default_cfg(form='ir', contrast=None) == baseline
+    assert set(baseline.search_config) == {
+        'axis', 'build_admission', 'form', 'perf', 'reflux', 'scale', 'verify'}
+    header = {'cohort': 'silo-policy-contrast-test-2026-09-29',
+              'arm': 'random-ir', 'series': 1, 'form': 'ir'}
+    series = P.contrast_cfg(header, campaign_env=P.ENV_TAG)
+    assert series.search_config['verify_performance_concurrent'] is True
+    first = P.contrast_cfg(header, campaign_env=P.ENV_TAG,
+                           slot='eval', index=1, attempt=0)
+    retry = P.contrast_cfg(header, campaign_env=P.ENV_TAG,
+                           slot='eval', index=1, attempt=1)
+    assert first.search_config['contrast_slot'] == 'eval-1-a0'
+    assert retry.search_config['contrast_slot'] == 'eval-1-a1'
+    assert len({str(ident.campaign_id(cfg)) for cfg in (baseline, series, first, retry)}) == 4
+
+
+def test_contrast_none_preserves_base_commit_identity():
+    from orchestrator.campaign import ident
+    source = subprocess.check_output(['git', 'show',
+        '035fc11fa:orchestrator/campaign/p3_s4_loop_policy.py'], cwd=ROOT, text=True)
+    definition = next(node for node in ast.parse(source).body
+                      if isinstance(node, ast.FunctionDef) and node.name == 'default_cfg')
+    namespace = dict(P.__dict__)
+    exec(compile(ast.Module(body=[definition], type_ignores=[]), '<base-default-cfg>', 'exec'), namespace)
+    before = namespace['default_cfg'](form='ir')
+    after = P.default_cfg(form='ir', contrast=None)
+    assert ident.canonical_preimage(after) == ident.canonical_preimage(before)
+    assert ident.campaign_id(after) == ident.campaign_id(before)
+    assert not any(key.startswith('contrast_') for key in after.search_config)
+
+
+def test_contrast_unit_rejects_changed_proposal_before_slot_start(tmp_path, monkeypatch):
+    from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS, UNIT_SCHEMA
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'llm-cpp', 'series': 1, 'form': 'cpp',
+        'submit_checkout': str(ROOT), 'checkout_head': head,
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    for slot in ('stock-0', 'seed-0', 'seed-1'):
+        ledger.append('slot-result', logical_slot=slot, attempt=0,
+                      outcome='certified', quality='normal')
+    proposal = tmp_path / 'proposal.json'
+    proposal.write_text('original', encoding='utf-8')
+    digest = hashlib.sha256(proposal.read_bytes()).hexdigest()
+    ledger.append('opportunity-start', a=1)
+    ledger.append('opportunity-end', a=1, outcome='proposed', proposal_sha256=digest)
+    unit = tmp_path / 'unit.json'
+    unit.write_text(json.dumps({'schema': UNIT_SCHEMA, 'ledger_root': str(ledger.root),
+        'kind': 'eval', 'index': 1, 'attempt': 0,
+        'proposal_path': str(proposal), 'proposal_sha256': digest}))
+    proposal.write_text('changed', encoding='utf-8')
+    with pytest.raises(P.ContrastUnitMismatch, match='proposal digest mismatch'):
+        P._contrast_unit(ledger, unit, ledger.root)
+    from orchestrator.campaign import patchharness, p2_2
+    monkeypatch.setattr(P, '_measurement_contract', lambda _env: object())
+    monkeypatch.setattr(P, 'find_compiler', lambda: object())
+    monkeypatch.setattr(patchharness, 'assert_pinned_clean', lambda *_args: None)
+    monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
+    assert P.main(['--form', 'cpp', '--campaign-env', 'pegasus',
+                   '--allow-coder-derived-build', '--no-isolate-worktree',
+                   '--contrast-run-unit', str(unit)]) == 2
+    assert not any(event['kind'] == 'slot-start' for event in ledger.events)
+
+
+def test_job1_stops_before_seed_slots_when_stock_is_not_certified(tmp_path, monkeypatch):
+    from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS, UNIT_SCHEMA
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'random-ir', 'series': 1, 'form': 'ir',
+        'submit_checkout': str(ROOT), 'checkout_head': head,
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    unit = tmp_path / 'unit.json'
+    unit.write_text(json.dumps({'schema': UNIT_SCHEMA, 'ledger_root': str(ledger.root),
+        'kind': 'job1', 'index': 1, 'attempt': 0,
+        'proposal_path': None, 'proposal_sha256': None}))
+    layout = CampaignLayout(str(tmp_path / 'series'))
+    monkeypatch.setattr(P, '_campaign_layout', lambda _cfg: layout)
+
+    def measure(_header, slot, index, attempt, **_kwargs):
+        assert (slot, index, attempt) == ('stock', 0, 0)
+        return {'logical_slot': 'stock-0', 'attempt': 0,
+                'outcome': 'candidate-failure', 'variant': 'stock-variant',
+                'campaign_id': 'stock-campaign'}
+
+    monkeypatch.setattr(P, 'measure_slot', measure)
+    contract = type('Contract', (), {'env_tag': P.ENV_TAG})()
+    result = P.run_contrast_unit(unit, form='ir', contract=contract,
+        fetchcontent_options=None, context=None, stock_context=None,
+        sub=None, cache_root='', compiler=None, scratch_dir=None, log=lambda *_: None)
+    ledger = ContrastLedger(ledger.root)
+    assert [event['logical_slot'] for event in ledger.events
+            if event['kind'] == 'slot-start'] == ['stock-0']
+    assert [(event['kind'], event['reason']) for event in ledger.events
+            if event['kind'] == 'series-end'] == [('series-end', 'stock-unestablished')]
+    assert [row['logical_slot'] for row in result['slots']] == ['stock-0']
+
+
+def test_contrast_unit_authorizes_distinct_slot_identities(
+        tmp_path, monkeypatch, authorization_session_case):
+    from orchestrator.campaign import ident
+    from orchestrator.campaign.silo_policy_contrast import (
+        ContrastLedger, DEFAULT_BUDGETS, UNIT_SCHEMA)
+    from orchestrator.tests.test_campaign import _session_authorize
+
+    case = authorization_session_case
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'random-ir', 'series': 1, 'form': 'ir',
+        'submit_checkout': str(ROOT), 'checkout_head': head,
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    unit = tmp_path / 'unit.json'
+    unit.write_text(json.dumps({'schema': UNIT_SCHEMA,
+        'ledger_root': str(ledger.root), 'kind': 'job1', 'index': 1,
+        'attempt': 0, 'proposal_path': None, 'proposal_sha256': None}))
+    monkeypatch.setattr(P, '_campaign_layout',
+                        lambda _cfg: CampaignLayout(str(tmp_path / 'series')))
+    identities = []
+
+    def measure(_header, slot, index, attempt, **kwargs):
+        cfg = replace(case.cfg, search_config={
+            **case.cfg.search_config, 'contrast_slot': f'{slot}-{index}-a{attempt}'})
+        authorized = _session_authorize(
+            case, kwargs['authorization_session'], cfg=cfg)
+        identities.append(authorized.campaign_identity)
+        return {'logical_slot': f'{slot}-{index}', 'attempt': attempt,
+                'outcome': 'certified', 'variant': f'{slot}-{index}',
+                'campaign_id': authorized.campaign_identity}
+
+    monkeypatch.setattr(P, 'measure_slot', measure)
+    contract = type('Contract', (), {'env_tag': P.ENV_TAG})()
+    result = P.run_contrast_unit(unit, form='ir', contract=contract,
+        fetchcontent_options=None, context=None, stock_context=None,
+        sub=None, cache_root='', compiler=None, scratch_dir=None,
+        log=lambda *_: None)
+    assert [row['logical_slot'] for row in result['slots']] == [
+        'stock-0', 'seed-0', 'seed-1']
+    assert len(set(identities)) == len(identities) == 3
+    assert {claim.stem for claim in case.claim_root.glob('*.claim')} == set(identities)
+
+
+def test_score_endpoint_requires_matching_slot_identity(tmp_path):
+    from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'random-ir', 'series': 1, 'form': 'ir',
+        'submit_checkout': str(ROOT), 'checkout_head': 'unused',
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    proposal = P.initial_proposal('0000')
+    ledger.append('slot-result', logical_slot='seed-0', variant='variant-1',
+                  source_digest='source-1', implementation=proposal.implementation,
+                  ir=proposal.ir)
+    ledger.append('endpoint-fixed', logical_slot='seed-0', variant='variant-1',
+                  source_digest='source-1', fitness_tps=1)
+    selected, auditor, slot = P._fixed_endpoint_proposal(ledger, 'ir')
+    assert (selected.ir, auditor, slot) == (proposal.ir, None, 'seed-0')
+    ledger.events[-1]['source_digest'] = 'wrong-source'
+    with pytest.raises(ValueError, match='fixed endpoint source'):
+        P._fixed_endpoint_proposal(ledger, 'ir')
+
+
+def test_seed_history_uses_logical_index_once_on_partial_retry(tmp_path):
+    layout = CampaignLayout(str(tmp_path / 'series'))
+    layout.ensure()
+    first = {'logical_slot': 'seed-1', 'outcome': 'certified',
+             'variant': 'second', 'campaign_id': 'seed-1-a0'}
+    later = {'logical_slot': 'seed-0', 'outcome': 'certified',
+             'variant': 'first', 'campaign_id': 'seed-0-a1'}
+    P._append_seed_history(layout, [first], 'ir')
+    P._append_seed_history(layout, [later, first], 'ir')
+    rows = [json.loads(line) for line in P._history_path(layout).read_text().splitlines()]
+    assert [(row['logical_slot'], row['iteration']) for row in rows] == [
+        ('seed-1', -1), ('seed-0', -2)]
+
+
+def test_contrast_initial_points_and_machine_arm_provenance(tmp_path):
+    first, second = P.initial_proposal('0000'), P.initial_proposal('0001')
+    assert first.ir != second.ir
+    assert '5u' in first.implementation and '10u' in second.implementation
+    machine = {'generator': {'name': 'random-ir',
+        'version': 'silo-policy-contrast-test-2026-09-29', 'series': 1,
+        'a': 1, 'counter': 0,
+        'preimage': 'silo-policy-contrast-test-2026-09-29|random|1|1|0'},
+        'ir': first.ir}
+    path = tmp_path / 'machine.json'
+    path.write_text(json.dumps(machine))
+    assert P.load_machine_proposal(path, arm='random-ir', series=1,
+                                    form='ir').ir == first.ir
+    with pytest.raises(ValueError, match='forbidden'):
+        P.load_machine_proposal(path, arm='llm-ir', series=1, form='ir')
+    machine['generator']['preimage'] += 'x'
+    path.write_text(json.dumps(machine))
+    with pytest.raises(ValueError, match='preimage'):
+        P.load_machine_proposal(path, arm='random-ir', series=1, form='ir')
 
 BODY = (ROOT / 'orchestrator/campaign/silo_function_policy_hand/abort0.cpp').read_text()
 GOOD = BODY.replace('return 0u;', 'return 1u;')
@@ -116,6 +324,55 @@ def test_preview_accepts_only_closed_coder(tmp_path):
     path.write_text('{"coder":{"axis":"x","axis":"x"}}')
     with pytest.raises(ValueError, match='duplicate'):
         P.load_proposal_file(path, form='cpp', preview=True)
+
+
+def test_contrast_preview_checks_auditor_veto_without_writing(tmp_path):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('g++ unavailable')
+    source = _source(tmp_path)
+    original = source.read_bytes()
+    passed, diff = P.policy_gate(str(tmp_path), GOOD, None,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert passed.passed
+    path = _proposal(tmp_path, change=lambda d: (d['coder'].update(implementation=GOOD),
+        d['auditor'].update(verdict='reject', diff_digest=compute_diff_digest(diff),
+                            violations=[{'type': 26}])))
+    proposal, auditor = P.load_proposal_file(path, form='cpp', preview=True,
+                                              preview_auditor=True)
+    rejected, _ = P.policy_gate(str(tmp_path), proposal.implementation, auditor,
+        compiler=compiler, scratch_dir=str(tmp_path), write=False)
+    assert not rejected.passed
+    assert rejected.digest['subtype'] == 'auditor-violation'
+    assert source.read_bytes() == original
+
+
+def test_contrast_preview_classifies_schema_and_digest(tmp_path, capsys):
+    from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'llm-cpp', 'series': 1, 'form': 'cpp',
+        'submit_checkout': str(ROOT), 'checkout_head': 'unused',
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    path = _proposal(tmp_path, change=lambda d: d['coder'].update(extra=True))
+    args = ['--form', 'cpp', '--contrast-ledger', str(ledger.root),
+            '--preview-diff', str(path)]
+    assert P.main(args) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        'passed': False, 'working_diff': None, 'diff_digest': None,
+        'subtype': 'proposal-schema', 'rule_id': 'invalid preview coder'}
+    compiler = find_compiler() or pytest.skip('policy compiler unavailable')
+    _source(tmp_path)
+    path = _proposal(tmp_path, change=lambda d: d['coder'].update(implementation=GOOD))
+    proposal, auditor = P.load_proposal_file(path, form='cpp', preview=True,
+                                              preview_auditor=True)
+    assert P._preview_policy_gate(str(tmp_path), proposal, auditor, compiler,
+                                  str(tmp_path), contrast=True) is None
+    out = json.loads(capsys.readouterr().out)
+    assert out == {'passed': False, 'working_diff': None, 'diff_digest': None,
+                   'subtype': 'auditor-digest', 'rule_id': out['rule_id']}
+    assert 'auditor.diff_digest' in out['rule_id']
 
 
 def test_policy_gate_veto_checks_types_22_through_26(tmp_path):
@@ -339,6 +596,22 @@ def test_policy_gate_digest_and_no_write_on_reject(tmp_path):
         compiler=compiler, scratch_dir=str(tmp_path), write=True)
     assert result.passed and compute_diff_digest(rebound) == accepted.diff_digest
     assert source.read_bytes() != original
+
+
+def test_machine_origin_can_write_only_after_shared_gate(tmp_path):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('g++ unavailable')
+    source = _source(tmp_path)
+    original = source.read_bytes()
+    with pytest.raises(AuditorGateFailure, match='auditor required'):
+        P.policy_gate(str(tmp_path), GOOD, None, compiler=compiler,
+                      scratch_dir=str(tmp_path), write=True)
+    assert source.read_bytes() == original
+    passed, _ = P.policy_gate(str(tmp_path), GOOD, None, compiler=compiler,
+                              scratch_dir=str(tmp_path), write=True,
+                              origin='machine')
+    assert passed.passed and source.read_bytes() != original
 
 
 def test_budget_stop_preserves_checkpoint_without_candidate_work(tmp_path):
