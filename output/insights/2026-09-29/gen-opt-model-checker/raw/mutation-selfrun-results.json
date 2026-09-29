@@ -1,0 +1,198 @@
+[
+ {
+  "id": "baseline",
+  "rc": 0,
+  "failed": []
+ },
+ {
+  "id": "mc0-comment-only",
+  "rc": 0,
+  "failed": [],
+  "expected": "SURVIVED",
+  "observed": "SURVIVED",
+  "match": true
+ },
+ {
+  "id": "mc1-first-edge-only",
+  "rc": 1,
+  "failed": [
+   "test_search_all_edges_and_shortest"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc2-skip-judgment-on-visited",
+  "rc": 1,
+  "failed": [
+   "test_search_all_edges_and_shortest"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc3-stop-at-first-violation",
+  "rc": 1,
+  "failed": [
+   "test_search_all_edges_and_shortest"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc4-lifo-queue",
+  "rc": 1,
+  "failed": [
+   "test_search_all_edges_and_shortest"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc5-skip-new-state-invariant",
+  "rc": 1,
+  "failed": [
+   "test_search_limits_and_invariant_error"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc6-complete-on-limit",
+  "rc": 1,
+  "failed": [
+   "test_search_limits_and_invariant_error"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc7-drop-ww",
+  "rc": 1,
+  "failed": [
+   "test_cycle_ww_only_required"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc8-drop-wr",
+  "rc": 1,
+  "failed": [
+   "test_cycle_wr_only_required"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc9-drop-rw",
+  "rc": 1,
+  "failed": [
+   "test_cycle_all_later_versions",
+   "test_cycle_wr_only_required",
+   "test_cycle_write_skew_rw_only_required",
+   "test_cycle_ww_only_required"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc10-rw-next-only",
+  "rc": 1,
+  "failed": [
+   "test_cycle_all_later_versions"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc11-no-duplicate-id-check",
+  "rc": 1,
+  "failed": [
+   "test_cycle_input_validation"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc12-allow-unknown-field",
+  "rc": 1,
+  "failed": [
+   "test_counterexample_schema"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc13-no-atom-charset",
+  "rc": 1,
+  "failed": [
+   "test_counterexample_schema"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc14-drop-length-two-ops",
+  "rc": 1,
+  "failed": [
+   "test_l3_counts_order_ids"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc15-no-duplicate-writer-check",
+  "rc": 1,
+  "failed": [
+   "test_cycle_input_validation"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc16-no-finite-seconds-check",
+  "rc": 1,
+  "failed": [
+   "test_search_limits_and_invariant_error"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc17-no-step-count-cap",
+  "rc": 1,
+  "failed": [
+   "test_counterexample_schema"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ },
+ {
+  "id": "mc18-no-vocabulary-check",
+  "rc": 1,
+  "failed": [
+   "test_counterexample_schema"
+  ],
+  "expected": "KILLED",
+  "observed": "KILLED",
+  "match": true
+ }
+]
