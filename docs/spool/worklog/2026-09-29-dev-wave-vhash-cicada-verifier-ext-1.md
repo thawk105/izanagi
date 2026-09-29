@@ -13,6 +13,7 @@ title: [T-2874] Cicada の正しさ検査を TPC-C (trace v3) と insert へ広�
 - 実際に行った手順: 段 1 brief → 段 2 plan (Codex) → 段 3 相談 2 本 → 段 4 裁定 → 段 5 author T (重ね patch と起動器) → 親レビューで `#line` の 1 ずれ (ERR の `__LINE__` が TRACE=0 の即値になる) を見つけ fix 1 回 → 統合 → 生死確認 L0 → **停止条件成立** (stock の Delivery を含む全 mix × 4 thread が `gc_records()` の ERR で異常終了) → 段 4 追補 (原因切り分け job と正例 cell の差し替え) → author B (insert の正例と帰属解析) → GC-PROBE と J1 を別 node で同時投入 → 段 6 レビュー 2 本 (must-fix 1: α の帰属で表を照合していなかった) → fix 1 回 (保存済み原本からの再計算 mode) → 親が原本で再計算 → 焦点再レビュー 1 本。
 - 棄却・読み替え: 段 2 plan の壊し候補 (insert / delete を含む取引に絞って read 検査を壊す) は、相談 2 本が一致して「insert / delete の検出力を示さない」とし不採用。依頼の「巡回として検出」は、insert の意味の壊し (orphan read で事前登録) と既存の壊しの TPC-C 版 (巡回) の 2 本で満たす形に読み替えた (理由は D)。結果として insert の壊しでも巡回 1 件が出て、辺も壊した insert に帰属した。delete を壊した正例は作っていない。
 - セッション異常: 16:19〜16:37 JST、land 調整役 (別 session) からの依頼で、ユーザーの git push のため git の書き込みを止めた (受領・再開とも返信)。`EnterWorktree` は name 形が filter driver 文言で、path 形が `worktree list` の 10 秒 timeout で失敗し、手動 add と Bash の cd で木に入った (既知型)。
+- 実 repo を読むテスト: 新 patch 2 本を全件走査する test 3 本 (`orchestrator/tests/test_ccbench_spawn_sites.py`・`test_mocc_template_proof.py`・`test_p3_s4_loop.py`) を記録 commit `7408a9962` の上で焦点走 (`tools/run_tests.py --force-dispatch`、35648.nqsv) し、756 passed・2 skipped。判定器・テストは変えていないので pytest の変異 matrix は置かず、実系の変異は正例 2 本 (段 4 裁定 R7)。
 - エージェント工数: Codex (gpt-6-sol、medium) plan 1・consult 2・author 2・fix 2・review 2・focus 1。計算ノード job 3 本 (l0-a 35456、gc-a 35506、j1-a 35507、合計約 6 分)。
 
 ## 次の一手差分
