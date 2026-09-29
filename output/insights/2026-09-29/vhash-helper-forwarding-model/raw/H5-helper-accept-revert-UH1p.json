@@ -1,0 +1,1371 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "H5",
+  "protocol": "v1",
+  "faults": [
+    "UH1p"
+  ],
+  "o1": false,
+  "pressure": "helper",
+  "resume": "accept",
+  "revert_after_confirm": true,
+  "bounds": {
+    "keys": 2,
+    "transactions": 2,
+    "operations_per_transaction": {
+      "T": 3,
+      "W": 2
+    },
+    "versions_per_key": {
+      "B": 2,
+      "A": 1
+    },
+    "K": 1,
+    "timestamps": [
+      10,
+      11,
+      15,
+      20,
+      25
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "operations_including_WAIT": 4,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B11",
+        "key": "B",
+        "wts": 11,
+        "rts": 11,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B25",
+        "key": "B",
+        "wts": 25,
+        "rts": 25,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 15,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "WAIT",
+            ""
+          ],
+          [
+            "W",
+            "B"
+          ]
+        ],
+        "cand_ts": 15,
+        "gc_floor": 15,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": "",
+        "pressure_request": false,
+        "attempt_base": 0,
+        "tried_targets": [],
+        "pressure_base_confirmed": 0,
+        "pressure_base_floor": 0,
+        "gen": 0,
+        "expired": false,
+        "helper_base": 0,
+        "resume_used": false,
+        "held_refs": []
+      },
+      {
+        "id": "W",
+        "start": 20,
+        "ops": [
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 20,
+        "gc_floor": 20,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": "",
+        "pressure_request": false,
+        "attempt_base": 0,
+        "tried_targets": [],
+        "pressure_base_confirmed": 0,
+        "pressure_base_floor": 0,
+        "gen": 0,
+        "expired": false,
+        "helper_base": 0,
+        "resume_used": false,
+        "held_refs": []
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 95747,
+    "terminal": 80,
+    "deadlock": 0,
+    "floor_lowering_transitions": 0,
+    "seconds": 8.263418371003354,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": {
+      "version": "B11",
+      "txn": "T",
+      "reason": "use_after_free"
+    }
+  },
+  "counterexample": {
+    "judge": "J3",
+    "reason": {
+      "version": "B11",
+      "txn": "T",
+      "reason": "use_after_free"
+    },
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "publish_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_snapshot",
+        "version": "T:27",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_rts",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_check",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_commit",
+        "version": "T",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "end_wait_revert",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "check_expired",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "install",
+        "version": "T:B",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "installed",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validation_rts",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validate_read",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_publish",
+        "version": "T",
+        "fault": "UH1p"
+      },
+      {
+        "thread": "GC",
+        "operation": "read_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "reclaim",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "touch_reclaimed",
+        "version": "B11",
+        "fault": "",
+        "reason": {
+          "version": "B11",
+          "txn": "T",
+          "reason": "use_after_free"
+        }
+      }
+    ]
+  },
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": [
+      "use_after_free"
+    ]
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "publish_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_snapshot",
+        "version": "T:27",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_rts",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "H",
+        "operation": "h_check",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "install",
+        "version": "W:A",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": {
+    "reached": false,
+    "steps": []
+  },
+  "effects": {
+    "waiting_states": 887,
+    "max_B": {
+      "value": 27,
+      "snapshot": {
+        "B": 27,
+        "reclaimed": 0,
+        "reclaimable": 2,
+        "freed": 2
+      },
+      "steps": [
+        {
+          "thread": "W",
+          "operation": "forward_candidate",
+          "version": "B11",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "read",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "buffer_write",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "install",
+          "version": "W:A",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_rts",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validate_read",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "write_rts_check",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_candidate",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "W:A",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "release_refs",
+          "version": "",
+          "fault": ""
+        }
+      ]
+    },
+    "max_freed": {
+      "value": 2,
+      "snapshot": {
+        "B": 26,
+        "reclaimed": 0,
+        "reclaimable": 2,
+        "freed": 2
+      },
+      "steps": [
+        {
+          "thread": "W",
+          "operation": "forward_candidate",
+          "version": "B11",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "read",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "buffer_write",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "install",
+          "version": "W:A",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_rts",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validate_read",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "write_rts_check",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_candidate",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "W:A",
+          "fault": ""
+        }
+      ]
+    },
+    "simultaneous": {
+      "snapshot": {
+        "B": 27,
+        "reclaimed": 0,
+        "reclaimable": 2,
+        "freed": 2
+      },
+      "steps": [
+        {
+          "thread": "W",
+          "operation": "forward_candidate",
+          "version": "B11",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "read",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "buffer_write",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "install",
+          "version": "W:A",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_rts",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validate_read",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "write_rts_check",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_candidate",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "W:A",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "release_refs",
+          "version": "",
+          "fault": ""
+        }
+      ]
+    },
+    "attributable": {
+      "delta_B": 12,
+      "delta_freed": 2,
+      "delta_reclaimed": 0,
+      "delta_reclaimable": 2,
+      "before": {
+        "B": 15,
+        "reclaimed": 0,
+        "reclaimable": 0,
+        "freed": 0
+      },
+      "after": {
+        "B": 27,
+        "reclaimed": 0,
+        "reclaimable": 2,
+        "freed": 2
+      },
+      "steps": [
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_candidate",
+          "version": "B11",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_snapshot",
+          "version": "T:27",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_rts",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_check",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_commit",
+          "version": "T",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "end_wait",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "check_expired",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "buffer_write",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "install",
+          "version": "T:B",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "validation_rts",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "validate_read",
+          "version": "A10",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "write_rts_check",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_candidate",
+          "version": "B25",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "forward_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "W",
+          "operation": "publish_floor",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "H",
+          "operation": "h_publish",
+          "version": "T",
+          "fault": "UH1p"
+        }
+      ]
+    },
+    "g2": {
+      "T_only": null,
+      "both": null
+    },
+    "attributable_by_op": {
+      "h_publish": {
+        "delta_B": 12,
+        "delta_freed": 2,
+        "delta_reclaimed": 0,
+        "delta_reclaimable": 2,
+        "before": {
+          "B": 15,
+          "reclaimed": 0,
+          "reclaimable": 0,
+          "freed": 0
+        },
+        "after": {
+          "B": 27,
+          "reclaimed": 0,
+          "reclaimable": 2,
+          "freed": 2
+        },
+        "steps": [
+          {
+            "thread": "T",
+            "operation": "read",
+            "version": "A10",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_candidate",
+            "version": "B11",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_commit",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "publish_floor",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_snapshot",
+            "version": "T:27",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_rts",
+            "version": "A10",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_check",
+            "version": "A10",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_commit",
+            "version": "T",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "end_wait",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "check_expired",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "buffer_write",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "begin_commit",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "fix_timestamp",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "install",
+            "version": "T:B",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "installed",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "validation_rts",
+            "version": "A10",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "validation_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "validate_read",
+            "version": "A10",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "validation_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "write_rts_check",
+            "version": "B25",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "writes_checked",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "decide_committed",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_candidate",
+            "version": "B25",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "forward_commit",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "W",
+            "operation": "publish_floor",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "H",
+            "operation": "h_publish",
+            "version": "T",
+            "fault": "UH1p"
+          }
+        ]
+      },
+      "h_expire": null
+    }
+  },
+  "fault_step_seen": true,
+  "floor_above_cand_states": 12972
+}

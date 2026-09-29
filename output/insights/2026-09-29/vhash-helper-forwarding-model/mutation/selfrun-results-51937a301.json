@@ -1,0 +1,286 @@
+{
+ "commit": "51937a301a81d68e8346d59298b3ebbfd5c640cd",
+ "baseline": {
+  "results": {
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_explore_counts_one_added_floor_lowering_edge": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_floor_lowering_counter_positive_and_representative_zero": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_old_representative_pins": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_restricted_judgment_matches_reference_gc": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_ug2r_and_ug3_without_o1": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_decision_is_not_committed": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h3_early_publish_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_representative_old_pins": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_state_hash_distinguishes_helper_and_generation": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation": "PASS"
+  },
+  "seconds": 30.5,
+  "failed": []
+ },
+ "mutations": [
+  {
+   "id": "mh1-commit-cas-always",
+   "why": "H4 (確定) の CAS 条件 (世代と待機中) を常に真にする",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/helper.py",
+     "count": 1,
+     "before_sha256": "31d663bbca3101a1ccebe859d331bc95998eb44e74a420f8f9db931dc95c7478",
+     "after_sha256": "0af10610ed54c096f567e6b7478097361201e83eb928e0b833378e1689a00fd8"
+    }
+   ],
+   "seconds": 24.76,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay": "FAIL:AssertionError:UH1g",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "FAIL:StopIteration:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh2-publish-at-snapshot",
+   "why": "H5 (公開) を確認より前 (snapshot) に行う",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/helper.py",
+     "count": 1,
+     "before_sha256": "31d663bbca3101a1ccebe859d331bc95998eb44e74a420f8f9db931dc95c7478",
+     "after_sha256": "7ae8d1148ca312a25114d6f21c1d9501f0b021f95b0010f185b547b47401f9db"
+    }
+   ],
+   "seconds": 21.96,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh3-boundary-keeps-expired",
+   "why": "GC の境界 B の計算 (回収と効果の集計) で失効した tx を除かない",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "27b0240614a8fb698c67f5f79eacc23736ba3b39c8a3574f6b15a30f6c673587",
+     "after_sha256": "3352e3deb3d15472883071caf5536309a9b6846767c4dd65a2de43d807eabe66"
+    },
+    {
+     "file": "tools/vhash_forwarding_model/gc_connection.py",
+     "count": 1,
+     "before_sha256": "b295cd5e1afb3e7f10dc55b1d47c9b8d57e06de421218c039697092c482c8568",
+     "after_sha256": "f6b7b6d0bb8e6573d22e82dfd06ac3d364e92491651077a371a63502853273cb"
+    },
+    {
+     "file": "tools/vhash_forwarding_model/gc_connection.py",
+     "count": 1,
+     "before_sha256": "f6b7b6d0bb8e6573d22e82dfd06ac3d364e92491651077a371a63502853273cb",
+     "after_sha256": "d31e1d45e1981a110d444f4e0d6a5cefb59e1955507efa514b54050b29e425cb"
+    }
+   ],
+   "seconds": 29.76,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh4-gc-ignores-expired-refs",
+   "why": "GC が失効した tx の refs を無視して回収する",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "27b0240614a8fb698c67f5f79eacc23736ba3b39c8a3574f6b15a30f6c673587",
+     "after_sha256": "c27c4581490f9ffb184de5140d537a373c4b3d8ab0ceff03d7c06257d51547cf"
+    }
+   ],
+   "seconds": 30.15,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh5-j3-judges-expired-logically",
+   "why": "J3 の reclaim 判定で失効した tx の除外 (H10) を外す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "count": 1,
+     "before_sha256": "48f2ba130cfe812ebcb9a3cfb8d97cdb6469e54fa168f10f3ef79a47ebf0d3aa",
+     "after_sha256": "fc56bdf7254be98f32327e6d74040f89a051588b6897db1728735a073fe87b1c"
+    }
+   ],
+   "seconds": 29.24,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh6-resume-skips-expiry-check",
+   "why": "再開後の check_expired が失効を見ずに ops を続ける",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "27b0240614a8fb698c67f5f79eacc23736ba3b39c8a3574f6b15a30f6c673587",
+     "after_sha256": "d9e4acbb76d037bb846e39da3ce030f49f9c9b34abfd5f19b9e78ac1a594b2f4"
+    },
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "d9e4acbb76d037bb846e39da3ce030f49f9c9b34abfd5f19b9e78ac1a594b2f4",
+     "after_sha256": "49bb5816f31238c64e9d4f5a8dd8f04a2b678cffd98015c97daf38188206aaf9"
+    }
+   ],
+   "seconds": 29.62,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "FAIL:StopIteration:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh7-end-wait-keeps-gen",
+   "why": "end_wait が世代を進めない (規則 H6 の pin。単一 WAIT では待機中条件が代替するので意味論上の違反は出ない見込み)",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "27b0240614a8fb698c67f5f79eacc23736ba3b39c8a3574f6b15a30f6c673587",
+     "after_sha256": "94a843f8b5ec644ada0641bce9f3cc0307683fbc900526ae01b28e8c3da1bfb2"
+    }
+   ],
+   "seconds": 30.54,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mh8-gc-ignores-helper-refs",
+   "why": "GC が代行 thread H の refs (H11) を無視する (登録は残す)",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "27b0240614a8fb698c67f5f79eacc23736ba3b39c8a3574f6b15a30f6c673587",
+     "after_sha256": "8e8f34071523ccee75c2dd2ee857b9dc8469ff6dae47cc2982a836ecb53287ff"
+    }
+   ],
+   "seconds": 28.52,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  }
+ ]
+}

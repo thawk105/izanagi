@@ -1,0 +1,61 @@
+scenario	fault	o1	pressure	revert	J1	J2	J3	J3_reason	visited	complete	witness	danger	ce_judge	ce_len	max_B	max_freed	simultaneous	attr_dB	attr_dfreed	g2_T_only_B	g2_both_B	floor_lowering	rc	wall_s
+G1		False	off	False	0	0	0		330	True	False			0	45	0	True					0	0	0.2
+G1		False	self	False	0	0	0		1444	True	True			0	61	2	True	16	2			0	0	0.3
+G1		False	self	True	0	0	0		2190	True	True			0	61	2	True	16	2			0	0	0.3
+G1		True	self	False	0	0	0		1312	True	True			0	61	2	True	16	2			0	0	0.2
+G2		False	off	False	0	0	0		460	True	False			0	45	0	True					0	0	0.1
+G2		False	self	False	0	0	0		15586	True	True			0	62	1	True	17	1	35	61	0	0	1.2
+G2		False	self	True	0	0	0		68794	True	True			0	62	1	True	17	1	35	61	0	0	5.1
+G2		True	self	False	0	0	0		10502	True	True			0	62	1	True	17	1	35	61	0	0	0.9
+G3		False	off	False	0	0	0		2502	True	False	False		0	51	1	True					0	0	0.3
+G3		False	self	False	0	0	0		5060	True	True	False		0	61	2	True	16	1			0	0	0.4
+G3		False	self	True	0	0	0		6392	True	True	False		0	61	2	True	16	1			0	0	0.5
+G3		True	self	False	0	0	0		4384	True	True	False		0	61	2	True	16	1			0	0	0.4
+G4		False	off	False	0	0	0		102	True	False	False		0	45	0	True					0	0	0.2
+G4		False	self	False	0	0	0		524	True	True	False		0	81	2	True	36	2			0	0	0.3
+G4		False	self	True	0	0	0		842	True	True	False		0	81	2	True	36	2			0	0	0.3
+G4		True	self	False	0	0	0		468	True	True	False		0	81	2	True	36	2			0	0	0.3
+G5		False	off	False	0	0	0		1360	True	False	False		0	27	2	True					0	0	0.3
+G5		False	self	False	0	0	0		10116	True	True	False		0	27	2	True	12	1			0	0	0.9
+G5		False	self	True	0	0	0		13604	True	True	False		0	27	2	True	12	1			0	0	1.2
+G5		True	self	False	0	0	0		8494	True	True	False		0	27	2	True	12	1			0	0	0.8
+G6		False	off	False	0	0	0		3192	True	False	False		0	71	2	True					0	0	0.5
+G6		False	self	False	0	0	0		16266	True	True	False		0	81	3	True	36	2			0	0	1.3
+G6		False	self	True	0	0	0		21180	True	True	False		0	81	3	True	36	2			0	0	1.6
+G6		True	self	False	0	0	0		13706	True	True	False		0	81	3	True	36	2			0	0	1.1
+G1	UG1	False	self	False	0	0	0		1612	True	True			0	61	2	True	16	2			0	0	0.3
+G2	UG1	False	self	False	0	0	0		17801	True	True			0	62	1	True	17	1	35	61	0	0	1.4
+G3	UG1	False	self	False	0	0	1	future_read	6078	True	True	True	J3	16	61	2	True	16	1			0	0	0.6
+G4	UG1	False	self	False	0	0	1	future_read	584	True	True	True	J3	5	81	2	True	36	2			0	0	0.3
+G5	UG1	False	self	False	0	0	1	use_after_free	11724	True	True	False	J3	31	28	2	False	12	1			0	0	1.1
+G6	UG1	False	self	False	0	0	1	future_read	22614	True	True	False	J3	5	81	3	True	36	2			0	0	1.8
+G1	UG2	False	self	False	0	0	0		1490	True	True			0	1000000000	2	True	999999955	2			0	0	0.4
+G2	UG2	False	self	False	0	0	0		15718	True	True			0	1000000000	1	True	999999955	1	35	1000000000	0	0	1.2
+G3	UG2	False	self	False	0	0	0		5094	True	True	False		0	1000000000	2	True	999999955	1			0	0	0.5
+G4	UG2	False	self	False	0	0	1	future_read	514	True	True	True	J3	10	1000000000	2	True	999999955	2			0	0	0.2
+G5	UG2	False	self	False	0	0	0		10147	True	True	False		0	1000000000	2	True	999999985	1			0	0	0.8
+G6	UG2	False	self	False	0	0	1	future_read	15944	True	True	False	J3	21	1000000000	3	True	999999955	2			0	0	1.3
+G1	UG2r	False	self	False	0	0	0		1444	True	True			0	61	2	True	16	2			0	0	0.3
+G2	UG2r	False	self	False	0	0	0		15586	True	True			0	62	1	True	17	1	35	61	0	0	1.2
+G3	UG2r	False	self	False	0	0	0		5060	True	True	False		0	61	2	True	16	1			0	0	0.6
+G4	UG2r	False	self	False	0	0	0		524	True	True	False		0	81	2	True	36	2			0	0	0.3
+G5	UG2r	False	self	False	0	0	0		10116	True	True	False		0	27	2	True	12	1			0	0	0.9
+G6	UG2r	False	self	False	0	0	0		16266	True	True	False		0	81	3	True	36	2			0	0	1.4
+G1	UG3	False	self	False	0	0	0		1444	True	True			0	61	2	True	16	2			0	0	0.3
+G2	UG3	False	self	False	0	0	0		15586	True	True			0	62	1	True	17	1	35	61	0	0	1.3
+G3	UG3	False	self	False	0	0	0		4500	True	False	False		0	61	2	True	16	1			0	0	0.7
+G4	UG3	False	self	False	0	0	0		524	True	True	False		0	81	2	True	36	2			0	0	0.2
+G5	UG3	False	self	False	0	0	0		9906	True	True	False		0	28	2	False	12	1			0	0	1.0
+G6	UG3	False	self	False	0	0	0		13942	True	False	False		0	81	3	True	36	2			0	0	1.2
+G1	UF1	False	self	False	0	0	0		1444	True	True			0	61	2	True	16	2			0	0	0.2
+G2	UF1	False	self	False	0	0	0		15586	True	True			0	62	1	True	17	1	35	61	0	0	1.2
+G3	UF1	False	self	False	0	0	0		5060	True	True	False		0	61	2	True	16	1			0	0	0.5
+G4	UF1	False	self	False	0	0	0		524	True	True	False		0	81	2	True	36	2			0	0	0.2
+G5	UF1	False	self	False	0	0	1	use_after_free	10116	True	True	False	J3	47	27	2	True	12	1			0	0	0.8
+G6	UF1	False	self	False	0	0	1	future_read	16234	True	True	True	J3	22	81	3	True	36	2			0	0	1.3
+G1	UG3	True	self	False	0	0	0		1312	True	True			0	61	2	True	16	2			0	0	0.2
+G2	UG3	True	self	False	0	0	0		10502	True	True			0	62	1	True	17	1	35	61	0	0	0.8
+G3	UG3	True	self	False	0	1	0		3820	True	False	False		0	61	2	True	16	1			0	0	0.4
+G4	UG3	True	self	False	0	0	0		468	True	True	False		0	81	2	True	36	2			0	0	0.1
+G5	UG3	True	self	False	1	1	0		8204	True	True	True	J1	38	28	2	False	12	1			0	0	0.7
+G6	UG3	True	self	False	0	1	0		11482	True	False	False		0	81	3	True	36	2			0	0	1.0
