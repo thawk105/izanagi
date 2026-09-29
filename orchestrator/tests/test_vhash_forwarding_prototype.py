@@ -347,3 +347,106 @@ def test_aggregate_k_sweep_requires_extra_cells():
     job["records"] = [r for r in job["records"] if r["k"] != 8]
     with pytest.raises(ValueError, match=r"missing planned cell: .*100, 8"):
         driver.aggregate_jobs([job])
+
+
+def _gc_payload():
+    return {"schema": 1, "mode": "e", "sample_us": 10, "clocks_per_us": 2100,
+        "initial_versions": 100, "version_struct_bytes": 64,
+        "threads": [{key: (i if key == "thid" else 0) for key in driver.GC_THREAD}
+                    for i in (0, 1)],
+        "uniform": {"count": 1, "negative": 0, "lag_rts_hist": [1]+[0]*41,
+                    "lag_rts_sum_us": 1, "lag_rts_max_us": 1,
+                    "lag_wts_hist": [1]+[0]*41, "live_sum": 100, "live_max": 100,
+                    "argmin_rts_thid": [0, 1], "series": [], "series_stride": 1},
+        "publish": {"count": 0, "lag_rts_hist": [0]*42, "interval_hist": [0]*42},
+        "begin": {"count": 0, "lag_rts_hist": [0]*42},
+        "retention": {"count": 0, "sum_us": 0, "hist": [0]*42}, "live_end": 100}
+
+
+def test_gc_rotation_md4():
+    assert [driver.gc_order_rotation(rep) for rep in range(4)] == [
+        ("stock", "C", "E-hb", "E"), ("C", "E-hb", "E", "stock"),
+        ("E-hb", "E", "stock", "C"), ("E", "stock", "C", "E-hb")]
+
+
+def test_gc_line_exactly_once_and_schema_md2_md3():
+    payload = _gc_payload()
+    line = "CICADA_GC_V1 " + json.dumps(payload) + "\n"
+    assert driver.parse_gc_line(line, True) == payload
+    with pytest.raises(ValueError, match="expected 1 lines, found 2"):
+        driver.parse_gc_line(line * 2, True)
+    with pytest.raises(ValueError, match="expected 1 lines, found 0"):
+        driver.parse_gc_line("", True)
+    payload["unknown"] = 0
+    with pytest.raises(ValueError, match="top schema"):
+        driver.parse_gc_line("CICADA_GC_V1 " + json.dumps(payload), True)
+    del payload["unknown"]
+    payload["uniform"]["series"] = [[i, i, 100] for i in range(10000)]
+    assert driver.parse_gc_line("CICADA_GC_V1 " + json.dumps(payload), True)["uniform"]["series"][-1][0] == 9999
+
+
+def test_gc_argv_and_count_perf_md1(tmp_path):
+    specs = driver.gc_plan_runs("wait_after_reads", 10000)
+    for arm in driver.GC_ARMS:
+        spec = next(s for s in specs if s["arm"] == arm and s["build_kind"].endswith("-count"))
+        argv = driver._argv(tmp_path / "binary", spec)
+        assert "--cicada_gc_sample_us=10" in argv
+        assert "--cicada_long_wait_us=10000" in argv
+        assert ("--cicada_gc_slice_us=100" in argv) is arm.startswith("E")
+        assert ("--cicada_gc_mode=hb" in argv) is (arm == "E-hb")
+        assert ("--cicada_gc_mode=e" in argv) is (arm == "E")
+        assert argv[0] != "numactl"
+    assert len(specs) == 72
+
+
+def _gc_job():
+    records = []
+    for spec in driver.gc_plan_runs("normal", None):
+        records.append({**spec, "valid": True,
+            "perf_eligible": not spec["build_kind"].endswith("-count"),
+            "throughput": 100, "gc_counters": _gc_payload() if spec["build_kind"].endswith("-count") else None,
+            "longtx_counters": {"threads": [{"thid": 1, "long": False}]}})
+    return {"command": "gc-run", "all_pass": True, "workload": "normal", "wait_us": None,
+            "records": records}
+
+
+def test_gc_aggregate_complete_and_missing_md1_md5():
+    job = _gc_job()
+    aggregate = driver.gc_aggregate_jobs([job])
+    cell = aggregate["cells"]["normal/wait=None/gc=10"]
+    assert len(cell["arms"]["E"]["performance"]) == 3
+    assert len(cell["arms"]["E"]["gc"]) == 1
+    assert cell["arms"]["E"]["throughput_median_tps"] == 100
+    job["records"].pop()
+    with pytest.raises(ValueError, match="missing or extra cell"):
+        driver.gc_aggregate_jobs([job])
+    job = _gc_job()
+    next(r for r in job["records"] if r["build_kind"].endswith("-count"))["perf_eligible"] = True
+    with pytest.raises(ValueError, match="mislabeled"):
+        driver.gc_aggregate_jobs([job])
+
+
+def test_md6_plan_and_argv_remain_unchanged():
+    assert driver.order_rotation(0) == ("stock", "c", "f")
+    assert len(driver.plan_runs("run", "normal")) == 33
+    spec = driver.plan_runs("run", "normal")[0]
+    assert driver._argv(Path("binary"), spec)[0:3] == ["numactl", "--interleave=all", "binary"]
+
+
+@pytest.mark.parametrize("kind", ("gc-stock", "gc-c", "gc-e", "gc-stock-count", "gc-c-count", "gc-e-count"))
+def test_gc_build_gates_every_macro_and_uses_tuned_genome(monkeypatch, tmp_path, kind):
+    monkeypatch.setattr(driver.compute, "_common_configure_args", lambda **kwargs: [])
+    seen, commands = [], []
+    monkeypatch.setattr(driver, "_condition_gate", lambda source, macro, args, cxx:
+                        seen.append((macro, tuple(args))) or {"admission": {"admitted": True}})
+    monkeypatch.setattr(driver, "checked", lambda argv, **kwargs: commands.append(argv))
+    binary = tmp_path / "cc/cicada/ycsb_cicada.exe"
+    binary.parent.mkdir(parents=True)
+    binary.touch()
+    driver._build_variant(tmp_path, tmp_path, kind, {}, {"cxx_path": "/fake/c++"})
+    assert [macro for macro, _ in seen] == list(driver.MACROS[kind])
+    for key, value in driver.GC_GENOME.items():
+        from orchestrator.campaign.model import cmake_cache_variable_for_axis
+        arg = f"-D{cmake_cache_variable_for_axis('cicada', key)}={value}"
+        assert arg in commands[0]
+        assert all(arg in args for _, args in seen)
