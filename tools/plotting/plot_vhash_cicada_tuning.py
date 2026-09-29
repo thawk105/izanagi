@@ -22,6 +22,19 @@ from tools.vhash_cicada_tuning.driver import read_runs
 NOTES = {"j1": "J1 探索値・正しさ未検証の診断値",
          "j2": "J2 確認値・正しさ未検証の診断値"}
 TPS_PER_MTPS = 1_000_000
+GENOME_ABBREVIATIONS = (("BACK_OFF", "B"), ("INLINE_VERSION_OPT", "O"),
+                        ("INLINE_VERSION_PROMOTION", "P"), ("REUSE_VERSION", "R"),
+                        ("WRITE_LATEST_ONLY", "W"))
+
+
+def short_genome(genome: str) -> str:
+    flags = model.parse_canonical(genome)
+    return " ".join(f"{letter}{flags[axis]}" for axis, letter in GENOME_ABBREVIATIONS)
+
+
+def series_label(genome: str) -> str:
+    short = short_genome(genome)
+    return f"control ({short})" if genome == model.canonical(model.CONTROL) else short
 
 
 class FigureLayoutError(ValueError):
@@ -173,7 +186,8 @@ def make_j1_figure(rows, summary):
     axes[-1, 0].set_xlabel("canonical genome index (control dashed)")
     fig.suptitle(f"Cicada J1: absolute throughput and paired control ratios | {NOTES['j1']}", fontsize=14)
     fig.text(0.5, 0.025, f"{_caption(summary, measured)} | J1 で測れなかった genome: "
-             f"{len(missing_genomes)} 件 (詳細は一次資料)", ha="center", fontsize=9)
+             f"{len(missing_genomes)} 件 (詳細は一次資料) | 番号と設定の対応は provenance の genome_index",
+             ha="center", fontsize=9)
     return fig, list(fig.axes)
 
 
@@ -184,7 +198,7 @@ def make_j2_figure(rows, summary):
         raise ValueError("no measured J2 workloads")
     groups = {key: group for key, group in groups.items() if key[0] in measured}
     fig, axes = plt.subplots(len(measured), 1, figsize=(12, 3 * len(measured) + 1), squeeze=False)
-    fig.subplots_adjust(left=0.09, right=0.76, top=0.89, bottom=0.11, hspace=0.7)
+    fig.subplots_adjust(left=0.09, right=0.76, top=0.89, bottom=0.16, hspace=0.7)
     for axis, w in zip(axes[:, 0], measured):
         keys = sorted({(g, gc) for ww, g, gc, _ in groups if ww == w})
         if not keys:
@@ -193,20 +207,22 @@ def make_j2_figure(rows, summary):
         records = {n for ww, _, _, n in groups if ww == w}
         if len(records) != 1:
             raise ValueError(f"J2 records ambiguous for {w}")
-        for i, genome in enumerate(genomes):
+        for genome in genomes:
             gcs = sorted(gc for g, gc in keys if g == genome)
             values = [_estimate([r["throughput_tps"] for r in
                                  groups[(w, genome, gc, next(iter(records)))]]) for gc in gcs]
-            label = "control" if genome == model.canonical(model.CONTROL) else f"candidate {i + 1}"
+            label = series_label(genome)
             axis.plot(gcs, [v / TPS_PER_MTPS for v in values], marker="o", label=label)
         axis.set_xscale("log")
         axis.set_title(f"{w}: 48 threads, N={next(iter(records)):,}, skew 0.9", fontsize=10)
         axis.set_ylabel("median throughput [Mtps]")
         axis.set_xticks(sorted({gc for _, gc in keys}))
         axis.set_xticklabels([str(gc) for gc in sorted({gc for _, gc in keys})])
-        axis.legend(loc="upper left", bbox_to_anchor=(1.22, 1), fontsize=8)
+        axis.legend(loc="upper left", bbox_to_anchor=(1.03, 1), fontsize=8)
     axes[-1, 0].set_xlabel("gc_inter_us [µs], logarithmic")
     fig.suptitle(f"Cicada J2 GC response | {NOTES['j2']}", fontsize=14)
+    fig.text(0.5, 0.07, "B=BACK_OFF, O=INLINE_VERSION_OPT, P=INLINE_VERSION_PROMOTION, "
+             "R=REUSE_VERSION, W=WRITE_LATEST_ONLY", ha="center", fontsize=8)
     fig.text(0.5, 0.025, _caption(summary, measured), ha="center", fontsize=9)
     return fig, list(axes[:, 0]) + [a for a in fig.axes if a not in axes[:, 0]]
 
@@ -236,6 +252,15 @@ def publish(fig, axes, prefix: Path, rows_path: list[Path], summary_path: Path,
             "median_tps": _estimate(selected),
             "median_maxrss_kb": st.median(r["maxrss_kb"] for r in group),
             "n_reps": len(selected)}
+    genome_index = [{"index": i, "genome": genome, "short": short_genome(genome)}
+                    for i, genome in enumerate(model.canonical(g) for g in model.genomes())]
+    series = {w: {series_label(g): g for g in sorted(
+        {genome for ww, genome, _, _ in groups if ww == w})} for w in measured}
+    caption = (_caption(summary, measured) +
+               (f" | J1 で測れなかった genome: {len(missing_genomes)} 件 (詳細は一次資料)"
+                " | 番号と設定の対応は provenance の genome_index" if figure == "j1" else
+                " | B=BACK_OFF, O=INLINE_VERSION_OPT, P=INLINE_VERSION_PROMOTION, "
+                "R=REUSE_VERSION, W=WRITE_LATEST_ONLY"))
     provenance = {"figure": figure, "diagnostic_only": True, "correctness_verified": False,
                   "throughput_axis": {"unit": "Mtps", "source_unit": "tps",
                                       "tps_per_Mtps": TPS_PER_MTPS,
@@ -243,13 +268,15 @@ def publish(fig, axes, prefix: Path, rows_path: list[Path], summary_path: Path,
                   "inputs": {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
                              for p in [*rows_path, summary_path]},
                   "conditions": {"threads": 48, "skew": "0.9", "workloads": measured},
-                  "caption": (_caption(summary, measured) +
-                              (f" | J1 で測れなかった genome: {len(missing_genomes)} 件 (詳細は一次資料)"
-                               if figure == "j1" else "")),
+                  "caption": caption,
                   "missing_workloads": _missing(summary, measured),
                   "missing_genome_count": len(missing_genomes), "missing_genomes": missing_genomes,
                   "missing_cells": missing_cells, "unavailable_conditions": unavailable,
                   "raw_run_count": len(rows), "raw_aggregates": cells, "summary": summary}
+    if figure == "j1":
+        provenance["genome_index"] = genome_index
+    else:
+        provenance["series"] = series
     prefix.parent.mkdir(parents=True, exist_ok=True)
     if any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json")):
         raise FileExistsError(prefix)

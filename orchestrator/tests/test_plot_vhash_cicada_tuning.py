@@ -85,6 +85,43 @@ def test_real_size_figures_and_overlap_rejection():
             plt.close(fig)
 
 
+def test_genome_labels_and_published_mapping():
+    rows = _rows()
+    summary_data = _summary(rows)
+    canonical = [m.canonical(g) for g in m.genomes()]
+    for stage, builder in (("j1", p.make_j1_figure), ("j2", p.make_j2_figure)):
+        fig, axes = builder(rows, summary_data)
+        try:
+            p.check_figure_layout(fig, axes)
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                raw, summary = root / "runs.jsonl", root / "summary.json"
+                raw.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+                summary.write_text(json.dumps(summary_data))
+                prefix = root / stage
+                p.publish(fig, axes, prefix, [raw], summary, stage, rows, summary_data)
+                provenance = json.loads(Path(str(prefix) + ".provenance.json").read_text())
+                if stage == "j1":
+                    assert provenance["genome_index"] == [
+                        {"index": i, "genome": genome, "short": p.short_genome(genome)}
+                        for i, genome in enumerate(canonical)]
+                    assert "provenance の genome_index" in provenance["caption"]
+                    assert "provenance の genome_index" in fig.texts[-1].get_text()
+                else:
+                    assert "B=BACK_OFF" in provenance["caption"]
+                    assert "B=BACK_OFF" in fig.texts[-2].get_text()
+                    for axis, workload in zip(axes, ("W1", "W2", "W3", "W4")):
+                        plotted = {line.get_label() for line in axis.lines}
+                        expected = {p.series_label(g): g for g in canonical[:3] +
+                                    [m.canonical(m.CONTROL)]}
+                        assert plotted == set(expected)
+                        assert {text.get_text() for text in axis.get_legend().get_texts()} == plotted
+                        assert provenance["series"][workload] == expected
+
+        finally:
+            plt.close(fig)
+
+
 def test_measured_throughput_scale_layout():
     """Exercise the measured 16-genome and 3-genome x 4-GC shapes without raw files."""
     genomes = [m.canonical(g) for g in m.genomes()]
