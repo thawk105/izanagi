@@ -1,0 +1,11 @@
+start 2026-09-29 23:24:58 JST P1=d078f0f05b7fc4b668d65f4a5d37f7f5af2e693c P2=261693337d3c7f96c1eab78f803a1d8881dc5fbf
+7347c189f6493ffab7bfe9abe2cbad07f0ae8e49117297a9f47398078d16762a  /work/1/SFC/tanab/tmp/silo-intra-txn-fix-2026-09-29/wave/probe/b/P1.cc
+481628c119ffab56da68dde2d1558d7f5ae165b47556e3733eb1db6da77b4ec0  /work/1/SFC/tanab/tmp/silo-intra-txn-fix-2026-09-29/wave/probe/b/P2.cc
+P1 cpp rc=0 ERR lines: IZ_ERR_AT(106) IZ_ERR_AT(693)
+P2 cpp rc=0 ERR lines: IZ_ERR_AT(106) IZ_ERR_AT(690)
+diff (TRACE=0, -P, ERR expanded) rc=1 lines=4
+314c314
+<         IZ_ERR_AT(693);
+---
+>         IZ_ERR_AT(690);
+end 2026-09-29 23:24:59 JST

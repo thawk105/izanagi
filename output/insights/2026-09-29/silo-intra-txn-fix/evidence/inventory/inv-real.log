@@ -1,0 +1,8 @@
+start 2026-09-29 22:45:14 JST script=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-2026-09-29/wave/fix1-out/scripts/inventory_silo_patches.py sha256=3c060a6fb45eebf65cd75787a5f2c118d9b9ac092a9244c2f20ca64a6ac76b56 mode=real
+warning: remote HEAD refers to nonexistent ref, unable to checkout.
+
+TIP=7e5fa528037805dfc0459c742e4a21d6114c9799 tree=67ee0a27c69e815587ca00f6e2cff83caf78cede clone porcelain=0
+{"count": 44, "classes": {"D": 3, "A": 39, "C": 2}}
+inventory rc=0
+/work/1/SFC/tanab/tmp/silo-intra-txn-fix-2026-09-29/wave/inv-real-clone  25898d0 (detached HEAD)
+end 2026-09-29 22:50:16 JST
