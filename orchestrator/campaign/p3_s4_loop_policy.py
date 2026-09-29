@@ -133,7 +133,8 @@ def load_proposal_file(path, *, form, preview=False, preview_auditor=False):
     if preview:
         allowed = ({'coder'}, {'coder', 'auditor'}) if preview_auditor else ({'coder'},)
         if type(document) is not dict or set(document) not in allowed:
-            raise ValueError('invalid preview proposal fields')
+            raise ValueError('invalid preview proposal fields' if preview_auditor
+                             else 'preview requires only coder')
         coder_keys = {'axis', 'implementation' if form == 'cpp' else 'ir'}
         if type(document['coder']) is not dict or not coder_keys <= set(document['coder']) or set(document['coder']) - coder_keys - {'justification', 'confidence'}:
             raise ValueError('invalid preview coder')
@@ -156,7 +157,7 @@ def load_proposal_file(path, *, form, preview=False, preview_auditor=False):
         parsed = parse_policy_ir(ir)
         implementation = render_policy(parsed)
     auditor = (parse_auditor_dict(document['auditor'], max_violation_type=26)
-               if 'auditor' in document else None)
+               if 'auditor' in document and (not preview or preview_auditor) else None)
     return Proposal(implementation, ir, coder.get('justification', '')), auditor
 
 
@@ -423,22 +424,36 @@ def _stock_result(layout, summary):
 def run_stock_control(cfg, perf, sub, *, layout, cache_root='',
                       build_context, contract, dependency_prefix='',
                       fetchcontent_options=None, authorization_session=None,
-                      log=print):
+                      log=print, fixed10=False):
     """Evaluate the original stock source; see D2256 and the runbook."""
     genome = Genome('silo', {key: value for key, value in BASE.items()
                              if key != axis.FLAG})
-    layout.ensure()
-    ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
-    options = _measurement_options(build_context=build_context, contract=contract,
-        dependency_prefix=dependency_prefix,
-        fetchcontent_options=fetchcontent_options,
-        authorization_session=authorization_session, stock=True)
-    summary = run_campaign(cfg, [genome], perf, contract.env_tag,
-        contract.clocks_per_us, numactl=list(contract.numactl), log=log,
-        ccbench_dir=sub, cache_root=cache_root,
-        authorization_contract=env_contract.authorize(contract.env_tag),
-        build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
-        **options)
+    if fixed10:
+        genome = Genome('silo', {**genome.flags, 'BACKOFF_FIXED': 10})
+        from .patchharness import applied
+        patch = applied(str(ROOT / 'patches/silo-backoff-fixed.patch'), axis.PIN, sub)
+    else:
+        patch = contextlib.nullcontext()
+    with patch:
+        if fixed10:
+            L._require_condition_gate(sub, genome)
+        layout.ensure()
+        ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
+        options = _measurement_options(build_context=build_context, contract=contract,
+            dependency_prefix=dependency_prefix,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, stock=not fixed10)
+        summary = run_campaign(cfg, [genome], perf, contract.env_tag,
+            contract.clocks_per_us, numactl=list(contract.numactl), log=log,
+            ccbench_dir=sub, cache_root=cache_root,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
+            **options)
+    if fixed10:
+        result = summary.results[0] if summary.results else None
+        return {'outcome': 'certified' if result and result.certified and not result.aborted else 'aborted',
+                'variant': result.variant if result else None,
+                'fitness_tps': result.fitness_tps if result else None}
     return _stock_result(layout, summary)
 
 
@@ -694,27 +709,10 @@ def measure_slot(header, slot, index, attempt, *, proposal, auditor, sub,
             fetchcontent_options=fetchcontent_options,
             authorization_session=authorization_session, log=log)
     elif slot == 'ref-fixed10':
-        from .patchharness import applied
-        genome = Genome('silo', {**{k: v for k, v in BASE.items() if k != axis.FLAG},
-                                  'BACKOFF_FIXED': 10})
-        with applied(str(ROOT / 'patches/silo-backoff-fixed.patch'), axis.PIN, sub):
-            # The existing meaning gate checks the requested define before the build.
-            L._require_condition_gate(sub, genome)
-            layout.ensure()
-            ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
-            options = _measurement_options(build_context=build_context, contract=contract,
-                fetchcontent_options=fetchcontent_options,
-                authorization_session=authorization_session)
-            summary = run_campaign(cfg, [genome], perf, contract.env_tag,
-                contract.clocks_per_us, numactl=list(contract.numactl), log=log,
-                ccbench_dir=sub, cache_root=cache_root,
-                authorization_contract=env_contract.authorize(contract.env_tag),
-                build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
-                **options)
-        result = summary.results[0] if summary.results else None
-        out = {'outcome': 'certified' if result and result.certified and not result.aborted else 'aborted',
-               'variant': result.variant if result else None,
-               'fitness_tps': result.fitness_tps if result else None}
+        out = run_stock_control(cfg, perf, sub, layout=layout, cache_root=cache_root,
+            build_context=build_context, contract=contract,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, log=log, fixed10=True)
     else:
         if proposal is None:
             raise ValueError('candidate slot needs a proposal')

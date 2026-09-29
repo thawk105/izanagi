@@ -89,7 +89,6 @@ def test_contrast_unit_rejects_changed_proposal_before_slot_start(tmp_path, monk
         P._contrast_unit(ledger, unit, ledger.root)
     from orchestrator.campaign import patchharness, p2_2
     monkeypatch.setattr(P, '_measurement_contract', lambda _env: object())
-    monkeypatch.setattr(P, 'build_run_context', lambda **_kwargs: object())
     monkeypatch.setattr(P, 'find_compiler', lambda: object())
     monkeypatch.setattr(patchharness, 'assert_pinned_clean', lambda *_args: None)
     monkeypatch.setattr(p2_2, '_assert_single_tenant', lambda: None)
