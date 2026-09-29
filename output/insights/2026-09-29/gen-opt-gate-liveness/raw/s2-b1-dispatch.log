@@ -1,0 +1,44 @@
+start 2026-09-29 15:42:38 JST tag=s2-b1 job=b1 tree=m2 wall=01:00:00 head=035fc11fa601547f5d68e54f5661c5daa70b93a5 launcher_sha256=9ecf2ca132214b452ce2918c516f04ce18c98438734ec4763d12ed5bde7621c0 checker_sha256=73a979d8553220a861c25790ccde3000869ae0361f6537c33384ecdb2f1741e1
+[Pegasus dispatch] job を gen_S へ投入します (izdw-6ed771fda1)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/genopt-gl-m2/output/pegasus-dispatch/orphan-holds/unknown-1cffcc9630580946abfdf89e.json
+[Pegasus dispatch] request ID 35459.nqsv を受理しました
+[Pegasus dispatch] request 35459.nqsv の状態: QUE
+[Pegasus dispatch] request 35459.nqsv の状態: RUN
+[Pegasus dispatch] request 35459.nqsv の状態: END
+[Pegasus dispatch] request 35459.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/genopt-gl-m2/output/pegasus-dispatch/orphan-holds/unknown-1cffcc9630580946abfdf89e.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/genopt-gl-m2/output/pegasus-dispatch/6ed771fda17648b5c818681e2fa06900/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 35459.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 150209, "time_ns": 1790664168836504873}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 150230, "event": "direct-child-wait-start", "pid": 150216, "time_ns": 1790664168866621108}
+| trace build failed
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 150230, "event": "direct-child-wait-complete", "pid": 150216, "time_ns": 1790664212478874232}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 150216, "rc": 0, "time_ns": 1790664212478992515}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 150209, "rc": 0, "time_ns": 1790664212483570018}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 150209}, {"comm": "bash", "pid": 150190}, {"comm": "nqs_shpd", "pid": 150189}, {"comm": "nqs_shpd", "pid": 149991}, {"comm": "nqs_shpd", "pid": 2330}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 150209, "sid": 150189, "time_ns": 1790664212483995899}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 30.146378005156294, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 150209, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1790664212514180829, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 150209, "time_ns": 1790664212516926157}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 150209, "time_ns": 1790664212545127498}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 150209, "time_ns": 1790664212546068524}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 150209, "time_ns": 1790664212546083770}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 150209, "time_ns": 1790664212548314974}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 150209, "time_ns": 1790664212548322352}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 150209, "rc": 1, "time_ns": 1790664212548331422}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 150209, "rc": 1, "time_ns": 1790664212548342400}
+|
+| ============================================================
+| Request ID:             35459.nqsv
+| Request Name:           izdw-6ed771fda1
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Tue Sep 29 15:42:41 2026
+| Started Request Time:   Tue Sep 29 15:42:48 2026
+| Ended Request Time:     Tue Sep 29 15:43:32 2026
+| Resources Information:
+|   Elapse:               48S
+|   Remaining Elapse:     3552S
+| ============================================================
+[Pegasus dispatch] request 35459.nqsv child stderr end
+end 2026-09-29 15:43:42 JST rc=1
