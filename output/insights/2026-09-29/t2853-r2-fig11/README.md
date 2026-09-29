@@ -150,7 +150,9 @@ collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/
 ## 6. 費用
 
 - 測定: 1 request × 5 node × Elapse 1,061 s = 5,305 s = **1.47 node 時間** ((a) Elapse、`verbatim/elapse.log`)。見積り (5 × 1,057 s = 1.47) とほぼ一致し、投げ直しは無い。
-- 開発の検査: 受入全走 1 回 (D2219 項 1 と同じ線で数える)。所要は見積り約 0.25 node 時間で、実測は worklog に書く。測定の実測と受入の見積りの和は約 1.72 (見積りを含む) で、D2212 項 4 の線 (2 node 時間) を下回る見込み。
+- 開発の検査 (D2219 項 1 と同じ線で数える): 受入全走 1 回 (2026-09-29 16:10〜16:25 JST、child-green、28,065 passed・74 skipped) は 3 shard × 1 node で Elapse 329・314・299 s = 942 s = **0.26 node 時間** (NQSV 会計、request 35518・35516・35517)。
+  このほか commit 後の全史 provenance 監査 1 回が計算ノード 1 本 (request 35341) で走ったが、会計の Elapse は log に残っておらず採取していない。
+- 合計: 測定 1.47 + 受入 0.26 = **1.74 node 時間** (実測、全史監査 1 回の未採取分を除く)。投入前の判定に使った 1.72 は見積り (本走 1.47 + 受入 0.25) で、どちらも D2212 項 4 の線 (2 node 時間) を下回る。
 - plan・相談・実装子の Codex 子 3 本 (各 receipt は wave の作業置き場)。collect・描画・表は login で数秒ずつ。
 
 ## 7. 言わないこと
@@ -185,7 +187,7 @@ commit `b97a27e90` を対象に、Codex の read-only レビューを 2 本並�
 |---|---|---|---|
 | A-F1 | wrapper が R2 入力 file 自身から計算した sha256 を期待値として渡し、hash 照合が自己照合になっている | real (must-fix) | fix 子 1 回目が R2 の 2 つの sha256 を wrapper の定数に固定した。元 attempt の入力を R2 として渡すと生成器が拒否し図を作らないことを確かめた。親が R2 実データで描き直した (PNG は bytes 不変。provenance で変わったのは tracked 入力の `authority_scope`・生成時刻・出力 hash の欄で、caption・`artist_series`・`reproduction` は同一。PDF の hash は変わった) |
 | A-F2 / B-F1 | 表の R2 の node 欄が「receipt unknown」 | real (should-fix) | 同じ fix で、Execution Hosts の同じ行に並ぶ複数 host を数えるようにした。表は「policy 5; receipt 5」、元 attempt は「policy 1; receipt 1」のまま |
-| B-F2 | 費用の 1.72 に受入の見積りが混ざり、全 job の実測合計と読める | real (should-fix) | 受入の実測後に §6 へ実測値を書き、見積りと分ける |
+| B-F2 | 費用の 1.72 に受入の見積りが混ざり、全 job の実測合計と読める | real (should-fix) | 受入の実測後に §6 へ実測値 (受入 0.26、合計 1.74) を書き、投入前の見積り 1.72 と分けた |
 | B-F3 | 地位・非合成・限定の記述が重なり本題が埋もれる | real (nit) | §0 は投入前に固定した節なので変えない。冒頭の「結論」から主要結果へ直接たどれるので、このまま受け入れる |
 
 変異 matrix は、repo の実装面の差分が 0 (wrapper は repo 外、repo の変更は insight・phase 行・worklog fragment だけ) のため段 4 裁定どおり免除した。
