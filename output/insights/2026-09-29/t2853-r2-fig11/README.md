@@ -99,12 +99,12 @@ collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/
 ## 4. 元 attempt と R2 の対照表
 
 同じ生成器の `load_measurements` (全検査つき) を、元 attempt は生成器の固定 hash 表で、R2 は collect 後の実 bytes の sha256 で、別々に呼んで書いた表である
-(`figures/fig11_comparison.md`、sha256 `fece70835969b5c285d7fb55c3c7085154b011eec93cb58ee7dbc410e3dde4a7`)。値は attempt ごとに計算し、合成・差・比を作っていない。数値の近さを再現精度として評価しない (§0 項 4)。
+(`figures/fig11_comparison.md`、sha256 `5404bea87c2a31782ce7c3d75cfe739b991ff2891f82f97ab8037a4596b682ad`)。値は attempt ごとに計算し、合成・差・比を作っていない。数値の近さを再現精度として評価しない (§0 項 4)。
 
 | attempt | request | host | source commit | CCBench pin | 確保 node | effects.rr95 | outer status |
 |---|---|---|---|---|---|---|---|
 | 元 `a6-20260908b` | `982234.nqsv` | bnode031 | `ae8a767eb` | `511c953` | 1 | −0.057841193339621455 | reject |
-| R2 `a6-r2-20260929a` | `35349.nqsv` | bnode087 | `035fc11fa` | `6810666` | 5 (会計) | −0.05214379860989382 | reject |
+| R2 `a6-r2-20260929a` | `35349.nqsv` | bnode087 | `035fc11fa` | `6810666` | 5 | −0.05214379860989382 | reject |
 
 | attempt | cell | trace 無効性能 5 標本 (tps) | 中央値 | 平均 ± t 95% CI 半幅 (自由度 4) | 代表反復の abort rate | 正しさ / anomaly |
 |---|---|---|---|---|---|---|
@@ -113,24 +113,26 @@ collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/
 | R2 | rr95-stock | 10632564, 10325830, 10361900, 10281088, 10315111 | 10325830 | 10383298.6 ± 176681.3 | 0.1554 | certified / 0 |
 | R2 | rr95-fixed2 | 9961007, 9787402, 9778168, 9790839, 9739453 | 9787402 | 9811373.8 ± 106923.1 | 0.1445 | certified / 0 |
 
-- 表の生成物は R2 の確保 node を「receipt unknown」と書く (wrapper が R2 の receipt から node 数を取り出せなかった欄)。上の表の 5 は NQSV 会計の Number of Jobs 5 (`verbatim/elapse.log`) と policy の `scheduler.nodes = 5` による。
+- 確保 node は、表の生成物では「policy 5; receipt 5」(policy の `scheduler.nodes` と、reservation に束縛された allocation qstat の Execution Hosts の数、bnode087〜bnode091)。NQSV 会計の Number of Jobs 5 (`verbatim/elapse.log`) とも一致する。
+  初版の表は receipt 側を「unknown」と書いていた (wrapper が同じ行に並ぶ複数 host を数えられなかった)。段 6 の fix で直した (§9)。
 - abort rate は生成器の規則どおり、throughput が中央値に最も近い反復の 1 観測であり、区間も機序の主張も持たない。
 - CI は標本の記述であって、効果・判定・中央値の区間ではない。有意差の判定はしない。
 
 ## 5. 図 — 元の fig11 と同じ生成器で描いた R2 の図
 
 - **描けた。** 生成器 `tools/plotting/plot_a2_certification.py` (sha256 `aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448`、既存 fig11 の provenance が記録する生成器と同一) の `main` を、repo 外の wrapper 経由で R2 の入力に対して呼んだ。
-  出力後に生成器の `validate_external_sources` と `validate_repo_closure` を通した (`verbatim/draw-r2.log`)。
+  出力後に生成器の `validate_external_sources` と `validate_repo_closure` を通した (`verbatim/draw-r2-fix1.log`、fix 前の初回は `verbatim/draw-r2.log`)。
   - `figures/fig11_r2_a6_certification.png` (sha256 `7cf4e1a71e82be2c387fb9d1dcb72dbcff9c561a19d5d000ac5af1611d676918`)
-  - `figures/fig11_r2_a6_certification.provenance.json` (sha256 `0123fa03a520a35f2b3aacea9a3e107ff365ed2f44c53d77f99d8c459993c91b`)。入力の sha256、cell・標本・正しさ、描いた点列 (`artist_series`)、caption、再現コマンド (`reproduction`、wrapper の呼び出し) を持つ。
-  - 原本 (PNG・PDF・provenance・表) は repo 外 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/figure/` にある。PDF は `63e70237…`。insight の写しは原本と bytes 一致。
+  - `figures/fig11_r2_a6_certification.provenance.json` (sha256 `ab38131624ee54a473a12b21441400ca6a03de0993b78937bfe44a2ba7cb6f3e`)。入力の sha256、cell・標本・正しさ、描いた点列 (`artist_series`)、caption、再現コマンド (`reproduction`、wrapper の呼び出し) を持つ。
+  - 原本 (PNG・PDF・provenance・表) は repo 外 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/figure/` にある。PDF は `77bd83d7…`。insight の写しは原本と bytes 一致。段 6 の fix 前の出力は同 dir の `superseded-v1/` に残した (PNG は fix の前後で bytes 一致)。
 - 図の見た目: 上段は各 cell の 5 標本・中央値の横棒・平均と CI、灰色の破線が stock 中央値 (効果の分母) で、fixed 2 µs 側に −5.2144% と出る。下段は代表反復の abort rate (stock 0.155、fixed 2 µs 0.145) の記述値。
 - 原 fig11 (`docs/paper-story/figures/`) は変えていない。R2 の図は論文図ではなく、再現パッケージの記録である。
 
 ### 5.1 wrapper (repo 外の使い捨て)
 
-- 段 5 の Codex 実装子が書き、repo には入れていない。保管先は `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/tools/t2853_r2_fig11_plot.py` (sha256 `1f94ca5d604a6e14755c50a796d61c3190a619c357e552889109a9698c6846a7`、221 行)。
-  生成器の sha256 が上の値と違えば描かずに止まる。実装子の報告は `verbatim/s5-author.md`。
+- 段 5 の Codex 実装子が書き、repo には入れていない。保管先は `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/tools/t2853_r2_fig11_plot.py` (sha256 `f8582b5090e9958d344a4347363c228aa6507cc10f376c68d553a703137d31b1`、段 6 の fix 後。fix 前の `1f94ca5d…` は同 dir の `superseded-v1/`)。
+  生成器の sha256 が上の値と違えば描かずに止まる。実装子の報告は `verbatim/s5-author.md`、fix 子の報告は `verbatim/s6-fix1.md`。
+  再現コマンドは provenance の `reproduction` にある。記録された `--generator` の path は本 wave の worktree で、撤去後は生成器の sha256 が `aac63659…` の任意の checkout に読み替える。
 - **差し替えたもの (R2 の描画だけ):** caption の地位・役割語の 4 箇所 (各 1 回の出現を assert、外れたら描かない)。
   1. 「A-6 formal certification attempt …」→「A-6 R2 reproduction-package attempt labelled a6-r2-20260929a (…; separate from original a6-20260908b)」
   2. 「This is one attempt of five samples per cell;」→「This R2 reproduction-package attempt has five samples per cell;」
@@ -138,9 +140,11 @@ collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/
   4. B-10 read-heavy の「historical concordance」の文 → 元 attempt の結果稿の記述であることを明記
   同じ差し替えを provenance の閉包検査 (caption の再計算) にも wrapper 内で適用し、`reproduction` を wrapper の実際の呼び出しにした。
 - **差し替えていないもの:** 測定値の受理条件 (hash 照合・WAL / raw / certification の一致・5 標本・正しさ・source binding・condition receipt)、レイアウト検査、数値と 5 標本・中央値・効果・CI・正しさの別走・一般化の限定の説明文。
-- **hash の差し込みの意味。** R2 の certification / raw-manifest の sha256 は生成器の固定表に無いので、wrapper が collect 後の実 bytes から計算して生成器に渡した。これは collect 後の bytes を束縛する自己計算値であって、独立した canonical pin ではない。
-  R2 の provenance はこの 2 入力の `authority_scope` を「post-collect bytes bound by self-computed SHA-256; not a canonical pin」と記録する。R2 の受理の根拠は driver の receipt chain (submission → completion → acquisition → collect) と生成器の照合である。
-- **陽性対照:** 同じ wrapper で元 attempt を原 metadata のまま (caption 差し替えなし・固定 hash 表) 描き、出力 provenance の `artist_series` が既存 fig11 の provenance と完全一致した (親の実行、`verbatim/draw-r2.log` の control 行。実装子も同じ確認をした)。
+- **hash の固定。** R2 の certification / raw-manifest の sha256 は生成器の固定表に無い。wrapper は §3 の値 (`0a6008d1…`・`7799a064…`) を定数として持ち、それを期待値として生成器に渡す。入力の bytes が違えば生成器の既存の hash 検査が拒否し、図は作られない
+  (fix 子の実走: 元 attempt の入力を R2 として渡すと `certification canonical SHA-256 mismatch` で rc 2・図なし)。初版の wrapper は入力 file 自身から計算した値を渡しており、hash 照合が自己照合になっていた (段 6 A-F1、§9)。
+  この定数は collect 後の bytes を本 insight の記録へ束縛するもので、生成器の固定表の canonical pin ではない。R2 の provenance はこの 2 入力の `authority_scope` を「post-collect bytes pinned by wrapper constants recorded in the R2 insight; not a canonical pin of the generator's table」と記録する。
+  R2 の受理の根拠は driver の receipt chain (submission → completion → acquisition → collect) と生成器の照合である。
+- **陽性対照:** 同じ wrapper で元 attempt を原 metadata のまま (caption 差し替えなし・固定 hash 表) 描き、出力 provenance の `artist_series` が既存 fig11 の provenance と完全一致した (親の実行、`verbatim/draw-r2-fix1.log` の control 行。実装子・fix 子も同じ確認をした)。
   負例は新しく作っていない (段 4 裁定)。
 
 ## 6. 費用
@@ -163,6 +167,25 @@ collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/
 - `verbatim/s2-plan.md` — 段 2 プラン (Codex、read-only)。`verbatim/s3-consult.md` — 段 3 敵対相談 (2 レンズを 1 本で、Codex、read-only)。`verbatim/s4-ruling.md` — 段 4 裁定。
 - `verbatim/precheck-patch.log` — 投入前の patch の厳密 check。`verbatim/hydrate.log` — third-party の hydrate。
 - `verbatim/submit.log` — 投入。`verbatim/elapse.log` — NQSV 会計。`verbatim/finish-group.log`・`verbatim/collect.log` — 完走後の receipt と collect。
-- `verbatim/s5-author.md` — wrapper の実装子の報告。`verbatim/draw-r2.log` — 陽性対照・R2 描画・表の親の実行。
+- `verbatim/s5-author.md` — wrapper の実装子の報告。`verbatim/draw-r2.log` — 陽性対照・R2 描画・表の親の初回実行 (fix 前)。
+- `verbatim/s6-review-a.md`・`verbatim/s6-review-b.md` — 段 6 の敵対レビュー 2 本 (Codex、read-only)。`verbatim/s6-fix1.md` — fix 子の報告。`verbatim/draw-r2-fix1.log` — fix 後の親の実行 (最終の図と表)。
 - repo 外: attempt root `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-r2-20260929a/`、出力親 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/` (collect-root・figure・tools・thirdparty-src)。
   submit-tree は一時置き場 `/work/1/SFC/tanab/tmp/t2853-r2-fig11-20260929/submit-tree` (wave の終わりに撤去)。
+
+## 9. 段 6 レビュー
+
+commit `b97a27e90` を対象に、Codex の read-only レビューを 2 本並列で行った (`verbatim/s6-review-a.md`・`verbatim/s6-review-b.md`、どちらも受理検査 rc 0)。
+
+- **A (一次資料との照合・正しさ境界): NO-GO (must-fix 1・should-fix 1)。** 数値と判定の食い違いは 0 件。レビュー子は NQSV 会計・driver_rc・finish-group / collect、R2 と元 attempt の 5 標本から中央値・平均・95% CI・効果を再計算して一致を確かめ、
+  R2 の両 cell の正しさ 6 走がすべて pass・serializable・trace 有効、性能標本が trace 無効であること、collect 成果物・provenance・図と表の sha256、§0 の commit (15:12:21) が投入 (15:16:53) より前であること、
+  `git diff 035fc11fa..HEAD` で元 attempt の tracked 成果物・結果稿・既存 fig11 が不変であることを確かめた。
+- **B (過剰・削除): GO (should-fix 2・nit 1)。** 依頼範囲外の gate・台帳・一般化は無し、fig6 との分離と trace 保全口を使えない理由は insight から追える、とした。
+
+| ID | 所見 | 判定 | 処置 |
+|---|---|---|---|
+| A-F1 | wrapper が R2 入力 file 自身から計算した sha256 を期待値として渡し、hash 照合が自己照合になっている | real (must-fix) | fix 子 1 回目が R2 の 2 つの sha256 を wrapper の定数に固定した。元 attempt の入力を R2 として渡すと生成器が拒否し図を作らないことを確かめた。親が R2 実データで描き直した (PNG は bytes 不変、provenance の `authority_scope` と再現コマンドが変わった) |
+| A-F2 / B-F1 | 表の R2 の node 欄が「receipt unknown」 | real (should-fix) | 同じ fix で、Execution Hosts の同じ行に並ぶ複数 host を数えるようにした。表は「policy 5; receipt 5」、元 attempt は「policy 1; receipt 1」のまま |
+| B-F2 | 費用の 1.72 に受入の見積りが混ざり、全 job の実測合計と読める | real (should-fix) | 受入の実測後に §6 へ実測値を書き、見積りと分ける |
+| B-F3 | 地位・非合成・限定の記述が重なり本題が埋もれる | real (nit) | §0 は投入前に固定した節なので変えない。冒頭の「結論」から主要結果へ直接たどれるので、このまま受け入れる |
+
+変異 matrix は、repo の実装面の差分が 0 (wrapper は repo 外、repo の変更は insight・phase 行・worklog fragment だけ) のため段 4 裁定どおり免除した。

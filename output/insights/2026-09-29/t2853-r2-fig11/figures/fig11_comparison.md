@@ -5,7 +5,7 @@ Each attempt is evaluated separately. No samples are pooled and no between-attem
 | attempt | request | host | source commit | CCBench pin | nodes (policy / receipt) | effects.rr95 | outer_status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | original: a6-20260908b | 982234.nqsv | bnode031 | ae8a767eb60118c3f9791141603fa01ad4f28406 | 511c953 | policy 1; receipt 1 | -0.057841193339621455 | reject |
-| R2: a6-r2-20260929a | 35349.nqsv | bnode087 | 035fc11fa601547f5d68e54f5661c5daa70b93a5 | 6810666 | policy 5; receipt unknown | -0.05214379860989382 | reject |
+| R2: a6-r2-20260929a | 35349.nqsv | bnode087 | 035fc11fa601547f5d68e54f5661c5daa70b93a5 | 6810666 | policy 5; receipt 5 | -0.05214379860989382 | reject |
 
 | attempt | cell | role | 5 trace-disabled TPS samples | median TPS | mean TPS ± t95 CI half-width (df=4) | representative abort rate | correctness status | anomalies |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

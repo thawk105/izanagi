@@ -1,7 +1,7 @@
 {
   "study": "paper-story-a6-certification",
   "schema": "izanagi-a2-certification-figure-provenance/v1",
-  "generated_utc": "2026-09-29T06:39:52.714427+00:00",
+  "generated_utc": "2026-09-29T07:03:10.306888+00:00",
   "generator": {
     "path": "tools/plotting/plot_a2_certification.py",
     "sha256": "aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448"
@@ -13,7 +13,7 @@
     },
     {
       "path": "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/figure/fig11_r2_a6_certification.pdf",
-      "sha256": "63e7023738836df7e861316bf12651faf04e7c17eac0cc5d6810c40ddd4277b2"
+      "sha256": "77bd83d7ea5612a5b06e8b85b6dc260bb30a5c13273f18532df51ed2405e0779"
     }
   ],
   "tracked_inputs": [
@@ -21,14 +21,14 @@
       "kind": "certification",
       "path": "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/collect-root/output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json",
       "sha256": "0a6008d175f0b4a13d952b98306621e717ecd8d07e00354e5914a205d550aed0",
-      "authority_scope": "post-collect bytes bound by self-computed SHA-256; not a canonical pin",
+      "authority_scope": "post-collect bytes pinned by wrapper constants recorded in the R2 insight; not a canonical pin of the generator's table",
       "schema": "paper-story-a2-certification-result/v4"
     },
     {
       "kind": "raw_manifest",
       "path": "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/collect-root/output/insights/2026-09-08_t2411-paper-story-a6-certification/raw-manifest.json",
       "sha256": "7799a0644effe5f89b932be201bba6b9c9ab879f44fbab786a274cd220653dfd",
-      "authority_scope": "post-collect bytes bound by self-computed SHA-256; not a canonical pin",
+      "authority_scope": "post-collect bytes pinned by wrapper constants recorded in the R2 insight; not a canonical pin of the generator's table",
       "schema": "paper-story-a2-full-raw-manifest/v4"
     },
     {
