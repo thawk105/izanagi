@@ -55,12 +55,12 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
    }
  
    void set(const uint64_t rts, const uint64_t wts, Version* next,
-@@ -136,3 +151,17 @@
+@@ -136,3 +151,28 @@
      next_.store(next, std::memory_order_release);
    }
  };
 +
-+#if CICADA_INTERVAL_GC || CICADA_INTERVAL_COUNT
++#if CICADA_INTERVAL_GC
 +// Mirror the stock fields: optional metadata must fit existing padding.
 +struct alignas(CACHE_LINE_SIZE) IGCStockVersionLayout {
 +  std::atomic<uint64_t> rts_;
@@ -72,89 +72,50 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
 +static_assert(sizeof(Version) == sizeof(IGCStockVersionLayout),
 +              "interval GC metadata must fit stock Version padding");
 +#endif
++#if CICADA_INTERVAL_COUNT
++struct alignas(CACHE_LINE_SIZE) IGCCountStockVersionLayout {
++  std::atomic<uint64_t> rts_;
++  std::atomic<uint64_t> wts_;
++  std::atomic<Version*> next_;
++  std::atomic<VersionStatus> status_;
++  TupleBody body_;
++};
++static_assert(sizeof(Version) == sizeof(IGCCountStockVersionLayout),
++              "interval count metadata must fit stock Version padding");
++#endif
 +#line 139
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -5,6 +5,13 @@
+@@ -5,6 +5,16 @@
  #include <iostream>
  #include <string>
  #include <vector>
-+#if CICADA_INTERVAL_GC || CICADA_INTERVAL_COUNT
++#if CICADA_INTERVAL_GC
 +#include <algorithm>
 +#include <array>
 +#include <cstdlib>
++#endif
++#if CICADA_INTERVAL_COUNT
++#include <array>
 +#include "gflags/gflags.h"
 +#endif
 +#line 8
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -25,6 +32,353 @@
+@@ -25,6 +35,365 @@
  using namespace std;
  
  #define MSK_TID 0b11111111
 +
-+#if CICADA_INTERVAL_GC || CICADA_INTERVAL_COUNT
-+#if CICADA_INTERVAL_GC > 2
-+#error "CICADA_INTERVAL_GC must be 0, 1, or 2"
-+#endif
 +#if CICADA_INTERVAL_COUNT
 +DEFINE_uint64(cicada_igc_count_long_threads, 0,
 +              "Number of long workers at the end, excluding leader.");
 +DECLARE_uint64(ycsb_tuple_num);
 +#endif
-+namespace {
-+constexpr size_t kIgcThreads = 256;
-+std::array<std::atomic<bool>, kIgcThreads> igc_beginning{};
-+constexpr size_t kIgcMaxPoints = kIgcThreads * 3 + 2;
-+struct IGCPointSet {
-+  std::array<uint64_t, kIgcMaxPoints> points{};
-+  size_t count = 0;
-+  uint64_t horizon = 0;
-+  uint64_t generation = 0;
-+};
-+struct IGCSnapshotSlot {
-+  std::atomic<uint64_t> sequence{0};
-+  std::array<std::atomic<uint64_t>, kIgcMaxPoints> points{};
-+  std::atomic<size_t> count{0};
-+  std::atomic<uint64_t> horizon{0};
-+  std::atomic<uint64_t> generation{0};
-+};
-+std::array<IGCSnapshotSlot, 3> igc_snapshot_slots{};
-+std::atomic<unsigned> igc_published_slot{0};
-+uint64_t igc_generation = 0;
-+// The leader alone writes slots. Atomic elements make a concurrent retry safe.
-+void igc_publish(const IGCPointSet& next) {
-+  unsigned slot = (igc_published_slot.load(std::memory_order_relaxed) + 1) % 3;
-+  auto& dst = igc_snapshot_slots[slot];
-+  dst.sequence.fetch_add(1, std::memory_order_seq_cst);
-+  for (size_t i = 0; i < next.count; ++i)
-+    dst.points[i].store(next.points[i], std::memory_order_seq_cst);
-+  dst.count.store(next.count, std::memory_order_seq_cst);
-+  dst.horizon.store(next.horizon, std::memory_order_seq_cst);
-+  dst.generation.store(next.generation, std::memory_order_seq_cst);
-+  dst.sequence.fetch_add(1, std::memory_order_seq_cst);
-+  igc_published_slot.store(slot, std::memory_order_seq_cst);
-+}
-+IGCPointSet igc_read_snapshot() {
-+  IGCPointSet result;
-+  for (;;) {
-+    const auto& src =
-+        igc_snapshot_slots[igc_published_slot.load(std::memory_order_seq_cst)];
-+    uint64_t before = src.sequence.load(std::memory_order_seq_cst);
-+    if (before & 1) continue;
-+    result.count = src.count.load(std::memory_order_seq_cst);
-+    if (result.count > kIgcMaxPoints) continue;
-+    for (size_t i = 0; i < result.count; ++i)
-+      result.points[i] = src.points[i].load(std::memory_order_seq_cst);
-+    result.horizon = src.horizon.load(std::memory_order_seq_cst);
-+    result.generation = src.generation.load(std::memory_order_seq_cst);
-+    if (before == src.sequence.load(std::memory_order_seq_cst)) return result;
-+  }
-+}
-+uint64_t igc_last_sample = 0;
 +#if CICADA_INTERVAL_COUNT
++namespace {
 +struct alignas(CACHE_LINE_SIZE) IGCCounts {
 +  uint64_t snapshots = 0, begin_skips = 0;
 +  uint64_t gap_keys = 0, empty_gap_keys = 0;
@@ -170,8 +131,16 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  uint64_t write_hops = 0;
 +  uint64_t prune_age[64] = {}, stock_age[64] = {};
 +};
-+std::array<IGCCounts, kIgcThreads> igc_counts;
++std::array<IGCCounts, 256> igc_counts;
 +uint64_t igc_last_boundary = 0;
++void igc_count_boundary(uint8_t thid) {
++  uint64_t minr = MinRts.load(std::memory_order_acquire);
++  if (minr != igc_last_boundary) {
++    ++igc_counts[thid].boundary_samples;
++    igc_counts[thid].boundary_age_sum += ((rdtscp() << 8) - 1) - minr;
++    igc_last_boundary = minr;
++  }
++}
 +std::atomic<uint64_t> igc_initial_body_bytes{0};
 +uint64_t igc_bytes(Version* v) {
 +  // HeapObject allocates exactly size() bytes. Shallow bodies do not own it.
@@ -266,11 +235,90 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    std::cout << "]}" << std::endl;
 +  }
 +} igc_report;
++void igc_count_pruned(uint8_t thid, Version* v) {
++  ++igc_counts[thid].pruned;
++  igc_counts[thid].pruned_bytes += igc_bytes(v);
++  unsigned bucket = igc_retention_bucket(v, false);
++  if (bucket < 64)
++    ++igc_counts[thid].prune_age[bucket];
++  else
++    ++igc_counts[thid].retention_unknown;
++}
++void igc_count_pruned_drop(uint8_t thid, bool pruned) {
++  if (pruned) ++igc_counts[thid].stock_lock_dropped_pruned;
++}
++void igc_count_reuse(uint8_t thid, Version* v) {
++  ++igc_counts[thid].reuse;
++  igc_counts[thid].reuse_bytes += igc_bytes(v);
++  igc_retention_bucket(v, true);
++}
++} // namespace
++void cicadaIgcRecordReusePool(uint8_t thid, size_t n) {
++  igc_record_reuse_pool(thid, n);
++}
 +#define IGC_COUNT(id, expression)                                              \
 +  do { ++igc_counts[id].expression; } while (false)
++#define IGC_COUNT_PRUNED(id, v) igc_count_pruned(id, v)
++#define IGC_COUNT_PRUNED_DROP(id, v) igc_count_pruned_drop(id, v)
++#define IGC_COUNT_REUSE(id, v) igc_count_reuse(id, v)
 +#else
 +#define IGC_COUNT(id, expression) ((void) 0)
++#define IGC_COUNT_PRUNED(id, v) ((void) 0)
++#define IGC_COUNT_PRUNED_DROP(id, pruned) ((void) 0)
++#define IGC_COUNT_REUSE(id, v) ((void) 0)
 +#endif
++
++#if CICADA_INTERVAL_GC
++namespace {
++constexpr size_t kIgcThreads = 256;
++std::array<std::atomic<bool>, kIgcThreads> igc_beginning{};
++constexpr size_t kIgcMaxPoints = kIgcThreads * 3 + 2;
++struct IGCPointSet {
++  std::array<uint64_t, kIgcMaxPoints> points{};
++  size_t count = 0;
++  uint64_t horizon = 0;
++  uint64_t generation = 0;
++};
++struct IGCSnapshotSlot {
++  std::atomic<uint64_t> sequence{0};
++  std::array<std::atomic<uint64_t>, kIgcMaxPoints> points{};
++  std::atomic<size_t> count{0};
++  std::atomic<uint64_t> horizon{0};
++  std::atomic<uint64_t> generation{0};
++};
++std::array<IGCSnapshotSlot, 3> igc_snapshot_slots{};
++std::atomic<unsigned> igc_published_slot{0};
++uint64_t igc_generation = 0;
++// The leader alone writes slots. Atomic elements make a concurrent retry safe.
++void igc_publish(const IGCPointSet& next) {
++  unsigned slot = (igc_published_slot.load(std::memory_order_relaxed) + 1) % 3;
++  auto& dst = igc_snapshot_slots[slot];
++  dst.sequence.fetch_add(1, std::memory_order_seq_cst);
++  for (size_t i = 0; i < next.count; ++i)
++    dst.points[i].store(next.points[i], std::memory_order_seq_cst);
++  dst.count.store(next.count, std::memory_order_seq_cst);
++  dst.horizon.store(next.horizon, std::memory_order_seq_cst);
++  dst.generation.store(next.generation, std::memory_order_seq_cst);
++  dst.sequence.fetch_add(1, std::memory_order_seq_cst);
++  igc_published_slot.store(slot, std::memory_order_seq_cst);
++}
++IGCPointSet igc_read_snapshot() {
++  IGCPointSet result;
++  for (;;) {
++    const auto& src =
++        igc_snapshot_slots[igc_published_slot.load(std::memory_order_seq_cst)];
++    uint64_t before = src.sequence.load(std::memory_order_seq_cst);
++    if (before & 1) continue;
++    result.count = src.count.load(std::memory_order_seq_cst);
++    if (result.count > kIgcMaxPoints) continue;
++    for (size_t i = 0; i < result.count; ++i)
++      result.points[i] = src.points[i].load(std::memory_order_seq_cst);
++    result.horizon = src.horizon.load(std::memory_order_seq_cst);
++    result.generation = src.generation.load(std::memory_order_seq_cst);
++    if (before == src.sequence.load(std::memory_order_seq_cst)) return result;
++  }
++}
++uint64_t igc_last_sample = 0;
 +
 +void igc_take_snapshot(uint8_t thid) {
 +  uint64_t now = rdtscp();
@@ -296,7 +344,6 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  }
 +  uint64_t minw = MinWts.load(std::memory_order_acquire);
 +  if (minw > 1) next.points[next.count++] = minw - 1;
-+  uint64_t minr = MinRts.load(std::memory_order_acquire);
 +  std::sort(next.points.begin(), next.points.begin() + next.count);
 +  next.count =
 +      std::unique(next.points.begin(), next.points.begin() + next.count) -
@@ -304,16 +351,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  next.generation = ++igc_generation;
 +  igc_publish(next);
 +  IGC_COUNT(thid, snapshots);
-+#if CICADA_INTERVAL_COUNT
-+  if (minr != igc_last_boundary) {
-+    ++igc_counts[thid].boundary_samples;
-+    igc_counts[thid].boundary_age_sum += next.horizon - minr;
-+    igc_last_boundary = minr;
-+  }
-+#endif
 +}
 +
-+#if CICADA_INTERVAL_GC
 +void igc_prune(Tuple* tuple, [[maybe_unused]] std::string_view key,
 +               [[maybe_unused]] uint64_t tx_wts, uint8_t thid) {
 +  IGC_COUNT(thid, attempts);
@@ -382,11 +421,12 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    const size_t n = newer_committed[i];
 +    if (n == chain.size()) return false;
 +    bool in_gap = false;
-+    if (CICADA_INTERVAL_GC == 1)
-+      in_gap = i >= p2 && i <= p1;
-+    else
-+      for (size_t j = 1; j < vis.size(); ++j)
-+        in_gap |= i >= vis[j] && i <= vis[j - 1];
++    in_gap = i >= p2 && i <= p1;
++#if CICADA_INTERVAL_GC_GENERAL
++    in_gap = false;
++    for (size_t j = 1; j < vis.size(); ++j)
++      in_gap |= i >= vis[j] && i <= vis[j - 1];
++#endif
 +    if (!in_gap || chain[n]->ldAcqWts() > snap.horizon) return false;
 +    for (size_t j = 0; j < snap.count; ++j) {
 +      // Condition (b): no protected timestamp in this visible interval.
@@ -415,15 +455,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      for (size_t k = first; k < i; ++k) {
 +        // gc_lock_ serializes this mark with gcq_ pop for this tuple.
 +        chain[k]->igc_pruned_.store(1, std::memory_order_release);
-+#if CICADA_INTERVAL_COUNT
-+        ++igc_counts[thid].pruned;
-+        igc_counts[thid].pruned_bytes += igc_bytes(chain[k]);
-+        unsigned bucket = igc_retention_bucket(chain[k], false);
-+        if (bucket < 64)
-+          ++igc_counts[thid].prune_age[bucket];
-+        else
-+          ++igc_counts[thid].retention_unknown;
-+#endif
++        IGC_COUNT_PRUNED(thid, chain[k]);
 +      }
 +      IGC_COUNT(thid, success);
 +    } else
@@ -432,19 +464,13 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  if (!any) IGC_COUNT(thid, empty_gap_keys);
 +  tuple->returnGCRight();
 +}
-+#endif
 +} // namespace
-+#if CICADA_INTERVAL_COUNT
-+void cicadaIgcRecordReusePool(uint8_t thid, size_t n) {
-+  igc_record_reuse_pool(thid, n);
-+}
-+#endif
 +#endif
 +#line 29
  
  /**
   * @brief Initialize function of transaction.
-@@ -32,6 +386,10 @@
+@@ -32,6 +401,10 @@
   * @return void
   */
  void TxExecutor::begin() {
@@ -455,7 +481,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +399,10 @@
+@@ -41,6 +414,10 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -466,7 +492,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +463,16 @@
+@@ -101,6 +478,16 @@
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -483,7 +509,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -267,6 +639,10 @@
+@@ -267,6 +654,10 @@
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -494,7 +520,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
    }
  
-@@ -298,6 +674,10 @@
+@@ -298,6 +689,10 @@
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -505,7 +531,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +726,10 @@
+@@ -346,6 +741,10 @@
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -516,7 +542,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +801,10 @@
+@@ -417,6 +816,10 @@
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -527,7 +553,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -716,6 +1104,18 @@
+@@ -716,6 +1119,18 @@
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -546,17 +572,15 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -813,12 +1213,41 @@
+@@ -813,12 +1228,35 @@
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
 +#if CICADA_INTERVAL_GC
 +      // Count only: the lock-free mark does not affect this decision.
 +      IGC_COUNT(thid_, stock_lock_dropped);
-+#if CICADA_INTERVAL_COUNT
-+      if (gcq_.front().ver_->igc_pruned_.load(std::memory_order_acquire))
-+        IGC_COUNT(thid_, stock_lock_dropped_pruned);
-+#endif
++      IGC_COUNT_PRUNED_DROP(thid_, gcq_.front().ver_->igc_pruned_.load(
++                                       std::memory_order_acquire));
 +#endif
 +#line 816
        // fail acquiring the lock
@@ -569,11 +593,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    bool was_pruned =
 +        gcq_.front().ver_->igc_pruned_.load(std::memory_order_acquire) != 0;
 +    if (was_pruned) {
-+#if CICADA_INTERVAL_COUNT
-+      ++igc_counts[thid_].reuse;
-+      igc_counts[thid_].reuse_bytes += igc_bytes(gcq_.front().ver_);
-+      igc_retention_bucket(gcq_.front().ver_, true);
-+#endif
++      IGC_COUNT_REUSE(thid_, gcq_.front().ver_);
 +#if REUSE_VERSION
 +      reuse_version_from_gc_.emplace_back(gcq_.front().ver_);
 +#else
@@ -588,7 +608,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -835,6 +1264,19 @@
+@@ -835,6 +1273,19 @@
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
@@ -608,12 +628,15 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -961,6 +1403,10 @@
+@@ -961,6 +1412,13 @@
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
-+#if CICADA_INTERVAL_GC || CICADA_INTERVAL_COUNT
++#if CICADA_INTERVAL_GC
 +  igc_take_snapshot(thid_);
++#endif
++#if CICADA_INTERVAL_COUNT
++  igc_count_boundary(thid_);
 +#endif
 +#line 964
  #if BACK_OFF

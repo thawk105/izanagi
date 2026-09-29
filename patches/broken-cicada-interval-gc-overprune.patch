@@ -1,32 +1,32 @@
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -92,6 +92,24 @@
-   }
- }
- uint64_t igc_last_sample = 0;
-+#if CICADA_INTERVAL_GC
-+std::atomic<uint64_t> igc_overprune_fired{0};
-+struct IGCOverpruneReport {
-+  ~IGCOverpruneReport() {
-+    std::fprintf(stderr, "CICADA_OVERPRUNE_FIRED n=%llu\n",
-+                 static_cast<unsigned long long>(igc_overprune_fired.load()));
-+  }
-+} igc_overprune_report;
-+std::string igc_hex(std::string_view key) {
-+  static constexpr char digits[] = "0123456789abcdef";
-+  std::string out;
-+  for (unsigned char c : key) {
-+    out += digits[c >> 4];
-+    out += digits[c & 15];
-+  }
-+  return out;
-+}
-+#endif
- #if CICADA_INTERVAL_COUNT
- struct alignas(CACHE_LINE_SIZE) IGCCounts {
-   uint64_t snapshots = 0, begin_skips = 0;
-@@ -328,7 +346,7 @@
+@@ -282,6 +282,24 @@
+ 
+ void igc_prune(Tuple* tuple, [[maybe_unused]] std::string_view key,
+                [[maybe_unused]] uint64_t tx_wts, uint8_t thid) {
++  static std::atomic<uint64_t> overprune_fired{0};
++  struct OverpruneReport {
++    std::atomic<uint64_t>& count;
++    ~OverpruneReport() {
++      std::fprintf(stderr, "CICADA_OVERPRUNE_FIRED n=%llu\n",
++                   static_cast<unsigned long long>(count.load()));
++    }
++  };
++  static OverpruneReport overprune_report{overprune_fired};
++  auto hex_key = [&]() {
++    static constexpr char digits[] = "0123456789abcdef";
++    std::string out;
++    for (unsigned char c : key) {
++      out += digits[c >> 4];
++      out += digits[c & 15];
++    }
++    return out;
++  };
+   IGC_COUNT(thid, attempts);
+   if (!tuple->getGCRight(thid + 1)) {
+     IGC_COUNT(thid, lock_fail);
+@@ -357,7 +375,7 @@
      if (!in_gap || chain[n]->ldAcqWts() > snap.horizon) return false;
      for (size_t j = 0; j < snap.count; ++j) {
        // Condition (b): no protected timestamp in this visible interval.
@@ -35,18 +35,18 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
            snap.points[j] < chain[n]->ldAcqWts())
          return false;
        // Condition (d): retain the node directly above each visible node.
-@@ -353,6 +371,14 @@
+@@ -382,6 +400,14 @@
        for (size_t k = first; k < i; ++k) {
          // gc_lock_ serializes this mark with gcq_ pop for this tuple.
          chain[k]->igc_pruned_.store(1, std::memory_order_release);
 +        if (k == p1) {
-+          igc_overprune_fired.fetch_add(1, std::memory_order_relaxed);
++          overprune_fired.fetch_add(1, std::memory_order_relaxed);
 +          std::fprintf(
 +              stderr,
 +              "CICADA_OVERPRUNE_EVENT tx_wts=%llu key=%s removed_wts=%llu\n",
-+              static_cast<unsigned long long>(tx_wts), igc_hex(key).c_str(),
++              static_cast<unsigned long long>(tx_wts), hex_key().c_str(),
 +              static_cast<unsigned long long>(chain[k]->ldAcqWts()));
 +        }
- #if CICADA_INTERVAL_COUNT
-         ++igc_counts[thid].pruned;
-         igc_counts[thid].pruned_bytes += igc_bytes(chain[k]);
+         IGC_COUNT_PRUNED(thid, chain[k]);
+       }
+       IGC_COUNT(thid, success);
