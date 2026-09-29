@@ -39,11 +39,30 @@ designated source・編集範囲・正しさ関門を保ったまま行う。
                           最適化の移植は段A、文献に無い仕組みは制約を保った段B D2289)
                           → variant生成 → 評価 → 取捨選択
    │                      (据え置きの正しさゲートを壊す変異はreject)
+   │                      ※ 現状は人が方向づけに介在する逐次探索 (下の「研究の進め方」)。
+   │                        無人の多世代ループ (段 8c) は未達の目標
    ↓
 層3: variant比較・選択  … Pareto front上で最終CCを決定
    ↓
 最終成果物: 新CC + なぜ速いかの理由 + 試行ログ
 ```
+
+## 研究の進め方
+
+研究は対話型の dev-wave で進める (2026-09-29 のユーザー裁定)。dev-wave は 1 つのタスクを 1 本の AI セッションが
+計画・相談・実装・レビュー・受入・記録まで進める単位である。結果と失敗 (差なし・否定的な結果を含む) を repo の
+台帳 (`docs/decisions.md`・`docs/failures.md`・`docs/worklog.md`・`output/insights/`) に溜め、次の wave がそれを
+読んで始まる。手順は `.claude/commands/dev-wave.md` と `docs/dev-wave/` にある。
+
+- **人が担う:** 次に何を調べるか、予算、結果の解釈、方針の変更。
+- **機械が担う:** 正しさの判定、候補の検証、性能の計測、試行の記録。正しさの関門は対話で緩めない
+  (`CLAUDE.md` の絶対規律)。
+- **記録の分け方:** 人の判断と投入時間は、無人で得た成果と混ぜずに記録する。進み具合は wave の本数ではなく、
+  certified な成果・既知最良との差・論文の図表が埋まった量で見る。
+- **呼び方:** 論文ではこの進め方を「人間が介在する逐次探索」と書き、進化探索とは呼ばない。
+
+無人の多世代ループ (段 8c) は未達の目標として残している。位置づけは `docs/roadmap.md` の §1 と §2、裁定の記録は
+`docs/decisions.md` にある。
 
 ## 関連研究 (本システムの土台)
 
@@ -54,6 +73,24 @@ designated source・編集範囲・正しさ関門を保ったまま行う。
 - **ECC** (github.com/affaan-m/ECC) — Claude Code の運用パターン (agent定義のtools/model指定、hookによる規律執行) の参考
 
 詳細は `docs/roadmap.md` の「関連研究からの借用」を参照。
+
+## 削除したものの探し方
+
+不要になった test・tool・文書・成果物は、専用の台帳を作らず git の履歴から引けるように消している。
+
+- **ある path を消した commit を探す:** `git log --diff-filter=D --name-only -- <path>` (いつの削除でも使える)
+- **消える直前の中身を見る:** `git show <削除 commit>^:<path>`
+- **`docs/` の文書:** `docs/archive/README.md` の墓標行 (`git-history-only` と書いた行) をファイル名で探す。
+- **`output/` の成果物:** `output/PRUNED-INDEX.jsonl` (1 行 1 file。path・blob・size・最後に存在した commit・
+  分類・理由)。中身は `git show <commit>:<path>` で取り出す。
+- **2026-09-29 以降の削除 commit を一覧する:** `git log --oneline --grep='^prune('`。この日から、削除 commit の題を
+  `prune(<領域>): ...` で始め、本文に削除した path・理由・関連する決定 (D 番号) を 1 行ずつ書く。それより前の削除は
+  この題を持たないので、上の path 指定・墓標・索引で探す。`--grep` は本文の行頭にも一致するので、一覧では題が
+  `prune(` で始まるかを確かめる。
+
+何を消してよいかの条件は `docs/decisions.md` にある。どの対象も D1989 (参照の分類) に従う。`output/` の file は
+D2297 の条件に従う。それ以外の test・tool・文書には、D2179 が 15 対の判定に使った条件を同じく課す
+(2026-09-29 の高速化計画の決定)。
 
 ## ライセンス
 

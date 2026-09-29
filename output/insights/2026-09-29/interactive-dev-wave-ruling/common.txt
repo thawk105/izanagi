@@ -1,0 +1,40 @@
+日常作業の高速化と不要物の整理 — 並行 wave 共通指示 (2026-09-29、ユーザー依頼により親セッションが作成)
+
+この file は md_1.txt〜md_5.txt の全 wave が最初に読む共通指示である。個別の md_N.txt と食い違ったら md_N.txt を優先する。
+CLAUDE.md の絶対規律と dev-wave の契約はこの file より常に優先する。
+
+1. 背景
+   - 2026-09-29 のユーザー裁定: 対話型の dev-wave を研究の主経路に正式採用した (控え: /work/1/SFC/tanab/dev-wave-jobs/rulings-inbox/2026-09-29-interactive-evolution-verdicts.md)。
+   - 同日のユーザー依頼 (逐語):「この裁定で進めるにあたって、日常の営みを高速化できるところは高速化しておきたい。不要なテスト、ツール、ファイルは削除して記録しておき、後でgit参照しやすいようにするとかさ。」
+   - 調査 (sonnet 3 本) と Codex 相談 2 本 (計画検査・反論) の記録: /work/1/SFC/tanab/dev-wave-jobs/interactive-evolution-consult-20260929/ (plan.md、outC.md、outD.md)。
+   - 相談で確定した前提: 削除は整理の価値はあるが、日常の wall をほとんど縮めない (D1990 の結論が再び当てはまる)。速さに効くのは受入の最長 shard、門番待ち、check_docs などで、これらは「検査する範囲 (受理集合) を縮めずに」縮める。
+
+2. やらないこと (相談で却下済み。蒸し返さない)
+   - T-080 stub-free E2E の削除 (D700 が却下済み。setup の共有で時間を縮めるのは可)。
+   - 変異 matrix の免除範囲の拡大 (D301)。門番の閾値・上限の変更 (D2211 項 4、D2206 項 6)。
+   - D335 の恒久保留 test の削除 (所要 0 秒で得るもの無し)。
+   - 新しい削除台帳・ディレクトリ (pruned/ 等) の新設。
+   - 8b / 8c の module の切り離し、8c 系 (s8c_*、reflux_*、8c の設計・runbook 文書) の削除。8c の目標は残る。
+   - B-4 の producer_auth_experiment 系、T-189 の codex_reasoning_ab 束、t1434_t1222_science_slice (D2179 が残すと裁定) の削除。
+
+3. 削除の条件と記録 (削除を扱う wave)
+   - 対象ごとに D1989 (参照 4 分類: 現役の拘束的 consumer が無いこと) と D2179 (一回限り・結果凍結済み・現行機構の実装でない の 3 連言、専用 test が本当に専用であること) を現物で確かめる。1 つでも未確認なら残し、残した理由を一次資料に書く。md の候補一覧は調査役の機械集計であって削除許可ではない。
+   - 凍結 bytes・hash・path に束縛された文書や成果物は動かさない (規律 7)。
+   - 削除 commit の題は `prune(<領域>): ...` で始め、本文に「削除した path・理由・関連 D」を 1 行ずつ書く。最後に存在した版は `<削除 commit>^` で引ける。
+   - docs の削除は既存の墓標 (`docs/archive/README.md`) に 1 行足す。output/ の削除は既存の `output/PRUNED-INDEX.jsonl` に追記する。
+   - 所要台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) は md_2 だけが編集する。削除 wave は消した test の古い key を残してよい (被覆率は下がらない)。
+
+4. 実装・検査
+   - 実装面の変更は Codex author (D95)。dev-wave は既定の軽量版でよいが、受入全走と変異 matrix の契約は変えない。
+   - 検査を甘くして緑にしない。既存テストの期待値を変えない (削除対象の test を丸ごと消すことを除く)。
+   - 受入は受理集合を縮めていないことを示す (削除 wave は「消した test が検査していた性質が、どの残る test にも無くなった」かどうかを対象ごとに書く)。
+
+5. 計算
+   - 1 タスクの job 合計が 2 node 時間以上になる見込みなら、投入せず見積りを一次資料に書いて止め、最終報告でユーザーに確認を求める。未満なら確認不要。
+   - 性能・所要の比較には同時刻の対照を置く。1 走の前後比較で結論を書かない。所要の比較は計算ノードで取る (login の /tmp は歪む)。
+   - job の一時 file は `/work/SFC/tanab/tmp/<作業名>-<日付>/` に置く。
+
+6. 並行
+   - md_1・md_2・md_3 は同時に投げてよい。md_4・md_5 は各 md 冒頭の条件が満たされてから投げる。
+   - 他に 15 本前後の研究 wave (Cicada / VHash / MOCC / TPC-C / silo-policy) と `dev-wave-land-cleanup-enforce` (tools/dev_wave_cleanup.py・tools/check_docs.py・hooks/・.claude/settings.json・test_hooks.py・test_check_docs.py を編集中) が稼働中。これらの編集面に触れない。
+   - 報告は日本語の平易な文。「何を確かめ、何を確かめていないか」を分けて書く。
