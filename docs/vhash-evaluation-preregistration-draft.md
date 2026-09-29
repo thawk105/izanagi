@@ -687,3 +687,4 @@ S0 の floor の行列は、f_T を D145 の意味の floor として取る方�
 
 - 2026-09-29 22:48 JST、local main `8fe87f852`: md_19 (`ccbench-cicada-bugfix`)・md_20 (`vhash-cicada-best-config-verify`)・md_21 (`vhash-forwarding-target-policy`)・
   md_23 (`vhash-hot-block-cicada`) の一次資料の dir は `output/insights/2026-09-29/` に無かった。
+- 2026-09-29 23:37 JST、local main `d26ee8605` (受入の直前): 同じ 4 つの dir は無かった。これより後の着地は本書に書き足さず、§11 の P10 の作業で扱う。
