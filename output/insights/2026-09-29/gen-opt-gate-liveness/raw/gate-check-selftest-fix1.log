@@ -1,0 +1,18 @@
+test_d1_a (__main__.GateCheckTests) ... ok
+test_d1_b1 (__main__.GateCheckTests) ... ok
+test_d1_b2 (__main__.GateCheckTests) ... ok
+test_d2b_i (__main__.GateCheckTests) ... ok
+test_d2b_ii (__main__.GateCheckTests) ... ok
+test_malformed_q (__main__.GateCheckTests) ... ok
+test_q_extra (__main__.GateCheckTests) ... ok
+test_q_missing (__main__.GateCheckTests) ... ok
+test_stamp_out_of_range (__main__.GateCheckTests) ... ok
+test_v_extra (__main__.GateCheckTests) ... ok
+test_v_missing (__main__.GateCheckTests) ... ok
+test_v_w_key_mismatch (__main__.GateCheckTests) ... ok
+test_valid_committed_transaction (__main__.GateCheckTests) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 1.608s
+
+OK
