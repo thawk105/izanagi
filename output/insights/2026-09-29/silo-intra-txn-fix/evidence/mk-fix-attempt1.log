@@ -1,0 +1,9 @@
+start 2026-09-29 22:32:01 JST
+message: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-2026-09-29/wave/msg-fix.txt sha256=29ad7f2d44d3946a70b2107f1de72fb01cff580b4edfa722372b0b0b346e89fa
+input: cc/silo/transaction.cc sha256=481628c119ffab56da68dde2d1558d7f5ae165b47556e3733eb1db6da77b4ec0
+patch sha256=2fca96512edab25ed5d097fb201b2d975782a7c8ef607e0adc50fba4f8618c3b
+sub HEAD before: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+fatal: ambiguous argument 'refs/heads/izanagi-tpcc-v3-silo-mocc-fmt': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+F branch moved -> stop

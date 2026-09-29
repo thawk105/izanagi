@@ -1,0 +1,3 @@
+HEAD:output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/README.md:290:| `tools/size_paper_story_a1_balanced.py` | `4fa604a121e95c9b9f55c414f25098f7edd1f610e445bf53fc0ef85111315e13` |
+HEAD:output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/README.md:291:| `tools/verify_paper_story_a1_balanced_sizing.py` | `8c3c2066395bc82b6b2499c8adaaf3b833947163a7c2d75e55de05fc8e957607` |
+HEAD:output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/sizing-replay-receipt.json:1:{"certificate":{"path":"output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/sizing-certifi
