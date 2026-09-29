@@ -1,0 +1,1633 @@
+{
+  "caption": "Missing workloads: W5 (wait_build_failed) | J1 \u3067\u6e2c\u308c\u306a\u304b\u3063\u305f genome: 8 \u4ef6 (\u8a73\u7d30\u306f\u4e00\u6b21\u8cc7\u6599) | \u756a\u53f7\u3068\u8a2d\u5b9a\u306e\u5bfe\u5fdc\u306f provenance \u306e genome_index",
+  "conditions": {
+    "skew": "0.9",
+    "threads": 48,
+    "workloads": [
+      "W1",
+      "W2",
+      "W3",
+      "W4"
+    ]
+  },
+  "correctness_verified": false,
+  "diagnostic_only": true,
+  "figure": "j1",
+  "genome_index": [
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+      "index": 0,
+      "short": "B0 O0 P0 R0 W0"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+      "index": 1,
+      "short": "B0 O0 P0 R0 W1"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "index": 2,
+      "short": "B0 O0 P0 R1 W0"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+      "index": 3,
+      "short": "B0 O0 P0 R1 W1"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+      "index": 4,
+      "short": "B0 O1 P0 R0 W0"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+      "index": 5,
+      "short": "B0 O1 P0 R0 W1"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "index": 6,
+      "short": "B0 O1 P0 R1 W0"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+      "index": 7,
+      "short": "B0 O1 P0 R1 W1"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+      "index": 8,
+      "short": "B0 O1 P1 R0 W0"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+      "index": 9,
+      "short": "B0 O1 P1 R0 W1"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "index": 10,
+      "short": "B0 O1 P1 R1 W0"
+    },
+    {
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+      "index": 11,
+      "short": "B0 O1 P1 R1 W1"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+      "index": 12,
+      "short": "B1 O0 P0 R0 W0"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+      "index": 13,
+      "short": "B1 O0 P0 R0 W1"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "index": 14,
+      "short": "B1 O0 P0 R1 W0"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+      "index": 15,
+      "short": "B1 O0 P0 R1 W1"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+      "index": 16,
+      "short": "B1 O1 P0 R0 W0"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+      "index": 17,
+      "short": "B1 O1 P0 R0 W1"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "index": 18,
+      "short": "B1 O1 P0 R1 W0"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+      "index": 19,
+      "short": "B1 O1 P0 R1 W1"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+      "index": 20,
+      "short": "B1 O1 P1 R0 W0"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+      "index": 21,
+      "short": "B1 O1 P1 R0 W1"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "index": 22,
+      "short": "B1 O1 P1 R1 W0"
+    },
+    {
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+      "index": 23,
+      "short": "B1 O1 P1 R1 W1"
+    }
+  ],
+  "inputs": {
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j0c/runs.jsonl": "ccf8a81f25d19adc4c61bc449f85b8bbb1fbbde54cc6e43d93c5d8738c91d7f8",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j1-0/runs.jsonl": "6be7010e7e0beda69d872de9fd13a5bf35b8b3f5ee0ed6bd36eb666afb3d1373",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j1-13/runs.jsonl": "7f9c3d2de3aa31ce4a1275001e48b39fdcc7c217b62722909ae4e43d8c98a907",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j1-2/runs.jsonl": "398c3f81f79a1b014a350effd09013870455cd9ec02210e25ce4832d8e66cebd",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-0/runs.jsonl": "13076a063fa7aa8ec4467820dbc5386f7a287ac043ac664d3226fb46cf881145",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-1/runs.jsonl": "061a14e57261c9dc34b202742d77372d61727bd24aed751211416764d017c2ab",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-2/runs.jsonl": "9e6ca8f83416cce4c4c56493c560845dbf9d3c392b692b609e634679d638406b",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-3/runs.jsonl": "5d012c0e22c6e811d5ac1e9c62b84a624ac0600c851994ae5d66dd05d188fdd0",
+    "output/insights/2026-09-29/vhash-cicada-baseline-tuning/summary.json": "27f9d9bec1a9f8d7c8bfc0d64a8210d554812d2dc63e2ffd828cb4a207536d30"
+  },
+  "missing_cells": [],
+  "missing_genome_count": 8,
+  "missing_genomes": [
+    "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+    "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+    "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+    "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+    "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+    "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1",
+    "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+    "BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=1,WRITE_LATEST_ONLY=1"
+  ],
+  "missing_workloads": {
+    "W5": "wait_build_failed"
+  },
+  "raw_aggregates": {
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 4364332.0,
+      "median_tps": 430073.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 4485246.0,
+      "median_tps": 463966.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1238384.0,
+      "median_tps": 2166890.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1212726.0,
+      "median_tps": 1939207.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 4050446.0,
+      "median_tps": 485964.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 3570672.0,
+      "median_tps": 449566.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1228832.0,
+      "median_tps": 2146815.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1242346.0,
+      "median_tps": 2057195.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 3091222.0,
+      "median_tps": 390888.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1975322.0,
+      "median_tps": 360417.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1245220.0,
+      "median_tps": 1037198.5,
+      "n_reps": 6
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1194274.0,
+      "median_tps": 662184.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 3480652.0,
+      "median_tps": 529870.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1345194.0,
+      "median_tps": 493096.0,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1287900.0,
+      "median_tps": 1077878.5,
+      "n_reps": 2
+    },
+    "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1205718.0,
+      "median_tps": 666034.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 4448178.0,
+      "median_tps": 720549.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 4238520.0,
+      "median_tps": 806596.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 4267424.0,
+      "median_tps": 793763.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 4483872.0,
+      "median_tps": 819915.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 3929808.0,
+      "median_tps": 732764.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 4123010.0,
+      "median_tps": 801688.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 1206508.0,
+      "median_tps": 3153345.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 1229356.0,
+      "median_tps": 3288123.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1239960.0,
+      "median_tps": 3260851.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 1214850.0,
+      "median_tps": 2829202.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 1248462.0,
+      "median_tps": 2924918.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1228870.0,
+      "median_tps": 2960679.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 4447214.0,
+      "median_tps": 829617.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 4372610.0,
+      "median_tps": 766227.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 4226110.0,
+      "median_tps": 729804.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 3936758.0,
+      "median_tps": 771219.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 4816622.0,
+      "median_tps": 835249.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 4397698.0,
+      "median_tps": 808696.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 1241708.0,
+      "median_tps": 3302454.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 1242436.0,
+      "median_tps": 3486822.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1246694.0,
+      "median_tps": 3441106.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 1250860.0,
+      "median_tps": 3014960.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 1286778.0,
+      "median_tps": 3163682.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1245808.0,
+      "median_tps": 3092414.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 1289390.0,
+      "median_tps": 567243.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 1432300.0,
+      "median_tps": 600544.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1452520.0,
+      "median_tps": 550157.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 1395712.0,
+      "median_tps": 545755.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 1335800.0,
+      "median_tps": 538149.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1291152.0,
+      "median_tps": 552392.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 1168538.0,
+      "median_tps": 792321.0,
+      "n_reps": 6
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 1165234.0,
+      "median_tps": 764863.0,
+      "n_reps": 6
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1165638.0,
+      "median_tps": 761995.0,
+      "n_reps": 6
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 1164628.0,
+      "median_tps": 776758.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 1160698.0,
+      "median_tps": 758969.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1159996.0,
+      "median_tps": 729069.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 1198894.0,
+      "median_tps": 704700.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 1192848.0,
+      "median_tps": 682748.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1188684.0,
+      "median_tps": 687757.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 1209202.0,
+      "median_tps": 660038.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 1182016.0,
+      "median_tps": 622626.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1184376.0,
+      "median_tps": 627779.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+      "median_maxrss_kb": 1171106.0,
+      "median_tps": 820617.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+      "median_maxrss_kb": 1159750.0,
+      "median_tps": 794084.0,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1158986.0,
+      "median_tps": 777748.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+      "median_maxrss_kb": 1155376.0,
+      "median_tps": 774216.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+      "median_maxrss_kb": 1144490.0,
+      "median_tps": 725731.5,
+      "n_reps": 2
+    },
+    "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1144322.0,
+      "median_tps": 752312.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1199152.0,
+      "median_tps": 6153034.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1199244.0,
+      "median_tps": 6198598.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1150246.0,
+      "median_tps": 10123545.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1148972.0,
+      "median_tps": 10123620.5,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1180554.0,
+      "median_tps": 9319262.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1181454.0,
+      "median_tps": 9355565.5,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1121788.0,
+      "median_tps": 10936773.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1117560.0,
+      "median_tps": 10963986.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1173486.0,
+      "median_tps": 2795710.5,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1173900.0,
+      "median_tps": 2781463.5,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1133830.0,
+      "median_tps": 3265110.0,
+      "n_reps": 6
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1133772.0,
+      "median_tps": 3197810.5,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1142622.0,
+      "median_tps": 3164129.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1141690.0,
+      "median_tps": 3107569.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1073584.0,
+      "median_tps": 3450817.0,
+      "n_reps": 2
+    },
+    "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1072970.0,
+      "median_tps": 3397137.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1166518.0,
+      "median_tps": 92301.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1161940.0,
+      "median_tps": 89119.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1131262.0,
+      "median_tps": 83592.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1131158.0,
+      "median_tps": 84977.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1102322.0,
+      "median_tps": 87031.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1104822.0,
+      "median_tps": 89427.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1039802.0,
+      "median_tps": 85276.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1038536.0,
+      "median_tps": 87304.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1136914.0,
+      "median_tps": 67723.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1137080.0,
+      "median_tps": 70371.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1113834.0,
+      "median_tps": 69219.5,
+      "n_reps": 6
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1113198.0,
+      "median_tps": 67747.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1077274.0,
+      "median_tps": 71881.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1075870.0,
+      "median_tps": 70610.5,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+      "median_maxrss_kb": 1020508.0,
+      "median_tps": 72434.0,
+      "n_reps": 2
+    },
+    "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+      "median_maxrss_kb": 1019580.0,
+      "median_tps": 70613.0,
+      "n_reps": 2
+    }
+  },
+  "raw_run_count": 436,
+  "summary": {
+    "calibration": {
+      "W1": {
+        "reason": "D15_RSS_lower_bound_perf_unavailable",
+        "records": 1000000
+      },
+      "W2": {
+        "reason": "D15_RSS_lower_bound_perf_unavailable",
+        "records": 1000000
+      },
+      "W3": {
+        "reason": "D15_RSS_lower_bound_perf_unavailable",
+        "records": 1000000
+      },
+      "W4": {
+        "reason": "D15_RSS_lower_bound_perf_unavailable",
+        "records": 1000000
+      },
+      "W5": {
+        "reason": "D15_RSS_lower_bound_perf_unavailable",
+        "records": 1000000
+      }
+    },
+    "condition_medians": {
+      "j1": {
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 4364332.0,
+          "n_reps": 2,
+          "throughput_tps": 430073.5
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 4485246.0,
+          "n_reps": 2,
+          "throughput_tps": 463966.5
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1238384.0,
+          "n_reps": 2,
+          "throughput_tps": 2166890.5
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1212726.0,
+          "n_reps": 2,
+          "throughput_tps": 1939207.5
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 4050446.0,
+          "n_reps": 2,
+          "throughput_tps": 485964.5
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 3570672.0,
+          "n_reps": 2,
+          "throughput_tps": 449566.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1228832.0,
+          "n_reps": 2,
+          "throughput_tps": 2146815.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1242346.0,
+          "n_reps": 2,
+          "throughput_tps": 2057195.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 3091222.0,
+          "n_reps": 2,
+          "throughput_tps": 390888.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1975322.0,
+          "n_reps": 2,
+          "throughput_tps": 360417.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1245220.0,
+          "n_reps": 6,
+          "throughput_tps": 1037198.5
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1194274.0,
+          "n_reps": 2,
+          "throughput_tps": 662184.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 3480652.0,
+          "n_reps": 2,
+          "throughput_tps": 529870.5
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1345194.0,
+          "n_reps": 2,
+          "throughput_tps": 493096.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1287900.0,
+          "n_reps": 2,
+          "throughput_tps": 1077878.5
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1205718.0,
+          "n_reps": 2,
+          "throughput_tps": 666034.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 4448178.0,
+          "n_reps": 2,
+          "throughput_tps": 720549.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 4238520.0,
+          "n_reps": 2,
+          "throughput_tps": 806596.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 4267424.0,
+          "n_reps": 2,
+          "throughput_tps": 793763.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 4483872.0,
+          "n_reps": 2,
+          "throughput_tps": 819915.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 3929808.0,
+          "n_reps": 2,
+          "throughput_tps": 732764.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 4123010.0,
+          "n_reps": 2,
+          "throughput_tps": 801688.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1206508.0,
+          "n_reps": 2,
+          "throughput_tps": 3153345.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1229356.0,
+          "n_reps": 2,
+          "throughput_tps": 3288123.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1239960.0,
+          "n_reps": 2,
+          "throughput_tps": 3260851.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1214850.0,
+          "n_reps": 2,
+          "throughput_tps": 2829202.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1248462.0,
+          "n_reps": 2,
+          "throughput_tps": 2924918.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1228870.0,
+          "n_reps": 2,
+          "throughput_tps": 2960679.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 4447214.0,
+          "n_reps": 2,
+          "throughput_tps": 829617.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 4372610.0,
+          "n_reps": 2,
+          "throughput_tps": 766227.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 4226110.0,
+          "n_reps": 2,
+          "throughput_tps": 729804.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 3936758.0,
+          "n_reps": 2,
+          "throughput_tps": 771219.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 4816622.0,
+          "n_reps": 2,
+          "throughput_tps": 835249.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 4397698.0,
+          "n_reps": 2,
+          "throughput_tps": 808696.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1241708.0,
+          "n_reps": 2,
+          "throughput_tps": 3302454.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1242436.0,
+          "n_reps": 2,
+          "throughput_tps": 3486822.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1246694.0,
+          "n_reps": 2,
+          "throughput_tps": 3441106.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1250860.0,
+          "n_reps": 2,
+          "throughput_tps": 3014960.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1286778.0,
+          "n_reps": 2,
+          "throughput_tps": 3163682.5
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1245808.0,
+          "n_reps": 2,
+          "throughput_tps": 3092414.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1289390.0,
+          "n_reps": 2,
+          "throughput_tps": 567243.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1432300.0,
+          "n_reps": 2,
+          "throughput_tps": 600544.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1452520.0,
+          "n_reps": 2,
+          "throughput_tps": 550157.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1395712.0,
+          "n_reps": 2,
+          "throughput_tps": 545755.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1335800.0,
+          "n_reps": 2,
+          "throughput_tps": 538149.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1291152.0,
+          "n_reps": 2,
+          "throughput_tps": 552392.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1168538.0,
+          "n_reps": 6,
+          "throughput_tps": 792321.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1165234.0,
+          "n_reps": 6,
+          "throughput_tps": 764863.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1165638.0,
+          "n_reps": 6,
+          "throughput_tps": 761995.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1164628.0,
+          "n_reps": 2,
+          "throughput_tps": 776758.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1160698.0,
+          "n_reps": 2,
+          "throughput_tps": 758969.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1159996.0,
+          "n_reps": 2,
+          "throughput_tps": 729069.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1198894.0,
+          "n_reps": 2,
+          "throughput_tps": 704700.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1192848.0,
+          "n_reps": 2,
+          "throughput_tps": 682748.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1188684.0,
+          "n_reps": 2,
+          "throughput_tps": 687757.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1209202.0,
+          "n_reps": 2,
+          "throughput_tps": 660038.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1182016.0,
+          "n_reps": 2,
+          "throughput_tps": 622626.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1184376.0,
+          "n_reps": 2,
+          "throughput_tps": 627779.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1171106.0,
+          "n_reps": 2,
+          "throughput_tps": 820617.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1159750.0,
+          "n_reps": 2,
+          "throughput_tps": 794084.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1158986.0,
+          "n_reps": 2,
+          "throughput_tps": 777748.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1155376.0,
+          "n_reps": 2,
+          "throughput_tps": 774216.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1144490.0,
+          "n_reps": 2,
+          "throughput_tps": 725731.5
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1144322.0,
+          "n_reps": 2,
+          "throughput_tps": 752312.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1199152.0,
+          "n_reps": 2,
+          "throughput_tps": 6153034.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1199244.0,
+          "n_reps": 2,
+          "throughput_tps": 6198598.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1150246.0,
+          "n_reps": 2,
+          "throughput_tps": 10123545.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1148972.0,
+          "n_reps": 2,
+          "throughput_tps": 10123620.5
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1180554.0,
+          "n_reps": 2,
+          "throughput_tps": 9319262.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1181454.0,
+          "n_reps": 2,
+          "throughput_tps": 9355565.5
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1121788.0,
+          "n_reps": 2,
+          "throughput_tps": 10936773.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1117560.0,
+          "n_reps": 2,
+          "throughput_tps": 10963986.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1173486.0,
+          "n_reps": 2,
+          "throughput_tps": 2795710.5
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1173900.0,
+          "n_reps": 2,
+          "throughput_tps": 2781463.5
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1133830.0,
+          "n_reps": 6,
+          "throughput_tps": 3265110.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1133772.0,
+          "n_reps": 2,
+          "throughput_tps": 3197810.5
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1142622.0,
+          "n_reps": 2,
+          "throughput_tps": 3164129.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1141690.0,
+          "n_reps": 2,
+          "throughput_tps": 3107569.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1073584.0,
+          "n_reps": 2,
+          "throughput_tps": 3450817.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1072970.0,
+          "n_reps": 2,
+          "throughput_tps": 3397137.5
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1166518.0,
+          "n_reps": 2,
+          "throughput_tps": 92301.5
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1161940.0,
+          "n_reps": 2,
+          "throughput_tps": 89119.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1131262.0,
+          "n_reps": 2,
+          "throughput_tps": 83592.5
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1131158.0,
+          "n_reps": 2,
+          "throughput_tps": 84977.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1102322.0,
+          "n_reps": 2,
+          "throughput_tps": 87031.5
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1104822.0,
+          "n_reps": 2,
+          "throughput_tps": 89427.5
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1039802.0,
+          "n_reps": 2,
+          "throughput_tps": 85276.5
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1038536.0,
+          "n_reps": 2,
+          "throughput_tps": 87304.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1136914.0,
+          "n_reps": 2,
+          "throughput_tps": 67723.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1137080.0,
+          "n_reps": 2,
+          "throughput_tps": 70371.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1113834.0,
+          "n_reps": 6,
+          "throughput_tps": 69219.5
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1113198.0,
+          "n_reps": 2,
+          "throughput_tps": 67747.5
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1077274.0,
+          "n_reps": 2,
+          "throughput_tps": 71881.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1075870.0,
+          "n_reps": 2,
+          "throughput_tps": 70610.5
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1020508.0,
+          "n_reps": 2,
+          "throughput_tps": 72434.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1019580.0,
+          "n_reps": 2,
+          "throughput_tps": 70613.0
+        }
+      },
+      "j2": {
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1374408.0,
+          "n_reps": 3,
+          "throughput_tps": 1591501.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1226344.0,
+          "n_reps": 3,
+          "throughput_tps": 2095356.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1243384.0,
+          "n_reps": 3,
+          "throughput_tps": 2164175.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1232760.0,
+          "n_reps": 3,
+          "throughput_tps": 2120002.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1414264.0,
+          "n_reps": 3,
+          "throughput_tps": 1542133.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1237504.0,
+          "n_reps": 3,
+          "throughput_tps": 2146081.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1235164.0,
+          "n_reps": 3,
+          "throughput_tps": 2234869.0
+        },
+        "W1|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1224608.0,
+          "n_reps": 3,
+          "throughput_tps": 2223866.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1366396.0,
+          "n_reps": 3,
+          "throughput_tps": 944066.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1251256.0,
+          "n_reps": 3,
+          "throughput_tps": 1040733.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1248528.0,
+          "n_reps": 3,
+          "throughput_tps": 1047578.0
+        },
+        "W1|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1244084.0,
+          "n_reps": 3,
+          "throughput_tps": 1037526.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1389492.0,
+          "n_reps": 3,
+          "throughput_tps": 2861451.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1210312.0,
+          "n_reps": 3,
+          "throughput_tps": 3117867.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1214344.0,
+          "n_reps": 3,
+          "throughput_tps": 3255326.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1213080.0,
+          "n_reps": 3,
+          "throughput_tps": 3225975.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1436816.0,
+          "n_reps": 3,
+          "throughput_tps": 2778108.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1225296.0,
+          "n_reps": 3,
+          "throughput_tps": 3289515.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1249308.0,
+          "n_reps": 3,
+          "throughput_tps": 3477599.0
+        },
+        "W2|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1239144.0,
+          "n_reps": 3,
+          "throughput_tps": 3443572.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1233120.0,
+          "n_reps": 3,
+          "throughput_tps": 797633.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1168860.0,
+          "n_reps": 3,
+          "throughput_tps": 809065.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1164316.0,
+          "n_reps": 3,
+          "throughput_tps": 766122.0
+        },
+        "W2|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1165904.0,
+          "n_reps": 3,
+          "throughput_tps": 766719.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1129912.0,
+          "n_reps": 3,
+          "throughput_tps": 6399244.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1111048.0,
+          "n_reps": 3,
+          "throughput_tps": 10049277.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1122848.0,
+          "n_reps": 3,
+          "throughput_tps": 10985690.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1117820.0,
+          "n_reps": 3,
+          "throughput_tps": 11050316.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10000|1000000": {
+          "maxrss_kb": 1130968.0,
+          "n_reps": 3,
+          "throughput_tps": 6447600.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1113160.0,
+          "n_reps": 3,
+          "throughput_tps": 10074713.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1122648.0,
+          "n_reps": 3,
+          "throughput_tps": 10952485.0
+        },
+        "W3|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1119316.0,
+          "n_reps": 3,
+          "throughput_tps": 10978654.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1148336.0,
+          "n_reps": 3,
+          "throughput_tps": 3072973.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1134800.0,
+          "n_reps": 3,
+          "throughput_tps": 3279546.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1134152.0,
+          "n_reps": 3,
+          "throughput_tps": 3276082.0
+        },
+        "W3|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1134088.0,
+          "n_reps": 3,
+          "throughput_tps": 3238120.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1183068.0,
+          "n_reps": 3,
+          "throughput_tps": 88778.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1168312.0,
+          "n_reps": 3,
+          "throughput_tps": 96365.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1166404.0,
+          "n_reps": 3,
+          "throughput_tps": 92388.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1165104.0,
+          "n_reps": 3,
+          "throughput_tps": 92603.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10000|1000000": {
+          "maxrss_kb": 1123924.0,
+          "n_reps": 3,
+          "throughput_tps": 87209.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000|1000000": {
+          "maxrss_kb": 1106264.0,
+          "n_reps": 3,
+          "throughput_tps": 89056.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100|1000000": {
+          "maxrss_kb": 1103948.0,
+          "n_reps": 3,
+          "throughput_tps": 88676.0
+        },
+        "W4|BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10|1000000": {
+          "maxrss_kb": 1102040.0,
+          "n_reps": 3,
+          "throughput_tps": 87468.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000|1000000": {
+          "maxrss_kb": 1125432.0,
+          "n_reps": 3,
+          "throughput_tps": 69868.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000|1000000": {
+          "maxrss_kb": 1114760.0,
+          "n_reps": 3,
+          "throughput_tps": 69231.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100|1000000": {
+          "maxrss_kb": 1113636.0,
+          "n_reps": 3,
+          "throughput_tps": 69172.0
+        },
+        "W4|BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10|1000000": {
+          "maxrss_kb": 1113544.0,
+          "n_reps": 3,
+          "throughput_tps": 69688.0
+        }
+      }
+    },
+    "control_cv": {
+      "W1": {
+        "cluster_count": 4,
+        "control": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "cv": 0.004629940793561684,
+        "host_count": 5,
+        "job_count": 5,
+        "session_count": 5
+      },
+      "W2": {
+        "cluster_count": 4,
+        "control": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "cv": 0.0081170134634486,
+        "host_count": 4,
+        "job_count": 5,
+        "session_count": 5
+      },
+      "W3": {
+        "cluster_count": 4,
+        "control": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "cv": 0.0043025107733419814,
+        "host_count": 5,
+        "job_count": 5,
+        "session_count": 5
+      },
+      "W4": {
+        "cluster_count": 4,
+        "control": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "cv": 0.004770835655127837,
+        "host_count": 5,
+        "job_count": 5,
+        "session_count": 5
+      },
+      "W5": {
+        "cluster_count": 0,
+        "control": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "cv": null,
+        "host_count": 0,
+        "job_count": 0,
+        "session_count": 0
+      }
+    },
+    "correctness_verified": false,
+    "diagnostic_only": true,
+    "estimated_walltime_minutes": {
+      "cicada-j1-0": 9,
+      "cicada-j1-13": 7,
+      "cicada-j1-2": 8,
+      "cicada-j2-0": 4,
+      "cicada-j2-1": 4,
+      "cicada-j2-2": 4,
+      "cicada-j2-3": 4
+    },
+    "input_runs": [
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j0c/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j1-0/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j1-2/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j1-13/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-0/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-1/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-2/runs.jsonl",
+      "output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j2-3/runs.jsonl"
+    ],
+    "j0_unit_costs_seconds": {
+      "build_normal_s": 14.274193359000492,
+      "build_wait_s": 13.666159272994264,
+      "dependencies_s": 11.227292925999791,
+      "run_s": {
+        "W1": 3.7250641629943857,
+        "W2": 3.7086684989990317,
+        "W3": 3.7060501469968585,
+        "W4": 3.7083916400006274
+      }
+    },
+    "j2": {
+      "W1": {
+        "best": [
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+          100
+        ],
+        "best_score": 2.154036621732853,
+        "observed_control_cv_width_candidates": [
+          [
+            "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            100
+          ]
+        ],
+        "scores": {
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 2.0433242154895397,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 2.085899534083965,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 2.019569630062283,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 1.5339384266032852,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 2.143431586292777,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 2.154036621732853,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 2.068459971123615,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 1.4863560045724156,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 1.0,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 1.009688431904357,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 1.0030910068759722,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 0.9099203297074001
+        },
+        "status": "descriptive_only"
+      },
+      "W2": {
+        "best": [
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+          100
+        ],
+        "best_score": 4.535689085571115,
+        "observed_control_cv_width_candidates": [
+          [
+            "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            100
+          ]
+        ],
+        "scores": {
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 4.207506270224163,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 4.24578757015282,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 4.06650546027945,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 3.7320726367808805,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 4.491309071511205,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 4.535689085571115,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 4.290378874137722,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 3.6233717959252347,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 1.0,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 0.9992213574986403,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 1.055230142985892,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 1.0403198564271916
+        },
+        "status": "descriptive_only"
+      },
+      "W3": {
+        "best": [
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+          10
+        ],
+        "best_score": 3.4125714921003545,
+        "observed_control_cv_width_candidates": [
+          [
+            "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            10
+          ]
+        ],
+        "scores": {
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 3.4125714921003545,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 3.392613615307648,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 3.1034294590688423,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 1.9762220053611355,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10": 3.3904407495707387,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|100": 3.3823592084295826,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|1000": 3.111284634293973,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1|10000": 1.991155361753116,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 1.0,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 1.0117234691734711,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 1.0127932256988623,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 0.9489991105950366
+        },
+        "status": "descriptive_only"
+      },
+      "W4": {
+        "best": [
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+          1000
+        ],
+        "best_score": 1.382806222018138,
+        "observed_control_cv_width_candidates": [
+          [
+            "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+            1000
+          ]
+        ],
+        "scores": {
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10": 1.3288227528412353,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|100": 1.3257375731833314,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|1000": 1.382806222018138,
+          "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0|10000": 1.2739352542762026,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10": 1.2551371828722304,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|100": 1.2724715876478017,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|1000": 1.2779244633222362,
+          "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1|10000": 1.2514206176099185,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10": 1.0,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|100": 0.9925955688210308,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|1000": 0.993442199517851,
+          "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0|10000": 1.0025829411089426
+        },
+        "status": "descriptive_only"
+      }
+    },
+    "l3_bytes": 110100480,
+    "official_cicada_floor": "not_obtained",
+    "schema": "vhash-cicada-diagnostic/v1",
+    "selected_j1": {
+      "W1": [
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0"
+      ],
+      "W2": [
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+        "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0"
+      ],
+      "W3": [
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=1",
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0"
+      ],
+      "W4": [
+        "BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0",
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=1"
+      ]
+    },
+    "wait_smoke": {
+      "alive": false,
+      "failed_stage": "build",
+      "log": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-cicada-baseline-tuning/output/env/pegasus/vhash-cicada-baseline-tuning/cicada-j0c/build-34300401c3df.build.log",
+      "log_sha256": "ded740a5fca2c4adfa40ef27f095d5bc2c940e3996c29f2aa2c607ff486effcd",
+      "rc": 2,
+      "reason": "wait_build_failed"
+    },
+    "within_run_cv": {
+      "W1": 0.010749249684306475,
+      "W2": 0.015637788741574298,
+      "W3": 0.00725559448166473,
+      "W4": 0.014295296177559152
+    },
+    "workload_status": {
+      "W5": {
+        "reason": "wait_build_failed",
+        "status": "missing"
+      }
+    }
+  },
+  "throughput_axis": {
+    "conversion": "plotted_Mtps = median_tps / tps_per_Mtps",
+    "source_unit": "tps",
+    "tps_per_Mtps": 1000000,
+    "unit": "Mtps"
+  },
+  "unavailable_conditions": []
+}
