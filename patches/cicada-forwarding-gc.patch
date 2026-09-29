@@ -1,3 +1,4 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -6,6 +6,21 @@
@@ -22,7 +23,7 @@
  #if CICADA_FWD_ENABLE
  #include <algorithm>
  #include <cstdlib>
-@@ -114,6 +129,397 @@
+@@ -114,6 +129,423 @@
  } // namespace
  #endif
  
@@ -48,20 +49,24 @@
 +  uint64_t wts;
 +  VersionStatus status;
 +};
-+struct alignas(CACHE_LINE_SIZE) GcSlot {
-+  GcCounters c;
-+  std::vector<HeldVersion> held;
-+};
-+GcSlot gc_slots[256];
 +struct GcLag {
 +  uint64_t count = 0, negative = 0, sum = 0, max = 0;
 +  GcHist hist{};
 +};
++struct alignas(CACHE_LINE_SIZE) GcSlot {
++  GcCounters c;
++  std::vector<HeldVersion> held;
++  GcLag begin;
++  GcHist retention_hist{};
++  uint64_t retention_count = 0, retention_sum = 0;
++};
++GcSlot gc_slots[256];
 +struct GcReport {
-+  GcLag uniform_rts, uniform_wts, publish, begin;
-+  GcHist interval_hist{}, retention_hist{};
-+  uint64_t publish_count = 0, retention_count = 0, retention_sum = 0;
++  GcLag uniform_rts, uniform_wts, publish;
++  GcHist interval_hist{};
++  uint64_t publish_count = 0;
 +  uint64_t live_sum = 0, live_max = 0, last_sample = 0;
++  uint64_t max_gap_intervals = 0;
 +  uint64_t last_publish = 0, series_stride = 1;
 +  std::array<uint64_t, 256> argmin{};
 +  std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> series;
@@ -71,15 +76,16 @@
 +    while (v >>= 1) ++b;
 +    return std::min<size_t>(b, 41);
 +  }
-+  static void add(GcLag& l, uint64_t now, uint64_t stamp) {
-+    ++l.count;
++  static void add(GcLag& l, uint64_t now, uint64_t stamp,
++                  uint64_t weight = 1) {
++    l.count += weight;
 +    uint64_t value = 0;
 +    if (now < (stamp >> 8))
-+      ++l.negative;
++      l.negative += weight;
 +    else
 +      value = (now - (stamp >> 8)) / FLAGS_clocks_per_us;
-+    ++l.hist[bucket(value)];
-+    l.sum += value;
++    l.hist[bucket(value)] += weight;
++    l.sum += value * weight;
 +    l.max = std::max(l.max, value);
 +  }
 +  static void hist(const GcHist& h) {
@@ -100,13 +106,16 @@
 +  }
 +  void sample(uint64_t now) {
 +    uint64_t interval = FLAGS_cicada_gc_sample_us * FLAGS_clocks_per_us;
-+    if (last_sample && now - last_sample < interval) return;
-+    last_sample = now;
++    if (!interval) interval = 1;
++    uint64_t k = last_sample ? (now - last_sample) / interval : 1;
++    if (!k) return;
++    last_sample = last_sample ? last_sample + k * interval : now;
++    max_gap_intervals = std::max(max_gap_intervals, k);
 +    uint64_t r = MinRts.load(std::memory_order_acquire);
-+    add(uniform_rts, now, r);
-+    add(uniform_wts, now, MinWts.load(std::memory_order_acquire));
++    add(uniform_rts, now, r, k);
++    add(uniform_wts, now, MinWts.load(std::memory_order_acquire), k);
 +    uint64_t n = live();
-+    live_sum += n;
++    live_sum += n * k;
 +    live_max = std::max(live_max, n);
 +    uint64_t floor = std::numeric_limits<uint64_t>::max();
 +    size_t owner = 0;
@@ -117,7 +126,7 @@
 +        owner = i;
 +      }
 +    }
-+    ++argmin[owner];
++    argmin[owner] += k;
 +    if ((uniform_rts.count - 1) % series_stride == 0) {
 +      if (series.size() == 4096) {
 +        for (size_t i = 0; i < 2048; ++i) series[i] = series[2 * i];
@@ -136,18 +145,35 @@
 +      ++interval_hist[bucket((now - last_publish) / FLAGS_clocks_per_us)];
 +    last_publish = now;
 +  }
-+  void detached(uint64_t now, Version* upper, Version* ver) {
++  void detached(size_t thid, uint64_t now, Version* upper, Version* ver) {
++    auto& slot = gc_slots[thid];
 +    while (ver) {
 +      uint64_t clock = upper->ldAcqWts() >> 8;
 +      uint64_t age = now < clock ? 0 : (now - clock) / FLAGS_clocks_per_us;
-+      ++retention_hist[bucket(age)];
-+      ++retention_count;
-+      retention_sum += age;
++      ++slot.retention_hist[bucket(age)];
++      ++slot.retention_count;
++      slot.retention_sum += age;
 +      upper = ver;
 +      ver = ver->ldAcqNext();
 +    }
 +  }
 +  ~GcReport() {
++    GcLag begin;
++    GcHist retention_hist{};
++    uint64_t retention_count = 0, retention_sum = 0;
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& slot = gc_slots[i];
++      begin.count += slot.begin.count;
++      begin.negative += slot.begin.negative;
++      begin.sum += slot.begin.sum;
++      begin.max = std::max(begin.max, slot.begin.max);
++      retention_count += slot.retention_count;
++      retention_sum += slot.retention_sum;
++      for (size_t b = 0; b < retention_hist.size(); ++b) {
++        begin.hist[b] += slot.begin.hist[b];
++        retention_hist[b] += slot.retention_hist[b];
++      }
++    }
 +    std::cout << "CICADA_GC_V1 {\"schema\":1,\"mode\":\"";
 +    std::cout << GC_MODE_TEXT;
 +    std::cout << "\",\"sample_us\":" << FLAGS_cicada_gc_sample_us
@@ -198,6 +224,7 @@
 +      std::cout << '[' << t << ',' << lag << ',' << n << ']';
 +    }
 +    std::cout << "],\"series_stride\":" << series_stride
++              << ",\"max_gap_intervals\":" << max_gap_intervals
 +              << "},\"publish\":{\"count\":" << publish_count
 +              << ",\"lag_rts_hist\":";
 +    hist(publish.hist);
@@ -420,19 +447,19 @@
  #line 29
  /**
   * @brief Initialize function of transaction.
-@@ -147,6 +553,11 @@
+@@ -147,6 +579,11 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
 +#if CICADA_GC_COUNT
-+  GcReport::add(gc_report.begin, rdtscp(),
++  GcReport::add(gc_slots[thid_].begin, rdtscp(),
 +                MinRts.load(std::memory_order_acquire));
 +#endif
 +#line 43
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -801,6 +1212,10 @@
+@@ -801,6 +1238,10 @@
        }
      }
      (*itr).finish_version_install_ = true;
@@ -443,21 +470,21 @@
    }
  
    /**
-@@ -1112,6 +1527,13 @@
+@@ -1112,6 +1553,13 @@
  
      // the thread detaches the rest of the version list from v
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
 +#if CICADA_GC_COUNT
 +    uint64_t detached_count = 0;
 +    for (Version* v = delTarget; v; v = v->ldAcqNext()) ++detached_count;
-+    gc_report.detached(rdtscp(), gcq_.front().ver_, delTarget);
++    gc_report.detached(thid_, rdtscp(), gcq_.front().ver_, delTarget);
 +    GC_DETACH(thid_, detached_count);
 +#endif
 +#line 835
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
      gcAfterThisVersion(tuple, delTarget);
-@@ -1245,7 +1667,17 @@
+@@ -1245,7 +1693,17 @@
  bool TxExecutor::isLeader() { return this->thid_ == 0; }
  
  void TxExecutor::leaderWork() {
@@ -475,6 +502,7 @@
  #if BACK_OFF
    leaderBackoffWork(backoff_, CCBenchResults);
  #endif
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
 --- a/cc/cicada/ycsb_cicada.cc
 +++ b/cc/cicada/ycsb_cicada.cc
 @@ -18,6 +18,15 @@

@@ -3711,7 +3711,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 42
+    ) == 45
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
