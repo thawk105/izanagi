@@ -156,7 +156,7 @@ def test_repository_removal_lock_is_nonblocking_and_released(tmp_path, monkeypat
                   _file_snapshot(case.evidence) if mode == 'remove-child' else None)
         result = subprocess.run([sys.executable, str(_TOOL), *argv],
                                 capture_output=True, timeout=60, check=False)
-        assert result.returncode == cleanup.RC_BUSY
+        assert result.returncode == 75
         assert result.stdout == b''
         lines = result.stderr.decode().splitlines()
         assert len(lines) == 1
