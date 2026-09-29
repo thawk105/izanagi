@@ -5631,3 +5631,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-29","base":"908cc719d753e02f348cc2bf44c965e6b9a2fd50","content_sha256":"51636579ab81e04c7177b62b6c242a027efbb1d04c7a26b2efca2f15de526abe","seq":1,"tested_tip":"50b3aef36d53931a0ba5530a6542fce3ce08e2f0","wave":"dev-wave-t2853-r2-fig11","wave_ref":"refs/heads/dev-wave-t2853-r2-fig11"}
 - {"allocations":{"F:wrapper-self-hash":"F1067"},"authored":"2026-09-29","base":"908cc719d753e02f348cc2bf44c965e6b9a2fd50","content_sha256":"ce81f99b5180370c68233101e5fb25453258438c019f1dd508e7bb47c6d10225","seq":2,"tested_tip":"50b3aef36d53931a0ba5530a6542fce3ce08e2f0","wave":"dev-wave-t2853-r2-fig11","wave_ref":"refs/heads/dev-wave-t2853-r2-fig11"}
+
+- {"allocations":{},"authored":"2026-09-29","base":"714bbd0c305afb3f185c4cc957d1244e24101607","content_sha256":"8885467f7a8e7a613fb3a971e313cbcc08a64678131f6c0f5f59c966f8e3a56b","seq":1,"tested_tip":"c1cc6b7bd89090ea29d610ba5a80a46e92012bff","wave":"dev-wave-vhash-story-v2","wave_ref":"refs/heads/dev-wave-vhash-story-v2"}
