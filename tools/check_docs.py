@@ -779,7 +779,7 @@ CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
     "Safely back up and clean up merged or stale local Izanagi branches and worktrees through the shared dispatcher. Use for branch or worktree cleanup; deletion needs explicit $cleanup-branches."
 )
 CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
-    "7f858e6fb4f0f41234f59ad64ca5a5604ae8116d625f69e1aac7b7f721710347"
+    "076089079683c0850354f43281df5ac05cfc3461b6b9f0cab1bdb221e24319a7"
 )
 CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   display_name: "Cleanup Branches"

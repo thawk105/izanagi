@@ -573,7 +573,7 @@ _SYNTHETIC_CLEANUP_DESCRIPTION = (
     "Safely back up and clean up merged or stale local Izanagi branches and worktrees through the shared dispatcher. Use for branch or worktree cleanup; deletion needs explicit $cleanup-branches."
 )
 _EXPECTED_CLEANUP_SKILL_SHA256 = (
-    "7f858e6fb4f0f41234f59ad64ca5a5604ae8116d625f69e1aac7b7f721710347"
+    "076089079683c0850354f43281df5ac05cfc3461b6b9f0cab1bdb221e24319a7"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
     "7b5379534f7ed5a061ac276001006f00cd49d3a9ca89cedeea9e4874f88d8d5f"
@@ -606,7 +606,7 @@ description: Safely back up and clean up merged or stale local Izanagi branches 
 - 各破壊操作の直前に dispatcher の全 eligibility と canonical path、process residency を再評価する。
   unknown、棚卸し後の change、新しい residency があれば停止する。
 - `git worktree prune --dry-run --verbose` は報告用 preview としてだけ実行する。Codex は real
-  `git worktree prune` とそれを前提にする command §3 の mv を実行せず、preview と残作業を人間へ引き渡す。
+  `git worktree prune` と command §3 の mv を実行せず、preview と残作業を人間へ引き渡す。
 - 未追跡 `output/` (`exploration/`・`env/`) を抱える worktree は、command §2 の原本確認 (insight
   「証拠の所在」節) を経るまで保持して報告する。
 - dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・非 dir entry 数照合) を前提にし、
