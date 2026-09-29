@@ -12,7 +12,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from orchestrator.campaign.silo_policy_contrast import (ARMS, DEFAULT_BUDGETS,
-    UNIT_SCHEMA, ContrastLedger, _publish, next_unit, select_endpoint, series_state)
+    UNIT_SCHEMA, ContrastLedger, _publish, close_series_if_done, next_opportunity,
+    next_unit, open_opportunity, select_endpoint, series_state)
 from orchestrator.campaign.silo_policy_contrast_generators import random_ir, evolve_ir
 
 
@@ -61,15 +62,17 @@ def generate(args):
     arm = ledger.header['arm']
     if arm not in ('random-ir', 'evo-ir'):
         raise ValueError('generate requires a machine arm')
+    if any(e['kind'] == 'series-end' for e in ledger.events):
+        raise ValueError('series already ended')
     state = series_state(ledger)
     if next_unit(ledger) is not None or state['unfinished_slots']:
         raise ValueError('outstanding unit')
     if state['A'] >= ledger.header['budgets']['A'] or state['B'] >= ledger.header['budgets']['B']:
         raise ValueError('series budget exhausted')
-    a = state['A'] + 1
-    if any(e['kind'] == 'opportunity-start' and e.get('a') == a for e in ledger.events):
-        raise ValueError('opportunity already started')
-    ledger.append('opportunity-start', a=a)
+    a = open_opportunity(ledger)
+    if a is None:
+        a = next_opportunity(ledger)
+        ledger.append('opportunity-start', a=a)
     version = ledger.header['version']
     if arm == 'random-ir':
         document, provenance = random_ir(version, ledger.header['series'], a)
@@ -81,23 +84,33 @@ def generate(args):
         print(json.dumps({'a': a, 'outcome': 'empty'}))
         return
     proposal = ledger.root / f'proposal-{a:02d}.json'
-    _publish(proposal, {'generator': provenance, 'ir': document})
+    proposal_document = {'generator': provenance, 'ir': document}
+    if proposal.exists():
+        if json.loads(proposal.read_text()) != proposal_document:
+            raise ValueError('existing proposal differs')
+    else:
+        _publish(proposal, proposal_document)
     preview = ledger.root / f'preview-{a:02d}.json'
-    result = _driver(ledger, proposal, '--preview-diff', preview)
-    if result.returncode not in (0, 1):
-        raise RuntimeError(f'driver preview failed: {result.stderr.strip()}')
+    if not preview.exists():
+        result = _driver(ledger, proposal, '--preview-diff', preview)
+        if result.returncode not in (0, 1):
+            raise RuntimeError(f'driver preview failed: {result.stderr.strip()}')
     verdict = json.loads(preview.read_text())
     if verdict.get('passed') is True:
         outcome = 'proposed'
     else:
         rejected = ledger.root / f'rejected-{a:02d}.json'
-        record = _driver(ledger, proposal, '--record-reject', rejected)
-        if record.returncode:
-            raise RuntimeError(f'driver reject record failed: {record.stderr.strip()}')
+        if not rejected.exists():
+            record = _driver(ledger, proposal, '--record-reject', rejected)
+            if record.returncode:
+                raise RuntimeError(f'driver reject record failed: {record.stderr.strip()}')
         outcome = 'rejected'
+    rejection = ({'reject_subtype': verdict.get('subtype'),
+                  'reject_rule_id': verdict.get('rule_id')}
+                 if outcome == 'rejected' else {})
     ledger.append('opportunity-end', a=a, outcome=outcome,
                   proposal_path=str(proposal), proposal_sha256=_digest(proposal),
-                  provenance=provenance)
+                  provenance=provenance, **rejection)
     print(json.dumps({'a': a, 'outcome': outcome, 'proposal_path': str(proposal)}))
 
 
@@ -145,13 +158,12 @@ def _qsub_argv(ledger, unit_path, evidence, archive, walltime, after, hold):
 
 def submit(args):
     ledger = ContrastLedger(args.ledger)
+    close_series_if_done(ledger)
     unit = next_unit(ledger)
     if unit is None:
         raise ValueError('no unit ready')
     if unit['kind'] == 'dead-job':
         raise ValueError('dead-job: unfinished slot; manual classification required')
-    if unit['kind'] == 'score' and not any(e['kind'] == 'endpoint-fixed' for e in ledger.events):
-        ledger.append('endpoint-fixed', endpoint=select_endpoint(ledger))
     proposal = _proposal_for(ledger, unit)
     unit_path = (ledger.root / 'units' / f"{unit['kind']}-{unit['index']}-a{unit['attempt']}.json").resolve()
     unit_path.parent.mkdir(exist_ok=True)
@@ -171,6 +183,10 @@ def submit(args):
     if args.submit:
         if evidence.exists() or archive.exists():
             raise ValueError('evidence or archive already exists')
+        if unit['kind'] == 'score' and not any(e['kind'] == 'endpoint-fixed' for e in ledger.events):
+            endpoint = select_endpoint(ledger)
+            ledger.append('endpoint-fixed', **{key: endpoint[key] for key in
+                ('logical_slot', 'variant', 'source_digest', 'fitness_tps')})
         evidence.mkdir(parents=True)
         archive.mkdir(parents=True)
         result = _run(argv, cwd=ledger.header['submit_checkout'])
@@ -181,6 +197,7 @@ def submit(args):
 
 def status(args):
     ledger = ContrastLedger(args.ledger)
+    close_series_if_done(ledger)
     print(json.dumps({'header': ledger.header, 'state': series_state(ledger),
                       'next_unit': next_unit(ledger)}, default=str, sort_keys=True))
 

@@ -54,3 +54,46 @@ def test_generate_reject_records_a(tmp_path, monkeypatch, capsys):
     assert calls == ['--preview-diff', '--record-reject']
     assert ContrastLedger(item.root).events[-1]['outcome'] == 'rejected'
     assert json.loads(capsys.readouterr().out)['a'] == 1
+
+
+def test_submit_score_fixes_flat_endpoint_only_on_submit(tmp_path, monkeypatch, capsys):
+    item = _ledger(tmp_path)
+    for slot in ('stock-0', 'seed-0', 'seed-1'):
+        item.append('slot-start', logical_slot=slot, attempt=0)
+        item.append('slot-result', logical_slot=slot, attempt=0, outcome='certified',
+                    quality='normal', fitness_tps=12, variant='seed-v', source_digest='seed-d')
+    for a in range(1, 11):
+        item.append('slot-start', logical_slot=f'eval-{a}', attempt=0)
+        item.append('slot-result', logical_slot=f'eval-{a}', attempt=0,
+                    outcome='candidate-failure')
+    monkeypatch.setattr(launch, '_head', lambda checkout: 'abc')
+    monkeypatch.setattr(launch, '_run', lambda argv, **kwargs:
+                        SimpleNamespace(returncode=0, stdout='123\n', stderr=''))
+    args = SimpleNamespace(ledger=str(item.root), evidence_root=str(tmp_path / 'evidence'),
+        archive_root=str(tmp_path / 'archive'), walltime='00:25:00',
+        after=None, hold=False, submit=False)
+    launch.submit(args)
+    capsys.readouterr()
+    assert not any(e['kind'] == 'endpoint-fixed' for e in ContrastLedger(item.root).events)
+    args.submit = True
+    launch.submit(args)
+    fixed = [e for e in ContrastLedger(item.root).events if e['kind'] == 'endpoint-fixed']
+    assert len(fixed) == 1
+    assert {key: fixed[0][key] for key in ('logical_slot', 'variant', 'source_digest', 'fitness_tps')} == {
+        'logical_slot': 'seed-0', 'variant': 'seed-v', 'source_digest': 'seed-d', 'fitness_tps': 12}
+    assert 'endpoint' not in fixed[0]
+
+
+def test_generate_reject_preserves_preview_subtype(tmp_path, monkeypatch):
+    item = _ledger(tmp_path)
+    for slot in ('stock-0', 'seed-0', 'seed-1'):
+        item.append('slot-start', logical_slot=slot, attempt=0)
+        item.append('slot-result', logical_slot=slot, attempt=0, outcome='certified')
+    def fake_driver(ledger, proposal, flag, out):
+        launch._publish(out, {'passed': False, 'subtype': 'typed-ir', 'rule_id': 'rule-7'}
+                        if flag == '--preview-diff' else {'outcome': 'rejected'})
+        return SimpleNamespace(returncode=1 if flag == '--preview-diff' else 0, stderr='')
+    monkeypatch.setattr(launch, '_driver', fake_driver)
+    launch.generate(SimpleNamespace(ledger=str(item.root)))
+    end = ContrastLedger(item.root).events[-1]
+    assert (end['reject_subtype'], end['reject_rule_id']) == ('typed-ir', 'rule-7')

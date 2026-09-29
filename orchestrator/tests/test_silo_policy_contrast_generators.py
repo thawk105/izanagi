@@ -74,3 +74,23 @@ def test_retry_cap_returns_empty(monkeypatch):
     document, provenance = G._generate(VERSION, 5, 6, 'random', invalid)
     assert document is None
     assert provenance['counter'] == 1000
+
+
+def test_bool_grow_selects_operator_before_compare_operand():
+    class Draw:
+        def __init__(self, operator):
+            self.operator = operator
+            self.operations = []
+        def below(self, limit):
+            return 1 if limit == 2 and not self.operations else 0
+        def choose(self, values):
+            if tuple(values) == ('select', 'compare'):
+                self.operations.append(tuple(values))
+                return values[self.operator]
+            return values[0]
+    outputs = []
+    for operator in (0, 1, 0, 1):
+        draw = Draw(operator)
+        outputs.append(type(G._grow('bool', 'lock', (), 1, draw, (1,))).__name__)
+        assert draw.operations == [('select', 'compare')]
+    assert outputs == ['Select', 'Compare', 'Select', 'Compare']

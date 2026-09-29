@@ -33,6 +33,7 @@ def run_opportunity(ledger_root: Path, a: int, out: Path, *, settings: Path, mod
     instructions = Path(__file__).with_suffix(".md").read_text()
     failures = launches = 0
     while True:
+        before = len(ContrastLedger(ledger_root).events)
         launches += 1
         attempt = out / f"attempt-{launches:04d}"
         attempt.mkdir(exist_ok=False)
@@ -46,24 +47,32 @@ def run_opportunity(ledger_root: Path, a: int, out: Path, *, settings: Path, mod
             completed = spawn(argv, cwd=checkout, stdin=inp, stdout=stdout, stderr=stderr,
                               check=False)
         status = classify_exit(attempt / "out.json", completed.returncode)
+        try:
+            usage = json.loads((attempt / "out.json").read_text()).get("modelUsage", {})
+            models = sorted(usage) if isinstance(usage, dict) else []
+        except (ValueError, OSError):
+            models = []
         (attempt / "exit.json").write_text(json.dumps({"status": status, "rc": completed.returncode,
             "at": datetime.now(timezone.utc).isoformat()}) + "\n")
         if status == "outage":
             ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="outage",
-                                               role_attempts=launches)
+                                               role_attempts=launches, models=models)
             sleep(OUTAGE_RETRY_S)
             continue
         if status == "success":
-            events = [e for e in ContrastLedger(ledger_root).events if
-                      e["kind"] == "opportunity-end" and e["a"] == a]
+            events = [e for e in ContrastLedger(ledger_root).events[before:] if
+                      e["kind"] == "opportunity-end" and e["a"] == a
+                      and e.get("outcome") in {"proposed", "rejected"}]
             if events:
                 return events[-1]["outcome"]
             # A normal exit without proposal or explicit rejection is an empty proposal.
-            ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="empty", role_attempts=launches)
+            ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="empty",
+                                               role_attempts=launches, models=models)
             return "empty"
         failures += 1
         if failures > 2:
-            ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="role-failure", role_attempts=launches)
+            ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="role-failure",
+                                               role_attempts=launches, models=models)
             ContrastLedger(ledger_root).append("series-end", reason="unclassified-missing")
             return "role-failure"
 

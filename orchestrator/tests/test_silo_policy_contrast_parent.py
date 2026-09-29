@@ -3,26 +3,25 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from orchestrator.campaign.silo_policy_contrast import ContrastLedger, LEDGER_SCHEMA
+from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS, series_state
 from tools.pegasus import silo_policy_contrast_parent as P
 
 
 def _ledger(tmp_path):
     root = tmp_path / "ledger"
-    (root / "events").mkdir(parents=True)
-    (root / "header.json").write_text(json.dumps({"schema": LEDGER_SCHEMA,
+    ledger = ContrastLedger.create(root, {
         "version": "silo-policy-contrast-test-2026-09-29", "cohort": "test", "arm": "llm-ir",
         "series": 1, "form": "ir", "submit_checkout": str(tmp_path), "checkout_head": "test",
-        "pin": "test", "budgets": {"B": 10, "A": 30, "k": 2, "n_eval": 5,
-        "machine_retries": 2, "role_retries": 2}}))
-    (root / "events" / "000001-series-start.json").write_text(json.dumps({"kind": "series-start"}))
+        "pin": "test", "budgets": DEFAULT_BUDGETS})
+    ledger.append("series-start")
     return root
 
 
 def test_fresh_sessions_and_429_retry_same_a(tmp_path):
     root = _ledger(tmp_path)
     argv_seen = []
-    outputs = [{"is_error": True, "api_error_status": 429}, {"is_error": False}]
+    outputs = [{"is_error": True, "api_error_status": 429, "modelUsage": {"model-a": {}}},
+               {"is_error": False, "modelUsage": {"model-b": {}}}]
     def spawn(argv, *, stdout, **kwargs):
         argv_seen.append(argv)
         stdout.write(json.dumps(outputs.pop(0)).encode())
@@ -34,6 +33,9 @@ def test_fresh_sessions_and_429_retry_same_a(tmp_path):
     assert all("--settings" in a and "--model" in a and "--allowedTools" in a for a in argv_seen)
     assert waits == [900]
     assert [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"][-1]["a"] == 1
+    assert series_state(root)["A"] == 1
+    ends = [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"]
+    assert [e["models"] for e in ends] == [["model-a"], ["model-b"]]
 
 
 def test_three_failures_end_series_without_consuming_a(tmp_path):

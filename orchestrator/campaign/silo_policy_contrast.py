@@ -132,6 +132,65 @@ def select_endpoint(ledger):
     return series_state(ledger)['endpoint_candidate']
 
 
+def open_opportunity(ledger):
+    """Return the latest started opportunity without a final end."""
+    events = _ledger(ledger).events
+    starts = [e['a'] for e in events if e['kind'] == 'opportunity-start']
+    if not starts:
+        return None
+    a = starts[-1]
+    return (None if any(e['kind'] == 'opportunity-end' and e.get('a') == a
+                        and e.get('outcome') != 'outage' for e in events) else a)
+
+
+def next_opportunity(ledger):
+    return series_state(ledger)['A'] + 1
+
+
+def close_series_if_done(ledger):
+    """Record the first terminal condition once and return its reason."""
+    ledger = _ledger(ledger)
+    events = ledger.events
+    if any(e['kind'] == 'series-end' for e in events):
+        return None
+    state = series_state(ledger)
+    if state['unfinished_slots']:
+        return None
+    results = [e for e in events if e['kind'] == 'slot-result']
+    latest = {}
+    for event in results:
+        slot = event.get('logical_slot')
+        if slot is not None and event.get('attempt', 0) >= latest.get(slot, {}).get('attempt', -1):
+            latest[slot] = event
+    retry_limit = ledger.header['budgets']['machine_retries']
+    stock = latest.get('stock-0')
+    job1_complete = all(slot in latest for slot in ('stock-0', 'seed-0', 'seed-1'))
+    if (ledger.header['arm'] != 'reference' and job1_complete and stock.get('outcome')
+            not in ('certified', 'machine-failure')):
+        reason = 'stock-unestablished'
+    elif any(e.get('outcome') == 'machine-failure' and e.get('attempt', 0) >= retry_limit
+             for e in latest.values()):
+        reason = 'machine-retry-exhausted'
+    elif any(e.get('outcome') == 'machine-failure' for e in latest.values()):
+        return None
+    elif ledger.header['arm'] == 'reference':
+        reference_slots = [f'{kind}-{i}' for kind in ('ref-stock', 'ref-fixed10') for i in range(5)]
+        reason = 'b-complete' if all(slot in latest for slot in reference_slots) else None
+    else:
+        if all(f'score-{i}' in latest for i in range(ledger.header['budgets']['n_eval'])):
+            reason = ('b-complete' if state['B'] >= ledger.header['budgets']['B']
+                      else 'a-exhausted')
+        elif (state['B'] >= ledger.header['budgets']['B']
+              or state['A'] >= ledger.header['budgets']['A']) and state['endpoint_candidate'] is None:
+            reason = ('b-complete' if state['B'] >= ledger.header['budgets']['B']
+                      else 'a-exhausted')
+        else:
+            reason = None
+    if reason is not None:
+        ledger.append('series-end', reason=reason)
+    return reason
+
+
 def _unit(kind, index, attempt, slots, proposal_sha256=None):
     return {'kind': kind, 'index': index, 'attempt': attempt,
             'proposal_sha256': proposal_sha256,

@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 from dataclasses import dataclass, replace
-from dataclasses import fields, is_dataclass
 import hashlib
 import json
 from pathlib import Path
@@ -34,6 +33,7 @@ from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE, 
 from .projection_guard import assert_closed_proposal_schema
 from .silo_policy_compile import check_policy_body, find_compiler
 from .silo_policy_ir import enumerate_recon, parse_policy_ir, render_policy
+from .silo_policy_contrast_generators import tagged
 from ..verifier.core import result_to_dict_v3
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -79,19 +79,10 @@ class Proposal:
     justification: str
 
 
-def _tagged_ir(value):
-    if is_dataclass(value):
-        return {'kind': type(value).__name__, **{
-            field.name: _tagged_ir(getattr(value, field.name)) for field in fields(value)}}
-    if isinstance(value, tuple):
-        return [_tagged_ir(item) for item in value]
-    return value
-
-
 def initial_proposal(case_id):
     if case_id not in ('0000', '0001'):
         raise ValueError('unregistered initial point')
-    ir = _tagged_ir(next(case.ir for case in enumerate_recon() if case.case_id == case_id))
+    ir = tagged(next(case.ir for case in enumerate_recon() if case.case_id == case_id))
     return Proposal(render_policy(parse_policy_ir(ir)), ir, '')
 
 
@@ -134,14 +125,15 @@ def _unique_pairs(pairs):
     return result
 
 
-def load_proposal_file(path, *, form, preview=False):
+def load_proposal_file(path, *, form, preview=False, preview_auditor=False):
     if form not in ('cpp', 'ir'):
         raise ValueError('unknown form')
     with open(path, encoding='utf-8') as stream:
         document = json.load(stream, object_pairs_hook=_unique_pairs)
     if preview:
-        if type(document) is not dict or set(document) != {'coder'}:
-            raise ValueError('preview requires only coder')
+        allowed = ({'coder'}, {'coder', 'auditor'}) if preview_auditor else ({'coder'},)
+        if type(document) is not dict or set(document) not in allowed:
+            raise ValueError('invalid preview proposal fields')
         coder_keys = {'axis', 'implementation' if form == 'cpp' else 'ir'}
         if type(document['coder']) is not dict or not coder_keys <= set(document['coder']) or set(document['coder']) - coder_keys - {'justification', 'confidence'}:
             raise ValueError('invalid preview coder')
@@ -163,7 +155,8 @@ def load_proposal_file(path, *, form, preview=False):
         ir = coder['ir']
         parsed = parse_policy_ir(ir)
         implementation = render_policy(parsed)
-    auditor = None if preview else parse_auditor_dict(document['auditor'], max_violation_type=26)
+    auditor = (parse_auditor_dict(document['auditor'], max_violation_type=26)
+               if 'auditor' in document else None)
     return Proposal(implementation, ir, coder.get('justification', '')), auditor
 
 
@@ -626,7 +619,7 @@ def _contrast_header(ledger_root, form, campaign_env):
     return ledger, contrast_cfg(ledger.header, campaign_env=campaign_env)
 
 
-def drive_contrast_record_reject(cfg, perf, proposal, sub, *, a, compiler,
+def drive_contrast_record_reject(cfg, perf, proposal, auditor, sub, *, a, compiler,
                                  scratch_dir, build_context, layout=None):
     """Record a rejected opportunity without consulting the legacy loop state."""
     _require_perf_identity(cfg, perf)
@@ -635,7 +628,7 @@ def drive_contrast_record_reject(cfg, perf, proposal, sub, *, a, compiler,
     layout = layout or _campaign_layout(cfg)
     from .patchharness import applied
     with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
-        result, _ = policy_gate(sub, proposal.implementation, None,
+        result, _ = policy_gate(sub, proposal.implementation, auditor,
             compiler=compiler, scratch_dir=scratch_dir, write=False)
     if result.passed:
         raise ValueError('record-reject requires a rejected candidate')
@@ -735,7 +728,7 @@ def measure_slot(header, slot, index, attempt, *, proposal, auditor, sub,
     logical_slot = f'{slot}-{index}'
     row = _slot_observation(layout, out.get('variant'), perf, out,
                             logical_slot, attempt)
-    if slot == 'eval':
+    if slot in ('seed', 'eval'):
         view = require_admitted_campaign(layout.root,
             purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
         row['critic_digest'] = L.make_critic_digest(view, tag='p3-silo-policy',
@@ -745,7 +738,7 @@ def measure_slot(header, slot, index, attempt, *, proposal, auditor, sub,
 
 
 def _contrast_unit(ledger, unit_path, ledger_root):
-    from .silo_policy_contrast import UNIT_SCHEMA, next_unit
+    from .silo_policy_contrast import UNIT_SCHEMA, next_unit, series_state
     path = Path(unit_path)
     unit = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=_unique_pairs)
     if (type(unit) is not dict or set(unit) != {'schema', 'ledger_root', 'kind',
@@ -775,17 +768,65 @@ def _contrast_unit(ledger, unit_path, ledger_root):
             raise ContrastUnitMismatch('proposal digest mismatch')
     elif unit['proposal_sha256'] is not None:
         raise ContrastUnitMismatch('proposal digest without path')
-    open_slots = [e for e in ledger.events if e['kind'] == 'slot-start']
-    closed_slots = [e for e in ledger.events if e['kind'] == 'slot-result']
-    if len(open_slots) != len(closed_slots):
+    if series_state(ledger)['unfinished_slots']:
         raise ContrastUnitMismatch('unfinished slot attempt')
     return unit, expected
+
+
+def _fixed_endpoint_proposal(ledger, form):
+    fixed = next((e for e in reversed(ledger.events)
+                  if e['kind'] == 'endpoint-fixed'), None)
+    if fixed is None:
+        raise ContrastUnitMismatch('score endpoint has not been fixed')
+    origin_slot = fixed.get('logical_slot')
+    if type(origin_slot) is not str:
+        raise ContrastUnitMismatch('fixed endpoint slot is missing')
+    source = next((e for e in reversed(ledger.events) if e['kind'] == 'slot-result'
+                   and e.get('logical_slot') == origin_slot), None)
+    if (source is None or type(source.get('implementation')) is not str
+            or type(fixed.get('variant')) is not str
+            or type(fixed.get('source_digest')) is not str
+            or fixed.get('variant') != source.get('variant')
+            or fixed.get('source_digest') != source.get('source_digest')):
+        raise ValueError('fixed endpoint source is unavailable')
+    proposal = Proposal(source['implementation'], source.get('ir'), '')
+    auditor = None
+    if origin_slot.startswith('eval-') and ledger.header['arm'] not in MACHINE_NAMES:
+        a = int(origin_slot.split('-')[1])
+        opportunity = next((e for e in ledger.events
+            if e['kind'] == 'opportunity-end' and e.get('a') == a
+            and e.get('outcome') == 'proposed'), None)
+        if opportunity is None:
+            raise ValueError('endpoint auditor provenance missing')
+        original, auditor = load_proposal_file(opportunity['proposal_path'], form=form)
+        if original.implementation != proposal.implementation:
+            raise ValueError('endpoint source differs from proposal')
+    return proposal, auditor, origin_slot
+
+
+def _append_seed_history(series_layout, results, form):
+    history_path = _history_path(series_layout)
+    existing = ({json.loads(line).get('logical_slot') for line in
+                 history_path.read_text(encoding='utf-8').splitlines()}
+                if history_path.exists() else set())
+    for result in results:
+        if result['logical_slot'].startswith('seed-'):
+            if result['logical_slot'] in existing:
+                continue
+            seed_index = int(result['logical_slot'].split('-')[1])
+            case = initial_proposal('0000' if seed_index == 0 else '0001')
+            if form == 'cpp':
+                case = Proposal(case.implementation, None, '')
+            _append_history(series_layout, seed_index - 2, case, {
+                'outcome': result['outcome'], 'variant': result['variant'],
+                'logical_slot': result['logical_slot'],
+                'measurement_campaign_id': result['campaign_id']})
 
 
 def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
                       context, stock_context, sub, cache_root, compiler,
                       scratch_dir, log):
-    from .silo_policy_contrast import ContrastLedger
+    from .silo_policy_contrast import ContrastLedger, close_series_if_done
     raw = json.loads(Path(unit_path).read_text(encoding='utf-8'),
                      object_pairs_hook=_unique_pairs)
     ledger = ContrastLedger(raw['ledger_root'])
@@ -800,29 +841,7 @@ def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
         else:
             proposal, auditor = load_proposal_file(unit['proposal_path'], form=form)
     if unit['kind'] == 'score':
-        fixed = next((e for e in reversed(ledger.events)
-                      if e['kind'] == 'endpoint-fixed'), None)
-        if fixed is None:
-            raise ContrastUnitMismatch('score endpoint has not been fixed')
-        origin_slot = fixed.get('logical_slot') or fixed.get('slot')
-        if type(origin_slot) is not str:
-            raise ContrastUnitMismatch('fixed endpoint slot is missing')
-        source = next((e for e in ledger.events if e['kind'] == 'slot-result'
-                       and e.get('logical_slot') == origin_slot), None)
-        if source is None or type(source.get('implementation')) is not str:
-            raise ValueError('fixed endpoint source is unavailable')
-        proposal = Proposal(source['implementation'], source.get('ir'), '')
-        auditor = None
-        if origin_slot.startswith('eval-') and ledger.header['arm'] not in MACHINE_NAMES:
-            a = int(origin_slot.split('-')[1])
-            opportunity = next((e for e in ledger.events
-                if e['kind'] == 'opportunity-end' and e.get('a') == a
-                and e.get('outcome') == 'proposed'), None)
-            if opportunity is None:
-                raise ValueError('endpoint auditor provenance missing')
-            original, auditor = load_proposal_file(opportunity['proposal_path'], form=form)
-            if original.implementation != proposal.implementation:
-                raise ValueError('endpoint source differs from proposal')
+        proposal, auditor, origin_slot = _fixed_endpoint_proposal(ledger, form)
     results = []
     from . import loop
     with loop.authorization_session() as session:
@@ -855,20 +874,13 @@ def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
                                                    campaign_env=contract.env_tag))
     series_layout.ensure()
     if unit['kind'] == 'job1':
-        for ordinal, result in enumerate(results):
-            if result['logical_slot'].startswith('seed-'):
-                case = initial_proposal('0000' if ordinal == 1 else '0001')
-                if form == 'cpp':
-                    case = Proposal(case.implementation, None, '')
-                _append_history(series_layout, ordinal - 3, case, {
-                    'outcome': result['outcome'], 'variant': result['variant'],
-                    'logical_slot': result['logical_slot'],
-                    'measurement_campaign_id': result['campaign_id']})
+        _append_seed_history(series_layout, results, form)
     elif unit['kind'] == 'eval' and results:
         _append_history(series_layout, unit['index'], proposal, {
             'outcome': results[0]['outcome'], 'variant': results[0]['variant'],
             'logical_slot': results[0]['logical_slot'],
             'measurement_campaign_id': results[0]['campaign_id']})
+    close_series_if_done(ledger)
     return {'kind': unit['kind'], 'index': unit['index'], 'slots': results}
 
 
@@ -963,7 +975,8 @@ def main(argv=None):
                 arm=ledger.header['arm'], series=ledger.header['series'], form=args.form)
         else:
             proposal, auditor = load_proposal_file(proposal_path,
-                form=args.form, preview=bool(args.preview_diff or args.record_reject))
+                form=args.form, preview=bool(args.preview_diff or args.record_reject),
+                preview_auditor=ledger is not None)
     compiler = find_compiler() if not args.stock_baseline else None
     if not args.stock_baseline and compiler is None:
         raise RuntimeError('policy compiler unavailable')
@@ -990,7 +1003,7 @@ def main(argv=None):
         if args.preview_diff:
             from .patchharness import applied
             with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
-                result, diff = policy_gate(sub, proposal.implementation, None,
+                result, diff = policy_gate(sub, proposal.implementation, auditor,
                     compiler=compiler, scratch_dir=scratch, write=False)
             print(json.dumps({'passed': result.passed, 'working_diff': diff,
                 'diff_digest': compute_diff_digest(diff),
@@ -1000,12 +1013,11 @@ def main(argv=None):
             return 0 if result.passed else 1
         if args.record_reject:
             if ledger is not None:
-                from .silo_policy_contrast import next_unit
-                pending = next_unit(ledger)
-                a = pending['index'] if pending and pending['kind'] == 'eval' else 1 + sum(
-                    e['kind'] == 'opportunity-end' and e.get('outcome') != 'outage'
-                    for e in ledger.events)
-                out = drive_contrast_record_reject(cfg, default_perf(), proposal, sub,
+                from .silo_policy_contrast import open_opportunity
+                a = open_opportunity(ledger)
+                if a is None:
+                    raise ValueError('record-reject requires an open opportunity')
+                out = drive_contrast_record_reject(cfg, default_perf(), proposal, auditor, sub,
                     a=a, compiler=compiler, scratch_dir=scratch, layout=layout,
                     build_context=context)
             else:

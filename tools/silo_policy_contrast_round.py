@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from orchestrator.campaign.silo_policy_contrast import ContrastLedger
+from orchestrator.campaign.silo_policy_contrast import ContrastLedger, open_opportunity, next_opportunity
 
 DRIVER = (sys.executable, "-m", "orchestrator.campaign.p3_s4_loop_policy")
 HEADINGS = ("## attribution", "## recommend", "## avoid", "## uncertainty")
@@ -47,7 +47,9 @@ def _new_results(ledger):
 
 def _critic_prompt(ledger, rows, a):
     materials = [{"logical_slot": e["logical_slot"], "critic_digest": e.get("critic_digest"),
-                  "body": e.get("implementation", e.get("ir")), "outcome": e.get("outcome")}
+                  "body": e.get("implementation", e.get("ir")), "outcome": e.get("outcome"),
+                  "fitness_tps": e.get("fitness_tps"), "abort_rate_pct": e.get("abort_rate_pct"),
+                  "quality": e.get("quality")}
                  for e in rows]
     return (f"silo-function-policy 系列 {ledger.header['series']} の原提案 {a} の前に、"
             "新しい評価結果を診断してください。\n\n"
@@ -72,6 +74,11 @@ def prepare(ledger, a: int, out: Path, *, ledger_root: Path,
             critic_output: Path | None = None, run=subprocess.run):
     if ledger.header["arm"] not in {"llm-cpp", "llm-ir"}:
         raise ValueError("round tool requires an LLM arm")
+    current = open_opportunity(ledger)
+    if current is not None and current != a:
+        raise ValueError("another opportunity is open")
+    if current is None and next_opportunity(ledger) != a:
+        raise ValueError("unexpected opportunity number")
     starts = [e for e in _events(ledger, "opportunity-start") if e["a"] == a]
     if not starts:
         ledger.append("opportunity-start", a=a)
@@ -121,7 +128,8 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
         rejection = _call(ledger, ledger_root, "--record-reject", str((out / "coder.json").resolve()), run=run)
         if rejection.returncode:
             raise RuntimeError(rejection.stderr)
-        ledger.append("opportunity-end", a=a, outcome="rejected")
+        ledger.append("opportunity-end", a=a, outcome="rejected",
+                      reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
         return {"status": "rejected"}
     if preview.returncode:
         raise RuntimeError(preview.stderr)
@@ -146,17 +154,27 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
     return {"status": "auditor-needed", "prompt": str(out / "auditor-prompt.md")}
 
 
-def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path):
+def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
+             ledger_root: Path, run=subprocess.run):
     preview = json.loads((out / "preview.json").read_text())
     if not preview["passed"]:
         raise ValueError("preview rejected")
     aud = json.loads(auditor.read_text())
-    if aud.get("diff_digest") != preview["diff_digest"]:
-        raise ValueError("auditor digest mismatch")
     value = json.loads(coder.read_text())
     value = value["coder"] if set(value) == {"coder"} else value
     proposal = out / "proposal.json"
     _json(proposal, {"coder": value, "auditor": aud})
+    checked = _call(ledger, ledger_root, "--preview-diff", str(proposal.resolve()), run=run)
+    data = json.loads(checked.stdout)
+    if not data["passed"]:
+        rejection = _call(ledger, ledger_root, "--record-reject", str(proposal.resolve()), run=run)
+        if rejection.returncode:
+            raise RuntimeError(rejection.stderr)
+        ledger.append("opportunity-end", a=a, outcome="rejected",
+                      reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
+        return {"status": "rejected"}
+    if checked.returncode:
+        raise RuntimeError(checked.stderr)
     digest = hashlib.sha256(proposal.read_bytes()).hexdigest()
     ledger.append("opportunity-end", a=a, outcome="proposed",
                   proposal_path=str(proposal.resolve()), proposal_sha256=digest)
@@ -181,7 +199,8 @@ def main(argv=None):
     ledger = ContrastLedger(args.ledger)
     result = (prepare(ledger, args.a, args.out, ledger_root=args.ledger, critic_output=args.critic_output)
               if args.action == "prepare" else check(ledger, args.a, args.coder, args.out, ledger_root=args.ledger)
-              if args.action == "check" else finalize(ledger, args.a, args.coder, args.auditor, args.out))
+              if args.action == "check" else finalize(ledger, args.a, args.coder, args.auditor, args.out,
+                                                       ledger_root=args.ledger))
     print(json.dumps(result, ensure_ascii=False))
     return 0
 

@@ -78,17 +78,16 @@ def _grow(ty, hook, state, depth, draw, weights):
         return _leaf(ty, hook, state, draw, weights)
     ops = ['select']
     if ty == 'bool':
-        ops += ['compare-u32', 'compare-u64', 'compare-bool']
-        if hook == 'abort':
-            ops.append('compare-reason')
+        ops.append('compare')
     if ty in ('u32', 'u64'):
         ops += ['min', 'max', 'add', 'sub', 'shift']
     op = draw.choose(ops)
     child = lambda kind: _grow(kind, hook, state, depth + 1, draw, weights)
     if op == 'select':
         return Select(child('bool'), child(ty), child(ty))
-    if op.startswith('compare-'):
-        operand = op.split('-', 1)[1]
+    if op == 'compare':
+        operand = draw.choose(('u32', 'u64', 'bool', 'reason') if hook == 'abort'
+                              else ('u32', 'u64', 'bool'))
         comparisons = ('==', '!=') if operand in ('bool', 'reason') else ('==', '!=', '<', '<=', '>', '>=')
         return Compare(draw.choose(comparisons), child(operand), child(operand))
     if op == 'shift':

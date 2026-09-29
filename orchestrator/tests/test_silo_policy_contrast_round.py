@@ -3,22 +3,19 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from orchestrator.campaign.silo_policy_contrast import ContrastLedger, LEDGER_SCHEMA
+from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS
 from tools import silo_policy_contrast_round as R
 
 
 def _ledger(tmp_path):
     root = tmp_path / "ledger"
-    (root / "events").mkdir(parents=True)
-    (root / "header.json").write_text(json.dumps({"schema": LEDGER_SCHEMA,
+    ledger = ContrastLedger.create(root, {
         "version": "silo-policy-contrast-test-2026-09-29", "cohort": "test", "arm": "llm-cpp",
         "series": 1, "form": "cpp", "submit_checkout": str(tmp_path), "checkout_head": "test",
-        "pin": "test", "budgets": {"B": 10, "A": 30, "k": 2, "n_eval": 5,
-        "machine_retries": 2, "role_retries": 2}}))
-    (root / "events" / "000001-series-start.json").write_text(json.dumps({"kind": "series-start"}))
-    (root / "events" / "000002-slot-result.json").write_text(json.dumps({"kind": "slot-result",
-        "logical_slot": "stock-1", "outcome": "certified", "quality": "normal",
-        "fitness_tps": 10, "abort_rate_pct": 2, "variant": "stock"}))
+        "pin": "test", "budgets": DEFAULT_BUDGETS})
+    ledger.append("series-start")
+    ledger.append("slot-result", logical_slot="stock-1", outcome="certified", quality="normal",
+                  fitness_tps=10, abort_rate_pct=2, variant="stock")
     return root
 
 
@@ -28,6 +25,8 @@ def test_prepare_preserves_driver_stdout_and_critic_shape(tmp_path):
     out = tmp_path / "out"
     first = R.prepare(ledger, 1, out, ledger_root=root)
     assert first["status"] == "critic-needed"
+    prompt = (out / "critic-prompt.md").read_text()
+    assert all(key in prompt for key in ("fitness_tps", "abort_rate_pct", "quality", "outcome"))
     critic = out / "critic.md"
     critic.write_text("## attribution\na\n## recommend\nb\n## avoid\nc\n## uncertainty\nd\n")
     raw = '{"self_history":"literal\\nbytes"}\n'
@@ -58,3 +57,5 @@ def test_preview_reject_records_without_auditor(tmp_path):
     assert R.check(ledger, 1, coder, out, ledger_root=root, run=run)["status"] == "rejected"
     assert not (out / "auditor-prompt.md").exists()
     assert "--record-reject" in calls[1]
+    end = ContrastLedger(root).events[-1]
+    assert (end["reject_subtype"], end["reject_rule_id"]) == ("x", "x")

@@ -11,7 +11,7 @@ import statistics
 
 from .b5_generator_contrast_report import (exact_sign_flip_p, _holm, _cv, stock_cv_floor,
                                             decide_comparison, INDEPENDENCE)
-from .silo_policy_contrast import ContrastLedger, LEDGER_SCHEMA
+from .silo_policy_contrast import ContrastLedger, LEDGER_SCHEMA, series_state
 
 ARMS = ("llm-cpp", "llm-ir", "random-ir", "evo-ir")
 FAMILIES = {"A": (("llm-ir", "random-ir"), ("llm-ir", "evo-ir")),
@@ -67,13 +67,16 @@ def _reference(ledgers, disqualified):
 def _project(ledger, disqualified, stock_values, corrections):
     h = ledger.header
     rows = _events(ledger, "slot-result")
-    starts = _events(ledger, "slot-start")
     fixed = _events(ledger, "endpoint-fixed")
-    endpoint = fixed[-1].get("endpoint") if fixed else None
-    endpoint = endpoint if isinstance(endpoint, dict) else None
+    endpoint = fixed[-1] if fixed else None
     variant = endpoint.get("variant") if endpoint else None
     revoked = variant in disqualified if variant is not None else False
     score_rows = [e for e in rows if _slot_kind(e) == "score"]
+    if score_rows and (endpoint is None or any(
+            e.get("variant") != endpoint.get("variant") or
+            e.get("source_digest") != endpoint.get("source_digest")
+            for e in score_rows)):
+        raise ValueError("score identity differs from fixed endpoint")
     stock_rows = [e for e in rows if _slot_kind(e) == "stock"]
     stock_ok = len(stock_rows) == 1 and _normal(stock_rows[0]) and stock_rows[0].get("variant") not in disqualified
     end = _events(ledger, "series-end")
@@ -114,10 +117,18 @@ def _project(ledger, disqualified, stock_values, corrections):
                             "arm": h["arm"], "series": h["series"], "variant": variant})
     search = [e for e in rows if _slot_kind(e) == "eval" and _normal(e) and e.get("variant") not in disqualified]
     seed = [e for e in rows if _slot_kind(e) == "seed" and _normal(e) and e.get("variant") not in disqualified]
-    a_used = sum(e.get("outcome") in {"proposed", "rejected", "empty"} for e in _events(ledger, "opportunity-end"))
-    b_used = len({e["logical_slot"] for e in starts if _slot_kind(e) == "eval" and e.get("attempt") == 0})
+    state = series_state(ledger)
+    a_used, b_used = state["A"], state["B"]
+    rejects = [e for e in _events(ledger, "opportunity-end") if e.get("outcome") == "rejected"]
+    reject_breakdown = {}
+    reject_rule_breakdown = {}
+    for event in rejects:
+        key = event.get("reject_subtype") or "unspecified"
+        reject_breakdown[key] = reject_breakdown.get(key, 0) + 1
+        rule = event.get("reject_rule_id") or "unspecified"
+        reject_rule_breakdown[rule] = reject_rule_breakdown.get(rule, 0) + 1
     return {"arm": h["arm"], "series": h["series"], "A": a_used, "B": b_used,
-            "end_reason": reason, "unfinished": reason not in {"b-complete", "a-exhausted"},
+            "end_reason": reason, "unfinished": bool(state["unfinished_slots"]) or reason not in {"b-complete", "a-exhausted"},
             "endpoint": endpoint, "endpoint_revoked": revoked,
             "certified_endpoint": bool(endpoint and not revoked),
             "search_point": bool(search), "endpoint_from_seed": bool(endpoint and _slot_kind(endpoint) == "seed"),
@@ -126,7 +137,8 @@ def _project(ledger, disqualified, stock_values, corrections):
             "score_sessions": sessions, "endpoint_cv": _cv(sessions) if sessions and not fallback and missing is None else None,
             "fallback": bool(fallback), "missing": missing,
             "anomaly_count": sum(e.get("outcome") == "anomaly" or bool(e.get("anomalies")) for e in rows),
-            "reject_count": sum(e.get("outcome") == "rejected" for e in _events(ledger, "opportunity-end")),
+            "reject_count": len(rejects), "reject_breakdown": reject_breakdown,
+            "reject_rule_breakdown": reject_rule_breakdown,
             "outages": [e for e in _events(ledger, "opportunity-end") if e.get("outcome") == "outage"],
             "unique_variants": len({e.get("variant") for e in rows if e.get("variant") is not None})}
 
@@ -201,6 +213,11 @@ def build_report(roots, *, n: int | None = None):
     fixed_values = [v for batch in (1, 2, 3) for v in fixed10.get(batch, [])]
     fixed_median = statistics.median(fixed_values) if len(fixed_values) == 15 else None
     descriptive = {arm: {"scores": [s["score"] for s in rows],
+                         "A_used": sum(s["A"] for s in rows),
+                         "reject_breakdown": {key: sum(s["reject_breakdown"].get(key, 0) for s in rows)
+                                              for key in sorted({k for s in rows for k in s["reject_breakdown"]})},
+                         "reject_rule_breakdown": {key: sum(s["reject_rule_breakdown"].get(key, 0) for s in rows)
+                                                   for key in sorted({k for s in rows for k in s["reject_rule_breakdown"]})},
                          "fallback_count": sum(s["fallback"] for s in rows),
                          "missing_count": sum(s["missing"] is not None for s in rows),
                          "seed_endpoint_count": sum(s["endpoint_from_seed"] for s in rows),
