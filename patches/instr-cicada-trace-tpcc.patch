@@ -1,0 +1,76 @@
+diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -272,26 +272,49 @@
+     const uint64_t txid = izanagi_trace::next_txid();
+     const std::size_t thid = static_cast<std::size_t>(thid_);
+     const uint64_t wts = wts_.ts_;
++    const auto tx_type = izanagi_trace::tpcc_tx_type();
++    if (tx_type != 0) {
++      izanagi_trace::emit_commit_v3(thid, txid, wts >> 32,
++          wts & 0xffffffffULL, read_set_.size(), write_set_.size(), 0, 0,
++          tx_type);
++    } else {
+     izanagi_trace::stream(thid) << "C " << txid << ' ' << thid << ' '
+         << (wts >> 32) << ' ' << (wts & 0xffffffffULL) << ' '
+         << read_set_.size() << ' ' << write_set_.size() << '\n';
++    }
+     for (const auto& re : read_set_) {
+       if (re.trace_read_wts_ != re.ver_->ldAcqWts())
+         cicada_trace::read_wts_mismatch.fetch_add(1, std::memory_order_relaxed);
+       const uint64_t seen = re.trace_read_wts_;
+       const bool genesis =
+           seen == cicada_trace::initial_wts.load(std::memory_order_acquire);
+-      izanagi_trace::emit_read(thid, txid, izanagi_trace::key_to_hex(re.key_),
+-                              genesis ? 1 : (seen >> 32),
+-                              genesis ? 0 : (seen & 0xffffffffULL));
++      if (tx_type != 0) {
++        izanagi_trace::emit_read_v3(thid, txid,
++            static_cast<std::uint32_t>(re.storage_),
++            izanagi_trace::key_to_hex(re.key_),
++            genesis ? 1 : (seen >> 32),
++            genesis ? 0 : (seen & 0xffffffffULL));
++      } else {
++        izanagi_trace::emit_read(thid, txid, izanagi_trace::key_to_hex(re.key_),
++                                genesis ? 1 : (seen >> 32),
++                                genesis ? 0 : (seen & 0xffffffffULL));
++      }
+     }
+     for (const auto& we : write_set_) {
+       const char op = we.op_ == OpType::INSERT ? 'I' :
+                       we.op_ == OpType::DELETE ? 'D' : 'U';
+-      izanagi_trace::emit_write(thid, txid, izanagi_trace::key_to_hex(we.key_),
+-                                op, wts >> 32, wts & 0xffffffffULL);
++      if (tx_type != 0) {
++        izanagi_trace::emit_write_v3(thid, txid,
++            static_cast<std::uint32_t>(we.storage_),
++            izanagi_trace::key_to_hex(we.key_), op, wts >> 32,
++            wts & 0xffffffffULL);
++      } else {
++        izanagi_trace::emit_write(thid, txid, izanagi_trace::key_to_hex(we.key_),
++                                  op, wts >> 32, wts & 0xffffffffULL);
++      }
+     }
+     izanagi_trace::stream(thid) << "E " << txid << '\n';
++    izanagi_trace::clear_tpcc_tx_type();
+   }
+ #else
+ #line 246
+diff --git a/cc/cicada/tpcc_cicada.cc b/cc/cicada/tpcc_cicada.cc
+--- a/cc/cicada/tpcc_cicada.cc
++++ b/cc/cicada/tpcc_cicada.cc
+@@ -28,6 +28,14 @@
+   TPCCWorkload<Tuple, TupleInitParam>::displayWorkloadParameter();
+   TupleInitParam* param = new TupleInitParam();
+   TPCCWorkload<Tuple, TupleInitParam>::makeDB(param);
++#if TRACE
++  cicada_trace::initial_wts.store(param->initial_wts, std::memory_order_release);
++  cicada_trace::initial_wts_set.store(true, std::memory_order_release);
++  std::cerr << "CICADA_TRACE_INITIAL_WTS=" << param->initial_wts << '\n';
++  std::atexit(cicada_trace::report);
++#else
++#line 30
++#endif
+   MinWts.store(param->initial_wts + 2, memory_order_release);
+ 
+   initResult(TotalThreadNum);

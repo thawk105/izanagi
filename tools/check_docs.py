@@ -283,7 +283,9 @@ class TextLimit:
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
-    ".claude/commands/cleanup-branches.md": TextLimit(7_058, 110),
+    # 2026-09-29 の個別裁定による最小幅引き上げ (§5 の push 失敗時 1 行、
+    # D730 の 3 例例外ではない)。
+    ".claude/commands/cleanup-branches.md": TextLimit(7_437, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
     ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
@@ -628,10 +630,11 @@ inventory test 4 群（`test_campaign.py` の certified-writer caller inventory�
 """
 DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 
-land 成功後、段 9 に main worktree から job 終端後 `python3 tools/dev_wave_cleanup.py` で撤去(絶対 path、`--main-worktree <MAIN>` は両方に付ける)。
-先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、他へ引き渡さない。
-tool は非占有・main 祖先性(子木は所有 path の tree 一致でも可)・dirty 退避可否・manifest 束縛を検査。撤去前の不成立・不明は拒否し木と branch を残す(以後は rc=30)。統合証明済みの manifest 現行 branch は履歴を `<D>` へ bundle 後(HEAD が main 祖先なら省く)に `-D`。
-F26: `git worktree remove`/`git submodule deinit` 不可。wave branch は `-d` のみ、手打ち `-D` 禁止。残る子木は unlock し理由を worklog へ。
+land成功・job終端後main worktreeから`python3 tools/dev_wave_cleanup.py`で撤去(絶対path、`--main-worktree <MAIN>`は両方に)。
+撤去はrepo全体で1本ずつ(並列はLustre過負荷)、rc=75は数分後再試行。
+先にmanifest(`DW-S05-A`)の子木を`remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>`で(回収waveは旧分も)、次にwaveを`--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`で撤去、他へ引き渡さない。
+toolは非占有・main祖先性(子木は所有pathのtree一致も可)・dirty退避可否・manifest束縛を検査。撤去前の不成立・不明は拒否し木とbranchを残す(以後rc=30)。統合証明済manifest現行branchは履歴を`<D>`へbundle後(HEADがmain祖先なら省く)に`-D`。
+F26:`git worktree remove`/`git submodule deinit`不可。wave branchは`-d`のみ、手打ち`-D`禁止。残る子木はunlockし理由をworklogへ。
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
 
@@ -786,7 +789,7 @@ CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "3d675f09e6eea7eb6647e0be78f4843fecd6407662cbbe4e849844f559955c2b"
+    "e777a6f489e8ec53d306effbb73dc9c13a2c8b7c66ec066f5eeb5e049d0eb5dc"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (

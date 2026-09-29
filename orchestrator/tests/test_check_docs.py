@@ -188,10 +188,11 @@ inventory test 4 群（`test_campaign.py` の certified-writer caller inventory�
 """
 _SYNTHETIC_DW_O28_SECTION = """## DW-O28 — land 後の自己撤去
 
-land 成功後、段 9 に main worktree から job 終端後 `python3 tools/dev_wave_cleanup.py` で撤去(絶対 path、`--main-worktree <MAIN>` は両方に付ける)。
-先に manifest(`DW-S05-A`)の子木を `remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>` で(回収 wave は旧分も)、次に wave を `--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>` で撤去し、他へ引き渡さない。
-tool は非占有・main 祖先性(子木は所有 path の tree 一致でも可)・dirty 退避可否・manifest 束縛を検査。撤去前の不成立・不明は拒否し木と branch を残す(以後は rc=30)。統合証明済みの manifest 現行 branch は履歴を `<D>` へ bundle 後(HEAD が main 祖先なら省く)に `-D`。
-F26: `git worktree remove`/`git submodule deinit` 不可。wave branch は `-d` のみ、手打ち `-D` 禁止。残る子木は unlock し理由を worklog へ。
+land成功・job終端後main worktreeから`python3 tools/dev_wave_cleanup.py`で撤去(絶対path、`--main-worktree <MAIN>`は両方に)。
+撤去はrepo全体で1本ずつ(並列はLustre過負荷)、rc=75は数分後再試行。
+先にmanifest(`DW-S05-A`)の子木を`remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>`で(回収waveは旧分も)、次にwaveを`--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`で撤去、他へ引き渡さない。
+toolは非占有・main祖先性(子木は所有pathのtree一致も可)・dirty退避可否・manifest束縛を検査。撤去前の不成立・不明は拒否し木とbranchを残す(以後rc=30)。統合証明済manifest現行branchは履歴を`<D>`へbundle後(HEADがmain祖先なら省く)に`-D`。
+F26:`git worktree remove`/`git submodule deinit`不可。wave branchは`-d`のみ、手打ち`-D`禁止。残る子木はunlockし理由をworklogへ。
 """
 _SYNTHETIC_DW_C01_SECTION = """## DW-C01 — 実測で是正した作法
 
@@ -577,7 +578,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "3d675f09e6eea7eb6647e0be78f4843fecd6407662cbbe4e849844f559955c2b"
+    "e777a6f489e8ec53d306effbb73dc9c13a2c8b7c66ec066f5eeb5e049d0eb5dc"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -713,10 +714,13 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-remote branch 削除と main の push は行わず、対象をユーザーへ列挙。
-削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
-`-D` した branch は bundle の path・sha256・verify 結果と rescue JSON の path を示し、損失 commit の
-台帳転記を別 dev-wave へ引き渡す。
+remote branch 削除・main の push はせず対象を列挙。未削除 branch は理由 (ahead>0/dirty 等)・閉包・判定・
+救出期限、worktree は理由を報告。`-D` した branch は bundle の path・sha256・verify 結果と rescue JSON の
+path を示し、損失 commit の台帳転記を別 dev-wave へ引き渡す。
+push が毎回別 object の `loose object <sha> ... is corrupt` で落ち、名指し object が正常なら Lustre 読込失敗の疑い。
+修復・fsck 前に primary の main checkout で送る範囲だけ pack 化してから再 push:
+`printf 'main\\n^origin/main\\n' | git pack-objects --revs -q .git/objects/pack/pack`。
+元の object は消さない (D1115 と非衝突)。全体 repack は 10 分超で不要。
 
 ## 6. 自己改善候補の終端
 
@@ -9496,7 +9500,7 @@ def test_normative_exact_section_contract_is_handwritten_and_complete():
     assert len(_SYNTHETIC_DW_O18_SECTION.encode("utf-8")) == 995
     assert len(_SYNTHETIC_DW_O25_SECTION.encode("utf-8")) == 648
     assert len(_SYNTHETIC_DW_O26_SECTION.encode("utf-8")) == 998
-    assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 994
+    assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 997
     assert len(_SYNTHETIC_DW_C01_SECTION.encode("utf-8")) == 994
     assert len("- Web検索は必要な段だけ明示して使う。\n".encode("utf-8")) == 54
     assert check_docs.DEV_WAVE_EXACT_VISIBLE_SECTIONS == {
@@ -9693,7 +9697,7 @@ def test_dw_o28_exact_section_pin_accepts_synthetic_fixture():
     try:
         operations = _read(root, "docs/dev-wave/operations.md")
         assert operations.count(_SYNTHETIC_DW_O28_SECTION) == 1
-        assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 994
+        assert len(_SYNTHETIC_DW_O28_SECTION.encode("utf-8")) == 997
         result = _run_check(root)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "違反なし" in result.stdout
@@ -9955,22 +9959,22 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
-    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_058, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 7_055
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_437, 110)
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 7_434
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 7_055
+        assert len(original.encode("utf-8")) == 7_434
         oversized = original + "\n" + "x" * 3
-        assert len(oversized.encode("utf-8")) == 7_059
+        assert len(oversized.encode("utf-8")) == 7_438
         _write(root, rel, oversized)
 
         res = _run_check(root)
 
         assert res.returncode == 1, res.stdout
         assert (
-            f"{rel}: 7059 bytes > 予算 7058 bytes" in res.stdout
+            f"{rel}: 7438 bytes > 予算 7437 bytes" in res.stdout
         ), res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)

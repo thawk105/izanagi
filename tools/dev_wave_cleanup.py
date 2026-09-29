@@ -17,6 +17,7 @@ remove-child は統合証明済みの子 branch を専用経路の -D で削除�
 が担う。Git object は延命しない。撤去開始後の失敗は rc=30。
 HEAD が main の祖先なら履歴は main にあるため bundle は作らない。
 detached 子は bundle を作らず、木の撤去で reflog は失われる (現行どおり)。
+撤去は repo 全体で同時 1 本。使用中は待たず rc=75 で即戻る。
 
 remove-child の argv は次の4組 (path は絶対):
 --main-worktree <MAIN> --manifest <MANIFEST>
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import json
 import io
+import errno
 import tarfile
 import secrets
 import hashlib
@@ -50,6 +52,7 @@ RC_REJECTED = 20
 RC_OCCUPIED = 21
 RC_OCCUPANCY_INDETERMINATE = 22
 RC_PARTIAL = 30
+RC_BUSY = 75
 
 _REPO = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
@@ -360,6 +363,20 @@ def _git_path(cwd: Path, *args: str, must_exist: bool = True) -> Path:
     if must_exist:
         return path.resolve(strict=True)
     return path.parent.resolve(strict=True) / path.name
+
+
+def _lock_removal(common: Path, stack: ExitStack) -> None:
+    fd = os.open(common, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    stack.callback(os.close, fd)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as exc:
+        if exc.errno not in {errno.EWOULDBLOCK, errno.EAGAIN}:
+            raise
+        raise CleanupFailure(
+            RC_BUSY, "busy", "removal-lock",
+            "another worktree removal holds the repository lock; retry in a few minutes",
+        ) from exc
 
 
 def _parse_worktree_records(raw: bytes) -> list[WorktreeRecord]:
@@ -1162,6 +1179,7 @@ def _preflight(
         raise _usage("branch normalization changed input")
 
     common = _git_path(args.main_worktree, "rev-parse", "--git-common-dir")
+    _lock_removal(common, stack)
     main_gitdir = _git_path(args.main_worktree, "rev-parse", "--git-dir")
     if main_gitdir != common:
         raise ValueError("main-worktree is not the primary checkout")
@@ -1796,6 +1814,7 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
     phase = "manifest"
     try:
         common = _git_path(args.main, "rev-parse", "--git-common-dir")
+        _lock_removal(common, stack)
         records = _worktree_records(args.main)
         wave, entry = _child_manifest(args, records, common)
         phase = "evidence"

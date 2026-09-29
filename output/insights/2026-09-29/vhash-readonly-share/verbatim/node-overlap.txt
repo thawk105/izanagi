@@ -1,0 +1,10 @@
+mine m0.log 35820.nqsv bnode051 18:31:41-18:36:24
+mine m1.log 35818.nqsv bnode148 18:30:46-18:35:27
+   same node md_14 meas-w1k-s0.log 35808.nqsv 18:23:36-18:30:29 overlap=False
+mine m2.log 35819.nqsv bnode037 18:38:48-18:43:31
+mine m3.log 35821.nqsv bnode074 18:32:07-18:38:19
+mine smoke0.log 35602.nqsv bnode035 17:25:27-17:27:13
+   same node md_14 meas-w1k-s09.log 35811.nqsv 18:29:08-18:36:07 overlap=False
+   same node md_14 smoke2.log 35597.nqsv 16:57:42-16:58:14 overlap=False
+mine smoke1.log 35800.nqsv bnode011 18:24:19-18:26:05
+   same node md_14 meas-w10k-s09.log 35810.nqsv 18:26:22-18:33:19 overlap=False
