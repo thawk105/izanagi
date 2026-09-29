@@ -45,6 +45,9 @@ def test_mocc_backoff_fixed_uses_mocc_owner_and_target():
     assert G._validate_define_request(silo)[0] == G.DEFINE_SPECS["BACKOFF_FIXED"]
     assert G._validate_define_request(mocc)[0].owner_tus == G._MOCC_OWNER
 _COMPILE_TIME_BRANCH_MACROS = (
+    "IZANAGI_CICADA_RO_GCFLAG",
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT",
+    "IZANAGI_CICADA_ROGC_WORKLOAD",
     "IZANAGI_CICADA_VLIFE",
     "IZANAGI_CICADA_LONGTX",
     "SILO_POLICY_VARIANT",
@@ -185,6 +188,15 @@ _NEW_BRANCH_EXPECTATIONS = {
     ),
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": (
         "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION", 5, 0,
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG", 1, 0,
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG_COUNT", 3, 0,
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 9, 0,
     ),
     "CICADA_FWD_ENABLE": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE", 11, 0,
@@ -3528,6 +3540,8 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
+        "IZANAGI_CICADA_RO_GCFLAG", "IZANAGI_CICADA_RO_GCFLAG_COUNT",
+        "IZANAGI_CICADA_ROGC_WORKLOAD",
         "IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
         "SILO_POLICY_VARIANT", "IZANAGI_SILO_POLICY_PROBE", "IZANAGI_BREAK_SILO_POLICY",
         "MOCC_TEMP_PREDICATE",
@@ -3594,6 +3608,21 @@ def test_v1_domain_and_claim_boundaries_are_exact():
             "patches/" + patch,
         )
     for macro, owner, companion in (
+        ("IZANAGI_CICADA_RO_GCFLAG", "cc/cicada/transaction.cc", ()),
+        ("IZANAGI_CICADA_RO_GCFLAG_COUNT", "cc/cicada/transaction.cc",
+         (("IZANAGI_CICADA_RO_GCFLAG", "1"),)),
+    ):
+        assert G.DEFINE_SPECS[macro] == G.DefineSpec(
+            G.ROUTE_CMAKE_CXX_FLAGS, (owner,), "ycsb_cicada.exe",
+            "patches/cicada-ro-gcflag-variant.patch",
+            companion_defines=companion, inert_values=("0",),
+        )
+    assert G.DEFINE_SPECS["IZANAGI_CICADA_ROGC_WORKLOAD"] == G.DefineSpec(
+        G.ROUTE_CMAKE_CXX_FLAGS, ("cc/cicada/ycsb_cicada.cc",),
+        "ycsb_cicada.exe", "patches/cicada-ro-gcflag-workload.patch",
+        inert_values=("0",),
+    )
+    for macro, owner, companion in (
         ("CICADA_FWD_ENABLE", "cc/cicada/transaction.cc", ()),
         ("CICADA_FWD_COUNT", "cc/cicada/transaction.cc", (("CICADA_FWD_ENABLE", "1"),)),
         ("CICADA_LONGTX", "cc/cicada/ycsb_cicada.cc", ()),
@@ -3619,8 +3648,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 51
-    assert len(G.MEANING_SUPPORTED_MACROS) == 52
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 54
+    assert len(G.MEANING_SUPPORTED_MACROS) == 55
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3831,7 +3860,7 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 
 def test_module_claim_names_the_exact_69_define_supply_domain() -> None:
-    assert "supply domain contains the 69 patch-derived defines" in G.__doc__
+    assert "supply domain contains the 72 patch-derived defines" in G.__doc__
     assert (
         "Fifty-one\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__

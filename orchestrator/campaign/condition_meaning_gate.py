@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 69 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Fifty-one
+Claim boundary: the supply domain contains the 72 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Fifty-four
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -80,6 +80,19 @@ _SI_OWNER = ("cc/si/transaction.cc",)
 _CICADA_OWNER = ("cc/cicada/transaction.cc",)
 _CICADA_YCSB_OWNER = ("cc/cicada/ycsb_cicada.cc",)
 _DEFINE_SPECS = {
+    "IZANAGI_CICADA_RO_GCFLAG": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ro-gcflag-variant.patch", inert_values=("0",),
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ro-gcflag-variant.patch",
+        companion_defines=(("IZANAGI_CICADA_RO_GCFLAG", "1"),), inert_values=("0",),
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ro-gcflag-workload.patch", inert_values=("0",),
+    ),
     "IZANAGI_CICADA_VLIFE": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
         "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
@@ -446,6 +459,15 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": (
         "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
     ),
+    "IZANAGI_CICADA_RO_GCFLAG": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG",
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG_COUNT",
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD",
+    ),
     "CICADA_FWD_ENABLE": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE",
     ),
@@ -573,6 +595,9 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": 9,
     "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS": 7,
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": 5,
+    "IZANAGI_CICADA_RO_GCFLAG": 1,
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": 3,
+    "IZANAGI_CICADA_ROGC_WORKLOAD": 2,
     "CICADA_FWD_ENABLE": 11,
     "CICADA_FWD_COUNT": 4,
     "CICADA_LONGTX": 4,
@@ -581,6 +606,9 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "CICADA_GC_COUNT": 7,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        ("include/ycsb.hh", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 7),
+    ),
     "IZANAGI_CICADA_VLIFE": (
         ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 9),
     ),

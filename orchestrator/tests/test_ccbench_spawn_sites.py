@@ -78,6 +78,9 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    ("campaign/vhash_ro_gc_publish.py", "<module>._checked"): 1,
+    ("campaign/vhash_ro_gc_publish.py", "<module>._run"): 1,
+    ("campaign/vhash_ro_gc_publish.py", "<module>._verify"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._checked"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._delay_compile"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._calibrate"): 1,
@@ -3588,10 +3591,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 65,
+        "proven-unreachable": 68,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 69})
+    assert classifications[s8b_sink] == Counter({"covered": 72})
     assert failures == []
 
 
