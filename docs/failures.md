@@ -10203,6 +10203,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「同一 worktree の dispatch は全種直列」を 1 文で足した (入口と重複していた読み込み契約の 1 文を削って予算内に収めた)。
 
 - **再発: 2026-09-19** — T-2724/T-2776の修復後受入tip `2027fd428`、8967.nqsv/bnode074/gw17で `test_sigterm_ignoring_child_is_killed` のcommunicateが10秒TimeoutExpiredとなりreceiptは未発行。全体は25251 passed /69 skipped /1 failed、当該launcher/test sourceは未変更。同tipの正規runner単独node走（既存設定NPROC=1）は1 passed/70.36秒。負荷の個別因果は未分離とし、検査・timeout・holdを変えず、既存の並列度設定16による全受入再走へ進む。一次資料は回収jobのacceptance-2.child.log、acceptance-2-shards、launcher-single.logと同insight README。
+
+- **再発: 2026-09-29** — VHash GC 接続の小モデル wave (dev-wave-vhash-gc-connection) で、親が fix3 の commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と、新 test file の所要計測の run_tests dispatch を同一 worktree からほぼ同時に投入し、監査の qsub 中の pending orphan hold (`phase: pending-qsub`) を所要計測が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。監査は request 34686.nqsv で走り切り rc=0、hold は監査の終端で自然に解除、所要計測は単独の再投入で 28 passed。qdel も hold の手動削除もしていない。既存恒久対応に修正すべき新事実はない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
