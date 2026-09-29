@@ -1,0 +1,249 @@
+Ubuntu clang-format version 14.0.6
+format files=213
+cc/mocc/transaction.cc:28:52: error: code should be clang-formatted [-Wclang-format-violations]
+constexpr std::uint64_t izanagi_mocc_g2_txid_mask =
+                                                   ^
+cc/mocc/transaction.cc:30:47: error: code should be clang-formatted [-Wclang-format-violations]
+constexpr const char* izanagi_mocc_g2_marker =
+                                              ^
+cc/mocc/transaction.cc:91:40: error: code should be clang-formatted [-Wclang-format-violations]
+  witness << "L " << reader_txid << ' '
+                                       ^
+cc/mocc/transaction.cc:92:50: error: code should be clang-formatted [-Wclang-format-violations]
+          << izanagi_trace::key_to_hex(read.key_) << ' ' << version.epoch << ' '
+                                                 ^
+cc/mocc/transaction.cc:92:81: error: code should be clang-formatted [-Wclang-format-violations]
+          << izanagi_trace::key_to_hex(read.key_) << ' ' << version.epoch << ' '
+                                                                                ^
+cc/mocc/transaction.cc:109:36: error: code should be clang-formatted [-Wclang-format-violations]
+      << "S " << writer_txid << ' '
+                                   ^
+cc/mocc/transaction.cc:110:47: error: code should be clang-formatted [-Wclang-format-violations]
+      << izanagi_trace::key_to_hex(write.key_) << ' ' << version.epoch << ' '
+                                              ^
+cc/mocc/transaction.cc:110:78: error: code should be clang-formatted [-Wclang-format-violations]
+      << izanagi_trace::key_to_hex(write.key_) << ' ' << version.epoch << ' '
+                                                                             ^
+cc/mocc/transaction.cc:111:47: error: code should be clang-formatted [-Wclang-format-violations]
+      << version.tid << ' ' << stored_producer << '\n';
+                                              ^
+cc/mocc/transaction.cc:1163:35: error: code should be clang-formatted [-Wclang-format-violations]
+    izanagi_trace::emit_commit_v3(
+                                  ^
+cc/mocc/transaction.cc:1164:55: error: code should be clang-formatted [-Wclang-format-violations]
+        thid_, izanagi_txid, maxtid.epoch, maxtid.tid,
+                                                      ^
+cc/mocc/transaction.cc:1165:51: error: code should be clang-formatted [-Wclang-format-violations]
+        read_set_.size(), write_set_.size(), 0, 0, izanagi_tx_type);
+                                                  ^
+cc/mocc/transaction.cc:1167:33: error: code should be clang-formatted [-Wclang-format-violations]
+    izanagi_trace::stream(thid_) << "C " << izanagi_txid << ' ' << thid_ << ' '
+                                ^
+cc/mocc/transaction.cc:1167:80: error: code should be clang-formatted [-Wclang-format-violations]
+    izanagi_trace::stream(thid_) << "C " << izanagi_txid << ' ' << thid_ << ' '
+                                                                               ^
+cc/mocc/transaction.cc:1168:54: error: code should be clang-formatted [-Wclang-format-violations]
+                               << maxtid.epoch << ' ' << maxtid.tid << ' '
+                                                     ^
+cc/mocc/transaction.cc:1168:75: error: code should be clang-formatted [-Wclang-format-violations]
+                               << maxtid.epoch << ' ' << maxtid.tid << ' '
+                                                                          ^
+cc/mocc/transaction.cc:1169:79: error: code should be clang-formatted [-Wclang-format-violations]
+                               << read_set_.size() << ' ' << write_set_.size()
+                                                                              ^
+cc/mocc/transaction.cc:1176:35: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_read_v3(
+                                  ^
+cc/mocc/transaction.cc:1177:57: error: code should be clang-formatted [-Wclang-format-violations]
+          thid_, izanagi_txid, get_storage(re.storage_),
+                                                        ^
+cc/mocc/transaction.cc:1178:55: error: code should be clang-formatted [-Wclang-format-violations]
+          izanagi_trace::key_to_hex(re.key_), v.epoch, v.tid);
+                                                      ^
+cc/mocc/transaction.cc:1180:32: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_read(
+                               ^
+cc/mocc/transaction.cc:1181:29: error: code should be clang-formatted [-Wclang-format-violations]
+        thid_, izanagi_txid, izanagi_trace::key_to_hex(re.key_), v.epoch, v.tid);
+                            ^
+cc/mocc/transaction.cc:1181:74: error: code should be clang-formatted [-Wclang-format-violations]
+        thid_, izanagi_txid, izanagi_trace::key_to_hex(re.key_), v.epoch, v.tid);
+                                                                         ^
+cc/mocc/transaction.cc:1196:33: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_write(
+                                ^
+cc/mocc/transaction.cc:1197:29: error: code should be clang-formatted [-Wclang-format-violations]
+        thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_), op,
+                            ^
+cc/mocc/transaction.cc:1197:69: error: code should be clang-formatted [-Wclang-format-violations]
+        thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_), op,
+                                                                    ^
+cc/mocc/transaction.cc:1219:44: error: code should be clang-formatted [-Wclang-format-violations]
+        izanagi_trace::emit_lock_violation(
+                                           ^
+cc/mocc/transaction.cc:1220:31: error: code should be clang-formatted [-Wclang-format-violations]
+          thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_),
+                              ^
+cc/mocc/transaction.cc:1220:67: error: code should be clang-formatted [-Wclang-format-violations]
+          thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_),
+                                                                  ^
+cc/mocc/transaction.cc:1244:48: error: code should be clang-formatted [-Wclang-format-violations]
+            izanagi_trace::emit_lock_violation(
+                                               ^
+cc/mocc/transaction.cc:1245:75: error: code should be clang-formatted [-Wclang-format-violations]
+              thid_, izanagi_txid, izanagi_trace::key_to_hex((*itr).key_),
+                                                                          ^
+cc/mocc/transaction.cc:1277:48: error: code should be clang-formatted [-Wclang-format-violations]
+            izanagi_trace::emit_lock_violation(
+                                               ^
+cc/mocc/transaction.cc:1278:75: error: code should be clang-formatted [-Wclang-format-violations]
+              thid_, izanagi_txid, izanagi_trace::key_to_hex((*itr).key_),
+                                                                          ^
+cc/mocc/transaction.cc:1298:52: error: code should be clang-formatted [-Wclang-format-violations]
+            izanagi_trace::key_to_hex((*itr).key_),
+                                                   ^
+cc/mocc/transaction.cc:1301:44: error: code should be clang-formatted [-Wclang-format-violations]
+        izanagi_trace::emit_lock_violation(
+                                           ^
+cc/mocc/transaction.cc:1302:71: error: code should be clang-formatted [-Wclang-format-violations]
+          thid_, izanagi_txid, izanagi_trace::key_to_hex((*itr).key_),
+                                                                      ^
+cc/silo/transaction.cc:363:18: error: code should be clang-formatted [-Wclang-format-violations]
+  izanagi_trace::clear_shadow();  // abort/retry exit -> reset coverage shadow (D38, 裁定7)
+cc/silo/transaction.cc:363:33: error: code should be clang-formatted [-Wclang-format-violations]
+  izanagi_trace::clear_shadow();  // abort/retry exit -> reset coverage shadow (D38, 裁定7)
+cc/silo/transaction.cc:379:18: error: code should be clang-formatted [-Wclang-format-violations]
+  izanagi_trace::clear_shadow();  // partial unlock (retry/abort) -> reset shadow (D38, 裁定7)
+cc/silo/transaction.cc:379:33: error: code should be clang-formatted [-Wclang-format-violations]
+  izanagi_trace::clear_shadow();  // partial unlock (retry/abort) -> reset shadow (D38, 裁定7)
+cc/silo/transaction.cc:604:35: error: code should be clang-formatted [-Wclang-format-violations]
+    izanagi_trace::emit_commit_v3(
+                                  ^
+cc/silo/transaction.cc:605:55: error: code should be clang-formatted [-Wclang-format-violations]
+        thid_, izanagi_txid, maxtid.epoch, maxtid.tid,
+                                                      ^
+cc/silo/transaction.cc:606:51: error: code should be clang-formatted [-Wclang-format-violations]
+        read_set_.size(), write_set_.size(), 0, 0, izanagi_tx_type);
+                                                  ^
+cc/silo/transaction.cc:608:33: error: code should be clang-formatted [-Wclang-format-violations]
+    izanagi_trace::stream(thid_) << "C " << izanagi_txid << ' ' << thid_ << ' '
+                                ^
+cc/silo/transaction.cc:608:80: error: code should be clang-formatted [-Wclang-format-violations]
+    izanagi_trace::stream(thid_) << "C " << izanagi_txid << ' ' << thid_ << ' '
+                                                                               ^
+cc/silo/transaction.cc:609:56: error: code should be clang-formatted [-Wclang-format-violations]
+                                 << maxtid.epoch << ' ' << maxtid.tid << ' '
+                                                       ^
+cc/silo/transaction.cc:609:77: error: code should be clang-formatted [-Wclang-format-violations]
+                                 << maxtid.epoch << ' ' << maxtid.tid << ' '
+                                                                            ^
+cc/silo/transaction.cc:610:81: error: code should be clang-formatted [-Wclang-format-violations]
+                                 << read_set_.size() << ' ' << write_set_.size()
+                                                                                ^
+cc/silo/transaction.cc:616:35: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_read_v3(
+                                  ^
+cc/silo/transaction.cc:617:57: error: code should be clang-formatted [-Wclang-format-violations]
+          thid_, izanagi_txid, get_storage(re.storage_),
+                                                        ^
+cc/silo/transaction.cc:618:55: error: code should be clang-formatted [-Wclang-format-violations]
+          izanagi_trace::key_to_hex(re.key_), v.epoch, v.tid);
+                                                      ^
+cc/silo/transaction.cc:620:52: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_read(thid_, izanagi_txid, izanagi_trace::key_to_hex(re.key_),
+                                                   ^
+cc/silo/transaction.cc:620:88: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_read(thid_, izanagi_txid, izanagi_trace::key_to_hex(re.key_),
+                                                                                       ^
+cc/silo/transaction.cc:621:40: error: code should be clang-formatted [-Wclang-format-violations]
+                               v.epoch, v.tid);
+                                       ^
+cc/silo/transaction.cc:633:53: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_write(thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_),
+                                                    ^
+cc/silo/transaction.cc:633:89: error: code should be clang-formatted [-Wclang-format-violations]
+      izanagi_trace::emit_write(thid_, izanagi_txid, izanagi_trace::key_to_hex(we.key_),
+                                                                                        ^
+cc/silo/transaction.cc:634:36: error: code should be clang-formatted [-Wclang-format-violations]
+                                op, maxtid.epoch, maxtid.tid);
+                                   ^
+cc/silo/transaction.cc:739:18: error: code should be clang-formatted [-Wclang-format-violations]
+  izanagi_trace::clear_shadow();  // success path -> reset coverage shadow (D38, 裁定7)
+cc/silo/transaction.cc:739:33: error: code should be clang-formatted [-Wclang-format-violations]
+  izanagi_trace::clear_shadow();  // success path -> reset coverage shadow (D38, 裁定7)
+include/trace.hh:111:42: error: code should be clang-formatted [-Wclang-format-violations]
+inline bool holds_lock(const void* rcd) { return lock_shadow().count(rcd) != 0; }
+                                         ^
+include/trace.hh:111:80: error: code should be clang-formatted [-Wclang-format-violations]
+inline bool holds_lock(const void* rcd) { return lock_shadow().count(rcd) != 0; }
+                                                                               ^
+include/trace.hh:118:60: error: code should be clang-formatted [-Wclang-format-violations]
+                                const std::string& key_hex, const char* reason) {
+                                                           ^
+include/trace.hh:131:38: error: code should be clang-formatted [-Wclang-format-violations]
+inline std::uint32_t tpcc_tx_type() {
+                                     ^
+include/trace.hh:132:33: error: code should be clang-formatted [-Wclang-format-violations]
+  return tpcc_tx_type_context();
+                                ^
+include/trace.hh:134:35: error: code should be clang-formatted [-Wclang-format-violations]
+inline void clear_tpcc_tx_type() {
+                                  ^
+include/trace.hh:135:30: error: code should be clang-formatted [-Wclang-format-violations]
+  tpcc_tx_type_context() = 0;
+                             ^
+include/trace.hh:138:28: error: code should be clang-formatted [-Wclang-format-violations]
+inline void emit_commit_v3(
+                           ^
+include/trace.hh:139:42: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid,
+                                         ^
+include/trace.hh:140:44: error: code should be clang-formatted [-Wclang-format-violations]
+    std::uint64_t epoch, std::uint64_t tid,
+                                           ^
+include/trace.hh:141:36: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t nR, std::size_t nW,
+                                   ^
+include/trace.hh:142:20: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t nS, std::size_t nQ, std::uint32_t tx_type) {
+                   ^
+include/trace.hh:148:26: error: code should be clang-formatted [-Wclang-format-violations]
+inline void emit_read_v3(
+                         ^
+include/trace.hh:149:42: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid, std::uint32_t table,
+                                         ^
+include/trace.hh:149:63: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid, std::uint32_t table,
+                                                              ^
+include/trace.hh:150:32: error: code should be clang-formatted [-Wclang-format-violations]
+    const std::string& key_hex,
+                               ^
+include/trace.hh:156:27: error: code should be clang-formatted [-Wclang-format-violations]
+inline void emit_write_v3(
+                          ^
+include/trace.hh:157:42: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid, std::uint32_t table,
+                                         ^
+include/trace.hh:157:63: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid, std::uint32_t table,
+                                                              ^
+include/trace.hh:158:32: error: code should be clang-formatted [-Wclang-format-violations]
+    const std::string& key_hex, char op,
+                               ^
+include/trace.hh:158:41: error: code should be clang-formatted [-Wclang-format-violations]
+    const std::string& key_hex, char op,
+                                        ^
+include/trace.hh:164:36: error: code should be clang-formatted [-Wclang-format-violations]
+inline void emit_lock_violation_v3(
+                                   ^
+include/trace.hh:165:42: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid, std::uint32_t table,
+                                         ^
+include/trace.hh:165:63: error: code should be clang-formatted [-Wclang-format-violations]
+    std::size_t thid, std::uint64_t txid, std::uint32_t table,
+                                                              ^
+include/trace.hh:166:32: error: code should be clang-formatted [-Wclang-format-violations]
+    const std::string& key_hex, const char* reason) {
+                               ^
+format rc=123
