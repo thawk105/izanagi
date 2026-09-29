@@ -1,0 +1,28 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-09-29
+wave: dev-wave-vhash-cicada-baseline-tuning
+seq: 1
+title: VHash 論文の比較相手 Cicada を較正し最良の設定を実測で決めた — N=1M (D15 RSS)、job 間 CV 0.43〜0.81%、観測最良は BACK_OFF=0・OPT=1・REUSE=1 で既定の 2.2〜4.5 倍、stock で build 不能な設定 2 種を発見 (コード + 計測 + insight、branch dev-wave-vhash-cicada-baseline-tuning)
+---
+
+## 本文
+
+- 依頼: 並行 VHash wave の md_11 (`/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_11.txt`)。台帳に対応 item は無く (wave 開始時・段 9 前の local main で「比較相手の Cicada を較正」を grep して 0 件)、後続を新規 item として登録した。
+- 正本: `output/insights/2026-09-29/vhash-cicada-baseline-tuning/README.md` (条件表・較正・ばらつき・J1 探索表・J2 確認表・図 2 種・CCBench 不具合 2 件・限界)。設計判断は {{D:cicada-baseline-tuning-design}}。
+- テスト: DW-O26 の焦点走 11 file (新設 2・perf file 登録簿・certified-writer caller・exploration namespace・b4 wiring probe・自走 harness 網羅・収集設定・spawn site 棚卸し・図 provenance 2) を記録 commit 64400ccb6 の木で dispatch し 812 passed / 5 skipped (request 35094.nqsv、Elapse 145 秒)。
+- 計算 (受入を除く): 計測 12 job (J0 3 attempt・J1 5・J2 4) の Elapse 合計 2,152 秒 = 35.9 node 分、変異 dispatch 10 run の harness duration 合計 1,159 秒 (queue 待ち込みの上限)、焦点走 145 秒。合計 2 node 時間の線の内なのでユーザー確認は不要と判断した。縮小梯子 R1〜R3 を J0 の単価で結果前の式どおりに適用した。
+- 新事実 (CCBench、還元判断: ユーザー確認待ち): stock pin 68106660 では INLINE_VERSION_OPT=1 かつ INLINE_VERSION_PROMOTION=1 の 8 genome と WORKER1_INSERT_DELAY_RPHASE の待機型が compile できない。`CICADA_SPACE` の「24 通り」は実測では 16 通り。
+- セッション異常: 段 1 brief が「Cicada は `#ShowOptParameters()` を印字する」と誤った前提を置き ({{F:print-function-defined-not-called}})、plan・相談・author も見逃した。親の J0 前レビューで発見 (計算の空費なし)。fix-4 は従属する期待の許可を書き漏らし子が停止 (F733 再発)。
+- 段 3 相談 2 本 (レンズ: 規律と正しさの境界 / 実効性・過剰・見積り): must-fix 5 件をすべて採用 (GC=10 選抜の限界、選抜と推定の分離、binding の過大主張、後続比較の共通条件、見積り)。最良設定の正しさ検査は scope 外として次の一手へ。
+- 段 6 レビュー 2 本 (測定と集計 / 過剰・削除): real の所見を fix-4b で閉じ、R4 経路・private helper 置換・設定 API の縮小は裁定で実装しない (一次資料 §9)。焦点再レビュー 1 本: must-fix 1 (一次資料の GC 低下率「13〜42%」は誤りで 8〜42%) と should 1 を一次資料で直し、作図の summary 束縛 1 件は限界に書いた。変異 M1〜M9 は 9 件すべて事前登録どおり KILLED (M1 は最終 commit の観測で期待 node を再登録、erratum を一次資料 verbatim に残した)。
+- エージェント工数: Codex plan 1・consult 2・author 1・fix 8 巡 (fix-1〜3・4・4b・5〜7)・review 2・focus 1 (いずれも gpt-6-sol / medium)、Explore 子 1 (sonnet)。子の worktree `.codex/worktrees/cbt-author` (branch dev-wave-cbt-author・dev-wave-cbt-fix1〜7)、計測木 `.codex/worktrees/cbt-m1〜m3` (detached)。
+
+## 次の一手差分
+
+### 新規
+
+- {{T:cicada-best-config-verify}} **P1・新規**: VHash 比較相手 Cicada の観測最良設定 (BACK_OFF=0・INLINE_VERSION_OPT=1・INLINE_VERSION_PROMOTION=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0、および 100 操作型の BACK_OFF=0・OPT=0・PROM=0・REUSE=0・WLO=0) を md_3 の trace patch (`patches/instr-cicada-trace.patch`) で検査器に通し、anomaly が無いかを確かめる。現状は正しさ未検証の診断値 (`output/insights/2026-09-29/vhash-cicada-baseline-tuning/README.md` §9)。
+- {{T:cicada-forwarding-on-tuned-base}} **P1・新規**: VHash の forwarding 試作 (md_6、[T-2879]) の C / F と stock の比較を、CCBench 既定ではなく観測最良の Cicada 設定を土台に測り直す。既定の Cicada は rr50 で最良より約 4.5 倍遅い (同 README §10)。
+- {{T:ccbench-cicada-compile-bugs}} **P2・ユーザー確認待ち**: stock CCBench の Cicada で INLINE_VERSION_OPT=1 かつ INLINE_VERSION_PROMOTION=1 (transaction.hh:207) と WORKER1_INSERT_DELAY_RPHASE (transaction.cc:923-927) が compile できない件を上流へ還元するか (同 README §8)。還元するなら、読み取り後に待つ長い tx の型 (W5) と build 不能 8 genome の測定を後続で行う。
