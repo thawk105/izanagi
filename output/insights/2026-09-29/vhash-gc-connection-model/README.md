@@ -288,4 +288,4 @@ python3 tools/run_tests.py -q orchestrator/tests/test_vhash_forwarding_model.py 
 - 全史 provenance 監査: 4 回の実装 commit の後ごとに rc=0。
 - 変異の login 自走 (28873adbd): 8 / 8 KILLED。
 - 変異の計算ノード本走: 束ね経路 (`dispatch_compute.py --task mutation`、D842) で collection + baseline + 8 変異を 1 job (request 34779.nqsv、Elapse 775 秒) にした。独立 clone (main = 28873adbd)、spec sha256 `f9d9d683…`。**8 変異すべて事前登録どおり KILLED** (MISMATCH 0、matching 8、baseline PASSED)。KILLED の赤 node は自走の期待 node の完全集合と一致した。生出力 `mutation/mutation-final-results.json`、spec `mutation/mutation-spec-final.json`。
-- 受入全走: 記録 commit の後に投入する。本 README を最初に commit した時点では未実施。
+- 受入全走 1 回目 (2026-09-29 12:35〜12:52 JST、記録 commit fd2294a4b に local main d4db28a94 を post-claim merge した木 b2fe29e39): child-green、28004 passed・74 skipped。この結果を本 README と worklog fragment へ書き足した docs だけの commit の後に、land の前提として受入をもう一度通す (本 README の値は変えない)。
