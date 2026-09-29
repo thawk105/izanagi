@@ -15,6 +15,7 @@ title: [T-2887] 仕組みごとの小さいモデルでの全場面検査の共�
 - 変異: 19 本 (対照 1 + 1 本 1 条件の 18 本) を login の自走 (repo 外の複製) と計算ノードの束ね経路 1 job で確かめた。結果は insight §4。
 - 受入所要台帳 `orchestrator/tests/acceptance_duration_ledger.json` に新 test 9 件を `--add-only` で追記した (共有の登録簿は追記だけ)。
 - セッション異常: `EnterWorktree(name)` が "Could not read the repository git config to neutralize filter drivers" で失敗し、`git worktree add` の手動作成 (約 17 分) に切り替えた。続く `EnterWorktree(path)` も `git worktree list` の 10 秒上限で失敗し、cd で代替した (本日の md_2・md_11 と同型)。子木の作成にも約 18 分かかった。
+- 受入 1 回目 (2026-09-29 17:07〜17:22 JST、tip 422427a70 に local main ea875d374 を post-claim merge した木 08624130f): 赤 1 件で停止。`orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_ancestry_child_skips_bundle_and_deletes_branch` が `CleanupFailure: occupancy result is indeterminate or inconsistent ... issues=[{"error":"missing","source":"cwd","pid":"1798416"}]` (占有検査の走査中に別 process の cwd が消えた判定不能)。本 wave は `tools/dev_wave_cleanup.py` とその test に触れておらず、同じ木で単独再走は 1 passed (14.61 秒) で再現しなかったため非帰属と判定し、受入を取り直した。
 - 工数: Codex は plan 1・相談 2・author 1・review 2・fix 1・焦点再レビュー 1 (いずれも gpt-6-sol)。
 
 ## 次の一手差分
