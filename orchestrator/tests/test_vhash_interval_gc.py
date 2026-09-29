@@ -120,6 +120,17 @@ def test_compile_binding_positive_negative():
                                '-o', 'CMakeFiles/tpcc_cicada.exe.dir/transaction.cc.o']})
                 path.write_text(json.dumps(entries))
                 assert len(d.check_compile_commands(build, expected, int(kind == 'trace'))) == 3
+                if kind in ('perf', 'count'):
+                    diagnostic = json.loads(json.dumps(entries))
+                    for entry in diagnostic[:3]:
+                        entry['arguments'][1:1] = ['-g', '-fno-omit-frame-pointer']
+                    path.write_text(json.dumps(diagnostic))
+                    assert len(d.check_compile_commands(build, expected, 0, diag=True)) == 3
+                    diagnostic[0]['arguments'].remove('-g')
+                    path.write_text(json.dumps(diagnostic))
+                    raises(RuntimeError, d.check_compile_commands, build, expected, 0,
+                           diag=True)
+                    path.write_text(json.dumps(entries))
                 for unexpected in ({'CICADA_INTERVAL_GC_GENERAL': 1},
                                    {'CICADA_INTERVAL_GC': 2}):
                     if any(key in expected for key in unexpected):
@@ -229,7 +240,7 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
             yield source
 
         def fake_build(_source, build, _deps, _toolchain, arm, kind,
-                       *, dependency=False, build_log=None):
+                       *, dependency=False, build_log=None, diag=False):
             name = build.name
             attempted.append(name)
             if name == 'min-perf':
@@ -250,7 +261,8 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
         args = SimpleNamespace(command='smoke', group=None, job=None,
                                output=root / 'output', scratch_root=root / 'scratch',
                                third_party_cache=root, no_gen_perf=False,
-                               with_trace_builds=True)
+                               with_trace_builds=True, diag_builds=True,
+                               diag_run_timeout=60, diag_gdb_timeout=120)
         with patch.object(d.socket, 'gethostname', return_value='compute'), \
              patch.object(d, 'assert_solo'), \
              patch.object(d.compute, '_load_policy', return_value={}), \
@@ -262,15 +274,22 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
              patch.object(d, 'apply_patches'), \
              patch.object(d, 'sha_file', side_effect=lambda path: d.digest(Path(path).read_bytes())
                           if Path(path).exists() else 'missing-test-patch'), \
-             patch.object(d, 'run_binary', fake_run):
+             patch.object(d, 'run_binary', fake_run), \
+             patch.object(d, 'run_diagnostic', return_value={'abnormal': False,
+                          'perf_eligible': False}):
             raises(RuntimeError, d.run_job, args)
         assert attempted == ['dependency', 'stock-perf', 'min-perf', 'gen-perf',
                              'stock-count', 'min-count', 'gen-count',
+                             'stock-perf-diag', 'min-perf-diag', 'gen-perf-diag',
+                             'stock-count-diag', 'min-count-diag', 'gen-count-diag',
                              'stock-trace', 'min-trace', 'gen-trace', 'broken-trace']
         out = next((root / 'output').iterdir())
         manifest = json.loads((out / 'manifest.json').read_text())
         assert manifest['status'] == 'failed'
         assert set(manifest['builds']) == set(attempted)
+        assert set(manifest['diagnostics']) == {
+            f'{arm}-{kind}-diag' for arm in d.ARMS for kind in ('perf', 'count')}
+        assert all(not manifest['builds'][name]['perf_eligible'] for name in manifest['diagnostics'])
         assert len(manifest['records']) == 5
         failed = manifest['builds']['min-perf']
         assert failed['ok'] is False and failed['rc'] == 2
@@ -296,6 +315,128 @@ def test_failed_nonbuild_command_keeps_complete_output():
         log = next(directory.glob('failed-command-*.log')).read_bytes()
         assert stdout in log and stderr in log
         assert b'rc=7' in log
+
+
+def test_diagnostic_signal_reruns_gdb_once_and_logs_output():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        (out / 'logs').mkdir()
+        spec = {'arm': 'gen', 'build_kind': 'perf', 'cell': 'rr50-wait1-gc10', 'extime': 1}
+        receipts = [{'macro': key, 'admission': {'admitted': True}}
+                    for key in d.arm_macros('gen', 'perf')]
+        calls = []
+
+        def fake_gdb(argv, **kwargs):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, b'full backtrace\n', b'')
+
+        with patch.object(d, 'assert_solo'), \
+             patch.object(d, 'bench_argv', return_value=['/fake/ycsb', '-extime=1']), \
+             patch.object(d.shutil, 'which', return_value='/usr/bin/gdb'), \
+             patch.object(d, 'run_measured', return_value=SimpleNamespace(
+                 returncode=-11, stdout=b'flags\n', stderr=b'')), \
+             patch.object(d.subprocess, 'run', side_effect=fake_gdb):
+            result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out)
+        assert result['abnormal'] and result['perf_eligible'] is False
+        assert len(calls) == 1
+        assert calls[0] == ['/usr/bin/gdb', '-batch', '-ex', 'run',
+                            '-ex', 'thread apply all bt 20', '--args',
+                            '/fake/ycsb', '-extime=1']
+        assert b'full backtrace' in Path(result['log']['path']).read_bytes()
+
+
+def test_diagnostic_build_keeps_gate_and_adds_compile_flags():
+    with tempfile.TemporaryDirectory() as tmp:
+        build = Path(tmp)
+        binary = build / 'cc/cicada/ycsb_cicada.exe'
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(b'binary')
+        commands = []
+        gates = []
+        checks = []
+
+        def fake_gate(_source, macros, args, _cxx, **kwargs):
+            gates.append((macros, list(args)))
+            return [{'macro': key, 'admission': {'admitted': True}} for key in macros]
+
+        with patch.object(d, 'non_admissible_materializer'), \
+             patch.object(d, 'configure_args', return_value=['-DCMAKE_BUILD_TYPE=Release']), \
+             patch.object(d, 'gate', side_effect=fake_gate), \
+             patch.object(d, 'checked', side_effect=lambda argv, **kwargs: commands.append(argv)), \
+             patch.object(d, 'check_compile_commands', side_effect=lambda *a, **kw: checks.append(kw)):
+            d._build_variant(build, build, {}, {'cxx_path': '/usr/bin/c++'},
+                             'gen', 'count', diag=True)
+        assert gates[0][0] == d.arm_macros('gen', 'count')
+        assert gates[0][1] == ['-DCMAKE_BUILD_TYPE=Release']
+        flags = next(value for value in commands[0] if value.startswith('-DCMAKE_CXX_FLAGS='))
+        assert '-g -fno-omit-frame-pointer' in flags
+        assert all(f'-D{key}={value}' in flags for key, value in gates[0][0].items())
+        assert checks == [{'diag': True}]
+
+
+def test_diagnostic_missing_gdb_records_and_continues():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        (out / 'logs').mkdir()
+        spec = {'arm': 'stock', 'build_kind': 'count', 'cell': 'rr50-wait1-gc10', 'extime': 1}
+        receipts = [{'macro': key, 'admission': {'admitted': True}}
+                    for key in d.arm_macros('stock', 'count')]
+        with patch.object(d, 'assert_solo'), \
+             patch.object(d, 'bench_argv', return_value=['/fake/ycsb']), \
+             patch.object(d.shutil, 'which', return_value=None), \
+             patch.object(d, 'run_measured', return_value=SimpleNamespace(
+                 returncode=-9, stdout=b'', stderr=b'')), \
+             patch.object(d.subprocess, 'run', side_effect=AssertionError('gdb launched')):
+            result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out)
+        assert b'gdb unavailable' in Path(result['log']['path']).read_bytes()
+
+
+def test_diagnostic_timeout_attaches_before_kill_and_reruns():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        (out / 'logs').mkdir()
+        spec = {'arm': 'min', 'build_kind': 'perf', 'cell': 'rr50-wait1-gc10', 'extime': 1}
+        receipts = [{'macro': key, 'admission': {'admitted': True}}
+                    for key in d.arm_macros('min', 'perf')]
+        calls = []
+
+        def fake_run(argv, *, before_timeout_kill, **kwargs):
+            before_timeout_kill(1234)
+            raise subprocess.TimeoutExpired(argv, kwargs['timeout'])
+
+        def fake_gdb(argv, **kwargs):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, b'backtrace\n', b'')
+
+        with patch.object(d, 'assert_solo'), \
+             patch.object(d, 'bench_argv', return_value=['/fake/ycsb']), \
+             patch.object(d.shutil, 'which', return_value='/usr/bin/gdb'), \
+             patch.object(d, 'run_measured', side_effect=fake_run), \
+             patch.object(d.subprocess, 'run', side_effect=fake_gdb):
+            result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out,
+                                      run_timeout=2, gdb_timeout=3)
+        assert result['timeout'] and len(calls) == 2
+        assert calls[0] == ['/usr/bin/gdb', '-batch', '-p', '1234',
+                            '-ex', 'thread apply all bt 20']
+        assert calls[1][2:4] == ['-ex', 'run']
+        assert b'backtrace' in Path(result['log']['path']).read_bytes()
+
+
+def test_measured_timeout_calls_attach_before_kill():
+    events = []
+
+    def fake_wait4(pid, options):
+        events.append(('wait4', options))
+        return (0, 0, None) if options == d.os.WNOHANG else (pid, 0, None)
+
+    with patch.object(d.subprocess, 'Popen', return_value=SimpleNamespace(pid=1234)), \
+         patch.object(d.os, 'wait4', side_effect=fake_wait4), \
+         patch.object(d.os, 'kill', side_effect=lambda pid, sig: events.append(('kill', pid))), \
+         patch.object(d.time, 'monotonic', side_effect=[0, 2]):
+        raises(subprocess.TimeoutExpired, d.run_measured, ['/fake/ycsb'], timeout=1,
+               before_timeout_kill=lambda pid: events.append(('attach', pid)))
+    assert events == [('wait4', d.os.WNOHANG), ('attach', 1234),
+                      ('kill', 1234), ('wait4', 0)]
 
 
 def _run():

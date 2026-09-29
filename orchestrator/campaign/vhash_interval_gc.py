@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -138,13 +140,13 @@ class BuildLog:
 
 
 def attempt_build(manifest, out, name, source, build, deps, toolchain, arm, kind,
-                  *, dependency=False):
+                  *, dependency=False, diag=False):
     log = BuildLog(out / 'build-logs' / (name + '.log'))
     try:
         binary, receipts = _build_variant(source, build, deps, toolchain, arm, kind,
-                                          dependency=dependency, build_log=log)
+                                          dependency=dependency, build_log=log, diag=diag)
         entry = {'ok': True, 'rc': 0, 'sha256': sha_file(binary),
-                 'gate_receipts': receipts}
+                 'gate_receipts': receipts, 'perf_eligible': not diag and perf_eligible(kind)}
         return binary, receipts
     except Exception as exc:
         log.handle.write(f'\n[build error] {type(exc).__name__}: {exc}\n'.encode())
@@ -158,7 +160,7 @@ def attempt_build(manifest, out, name, source, build, deps, toolchain, arm, kind
         manifest['builds'][name] = entry
 
 
-def run_measured(argv, *, cwd=None, env=None, timeout=180):
+def run_measured(argv, *, cwd=None, env=None, timeout=180, before_timeout_kill=None):
     """wait4 captures this child, rather than a cumulative RUSAGE_CHILDREN high water mark."""
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         child = subprocess.Popen(argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr)
@@ -169,12 +171,20 @@ def run_measured(argv, *, cwd=None, env=None, timeout=180):
                 child.returncode = os.waitstatus_to_exitcode(status)
                 break
             if time.monotonic() >= deadline:
-                child.kill()
-                os.wait4(child.pid, 0)
+                try:
+                    if before_timeout_kill is not None:
+                        before_timeout_kill(child.pid)
+                finally:
+                    try:
+                        os.kill(child.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    os.wait4(child.pid, 0)
                 stdout.seek(0)
                 stderr.seek(0)
-                log_failed_command(argv, stdout.read(), stderr.read(), None)
-                raise subprocess.TimeoutExpired(argv, timeout)
+                output, errors = stdout.read(), stderr.read()
+                log_failed_command(argv, output, errors, None)
+                raise subprocess.TimeoutExpired(argv, timeout, output=output, stderr=errors)
             time.sleep(0.01)
         stdout.seek(0)
         stderr.seek(0)
@@ -256,7 +266,7 @@ def compile_entry(build, filename, target='ycsb_cicada.exe'):
     return found[0]
 
 
-def check_compile_commands(build, expected, trace):
+def check_compile_commands(build, expected, trace, *, diag=False):
     # Include transaction.cc (macro owner), util.cc (shared definitions), and workload TU.
     checked_names = []
     for name in ('transaction.cc', 'util.cc', 'ycsb_cicada.cc'):
@@ -276,6 +286,8 @@ def check_compile_commands(build, expected, trace):
         for key in MACRO_NAMES:
             if key not in expected and key in defs:
                 raise RuntimeError(f'{name}: unexpected {key}')
+        if diag and not all(flag in argv for flag in ('-g', '-fno-omit-frame-pointer')):
+            raise RuntimeError(f'{name}: missing diagnostic compile flags')
         checked_names.append(name)
     return checked_names
 
@@ -344,15 +356,18 @@ def configure_args(deps, toolchain, trace):
 
 
 def _build_variant(source, build, deps, toolchain, arm, kind, *, dependency=False,
-                   build_log=None):
+                   build_log=None, diag=False):
     non_admissible_materializer(MATERIALIZER)
     trace = int(kind == 'trace')
     args = configure_args(deps, toolchain, trace)
     macros = {} if dependency else arm_macros(arm, kind)
     receipts = [] if dependency else gate(source, macros, args, toolchain['cxx_path'],
                                           build_log=build_log)
-    if macros:
-        args.append('-DCMAKE_CXX_FLAGS=' + ' '.join(f'-D{k}={v}' for k, v in macros.items()))
+    flags = [*(f'-D{k}={v}' for k, v in macros.items())]
+    if diag:
+        flags.extend(('-g', '-fno-omit-frame-pointer'))
+    if flags:
+        args.append('-DCMAKE_CXX_FLAGS=' + ' '.join(flags))
     checked(['cmake', '-S', str(source), '-B', str(build),
              '-DCMAKE_CXX_COMPILER=' + toolchain['cxx_path'], *args], timeout=600,
             build_log=build_log)
@@ -361,7 +376,7 @@ def _build_variant(source, build, deps, toolchain, arm, kind, *, dependency=Fals
     binary = build / 'cc/cicada/ycsb_cicada.exe'
     if not binary.is_file():
         raise RuntimeError(f'missing binary {binary}')
-    check_compile_commands(build, macros, trace)
+    check_compile_commands(build, macros, trace, diag=diag)
     return binary, receipts
 
 
@@ -592,6 +607,60 @@ def run_binary(binary, spec, receipts, hashes, raw_dir):
             'interval_counter': interval, 'longtx_counter': longtx}
 
 
+def run_diagnostic(binary, spec, receipts, out, *, run_timeout=60, gdb_timeout=120):
+    """Run a non-measurement build and retain debugger output on abnormal exit."""
+    assert_gate_receipts(arm_macros(spec['arm'], spec['build_kind']), receipts)
+    assert_solo()
+    argv = bench_argv(binary, spec['cell'], spec['extime'],
+                      count=spec['build_kind'] == 'count')
+    name = f"{spec['arm']}-{spec['build_kind']}-diag"
+    debugger = shutil.which('gdb')
+    attach = []
+
+    def debugger_call(command):
+        if debugger is None:
+            return (command, b'', b'gdb unavailable\n', None, 'unavailable')
+        try:
+            result = subprocess.run(command, capture_output=True, timeout=gdb_timeout)
+            return (command, result.stdout, result.stderr, result.returncode, 'gdb')
+        except subprocess.TimeoutExpired as exc:
+            return (command, exc.stdout or b'', exc.stderr or b'', None, 'gdb timeout')
+        except OSError as exc:
+            return (command, b'', str(exc).encode(), None, 'gdb error')
+
+    def before_kill(pid):
+        attach.append(debugger_call([debugger or 'gdb', '-batch', '-p', str(pid),
+                                     '-ex', 'thread apply all bt 20']))
+
+    timed_out = False
+    try:
+        completed = run_measured(argv, timeout=run_timeout,
+                                 before_timeout_kill=before_kill)
+        rc = completed.returncode
+    except subprocess.TimeoutExpired as exc:
+        timed_out, rc = True, None
+        timed_out_stdout, timed_out_stderr = exc.stdout or b'', exc.stderr or b''
+    abnormal = timed_out or rc < 0
+    result = {'build': name, 'perf_eligible': False, 'argv': argv,
+              'returncode': rc, 'timeout': timed_out, 'abnormal': abnormal}
+    if abnormal:
+        log = BuildLog(out / 'logs' / f'diag-{name}.log')
+        try:
+            log.record(argv, timed_out_stdout if timed_out else completed.stdout,
+                       timed_out_stderr if timed_out else completed.stderr, rc,
+                       label='diagnostic run timeout' if timed_out else 'diagnostic run')
+            for command, stdout, stderr, code, label in attach:
+                log.record(command, stdout, stderr, code, label='attach ' + label)
+            command = [debugger or 'gdb', '-batch', '-ex', 'run',
+                       '-ex', 'thread apply all bt 20', '--args', *argv]
+            rerun_command, stdout, stderr, code, label = debugger_call(command)
+            log.record(rerun_command, stdout, stderr, code, label='rerun ' + label)
+        finally:
+            log.close()
+        result['log'] = {'path': str(log.path), 'sha256': sha_file(log.path)}
+    return result
+
+
 def trace_counts(trace_dir):
     counts = {tag: 0 for tag in 'CRWE'}
     for path in sorted(trace_dir.glob('trace_*.log')):
@@ -731,10 +800,10 @@ def run_job(args):
                 source = Path(checkout)
                 failures = []
 
-                def build_one(name, tree, arm, kind, *, dependency=False):
+                def build_one(name, tree, arm, kind, *, dependency=False, diag=False):
                     result = attempt_build(manifest, out, name, tree, scratch / name,
                                            deps, toolchain, arm, kind,
-                                           dependency=dependency)
+                                           dependency=dependency, diag=diag)
                     if result is None:
                         failures.append(name)
                         if args.command != 'smoke':
@@ -761,6 +830,14 @@ def run_job(args):
                         result = build_one(f'{arm}-{kind}', source, arm, kind)
                         if result is not None:
                             binaries[arm, kind] = result
+                diagnostics = {}
+                if args.command == 'smoke' and getattr(args, 'diag_builds', False):
+                    for kind in ('perf', 'count'):
+                        for arm in ARMS:
+                            name = f'{arm}-{kind}-diag'
+                            result = build_one(name, source, arm, kind, diag=True)
+                            if result is not None:
+                                diagnostics[arm, kind] = result
                 if args.command == 'verify':
                     apply_patches(source, [BROKEN_PATCH])
                     manifest['patches'][BROKEN_PATCH] = sha_file(ROOT / BROKEN_PATCH)
@@ -799,6 +876,24 @@ def run_job(args):
                                for r in records if r['arm'] == 'broken'):
                         raise RuntimeError('overprune positive control not attributed')
                 else:
+                    if args.command == 'smoke' and diagnostics:
+                        manifest['diagnostics'] = {}
+                        for spec in plan_runs('rr50_wait', smoke=True):
+                            built = diagnostics.get((spec['arm'], spec['build_kind']))
+                            if built is None:
+                                continue
+                            name = f"{spec['arm']}-{spec['build_kind']}-diag"
+                            try:
+                                manifest['diagnostics'][name] = run_diagnostic(
+                                    built[0], spec, built[1], out,
+                                    run_timeout=args.diag_run_timeout,
+                                    gdb_timeout=args.diag_gdb_timeout)
+                                if manifest['diagnostics'][name]['abnormal']:
+                                    failures.append(name + '-run')
+                            except Exception as exc:
+                                failures.append(name + '-run')
+                                manifest['diagnostics'][name] = {'error': str(exc),
+                                                                  'perf_eligible': False}
                     for spec in plan_runs(args.group or 'rr50_wait', args.no_gen_perf,
                                           smoke=args.command == 'smoke'):
                         built = binaries.get((spec['arm'], spec['build_kind']))
@@ -847,6 +942,9 @@ def main(argv=None):
     parser.add_argument('--job')
     parser.add_argument('--no-gen-perf', action='store_true')
     parser.add_argument('--with-trace-builds', action='store_true')
+    parser.add_argument('--diag-builds', action='store_true')
+    parser.add_argument('--diag-run-timeout', type=float, default=60)
+    parser.add_argument('--diag-gdb-timeout', type=float, default=120)
     parser.add_argument('--third-party-cache', type=Path)
     parser.add_argument('--scratch-root', type=Path)
     parser.add_argument('--output', type=Path)
@@ -866,6 +964,10 @@ def main(argv=None):
         parser.error('--no-gen-perf applies to run and aggregate only')
     if args.with_trace_builds and args.command != 'smoke':
         parser.error('--with-trace-builds applies to smoke only')
+    if args.diag_builds and args.command != 'smoke':
+        parser.error('--diag-builds applies to smoke only')
+    if args.diag_run_timeout <= 0 or args.diag_gdb_timeout <= 0:
+        parser.error('diagnostic timeouts must be positive')
     if args.command == 'verify' and not args.job:
         parser.error('verify requires --job')
     if args.job and not re.fullmatch(r'[A-Za-z0-9_-]+', args.job):
