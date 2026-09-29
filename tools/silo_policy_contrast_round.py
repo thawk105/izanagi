@@ -28,6 +28,19 @@ def _events(ledger, kind):
     return [e for e in ledger.events if e["kind"] == kind]
 
 
+def _terminal(ledger_root: Path, a: int):
+    ends = [e for e in _events(ContrastLedger(ledger_root), "opportunity-end")
+            if e.get("a") == a and e.get("outcome") in
+            {"proposed", "rejected", "empty", "role-failure"}]
+    if not ends:
+        return None
+    end = ends[-1]
+    result = {"status": end["outcome"]}
+    if end["outcome"] == "proposed":
+        result.update(proposal_path=end["proposal_path"], proposal_sha256=end["proposal_sha256"])
+    return result
+
+
 def _call(ledger, ledger_root: Path, *args, run=subprocess.run):
     command = [*DRIVER, "--form", ledger.header["form"], "--campaign-env", "pegasus",
                *args, "--contrast-ledger", str(ledger_root.resolve())]
@@ -115,6 +128,9 @@ def prepare(ledger, a: int, out: Path, *, ledger_root: Path,
 
 
 def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subprocess.run):
+    existing = _terminal(ledger_root, a)
+    if existing is not None:
+        return existing
     if not any(e["a"] == a for e in _events(ledger, "opportunity-start")):
         raise ValueError("opportunity not started")
     value = json.loads(coder.read_text())
@@ -128,6 +144,9 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
         rejection = _call(ledger, ledger_root, "--record-reject", str((out / "coder.json").resolve()), run=run)
         if rejection.returncode:
             raise RuntimeError(rejection.stderr)
+        existing = _terminal(ledger_root, a)
+        if existing is not None:
+            return existing
         ledger.append("opportunity-end", a=a, outcome="rejected",
                       reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
         return {"status": "rejected"}
@@ -156,6 +175,9 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
 
 def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
              ledger_root: Path, run=subprocess.run):
+    existing = _terminal(ledger_root, a)
+    if existing is not None:
+        return existing
     preview = json.loads((out / "preview.json").read_text())
     if not preview["passed"]:
         raise ValueError("preview rejected")
@@ -170,12 +192,18 @@ def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
         rejection = _call(ledger, ledger_root, "--record-reject", str(proposal.resolve()), run=run)
         if rejection.returncode:
             raise RuntimeError(rejection.stderr)
+        existing = _terminal(ledger_root, a)
+        if existing is not None:
+            return existing
         ledger.append("opportunity-end", a=a, outcome="rejected",
                       reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
         return {"status": "rejected"}
     if checked.returncode:
         raise RuntimeError(checked.stderr)
     digest = hashlib.sha256(proposal.read_bytes()).hexdigest()
+    existing = _terminal(ledger_root, a)
+    if existing is not None:
+        return existing
     ledger.append("opportunity-end", a=a, outcome="proposed",
                   proposal_path=str(proposal.resolve()), proposal_sha256=digest)
     return {"status": "proposed", "proposal_path": str(proposal), "proposal_sha256": digest}

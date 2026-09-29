@@ -40,6 +40,15 @@ def _events(ledger, kind):
     return [e for e in ledger.events if e["kind"] == kind]
 
 
+def _latest_slot_results(ledger):
+    latest = {}
+    for event in _events(ledger, "slot-result"):
+        slot = event.get("logical_slot")
+        if slot is not None and event.get("attempt", 0) >= latest.get(slot, {}).get("attempt", -1):
+            latest[slot] = event
+    return list(latest.values())
+
+
 def _normal(e):
     return e.get("outcome") == "certified" and e.get("quality") == "normal" and _positive(e.get("fitness_tps"))
 
@@ -55,7 +64,7 @@ def _reference(ledgers, disqualified):
     stock = {}
     fixed = {}
     for l in refs:
-        rows = _events(l, "slot-result")
+        rows = _latest_slot_results(l)
         for key, name in ((stock, "ref-stock"), (fixed, "ref-fixed10")):
             vals = [e["fitness_tps"] for e in rows if e.get("logical_slot", "").startswith(name + "-")
                     and _normal(e) and e.get("variant") not in disqualified]
@@ -66,7 +75,7 @@ def _reference(ledgers, disqualified):
 
 def _project(ledger, disqualified, stock_values, corrections):
     h = ledger.header
-    rows = _events(ledger, "slot-result")
+    rows = _latest_slot_results(ledger)
     fixed = _events(ledger, "endpoint-fixed")
     endpoint = fixed[-1] if fixed else None
     variant = endpoint.get("variant") if endpoint else None
@@ -174,7 +183,7 @@ def build_report(roots, *, n: int | None = None):
     for arm in ARMS:
         if {l.header["series"] for l in ledgers if l.header["arm"] == arm} != set(range(1, n + 1)):
             raise ValueError("missing series")
-    disqualified = {e.get("variant") for l in ledgers for e in _events(l, "slot-result")
+    disqualified = {e.get("variant") for l in ledgers for e in _latest_slot_results(l)
                     if e.get("variant") is not None and (e.get("outcome") == "anomaly" or e.get("anomalies"))}
     stocks, fixed10 = _reference(ledgers, disqualified)
     pooled = [x for batch in (1, 2, 3) for x in stocks.get(batch, [])]

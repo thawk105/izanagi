@@ -48,3 +48,23 @@ def test_three_failures_end_series_without_consuming_a(tmp_path):
     ledger = ContrastLedger(root)
     assert [e for e in ledger.events if e["kind"] == "opportunity-end"][-1]["outcome"] == "role-failure"
     assert ledger.events[-1]["reason"] == "unclassified-missing"
+
+
+def test_429_after_terminal_record_does_not_retry_or_duplicate(tmp_path):
+    root = _ledger(tmp_path)
+    launches = []
+    def spawn(argv, *, stdout, **kwargs):
+        launches.append(argv)
+        ContrastLedger(root).append("opportunity-end", a=1, outcome="proposed",
+                                    proposal_path="proposal.json", proposal_sha256="digest")
+        stdout.write(json.dumps({"is_error": True, "api_error_status": 429}).encode())
+        return SimpleNamespace(returncode=0)
+    out = tmp_path / "out"
+    waits = []
+    kwargs = dict(settings=tmp_path / "settings.json", model="fixed", checkout=tmp_path,
+                  spawn=spawn, sleep=waits.append)
+    assert P.run_opportunity(root, 1, out, **kwargs) == "proposed"
+    assert P.run_opportunity(root, 1, out, **kwargs) == "proposed"
+    assert len(launches) == 1 and waits == []
+    assert [(e["a"], e["outcome"]) for e in ContrastLedger(root).events
+            if e["kind"] == "opportunity-end"] == [(1, "proposed")]

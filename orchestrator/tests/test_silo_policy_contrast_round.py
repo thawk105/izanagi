@@ -59,3 +59,21 @@ def test_preview_reject_records_without_auditor(tmp_path):
     assert "--record-reject" in calls[1]
     end = ContrastLedger(root).events[-1]
     assert (end["reject_subtype"], end["reject_rule_id"]) == ("x", "x")
+
+
+def test_check_and_finalize_reuse_existing_terminal(tmp_path):
+    root = _ledger(tmp_path)
+    ledger = ContrastLedger(root)
+    ledger.append("opportunity-start", a=1)
+    ledger.append("opportunity-end", a=1, outcome="proposed",
+                  proposal_path="saved.json", proposal_sha256="digest")
+    before = len(ContrastLedger(root).events)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("driver must not run after terminal event")
+    out = tmp_path / "out"
+    expected = {"status": "proposed", "proposal_path": "saved.json", "proposal_sha256": "digest"}
+    assert R.check(ledger, 1, tmp_path / "missing-coder", out,
+                   ledger_root=root, run=forbidden) == expected
+    assert R.finalize(ledger, 1, tmp_path / "missing-coder", tmp_path / "missing-auditor",
+                      out, ledger_root=root, run=forbidden) == expected
+    assert len(ContrastLedger(root).events) == before

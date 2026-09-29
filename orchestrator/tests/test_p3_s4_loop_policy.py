@@ -98,6 +98,38 @@ def test_contrast_unit_rejects_changed_proposal_before_slot_start(tmp_path, monk
     assert not any(event['kind'] == 'slot-start' for event in ledger.events)
 
 
+def test_job1_stops_before_seed_slots_when_stock_is_not_certified(tmp_path, monkeypatch):
+    from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS, UNIT_SCHEMA
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'random-ir', 'series': 1, 'form': 'ir',
+        'submit_checkout': str(ROOT), 'checkout_head': head,
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    unit = tmp_path / 'unit.json'
+    unit.write_text(json.dumps({'schema': UNIT_SCHEMA, 'ledger_root': str(ledger.root),
+        'kind': 'job1', 'index': 1, 'attempt': 0,
+        'proposal_path': None, 'proposal_sha256': None}))
+    layout = CampaignLayout(str(tmp_path / 'series'))
+    monkeypatch.setattr(P, '_campaign_layout', lambda _cfg: layout)
+
+    def measure(_header, slot, index, attempt, **_kwargs):
+        assert (slot, index, attempt) == ('stock', 0, 0)
+        return {'logical_slot': 'stock-0', 'attempt': 0,
+                'outcome': 'candidate-failure', 'variant': 'stock-variant',
+                'campaign_id': 'stock-campaign'}
+
+    monkeypatch.setattr(P, 'measure_slot', measure)
+    contract = type('Contract', (), {'env_tag': P.ENV_TAG})()
+    result = P.run_contrast_unit(unit, form='ir', contract=contract,
+        fetchcontent_options=None, context=None, stock_context=None,
+        sub=None, cache_root='', compiler=None, scratch_dir=None, log=lambda *_: None)
+    assert [event['logical_slot'] for event in ledger.events
+            if event['kind'] == 'slot-start'] == ['stock-0']
+    assert [row['logical_slot'] for row in result['slots']] == ['stock-0']
+
+
 def test_score_endpoint_requires_matching_slot_identity(tmp_path):
     from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS
     ledger = ContrastLedger.create(tmp_path / 'ledger', {

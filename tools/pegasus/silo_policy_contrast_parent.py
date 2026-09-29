@@ -19,6 +19,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from orchestrator.campaign.silo_policy_contrast import ContrastLedger
 
 ALLOWED = ("Bash(python3 tools/silo_policy_contrast_round.py *)", "Agent", "Read", "Write")
+TERMINAL = {"proposed", "rejected", "empty", "role-failure"}
+
+
+def _terminal(ledger_root: Path, a: int) -> str | None:
+    ends = [e for e in ContrastLedger(ledger_root).events if e["kind"] == "opportunity-end"
+            and e.get("a") == a and e.get("outcome") in TERMINAL]
+    return ends[-1]["outcome"] if ends else None
 
 
 def run_opportunity(ledger_root: Path, a: int, out: Path, *, settings: Path, model: str,
@@ -33,7 +40,9 @@ def run_opportunity(ledger_root: Path, a: int, out: Path, *, settings: Path, mod
     instructions = Path(__file__).with_suffix(".md").read_text()
     failures = launches = 0
     while True:
-        before = len(ContrastLedger(ledger_root).events)
+        existing = _terminal(ledger_root, a)
+        if existing is not None:
+            return existing
         launches += 1
         attempt = out / f"attempt-{launches:04d}"
         attempt.mkdir(exist_ok=False)
@@ -54,17 +63,15 @@ def run_opportunity(ledger_root: Path, a: int, out: Path, *, settings: Path, mod
             models = []
         (attempt / "exit.json").write_text(json.dumps({"status": status, "rc": completed.returncode,
             "at": datetime.now(timezone.utc).isoformat()}) + "\n")
+        existing = _terminal(ledger_root, a)
+        if existing is not None:
+            return existing
         if status == "outage":
             ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="outage",
                                                role_attempts=launches, models=models)
             sleep(OUTAGE_RETRY_S)
             continue
         if status == "success":
-            events = [e for e in ContrastLedger(ledger_root).events[before:] if
-                      e["kind"] == "opportunity-end" and e["a"] == a
-                      and e.get("outcome") in {"proposed", "rejected"}]
-            if events:
-                return events[-1]["outcome"]
             # A normal exit without proposal or explicit rejection is an empty proposal.
             ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="empty",
                                                role_attempts=launches, models=models)

@@ -154,8 +154,6 @@ def close_series_if_done(ledger):
     if any(e['kind'] == 'series-end' for e in events):
         return None
     state = series_state(ledger)
-    if state['unfinished_slots']:
-        return None
     results = [e for e in events if e['kind'] == 'slot-result']
     latest = {}
     for event in results:
@@ -164,10 +162,13 @@ def close_series_if_done(ledger):
             latest[slot] = event
     retry_limit = ledger.header['budgets']['machine_retries']
     stock = latest.get('stock-0')
-    job1_complete = all(slot in latest for slot in ('stock-0', 'seed-0', 'seed-1'))
-    if (ledger.header['arm'] != 'reference' and job1_complete and stock.get('outcome')
+    if (ledger.header['arm'] != 'reference' and stock is not None
+            and not any(e.get('logical_slot') == 'stock-0' for e in state['unfinished_slots'])
+            and stock.get('outcome')
             not in ('certified', 'machine-failure')):
         reason = 'stock-unestablished'
+    elif state['unfinished_slots']:
+        return None
     elif any(e.get('outcome') == 'machine-failure' and e.get('attempt', 0) >= retry_limit
              for e in latest.values()):
         reason = 'machine-retry-exhausted'

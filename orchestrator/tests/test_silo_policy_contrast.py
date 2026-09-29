@@ -94,6 +94,20 @@ def test_stock_unestablished_closes_after_job1(tmp_path):
     assert next_unit(item) is None
 
 
+def test_stock_unestablished_closes_without_seed_results(tmp_path):
+    item = ledger(tmp_path)
+    item.append('slot-start', logical_slot='stock-0', attempt=0)
+    item.append('slot-result', logical_slot='stock-0', attempt=0,
+                outcome='machine-failure')
+    assert close_series_if_done(item) is None
+    item.append('slot-start', logical_slot='stock-0', attempt=1)
+    item.append('slot-result', logical_slot='stock-0', attempt=1,
+                outcome='candidate-failure')
+    assert close_series_if_done(item) == 'stock-unestablished'
+    assert item.events[-1]['reason'] == 'stock-unestablished'
+    assert next_unit(item) is None
+
+
 def test_open_and_next_opportunity_after_outage(tmp_path):
     item = ledger(tmp_path)
     assert open_opportunity(item) is None

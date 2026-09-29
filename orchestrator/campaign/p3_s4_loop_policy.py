@@ -868,6 +868,8 @@ def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
                 result['implementation'] = selected.implementation
             ledger.append('slot-result', **result)
             results.append(result)
+            if unit['kind'] == 'job1' and slot == 'stock' and result['outcome'] != 'certified':
+                break
     series_layout = _campaign_layout(contrast_cfg(ledger.header,
                                                    campaign_env=contract.env_tag))
     series_layout.ensure()

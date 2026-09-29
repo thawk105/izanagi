@@ -83,3 +83,35 @@ def test_score_identity_must_match_fixed_endpoint(tmp_path):
         {"kind": "series-end", "reason": "a-exhausted"}])
     with pytest.raises(ValueError, match="score identity"):
         R._project(ContrastLedger(root), set(), [], [])
+
+
+def test_retry_uses_final_slot_result_for_stock_score_and_reference(tmp_path):
+    root = _ledger(tmp_path, "llm-cpp", 1, [
+        {"kind": "series-start"},
+        {"kind": "slot-result", "logical_slot": "stock-0", "attempt": 0,
+         "outcome": "machine-failure", "variant": "old-stock"},
+        {"kind": "slot-result", "logical_slot": "stock-0", "attempt": 1,
+         "outcome": "certified", "quality": "normal", "fitness_tps": 100, "variant": "stock"},
+        {"kind": "endpoint-fixed", "logical_slot": "seed-0", "variant": "chosen",
+         "source_digest": "source", "fitness_tps": 110},
+        {"kind": "slot-result", "logical_slot": "score-0", "attempt": 0,
+         "outcome": "machine-failure", "variant": "old", "source_digest": "old"},
+        *({"kind": "slot-result", "logical_slot": f"score-{i}",
+           "attempt": 1 if i == 0 else 0, "outcome": "certified", "quality": "normal",
+           "fitness_tps": 110 + i, "variant": "chosen", "source_digest": "source"}
+          for i in range(5)),
+        {"kind": "series-end", "reason": "a-exhausted"}])
+    projected = R._project(ContrastLedger(root), set(), [], [])
+    assert projected["score_sessions"] == [110, 111, 112, 113, 114]
+    assert projected["missing"] is None
+    assert projected["unique_variants"] == 2
+    ref = _ledger(tmp_path, "reference", 1, [
+        {"kind": "slot-result", "logical_slot": "ref-stock-0", "attempt": 0,
+         "outcome": "machine-failure", "variant": "old"},
+        *({"kind": "slot-result", "logical_slot": f"ref-stock-{i}",
+           "attempt": 1 if i == 0 else 0, "outcome": "certified", "quality": "normal",
+           "fitness_tps": 100 + i, "variant": f"ref-{i}"} for i in range(5))])
+    # The reference contract requires three batches; the other two are empty here.
+    refs = [ref] + [_ledger(tmp_path, "reference", i, []) for i in (2, 3)]
+    stocks, _ = R._reference([ContrastLedger(p) for p in refs], set())
+    assert stocks[1] == [100, 101, 102, 103, 104]
