@@ -26,7 +26,7 @@ from .materializer_admission import non_admissible_materializer
 
 ROOT = Path(__file__).resolve().parents[2]
 DRIVER_ID = 'orchestrator.campaign.vhash_interval_gc'
-MATERIALIZER = DRIVER_ID + '.build_variant'
+MATERIALIZER = DRIVER_ID + '._build_variant'
 PATCHES = ('patches/cicada-interval-gc-variant.patch', 'patches/cicada-interval-gc-longtx.patch')
 TRACE_PATCH = 'patches/instr-cicada-trace.patch'
 BROKEN_PATCH = 'patches/broken-cicada-interval-gc-overprune.patch'
@@ -238,7 +238,7 @@ def configure_args(deps, toolchain, trace):
         '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON']
 
 
-def build_variant(source, build, deps, toolchain, arm, kind, *, dependency=False):
+def _build_variant(source, build, deps, toolchain, arm, kind, *, dependency=False):
     non_admissible_materializer(MATERIALIZER)
     trace = int(kind == 'trace')
     args = configure_args(deps, toolchain, trace)
@@ -608,7 +608,7 @@ def run_job(args):
                                                   scratch, toolchain)
             with patchharness.checkout(pin.CURRENT_PIN) as checkout:
                 source = Path(checkout)
-                dependency, _ = build_variant(source, scratch / 'dependency', deps, toolchain,
+                dependency, _ = _build_variant(source, scratch / 'dependency', deps, toolchain,
                                               'stock', 'perf', dependency=True)
                 manifest['builds']['dependency'] = {'sha256': sha_file(dependency)}
                 if args.command == 'smoke':
@@ -621,7 +621,7 @@ def run_job(args):
                 kinds = ('trace',) if args.command == 'verify' else ('perf', 'count')
                 for kind in kinds:
                     for arm in ARMS:
-                        binary, receipts = build_variant(source, scratch / f'{arm}-{kind}',
+                        binary, receipts = _build_variant(source, scratch / f'{arm}-{kind}',
                                                          deps, toolchain, arm, kind)
                         binaries[arm, kind] = binary, receipts
                         manifest['builds'][f'{arm}-{kind}'] = {
@@ -629,7 +629,7 @@ def run_job(args):
                 if args.command == 'verify':
                     apply_patches(source, [BROKEN_PATCH])
                     manifest['patches'][BROKEN_PATCH] = sha_file(ROOT / BROKEN_PATCH)
-                    binary, receipts = build_variant(source, scratch / 'broken-trace',
+                    binary, receipts = _build_variant(source, scratch / 'broken-trace',
                                                      deps, toolchain, 'min', 'trace')
                     binaries['broken', 'trace'] = binary, receipts
                     manifest['builds']['broken-trace'] = {

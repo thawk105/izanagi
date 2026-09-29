@@ -18,6 +18,12 @@ def raises(exc, fn, *args, **kwargs):
     raise AssertionError(f'expected {exc.__name__}')
 
 
+def test_materializer_names_existing_driver_function():
+    assert callable(d._build_variant)
+    assert getattr(d, d._build_variant.__name__) is d._build_variant
+    assert d.MATERIALIZER == f'{d._build_variant.__module__}.{d._build_variant.__qualname__}'
+
+
 def test_condition_table_and_group_partition():
     assert len(d.CELLS) == 17
     names = [name for group in d.GROUPS.values() for name in group]
