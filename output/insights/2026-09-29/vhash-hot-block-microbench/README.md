@@ -168,7 +168,7 @@ flowchart TB
 
 - **run1 の読み側が無効な理由**: 計時 loop が次のキーを `(idx × 1664525 + 選んだ版 ID + 1013904223) mod n` で決めていた。同じ深さの cell では版 ID が全キー共通の定数なので固定増分の線形合同列になり、周期が n より大幅に短い。同じ式で 300 万歩辿って数えると、n=1,775,815 で 45 キー、他の「LLC 外」の cell でも 6,145〜393,216 キーしか訪れない。run1 で pilot が飽和せず、cache-misses が条件間で不規則で、external 16 B が LLC 外なのに 15 ns だったのはこのためである。bench のテスト `test_read_key_sequence_full_period` は旧い式に戻すと赤になる (45 キー訪問を再現)。
 - **その他の失敗 raw**: pilot1 (request 33801.nqsv) は 35 分待ち行列に留まり dispatcher の全体時間上限で取り消されて一度も走らなかった (raw なし)。pilot2 (`raw/run1-d0fe78c15/20260928T213308Z-22e7ac8b.json`、49ec152d1) は perf の smoke で失敗 (L1・dTLB event を数えられない)。pilot4 (`raw/run2-b42cba01e/20260928T230406Z-31b4c316.json`、375e15a42) は ops 較正の打ち切り (`read batch below 0.1 s`) で失敗。
-- **実装の検査**: 段 6 の敵対レビュー 2 本 (どちらも NO-GO) と焦点再レビュー 2 巡の所見、および実機・実データで見つかった blocker を fix 巡 1〜8 で直した (node が値の置き方に関係なく 320 B だった、hot で当たっても cold pointer を先に読んでいた、書き込みの値の保存費用が測られていなかった、ns_per_op の出力精度で作図器が正常な raw を拒否しうた、など)。変異は `§8`。
+- **実装の検査**: 段 6 の敵対レビュー 2 本 (どちらも NO-GO) と焦点再レビュー 2 巡の所見、および実機・実データで見つかった blocker を fix 巡 1〜8 で直した (node が値の置き方に関係なく 320 B だった、hot で当たっても cold pointer を先に読んでいた、書き込みの値の保存費用が測られていなかった、ns_per_op の出力精度で作図器が正常な raw を拒否しうた、など)。焦点走で perf file 台帳が作図器を未審査と判定したので、記録済みの perf 値を読むだけで perf を起動しないと審査して台帳に登録した (fix 巡 9)。変異は `§8`。
 
 ## 8. 変異検査
 
@@ -185,14 +185,17 @@ flowchart TB
 | M7 | 作図器の保存前 layout 検査を外す | test_long_label_layout_rejected_without_outputs |
 | M8 | provenance の入力 SHA-256 を定数にする | test_provenance_input_sha256_matches_file ほか 2 |
 | M9 | bench の出力精度を 6 桁に戻す | test_bench_round_trip_ns_per_op_accepted |
-| M10 | 読み側のキー列を旧い固定増分式に戻す | (本走で観測) |
-| M11 | 較正を旧い 3 回・1.05 倍に戻す | (本走で観測) |
+| M10 | 読み側のキー列を旧い固定増分式に戻す | test_read_key_sequence_full_period、test_cell_contract_and_footprint |
+| M11 | 較正を旧い 3 回・1.05 倍に戻す | test_calibration_converges_and_fails_closed |
 
 M1〜M6 で `test_node_stride_and_hot_cold_slot` も赤になるのは、同じ selfcheck を内部で走らせるためで、冗長な検査として扱う (赤の理由は selfcheck の失敗名で帰属できる)。
 
 ### 8.1 本走の結果
 
-(本走の完了後に追記する)
+- 本走 1 (b42cba01e、計算ノード dispatch、baseline PASSED): M1〜M9 の 9 件が期待 node 集合と完全一致で **KILLED**。M10・M11 は期待 node を未観測のため SURVIVED 期待 (probe 扱い) で同梱し、どちらも赤になった (M10 = test_read_key_sequence_full_period と test_cell_contract_and_footprint、M11 = test_calibration_converges_and_fails_closed)。
+- 本走 2 (b42cba01e、baseline PASSED): 上の観測集合を KILLED 期待として登録した M10・M11 の 2 件が完全一致で **KILLED**。
+- 合計 11 件すべて KILLED、SURVIVED・MISMATCH・TIMEOUT 0 件 (台帳 `/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/mutation/final-ledger.json`・`final2b-ledger.json`、spec の SHA-256 は 052eebb6… と 7ed07725…)。
+- 気づき: M11 (較正の打ち切り) の走行で、較正 test の補助 binary が異常終了して計算ノードの repo 直下に core file を残し、次の harness 起動が「untracked file あり」で止まった (消して再投入)。変異を入れない状態では起きない。
 
 ## 9. 計算資源
 
