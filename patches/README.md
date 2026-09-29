@@ -11,7 +11,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | 合成 variant (例: 静的 backoff `BACKOFF_FIXED`) | Izanagi がフラグ空間外に合成した**評価中の正当な variant** (D18) | **out-of-tree patch** (価値確定まで。昇格は人間判断) |
 | SS2PL ロック規律スタディ (`ss2pl-lock-protocol-study.patch`) | 合成 variant (D790。既定 `IMPL=0, KIND=1, DLR=1` は stock 逐語)。既定 OFF の待ちグラフ計器 (D791。閉路の立った tick ごとに標準出力へ `ss2pl-wfg/v2` の 1 行 JSON、同じ文字列を durable file にも書く。runner の検証器と 2026-09-17 に接続、一次資料 `output/insights/2026-09-17/t2644-ss2pl-wfg-connect/`) と YCSB target・計数・テスト接続の修正を同梱する。使い方と既知の不足は `docs/cc-diagnostics.md` | **out-of-tree patch** (昇格・上流還元は人間判断) |
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
-| Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
+| Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2・md_15) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数、md_15 で ro 比率の実行時 flag・公開間隔の分割・境界保持種別を追加) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型、md_15 で種別固定 flag を追加)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
 | Cicada 計装 (`instr-cicada-trace.patch`、Cicada の `#if TRACE` trace v2) と broken-cicada 3 本 | verifier 入力 (C / R / W / E) と、その positive control | **out-of-tree patch** (計装は試作・実走用で、`izanagi-trace` 枝への移送と pin 前進は人間判断。壊しは永久) |
 | broken-mocc (わざと壊した mocc。[T-2294] の 3 本と後続の hot-update-unlock・skip-canonical-restore) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
@@ -867,6 +867,17 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
 - **駆動の正本 = `orchestrator/campaign/vhash_cicada_vlife.py`** (sub-command `smoke` / `measure`、materializer は NON_ADMISSIBLE、
   2 macro は condition gate の supply・meaning を通す)。measure は smoke JSON の witness と較正 (N の選定) を再計算して束縛する。
   作図 `tools/plotting/plot_vhash_cicada_vlife.py` (複数 raw を併合、図 3 枚)。
+- **md_15 の拡張 (計器行 schema 2、2026-09-29、VHash md_15)** — 新しい macro は足さず既存 2 macro の下だけで、
+  (a) 実行時 flag `-izanagi_ronly_pct` (既定 −1 = YCSB の生成のまま。0〜100 なら新しい手続きの初回 `begin()` だけで確率 r% で全 op を READ に、
+  それ以外は少なくとも 1 op を write にする。retry では変えない) と `-izanagi_long_kind` (0 = 生成のまま、1 = 長い tx の worker を update、2 = ro に固定) を足し、
+  (b) ro read の観測鎖・先頭 K 版・既読区間に限定した楽観的適格数 (`readonly_candidate`) と同じ母集団の `readonly_reads`、
+  (c) 公開間隔の flag 機会の時刻分割 (各 worker の実際の GC flag 上げ時刻と「ro commit も同じ timer 条件で上げたら」の時刻を、事象の時点の公開世代の slot に記録。
+  leader は全 flag を見たら公開の前に世代を進め、遅れて揃った公開は検出時に進めて `dc_late_epoch` に数える。ro commit の経路は flag と `gcstart_` を読むだけで書かない)、
+  (d) 境界年齢・公開間隔・ro snapshot 年齢の厳密和、境界保持 tx の種別、同値再公開の件数を出す。driver は旧 24 条件と schema 1 の読取りを残し、
+  主格子 60・skew 0 対照 12・調整済み genome の 12 条件を足した (調整済み genome は `cmake_cache_variable_for_axis` の CMake 変数で build し、
+  compile_commands の -D を照合する)。measure のレコード数は 1M 固定 (smoke の較正は参考記録)。作図 `tools/plotting/plot_vhash_readonly_share.py` (図 4 枚)。
+  既定 inert は拡張後の patch でも smoke (35800.nqsv、patch sha256 `fafdd862…`) で成立。condition gate の VLIFE 分岐 witness は owner TU 37 / header 9。
+  一次資料 `output/insights/2026-09-29/vhash-readonly-share/README.md`。
 
 ---
 

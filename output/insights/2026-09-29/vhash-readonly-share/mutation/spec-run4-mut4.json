@@ -1,0 +1,27 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "MUT-4-main-grid-drops-long-readonly",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\", \"wait10msR\"),\n",
+     "new": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\"),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

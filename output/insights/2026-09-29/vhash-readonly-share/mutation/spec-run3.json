@@ -1,0 +1,340 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "MUT-1-schema2-missing-field-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "        if not isinstance(worker, dict) or set(worker) != {\n",
+     "new": "        if not isinstance(worker, dict) or not set(worker) <= {\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-2-three-term-identity-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "                worker[\"dc_leader_wait_sum_us\"] != worker[\"dc_interval_sum_us\"]):\n",
+     "new": "                worker[\"dc_leader_wait_sum_us\"] != worker[\"dc_interval_sum_us\"]) and False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-3-df-interaction-sign",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "    return lag_r_long - lag_r_none - lag_0_long + lag_0_none\n",
+     "new": "    return lag_r_long - lag_r_none - lag_0_long - lag_0_none\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-4-main-grid-drops-long-readonly",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\", \"wait10msR\"),\n",
+     "new": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\"),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-5-old-ids-get-zero-readonly-pct",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "            \"izanagi_ronly_pct\": condition.get(\"izanagi_ronly_pct\", -1),\n",
+     "new": "            \"izanagi_ronly_pct\": condition.get(\"izanagi_ronly_pct\", 0),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-6-readonly-rate-denominator-all-sites",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "        readonly_deep_rate=[rate(value, readonly_reads) for value in readonly],\n",
+     "new": "        readonly_deep_rate=[rate(value, sum(sum(w[\"hops\"][1]) for w in workers)) for value in readonly],\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-7-draw-guard-disabled",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+  if (vlife_new_procedure_) {\n",
+     "new": "+  if (true || vlife_new_procedure_) {\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-8-readonly-commit-raises-flag",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+    vlife_new_procedure_ = true;\n+    ++vlife().readonly_commit;\n",
+     "new": "+    vlife_new_procedure_ = true; storeRelease(GCFlag[thid_].obj_, 1);\n+    ++vlife().readonly_commit;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-9-holder-weight-unchecked",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "            if sum(worker[\"holder_units\"]) != 1000000 * worker[\"holder_count\"]:\n",
+     "new": "            if False and sum(worker[\"holder_units\"]) != 1000000 * worker[\"holder_count\"]:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-10-tuned-genome-drops-inline-version",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "TUNED_GENOME = {\"BACK_OFF\": 0, \"INLINE_VERSION_OPT\": 1,\n",
+     "new": "TUNED_GENOME = {\"BACK_OFF\": 0, \"INLINE_VERSION_OPT\": 0,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-11-mainte-generation-from-begin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+    const uint64_t event_generation = vlife_epoch_.load(std::memory_order_acquire);\n",
+     "new": "+    const uint64_t event_generation = vlife_slot_generation_;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-12-measure-accepts-calibrated-records",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "    if type(records) is not int or records != expected:\n",
+     "new": "    if type(records) is not int:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-13-readonly-reads-before-deleted-guard",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+    ++vlife().readonly_reads;\n",
+     "new": "+    ;\n"
+    },
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+    if (is_ronly_) continue;\n",
+     "new": "+    if (is_ronly_) { if (i == 0) ++vlife().readonly_reads; continue; }\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-14-default-promotion-zero",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "                  \"INLINE_VERSION_PROMOTION\": 1, \"REUSE_VERSION\": 1,\n",
+     "new": "                  \"INLINE_VERSION_PROMOTION\": 0, \"REUSE_VERSION\": 1,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-15-depth-tuned-panels-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_readonly_share.py",
+     "old": "    for col, k in enumerate((1, 4, 8)):\n        drawn = _draw_tuned(axes[2, col], runs, \"readonly_deep_rate\", index=V.K.index(k),\n",
+     "new": "    for col, k in enumerate(()):\n        drawn = _draw_tuned(axes[2, col], runs, \"readonly_deep_rate\", index=V.K.index(k),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-16-epoch-advance-after-publication",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+  if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);\n",
+     "new": "+  ;\n"
+    },
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+    if (!all_ready) {\n",
+     "new": "+    if (true) {\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication",
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-17-fixed-three-second-duration",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_readonly_share.py",
+     "old": "    return int(values[0].split(\"=\", 1)[1])\n",
+     "new": "    return 3\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-18-late-publication-epoch-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "patches/instr-cicada-version-lifetime.patch",
+     "old": "+      ++vlife_epoch_;\n",
+     "new": "+      ;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MUT-19-time-panels-linear",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_readonly_share.py",
+     "old": "def _log_time_axis(ax):\n    ax.set_yscale(\"log\")\n",
+     "new": "def _log_time_axis(ax):\n    return\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "EQ-1-nonnegative-rewrite",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "    if type(value) is not int or value < 0:\n",
+     "new": "    if type(value) is not int or not value >= 0:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
