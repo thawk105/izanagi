@@ -1,0 +1,379 @@
+{
+ "protocol": "vC",
+ "reachable_states": 26132,
+ "window_states": 336,
+ "terminal_outcomes_after_window": {
+  "T=ABORTED W=COMMITTED P=COMMITTED": 6,
+  "T=COMMITTED W=ABORTED P=ABORTED": 6
+ },
+ "states_after_window_with_T_and_W_committed": 0,
+ "states_reachable_from_window": 3660,
+ "w_committed_after_window": 936,
+ "w_aborted_after_window": 1632,
+ "terminal_states_after_window": 12,
+ "terminal_with_unfinished_txn": 0,
+ "shortest_via_window_to_w_aborted": [
+  {
+   "thread": "T",
+   "operation": "read",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "buffer_write",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "begin_commit",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "fix_timestamp",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "install",
+   "version": "T:B",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "installed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "validation_rts",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "cold_read",
+   "version": "B11",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "buffer_write",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "begin_commit",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "fix_timestamp",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "install",
+   "version": "W:A",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "installed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validation_rts",
+   "version": "B11",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validate_read",
+   "version": "B11",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "buffer_write",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "begin_commit",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "fix_timestamp",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "install",
+   "version": "P:A",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "installed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "write_rts_check",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "writes_checked",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "decide_aborted",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "write_rts_check",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "writes_checked",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "decide_aborted",
+   "version": "",
+   "fault": ""
+  }
+ ],
+ "shortest_via_window_to_w_committed": [
+  {
+   "thread": "T",
+   "operation": "read",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "buffer_write",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "begin_commit",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "fix_timestamp",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "install",
+   "version": "T:B",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "installed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "cold_read",
+   "version": "B11",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "buffer_write",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "begin_commit",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "fix_timestamp",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "install",
+   "version": "W:A",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "installed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validation_rts",
+   "version": "B11",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validate_read",
+   "version": "B11",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "buffer_write",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "begin_commit",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "fix_timestamp",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "install",
+   "version": "P:A",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "installed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "validation_pass",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "write_rts_check",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "T",
+   "operation": "validation_rts",
+   "version": "A10",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "writes_checked",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "P",
+   "operation": "decide_committed",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "write_rts_check",
+   "version": "P:A",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "writes_checked",
+   "version": "",
+   "fault": ""
+  },
+  {
+   "thread": "W",
+   "operation": "decide_committed",
+   "version": "",
+   "fault": ""
+  }
+ ]
+}

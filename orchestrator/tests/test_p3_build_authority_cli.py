@@ -158,6 +158,7 @@ MACHINE_CALLERS = {
 
 MANUAL_BUILD_FILES = {
     "silo_policy_coverage.py",
+    "vhash_cicada_vlife.py",
     "b4_binary_record.py",
     "b10_backoff_shape_sweep.py",
     "paper_story_a1_paired.py",
@@ -177,6 +178,7 @@ MANUAL_BUILD_FILES = {
 ADMITTED_MANUAL_BUILD_FILES = {"s8a_trigger_coverage.py"}
 
 EXPECTED_NON_ADMISSIBLE = {
+    "orchestrator.campaign.vhash_cicada_vlife._build_variant",
     "orchestrator.campaign.silo_policy_coverage._build_variant",
     "orchestrator.campaign.b4_binary_record._install_dependency",
     "orchestrator.campaign.b10_backoff_shape_sweep._compile_probe_harnesses",

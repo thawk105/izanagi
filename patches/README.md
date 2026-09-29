@@ -11,6 +11,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | 合成 variant (例: 静的 backoff `BACKOFF_FIXED`) | Izanagi がフラグ空間外に合成した**評価中の正当な variant** (D18) | **out-of-tree patch** (価値確定まで。昇格は人間判断) |
 | SS2PL ロック規律スタディ (`ss2pl-lock-protocol-study.patch`) | 合成 variant (D790。既定 `IMPL=0, KIND=1, DLR=1` は stock 逐語)。既定 OFF の待ちグラフ計器 (D791。閉路の立った tick ごとに標準出力へ `ss2pl-wfg/v2` の 1 行 JSON、同じ文字列を durable file にも書く。runner の検証器と 2026-09-17 に接続、一次資料 `output/insights/2026-09-17/t2644-ss2pl-wfg-connect/`) と YCSB target・計数・テスト接続の修正を同梱する。使い方と既知の不足は `docs/cc-diagnostics.md` | **out-of-tree patch** (昇格・上流還元は人間判断) |
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
+| Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
 | Cicada 計装 (`instr-cicada-trace.patch`、Cicada の `#if TRACE` trace v2) と broken-cicada 3 本 | verifier 入力 (C / R / W / E) と、その positive control | **out-of-tree patch** (計装は試作・実走用で、`izanagi-trace` 枝への移送と pin 前進は人間判断。壊しは永久) |
 | broken-mocc (わざと壊した mocc。[T-2294] の 3 本と後続の hot-update-unlock・skip-canonical-restore) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
@@ -813,6 +814,34 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
   (使い道は巡回の検出)。update / delete が同じ key の read set 要素を消すので、同じ取引で読んで書いた key の R 行は trace に残らない。
 - **駆動:** repo 外の起動器 (driver の policy・toolchain・patch 適用・単独性検査を import し、build の target を `ycsb_si.exe`、
   verify を `--protocol si` にした局所版)。実走の記録は `output/insights/2026-09-26/t2847-si-run/`。
+
+---
+
+## instr-cicada-version-lifetime.patch — Cicada の版探索と版保持の診断計器 (VHash md_2、2026-09-29)
+
+**診断計器** (D20 第 5 類)。stock Cicada (preimage = gitlink `68106660686232781bca3be792a750d3e19d7a8a`、Cicada 関連 file は
+`511c9538` と同一) の `cc/cicada/include/transaction.hh` と `cc/cicada/transaction.cc` だけを触る。`util.cc`・`ycsb_cicada.cc`・
+共有 header `include/ycsb.hh`・`common/runner.hh` は触らない (condition gate の meaning 検査は owner TU `transaction.cc` の前処理だけを見るので、
+分岐は owner TU とそれが include する header に置く)。`ledger.json` には登録しない (同台帳は D18 第 4 類 ability probe 専用で entry 数 1 固定)。
+
+- **`IZANAGI_CICADA_VLIFE`** — stock の既存走査が訪れた版だけから数える (追加の鎖走査なし)。site
+  (read_update / read_ronly / blind_write / rmw_latest / precheck / install / readcheck / writecheck) 別の hop 数と位置
+  (read は latest 起点、validation は走査の開始点起点、raw の `position_origin`)、K∈{1,2,3,4,8} の深い read 数と
+  「観測時点の楽観的 forwarding 候補」数、既読 0 件の深い read、MinRts 公開ごとの境界年齢 (timestamp 空間、負値は別計数。公開は
+  `leaderWork()` の前後で `GCFlag[0]` が 1→0 になったことで判定し、同値の再公開も数える)・公開間隔 (rdtscp)・回収時年齢
+  (生成基準・上書き基準)・install/切離し数、長短別の tx 統計を thread 別の固定長配列 (総 worker ≤ 256) に数え、プロセス終了時に
+  `IZANAGI_CICADA_VLIFE_JSON ` + 1 行 JSON を出す。**計器入り build の throughput は性能値に使わない** (規律 1)。`SINGLE_EXEC=1` は対象外。
+- **`IZANAGI_CICADA_LONGTX`** — 長い tx の 2 型。(a) 待機型: worker 1 が `commit()` 冒頭 (read phase 末) で
+  `-worker1_insert_delay_rphase_us` だけ rdtscp spin で待つ (CCBench 論文 §7.2 の作り方)。(b) 操作数型: batch worker
+  (thid ≥ `-thread_num`、`-batch_th_num` 本) の手続きを `begin()` で `-batch_max_ope` 個まで同じ分布・読み比で伸ばす (retry では伸ばし直さない)。
+  stock の `WORKER1_INSERT_DELAY_RPHASE=1` 分岐 (未定義識別子 3 件で compile error、実測) と表示だけの `batch_*` flag は触らない。
+- **既定 inert の witness:** (i) `orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock`
+  (touched TU の前処理を行番号・行マーカーのファイル名・include 行まで stock と比較。patch の `#line` はファイル名なしの `#line N`)、
+  (ii) 駆動 smoke の stock と既定 patch の正規化 `objdump -d` と `.rodata` の一致、`nm -C` の izanagi 0 件、`strings -a` の izanagi 文字列集合の一致。
+  2026-09-29 の Pegasus 計算ノード smoke (33984.nqsv) で全部成立。一次資料 `output/insights/2026-09-29/vhash-cicada-version-measure/README.md`。
+- **駆動の正本 = `orchestrator/campaign/vhash_cicada_vlife.py`** (sub-command `smoke` / `measure`、materializer は NON_ADMISSIBLE、
+  2 macro は condition gate の supply・meaning を通す)。measure は smoke JSON の witness と較正 (N の選定) を再計算して束縛する。
+  作図 `tools/plotting/plot_vhash_cicada_vlife.py` (複数 raw を併合、図 3 枚)。
 
 ---
 

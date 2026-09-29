@@ -1,0 +1,1159 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.............s.s                                                         [100%]\n374 passed, 2 skipped in 114.64s (0:01:54)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "5eb08a912e4acb9c0f90b6bb960d73d93bf934b27f77853ab44fbbd00a782c85"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+    "duration_s": 115.33,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "fcebe2479b3669f19d23f70bcfd4b69d36a82435d083969ee3c78e72ec84d022",
+    "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+    "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+    "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+    "status": "PASSED",
+    "test_output_sha256": "5eb08a912e4acb9c0f90b6bb960d73d93bf934b27f77853ab44fbbd00a782c85",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+  },
+  "date": "2026-09-28T23:18:35.574546+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n........................................F............................... [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n...........s...s                                                         [100%]\n=================================== FAILURES ===================================\n___________________________ test_json_line_contract ____________________________\n[gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_json_line_contract():\n        payload = _payload()\n        assert V.parse_vlife_line(\"noise\\n\" + _line(payload) + \"\\n\") == payload\n        for text in (\"noise\", _line(payload) + \"\\n\" + _line(payload),\n                     V.PREFIX + '{\"schema_version\":1,\"schema_version\":1}'):\n            try:\n                V.parse_vlife_line(text)\n            except ValueError:\n                pass\n            else:\n>               raise AssertionError(\"invalid JSON line accepted\")\nE               AssertionError: invalid JSON line accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:65: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract\n1 failed, 373 passed, 2 skipped in 113.53s (0:01:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract\" nodeid_bytes=70 nodeid_omitted_bytes=0 source_bytes=661 retained_bytes=661 omitted_bytes=0 rendered_excerpt_bytes=703 sha256=83cce6ad5e15b46cdf7feaa6157550e25e0bf05175b4244c357695878018ffee\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_json_line_contract():\n>         payload = _payload()\n>         assert V.parse_vlife_line(\"noise\\x5cn\" + _line(payload) + \"\\x5cn\") == payload\n>         for text in (\"noise\", _line(payload) + \"\\x5cn\" + _line(payload),\n>                      V.PREFIX + '{\"schema_version\":1,\"schema_version\":1}'):\n>             try:\n>                 V.parse_vlife_line(text)\n>             except ValueError:\n>                 pass\n>             else:\n> >               raise AssertionError(\"invalid JSON line accepted\")\n> E               AssertionError: invalid JSON line accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:65: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=661 retained_bytes=661 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1395 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1a956f212c5e8ab2fed38a40d6e3edb0c5dbcc42a21def466531937f60219dcc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.222,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract"
+      ],
+      "hang_risk": false,
+      "id": "MUT-1-duplicate-json-line-accepted",
+      "injection_diff_sha256": "2e50d2575daae7ec7f73b0fe87faefa92eeaaca338fba5173eb8be7bbfb44020",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "00c05a886eabb4f76bc039d0742c7efcac1c1bacccc265bda5feb8bf84dcad74",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if len(lines) < 1:\n",
+          "old": "    if len(lines) != 1:\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "1a956f212c5e8ab2fed38a40d6e3edb0c5dbcc42a21def466531937f60219dcc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n..............................................................F......... [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n............s..s                                                         [100%]\n=================================== FAILURES ===================================\n_____________________ test_k_boundary_and_condition_subset _____________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_k_boundary_and_condition_subset():\n        assert \"+  for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]) {\" in (\n            ROOT / \"patches/instr-cicada-version-lifetime.patch\").read_text()\n        for k in V.K:\n            assert not V.depth_at_k(k-1, k)\n>           assert V.depth_at_k(k, k)\nE           assert False\nE            +  where False = <function depth_at_k at 0x14743baaf9a0>(1, 1)\nE            +    where <function depth_at_k at 0x14743baaf9a0> = V.depth_at_k\n\norchestrator/tests/test_vhash_cicada_vlife.py:110: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\n1 failed, 373 passed, 2 skipped in 112.46s (0:01:52)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=606 retained_bytes=606 omitted_bytes=0 rendered_excerpt_bytes=633 sha256=0154ca53765fb2f74d568af4582e6638c97ca0b3c53ede5182acb78f3e5a357e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_k_boundary_and_condition_subset():\n>         assert \"+  for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]) {\" in (\n>             ROOT / \"patches/instr-cicada-version-lifetime.patch\").read_text()\n>         for k in V.K:\n>             assert not V.depth_at_k(k-1, k)\n> >           assert V.depth_at_k(k, k)\n> E           assert False\n> E            +  where False = <function depth_at_k at 0x14743baaf9a0>(1, 1)\n> E            +    where <function depth_at_k at 0x14743baaf9a0> = V.depth_at_k\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:110: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=606 retained_bytes=606 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1338 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "590c9c7154c4960cd9ec37010d8f61c35792e327f56db624f2f9e2796b54a4e5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 113.152,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+      ],
+      "hang_risk": false,
+      "id": "MUT-2-k-boundary-strict",
+      "injection_diff_sha256": "c7c80b0f50ad89b64d907be5ed87091c338596fa45c2a6182e4a5f471d1673e9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "355cddebfd5cb1f3617e077f45da8814c843b615dc10c09ffca040e93d255c91",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    return position > k\n",
+          "old": "    return position >= k\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "590c9c7154c4960cd9ec37010d8f61c35792e327f56db624f2f9e2796b54a4e5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n........F............................................................... [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n...........s...s                                                         [100%]\n=================================== FAILURES ===================================\n_________________ test_patch_default_preprocess_matches_stock __________________\n[gw29] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_patch_default_preprocess_matches_stock():\n        stock = ROOT / \"external/ccbench\"\n        patch = ROOT / \"patches/instr-cicada-version-lifetime.patch\"\n        with tempfile.TemporaryDirectory(prefix=\"cicada-preprocess-\") as temporary:\n            root = Path(temporary)\n            for rel in TOUCHED:\n                destination = root / rel\n                destination.parent.mkdir(parents=True, exist_ok=True)\n                destination.write_bytes((stock / rel).read_bytes())\n            subprocess.run([\"git\", \"-C\", str(root), \"apply\", str(patch)],\n                           check=True, capture_output=True)\n            for rel in TOUCHED:\n>               assert _rows((stock / rel).read_text()) == _rows((root / rel).read_text()), rel\nE               AssertionError: cc/cicada/transaction.cc\nE               assert (['#include <... std;'), ...]) == (['#include <... std;'), ...])\nE                 \nE                 At index 1 diff: [(19, '<stdin>', 'extern bool chkClkSpan(const uint64_t start, const uint64_t stop,'), (20, '<stdin>', '                       const uint64_t threshold);'), (21, '<stdin>', 'extern void displaySLogSet();'), (22, '<stdin>', 'extern void displayDB();'), (23, '<stdin>', 'extern void cicadaLeaderWork();'), (25, '<stdin>', 'using namespace std;'), (34, '<stdin>', 'void TxExecutor::begin() {'), (38, '<stdin>', '  this->status_ = TransactionStatus::inflight;'), (39, '<stdin>', '  this->wts_.generateTimeStamp(thid_);'), (40, '<stdin>', '  __atomic_store_n(&(Thr...\nE                 \nE                 ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_vhash_cicada_vlife.py:410: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\n1 failed, 373 passed, 2 skipped in 114.13s (0:01:54)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1736 retained_bytes=1736 omitted_bytes=0 rendered_excerpt_bytes=1783 sha256=6370db1abb0f2770d0c43e6ef10d418f111852bf8b4844815a45960e00aad8ec\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_patch_default_preprocess_matches_stock():\n>         stock = ROOT / \"external/ccbench\"\n>         patch = ROOT / \"patches/instr-cicada-version-lifetime.patch\"\n>         with tempfile.TemporaryDirectory(prefix=\"cicada-preprocess-\") as temporary:\n>             root = Path(temporary)\n>             for rel in TOUCHED:\n>                 destination = root / rel\n>                 destination.parent.mkdir(parents=True, exist_ok=True)\n>                 destination.write_bytes((stock / rel).read_bytes())\n>             subprocess.run([\"git\", \"-C\", str(root), \"apply\", str(patch)],\n>                            check=True, capture_output=True)\n>             for rel in TOUCHED:\n> >               assert _rows((stock / rel).read_text()) == _rows((root / rel).read_text()), rel\n> E               AssertionError: cc/cicada/transaction.cc\n> E               assert (['#include <... std;'), ...]) == (['#include <... std;'), ...])\n> E                 \n> E                 At index 1 diff: [(19, '<stdin>', 'extern bool chkClkSpan(const uint64_t start, const uint64_t stop,'), (20, '<stdin>', '                       const uint64_t threshold);'), (21, '<stdin>', 'extern void displaySLogSet();'), (22, '<stdin>', 'extern void displayDB();'), (23, '<stdin>', 'extern void cicadaLeaderWork();'), (25, '<stdin>', 'using namespace std;'), (34, '<stdin>', 'void TxExecutor::begin() {'), (38, '<stdin>', '  this->status_ = TransactionStatus::inflight;'), (39, '<stdin>', '  this->wts_.generateTimeStamp(thid_);'), (40, '<stdin>', '  __atomic_store_n(&(Thr...\n> E                 \n> E                 ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:410: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1736 retained_bytes=1736 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2500 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "270b5ed1154f08060e8b6d5bf23f37417767976450be8e36049aeb0c81c9b5bb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.81,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+      ],
+      "hang_risk": false,
+      "id": "MUT-3-instrument-statement-outside-macro",
+      "injection_diff_sha256": "17d5d0e24ea7b2cc59fc658ffedcdfcc694a5a9ad24835ade2052ce54aec00a3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "888edc0e945301f4b055e0365d9d66817c42092830db1243ad51791cb0fe37b9",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+#if IZANAGI_CICADA_VLIFE\n+#endif\n+    ++vlife_hops; ++vlife_pos;\n+#line 105\n",
+          "old": "+#if IZANAGI_CICADA_VLIFE\n+    ++vlife_hops; ++vlife_pos;\n+#endif\n+#line 105\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "270b5ed1154f08060e8b6d5bf23f37417767976450be8e36049aeb0c81c9b5bb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n..................................................................F..... [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.............s.s                                                         [100%]\n=================================== FAILURES ===================================\n_____________________ test_k_boundary_and_condition_subset _____________________\n[gw30] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_k_boundary_and_condition_subset():\n        assert \"+  for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]) {\" in (\n            ROOT / \"patches/instr-cicada-version-lifetime.patch\").read_text()\n        for k in V.K:\n            assert not V.depth_at_k(k-1, k)\n            assert V.depth_at_k(k, k)\n        assert V.select_conditions(\"A-none-gc10,B-ops1000-gc100000\") == (\n            \"A-none-gc10\", \"B-ops1000-gc100000\")\n        for value in (\"A-none-gc10,A-none-gc10\", \"unknown\", \"\", \"A-none-gc10,\"):\n            try:\n                V.select_conditions(value)\n            except ValueError:\n                pass\n            else:\n>               raise AssertionError(\"bad condition list accepted\")\nE               AssertionError: bad condition list accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:119: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\n1 failed, 373 passed, 2 skipped in 114.41s (0:01:54)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=888 retained_bytes=888 omitted_bytes=0 rendered_excerpt_bytes=929 sha256=edccff8b0ad49c4119c8bde39eff518dad72b5471089180c3361a5fddbbb7ce1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_k_boundary_and_condition_subset():\n>         assert \"+  for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]) {\" in (\n>             ROOT / \"patches/instr-cicada-version-lifetime.patch\").read_text()\n>         for k in V.K:\n>             assert not V.depth_at_k(k-1, k)\n>             assert V.depth_at_k(k, k)\n>         assert V.select_conditions(\"A-none-gc10,B-ops1000-gc100000\") == (\n>             \"A-none-gc10\", \"B-ops1000-gc100000\")\n>         for value in (\"A-none-gc10,A-none-gc10\", \"unknown\", \"\", \"A-none-gc10,\"):\n>             try:\n>                 V.select_conditions(value)\n>             except ValueError:\n>                 pass\n>             else:\n> >               raise AssertionError(\"bad condition list accepted\")\n> E               AssertionError: bad condition list accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:119: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=888 retained_bytes=888 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1634 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7f1843e207c33fe3b7e61de16074968848e18a1fb92eff4a7ad01244f1eb5844"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 115.096,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+      ],
+      "hang_risk": false,
+      "id": "MUT-4-duplicate-condition-accepted",
+      "injection_diff_sha256": "c4e3ff39e8f7cc6de9c2182ca6bc6c027703ba1566dd2b1fd59ad62faacc62e4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2c534400f81172a2da2a53d812fe7c3a0ea833897b675cc4a0dd2072d1538fe6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if False and len(ids) != len(set(ids)):\n",
+          "old": "    if len(ids) != len(set(ids)):\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "7f1843e207c33fe3b7e61de16074968848e18a1fb92eff4a7ad01244f1eb5844",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n.................................F...................................... [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.............s.s                                                         [100%]\n=================================== FAILURES ===================================\n___________________ test_worker_sum_and_readonly_denominator ___________________\n[gw38] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_worker_sum_and_readonly_denominator():\n        p = _payload()\n        p[\"workers\"][0][\"deep\"][0] = 2\n        p[\"workers\"][1][\"deep\"][0] = 3\n        p[\"workers\"][0][\"hops\"][0][0] = 2\n        p[\"workers\"][1][\"hops\"][0][0] = 3\n        p[\"workers\"][0][\"candidate\"][0] = 1\n        p[\"workers\"][0][\"deep_read_zero\"][0] = 1\n        p[\"workers\"][0][\"candidate_read_zero\"][0] = 1\n        p[\"workers\"][0][\"readonly_deep\"][0] = 100\n        p[\"workers\"][0][\"hops\"][1][0] = 100\n        p[\"workers\"][0][\"install\"] = 7\n        p[\"workers\"][1][\"detach\"] = 2\n        parsed = V.parse_vlife_line(_line(p))\n        summary = V.summarize(parsed)\n>       assert summary[\"deep\"][0] == 5\nE       assert 105 == 5\n\norchestrator/tests/test_vhash_cicada_vlife.py:97: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator\n1 failed, 373 passed, 2 skipped in 113.66s (0:01:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=819 retained_bytes=819 omitted_bytes=0 rendered_excerpt_bytes=862 sha256=62dfb4380852c061689b53ca6752a0c77f350517479c792388932a2048e19c96\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_worker_sum_and_readonly_denominator():\n>         p = _payload()\n>         p[\"workers\"][0][\"deep\"][0] = 2\n>         p[\"workers\"][1][\"deep\"][0] = 3\n>         p[\"workers\"][0][\"hops\"][0][0] = 2\n>         p[\"workers\"][1][\"hops\"][0][0] = 3\n>         p[\"workers\"][0][\"candidate\"][0] = 1\n>         p[\"workers\"][0][\"deep_read_zero\"][0] = 1\n>         p[\"workers\"][0][\"candidate_read_zero\"][0] = 1\n>         p[\"workers\"][0][\"readonly_deep\"][0] = 100\n>         p[\"workers\"][0][\"hops\"][1][0] = 100\n>         p[\"workers\"][0][\"install\"] = 7\n>         p[\"workers\"][1][\"detach\"] = 2\n>         parsed = V.parse_vlife_line(_line(p))\n>         summary = V.summarize(parsed)\n> >       assert summary[\"deep\"][0] == 5\n> E       assert 105 == 5\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:97: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=819 retained_bytes=819 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1571 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ee8898512d289b690abe93a4631acb8ce755a0052604b07b9e80590910c6835d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.364,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator"
+      ],
+      "hang_risk": false,
+      "id": "MUT-5-readonly-in-forwarding-denominator",
+      "injection_diff_sha256": "39b378f23af8ebe60d56c85b39afed45365c73e1ad722c191da1a3fa8d07be49",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b22cac7da1b8eaf3abe909187b379dd62f7cb95508bcf292f4749f77be1d6344",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    deep = [sum(w[\"deep\"][i] + w[\"readonly_deep\"][i] for w in workers) for i in range(5)]\n",
+          "old": "    deep = [sum(w[\"deep\"][i] for w in workers) for i in range(5)]\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "ee8898512d289b690abe93a4631acb8ce755a0052604b07b9e80590910c6835d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n.......F................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.............s.s                                                         [100%]\n=================================== FAILURES ===================================\n_________________ test_patch_default_preprocess_matches_stock __________________\n[gw31] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_patch_default_preprocess_matches_stock():\n        stock = ROOT / \"external/ccbench\"\n        patch = ROOT / \"patches/instr-cicada-version-lifetime.patch\"\n        with tempfile.TemporaryDirectory(prefix=\"cicada-preprocess-\") as temporary:\n            root = Path(temporary)\n            for rel in TOUCHED:\n                destination = root / rel\n                destination.parent.mkdir(parents=True, exist_ok=True)\n                destination.write_bytes((stock / rel).read_bytes())\n            subprocess.run([\"git\", \"-C\", str(root), \"apply\", str(patch)],\n                           check=True, capture_output=True)\n            for rel in TOUCHED:\n>               assert _rows((stock / rel).read_text()) == _rows((root / rel).read_text()), rel\nE               AssertionError: cc/cicada/transaction.cc\nE               assert (['#include <... std;'), ...]) == (['#include <... std;'), ...])\nE                 \nE                 At index 1 diff: [(19, '<stdin>', 'extern bool chkClkSpan(const uint64_t start, const uint64_t stop,'), (20, '<stdin>', '                       const uint64_t threshold);'), (21, '<stdin>', 'extern void displaySLogSet();'), (22, '<stdin>', 'extern void displayDB();'), (23, '<stdin>', 'extern void cicadaLeaderWork();'), (25, '<stdin>', 'using namespace std;'), (34, '<stdin>', 'void TxExecutor::begin() {'), (38, '<stdin>', '  this->status_ = TransactionStatus::inflight;'), (39, '<stdin>', '  this->wts_.generateTimeStamp(thid_);'), (40, '<stdin>', '  __atomic_store_n(&(Thr...\nE                 \nE                 ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_vhash_cicada_vlife.py:410: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\n1 failed, 373 passed, 2 skipped in 113.51s (0:01:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1736 retained_bytes=1736 omitted_bytes=0 rendered_excerpt_bytes=1783 sha256=36f7b7c331669185b62ca6f105cbe4f87b4cf2341d7b82e087fefed9a39f9bff\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_patch_default_preprocess_matches_stock():\n>         stock = ROOT / \"external/ccbench\"\n>         patch = ROOT / \"patches/instr-cicada-version-lifetime.patch\"\n>         with tempfile.TemporaryDirectory(prefix=\"cicada-preprocess-\") as temporary:\n>             root = Path(temporary)\n>             for rel in TOUCHED:\n>                 destination = root / rel\n>                 destination.parent.mkdir(parents=True, exist_ok=True)\n>                 destination.write_bytes((stock / rel).read_bytes())\n>             subprocess.run([\"git\", \"-C\", str(root), \"apply\", str(patch)],\n>                            check=True, capture_output=True)\n>             for rel in TOUCHED:\n> >               assert _rows((stock / rel).read_text()) == _rows((root / rel).read_text()), rel\n> E               AssertionError: cc/cicada/transaction.cc\n> E               assert (['#include <... std;'), ...]) == (['#include <... std;'), ...])\n> E                 \n> E                 At index 1 diff: [(19, '<stdin>', 'extern bool chkClkSpan(const uint64_t start, const uint64_t stop,'), (20, '<stdin>', '                       const uint64_t threshold);'), (21, '<stdin>', 'extern void displaySLogSet();'), (22, '<stdin>', 'extern void displayDB();'), (23, '<stdin>', 'extern void cicadaLeaderWork();'), (25, '<stdin>', 'using namespace std;'), (34, '<stdin>', 'void TxExecutor::begin() {'), (38, '<stdin>', '  this->status_ = TransactionStatus::inflight;'), (39, '<stdin>', '  this->wts_.generateTimeStamp(thid_);'), (40, '<stdin>', '  __atomic_store_n(&(Thr...\n> E                 \n> E                 ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:410: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1736 retained_bytes=1736 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2500 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bd162423e4b376300c99951eff7314c662277196681a2317899346f690d2b508"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.202,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+      ],
+      "hang_risk": false,
+      "id": "MUT-6-line-directive-with-filename",
+      "injection_diff_sha256": "a4dbe820c818ff06c9527132695e26515343ba685a5233803da578f2e96334ef",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "769246f62402f9e2a878e75cfbe4e04311e6c084804bb97a796c5b548aff0397",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+#line 38 \"cc/cicada/transaction.cc\"\n   this->status_ = TransactionStatus::inflight;\n",
+          "old": "+#line 38\n   this->status_ = TransactionStatus::inflight;\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "bd162423e4b376300c99951eff7314c662277196681a2317899346f690d2b508",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n..................................................................F..... [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n...........s...s                                                         [100%]\n=================================== FAILURES ===================================\n______________________ test_smoke_identity_binds_records _______________________\n[gw26] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_smoke_identity_binds_records():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-smoke-test-\") as td:\n            path = Path(td) / \"smoke.json\"\n            raw = {\"schema_version\": 1, \"command\": \"smoke\", \"ccbench_commit\": V.PIN,\n                   \"patch_sha256\": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),\n                   \"witness\": {\"normalized_objdump_equal\": True,\n                               \"normalized_rodata_equal\": True,\n                               \"stock_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]},\n                               \"default_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]}},\n                   \"short_run\": {\"rc\": 0, \"parsed\": _payload()},\n                   \"calibration\": {\"l3_bytes\": 1000000,\n                                   \"probes\": {str(n): {\"rc\": 0, \"maxrss_kb\": rss}\n                                              for n, rss in ((1000000, 1000),\n                                                             (2000000, 5000),\n                                                             (4000000, 8000))},\n                                   \"selected_records\": 2000000}}\n            path.write_text(json.dumps(raw))\n            assert V._smoke_records(path) == 2000000\n            raw[\"patch_sha256\"] = \"0\" * 64\n            path.write_text(json.dumps(raw))\n            try:\n                V._smoke_records(path)\n            except ValueError:\n                pass\n            else:\n>               raise AssertionError(\"mismatched patch accepted\")\nE               AssertionError: mismatched patch accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:194: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records\n1 failed, 373 passed, 2 skipped in 114.81s (0:01:54)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=1706 retained_bytes=1706 omitted_bytes=0 rendered_excerpt_bytes=1769 sha256=124f400249045964a77587eff437e5ef0edf1509551f373a978aa92f2df6f97b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_smoke_identity_binds_records():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-smoke-test-\") as td:\n>             path = Path(td) / \"smoke.json\"\n>             raw = {\"schema_version\": 1, \"command\": \"smoke\", \"ccbench_commit\": V.PIN,\n>                    \"patch_sha256\": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),\n>                    \"witness\": {\"normalized_objdump_equal\": True,\n>                                \"normalized_rodata_equal\": True,\n>                                \"stock_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]},\n>                                \"default_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]}},\n>                    \"short_run\": {\"rc\": 0, \"parsed\": _payload()},\n>                    \"calibration\": {\"l3_bytes\": 1000000,\n>                                    \"probes\": {str(n): {\"rc\": 0, \"maxrss_kb\": rss}\n>                                               for n, rss in ((1000000, 1000),\n>                                                              (2000000, 5000),\n>                                                              (4000000, 8000))},\n>                                    \"selected_records\": 2000000}}\n>             path.write_text(json.dumps(raw))\n>             assert V._smoke_records(path) == 2000000\n>             raw[\"patch_sha256\"] = \"0\" * 64\n>             path.write_text(json.dumps(raw))\n>             try:\n>                 V._smoke_records(path)\n>             except ValueError:\n>                 pass\n>             else:\n> >               raise AssertionError(\"mismatched patch accepted\")\n> E               AssertionError: mismatched patch accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:194: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1706 retained_bytes=1706 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2476 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3b7bc2294c8172b80512b0e14718b21cb5fafbeb60be8649e410342bab400952"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 115.498,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records"
+      ],
+      "hang_risk": false,
+      "id": "MUT-7-smoke-patch-sha-unchecked",
+      "injection_diff_sha256": "c539b68d33b1c0396ea8f9ec3a85212e6a089d0f98175f794d6fa34a8f76d9a1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dc7779d40d32ad9f8ad5977f914ca5e378528175b597a62206c3650462a556c8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if raw.get(\"ccbench_commit\") != PIN:\n",
+          "old": "    if raw.get(\"ccbench_commit\") != PIN or raw.get(\"patch_sha256\") != hashlib.sha256(PATCH.read_bytes()).hexdigest():\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "3b7bc2294c8172b80512b0e14718b21cb5fafbeb60be8649e410342bab400952",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n...F.................................................................... [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.............s.s                                                         [100%]\n=================================== FAILURES ===================================\n____________ test_smoke_recomputes_calibration_and_requires_success ____________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_smoke_recomputes_calibration_and_requires_success():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-smoke-selection-\") as td:\n            path = Path(td) / \"smoke.json\"\n            raw = {\"schema_version\": 1, \"command\": \"smoke\", \"ccbench_commit\": V.PIN,\n                   \"patch_sha256\": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),\n                   \"witness\": {\"normalized_objdump_equal\": True,\n                               \"normalized_rodata_equal\": True,\n                               \"stock_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]},\n                               \"default_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]}},\n                   \"short_run\": {\"rc\": 0, \"parsed\": _payload()},\n                   \"calibration\": {\"l3_bytes\": 1000000,\n                                   \"probes\": {str(n): {\"rc\": 0, \"maxrss_kb\": rss}\n                                              for n, rss in ((1000000, 1000),\n                                                             (2000000, 5000),\n                                                             (4000000, 8000))},\n                                   \"selected_records\": 4000000}}\n            def rejected():\n                path.write_text(json.dumps(raw))\n                try:\n                    V._smoke_records(path)\n                except ValueError:\n                    return\n                raise AssertionError(\"invalid smoke accepted\")\n>           rejected()  # MUT-8: 2M is the smallest passing probe, not 4M.\n\norchestrator/tests/test_vhash_cicada_vlife.py:220: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def rejected():\n        path.write_text(json.dumps(raw))\n        try:\n            V._smoke_records(path)\n        except ValueError:\n            return\n>       raise AssertionError(\"invalid smoke accepted\")\nE       AssertionError: invalid smoke accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:219: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\n1 failed, 373 passed, 2 skipped in 113.46s (0:01:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2029 retained_bytes=2029 omitted_bytes=0 rendered_excerpt_bytes=2110 sha256=cbfb09731bdc9a4e2e9cf54466b9ed6ad72c2803a1f55f4c980e23bf2f95f76c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_smoke_recomputes_calibration_and_requires_success():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-smoke-selection-\") as td:\n>             path = Path(td) / \"smoke.json\"\n>             raw = {\"schema_version\": 1, \"command\": \"smoke\", \"ccbench_commit\": V.PIN,\n>                    \"patch_sha256\": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),\n>                    \"witness\": {\"normalized_objdump_equal\": True,\n>                                \"normalized_rodata_equal\": True,\n>                                \"stock_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]},\n>                                \"default_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]}},\n>                    \"short_run\": {\"rc\": 0, \"parsed\": _payload()},\n>                    \"calibration\": {\"l3_bytes\": 1000000,\n>                                    \"probes\": {str(n): {\"rc\": 0, \"maxrss_kb\": rss}\n>                                               for n, rss in ((1000000, 1000),\n>                                                              (2000000, 5000),\n>                                                              (4000000, 8000))},\n>                                    \"selected_records\": 4000000}}\n>             def rejected():\n>                 path.write_text(json.dumps(raw))\n>                 try:\n>                     V._smoke_records(path)\n>                 except ValueError:\n>                     return\n>                 raise AssertionError(\"invalid smoke accepted\")\n> >           rejected()  # MUT-8: 2M is the smallest passing probe, not 4M.\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:220: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n>     def rejected():\n>         path.write_text(json.dumps(raw))\n>         try:\n>             V._smoke_records(path)\n>         except ValueError:\n>             return\n> >       raise AssertionError(\"invalid smoke accepted\")\n> E       AssertionError: invalid smoke accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:219: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2029 retained_bytes=2029 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2839 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "34b0634f84ce44ab0893a099c55ee29a006dd9c21ef5b6fa9919b3660bbb36fe"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.154,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+      ],
+      "hang_risk": false,
+      "id": "MUT-8-selected-records-not-recomputed",
+      "injection_diff_sha256": "1cec6e4c92683192e0d3b633268acfde50e8ab10eab30d57dc52c195eba2ca67",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "62730d32a316217c083880e4d7cd00d0ea8a4b37cd850fb956ebe885bcb404f5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if type(records) is not int or records not in (1000000, 2000000, 4000000):\n",
+          "old": "    if type(records) is not int or records != expected:\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "34b0634f84ce44ab0893a099c55ee29a006dd9c21ef5b6fa9919b3660bbb36fe",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n...................................................................F.... [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.............s.s                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_delay_compile_selects_unique_ycsb_target _________________\n[gw43] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_delay_compile_selects_unique_ycsb_target():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-commands-\") as td:\n            build = Path(td)\n            source = build / \"source\"\n            rows = [\n                {\"directory\": td, \"file\": str(source / \"cc/cicada/transaction.cc\"),\n                 \"arguments\": [\"c++\", \"-c\", \"transaction.cc\", \"-o\", f\"{name}.dir/transaction.cc.o\"]}\n                for name in (\"tpcc_cicada.exe\", \"ycsb_cicada.exe\", \"bomb_cicada.exe\")\n            ]\n            for row, name in zip(rows, (\"tpcc\", \"ycsb\", \"bomb\")):\n                row[\"arguments\"].insert(1, \"-DTARGET=\" + name)\n            def write(value):\n                (build / \"compile_commands.json\").write_text(json.dumps(value))\n            with patch.object(V.subprocess, \"run\") as run:\n                run.return_value.returncode = 0\n                run.return_value.stdout = \"\"\n                run.return_value.stderr = \"\"\n                write(rows)\n                result = V._delay_compile(source, build)\n                assert result[\"rc\"] == 0\n                assert \"ycsb_cicada.exe.dir/transaction.cc.o\" not in result[\"argv\"]\n>               assert \"-DTARGET=ycsb\" in run.call_args.args[0]\nE               AssertionError: assert '-DTARGET=ycsb' in ['c++', '-DTARGET=tpcc', 'transaction.cc', '-fsyntax-only', '-DWORKER1_INSERT_DELAY_RPHASE=1']\n\norchestrator/tests/test_vhash_cicada_vlife.py:258: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target\n1 failed, 373 passed, 2 skipped in 113.65s (0:01:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1483 retained_bytes=1483 omitted_bytes=0 rendered_excerpt_bytes=1538 sha256=2475c412454a78426675047b5701b43b84b43196fc6d003ecdd8b1e438403697\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_delay_compile_selects_unique_ycsb_target():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-commands-\") as td:\n>             build = Path(td)\n>             source = build / \"source\"\n>             rows = [\n>                 {\"directory\": td, \"file\": str(source / \"cc/cicada/transaction.cc\"),\n>                  \"arguments\": [\"c++\", \"-c\", \"transaction.cc\", \"-o\", f\"{name}.dir/transaction.cc.o\"]}\n>                 for name in (\"tpcc_cicada.exe\", \"ycsb_cicada.exe\", \"bomb_cicada.exe\")\n>             ]\n>             for row, name in zip(rows, (\"tpcc\", \"ycsb\", \"bomb\")):\n>                 row[\"arguments\"].insert(1, \"-DTARGET=\" + name)\n>             def write(value):\n>                 (build / \"compile_commands.json\").write_text(json.dumps(value))\n>             with patch.object(V.subprocess, \"run\") as run:\n>                 run.return_value.returncode = 0\n>                 run.return_value.stdout = \"\"\n>                 run.return_value.stderr = \"\"\n>                 write(rows)\n>                 result = V._delay_compile(source, build)\n>                 assert result[\"rc\"] == 0\n>                 assert \"ycsb_cicada.exe.dir/transaction.cc.o\" not in result[\"argv\"]\n> >               assert \"-DTARGET=ycsb\" in run.call_args.args[0]\n> E               AssertionError: assert '-DTARGET=ycsb' in ['c++', '-DTARGET=tpcc', 'transaction.cc', '-fsyntax-only', '-DWORKER1_INSERT_DELAY_RPHASE=1']\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:258: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1483 retained_bytes=1483 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2257 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "96127342c5f2f4e740321a5fa64de7ed2da7e91a6c9009ab2afa5ae173eafa4d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.345,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target"
+      ],
+      "hang_risk": false,
+      "id": "MUT-9-delay-compile-row-not-target-bound",
+      "injection_diff_sha256": "d12c2d4c3a0032b367a743921d7060009a0eed02a9a4549e2ab9dfde2b5685c0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5772f0931aeccfdf50e3ebcf207b689502218abc305678b854227cadde69e1fe",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "            ][:1]\n",
+          "old": "            and target_output(row)]\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "96127342c5f2f4e740321a5fa64de7ed2da7e91a6c9009ab2afa5ae173eafa4d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.....................................................................F.. [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n.........s.....s                                                         [100%]\n=================================== FAILURES ===================================\n_______________ test_leader_publication_counts_same_value_store ________________\n[gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_leader_publication_counts_same_value_store():\n        patch_text = V.PATCH.read_text()\n        leader = patch_text.split(\" void TxExecutor::leaderWork() {\", 1)[1]\n        before, after = leader.split(\"   cicadaLeaderWork();\", 1)\n        flag = \"__atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE)\"\n        assert \"+  const bool leader_ready =\\n+      \" + flag + \" == 1;\" in before\n>       assert \"+  if (leader_ready &&\\n+      \" + flag + \" == 0) {\" in after\nE       AssertionError: assert (('+  if (leader_ready &&\\n+      ' + '__atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE)') + ' == 0) {') in '\\n+#if IZANAGI_CICADA_VLIFE\\n+  // The flag falls only after MinRts is published, including same-value stores.\\n+  //...t_publish = now;\\n+  }\\n+#endif\\n+#line 964\\n #if BACK_OFF\\n   leaderBackoffWork(backoff_, CCBenchResults);\\n #endif\\n'\n\norchestrator/tests/test_vhash_cicada_vlife.py:385: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store\n1 failed, 373 passed, 2 skipped in 114.73s (0:01:54)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=974 retained_bytes=974 omitted_bytes=0 rendered_excerpt_bytes=1038 sha256=0b4738c3284095a297d7282863af0020337c97c918f3f10ce9c2d15c5bc7ae5a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_leader_publication_counts_same_value_store():\n>         patch_text = V.PATCH.read_text()\n>         leader = patch_text.split(\" void TxExecutor::leaderWork() {\", 1)[1]\n>         before, after = leader.split(\"   cicadaLeaderWork();\", 1)\n>         flag = \"__atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE)\"\n>         assert \"+  const bool leader_ready =\\x5cn+      \" + flag + \" == 1;\" in before\n> >       assert \"+  if (leader_ready &&\\x5cn+      \" + flag + \" == 0) {\" in after\n> E       AssertionError: assert (('+  if (leader_ready &&\\x5cn+      ' + '__atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE)') + ' == 0) {') in '\\x5cn+#if IZANAGI_CICADA_VLIFE\\x5cn+  // The flag falls only after MinRts is published, including same-value stores.\\x5cn+  //...t_publish = now;\\x5cn+  }\\x5cn+#endif\\x5cn+#line 964\\x5cn #if BACK_OFF\\x5cn   leaderBackoffWork(backoff_, CCBenchResults);\\x5cn #endif\\x5cn'\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:385: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=974 retained_bytes=974 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1755 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "334d0c2bd172c2f4e6992dc7df6d09dd505fc6b45e3310f6aecea5ea043b87e8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 115.417,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store"
+      ],
+      "hang_risk": false,
+      "id": "MUT-10-publication-judged-without-flag-fall",
+      "injection_diff_sha256": "c04fa5fcff6f82b9a51236985c34850fdbd03eda48211e5f239ef7fdc08f3ff0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0aea5f41152e3f31b0654204f6f8ac1a448fd495fe73c8847a17f5e12fd781a3",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+  if (leader_ready &&\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 1) {\n",
+          "old": "+  if (leader_ready &&\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "KILLED",
+      "test_output_sha256": "334d0c2bd172c2f4e6992dc7df6d09dd505fc6b45e3310f6aecea5ea043b87e8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 19%]\n........................................................................ [ 38%]\n........................................................................ [ 57%]\n........................................................................ [ 76%]\n........................................................................ [ 95%]\n...........s...s                                                         [100%]\n374 passed, 2 skipped in 113.51s (0:01:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "3412dfe1a5246427d50c0cc6fe176556670974574ca8c5994b50d7b5cd7d875a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "ad4ac12e28c0a1aa99f732e5cbf8eedae49357952735b34fe41b2972dda5f041",
+      "duration_s": 114.169,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "EQ-1-equivalent-site-list",
+      "injection_diff_sha256": "edef8d527e84e1dcb8b6a62096d0e64c9603f3f4f0c66af0d672c38341c9887a",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "55eb8f411020ab8e972b5120597d2911d92a129cf4d3fd0b95b1383c573c194b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if payload[\"sites\"] != [*SITES]:\n",
+          "old": "    if payload[\"sites\"] != list(SITES):\n"
+        }
+      ],
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "SURVIVED",
+      "test_output_sha256": "3412dfe1a5246427d50c0cc6fe176556670974574ca8c5994b50d7b5cd7d875a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\norchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract\norchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator\norchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\norchestrator/tests/test_vhash_cicada_vlife.py::test_real_patch_define_registry_and_rejection\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\norchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_records_failed_delay_compile_without_failing\norchestrator/tests/test_vhash_cicada_vlife.py::test_batch_extension_stays_in_begin_and_retries_same_procedure\norchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store\norchestrator/tests/test_vhash_cicada_vlife.py::test_worker_limit_checked_at_construction\norchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\norchestrator/tests/test_condition_meaning_gate.py::test_mocc_backoff_fixed_uses_mocc_owner_and_target\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_raw_3000_is_observed_as_static_1000\norchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler\norchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch\norchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches\norchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing\norchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero\norchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green\norchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red\norchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command\norchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash\norchestrator/tests/test_condition_meaning_gate.py::test_supply_green_binds_real_cmake_identity_and_gate_configure_argv\norchestrator/tests/test_condition_meaning_gate.py::test_real_cmake_wrapper_replacement_during_configure_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_configure_compile_commands_rejects_real_cmake_replacement_before_return\norchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_FIXED=-1]\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_NOINLINE=0]\norchestrator/tests/test_condition_meaning_gate.py::test_inert_semantic_difference_on_root_line_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_shaped_literal_outside_closure_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_prefixed_by_path_byte_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_difference_without_code_owned_file_builtin_is_red\norchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_evidence_binds_configure_source_roots\norchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock\norchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green\norchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection\norchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red\norchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches\norchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[False]\norchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[True]\norchestrator/tests/test_condition_meaning_gate.py::test_sort_undef_rejects_family_with_supply_still_green\norchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]\norchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]\norchestrator/tests/test_condition_meaning_gate.py::test_report_missing_compile_argv_companion_rejects_meaning\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_requested_one_supply_and_meaning_are_green\norchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_preserves_directory_symlinks_and_git_link\norchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure0]\norchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv\norchestrator/tests/test_condition_meaning_gate.py::test_real_compile_time_green_admits_certified_selection\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_CICADA_VLIFE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_CICADA_LONGTX]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[SILO_POLICY_VARIANT]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_POLICY_PROBE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SILO_POLICY]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_NOINLINE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_LOCK_COVERAGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_PERMUTATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_EARLY_UNLOCK]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NOREAD_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_HIGHKEY_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[MOCC_TEMP_PREDICATE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[SORT_VARIANT]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_TRIGGER_MISATTR]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NO_WRITE_TID_MAX]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_FIXED_COMMIT_VERSION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_TAIL_COMMIT_OMISSION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NO_READ_TID_MAX]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_STALE_READ_PAYLOAD]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SKIP_NODE_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_STALE_READ_OWN_WRITE]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_REPEAT_UPDATE_BUFFER]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_REVERSE_WRITE_ORDER]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_CONSERVATIVE_ABORT]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_REQUESTED_US]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_CICADA_VLIFE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_CICADA_LONGTX]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[SILO_POLICY_VARIANT]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_SILO_POLICY_PROBE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SILO_POLICY]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_TRIGGER_MISATTR]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_NO_WRITE_TID_MAX]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_FIXED_COMMIT_VERSION]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_TAIL_COMMIT_OMISSION]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_NO_READ_TID_MAX]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_STALE_READ_PAYLOAD]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SKIP_NODE_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_STALE_READ_OWN_WRITE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_REPEAT_UPDATE_BUFFER]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_REVERSE_WRITE_ORDER]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_CONSERVATIVE_ABORT]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]\norchestrator/tests/test_condition_meaning_gate.py::test_ifdef_factory_and_supply_reject_one_vs_zero\norchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens0]\norchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens1]\norchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens2]\norchestrator/tests/test_condition_meaning_gate.py::test_if_macro_none_contrast_keeps_cmake_default_supply_behavior\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[undef]\norchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[inactive-outer]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_CICADA_VLIFE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_CICADA_LONGTX]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[SILO_POLICY_VARIANT]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_SILO_POLICY_PROBE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SILO_POLICY]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TRIGGER_MISATTR]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_NO_WRITE_TID_MAX]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_FIXED_COMMIT_VERSION]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TAIL_COMMIT_OMISSION]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_NO_READ_TID_MAX]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_STALE_READ_PAYLOAD]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SKIP_NODE_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_STALE_READ_OWN_WRITE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_REPEAT_UPDATE_BUFFER]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_REVERSE_WRITE_ORDER]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_CONSERVATIVE_ABORT]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_SILO_LADDER_RUNG1]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[BACKOFF_TRIGGER_GATING]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]\norchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_supply_meaning_and_admission\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_site_count_mismatch[owner]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_site_count_mismatch[header-verbatim]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[missing]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[twice]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[pragma-once]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_owner_site_inactive\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_rejects_compensated_missing_sites\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_shadow_instruments_all_files\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing-companion]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing-sites]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[empty]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[duplicate]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[path]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[directive]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[count]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[bool-count]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[digest]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[identity]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[file-type]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[file-path]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[row-extra]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[row-type]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[rows-type]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-empty]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-duplicate]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-order]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-extra]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-path]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-index]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-bool-index]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-count]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-bool-count]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-type]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-row-type]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[requested-selected-define]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[requested-completed-define]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[default-selected-define]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[default-completed-define]\norchestrator/tests/test_condition_meaning_gate.py::test_single_file_green_schema_rejects_companion_sources[companion_sources]\norchestrator/tests/test_condition_meaning_gate.py::test_single_file_green_schema_rejects_companion_sources[site_observations]\norchestrator/tests/test_condition_meaning_gate.py::test_requested_us_cli_establishes_multifile_meaning\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_field_and_existing_evidence_keys_are_unchanged\norchestrator/tests/test_condition_meaning_gate.py::test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_NOREAD_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_HIGHKEY_VALIDATION]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-1-None]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-1-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-0]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-1-None]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-1-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-0]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-None]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-0]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-1-None]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-1-1]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-0-0]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-0-1]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-0-True]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-0-True]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-1-False]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-1-False]\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-None-False]\norchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[IZANAGI_BREAK_PERMUTATION]\norchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[BACKOFF_REQUESTED_US]\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value\norchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_rejects_different_requested_default_cmake_identity\norchestrator/tests/test_condition_meaning_gate.py::test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence\norchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity\norchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons\norchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission\norchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning\norchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation\norchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset\norchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_missing_cmake_evidence\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity\norchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm\norchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission\norchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double\norchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed\norchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr\norchestrator/tests/test_condition_meaning_gate.py::test_run_process_timeout_and_execution_failures_report_exact_argv\norchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation\norchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_failure_preserves_original_rejection\norchestrator/tests/test_condition_meaning_gate.py::test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged\norchestrator/tests/test_condition_meaning_gate.py::test_run_process_success_returns_completed_process_unchanged\norchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored\norchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact\norchestrator/tests/test_condition_meaning_gate.py::test_counterfactual_specs_are_exact\norchestrator/tests/test_condition_meaning_gate.py::test_define_inventory_includes_counterfactual_defaults\norchestrator/tests/test_condition_meaning_gate.py::test_module_claim_names_the_exact_61_define_supply_domain\norchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed\norchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected\norchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_silo_policy_diagnostic_helper_sites_are_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p1-no-try]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p2-bare-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p3-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p4-s1-handlers]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p5-outer-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p6-handler-position]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p7-raise-as-name]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p8-known-child-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n10-try-star]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n14-try-star-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\n\n376 tests collected in 1.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "1fcc8c2de395056e670921148e02ca26bf27b55d7d62d3ac0d9ab19861c5d7d3"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_real_patch_define_registry_and_rejection",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_delay_failure_preserves_other_stages_and_rejects_measure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_records_failed_delay_compile_without_failing",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_batch_extension_stays_in_begin_and_retries_same_procedure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_limit_checked_at_construction",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_mocc_backoff_fixed_uses_mocc_owner_and_target",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_five_matches_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_nonnegative_endpoints_match_pointwise",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_raw_3000_is_observed_as_static_1000",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f707_missing_mapping_rejected_before_compiler",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_meaning_arm_does_not_depend_on_supply_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_rejects_supply_value_mismatch",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_wrong_cache_rhs_is_rejected_even_when_effective_value_matches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_bare_supply_is_value_mismatch_not_missing",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_f718_1000_decodes_to_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f707_is_supply_red_and_meaning_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_generic_f718_is_supply_green_and_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_cmake_cxx_flags_route_uses_real_owner_compile_command",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_supply_effectuation_does_not_pin_volatile_fixture_hash",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_supply_green_binds_real_cmake_identity_and_gate_configure_argv",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_real_cmake_wrapper_replacement_during_configure_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_configure_compile_commands_rejects_real_cmake_replacement_before_return",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ignored_define_has_identical_preprocessed_bytes_and_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_stock_preprocess_identity_is_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_FIXED=-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_only_difference_is_green[BACKOFF_NOINLINE=0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_semantic_difference_on_root_line_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_shaped_literal_outside_closure_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_prefixed_by_path_byte_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_difference_without_code_owned_file_builtin_is_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_root_location_evidence_binds_configure_source_roots",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_default_inert_reaches_tu_and_matches_stock",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_missing_tu_supply_is_red_while_branch_meaning_is_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_and_independent_branch_meaning_admit_certified_selection",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_inert_supply_green_but_nonstock_selected_branch_is_meaning_red",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_cli_accepts_inert_selected_branch_meaning_case",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_undef_rejects_family_with_supply_still_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_missing_compile_argv_companion_rejects_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_header_owned_inert_meaning_observes_zero_and_one",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_requested_one_supply_and_meaning_are_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_preserves_directory_symlinks_and_git_link",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_header_shadow_traversal_failure_is_structured[failure1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_meaning_green_binds_real_cmake_identity_and_gate_argv",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_real_compile_time_green_admits_certified_selection",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_CICADA_VLIFE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_CICADA_LONGTX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[SILO_POLICY_VARIANT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_POLICY_PROBE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SILO_POLICY]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_NOINLINE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PERMUTATION_SWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_LOCK_COVERAGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_EARLY_UNLOCK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_LOCK_COVERAGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_PERMUTATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_EARLY_UNLOCK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_ERASE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_FORGE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_OPSWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_WRITE_INTENT_PTRSWAP]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[MOCC_TEMP_PREDICATE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[SORT_VARIANT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_READ_LOCK_CHECK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NO_WRITE_TID_MAX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_FIXED_COMMIT_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_TAIL_COMMIT_OMISSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NO_READ_TID_MAX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_STALE_READ_PAYLOAD]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_SKIP_NODE_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_STALE_READ_OWN_WRITE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_REPEAT_UPDATE_BUFFER]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_REVERSE_WRITE_ORDER]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_CONSERVATIVE_ABORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[BACKOFF_REQUESTED_US]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_CICADA_VLIFE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_CICADA_LONGTX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[SILO_POLICY_VARIANT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_SILO_POLICY_PROBE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SILO_POLICY]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_READ_LOCK_CHECK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_NO_WRITE_TID_MAX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_FIXED_COMMIT_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_TAIL_COMMIT_OMISSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_NO_READ_TID_MAX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_STALE_READ_PAYLOAD]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SKIP_NODE_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_STALE_READ_OWN_WRITE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_REPEAT_UPDATE_BUFFER]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_REVERSE_WRITE_ORDER]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_CONSERVATIVE_ABORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_factory_and_supply_reject_one_vs_zero",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_undefined_contrast_rejects_compile_define_in_supply[tokens2]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_if_macro_none_contrast_keeps_cmake_default_supply_behavior",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[directive-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[inactive-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[partial-default-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_rejects_missing_or_wrong_selection[undef-BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_multisite_assert_rejects_default_partial_selection[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[undef]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_ifdef_owner_context_can_disable_selection[inactive-outer]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_CICADA_VLIFE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_CICADA_LONGTX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[SILO_POLICY_VARIANT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_SILO_POLICY_PROBE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SILO_POLICY]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TRIGGER_MISATTR]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_READ_LOCK_CHECK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_NO_WRITE_TID_MAX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_FIXED_COMMIT_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_PUBLISHED_VERSION_MISMATCH]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_TAIL_COMMIT_OMISSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_NO_READ_TID_MAX]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_STALE_READ_PAYLOAD]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_CORRUPT_WRITE_PAYLOAD]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SKIP_NODE_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_STALE_READ_OWN_WRITE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_REPEAT_UPDATE_BUFFER]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_DOUBLE_ABORT_BACKOFF]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_REVERSE_WRITE_ORDER]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_CONSERVATIVE_ABORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_SILO_LADDER_RUNG1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[BACKOFF_TRIGGER_GATING]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_MOCC_SKIP_CANONICAL_RESTORE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_FIRST_UPDATER_WINS]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_green_schema_rejects_count_value_and_argv_mutations[IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_supply_meaning_and_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_site_count_mismatch[owner]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_site_count_mismatch[header-verbatim]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[missing]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[twice]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_include_counts[pragma-once]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_owner_site_inactive",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_rejects_compensated_missing_sites",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_shadow_instruments_all_files",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing-companion]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[missing-sites]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[empty]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[duplicate]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[path]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[directive]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[count]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[bool-count]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[digest]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[identity]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[file-type]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[file-path]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[row-extra]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[row-type]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[rows-type]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-empty]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-duplicate]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-order]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-extra]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-path]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-index]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-bool-index]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-count]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-bool-count]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[sites-type]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[site-row-type]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[requested-selected-define]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[requested-completed-define]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[default-selected-define]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_multifile_green_schema[default-completed-define]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_single_file_green_schema_rejects_companion_sources[companion_sources]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_single_file_green_schema_rejects_companion_sources[site_observations]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_requested_us_cli_establishes_multifile_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_field_and_existing_evidence_keys_are_unchanged",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_shared_owner_commands_keep_arm_verdicts_independent_without_reconfigure",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_active_nested_context",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_block_comment_prefix",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_unobserved_completion_marker",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_keeps_unregistered_macro_unestablished",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-1-None]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-1-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[BACKOFF_REQUESTED_US-0-1]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-0-True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-0-True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-1-False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[1-1-False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_factory_accepts_only_default_zero_binary_requests[0-None-False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[IZANAGI_BREAK_PERMUTATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_legacy_meaning_declaration_and_cli_stay_backoff_fixed_only[BACKOFF_REQUESTED_US]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_schema_rejects_missing_or_mutated_observations",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_noinline_green_schema_rejects_nonbinary_and_same_value",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_green_rejects_different_requested_default_cmake_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonconfiguring_meaning_proofs_reject_unexpected_cmake_evidence",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_backoff_fixed_minus_one_requires_stock_preprocess_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_arm_records_have_distinct_ids_digests_statuses_and_reasons",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unestablished_meaning_is_carried_into_promoted_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_red_runtime_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_promotion_rejects_non_green_supply_effectuation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_established_meaning_uses_examined_empty_carryover_not_unset",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_record_built_from_public_fields_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_empty_green_meaning_record_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_schema_rejects_missing_wrong_type_and_empty_fields",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_missing_cmake_evidence",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_configure_argv_for_different_cmake_path",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_different_arm_cmake_identity",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_green_supply_rejects_cmake_identity_drift_within_arm",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_terminal_status_is_rejected_before_raw_admission",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_complete_public_clone_lacks_production_evaluator_issuance",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_correct_marker_blocks_are_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_formula_in_comment_with_changed_expression_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_uniform_shift_decoder_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_result_identifier_must_be_exact_double",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_duplicate_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_missing_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_unknown_rows_fail_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_nonfinite_decoder_output_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_failure_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_real_failures_report_exact_argv_and_stderr",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_timeout_and_execution_failures_report_exact_argv",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_is_bounded_and_marks_truncation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_argv_detail_failure_preserves_original_rejection",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_truncated_argv_detail_binds_full_command_and_short_is_unchanged",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_process_success_returns_completed_process_unchanged",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_timeout_is_120_seconds_and_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_timeout_is_120_seconds_and_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_return_code_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_stderr_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_run_stderr_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_patch_target_decoder_and_fixture_holes_are_independently_anchored",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_counterfactual_specs_are_exact",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_define_inventory_includes_counterfactual_defaults",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_module_claim_names_the_exact_61_define_supply_domain",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_captured_input_hash_drift_fails_closed",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_parent_component_symlink_outside_root_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_version_is_rejected",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compiler_identity_drift_after_compile_is_rejected",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_silo_policy_diagnostic_helper_sites_are_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p1-no-try]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p2-bare-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p3-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p4-s1-handlers]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p5-outer-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p6-handler-position]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p7-raise-as-name]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p8-known-child-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n10-try-star]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n14-try-star-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]"
+      ],
+      "duration_s": 1.977,
+      "rc": 0,
+      "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+      "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+      "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+      "status": "PASSED",
+      "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "EQ-1-equivalent-site-list": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "edef8d527e84e1dcb8b6a62096d0e64c9603f3f4f0c66af0d672c38341c9887a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if payload[\"sites\"] != [*SITES]:\n",
+            "old": "    if payload[\"sites\"] != list(SITES):\n"
+          }
+        ]
+      },
+      "MUT-1-duplicate-json-line-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2e50d2575daae7ec7f73b0fe87faefa92eeaaca338fba5173eb8be7bbfb44020",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if len(lines) < 1:\n",
+            "old": "    if len(lines) != 1:\n"
+          }
+        ]
+      },
+      "MUT-10-publication-judged-without-flag-fall": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c04fa5fcff6f82b9a51236985c34850fdbd03eda48211e5f239ef7fdc08f3ff0",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+  if (leader_ready &&\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 1) {\n",
+            "old": "+  if (leader_ready &&\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {\n"
+          }
+        ]
+      },
+      "MUT-2-k-boundary-strict": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c7c80b0f50ad89b64d907be5ed87091c338596fa45c2a6182e4a5f471d1673e9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    return position > k\n",
+            "old": "    return position >= k\n"
+          }
+        ]
+      },
+      "MUT-3-instrument-statement-outside-macro": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "17d5d0e24ea7b2cc59fc658ffedcdfcc694a5a9ad24835ade2052ce54aec00a3",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+#if IZANAGI_CICADA_VLIFE\n+#endif\n+    ++vlife_hops; ++vlife_pos;\n+#line 105\n",
+            "old": "+#if IZANAGI_CICADA_VLIFE\n+    ++vlife_hops; ++vlife_pos;\n+#endif\n+#line 105\n"
+          }
+        ]
+      },
+      "MUT-4-duplicate-condition-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c4e3ff39e8f7cc6de9c2182ca6bc6c027703ba1566dd2b1fd59ad62faacc62e4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if False and len(ids) != len(set(ids)):\n",
+            "old": "    if len(ids) != len(set(ids)):\n"
+          }
+        ]
+      },
+      "MUT-5-readonly-in-forwarding-denominator": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "39b378f23af8ebe60d56c85b39afed45365c73e1ad722c191da1a3fa8d07be49",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    deep = [sum(w[\"deep\"][i] + w[\"readonly_deep\"][i] for w in workers) for i in range(5)]\n",
+            "old": "    deep = [sum(w[\"deep\"][i] for w in workers) for i in range(5)]\n"
+          }
+        ]
+      },
+      "MUT-6-line-directive-with-filename": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a4dbe820c818ff06c9527132695e26515343ba685a5233803da578f2e96334ef",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+#line 38 \"cc/cicada/transaction.cc\"\n   this->status_ = TransactionStatus::inflight;\n",
+            "old": "+#line 38\n   this->status_ = TransactionStatus::inflight;\n"
+          }
+        ]
+      },
+      "MUT-7-smoke-patch-sha-unchecked": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c539b68d33b1c0396ea8f9ec3a85212e6a089d0f98175f794d6fa34a8f76d9a1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if raw.get(\"ccbench_commit\") != PIN:\n",
+            "old": "    if raw.get(\"ccbench_commit\") != PIN or raw.get(\"patch_sha256\") != hashlib.sha256(PATCH.read_bytes()).hexdigest():\n"
+          }
+        ]
+      },
+      "MUT-8-selected-records-not-recomputed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1cec6e4c92683192e0d3b633268acfde50e8ab10eab30d57dc52c195eba2ca67",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if type(records) is not int or records not in (1000000, 2000000, 4000000):\n",
+            "old": "    if type(records) is not int or records != expected:\n"
+          }
+        ]
+      },
+      "MUT-9-delay-compile-row-not-target-bound": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d12c2d4c3a0032b367a743921d7060009a0eed02a9a4549e2ab9dfde2b5685c0",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "            ][:1]\n",
+            "old": "            and target_output(row)]\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "fcebe2479b3669f19d23f70bcfd4b69d36a82435d083969ee3c78e72ec84d022",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_vlife.py",
+      "orchestrator/tests/test_condition_meaning_gate.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_vlife.py",
+      "orchestrator/tests/test_condition_meaning_gate.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/mutation/scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e06c5dfc663a1c6f4d7a660bf43f8ca6afd0e4fd",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "5a38aaedb857bd64ec6e7931d47b6f870ba687398a1f9819de8b202465c2b521",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "2518219cc85cbb782f936621b352119729ee7dd748e54f066ac12a7d9e36ece7",
+  "summary": {
+    "KILLED": 10,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 11,
+    "matching": 11,
+    "recorded": 11,
+    "registered": 11
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/mutation/scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "74022044d092977b9b4e749162dcc9d969be2ef2ec1ebde30488cc7d31cd2dfa",
+  "updated_at": "2026-09-28T23:42:39.160498+00:00"
+}
