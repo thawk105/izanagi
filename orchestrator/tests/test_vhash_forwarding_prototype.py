@@ -618,7 +618,7 @@ def test_gc_gate_rejection_evidence_is_saved(monkeypatch, tmp_path):
 
 def _target_counter_text(arm):
     gc = _gc_payload()
-    gc["mode"] = "e" if arm.startswith("E-") and arm != "E-hb" else "hb" if arm == "E-hb" else "off"
+    gc["mode"] = "e" if arm.startswith("E-") and arm != "E-hb" else "hb" if arm == "E-hb" else "none"
     lines = []
     if arm != "stock":
         fwd = {"schema": 1, "policy": "f" if arm == "F" else "c", "k": 3,
@@ -811,15 +811,27 @@ def test_target_gc_mode_matches_arm():
     for arm, prefix, mode in (("E-hb", "CICADA_GC_V1 ", "hb"),
                               ("E-now", "CICADA_GC_V1 ", "e"),
                               ("E-max", "CICADA_GC_V2 ", "e"),
-                              ("stock", "CICADA_GC_V1 ", "off"),
-                              ("C-min", "CICADA_GC_V1 ", "off"),
-                              ("F", "CICADA_GC_V1 ", "off")):
+                              ("stock", "CICADA_GC_V1 ", "none"),
+                              ("C-min", "CICADA_GC_V1 ", "none"),
+                              ("F", "CICADA_GC_V1 ", "none")):
         line = _target_counter_text(arm)
         assert driver.parse_target_lines(line, arm, True)[1]["mode"] == mode
         bad = _replace_target_counter(line, prefix,
                                       lambda value: value.update(mode="off" if mode != "off" else "e"))
         with pytest.raises(ValueError, match="GC mode does not match target arm"):
             driver.parse_target_lines(bad, arm, True)
+
+
+@pytest.mark.parametrize("arm", ("stock", "C-min", "C-max", "C-partial",
+                                  "C-partial-once", "F"))
+def test_target_gc_mode_none_for_non_safepoint_builds(arm):
+    assert "CICADA_GC_SAFEPOINT" not in driver.MACROS[driver.target_build_kind(arm, True)]
+    line = _target_counter_text(arm)
+    assert driver.parse_target_lines(line, arm, True)[1]["mode"] == "none"
+    bad = _replace_target_counter(line, "CICADA_GC_V1 ",
+                                  lambda value: value.update(mode="off"))
+    with pytest.raises(ValueError, match="GC mode does not match target arm"):
+        driver.parse_target_lines(bad, arm, True)
 
 
 def test_target_policy_exercised_flag():

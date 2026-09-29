@@ -1119,7 +1119,10 @@ def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) ->
             reduced["threads"] = [{k: v for k, v in row.items() if k in GC_THREAD}
                                   for row in reduced["threads"]]
             parse_gc_line("CICADA_GC_V1 " + json.dumps(reduced), True)
-        expected_mode = "hb" if arm == "E-hb" else "e" if arm.startswith("E-") else "off"
+        build_macros = MACROS[target_build_kind(arm, counted)]
+        mode_flag = next((flag for flag in target_arm_flags(arm)
+                          if flag.startswith("--cicada_gc_mode=")), "--cicada_gc_mode=off")
+        expected_mode = mode_flag.split("=", 1)[1] if "CICADA_GC_SAFEPOINT" in build_macros else "none"
         if gc["mode"] != expected_mode:
             raise ValueError("GC mode does not match target arm")
     return fwd, gc, longtx
