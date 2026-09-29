@@ -1,0 +1,64 @@
+scenario	protocol	fault	o1	J1	J2	J3	visited	complete	witness	ce_judge	ce_len	rc	wall_s
+S1	v0		False	0	0	0	1472	True	True		0	0	0.1
+S1	v1		False	0	0	0	1472	True	True		0	0	0.1
+S1	v1		True	0	0	0	1472	True	True		0	0	0.1
+S1	v1	U1f	True	0	0	0	1472	True	True		0	0	0.1
+S1	v1	U6	True	0	0	0	1472	True	True		0	0	0.1
+S2	v0		False	0	0	0	1704	True	True		0	0	0.1
+S2	v1		False	0	0	0	1704	True	True		0	0	0.1
+S2	v1		True	0	0	0	1536	True	True		0	0	0.1
+S2	v1	U1f	True	0	0	0	1536	True	True		0	0	0.1
+S2	v1	U6	True	0	0	0	1536	True	True		0	0	0.1
+S3	v0		False	0	0	0	180	True	True		0	0	0.1
+S3	v1		False	0	0	0	180	True	True		0	0	0.1
+S3	v1		True	0	0	0	180	True	True		0	0	0.1
+S3	v1	U1f	True	0	0	0	180	True	True		0	0	0.1
+S3	v1	U6	True	0	0	0	180	True	True		0	0	0.1
+S4	v0		False	0	0	0	593	True	True		0	0	0.1
+S4	v1		False	0	0	0	593	True	True		0	0	0.1
+S4	v1		True	0	0	0	593	True	True		0	0	0.1
+S4	v1	U1f	True	0	0	0	593	True	True		0	0	0.1
+S4	v1	U6	True	0	0	0	593	True	True		0	0	0.1
+S5	v0		False	0	0	0	1472	True	True		0	0	0.1
+S5	v1		False	0	0	0	1472	True	True		0	0	0.1
+S5	v1		True	0	0	0	1472	True	True		0	0	0.1
+S5	v1	U1f	True	0	0	0	1472	True	True		0	0	0.1
+S5	v1	U6	True	0	0	0	1472	True	True		0	0	0.1
+S6	v0		False	0	0	0	2468	True	True		0	0	0.2
+S6	v1		False	0	0	0	2468	True	True		0	0	0.2
+S6	v1		True	0	0	0	2144	True	True		0	0	0.1
+S6	v1	U1f	True	0	1	0	2146	True	True		0	0	0.1
+S6	v1	U6	True	0	1	0	1714	True	True		0	0	0.1
+S7	v0		False	0	0	0	1720	True	True		0	0	0.1
+S7	v1		False	0	0	0	1720	True	True		0	0	0.1
+S7	v1		True	0	0	0	1560	True	True		0	0	0.1
+S7	v1	U1f	True	0	0	0	1560	True	True		0	0	0.1
+S7	v1	U6	True	0	0	0	1560	True	True		0	0	0.1
+S8	v0		False	1	1	0	47448	True	True	J1	30	0	2.7
+S8	v1		False	0	0	0	51952	True	True		0	0	3.0
+S8	v1		True	0	0	0	51952	True	True		0	0	3.0
+S8	v1	U1f	True	0	0	0	51952	True	True		0	0	3.0
+S8	v1	U6	True	0	0	0	51952	True	True		0	0	3.0
+S9	v0		False	0	0	0	112984	True	False		0	0	6.5
+S9	v1		False	0	0	0	112984	True	False		0	0	6.5
+S9	v1		True	0	0	0	112984	True	False		0	0	6.6
+S9	v1	U1f	True	0	0	0	112984	True	False		0	0	6.5
+S9	v1	U6	True	0	0	0	112984	True	False		0	0	6.4
+S10	v0		False	0	0	0	12905	True	True		0	0	0.6
+S10	v1		False	0	0	0	12905	True	True		0	0	0.5
+S10	v1		True	0	0	0	10607	True	True		0	0	0.5
+S10	v1	U1f	True	1	1	0	10617	True	True	J1	39	0	0.5
+S10	v1	U6	True	1	1	0	9959	True	True	J1	39	0	0.5
+S1	v1	U1v	False	1	1	0	1472	True	True	J1	26	0	0.1
+S5	v1	U1v	False	1	1	0	1472	True	True	J1	26	0	0.1
+S2	v1	U1f	False	0	0	0	1704	True	True		0	0	0.1
+S6	v1	U1f	False	0	0	0	2470	True	True		0	0	0.1
+S10	v1	U1f	False	0	0	0	12939	True	True		0	0	0.6
+S9	v1	U2	False	1	1	0	102256	True	True	J1	33	0	5.7
+S3	v1	U3a	False	0	0	1	212	True	True	J3	3	0	0.1
+S1	v1	U3b	False	0	0	1	1629	True	True	J3	18	0	0.1
+S7	v1	U4	False	0	0	1	2510	True	True	J3	2	0	0.2
+S4	v1	U5	False	0	0	0	961	True	True		0	0	0.1
+S1	v1	U5	False	0	0	0	1472	True	True		0	0	0.1
+S6	v1	U6	False	0	0	0	2038	True	True		0	0	0.1
+S10	v1	U6	False	0	0	0	12281	True	True		0	0	0.6

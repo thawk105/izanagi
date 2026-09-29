@@ -1,0 +1,88 @@
+{
+ "head": "d7161a2a13c9638af326f2062a14fc4c03e14475",
+ "spec_sha256": "2223f504a0454261ac719b8521b0ea99d9353f0b6c88e43ac93c8974f2fea0b2",
+ "command": [
+  "python3",
+  "tools/run_tests.py",
+  "-q",
+  "-rf",
+  "-p",
+  "no:cacheprovider",
+  "--color=no",
+  "orchestrator/tests/test_p3_s4_loop_policy.py"
+ ],
+ "baseline": {
+  "rc": 0,
+  "failed_nodes": [],
+  "summary": [
+   "34 passed in 11.92s"
+  ],
+  "duration_s": 23.349
+ },
+ "mutations": [
+  {
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_orders_candidate_then_stock_in_one_session",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_reused_identity_keeps_one_shot_claim",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_stock_failure_returns_one_after_candidate"
+   ],
+   "summary": [
+    "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=17361 retained_bytes=15194 omitted_bytes=2167 budget_bytes=49152 rendered_bytes=18256 omitted_manifest_sha256=-"
+   ],
+   "duration_s": 22.196,
+   "id": "m1-measurement-cfg-without-iteration"
+  },
+  {
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement"
+   ],
+   "summary": [
+    "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2382 retained_bytes=2382 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3192 omitted_manifest_sha256=-"
+   ],
+   "duration_s": 20.74,
+   "id": "m2-no-counter-save-before-measurement"
+  },
+  {
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_reused_identity_keeps_one_shot_claim",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal"
+   ],
+   "summary": [
+    "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=11475 retained_bytes=11443 omitted_bytes=32 budget_bytes=49152 rendered_bytes=13483 omitted_manifest_sha256=-"
+   ],
+   "duration_s": 20.886,
+   "id": "m3-stock-result-reads-series-layout"
+  },
+  {
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal"
+   ],
+   "summary": [
+    "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6222 retained_bytes=6222 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7609 omitted_manifest_sha256=-"
+   ],
+   "duration_s": 22.828,
+   "id": "m4-history-written-to-measurement-layout"
+  },
+  {
+   "rc": 1,
+   "failed_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_crash_consumes_iteration_before_measurement",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_reused_identity_keeps_one_shot_claim",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_pair_pegasus_two_processes_use_distinct_claims_and_measurement_wal"
+   ],
+   "summary": [
+    "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=17741 retained_bytes=11922 omitted_bytes=5819 budget_bytes=49152 rendered_bytes=13937 omitted_manifest_sha256=-"
+   ],
+   "duration_s": 20.38,
+   "id": "m5-admitted-view-reads-series-layout"
+  }
+ ]
+}

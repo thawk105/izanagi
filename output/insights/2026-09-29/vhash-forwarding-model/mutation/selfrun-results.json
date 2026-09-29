@@ -1,0 +1,284 @@
+{
+ "commit": "f0800e776",
+ "baseline": {
+  "results": {
+   "test_all_scenario_witnesses_and_v1_bounds": "PASS",
+   "test_fault_then_failed_commit_validation": "PASS",
+   "test_j1_handmade_positive_and_negative": "PASS",
+   "test_j3_future_forward_version": "PASS",
+   "test_j3_handmade_positive_and_negative": "PASS",
+   "test_reclaimed_touch_is_j3_even_on_same_state": "PASS",
+   "test_reclaimed_version_metadata_routes": "PASS",
+   "test_restricted_judgment_matches_every_transition": "PASS",
+   "test_s10_old_target_allocation_violates_timestamp_uniqueness": "PASS",
+   "test_s10_write_skew_search_results": "PASS",
+   "test_s4_pending_blocks_read": "PASS",
+   "test_s4_pending_commit_and_abort_reachable": "PASS",
+   "test_s9_u2_after_other_reader_aborts": "PASS",
+   "test_scenario_witness_order_and_s5_writer_abort": "PASS",
+   "test_single_rule_faults_detected_and_replay": "PASS",
+   "test_single_rule_faults_undetected_in_fixed_bounds": "PASS",
+   "test_v0_s8_cycle_and_replay": "PASS"
+  },
+  "seconds": 5.65,
+  "failed": []
+ },
+ "mutations": [
+  {
+   "id": "mu1-drop-rw-edges",
+   "why": "J1 の rw 辺を落とす",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "count": 1,
+     "before_sha256": "f41f83ffabaeec7c6ff4152ee8ead18c418d1c631abe2f343fbd50a22f89e677",
+     "after_sha256": "75859acb0a3ec0e72ee09cbf64d1733150f478d56f24767412db1a7e3e032d4c"
+    }
+   ],
+   "seconds": 5.21,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+   ],
+   "details": {
+    "test_j1_handmade_positive_and_negative": "FAIL:AssertionError:",
+    "test_s10_write_skew_search_results": "FAIL:AssertionError:",
+    "test_s9_u2_after_other_reader_aborts": "FAIL:AssertionError:",
+    "test_single_rule_faults_detected_and_replay": "FAIL:AssertionError:U1v",
+    "test_v0_s8_cycle_and_replay": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu2-j3-future-never",
+   "why": "J3 の将来必要判定を常に偽",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "count": 1,
+     "before_sha256": "f41f83ffabaeec7c6ff4152ee8ead18c418d1c631abe2f343fbd50a22f89e677",
+     "after_sha256": "9f0b179e08515b781539e63fbf4a0288404fb394daf167c644fe577421aa32a5"
+    }
+   ],
+   "seconds": 5.22,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay"
+   ],
+   "details": {
+    "test_j3_future_forward_version": "FAIL:TypeError:'NoneType' object is not subscriptable",
+    "test_j3_handmade_positive_and_negative": "FAIL:AssertionError:",
+    "test_single_rule_faults_detected_and_replay": "FAIL:AssertionError:U3a"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu3-read-skips-pending",
+   "why": "v1 の通常 read の可視選択で PENDING を飛ばす",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "4ff6c0800775d8f406eee00d3db1ea136561403da631f1969c233aad03678352"
+    }
+   ],
+   "seconds": 5.51,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read"
+   ],
+   "details": {
+    "test_s4_pending_blocks_read": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu4-publish-floor-before-confirm",
+   "why": "gc_floor の公開を R6 の前 (候補選択時) へ",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "76bbf2a9d92672417c46072dbbf60aa8cdd4e8b19899cb521cd2c70059107f38"
+    }
+   ],
+   "seconds": 5.18,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds"
+   ],
+   "details": {
+    "test_all_scenario_witnesses_and_v1_bounds": "FAIL:AssertionError:S1",
+    "test_s10_write_skew_search_results": "FAIL:AssertionError:",
+    "test_single_rule_faults_detected_and_replay": "FAIL:AssertionError:U1v",
+    "test_single_rule_faults_undetected_in_fixed_bounds": "FAIL:AssertionError:U1f"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu5-reclaim-by-wts",
+   "why": "回収条件を wts < 下限 へ",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "20d67715be284def35b2bcf7b688b047170742b23ed4affc904ad851f3ced2ac"
+    }
+   ],
+   "seconds": 6.44,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+   ],
+   "details": {
+    "test_all_scenario_witnesses_and_v1_bounds": "FAIL:AssertionError:S1",
+    "test_s10_write_skew_search_results": "FAIL:AssertionError:",
+    "test_single_rule_faults_detected_and_replay": "FAIL:AssertionError:U1v",
+    "test_single_rule_faults_undetected_in_fixed_bounds": "FAIL:AssertionError:U1f",
+    "test_v0_s8_cycle_and_replay": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu6-first-step-only",
+   "why": "探索器が各状態で最初の可能 step だけを展開",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "8b47231792c9bffc5c9330dec177702a91c55ee5fdec7cd059b95aae01a0d8d4"
+    }
+   ],
+   "seconds": 0.3,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+   ],
+   "details": {
+    "test_all_scenario_witnesses_and_v1_bounds": "FAIL:AssertionError:S2",
+    "test_reclaimed_touch_is_j3_even_on_same_state": "FAIL:AssertionError:",
+    "test_s10_old_target_allocation_violates_timestamp_uniqueness": "FAIL:AssertionError:old target allocation did not expose a timestamp collision",
+    "test_s10_write_skew_search_results": "FAIL:AssertionError:",
+    "test_s4_pending_commit_and_abort_reachable": "FAIL:AssertionError:decide_committed",
+    "test_scenario_witness_order_and_s5_writer_abort": "FAIL:AssertionError:S2",
+    "test_single_rule_faults_detected_and_replay": "FAIL:AssertionError:U1v",
+    "test_v0_s8_cycle_and_replay": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu7-judge-new-states-only",
+   "why": "探索器が新状態への遷移でしか判定しない",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "801d27cc208f75d9a21c00036c6db51c076c3211ed2671e82fde6d9bc9e34ae4"
+    }
+   ],
+   "seconds": 5.35,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state"
+   ],
+   "details": {
+    "test_reclaimed_touch_is_j3_even_on_same_state": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu8-future-needs-visible-now",
+   "why": "J3 の将来必要判定に v.wts <= cand_ts を戻す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "count": 1,
+     "before_sha256": "f41f83ffabaeec7c6ff4152ee8ead18c418d1c631abe2f343fbd50a22f89e677",
+     "after_sha256": "849213e0832cfcaecfd3c7b428f25214c95090e7c65d807d34374d77bc5593fc"
+    }
+   ],
+   "seconds": 5.28,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version"
+   ],
+   "details": {
+    "test_j3_future_forward_version": "FAIL:TypeError:'NoneType' object is not subscriptable"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu9-o1-ignore-confirm-time",
+   "why": "O1 の「確定時刻 = t'」条件を外す (到達状態では等価と見込む)",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "d469b85dcca22dbe375f83d1144fdbfad2f85f2a37d1b74ac5aa65418168bbbc"
+    }
+   ],
+   "seconds": 5.51,
+   "failed_nodes": [],
+   "details": {},
+   "status": "SURVIVED"
+  },
+  {
+   "id": "mu10a-next-free-ignores-targets",
+   "why": "空き時刻の計算から他 txn の候補時刻を外す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "8b71b7f5915d8828de745b748ee0a429eb5f8c7922c34bbfdc734102838c7c1d"
+    }
+   ],
+   "seconds": 1.94,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+   ],
+   "details": {
+    "test_s10_write_skew_search_results": "FAIL:TimestampCollisionError:timestamp 26: T and W"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mu10b-no-uniqueness-check",
+   "why": "探索の時刻一意性検査を外す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "c56e2eb859b99291953b25443beac49782bf1c712e448c98112ea9db7a3c33b8",
+     "after_sha256": "3122960f7064b08eae94edd71c85191c53f1c30ddfa301119efb69f84bd7baed"
+    }
+   ],
+   "seconds": 5.85,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness"
+   ],
+   "details": {
+    "test_s10_old_target_allocation_violates_timestamp_uniqueness": "FAIL:AssertionError:old target allocation did not expose a timestamp collision"
+   },
+   "status": "KILLED"
+  }
+ ]
+}
