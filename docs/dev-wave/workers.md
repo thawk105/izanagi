@@ -16,7 +16,7 @@ scope外の層を実装したふりにせず裁定パッケージ候補として
 
 ## DW-S05-A — 段 5 所有と投入
 
-所有path素集合の単位ごとに別worktree(`-b`必須)。作成時job dirのmanifest(形式・rename規則はtool冒頭)へ登録してから起動、fixは同木でbranchを切り再登録。依存完了後、所有path限定patch
+所有path素集合の単位ごとに別worktree(`-b`必須)。作成時job dirのmanifest(形式・rename規則はtool冒頭)へ登録してから起動(補助・計測・probe木も)、fixは同じ木・branchを再利用。依存完了後、所有path限定patch
 （`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成SHA。隔離sessionは`git -C`不可）だけ展開し並列投入。
 投入直前にcdせず`tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0で停止。
 直後に段1のconsumer検索をlocal mainで再走し差を裁定へ(F1014)、gate実測NOTE≠0ならanchor再読。

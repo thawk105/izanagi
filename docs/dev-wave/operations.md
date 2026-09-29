@@ -216,7 +216,7 @@ T-1458、320 件）。
 ## DW-O28 — land 後の自己撤去
 
 land成功・job終端後main worktreeから`python3 tools/dev_wave_cleanup.py`で撤去(絶対path、`--main-worktree <MAIN>`は両方に)。
-撤去はrepo全体で1本ずつ(並列はLustre過負荷)、rc=75は数分後再試行。
+撤去はrepo全体で1本ずつ(Lustre過負荷)、rc=75は数分後再試行。
 先にmanifest(`DW-S05-A`)の子木を`remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>`で(回収waveは旧分も)、次にwaveを`--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`で撤去、他へ引き渡さない。
-toolは非占有・main祖先性(子木は所有pathのtree一致も可)・dirty退避可否・manifest束縛を検査。撤去前の不成立・不明は拒否し木とbranchを残す(以後rc=30)。統合証明済manifest現行branchは履歴を`<D>`へbundle後(HEADがmain祖先なら省く)に`-D`。
+toolは非占有・main祖先性(子木は所有path一致か、wave land済なら履歴bundle+dirty退避)・manifest束縛を検査。不成立・不明は拒否し木とbranchを残す(以後rc=30)。manifest現行branchは`<D>`へbundle後(HEADがmain祖先なら省く)に`-D`。`<D>`はjob後も残る所。
 F26:`git worktree remove`/`git submodule deinit`不可。wave branchは`-d`のみ、手打ち`-D`禁止。残る子木はunlockし理由をworklogへ。
