@@ -73969,3 +73969,56 @@ spool fragment に置き、次の版の wave がそれらから全面再導出�
 - instr patch に選択時の wts を足して bytes を変える — 並走 wave の重ね patch と D2294 に波及し、判定に要る観測は repo 外の診断で足りる。
 - md_11 の主比較条件 (1M・48 thread・3 秒) を全条件の必須 cell にする — trace build では trace 量と判定器所要が予測できなかったので、実測単価から投入可否を決める段階制にした (段 2 plan §4)。実走した J2 (1M・48 thread・1 秒) は判定器 1 run 最長 41.6 秒だった。
 - TRACE=0 の命令列の同一性を最良設定の CMake 値で取り直す — 本検査は性能値を出さず instr patch の bytes も変えないので、判定の必要条件ではない (段 3 相談 B6)。
+
+## D2303. t810 coordinator の登録走査は、gitdir も locked も無い管理 dir を飛ばす (2026-09-30)
+
+**決定 (ユーザー裁定):** `tools/pegasus/t810_coordinator.py` の `repository_roots_from_git_identity` は、
+共有 git dir の `worktrees/<名前>/gitdir` が不在 (open が FileNotFoundError) で、かつ同じ管理 dir の
+`locked` が lstat で不在のときだけ、その管理 dir を飛ばす。`locked` が在れば (種類不問) 従来どおり
+`cannot read worktree registration: file is absent` で拒否し、lstat の他の失敗は
+`cannot inspect worktree registration lock` で拒否する。symlink・非 regular・読み中変化・非 UTF-8・
+解決不能・管理 dir が file の場合の拒否は変えない。D1101 のうち「production の登録 scan は変更しない」
+「`missing_ok` 相当は roots を減らす方向なので採らない」の 2 点を、ユーザー指示 (2026-09-29、md_4 の
+「本番の関数も直す案も実施する」) で改める。D1101 の「production へ再試行を置かない」「live authority の
+3 node は hermetic にしない」と D1102 は有効のまま。
+
+**理由:**
+- 他 wave の撤去途中に `modules` だけが残り `gitdir` が無い管理 dir が数分続き、受入全走の live 3 node と
+  本番の `prepare_group` / `coordinate` を止めていた (F633)。ユーザーは「無関係な worktree の出現・消失を
+  受入が気にする理由はない」と判断した。
+- 実測 (git 2.34.1、job dir 配下の一時 repo、strace 各 1 回): `worktree add` は管理 dir → `locked` →
+  作業木 → `gitdir` の順に作り、`worktree remove` は作業木 → `gitdir` の順に消す。`tools/dev_wave_cleanup.py` は
+  unlock → 作業木削除と不在確認 → 管理 dir 削除の順。観測したこの 3 経路では「gitdir 不在かつ locked 不在」は
+  作業木が未作成か削除済みの状態で、add 途中の「locked あり・gitdir 無し」は作業木が在りうるので拒否に残す。
+- 列挙の後に add が始まった登録を飛ばした結果は、その管理 dir が列挙の直後に作られた場合と同じ roots で、
+  並行 session が現行で取れる timing を超えない。
+
+**受理集合の変化 (検査の意味は変わる):** gitdir も locked も無い登録の作業木だった path の中の
+work_root / output_root を外部として受理する。手で gitdir だけを消した生きた作業木は roots から落ちる
+(git 自身もそれを prunable と扱う)。submodule 付きの木・Lustre 上の中断・move / repair / prune は実測していない。
+
+**却下した選択肢:**
+- md_4 の逐語案 (gitdir 不在なら locked を見ずに一律に飛ばす) — add 途中で作業木が在る登録まで飛ばす。
+- locked の判定に `os.path.lexists` を使う — 確認時の失敗を「不在」に畳み、確認不能で飛ばしうる。
+- live 3 node を hermetic fixture へ寄せる — 設置先から anchor を導く検査の意味が消える (D1101 と同じ理由)。
+
+## D2304. MOCC の validation の修理は lock 状態の読みの後に版を読み直す形 (案 A) で F の子の 1 commit にし、D297 は「意図した修理差分による不合格」として記録して pin 前進での扱いを別に裁定する (2026-09-30)
+
+対象: T-2872。資料: D2277 項 1・2、D2293、D297 / D2255 / D2275、insight `output/insights/2026-09-29/mocc-validation-fix/README.md` (§1・§3・§4)、段 4 裁定 `verbatim/s4-ruling.md`、段 6 裁定 `verbatim/s6-ruling.md`、一次資料 `output/insights/2026-09-29/t2872-mocc-g2-split/README.md` §7。
+
+**決定:**
+
+1. **修理の形:** CCBench の F `25898d00` の直接の子 X `f4a5169e` (branch `izanagi-mocc-validation-fix`) で、`cc/mocc/transaction.cc` の validation の read set 走査だけを変える。既存の版比較と writer lock の検査は残し、その後ろで版を acquire で読み直し、(epoch, tid) が検査した版と違えば既存の版不一致と同じ状態・計数で abort する。`max_rset_` は 3 回目の load でなく検査した版から取る。既存の `#line` の値は据え置き、新たな `#line` は足さない。作成は Codex author、commit は親 (trailer = Codex author・reviewer・Claude manager)。
+2. **検証の型:** 同じ job の中で修正前 F と修正後 X を交互に走らせ、事前登録の判定 (判定不能 0・修正後の trace build の G2 0/112・修正後の commit 側 class A 0) を runner の集計が機械的に出す。修正前 F の G2 と class A は同時刻の対照として報告し、完了判定に入れない。修正後の class A = 0 は修理から構造上導かれるので、修理の効き目の独立の観測として再読の不一致による abort 件数を数える。結果は成功 (G2 0/112、class A 0、対照は G2 8/56・class A 1,415、再読 abort 6,368)。
+3. **D297:** F → X の検査は GCC 11.4・12.3 とも TRACE=0 正規化 preprocess 出力の不一致で rc=1 になり、差分は `cc/mocc/transaction.cc` の 1 hunk・header 0 だった。これを「D297 不合格 (意図した修理差分)」と記録し、合格・include 活性の合格は名乗らない。gitlink を X を含む tip へ進めるときの D297 の扱い (C → F の合格と F → X の意図した差分の審査を分けて受け入れる等) は、gitlink 前進 wave で裁定する。
+4. **push と gitlink:** X の branch の push は人間の手番 (D16)。gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN`・patches は本決定では変えない。
+
+**理由:**
+- 案 A は既存条件への条件追加なので、同じ観測列で元のコードが拒否した取引を新たに受理しない (依頼の「受理集合を縮める方向だけ」を字義で満たす)。版が前進する範囲では、通過した取引は lock を読んだ瞬間に「読んだ版のまま・他者の writer lock なし」を満たし、Silo の 1 word 検査 (`cc/silo/transaction.cc` の read set 検査) に対応する。
+- `#line` を据え置くと差分が修理の hunk に閉じ、`ERR` の `__LINE__` (後段の `#line 1187` の後) も patch の context も動かない。修理の行は実際に有効な C++ 文なので、論理行番号が進むのは実態どおりである。
+- D297 は trace hook の変更が TRACE=0 を変えないことを検査する最後の防壁で、本物の修正はそれを構造上通らない。検査器を変えずに「意図した差分による不合格」と名付け、差分が修理の hunk だけであることを併記すれば、規律 1 の防壁を緩めずに事実を残せる。
+
+**却下した選択肢:**
+- 案 B (lock を先に読み、版は 1 回だけ読む) — Silo の考え方には対応するが、lock を読んだ後に他者が施錠してまだ公開していない実行を受理しうるので、元のコードに対して受理集合を縮める方向だけとは言えない。
+- 修理より後ろの既存 `#line` の値を +15 する — trace 区間を除いた行番号の意味は保てるが、修理と無関係な `ERR` の `__LINE__` と D297 の差分と patch の context を広げる。
+- D297 の検査器に「意図した差分」を受理する例外を足す — 正しさ防壁の緩和になり、依頼の scope 外 (gate・検査の追加をしない)。

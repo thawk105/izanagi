@@ -1,0 +1,567 @@
+{
+  "schema_version": "moccfix-summary/v1",
+  "arms": {
+    "T_F": {
+      "runs": 56,
+      "commit_count_total": 316831554,
+      "commit_count_mean": 5657706.321428572,
+      "commit_count_range": [
+        5516284,
+        5774873
+      ],
+      "validated_items": 3025221527,
+      "class_a": 366,
+      "class_b": 611,
+      "commits": 316831554,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "recheck_abort": 0,
+      "class_a_per_commit": 1.155187970955696e-06,
+      "class_b_per_commit": 1.928469536212924e-06,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "T_X": {
+      "runs": 112,
+      "commit_count_total": 633671352,
+      "commit_count_mean": 5657779.928571428,
+      "commit_count_range": [
+        5520505,
+        5784318
+      ],
+      "validated_items": 6050250129,
+      "class_a": 0,
+      "class_b": 2,
+      "commits": 633671352,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "recheck_abort": 1892,
+      "class_a_per_commit": 0.0,
+      "class_b_per_commit": 3.156210224255175e-09,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "N_F": {
+      "runs": 28,
+      "commit_count_total": 202544184,
+      "commit_count_mean": 7233720.857142857,
+      "commit_count_range": [
+        7065066,
+        7418983
+      ],
+      "validated_items": 1933205054,
+      "class_a": 1049,
+      "class_b": 3629,
+      "commits": 202544184,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "recheck_abort": 0,
+      "class_a_per_commit": 5.1791168686433375e-06,
+      "class_b_per_commit": 1.791707828055927e-05,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "N_X": {
+      "runs": 28,
+      "commit_count_total": 200750660,
+      "commit_count_mean": 7169666.428571428,
+      "commit_count_range": [
+        6997798,
+        7428715
+      ],
+      "validated_items": 1916106993,
+      "class_a": 0,
+      "class_b": 0,
+      "commits": 200750660,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "recheck_abort": 4476,
+      "class_a_per_commit": 0.0,
+      "class_b_per_commit": 0.0,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "P_F": {
+      "runs": 28,
+      "commit_count_total": 201612562,
+      "commit_count_mean": 7200448.642857143,
+      "commit_count_range": [
+        6918529,
+        7357668
+      ],
+      "validated_items": 0,
+      "class_a": 0,
+      "class_b": 0,
+      "commits": 0,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "recheck_abort": 0,
+      "class_a_per_commit": 0.0,
+      "class_b_per_commit": 0.0,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "P_X": {
+      "runs": 28,
+      "commit_count_total": 202770031,
+      "commit_count_mean": 7241786.821428572,
+      "commit_count_range": [
+        7051309,
+        7469027
+      ],
+      "validated_items": 0,
+      "class_a": 0,
+      "class_b": 0,
+      "commits": 0,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "recheck_abort": 0,
+      "class_a_per_commit": 0.0,
+      "class_b_per_commit": 0.0,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    }
+  },
+  "g2_runs": [
+    {
+      "job": "evidence/main-a",
+      "run": "0011-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-a",
+      "run": "0026-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-a",
+      "run": "0111-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-a",
+      "run": "0131-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0026-T_F",
+      "arm": "T_F",
+      "total_cycles": 2,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0065-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0106-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0111-T_F",
+      "arm": "T_F",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    }
+  ],
+  "witnesses": [
+    {
+      "job": "evidence/main-a",
+      "run": "0011-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "one_A",
+      "edges": [
+        {
+          "reader_txid": 397536,
+          "writer_txid": 397547,
+          "key": "0000000000000000",
+          "read_version": [
+            6,
+            2352
+          ],
+          "overwritten_version": [
+            6,
+            2355
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 397547,
+          "writer_txid": 397536,
+          "key": "0000000000000001",
+          "read_version": [
+            6,
+            2352
+          ],
+          "overwritten_version": [
+            6,
+            2354
+          ],
+          "match": "A"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-a",
+      "run": "0026-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 176755,
+          "writer_txid": 176766,
+          "key": "0000000000000000",
+          "read_version": [
+            3,
+            2180
+          ],
+          "overwritten_version": [
+            3,
+            2189
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 176766,
+          "writer_txid": 176755,
+          "key": "0000000000000002",
+          "read_version": [
+            3,
+            2175
+          ],
+          "overwritten_version": [
+            3,
+            2187
+          ],
+          "match": "B"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-a",
+      "run": "0111-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "one_A",
+      "edges": [
+        {
+          "reader_txid": 1236604,
+          "writer_txid": 1236615,
+          "key": "0000000000000003",
+          "read_version": [
+            16,
+            5704
+          ],
+          "overwritten_version": [
+            16,
+            5706
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 1236615,
+          "writer_txid": 1236604,
+          "key": "0000000000000000",
+          "read_version": [
+            16,
+            5699
+          ],
+          "overwritten_version": [
+            16,
+            5705
+          ],
+          "match": "A"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-a",
+      "run": "0131-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 4509839,
+          "writer_txid": 4509844,
+          "key": "0000000000000002",
+          "read_version": [
+            60,
+            1351
+          ],
+          "overwritten_version": [
+            60,
+            1372
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 4509844,
+          "writer_txid": 4509839,
+          "key": "0000000000000000",
+          "read_version": [
+            60,
+            1367
+          ],
+          "overwritten_version": [
+            60,
+            1371
+          ],
+          "match": "B"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0026-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 3903362,
+          "writer_txid": 3903367,
+          "key": "0000000000000047",
+          "read_version": [
+            53,
+            1389
+          ],
+          "overwritten_version": [
+            53,
+            1460
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 3903367,
+          "writer_txid": 3903362,
+          "key": "0000000000000000",
+          "read_version": [
+            53,
+            1454
+          ],
+          "overwritten_version": [
+            53,
+            1458
+          ],
+          "match": "B"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0026-T_F",
+      "arm": "T_F",
+      "ordinal": 2,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 2363515,
+          "writer_txid": 2363521,
+          "key": "0000000000000001",
+          "read_version": [
+            32,
+            1825
+          ],
+          "overwritten_version": [
+            32,
+            1828
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 2363521,
+          "writer_txid": 2363515,
+          "key": "0000000000000000",
+          "read_version": [
+            32,
+            1825
+          ],
+          "overwritten_version": [
+            32,
+            1827
+          ],
+          "match": "B"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0065-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "one_A",
+      "edges": [
+        {
+          "reader_txid": 343878,
+          "writer_txid": 343882,
+          "key": "0000000000000051",
+          "read_version": [
+            5,
+            2882
+          ],
+          "overwritten_version": [
+            5,
+            3859
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 343882,
+          "writer_txid": 343878,
+          "key": "0000000000000001",
+          "read_version": [
+            5,
+            3854
+          ],
+          "overwritten_version": [
+            5,
+            3858
+          ],
+          "match": "A"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0106-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 2865362,
+          "writer_txid": 2865368,
+          "key": "0000000000000002",
+          "read_version": [
+            38,
+            2675
+          ],
+          "overwritten_version": [
+            38,
+            2688
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 2865368,
+          "writer_txid": 2865362,
+          "key": "000000000000000b",
+          "read_version": [
+            38,
+            2632
+          ],
+          "overwritten_version": [
+            38,
+            2687
+          ],
+          "match": "B"
+        }
+      ]
+    },
+    {
+      "job": "evidence/main-b",
+      "run": "0111-T_F",
+      "arm": "T_F",
+      "ordinal": 1,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 314868,
+          "writer_txid": 314879,
+          "key": "0000000000000002",
+          "read_version": [
+            5,
+            2626
+          ],
+          "overwritten_version": [
+            5,
+            2636
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 314879,
+          "writer_txid": 314868,
+          "key": "0000000000000000",
+          "read_version": [
+            5,
+            2633
+          ],
+          "overwritten_version": [
+            5,
+            2634
+          ],
+          "match": "B"
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "expected_runs": {
+      "T_F": 56,
+      "T_X": 112,
+      "N_F": 28,
+      "N_X": 28,
+      "P_F": 28,
+      "P_X": 28
+    },
+    "all_expected_runs_present": true,
+    "two_job_batch_schedule_complete": true,
+    "R0_X_indeterminate_runs": 0,
+    "T_X_G2_runs": 0,
+    "T_X_runs": 112,
+    "T_X_N_X_commit_class_a": 0,
+    "success": true,
+    "T_F_G2_runs": 8,
+    "T_F_G2_control_established": true,
+    "T_F_N_F_commit_class_a": 1415,
+    "F_class_a_control_established": true,
+    "F_invalid_runs": {
+      "T_F": 0,
+      "N_F": 0
+    },
+    "X_recheck_abort": 6368,
+    "witness_statuses": {
+      "both_A": 0,
+      "one_A": 3,
+      "B_only": 6,
+      "none": 0,
+      "indeterminate": 0
+    }
+  }
+}
