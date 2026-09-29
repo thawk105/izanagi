@@ -526,7 +526,7 @@ def _attribute(record, versions, events, initial_wts):
     return {"witness_count": len(matching), "examples": matching[:3]}
 
 
-def _verify_trace(trace_dir, source, commits, stderr, build):
+def _verify_trace(trace_dir, source, commits, stderr, build, build_kind):
     counts, versions = _trace_rows(trace_dir)
     argv = [sys.executable, "-m", "verifier", str(trace_dir), "--json", "--quiet",
             "--protocol", "cicada", "--ccbench-root", str(source),
@@ -538,17 +538,18 @@ def _verify_trace(trace_dir, source, commits, stderr, build):
     record = json.loads(completed.stdout)["results"][0]
     integrity = record.get("integrity") or {}
     clean = counts["C"] == commits and all(integrity.get(k) == 0 for k in INTEGRITY_ZERO)
-    if not clean:
+    if not clean and build_kind != "broken":
         raise RuntimeError(f"trace integrity failed: commits={commits} rows={counts} integrity={integrity}")
     result = {"argv": argv, "rc": completed.returncode,
               "seconds": time.monotonic() - tick, "verdict": record.get("verdict"),
               "total_cycles": record.get("total_cycles"), "integrity": integrity,
+              "notes": record.get("notes", []),
               "rows": counts, "expected_commits": commits, "clean": clean,
               "json_sha256": hashlib.sha256(completed.stdout).hexdigest()}
     if not _valid_trace_verdict(result):
         raise RuntimeError(f"verifier rc/verdict/cycles contract violation: {result['rc']}, "
                            f"{result['verdict']}, {result['total_cycles']}")
-    if build.startswith("broken-"):
+    if build_kind == "broken":
         event = _break_events(stderr, build)
         match = re.search(r"^CICADA_TRACE_INITIAL_WTS=(\d+)$", stderr, re.MULTILINE)
         if not match:
@@ -615,7 +616,8 @@ def run_one(manifest, spec, *, scratch, source=None):
         if source is None or record["commits"] is None:
             raise RuntimeError("trace verification requires source and commit count")
         record["trace"] = _verify_trace(trace_dir, source, record["commits"],
-                                         stderr.decode("utf-8", "replace"), spec["build"])
+                                         stderr.decode("utf-8", "replace"), spec["build"],
+                                         entry["kind"])
     return record
 
 
@@ -637,6 +639,41 @@ def broken_verdict(record):
     return {"status": "validation-stopped" if predicted and fired["changed"] else
             "unreached" if predicted else "prediction-failed",
             "prediction_met": predicted, "attributed_cycles": event["witness_count"]}
+
+
+BROKEN_CLASSIFICATION_CONDITIONS = {
+    "detected-attributed-clean": "committed >= 1; verdict non-serializable; attributed witness >= 1; integrity clean",
+    "detected-attributed-integrity-violation": "committed >= 1; verdict non-serializable; attributed witness >= 1; integrity violation",
+    "integrity-violation-only": "at least one detection condition absent; integrity violation",
+    "not-detected": "at least one detection condition absent; integrity clean",
+}
+
+
+def _broken_classification(record):
+    trace = record["trace"]
+    event = trace["break"]
+    integrity = trace.get("integrity") or {}
+    rows = trace.get("rows") or {}
+    expected = trace.get("expected_commits")
+    clean = trace["clean"] is True
+    detected = (event["fired"]["committed"] >= 1 and
+                trace["verdict"] == "non-serializable" and
+                event["witness_count"] >= 1)
+    if detected:
+        classification = ("detected-attributed-clean" if clean else
+                          "detected-attributed-integrity-violation")
+    else:
+        classification = "not-detected" if clean else "integrity-violation-only"
+    return {"classification": classification,
+            "classification_condition": BROKEN_CLASSIFICATION_CONDITIONS[classification],
+            "integrity_state": {"clean": clean, "counters": integrity,
+                                "violations": {k: integrity.get(k) for k in INTEGRITY_ZERO
+                                               if k in integrity and integrity[k] != 0},
+                                "commit_rows": rows.get("C"),
+                                "expected_commits": expected,
+                                "commit_rows_match": (rows["C"] == expected
+                                                      if "C" in rows and expected is not None
+                                                      else None)}}
 
 
 def _valid_trace_verdict(trace):
@@ -702,7 +739,7 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
               not _valid_trace_verdict(r["trace"])):
             raise ValueError("invalid trace run")
         if r["build_kind"] == "broken" and (r["rc"] != 0 or
-              not r.get("trace") or not r["trace"].get("clean") or
+              not r.get("trace") or type(r["trace"].get("clean")) is not bool or
               not _valid_trace_verdict(r["trace"]) or
               not r["trace"].get("break")):
             raise ValueError("invalid broken trace run")
@@ -744,12 +781,14 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
            by_key[0, 0, cell, 0]["tuple_size_bytes"])}
        for k, values in data.items()}
        for cell, data in ratios.items()}
-    breaks = {r["build"] + ":" + r["cell"]: broken_verdict(r)
+    breaks = {r["build"] + ":" + r["cell"]:
+              {**broken_verdict(r), **_broken_classification(r)}
               for r in traces if r["build_kind"] == "broken"}
     count_rows = [{**r, "count_raw": r["count"],
                    "count": aggregate_count(r["count"], r["k"])} for r in counts]
     return {"schema": "vhash-hot-aggregate/v1", "pin": PIN, "cells": result_cells,
             "disqualified_ks": sorted(failed), "broken": breaks,
+            "broken_classification_conditions": BROKEN_CLASSIFICATION_CONDITIONS,
             "count": count_rows, "count_derived_definitions": COUNT_DERIVED,
             "trace": traces, "conditions": {"threads": 48,
             "tuples": 1000000, "zipf": 0.9, "max_ope": 10, "extime": 3},

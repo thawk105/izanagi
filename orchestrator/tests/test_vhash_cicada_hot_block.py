@@ -367,3 +367,89 @@ def test_broken_rules():
     assert h.broken_verdict(b2)["status"] == "validation-stopped"
     b2["trace"]["break"]["fired"]["committed"] = 1
     assert h.broken_verdict(b2)["status"] == "prediction-failed"
+
+
+def test_m11_broken_integrity_violation_does_not_stop_trace_job(tmp_path, monkeypatch):
+    specs = [{"build": "broken-B1", "cell": "T1"},
+             {"build": "broken-B2", "cell": "T2"}]
+    manifest = {"builds": {spec["build"]: {"patch_order": [], "patch_sha256": {}}
+                           for spec in specs}}
+    monkeypatch.setattr(h, "compute_only", lambda: None)
+    monkeypatch.setattr(h, "probe", lambda: {})
+    monkeypatch.setattr(h, "_load_manifest", lambda _: manifest)
+    monkeypatch.setattr(h, "plan_trace", lambda *_: specs)
+    monkeypatch.setattr(h, "sharing_preflight", lambda *_: None)
+    monkeypatch.setattr(h, "strict_patches", lambda *_: None)
+    monkeypatch.setattr(h, "_trace_rows", lambda _: ({"C": 1, "R": 1, "W": 0, "E": 1}, {}))
+    @contextmanager
+    def checkout(_pin):
+        yield str(tmp_path)
+    monkeypatch.setattr(h.patchharness, "checkout", checkout)
+    results = iter([
+        {"verdict": "non-serializable", "total_cycles": 1,
+         "integrity": {"orphan_reads": 2}, "notes": ["orphan read"]},
+        {"verdict": "indeterminate", "total_cycles": 0,
+         "integrity": {k: 0 for k in h.INTEGRITY_ZERO}, "notes": []},
+    ])
+    def verify(*_args, **_kwargs):
+        result = next(results)
+        rc = 1 if result["total_cycles"] else 3
+        return SimpleNamespace(returncode=rc,
+                               stdout=json.dumps({"results": [result]}).encode(), stderr=b"")
+    monkeypatch.setattr(h.subprocess, "run", verify)
+    def run_one(_manifest, spec, *, scratch, source):
+        trace = h._verify_trace(scratch, source, 1,
+            "CICADA_BREAK_FIRED slug=" + ("stale-hot" if spec["build"] == "broken-B1" else "skip-pending") +
+            " reached=0 changed=0 committed=0\nCICADA_TRACE_INITIAL_WTS=1\n",
+            spec["build"], "broken")
+        return {"build": spec["build"], "trace": trace}
+    monkeypatch.setattr(h, "run_one", run_one)
+    args = SimpleNamespace(command="trace", output=tmp_path, scratch_root=tmp_path,
+                           selection=None, job_index=0)
+    job = h._run_job(args)
+    assert len(job["records"]) == 2
+    first, second = job["records"]
+    assert first["trace"]["clean"] is False
+    assert first["trace"]["integrity"]["orphan_reads"] == 2
+    assert first["trace"]["notes"] == ["orphan read"]
+    assert first["trace"]["rows"]["C"] == 1
+    assert first["trace"]["break"]["witness_count"] == 0
+    assert second["trace"]["clean"] is True
+    assert len(json.loads((tmp_path / "raw-trace-0.json").read_text())["records"]) == 2
+
+
+@pytest.mark.parametrize("build", ["trace-k0", "trace-k4"])
+def test_stock_and_k_integrity_violation_still_stops(tmp_path, monkeypatch, build):
+    monkeypatch.setattr(h, "_trace_rows", lambda _: ({"C": 1, "R": 0, "W": 0, "E": 1}, {}))
+    monkeypatch.setattr(h.subprocess, "run", lambda *_a, **_kw: SimpleNamespace(
+        returncode=3, stdout=json.dumps({"results": [{"verdict": "indeterminate",
+            "total_cycles": 0, "integrity": {"orphan_reads": 1}}]}).encode(), stderr=b""))
+    with pytest.raises(RuntimeError, match="trace integrity failed"):
+        h._verify_trace(tmp_path, tmp_path, 1, "", build, "trace")
+
+
+def test_broken_aggregate_four_classification_boundaries():
+    raw = jobs()
+    broken = [r for r in raw[-2]["records"] if r["build_kind"] == "broken"]
+    for record, clean, detected in zip(broken, (True, False, False, True),
+                                       (True, True, False, False)):
+        trace = record["trace"]
+        trace["clean"] = clean
+        trace["integrity"] = {"orphan_reads": 0 if clean else 2}
+        trace["rows"] = {"C": 1}
+        trace["expected_commits"] = 1
+        if detected:
+            trace.update(rc=1, total_cycles=1, verdict="non-serializable")
+            trace["break"]["fired"]["committed"] = 1
+            trace["break"]["witness_count"] = 1
+    result = aggregate(raw)
+    expected = ("detected-attributed-clean",
+                "detected-attributed-integrity-violation",
+                "integrity-violation-only", "not-detected")
+    for record, name in zip(broken, expected):
+        item = result["broken"][record["build"] + ":" + record["cell"]]
+        assert item["classification"] == name
+        assert item["classification_condition"] == result["broken_classification_conditions"][name]
+        assert item["integrity_state"]["clean"] is record["trace"]["clean"]
+        if not record["trace"]["clean"]:
+            assert item["integrity_state"]["violations"] == {"orphan_reads": 2}
