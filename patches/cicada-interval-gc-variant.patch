@@ -87,13 +87,14 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -5,6 +5,16 @@
+@@ -5,6 +5,17 @@
  #include <iostream>
  #include <string>
  #include <vector>
 +#if CICADA_INTERVAL_GC
 +#include <algorithm>
 +#include <array>
++#include <cstdint>
 +#include <cstdlib>
 +#endif
 +#if CICADA_INTERVAL_COUNT
@@ -104,7 +105,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -25,6 +35,365 @@
+@@ -25,6 +36,368 @@
  using namespace std;
  
  #define MSK_TID 0b11111111
@@ -415,9 +416,12 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    if (i == 0 || i + 1 >= chain.size() || i >= minr_visible ||
 +        chain[i]->ldAcqStatus() != VersionStatus::committed)
 +      return false;
-+#if INLINE_VERSION_OPT
-+    if (chain[i] == &tuple->inline_ver_) return false;
-+#endif
++    // An inline version is a Tuple member and lies inside its object range.
++    auto version_addr = reinterpret_cast<std::uintptr_t>(chain[i]);
++    auto tuple_begin = reinterpret_cast<std::uintptr_t>(tuple);
++    if (version_addr >= tuple_begin &&
++        version_addr < tuple_begin + sizeof(Tuple))
++      return false;
 +    const size_t n = newer_committed[i];
 +    if (n == chain.size()) return false;
 +    bool in_gap = false;
@@ -470,7 +474,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  /**
   * @brief Initialize function of transaction.
-@@ -32,6 +401,10 @@
+@@ -32,6 +405,10 @@
   * @return void
   */
  void TxExecutor::begin() {
@@ -481,7 +485,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +414,10 @@
+@@ -41,6 +418,10 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -492,7 +496,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +478,16 @@
+@@ -101,6 +482,16 @@
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -509,7 +513,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -267,6 +654,10 @@
+@@ -267,6 +658,10 @@
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -520,7 +524,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
    }
  
-@@ -298,6 +689,10 @@
+@@ -298,6 +693,10 @@
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -531,7 +535,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +741,10 @@
+@@ -346,6 +745,10 @@
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -542,7 +546,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +816,10 @@
+@@ -417,6 +820,10 @@
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -553,7 +557,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -716,6 +1119,18 @@
+@@ -716,6 +1123,18 @@
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -572,7 +576,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -813,12 +1228,35 @@
+@@ -813,12 +1232,33 @@
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -593,12 +597,10 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    bool was_pruned =
 +        gcq_.front().ver_->igc_pruned_.load(std::memory_order_acquire) != 0;
 +    if (was_pruned) {
-+      IGC_COUNT_REUSE(thid_, gcq_.front().ver_);
-+#if REUSE_VERSION
-+      reuse_version_from_gc_.emplace_back(gcq_.front().ver_);
-+#else
-+      delete gcq_.front().ver_;
-+#endif
++      Version* pruned = gcq_.front().ver_;
++      IGC_COUNT_REUSE(thid_, pruned);
++      pruned->next_.store(nullptr, std::memory_order_release);
++      gcAfterThisVersion(tuple, pruned);
 +      tuple->returnGCRight();
 +      gcq_.pop_front();
 +      continue;
@@ -608,7 +610,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -835,6 +1273,19 @@
+@@ -835,6 +1275,19 @@
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
@@ -628,7 +630,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -961,6 +1412,13 @@
+@@ -961,6 +1414,13 @@
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
