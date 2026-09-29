@@ -169,7 +169,7 @@ gate成功後の再走は`DW-S05-A`だけ。取込は
 `tools/dev_wave_wait.py acceptance`のpost-claim merge。
 待ち手・launcher・runnerのbytesを変える前進は先に取り込む(F524)。
 HEAD差は`--ff-only`で揃える(F48)。新規worktreeは未初期化submoduleで非0。
-`DW-C01`で初期化して再検査(`deinit`禁止)。取込はpointerだけ進む。受入前に
+`DW-C01`に従い初期化して再検査(`deinit`禁止)。取込はpointerだけ進む。受入前に
 `git submodule update --init --recursive`で揃える。
 子を走らせるworktreeは`git worktree lock`(cwd走査はlauncher型を逃す)。
 共有文書追記は段1で`DW-O12`。
