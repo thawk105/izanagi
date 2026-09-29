@@ -76,7 +76,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
      std::cout << "]}" << std::endl;
    }
-@@ -126,11 +156,40 @@
+@@ -126,11 +156,43 @@
    conflict = true;
    return nullptr;
  }
@@ -100,10 +100,13 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +}
 +
 +bool forward_below(uint64_t upper, uint8_t thid, uint64_t& result) {
-+  if (upper <= 256) return false;
++  if (upper == 0) return false;
 +  result = ((upper - 1) & ~uint64_t{255}) | thid;
-+  if (result >= upper) result -= 256;
-+  return true;
++  if (result >= upper) {
++    if (result < 256) return false;
++    result -= 256;
++  }
++  return result < upper;
 +}
 +#line 106
  } // namespace
@@ -117,7 +120,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #endif
  #line 29
  
-@@ -144,6 +203,8 @@
+@@ -144,6 +206,8 @@
    uint64_t ineligible = 0, overflow = 0, publishes = 0, flag_raises = 0;
    uint64_t advance_clock_sum = 0, held_checks = 0, held_changed = 0;
    uint64_t early_publishes = 0, early_publish_then_fail = 0;
@@ -126,7 +129,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    std::atomic<uint64_t> installs{0}, detaches{0};
  };
  struct HeldVersion {
-@@ -282,12 +343,19 @@
+@@ -282,12 +346,19 @@
          retention_hist[b] += slot.retention_hist[b];
        }
      }
@@ -147,7 +150,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
                << ",\"threads\":[";
      for (size_t i = 0; i < TotalThreadNum; ++i) {
        if (i) std::cout << ',';
-@@ -309,7 +377,13 @@
+@@ -309,7 +380,13 @@
                  << ",\"early_publishes\":" << c.early_publishes
                  << ",\"early_publish_then_fail\":" << c.early_publish_then_fail
                  << ",\"installs\":" << c.installs.load()
@@ -162,7 +165,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
      std::cout << "],\"uniform\":{\"count\":" << uniform_rts.count
                << ",\"negative\":" << uniform_rts.negative
-@@ -437,6 +511,30 @@
+@@ -437,6 +514,30 @@
      GC_INC(thid, overflow);
      return false;
    }
@@ -193,7 +196,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    GC_INC(thid, attempts);
    ForwardCheck check = ForwardCheck::ok;
    for (auto& r : tx.read_set_) {
-@@ -525,8 +623,10 @@
+@@ -525,8 +626,10 @@
  void cicada_gc_safepoint(TxExecutor& tx) {
    GC_INC(tx.thid_, safepoints);
    static bool checked = [] {
@@ -206,7 +209,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
        std::cerr << "Invalid Cicada GC mode" << std::endl;
        std::exit(2);
      }
-@@ -544,7 +644,16 @@
+@@ -544,7 +647,16 @@
        loadAcquire(GCFlag[tx.thid_].obj_) != 0)
      return;
    GC_INC(tx.thid_, requests);
@@ -224,7 +227,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    storeRelease(GCFlag[tx.thid_].obj_, 1);
    GC_INC(tx.thid_, flag_raises);
    tx.gcstart_ = now;
-@@ -562,6 +671,9 @@
+@@ -562,6 +674,9 @@
    static const bool configured = [] {
      if (FLAGS_cicada_fwd_k == 0 || FLAGS_cicada_fwd_k > 256 ||
          (FLAGS_cicada_fwd_policy != "c" && FLAGS_cicada_fwd_policy != "f") ||
@@ -234,7 +237,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
          TotalThreadNum > 256) {
        std::cerr << "Invalid Cicada forwarding flags" << std::endl;
        std::exit(2);
-@@ -573,6 +685,8 @@
+@@ -573,6 +688,8 @@
    (void) configured;
    auto& slot = forward_slots[thid_];
    slot.forwarded = slot.scanning = slot.special = false;
@@ -243,7 +246,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #endif
  #line 35
    /**
-@@ -673,21 +787,90 @@
+@@ -673,21 +790,90 @@
          status_ = TransactionStatus::aborted;
          return nullptr;
        }
@@ -346,7 +349,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
            FWD_COUNT(slot, attempts);
            ForwardCheck check = ForwardCheck::ok;
            for (auto& r : read_set_) {
-@@ -740,6 +923,8 @@
+@@ -740,6 +926,8 @@
              slot.forwarded = true;
  #if CICADA_FWD_COUNT
              ++slot.success;
@@ -355,7 +358,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
              slot.advance_clock_sum += (target - trts) >> 8;
              slot.pos_before_sum += physical_pos;
  #endif
-@@ -768,6 +953,9 @@
+@@ -768,6 +956,9 @@
                  break;
                case ForwardCheck::ok:
                  break;

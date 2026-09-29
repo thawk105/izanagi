@@ -659,8 +659,9 @@ _CMAKE_INTERNAL_DEFINE_RE = re.compile(
 # introducing patch; no registry key is used to discover the interface.
 _OVERLAY_BASE_DEFINE_INTERFACES = {
     "patches/cicada-forwarding-variant.patch": frozenset({
-        "CICADA_FWD_ENABLE", "CICADA_LONGTX",
+        "CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT",
     }),
+    "patches/cicada-forwarding-gc.patch": frozenset({"CICADA_GC_SAFEPOINT"}),
     "patches/instr-silo-function-policy-probe.patch": frozenset({
         "IZANAGI_SILO_POLICY_PROBE",
     }),

@@ -68,8 +68,8 @@ def make_success(data):
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
     cells = _cells(data, "wait_after_reads")
-    fig, axes = plt.subplots(2, 1, figsize=(16, 10))
-    fig.subplots_adjust(left=.08, right=.98, top=.84, bottom=.18, hspace=.9)
+    fig, ax = plt.subplots(figsize=(16, 6))
+    fig.subplots_adjust(left=.08, right=.98, top=.75, bottom=.24)
     fig.suptitle("Forwarding requests and outcomes · 48 threads, 1M tuples, 50% reads · diagnostic",
                  y=.97, fontsize=12)
     arms = ("E-hb", "E-now", "E-max", "E-max-once")
@@ -81,19 +81,15 @@ def make_success(data):
         for ai, arm in enumerate(arms):
             rows = cell["arms"][arm]["count"]
             rates = [r["e"]["success_rate"] for r in rows]
-            reasons = [sum(r["e"]["failure_reasons_per_request"].values())
-                       if all(v is not None for v in r["e"]["failure_reasons_per_request"].values())
-                       else None for r in rows]
-            values[key][arm] = {"success_per_request": rates, "failure_per_request": reasons}
+            values[key][arm] = {"success_per_request": rates,
+                                "policy_exercised": cell["arms"][arm]["policy_exercised"]}
             x = index + (ai - 1.5) * .16
-            _point(axes[0], x, rates, COLORS[arm], divisor=.01)
-            _point(axes[1], x, reasons, COLORS[arm], divisor=.01)
+            _point(ax, x, rates, COLORS[arm], divisor=.01)
     labels = [f"{c['wait_us']//1000}/{c['skew']:g}/{c['gc_inter_us']}" for _, c in cells]
-    for ax, label in zip(axes, ("Success / requests (%)", "Attempt failures / requests (%)")):
-        ax.set_ylabel(label)
-        ax.set_xticks(range(len(cells)), labels, fontsize=8)
-        ax.set_xlim(-.5, len(cells) - .5)
-        ax.grid(axis="y", alpha=.2)
+    ax.set_ylabel("Success / requests (%)")
+    ax.set_xticks(range(len(cells)), labels, fontsize=8)
+    ax.set_xlim(-.5, len(cells) - .5)
+    ax.grid(axis="y", alpha=.2)
     check_figure_layout(fig)
     return fig, values
 
@@ -155,11 +151,45 @@ def make_failure_reasons(data):
                 values[key].setdefault(arm, {})[reason] = points
                 _point(ax, ci + (ai - 1.5) * .16, points, COLORS[arm], divisor=.01)
         ax.set_title(reason.replace("_", " "), fontsize=9)
-        ax.set_ylabel("Requests (%)")
+        ax.set_ylabel("Failure / requests (%)")
         ax.set_xticks(range(len(cells)), labels, fontsize=7)
         ax.set_xlim(-.5, len(cells)-.5)
         ax.grid(axis="y", alpha=.2)
     axes.flat[-1].axis("off")
+    check_figure_layout(fig)
+    return fig, values
+
+
+def make_c_failure_reasons(data):
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    cells = _cells(data, "many_ops")
+    reasons = ("read_mismatch", "write_constraint", "conflict", "ineligible",
+               "no_room", "once_skipped", "no_target", "f_aborts")
+    arms = ("C-min", "C-max", "C-partial", "C-partial-once")
+    fig, axes = plt.subplots(4, 2, figsize=(18, 16))
+    fig.subplots_adjust(left=.07, right=.98, top=.92, bottom=.10, hspace=.75, wspace=.20)
+    fig.suptitle("Failure reasons / triggers · C policies · many ops · diagnostic",
+                 y=.985, fontsize=12)
+    fig.legend(handles=[Line2D([], [], color=COLORS[a], marker="D", label=a) for a in arms],
+               loc="upper center", ncol=4, bbox_to_anchor=(.5, .955), frameon=False)
+    labels = [f"skew {c['skew']:g} / GC {c['gc_inter_us']}µs" for _, c in cells]
+    values = {}
+    for ri, reason in enumerate(reasons):
+        ax = axes.flat[ri]
+        for ci, (key, cell) in enumerate(cells):
+            values.setdefault(key, {})
+            for ai, arm in enumerate(arms):
+                points = [r["c"]["failure_reasons_per_trigger"][reason]
+                          for r in cell["arms"][arm]["count"]]
+                values[key].setdefault(arm, {})[reason] = points
+                values[key][arm]["policy_exercised"] = cell["arms"][arm]["policy_exercised"]
+                _point(ax, ci + (ai - 1.5) * .16, points, COLORS[arm], divisor=.01)
+        ax.set_title(reason.replace("_", " "), fontsize=9)
+        ax.set_ylabel("Failure / triggers (%)")
+        ax.set_xticks(range(len(cells)), labels, fontsize=7)
+        ax.set_xlim(-.5, len(cells)-.5)
+        ax.grid(axis="y", alpha=.2)
     check_figure_layout(fig)
     return fig, values
 
@@ -178,10 +208,12 @@ def make_many_ops(data):
             rows = cell["arms"][arm]["count"]
             rates = {group: [r["c_by_thread"][group]["success_rate"] for r in rows]
                      for group in ("long", "normal")}
-            values[key][arm] = rates
+            values[key][arm] = {**rates,
+                "policy_exercised": cell["arms"][arm]["policy_exercised"]}
             _point(axes[0], index + (ai - 1.5) * .18, rates["long"], COLORS[arm], divisor=.01)
             _point(axes[1], index + (ai - 1.5) * .18, rates["normal"], COLORS[arm], divisor=.01)
-        for arm in ("stock", "F"):
+        completion_arms = ("stock", "C-min", "C-max", "C-partial", "C-partial-once", "F")
+        for ai, arm in enumerate(completion_arms):
             rows = cell["arms"][arm]["performance"]
             completion = []
             for row in rows:
@@ -189,13 +221,13 @@ def make_many_ops(data):
                 commits = sum(r["commits"] for r in long_rows)
                 aborts = sum(r["aborts"] for r in long_rows)
                 completion.append(commits / (commits + aborts) if commits + aborts else None)
-            values[key][arm] = {"long_completion": completion}
-            _point(axes[2], index + (-.10 if arm == "stock" else .10),
+            values[key].setdefault(arm, {})["long_completion"] = completion
+            _point(axes[2], index + (ai - (len(completion_arms) - 1) / 2) * .10,
                    completion, COLORS[arm], divisor=.01)
     labels = [f"skew {c['skew']:g} / GC {c['gc_inter_us']}µs" for _, c in cells]
     for ax, label in zip(axes, ("Long thread success / triggers (%)",
                                 "Ordinary thread success / triggers (%)",
-                                "Long tx completion (%) · stock and F")):
+                                "Long tx completion (%) · stock, C, F")):
         ax.set_ylabel(label)
         ax.set_xticks(range(len(cells)), labels, rotation=20, ha="right")
         ax.set_xlim(-.5, len(cells) - .5)
@@ -248,6 +280,7 @@ def main(argv=None):
     inputs = {str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest()
               for path in (args.aggregate, *args.raw)}
     for suffix, make in (("success", make_success), ("reasons", make_failure_reasons),
+                         ("c-reasons", make_c_failure_reasons),
                          ("gc", make_gc),
                          ("many-ops", make_many_ops), ("throughput", make_throughput)):
         fig, values = make(data)

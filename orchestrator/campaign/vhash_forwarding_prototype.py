@@ -1038,8 +1038,6 @@ def target_plan_runs(workload: str, wait_us: int | None, *, skew=.9, smoke=False
 def target_argv(binary: Path, spec: dict) -> list[str]:
     base = _argv(binary, {**spec, "target_job": False, "gc_job": True, "arm": "stock"})
     flags = target_arm_flags(spec["arm"])
-    if spec["build_kind"].endswith("-count"):
-        flags.append("--cicada_gc_sample_us=10")
     return base + flags
 
 
@@ -1085,7 +1083,7 @@ def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) ->
         top = {"schema", "policy", "k", "threads"} | (set() if fwd_default else {"target", "once"})
         if type(fwd) is not dict or fwd.keys() != top or type(fwd["threads"]) is not list:
             raise ValueError("FWD top schema invalid")
-        if fwd["schema"] not in ((1,) if fwd_default else (1, 2)) or \
+        if fwd["schema"] != (1 if fwd_default else 2) or \
                 fwd["policy"] != ("f" if arm == "F" else "c") or \
                 type(fwd["k"]) is not int or fwd["k"] != 3:
             raise ValueError("FWD policy schema invalid")
@@ -1105,7 +1103,7 @@ def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) ->
             parse_gc_line("CICADA_GC_V1 " + json.dumps(gc), True)
         else:
             top = GC_TOP | {"target", "once"}
-            if type(gc) is not dict or gc.keys() != top or gc["schema"] not in (1, 2) or \
+            if type(gc) is not dict or gc.keys() != top or gc["schema"] != 2 or \
                     gc["target"] != "max" or \
                     type(gc["once"]) is not bool or gc["once"] != (arm == "E-max-once"):
                 raise ValueError("GC V2 top schema invalid")
@@ -1119,6 +1117,9 @@ def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) ->
             reduced["threads"] = [{k: v for k, v in row.items() if k in GC_THREAD}
                                   for row in reduced["threads"]]
             parse_gc_line("CICADA_GC_V1 " + json.dumps(reduced), True)
+        expected_mode = "hb" if arm == "E-hb" else "e" if arm.startswith("E-") else "off"
+        if gc["mode"] != expected_mode:
+            raise ValueError("GC mode does not match target arm")
     return fwd, gc, longtx
 
 
@@ -1128,10 +1129,11 @@ def target_success_metrics(counter: dict, family: str) -> dict:
             "ineligible", "no_room", "once_skipped", "uncapped", "advance_clock_sum")
     totals = {key: sum(row.get(key, 0) for row in rows) for key in keys}
     if family == "E":
-        for key in ("requests", "overflow"):
+        for key in ("requests", "overflow", "flag_raises"):
             totals[key] = sum(row[key] for row in rows)
         denominator = totals["requests"]
-        if denominator != totals["attempts"] + totals["overflow"] + totals["no_room"] + totals["once_skipped"]:
+        if counter["mode"] == "e" and denominator != (totals["attempts"] + totals["overflow"] +
+                                                     totals["no_room"] + totals["once_skipped"]):
             raise ValueError("E request accounting mismatch")
     else:
         for key in ("triggers", "f_aborts", "no_target", "short_success", "advance_clock_sum"):
@@ -1148,11 +1150,14 @@ def target_success_metrics(counter: dict, family: str) -> dict:
         failures["overflow"] = totals["overflow"]
     else:
         failures.update(no_target=totals["no_target"], f_aborts=totals["f_aborts"])
+    reason_key = "failure_reasons_per_request" if family == "E" else "failure_reasons_per_trigger"
     return {**totals, "denominator": denominator,
-            "success_rate": totals["success"] / denominator if denominator else None,
+            "success_rate": (totals["success"] / denominator if denominator else None)
+            if family != "E" or counter["mode"] == "e" else None,
             "attempt_success_rate": totals["success"] / totals["attempts"] if totals["attempts"] else None,
-            "failure_reasons_per_request": {k: v / denominator if denominator else None
-                                             for k, v in failures.items()},
+            reason_key: {k: v / denominator if denominator and
+                         (family != "E" or counter["mode"] == "e") else None
+                         for k, v in failures.items()},
             "advance_clock_mean_success": totals["advance_clock_sum"] / totals["success"]
             if totals["success"] else None}
 
@@ -1212,6 +1217,7 @@ def target_aggregate_jobs(jobs: list[dict]) -> dict:
             arm_data = cell["arms"][record["arm"]]
             if counted:
                 gc_summary = _gc_summary(gc, longtx)
+                gc_summary.pop("series")
                 gc_summary.update({k: sum(t.get(k, 0) for t in gc["threads"]) for k in TARGET_EXTRA})
                 split = None
                 if fwd is not None:
@@ -1247,6 +1253,9 @@ def target_aggregate_jobs(jobs: list[dict]) -> dict:
             median = statistics.median(r["throughput_tps"] for r in data["performance"])
             data["throughput_median_tps"] = median
             data["throughput_stock_ratio"] = median / stock if stock else None
+            if arm != "stock":
+                family = "e" if arm.startswith("E-") else "c"
+                data["policy_exercised"] = sum(r[family]["success"] for r in data["count"]) > 0
         pairs = (("E-max", "E-hb"), ("E-max", "E-now")) if cell["workload"] == "wait_after_reads" else \
                 tuple((arm, "C-min") for arm in cell["arms"] if arm.startswith("C-") and arm != "C-min")
         cell["comparisons"] = {}

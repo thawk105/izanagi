@@ -683,6 +683,7 @@ def test_target_count_throughput_ineligible():
     assert cell["arms"]["C-min"]["throughput_median_tps"] == 100
     assert len(cell["arms"]["C-min"]["performance"]) == 3
     assert all("throughput_tps" not in row for row in cell["arms"]["C-min"]["count"])
+    assert all("series" not in row["gc"] for row in cell["arms"]["C-min"]["count"])
 
 
 def test_target_v2_exactly_once():
@@ -736,6 +737,9 @@ def test_target_arm_flags():
     assert "--cicada_gc_target=now" not in driver.target_arm_flags("E-max")
     assert "--cicada_fwd_policy=f" in driver.target_arm_flags("F")
     assert "--cicada_fwd_once=true" in driver.target_arm_flags("C-partial-once")
+    spec = next(s for s in driver.target_plan_runs("wait_after_reads", 10000)
+                if s["arm"] == "E-max" and s["build_kind"].endswith("-count"))
+    assert driver.target_argv(Path("/tmp/ycsb"), spec).count("--cicada_gc_sample_us=10") == 1
 
 
 def test_target_default_v1_and_nondefault_rejects_v1():
@@ -743,3 +747,74 @@ def test_target_default_v1_and_nondefault_rejects_v1():
     assert driver.parse_target_lines(_target_counter_text("E-now"), "E-now", True)[1]["schema"] == 1
     with pytest.raises(ValueError, match="CICADA_GC_V1 expected 0 lines"):
         driver.parse_target_lines(_target_counter_text("E-now"), "E-max", True)
+
+
+def _replace_target_counter(text, prefix, change):
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith(prefix):
+            payload = json.loads(line[len(prefix):])
+            change(payload)
+            lines[index] = prefix + json.dumps(payload)
+            return "\n".join(lines) + "\n"
+    raise AssertionError("missing counter line: " + prefix)
+
+
+def test_target_ehb_requests_without_attempts_accepted():
+    line = _replace_target_counter(_target_counter_text("E-hb"), "CICADA_GC_V1 ",
+        lambda gc: gc["threads"][0].update(requests=5, attempts=0, flag_raises=5))
+    gc = driver.parse_target_lines(line, "E-hb", True)[1]
+    metrics = driver.target_success_metrics(gc, "E")
+    assert metrics["requests"] == 5 and metrics["flag_raises"] == 5
+    assert metrics["success_rate"] is None
+    assert all(value is None for value in metrics["failure_reasons_per_request"].values())
+    bad = _replace_target_counter(_target_counter_text("E-max"), "CICADA_GC_V2 ",
+        lambda gc: gc["threads"][0].update(requests=5, attempts=0, flag_raises=5))
+    with pytest.raises(ValueError, match="E request accounting mismatch"):
+        driver.target_success_metrics(driver.parse_target_lines(bad, "E-max", True)[1], "E")
+
+
+def test_target_v2_schema_version_is_two():
+    for arm, prefix, index in (("C-partial", "CICADA_FWD_V2 ", 0),
+                               ("E-max", "CICADA_GC_V2 ", 1)):
+        line = _target_counter_text(arm)
+        assert driver.parse_target_lines(line, arm, True)[index]["schema"] == 2
+        bad = _replace_target_counter(line, prefix, lambda value: value.update(schema=1))
+        with pytest.raises(ValueError, match="schema invalid"):
+            driver.parse_target_lines(bad, arm, True)
+
+
+def test_target_gc_mode_matches_arm():
+    for arm, prefix, mode in (("E-hb", "CICADA_GC_V1 ", "hb"),
+                              ("E-now", "CICADA_GC_V1 ", "e"),
+                              ("E-max", "CICADA_GC_V2 ", "e"),
+                              ("stock", "CICADA_GC_V1 ", "off"),
+                              ("C-min", "CICADA_GC_V1 ", "off"),
+                              ("F", "CICADA_GC_V1 ", "off")):
+        line = _target_counter_text(arm)
+        assert driver.parse_target_lines(line, arm, True)[1]["mode"] == mode
+        bad = _replace_target_counter(line, prefix,
+                                      lambda value: value.update(mode="off" if mode != "off" else "e"))
+        with pytest.raises(ValueError, match="GC mode does not match target arm"):
+            driver.parse_target_lines(bad, arm, True)
+
+
+def test_target_policy_exercised_flag():
+    jobs = _target_jobs()
+    data = driver.target_aggregate_jobs(jobs)
+    for cell in data["cells"].values():
+        for arm, summary in cell["arms"].items():
+            if arm != "stock":
+                assert summary["policy_exercised"] is False
+    record = next(r for r in jobs[0]["records"] if r["arm"] == "C-min" and
+                  r["build_kind"].endswith("-count"))
+    record["stdout"]["text"] = _replace_target_counter(record["stdout"]["text"],
+        "CICADA_FWD_V1 ", lambda fwd: fwd["threads"][0].update(
+            triggers=1, attempts=1, success=1))
+    record["stdout"]["sha256"] = driver.sha_bytes(record["stdout"]["text"].encode())
+    record["fwd_counters"] = driver.parse_target_lines(
+        record["stdout"]["text"], "C-min", True)[0]
+    updated = driver.target_aggregate_jobs(jobs)
+    key = (f"{jobs[0]['workload']}/wait={jobs[0]['wait_us']}/skew={jobs[0]['skew']:g}/"
+           f"gc={record['gc_inter_us']}")
+    assert updated["cells"][key]["arms"]["C-min"]["policy_exercised"] is True
