@@ -3604,7 +3604,7 @@ def test_ro_gc_publish_build_sink_uses_complete_condition_gate_family():
         _production_build_sources(), frozenset(patch_sources))
     sink = _BuildSink(
         "orchestrator/campaign/vhash_ro_gc_publish.py",
-        "<module>._build_variant", 197, "direct-cmake-target")
+        "<module>._build_variant", 216, "direct-cmake-target")
     assert classifications[sink] == Counter({
         "covered": 4, "proven-unreachable": 68})
     assert failures == []
