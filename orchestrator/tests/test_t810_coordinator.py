@@ -53,7 +53,10 @@ _LIVE_AUTHORITY_NODES = frozenset({
 # Keeping this ledger separate from the live allowlist distinguishes direct tests
 # of the scanner from callers that must use the patched hermetic authority seam.
 _HERMETIC_DIRECT_AUTHORITY_NODES = frozenset({
-    "test_git_common_dir_rejects_missing_registration_file",
+    "test_git_common_dir_skips_unlocked_missing_registration_file",
+    "test_git_common_dir_rejects_locked_missing_registration_file",
+    "test_git_common_dir_rejects_non_enoent_registration_open_error",
+    "test_git_common_dir_rejects_lock_stat_error",
     "test_git_common_dir_rejects_symlink_registration_file",
     "test_git_common_dir_rejects_non_regular_registration_file",
     "test_git_common_dir_rejects_registration_changed_during_read",
@@ -1179,14 +1182,77 @@ def test_guard_and_budget_receipts_are_typed_and_digest_bound(
         )
 
 
-def test_git_common_dir_rejects_missing_registration_file(
+def test_git_common_dir_skips_unlocked_missing_registration_file(
     tmp_path: Path, hermetic_git_identity: GitIdentity,
 ) -> None:
-    identity, _admin = _registration_identity(tmp_path)
+    identity, admin = _registration_identity(tmp_path)
+    (admin / "modules").mkdir()
+    sibling = tmp_path / "sibling"
+    sibling.mkdir()
+    sibling_gitdir = sibling / ".git"
+    sibling_gitdir.write_text("gitdir: fixture\n", encoding="utf-8")
+    sibling_admin = admin.parent / "sibling"
+    sibling_admin.mkdir()
+    (sibling_admin / "gitdir").write_text(
+        str(sibling_gitdir) + "\n", encoding="utf-8",
+    )
+
+    assert C.repository_roots_from_git_identity(identity) == frozenset({
+        Path(identity.repo_realpath).resolve(), sibling.resolve(),
+    })
+
+
+@pytest.mark.parametrize("lock_kind", ["file", "broken_symlink", "directory"])
+def test_git_common_dir_rejects_locked_missing_registration_file(
+    tmp_path: Path, hermetic_git_identity: GitIdentity, lock_kind: str,
+) -> None:
+    identity, admin = _registration_identity(tmp_path)
+    locked = admin / "locked"
+    if lock_kind == "file":
+        locked.write_text("locked\n", encoding="utf-8")
+    elif lock_kind == "broken_symlink":
+        locked.symlink_to(tmp_path / "absent-lock-target")
+    else:
+        locked.mkdir()
 
     with pytest.raises(
         C.T810CoordinatorError,
         match=r"^cannot read worktree registration: file is absent$",
+    ):
+        C.repository_roots_from_git_identity(identity)
+
+
+def test_git_common_dir_rejects_non_enoent_registration_open_error(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+) -> None:
+    identity, admin = _registration_identity(tmp_path)
+    admin.rmdir()
+    admin.write_text("not a directory\n", encoding="utf-8")
+
+    with pytest.raises(
+        C.T810CoordinatorError,
+        match=r"^cannot read worktree registration: ",
+    ):
+        C.repository_roots_from_git_identity(identity)
+
+
+def test_git_common_dir_rejects_lock_stat_error(
+    tmp_path: Path, hermetic_git_identity: GitIdentity,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity, admin = _registration_identity(tmp_path)
+    locked = admin / "locked"
+    real_lstat = C.os.lstat
+
+    def failing_lock_lstat(path, *args, **kwargs):
+        if Path(path) == locked:
+            raise PermissionError("lock inspection denied")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(C.os, "lstat", failing_lock_lstat)
+    with pytest.raises(
+        C.T810CoordinatorError,
+        match=r"^cannot inspect worktree registration lock$",
     ):
         C.repository_roots_from_git_identity(identity)
 
