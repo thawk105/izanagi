@@ -1,0 +1,15 @@
+host bnode005 started 2026-09-29T13:50:22.956366+00:00 finished 2026-09-29T13:53:32.607015+00:00 errors []
+== control oid=25898d00b9a6bbf09329ff8e8318c77d4f08b46e binary_sha256=59d8b2381db9f85d94bf09c689fadeb5f1d91ee6b8b70d0e7c64e1ff4b090a9b
+   source_sha256 {"cc/silo/transaction.cc": "bec0bf2b8a381c1a732c2f1f2ce9f5f10187e3d5c4a6d318d408d831a80a78a1", "include/trace.hh": "fae838b12c44fdbfde3d9d494bb0fe6172807a67edeb82540b0f2898f4c4b6c3", "include/ycsb.hh": "e66bbf591e9feaabf5ba4605ec36db5e2c9b6a3a6a5477be19f6778e69af9c17"}
+   W-blind: commits=217827 aborts=13485 reach=pass D1(a,b1,b2)=(0,0,0) D2b i=violation:1482 ii=violation:16835 occ(own_write_read=16737, written=210919, multi_write=None, transactions=217827) verifier=serializable certified=True txns=217827 rc=0 gate_rc=0 prereg=match
+      trace_archive_sha256=159e951048117dd798f3d0cff688e7afac08751a76084d40baa0868bb0972ebf
+   W-rmw: commits=193103 aborts=8594 reach=pass D1(a,b1,b2)=(0,0,0) D2b i=violation:27942 ii=violation:14748 occ(own_write_read=27942, written=186999, multi_write=None, transactions=193103) verifier=serializable certified=True txns=193103 rc=0 gate_rc=0 prereg=match
+      trace_archive_sha256=426cd3c76f08193cc6448a9ca4ea4f4c2c3ffa1b9184acb31017947fa60eadce
+   occurrence keys: ['M_M_occurrences', 'R_R_occurrences', 'R_R_transactions', 'R_W_R_occurrences', 'R_W_R_transactions', 'W_R_occurrences', 'W_R_transactions', 'W_W_occurrences', 'W_W_transactions', 'own_write_read_transactions', 'read_only_transactions', 'repeated_key_transactions', 'transactions', 'write_write_occurrences', 'write_write_transactions', 'written_transactions']
+== fix oid=7e5fa528037805dfc0459c742e4a21d6114c9799 binary_sha256=56713587f3ad4fc8a35d7060469687ff9382976847deb1eab720676f451c8dca
+   source_sha256 {"cc/silo/transaction.cc": "27a7fe27a14d01266b7f8e43d1315cca09e2c3f7bdeebbb7615af94eec4a084d", "include/trace.hh": "fae838b12c44fdbfde3d9d494bb0fe6172807a67edeb82540b0f2898f4c4b6c3", "include/ycsb.hh": "e66bbf591e9feaabf5ba4605ec36db5e2c9b6a3a6a5477be19f6778e69af9c17"}
+   W-blind: commits=220264 aborts=13191 reach=pass D1(a,b1,b2)=(0,0,0) D2b i=pass:0 ii=pass:0 occ(own_write_read=17178, written=213485, multi_write=None, transactions=220264) verifier=serializable certified=True txns=220264 rc=0 gate_rc=0 prereg=match
+      trace_archive_sha256=f90442aac6bcc7429c6ac0413e0f0c4d7ae432b144f2a0ba3ebfe0f43e6eacd8
+   W-rmw: commits=190789 aborts=8520 reach=pass D1(a,b1,b2)=(0,0,0) D2b i=pass:0 ii=pass:0 occ(own_write_read=27491, written=184873, multi_write=None, transactions=190789) verifier=serializable certified=True txns=190789 rc=0 gate_rc=0 prereg=match
+      trace_archive_sha256=b3280a429b832b4acd2c120e61d354785c63ef4d632a3bc9e99b83679b22e232
+   occurrence keys: ['M_M_occurrences', 'R_R_occurrences', 'R_R_transactions', 'R_W_R_occurrences', 'R_W_R_transactions', 'W_R_occurrences', 'W_R_transactions', 'W_W_occurrences', 'W_W_transactions', 'own_write_read_transactions', 'read_only_transactions', 'repeated_key_transactions', 'transactions', 'write_write_occurrences', 'write_write_transactions', 'written_transactions']
