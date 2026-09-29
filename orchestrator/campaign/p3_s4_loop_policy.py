@@ -861,19 +861,19 @@ def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
         proposal, auditor, origin_slot = _fixed_endpoint_proposal(ledger, form)
     results = []
     from . import loop
-    with loop.authorization_session() as session:
-        for spec in expected['slots']:
-            slot, index, attempt = spec['slot'], spec['index'], spec['attempt']
-            if slot == 'seed':
-                selected = initial_proposal('0000' if index == 0 else '0001')
-                if form == 'cpp':
-                    selected = Proposal(selected.implementation, None, '')
-                selected_auditor = None
-            else:
-                selected, selected_auditor = proposal, auditor
-            ledger.append('slot-start', logical_slot=f'{slot}-{index}',
-                          attempt=attempt, unit_kind=unit['kind'],
-                          unit_index=unit['index'])
+    for spec in expected['slots']:
+        slot, index, attempt = spec['slot'], spec['index'], spec['attempt']
+        if slot == 'seed':
+            selected = initial_proposal('0000' if index == 0 else '0001')
+            if form == 'cpp':
+                selected = Proposal(selected.implementation, None, '')
+            selected_auditor = None
+        else:
+            selected, selected_auditor = proposal, auditor
+        ledger.append('slot-start', logical_slot=f'{slot}-{index}',
+                      attempt=attempt, unit_kind=unit['kind'],
+                      unit_index=unit['index'])
+        with loop.authorization_session() as session:
             result = measure_slot(ledger.header, slot, index, attempt,
                 proposal=selected, auditor=selected_auditor, sub=sub,
                 compiler=compiler, scratch_dir=scratch_dir,
@@ -882,13 +882,13 @@ def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
                 fetchcontent_options=fetchcontent_options,
                 authorization_session=session, log=log,
                 origin=('initial' if unit['kind'] == 'score' and origin_slot.startswith('seed-') else None))
-            if selected is not None:
-                result['ir'] = selected.ir
-                result['implementation'] = selected.implementation
-            ledger.append('slot-result', **result)
-            results.append(result)
-            if unit['kind'] == 'job1' and slot == 'stock' and result['outcome'] != 'certified':
-                break
+        if selected is not None:
+            result['ir'] = selected.ir
+            result['implementation'] = selected.implementation
+        ledger.append('slot-result', **result)
+        results.append(result)
+        if unit['kind'] == 'job1' and slot == 'stock' and result['outcome'] != 'certified':
+            break
     series_layout = _campaign_layout(contrast_cfg(ledger.header,
                                                    campaign_env=contract.env_tag))
     series_layout.ensure()

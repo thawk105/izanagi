@@ -27,6 +27,7 @@ from orchestrator.campaign.model import Genome, WalRecord, STAGE_ABORT
 from orchestrator.campaign.model import STAGE_BENCH_DONE, STAGE_BUILD_START
 from orchestrator.campaign.pipeline import EvalResult, variant_id
 from orchestrator.verifier.model import Anomaly, Integrity, VerifyResult
+from orchestrator.tests.test_campaign import authorization_session_case
 
 
 def test_contrast_cfg_keeps_default_identity_and_separates_attempts():
@@ -131,6 +132,51 @@ def test_job1_stops_before_seed_slots_when_stock_is_not_certified(tmp_path, monk
     assert [(event['kind'], event['reason']) for event in ledger.events
             if event['kind'] == 'series-end'] == [('series-end', 'stock-unestablished')]
     assert [row['logical_slot'] for row in result['slots']] == ['stock-0']
+
+
+def test_contrast_unit_authorizes_distinct_slot_identities(
+        tmp_path, monkeypatch, authorization_session_case):
+    from orchestrator.campaign import ident
+    from orchestrator.campaign.silo_policy_contrast import (
+        ContrastLedger, DEFAULT_BUDGETS, UNIT_SCHEMA)
+    from orchestrator.tests.test_campaign import _session_authorize
+
+    case = authorization_session_case
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'random-ir', 'series': 1, 'form': 'ir',
+        'submit_checkout': str(ROOT), 'checkout_head': head,
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    unit = tmp_path / 'unit.json'
+    unit.write_text(json.dumps({'schema': UNIT_SCHEMA,
+        'ledger_root': str(ledger.root), 'kind': 'job1', 'index': 1,
+        'attempt': 0, 'proposal_path': None, 'proposal_sha256': None}))
+    monkeypatch.setattr(P, '_campaign_layout',
+                        lambda _cfg: CampaignLayout(str(tmp_path / 'series')))
+    identities = []
+
+    def measure(_header, slot, index, attempt, **kwargs):
+        cfg = replace(case.cfg, search_config={
+            **case.cfg.search_config, 'contrast_slot': f'{slot}-{index}-a{attempt}'})
+        authorized = _session_authorize(
+            case, kwargs['authorization_session'], cfg=cfg)
+        identities.append(authorized.campaign_identity)
+        return {'logical_slot': f'{slot}-{index}', 'attempt': attempt,
+                'outcome': 'certified', 'variant': f'{slot}-{index}',
+                'campaign_id': authorized.campaign_identity}
+
+    monkeypatch.setattr(P, 'measure_slot', measure)
+    contract = type('Contract', (), {'env_tag': P.ENV_TAG})()
+    result = P.run_contrast_unit(unit, form='ir', contract=contract,
+        fetchcontent_options=None, context=None, stock_context=None,
+        sub=None, cache_root='', compiler=None, scratch_dir=None,
+        log=lambda *_: None)
+    assert [row['logical_slot'] for row in result['slots']] == [
+        'stock-0', 'seed-0', 'seed-1']
+    assert len(set(identities)) == len(identities) == 3
+    assert {claim.stem for claim in case.claim_root.glob('*.claim')} == set(identities)
 
 
 def test_score_endpoint_requires_matching_slot_identity(tmp_path):
