@@ -45,7 +45,7 @@ def test_preview_reject_records_without_auditor(tmp_path):
     ledger = ContrastLedger(root)
     ledger.append("opportunity-start", a=1)
     coder = tmp_path / "coder.json"
-    coder.write_text(json.dumps({"proposal": {"axis": "silo-function-policy", "implementation": "bad"}}))
+    coder.write_text(json.dumps({"axis": "silo-function-policy", "implementation": "bad"}))
     calls = []
     def run(argv, **kwargs):
         calls.append(argv)
@@ -77,3 +77,29 @@ def test_check_and_finalize_reuse_existing_terminal(tmp_path):
     assert R.finalize(ledger, 1, tmp_path / "missing-coder", tmp_path / "missing-auditor",
                       out, ledger_root=root, run=forbidden) == expected
     assert len(ContrastLedger(root).events) == before
+
+
+def test_schema_failures_consume_one_a_and_do_not_retry(tmp_path):
+    root = _ledger(tmp_path)
+    ContrastLedger(root).append("opportunity-start", a=1)
+    coder = tmp_path / "coder.json"
+    coder.write_text("not-json")
+    def forbidden(*_args, **_kwargs): raise AssertionError("invalid coder reached driver")
+    out = tmp_path / "out"
+    for _ in range(2):
+        assert R.check(ContrastLedger(root), 1, coder, out, ledger_root=root, run=forbidden) == {"status": "rejected"}
+    assert [e["reject_subtype"] for e in ContrastLedger(root).events
+            if e["kind"] == "opportunity-end"] == ["coder-schema"]
+    ContrastLedger(root).append("opportunity-start", a=2)
+    out = tmp_path / "finalize"
+    out.mkdir()
+    (out / "preview.json").write_text('{"passed": true}')
+    coder, auditor = out / "input-coder.json", out / "input-auditor.json"
+    coder.write_text(json.dumps({"axis": "silo-function-policy", "implementation": "valid shape"}))
+    auditor.write_text(json.dumps({"verdict": "pass", "diff_digest": "digest", "violations": [],
+                                   "nits": [], "proposed_tests": [], "uncertainty": ""}))
+    def run(*_args, **_kwargs): return SimpleNamespace(returncode=1, stdout="", stderr="auditor preview failed\ntrace")
+    assert R.finalize(ContrastLedger(root), 2, coder, auditor, out, ledger_root=root, run=run) == {"status": "rejected"}
+    ends = [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"]
+    assert len(ends) == 2 and (ends[-1]["reject_subtype"], ends[-1]["reject_rule_id"]) == (
+        "auditor-schema", "auditor preview failed")

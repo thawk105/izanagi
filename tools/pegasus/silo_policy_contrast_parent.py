@@ -38,7 +38,11 @@ def run_opportunity(ledger_root: Path, a: int, out: Path, *, settings: Path, mod
         raise ValueError("parent requires LLM arm")
     out.mkdir(parents=True, exist_ok=True)
     instructions = Path(__file__).with_suffix(".md").read_text()
-    failures = launches = 0
+    attempts = sorted((int(path.name[8:]), path) for path in out.glob("attempt-*")
+                      if path.is_dir() and path.name[8:].isdigit())
+    launches = attempts[-1][0] if attempts else 0
+    failures = sum(json.loads((path / "exit.json").read_text()).get("status") == "failure"
+                   for _, path in attempts if (path / "exit.json").exists())
     while True:
         existing = _terminal(ledger_root, a)
         if existing is not None:

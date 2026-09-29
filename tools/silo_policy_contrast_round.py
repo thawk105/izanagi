@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from orchestrator.campaign.silo_policy_contrast import ContrastLedger, open_opportunity, next_opportunity
+from orchestrator.campaign.p3_s4_loop_policy import load_proposal_file, _unique_pairs
 
 DRIVER = (sys.executable, "-m", "orchestrator.campaign.p3_s4_loop_policy")
 HEADINGS = ("## attribution", "## recommend", "## avoid", "## uncertainty")
@@ -39,6 +40,27 @@ def _terminal(ledger_root: Path, a: int):
     if end["outcome"] == "proposed":
         result.update(proposal_path=end["proposal_path"], proposal_sha256=end["proposal_sha256"])
     return result
+
+
+def _schema_reject(ledger_root: Path, a: int, subtype: str, rule_id: str):
+    if (existing := _terminal(ledger_root, a)) is not None:
+        return existing
+    ContrastLedger(ledger_root).append("opportunity-end", a=a, outcome="rejected",
+                                      reject_subtype=subtype, reject_rule_id=rule_id)
+    return {"status": "rejected"}
+
+
+def _preview_result(result):
+    try:
+        data = json.loads(result.stdout)
+    except (TypeError, ValueError):
+        return None
+    return (data if type(data) is dict and type(data.get("passed")) is bool
+            and {"working_diff", "diff_digest", "subtype", "rule_id"} <= set(data) else None)
+
+
+def _invalid_preview(result):
+    return (result.stderr.splitlines()[0][:120] if result.stderr.splitlines() else "invalid-json")
 
 
 def _call(ledger, ledger_root: Path, *args, run=subprocess.run):
@@ -133,12 +155,23 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
         return existing
     if not any(e["a"] == a for e in _events(ledger, "opportunity-start")):
         raise ValueError("opportunity not started")
-    value = json.loads(coder.read_text())
-    if set(value) != {"coder"}:
-        value = {"coder": value}
+    try:
+        value = json.loads(coder.read_text(), object_pairs_hook=_unique_pairs)
+        if type(value) is not dict:
+            raise ValueError("invalid coder")
+        if set(value) != {"coder"}:
+            value = {"coder": value}
+    except (ValueError, TypeError, KeyError):
+        return _schema_reject(ledger_root, a, "coder-schema", "invalid-json")
     _json(out / "coder.json", value)
+    try:
+        load_proposal_file(out / "coder.json", form=ledger.header["form"], preview=True)
+    except (ValueError, TypeError, KeyError):
+        return _schema_reject(ledger_root, a, "coder-schema", "invalid-schema")
     preview = _call(ledger, ledger_root, "--preview-diff", str((out / "coder.json").resolve()), run=run)
-    data = json.loads(preview.stdout)
+    data = _preview_result(preview)
+    if data is None or (preview.returncode and data["passed"]):
+        return _schema_reject(ledger_root, a, "coder-schema", _invalid_preview(preview))
     _json(out / "preview.json", data)
     if not data["passed"]:
         rejection = _call(ledger, ledger_root, "--record-reject", str((out / "coder.json").resolve()), run=run)
@@ -150,8 +183,6 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
         ledger.append("opportunity-end", a=a, outcome="rejected",
                       reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
         return {"status": "rejected"}
-    if preview.returncode:
-        raise RuntimeError(preview.stderr)
     sources = [str(Path("orchestrator/campaign") / name) for name in
                ("silo_function_policy_api.hh", "silo_function_policy_coder_spec.md")]
     sources.append("patches/silo-function-policy-variant.patch")
@@ -181,13 +212,30 @@ def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
     preview = json.loads((out / "preview.json").read_text())
     if not preview["passed"]:
         raise ValueError("preview rejected")
-    aud = json.loads(auditor.read_text())
-    value = json.loads(coder.read_text())
-    value = value["coder"] if set(value) == {"coder"} else value
+    try:
+        aud = json.loads(auditor.read_text(), object_pairs_hook=_unique_pairs)
+    except (ValueError, TypeError):
+        return _schema_reject(ledger_root, a, "auditor-schema", "invalid-json")
+    try:
+        value = json.loads(coder.read_text(), object_pairs_hook=_unique_pairs)
+        value = value["coder"] if type(value) is dict and set(value) == {"coder"} else value
+    except (ValueError, TypeError, KeyError):
+        return _schema_reject(ledger_root, a, "coder-schema", "invalid-json")
+    _json(out / "coder.json", {"coder": value})
+    try:
+        load_proposal_file(out / "coder.json", form=ledger.header["form"], preview=True)
+    except (ValueError, TypeError, KeyError):
+        return _schema_reject(ledger_root, a, "coder-schema", "invalid-schema")
     proposal = out / "proposal.json"
     _json(proposal, {"coder": value, "auditor": aud})
+    try:
+        load_proposal_file(proposal, form=ledger.header["form"])
+    except (ValueError, TypeError, KeyError):
+        return _schema_reject(ledger_root, a, "auditor-schema", "invalid-schema")
     checked = _call(ledger, ledger_root, "--preview-diff", str(proposal.resolve()), run=run)
-    data = json.loads(checked.stdout)
+    data = _preview_result(checked)
+    if data is None or (checked.returncode and data["passed"]):
+        return _schema_reject(ledger_root, a, "auditor-schema", _invalid_preview(checked))
     if not data["passed"]:
         rejection = _call(ledger, ledger_root, "--record-reject", str(proposal.resolve()), run=run)
         if rejection.returncode:
@@ -198,8 +246,6 @@ def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
         ledger.append("opportunity-end", a=a, outcome="rejected",
                       reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
         return {"status": "rejected"}
-    if checked.returncode:
-        raise RuntimeError(checked.stderr)
     digest = hashlib.sha256(proposal.read_bytes()).hexdigest()
     existing = _terminal(ledger_root, a)
     if existing is not None:

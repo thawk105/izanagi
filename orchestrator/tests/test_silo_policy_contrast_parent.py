@@ -68,3 +68,19 @@ def test_429_after_terminal_record_does_not_retry_or_duplicate(tmp_path):
     assert len(launches) == 1 and waits == []
     assert [(e["a"], e["outcome"]) for e in ContrastLedger(root).events
             if e["kind"] == "opportunity-end"] == [(1, "proposed")]
+
+
+def test_restart_uses_next_attempt_and_prior_failures(tmp_path):
+    root = _ledger(tmp_path)
+    out = tmp_path / "out"
+    out.mkdir()
+    for number, status in ((1, "failure"), (3, "outage")):
+        (out / f"attempt-{number:04d}").mkdir()
+        (out / f"attempt-{number:04d}" / "exit.json").write_text(json.dumps({"status": status}))
+    def spawn(argv, *, stdout, **kwargs):
+        stdout.write(b"not-json")
+        return SimpleNamespace(returncode=1)
+    assert P.run_opportunity(root, 1, out, settings=tmp_path / "settings.json",
+        model="fixed", checkout=tmp_path, spawn=spawn) == "role-failure"
+    assert (out / "attempt-0004" / "exit.json").exists()
+    assert (out / "attempt-0005" / "exit.json").exists()
