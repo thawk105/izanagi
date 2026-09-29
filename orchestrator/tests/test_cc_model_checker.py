@@ -64,6 +64,9 @@ def test_search_limits_and_invariant_error():
         result = explore(0, walk, (), max_seconds=0.5)
     assert result.statistics.stop_reason == "max_seconds" and not result.statistics.complete
     assert explore(0, lambda _: (), ()).statistics.complete
+    for invalid_seconds in (float("nan"), float("inf"), float("-inf")):
+        _expect_raises(ValueError, lambda: explore(0, walk, (), max_seconds=invalid_seconds))
+    assert explore(0, lambda _: (), (), max_seconds=1.0).statistics.complete
 
     exc = _expect_raises(ModelInvariantError, lambda: explore(
         0, walk, (), state_invariant=lambda state: (_ for _ in ()).throw(ValueError("bad"))
@@ -131,6 +134,11 @@ def test_cycle_input_validation():
                                                   {"T": (Read("A", "missing"),)}))
     _expect_raises(ModelInputError, lambda: find_cycle(frozenset(("T",)),
                                                   {"A": (_version("A1", "A", "U"),)}, {}))
+    versions = {"A": (_version("A0", "A"), _version("A1", "A", "T"),
+                      _version("A2", "A", "U"), _version("A3", "A", "T"))}
+    _expect_raises(ModelInputError, lambda: find_cycle(frozenset(("T", "U")), versions, {}))
+    assert find_cycle(frozenset(("T", "U")),
+                      {"A": versions["A"][:3]}, {}) is None
 
 
 def test_l3_counts_order_ids():
@@ -177,6 +185,24 @@ def test_counterexample_schema():
                                            '"scenario_id":"scenario.1","scenario_id":"again"')
     _expect_raises(ValueError, lambda: from_json_bytes(raw.encode("ascii")))
     _expect_raises(ValueError, lambda: from_json_bytes(encoded.replace(b"null", b"NaN", 1)))
+    vocabulary = {"judgment_id": frozenset(("J1",)),
+                  "name": frozenset(("read",)), "rule_id": frozenset(("R1",))}
+    assert validate_counterexample(record, vocabulary=vocabulary) == record
+    assert from_json_bytes(encoded, vocabulary=vocabulary) == record
+    _expect_raises(ValueError, lambda: validate_counterexample(record, vocabulary={"other": frozenset()}))
+    for field, allowed in (("judgment_id", "J2"), ("name", "write"), ("rule_id", "R2")):
+        _expect_raises(ValueError, lambda: validate_counterexample(
+            record, vocabulary={field: frozenset((allowed,))}))
+    _expect_raises(ValueError, lambda: from_json_bytes(
+        encoded, vocabulary={"name": frozenset(("write",))}))
+    raw = asdict(record)
+    raw["steps"] = [dict(asdict(record.steps[0]), number=number)
+                    for number in range(1, 1026)]
+    _expect_raises(ValueError, lambda: validate_counterexample(raw))
+    for field in ("cycle_txns", "cycle_edges", "rule_ids"):
+        raw = asdict(record)
+        raw[field] = raw[field] * 65
+        _expect_raises(ValueError, lambda raw=raw: validate_counterexample(raw))
 
 
 if __name__ == "__main__":

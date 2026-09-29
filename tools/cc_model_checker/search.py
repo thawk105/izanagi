@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from math import isfinite
 from time import monotonic
 from typing import Callable, Generic, Hashable, Iterable, Literal, Mapping, Sequence, TypeVar
 
@@ -77,6 +78,8 @@ def explore(
         raise ValueError("max_states must be a positive integer")
     if max_seconds is not None and (type(max_seconds) not in (int, float) or max_seconds < 0):
         raise ValueError("max_seconds must be nonnegative")
+    if type(max_seconds) is float and not isfinite(max_seconds):
+        raise ValueError("max_seconds must be finite")
     ids = [item.id for item in judgments]
     if len(ids) != len(set(ids)):
         raise ValueError("judgment IDs must be unique")

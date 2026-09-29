@@ -57,6 +57,7 @@ def find_cycle(
     positions: dict[str, tuple[tuple[CommittedVersion, ...], int]] = {}
     for key, versions in versions_by_key.items():
         seen_written = False
+        writers: set[str] = set()
         for index, version in enumerate(versions):
             if version.id in by_id:
                 raise ModelInputError(f"duplicate version ID: {version.id}")
@@ -67,6 +68,9 @@ def find_cycle(
             if version.writer == INITIAL_WRITER and seen_written:
                 raise ModelInputError("initial versions must precede written versions")
             if version.writer != INITIAL_WRITER:
+                if version.writer in writers:
+                    raise ModelInputError(f"duplicate writer for key: {key}")
+                writers.add(version.writer)
                 seen_written = True
             by_id[version.id] = version
             positions[version.id] = (versions, index)

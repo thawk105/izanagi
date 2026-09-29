@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass, fields
-from typing import Literal
+from typing import Literal, Mapping
 
 SCHEMA = "cc-model-counterexample/1"
 _ID = re.compile(r"[A-Za-z0-9_.:-]{1,64}\Z")
@@ -78,8 +78,25 @@ def _observed(value: object) -> None | bool | int | str:
     raise ValueError("observed_value must be a bounded atomic value")
 
 
-def validate_counterexample(value: object) -> Counterexample:
+def validate_counterexample(
+    value: object, *, vocabulary: Mapping[str, frozenset[str]] | None = None,
+) -> Counterexample:
     """Validate a closed record; this does not establish historical truth."""
+    if vocabulary is not None:
+        if not isinstance(vocabulary, Mapping):
+            raise ValueError("vocabulary must be a mapping")
+        for field, allowed in vocabulary.items():
+            if field not in ("judgment_id", "name", "rule_id"):
+                raise ValueError(f"unknown vocabulary field: {field}")
+            if type(allowed) is not frozenset or any(type(item) is not str for item in allowed):
+                raise ValueError(f"invalid vocabulary for: {field}")
+
+    def check_vocabulary(field: str, item: str) -> str:
+        allowed = None if vocabulary is None else vocabulary.get(field)
+        if allowed is not None and item not in allowed:
+            raise ValueError(f"{field} is outside vocabulary: {item}")
+        return item
+
     if type(value) is Counterexample:
         value = asdict(value)
     data = _mapping(value, Counterexample, "counterexample")
@@ -89,25 +106,33 @@ def validate_counterexample(value: object) -> Counterexample:
     if type(digest) is not str or _DIGEST.fullmatch(digest) is None:
         raise ValueError("invalid specification digest")
     scenario_id = _id(data["scenario_id"], "scenario_id")
-    judgment_id = _id(data["judgment_id"], "judgment_id")
+    judgment_id = check_vocabulary("judgment_id", _id(data["judgment_id"], "judgment_id"))
     steps = []
-    for number, item in enumerate(_sequence(data["steps"], "steps"), 1):
+    raw_steps = _sequence(data["steps"], "steps")
+    if len(raw_steps) > 1024:
+        raise ValueError("too many steps")
+    for number, item in enumerate(raw_steps, 1):
         item = _mapping(item, CounterexampleStep, "step")
         if type(item["number"]) is not int or item["number"] != number:
             raise ValueError("step numbers must start at 1 and be consecutive")
         steps.append(CounterexampleStep(number, _id(item["thread"], "thread"),
-                                        _id(item["name"], "name"),
+                                        check_vocabulary("name", _id(item["name"], "name")),
                                         _optional_id(item["key"], "key"),
                                         _optional_id(item["version_id"], "version_id"),
                                         _observed(item["observed_value"])))
     if not steps:
         raise ValueError("steps must be nonempty")
     raw_txns, raw_edges = data["cycle_txns"], data["cycle_edges"]
+    if raw_txns is not None and len(_sequence(raw_txns, "cycle_txns")) > 64:
+        raise ValueError("too many cycle transactions")
     txns = None if raw_txns is None else tuple(_id(x, "cycle txn") for x in _sequence(raw_txns, "cycle_txns"))
     edges = None
     if raw_edges is not None:
         edge_list = []
-        for raw in _sequence(raw_edges, "cycle_edges"):
+        raw_edge_list = _sequence(raw_edges, "cycle_edges")
+        if len(raw_edge_list) > 64:
+            raise ValueError("too many cycle edges")
+        for raw in raw_edge_list:
             raw = _mapping(raw, CycleEdge, "cycle edge")
             kind = raw["kind"]
             if type(kind) is not str or kind not in ("ww", "wr", "rw"):
@@ -128,7 +153,10 @@ def validate_counterexample(value: object) -> Counterexample:
                 raise ValueError("cycle edges do not connect in order")
     elif txns is not None or edges is not None:
         raise ValueError("non-J1 judgment cannot contain a cycle")
-    rule_ids = tuple(_id(x, "rule_id") for x in _sequence(data["rule_ids"], "rule_ids"))
+    raw_rules = _sequence(data["rule_ids"], "rule_ids")
+    if len(raw_rules) > 64:
+        raise ValueError("too many rule IDs")
+    rule_ids = tuple(check_vocabulary("rule_id", _id(x, "rule_id")) for x in raw_rules)
     if len(rule_ids) != len(set(rule_ids)):
         raise ValueError("duplicate rule IDs")
     return Counterexample(SCHEMA, digest, scenario_id, judgment_id,
@@ -141,7 +169,9 @@ def to_json_bytes(value: Counterexample) -> bytes:
                       ensure_ascii=True, separators=(",", ":")).encode("ascii")
 
 
-def from_json_bytes(value: bytes) -> Counterexample:
+def from_json_bytes(
+    value: bytes, *, vocabulary: Mapping[str, frozenset[str]] | None = None,
+) -> Counterexample:
     if type(value) is not bytes:
         raise ValueError("JSON input must be bytes")
 
@@ -161,4 +191,4 @@ def from_json_bytes(value: bytes) -> Counterexample:
                             parse_constant=reject_constant)
     except (UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("invalid JSON bytes") from exc
-    return validate_counterexample(parsed)
+    return validate_counterexample(parsed, vocabulary=vocabulary)
