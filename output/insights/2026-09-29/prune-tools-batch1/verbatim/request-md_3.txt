@@ -1,0 +1,28 @@
+md_3: 不要ツールの整理 第 1 束 — 8b 正式系列専用ツールと一回限りツール
+
+最初に同じ directory の common.txt を読むこと (特に §3 削除の条件と記録)。
+
+■ 目的
+論文の必須経路から外れた 8b 正式系列 (凍結・批准・受領証・予算承認の手続き) 専用のツールと、実施済みの一回限りツールを、専用 test と一緒に削除し、git から引けるよう記録する。
+速度の効果は小さい見込み (整理が主目的)。
+
+■ 候補 (調査役の機械集計。削除許可ではない。対象ごとに D1989・D2179 を現物で確かめる)
+- tools/acceptance_issuer_reference.py、tools/acceptance_receipt_signature.py (+ test_external_acceptance_signing)。land・wait は署名検証をしないとの集計。
+- tools/s8b_budget_approval_preflight.py (+ test_s8b_budget_approval_preflight、docs/s8b-budget-approval-user-turn.md は参照 0)。
+- tools/issue_env_contract_activation.py (+ test_env_contract_activation。この test が他 module も検査していないか要確認。関連 docs 2 本)。
+- tools/scan_env_coincidence.py (+ test_scan_env_coincidence、docs/test-environment-coincidence-ledger.md)。
+- tools/size_paper_story_a1_balanced.py と tools/verify_paper_story_a1_balanced_sizing.py (+ test_paper_story_a1_balanced_sizing)。headline 版 (現役 orchestrator が import) は残す。
+- tools/strip_claude_session_trailers.sh (pegasus-runbook の言及のみ)。
+
+■ やること
+1. 各候補の参照を D1989 の 4 分類で判定する (import・subprocess・hooks・.claude・.codex・docs・manifest・hash・glob・動的ロード・admission registry)。専用 test に現役コードを検査する関数が混ざっていないか中身を読む (D2179)。権威 D を grep する。
+2. 条件を満たすものだけを削除し、それを説明するだけの docs を墓標付きで git-history-only にする。runbook 等の言及行は削除または「削除済み、git log --grep='^prune' で引ける」へ置き換える。
+3. 残したものは理由を一次資料に書く。
+4. orchestrator/tests/README.md の allowlist、test_plain_runner_coverage、REAL_REPO_SERIAL_NODES、growth_test_holds、FLAKY_TEST_HOLDS など nodeid・file 名を固定する台帳に、消した test の行が残っていないか確かめて更新する。
+
+■ 成果物
+prune(tools) 題の commit、墓標の追記、一次資料 output/insights/<着手日>/prune-tools-batch1/README.md、spool fragment。
+
+■ 所有
+上の候補 file とその専用 test・専用 docs、docs/archive/README.md の墓標、orchestrator/tests/README.md の該当行、nodeid 台帳の該当行、docs/README.md の地図の該当行。
+所要台帳は編集しない (md_2 の所有)。tools/check_docs.py・hooks/・test_hooks.py・test_check_docs.py には触れない (cleanup-enforce wave)。check_docs が削除 path を pin していて赤になる場合は、その候補を残して一次資料に書く。
