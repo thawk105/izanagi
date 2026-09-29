@@ -1,6 +1,6 @@
 ---
 name: cleanup-branches
-description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use for merged-branch or worktree cleanup; deletion needs explicit $cleanup-branches.
+description: Safely back up and clean up merged or stale local Izanagi branches and worktrees through the shared dispatcher. Use for branch or worktree cleanup; deletion needs explicit $cleanup-branches.
 ---
 
 # Cleanup Branches
