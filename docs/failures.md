@@ -21562,6 +21562,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実 producer が同一経路を通るかを段 6 のレビュー観点に明示的に入れる。**
   「テストが緑」を配線の証拠に使わず、実 producer を通す正例が 1 本あるかを見る。
 
+
+- **再発: 2026-09-29** — VHash md_21 で、C++ の計数行を新しく読む driver の解析を、実装子が推測で組んだ fixture だけで検査した。実物との食い違いが smoke 1 (`CICADA_LONGTX_V1` の top-level key に `schema` があった) と fix 後の焦点再レビュー (SAFEPOINT の無い build の GC 行の mode は `"none"`、driver は `"off"` を要求) で 1 巡に 1 件ずつ出て、fix を 2 巡追加した。どちらも login のテストと段 6 のレビュー 2 本では捕まらなかった。直した後は実 stdout の行を写した回帰テストと、build の macro 集合から期待を導く形にした。
 ### F723. 親が「逐語」と称した射影資料を省略記号で切り、子の fixture に同じ穴が空いた [テスト代表性] [手順漏れ]
 
 - 事象: 実 build の逐語を job dir へ射影する際、`.o.d` の中身を `...` で省略した。実装子は
@@ -28787,3 +28789,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: memory `exact-pinned-leaf-sections-need-codex-and-fixture-placeholder` に「SKILL.md は予算 − 25 以下 (余白 26 以上)」を追記。
   本 wave は上限を変えず SKILL.md を 3,058 bytes に縮めた (D2313 の wave、commit 4bdda232e・6f4062b37)。
 - 再発検知: 変異 harness の baseline 緑要件 (DW-C01) が同 test の赤で起動を止める。
+
+### F1077. 壊し正例を、検査したい方策の構造上その壊れ方が起きない経路に置き、到達 0 の検査を 1 巡走らせた [テスト代表性]
+
+- 事象: VHash md_21 で、前進先の方策 E-max の壊し正例 (確認での既読不一致を ok とみなす) を E-max で走らせるよう段 4 で設計した。E-max は既読の可視区間の内側に目標を取るので確認で既読不一致が構造上ほぼ起きず、検査 1 回目 (request 36358) で壊しの到達は 0 (forced_success 0)、同じ run の E-max の確認での既読不一致も 0.0 だった。壊しを E-now で走らせ直して (fix 4)、2 回目で到達 5,449・5,993 と保持版検査の検出を得た。段 3 の相談 2 本・段 6 のレビュー 2 本は指摘しなかった。
+- 根本原因: 正例の設計で「壊す判定」を選ぶとき、その判定が検査対象の方策で実際に偽になる入力が生じるかを確かめなかった。目標の選び方が確認の前提を満たすように作られている方策では、確認を壊しても到達しない。
+- 恒久対応: 親の永続 memory へ `positive-control-must-reach-on-target-path` を登録した (段 4 で正例を置くとき、その壊れ方が発火する経路と到達計数を先に書く)。検査起動器は正例ごとに到達 (`reached`) と検出 (`detected`) を別々に記録する (job dir `verify/launch_cicada_run_target.py`)。
+- 再発検知: 正例の結果が「到達なし」のとき。到達 0 を「検出されなかった」と読まず、正例の置き場所を疑う。
