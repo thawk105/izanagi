@@ -1819,6 +1819,12 @@ campaign (`.../exploration/campaigns/<id>/`) ではない。本走はここか�
   一度だけ設定し実行中に変更しない。未設定のまま worktree 内で materialize しようとすると
   `ensure()` が fail-fast で拒否する)
 - `pegasusinfo` で混雑状況を確認した
+- **計算ノードを要する段 (焦点走・変異・受入・計測) に入る前に `/etc/motd` の Operation Schedule と
+  `sstat` の PlannedStartTime を見た。** 保守中は全 job が待ち続け、dispatch は queue-wait の打ち切り
+  (`rc=16`) を繰り返す (2026-09-28 の保守 09:00〜21:00 で実測、`output/insights/2026-09-29/t2871-policy-loop-iter/README.md`)
+- **同じ系列を直列に流す job は `qsub --after <前の request ID>` で先に待ち行列へ入れた。** 直列は
+  scheduler が保ち、待ちは前の job と重なる。自分の job どうしの並べ替えは `qalter -p <優先度>`
+  (-1024〜1023、既定 0)、要求 walltime の変更は `qalter -l elapstim_req=<秒>` で待ち行列にいる間に行える (2026-09-29 実測)
 - **独立に投げられる job を 1 本ずつ直列で払っていない。** 並行投入してよいかの判定は §7.5
 - wall time と node 数 (`-b`) が処理に適切である
 - OpenMP threads は 48 以下である
@@ -1834,7 +1840,9 @@ campaign (`.../exploration/campaigns/<id>/`) ではない。本走はここか�
   監査結果ではない** (違反件数は rc=1 で返る)
 - `tools/mutation_harness.py` の pytest collection/実行 dispatch が queue 混雑で `rc=16`
   になった場合も同様に infra 失敗であって変異判定の結果ではない。spec の `timeout_seconds` と
-  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` (既定 900s) を広げた上で再試行する
+  `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE` (既定 900s) を広げた上で再試行する。
+  baseline の dispatch が `rc=16` で `PARSE_ERROR` と記録された走行は、`--resume` しても baseline を
+  再走しない (`baseline=0 run(s)` で同じ中止になる) ので、新しい `--out` と scratch で投げ直す (2026-09-29 実測)
 - 計算ノードでは**テストの既定並列度が affinity 全数**になっている (明示 `-n` /
   `IZANAGI_TEST_NPROC` / `jobs=1` は従来どおり後勝ち = 「既定が最大」であって「全実行が最大」ではない)
 - ビルドは**規範として計算ノードで行い、`-j` 既定も site 由来**にする。**「強制」は全 build に

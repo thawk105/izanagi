@@ -38,6 +38,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [x] [T-2853] (5'') fig15 (`mocc_witlight_four_arm`) の生成器の既定入力を repo 外 job dir から追跡下の逐語写し `output/insights/2026-09-19/mocc-witlight-arm-run/verbatim/` に替えた (2026-09-27、新規計測 0)。
   写しの 5 file の sha256 は生成器の pin と 5/5 一致。写しから描き直し、着地 provenance と値の差 0 (図の値を持つ key を含む 11 key で leaf 差 0)、PNG は bytes 一致。着地 fig15 の bytes は不変。
   R2・job body の opt-in は残り。記録 = `output/insights/2026-09-27/t2853-fig15-input/README.md`。
+- [x] [T-2853] (5'') R2 の fig8b 単位 (fig8 を含む、B-10 静的右 tail) を元の driver `submit_b10_backoff_grid.sh --run-kind t2500-tail-formal` で測り直した (2026-09-28、1.40 node 時間)。
+  R2-a (cohort 1 の source `0600887d9`・事前登録 `cad6f46d8`) と R2-b (cohort 2 の source `8737cacb4`) の 2 group × 3 job を 6 ノードで同時に走らせ、両 group とも集団 verdict `not-observed-in-any-workload`・18/18 区間 declining・正しさ 120/0。
+  地位 (別 attempt・非合成) は投入前に commit。同じ生成器で fig8 形の図 2 枚を描いた (fig8b 形はレイアウト検査で拒否、検査は外さない)。原 cohort と並べた表つき。trace 保全口はこの経路に渡す口が無く未使用。
+  fig8b 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-28/t2853-r2-fig8b/README.md`。
 - [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
   4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
   (certified はまだ出さない)、(b) に関数単位の軸の段階 C (LLM 生成は未実施)、3.3 節に SI の検出件数の時点、限界節に合成ループの小構成を反映した。主張は増やしていない。組版 15 頁 (初版 14 頁)。

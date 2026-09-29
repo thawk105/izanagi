@@ -1,0 +1,7 @@
+sha256 group-report-r2-a/t2500-backoff-static-tail-formal.json e8868253582664e31dd2ac8b051c4aabf0cd699cfacf30e5b93a97d7dbe73000
+sha256 group-report-r2-a/t2500-backoff-static-tail-formal.dat 14c43f03bc51980252bcfe2fc3e865ddddb83a9106807b835b3f56df6d4d94b7
+sha256 group-report-r2-a/t2500-backoff-static-tail-formal-complete.json d176c97f5ba5ed7da9b679107732c6210f3f6806116abb707d5037fe1e1da8e6
+sha256 group-report-r2-b/t2500-backoff-static-tail-formal.json e8a8888608264ff37fcd42d0a8fe4e1e795b630d2a904fbf7bce4d1a12401b44
+sha256 group-report-r2-b/t2500-backoff-static-tail-formal.dat c7f731e75f4761262450950eef87942e4ea2fd94d4d90bf8c4b0225529b7f2f8
+sha256 group-report-r2-b/t2500-backoff-static-tail-formal-complete.json be55381d8db7973407f37f0d5f71fad1c5c5ebf3d4d70190ba58572f12584743
+validation failed: text bbox overlap: '1000' / '0.07'

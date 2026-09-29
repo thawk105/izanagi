@@ -1,0 +1,61 @@
+NG ] conflict[
+NG ] end conflict -->|
+NG | txts tsin -->|
+NG | layout tsin -->|
+NG | gcb place -.->|
+NG | txts txts -.->|
+OK An Analysis of Concurrency Control Protocols for In-Memory Databases with CCBench.  <- ccbench-pvldb13-13-tanabe.pdf,shirakami.pdf
+OK ANALYSIS OF VERSION LIFETIME  <- ccbench-pvldb13-13-tanabe.pdf
+OK §7 investigates the effect of version lifetime management.  <- ccbench-pvldb13-13-tanabe.pdf
+OK the major overhead of Cicada lies in the read and write operations rather than validation   <- ccbench-pvldb13-13-tanabe.pdf
+OK We attribute the overhead shown by Cicada in Figs. 12a and 12b to the cost of version chai  <- ccbench-pvldb13-13-tanabe.pdf
+OK Even state-of-the-art GC does not sufficiently reduce the number of visible versions if th  <- ccbench-pvldb13-13-tanabe.pdf
+OK Saturation occurred when the GC interval was the same as the added delay.  <- ccbench-pvldb13-13-tanabe.pdf
+OK we suggest a novel GC scheme, AggressiveGC, that aggressively collects versions beyond the  <- ccbench-pvldb13-13-tanabe.pdf
+OK …which could be handled by aborting the transaction and retrying it with a new timestamp.  <- ccbench-pvldb13-13-tanabe.pdf
+OK To generate a long transaction, we added an artificial delay at the end of the read phase.  <- ccbench-pvldb13-13-tanabe.pdf
+OK (7) RapidGC: frequent updating of timestamp watermark for GC in MVCC protocols.  <- ccbench-pvldb13-13-tanabe.pdf
+OK It requires an unprecedented protocol that weaves GC into MVCC  <- ccbench-pvldb13-13-tanabe.pdf
+OK we fixed a logical bug, i.e., the incomplete version consistency check in the validation p  <- ccbench-pvldb13-13-tanabe.pdf
+OK Cicada: Dependably Fast Multi-Core In-Memory Transactions.  <- bottcher-pvldb2019.pdf,ccbench-pvldb13-13-tanabe.pdf,cicada-sigmod2017.pdf,freit
+OK a read timestamp (rts) that indicates the maximum timestamp of (possibly) committed transa  <- cicada-sigmod2017.pdf
+OK (1) Pending version installation … (2) Read timestamp update … (3) Version consistency che  <- cicada-sigmod2017.pdf
+OK (v.wts) < min_rts; and (3) the inlined version is currently UNUSED  <- cicada-sigmod2017.pdf
+OK A read-only transaction uses (thread.rts) instead, and does not track or validate the read  <- cicada-sigmod2017.pdf
+OK For PENDING, it spin-waits until the status is changed.  <- cicada-sigmod2017.pdf
+OK the current local clock, a clock boost, and the thread ID. The clock boost is a per-thread  <- cicada-sigmod2017.pdf
+OK TicToc: Time Traveling Optimistic Concurrency Control.  <- alhomssi-leanstore-si-pvldb16-2023.pdf,bottcher-pvldb2019.pdf,ccbench-pvldb13-13
+OK Timestamp History  <- ccbench-pvldb13-13-tanabe.pdf,tictoc-sigmod2016.pdf
+OK this last configuration is the default setting for TicToc  <- tictoc-sigmod2016.pdf
+OK the timestamp history optimization does not provide any measurable performance gain in eit  <- tictoc-sigmod2016.pdf
+OK The value of the old version does not need to be stored since transactions in TicToc alway  <- tictoc-sigmod2016.pdf
+OK Everything is a Transaction  <- alhomssi-leanstore-si-pvldb16-2023.pdf,cidr2021-everything-is-a-transaction.pdf,
+OK Everything is a Transaction: Unifying Logical Concurrency Control and Physical Data Struct  <- alhomssi-leanstore-si-pvldb16-2023.pdf,cidr2021-everything-is-a-transaction.pdf,
+OK there is a disconnect between the logical semantics of transactions and the DBMS's underly  <- cidr2021-everything-is-a-transaction.pdf
+OK The most onerous shortcoming of our current implementation of DAF is that it assumes user   <- cidr2021-everything-is-a-transaction.pdf
+OK Sundial works in a single-version database  <- sundial.pdf
+OK We avoid multi-version concurrency control  <- maat.pdf
+OK T1 continues to read the old version  <- lomet2012.pdf
+OK order forwarding  <- shirakami.pdf
+OK placed earlier than its opening epoch  <- shirakami.pdf
+OK a tuple may have multiple versions  <- rebirth-retire.pdf
+NG shifting T's window forward
+OK freely read and write non-latest versions  <- cicada-sigmod2017.pdf
+OK independent of the total number of versions  <- hyper-mvcc-sigmod2015.pdf
+OK aborted and restarted on a snapshot  <- hyper-mvcc-sigmod2015.pdf
+OK without accessing any preceding or succeeding versions  <- bohm-pvldb2015.pdf
+OK should periodically refresh  <- silo-sosp2013.pdf
+OK frugal skiplists and vWeaver  <- mvbt-arxiv2606.09133.pdf
+OK The DBMS's performance drops in the presence of long-running transactions.  <- wu-empirical-mvcc-pvldb10-2017.pdf
+OK might be re-added … if an improved implementation is found  <- pg-release-17.html
+OK rollback records needed by a reader for consistent read are overwritten by other writers  <- oracle-ora-01555.html
+OK By choosing the earliest timestamp in the acceptable range, we hasten the time we can remo  <- lomet2012.pdf
+OK On-demand version order determination  <- shirakami.pdf
+OK the corresponding writes and logging of earlier transactions can be omitted  <- shirakami.pdf
+OK Long-lived Transactions Made Less Harmful  <- alhomssi-leanstore-si-pvldb16-2023.pdf,vdriver-techreport.pdf
+NG shifting T's window forward
+OK thereby shifting 𝑇 ’s window forward  <- morty.pdf
+OK Rethink the Scan in MVCC Databases  <- freitag-pvldb2022.pdf,mvbt-arxiv2606.09133.pdf
+OK Diva: Making MVCC Systems HTAP-Friendly  <- alhomssi-leanstore-si-pvldb16-2023.pdf,mvbt-arxiv2606.09133.pdf
+OK Dynamic Timestamp Allocation for Transactions in Database Systems  <- maat.pdf,sundial.pdf,tictoc-sigmod2016.pdf
+quotes=60 ok=52 ng=8

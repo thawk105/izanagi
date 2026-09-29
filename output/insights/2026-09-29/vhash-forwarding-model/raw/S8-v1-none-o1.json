@@ -1,0 +1,263 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "S8",
+  "protocol": "v1",
+  "faults": [],
+  "o1": true,
+  "bounds": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": {
+      "T": 2,
+      "W": 2,
+      "P": 1
+    },
+    "versions_per_key": {
+      "A": 1,
+      "B": 1
+    },
+    "K": 1,
+    "timestamps": [
+      10,
+      11,
+      40,
+      50,
+      70
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B11",
+        "key": "B",
+        "wts": 11,
+        "rts": 11,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 70,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "W",
+            "B"
+          ]
+        ],
+        "cand_ts": 70,
+        "gc_floor": 70,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "W",
+        "start": 50,
+        "ops": [
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 50,
+        "gc_floor": 50,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "P",
+        "start": 40,
+        "ops": [
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 40,
+        "gc_floor": 40,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 51952,
+    "terminal": 43,
+    "deadlock": 0,
+    "seconds": 2.9753759169980185,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": null
+  },
+  "counterexample": null,
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": []
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "W",
+        "operation": "read",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "install",
+        "version": "W:A",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "installed",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_rts",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validate_read",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "P",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "P",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "P",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "P",
+        "operation": "install",
+        "version": "P:A",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "write_rts_check",
+        "version": "A10",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": {
+    "reached": false,
+    "steps": []
+  }
+}

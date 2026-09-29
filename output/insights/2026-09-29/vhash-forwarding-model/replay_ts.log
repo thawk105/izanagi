@@ -1,0 +1,48 @@
+== S8-v0-none-base.json steps 30 judge J1
+  initial versions: [('A10', 10, 10), ('B11', 11, 11)]
+  initial txns: [('T', 70, (('R', 'A'), ('W', 'B'))), ('W', 50, (('R', 'B'), ('W', 'A'))), ('P', 40, (('W', 'A'),))]
+  final txns: [('T', 70, 'release', False), ('W', 50, 'release', False), ('P', 40, 'install', False)]
+  final versions: [('A10', 10, 70, 'COMMITTED', False), ('B11', 11, 50, 'COMMITTED', False), ('T:B', 70, 70, 'COMMITTED', False), ('W:A', 50, 50, 'COMMITTED', False), ('P:A', 40, 40, 'PENDING', False)]
+  reason: {"cycle": ["T", "W", "T"], "edges": [{"from": "T", "to": "W", "kind": "rw", "key": "A", "version": "A10"}, {"from": "W", "to": "T", "kind": "rw", "key": "B", "version": "B11"}]}
+== S10-v1-U1f-o1.json steps 39 judge J1
+  initial versions: [('A10', 10, 10), ('B11', 11, 11), ('B25', 25, 25)]
+  initial txns: [('T', 15, (('R', 'A'), ('R', 'B'), ('W', 'B'))), ('W', 20, (('R', 'B'), ('W', 'A')))]
+  final txns: [('T', 27, 'release', False), ('W', 26, 'release', False)]
+  final versions: [('A10', 10, 27, 'COMMITTED', False), ('B11', 11, 11, 'COMMITTED', False), ('B25', 25, 27, 'COMMITTED', False), ('W:A', 26, 26, 'COMMITTED', False), ('T:B', 27, 27, 'COMMITTED', False)]
+  reason: {"cycle": ["T", "W", "T"], "edges": [{"from": "T", "to": "W", "kind": "rw", "key": "A", "version": "A10"}, {"from": "W", "to": "T", "kind": "rw", "key": "B", "version": "B25"}]}
+== S10-v1-U6-o1.json steps 39 judge J1
+  initial versions: [('A10', 10, 10), ('B11', 11, 11), ('B25', 25, 25)]
+  initial txns: [('T', 15, (('R', 'A'), ('R', 'B'), ('W', 'B'))), ('W', 20, (('R', 'B'), ('W', 'A')))]
+  final txns: [('T', 27, 'release', False), ('W', 26, 'release', False)]
+  final versions: [('A10', 10, 27, 'COMMITTED', False), ('B11', 11, 11, 'COMMITTED', False), ('B25', 25, 27, 'COMMITTED', False), ('W:A', 26, 26, 'COMMITTED', False), ('T:B', 27, 27, 'COMMITTED', False)]
+  reason: {"cycle": ["T", "W", "T"], "edges": [{"from": "T", "to": "W", "kind": "rw", "key": "A", "version": "A10"}, {"from": "W", "to": "T", "kind": "rw", "key": "B", "version": "B25"}]}
+== S9-v1-U2-base.json steps 33 judge J1
+  initial versions: [('A10', 10, 10), ('B11', 11, 11)]
+  initial txns: [('T', 60, (('R', 'A'), ('W', 'B'))), ('W', 50, (('R', 'B'), ('W', 'A'))), ('U', 80, (('R', 'A'), ('W', 'A')))]
+  final txns: [('T', 60, 'release', False), ('W', 50, 'release', False), ('U', 80, 'v_rts', False)]
+  final versions: [('A10', 10, 80, 'COMMITTED', False), ('B11', 11, 50, 'COMMITTED', False), ('T:B', 60, 60, 'COMMITTED', False), ('W:A', 50, 50, 'COMMITTED', False), ('U:A', 80, 80, 'PENDING', False)]
+  reason: {"cycle": ["T", "W", "T"], "edges": [{"from": "T", "to": "W", "kind": "rw", "key": "A", "version": "A10"}, {"from": "W", "to": "T", "kind": "rw", "key": "B", "version": "B11"}]}
+== S1-v1-U1v-base.json steps 26 judge J1
+  initial versions: [('A10', 10, 10), ('B11', 11, 11)]
+  initial txns: [('T', 70, (('R', 'A'), ('W', 'B'))), ('W', 50, (('R', 'B'), ('W', 'A')))]
+  final txns: [('T', 70, 'release', False), ('W', 50, 'release', False)]
+  final versions: [('A10', 10, 70, 'COMMITTED', False), ('B11', 11, 50, 'COMMITTED', False), ('T:B', 70, 70, 'COMMITTED', False), ('W:A', 50, 50, 'COMMITTED', False)]
+  reason: {"cycle": ["T", "W", "T"], "edges": [{"from": "T", "to": "W", "kind": "rw", "key": "A", "version": "A10"}, {"from": "W", "to": "T", "kind": "rw", "key": "B", "version": "B11"}]}
+== S3-v1-U3a-base.json steps 3 judge J3
+  initial versions: [('A10', 10, 10), ('A20', 20, 20), ('A55', 55, 55), ('B40', 40, 40), ('B60', 60, 60)]
+  initial txns: [('T', 45, (('R', 'B'), ('R', 'A')))]
+  final txns: [('T', 45, 'f_rts', False)]
+  final versions: [('A10', 10, 10, 'COMMITTED', False), ('A20', 20, 20, 'COMMITTED', True), ('A55', 55, 55, 'COMMITTED', False), ('B40', 40, 40, 'COMMITTED', False), ('B60', 60, 60, 'COMMITTED', False)]
+  reason: {"version": "A20", "txn": "T", "reason": "future_read", "cand_ts": 45, "gc_step": "reclaim"}
+== S1-v1-U3b-base.json steps 18 judge J3
+  initial versions: [('A10', 10, 10), ('B11', 11, 11)]
+  initial txns: [('T', 70, (('R', 'A'), ('W', 'B'))), ('W', 50, (('R', 'B'), ('W', 'A')))]
+  final txns: [('T', 70, 'ops', False), ('W', 50, 'release', False)]
+  final versions: [('A10', 10, 10, 'COMMITTED', True), ('B11', 11, 50, 'COMMITTED', False), ('W:A', 50, 50, 'COMMITTED', False)]
+  reason: {"version": "A10", "txn": "T", "reason": "read_log", "gc_step": "reclaim"}
+== S7-v1-U4-base.json steps 2 judge J3
+  initial versions: [('A20', 20, 20), ('B40', 40, 40), ('B60', 60, 60)]
+  initial txns: [('T', 45, (('R', 'A'), ('R', 'B'))), ('W', 65, (('W', 'A'),))]
+  final txns: [('T', 45, 'ops', False), ('W', 65, 'ops', False)]
+  final versions: [('A20', 20, 20, 'COMMITTED', True), ('B40', 40, 40, 'COMMITTED', False), ('B60', 60, 60, 'COMMITTED', False)]
+  reason: {"version": "A20", "txn": "T", "reason": "future_read", "cand_ts": 45, "gc_step": "reclaim"}
