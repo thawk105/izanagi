@@ -149,6 +149,7 @@ def test_schema2_required_fields_and_three_term_identity():
         lambda q: q["workers"][0].pop("dc_late_epoch"),
         lambda q: q["workers"][0].update(extra=0),
         lambda q: q["workers"][0].update(dc_ro_gap_sum_us=5),
+        lambda q: q["workers"][0].update(dc_ro_gap_sum_us=3),
         lambda q: q["workers"][0].update(readonly_candidate=[1, 0, 0, 0, 0]),
         lambda q: q["workers"][0].update(ro_snapshot_age_us=[0]),
         lambda q: q["workers"][0].update(gc_publish_sum_us=-1),
@@ -249,7 +250,7 @@ def test_default_compile_commands_match_cmake_defaults():
             raise AssertionError("wrong default promotion accepted")
 
 
-def _render_figure_campaign(td):
+def _render_figure_campaign(td, before_render=None):
     script = ROOT / "tools/plotting/plot_vhash_readonly_share.py"
     spec = importlib.util.spec_from_file_location("plot_vhash_readonly_share", script)
     module = importlib.util.module_from_spec(spec)
@@ -305,6 +306,8 @@ def _render_figure_campaign(td):
         "records": 1000000,
         "conditions": {cid: V.CONDITIONS[cid] for cid in ids},
         "runs": runs}))
+    if before_render is not None:
+        before_render(module)
     module.render([raw_path], out)
     return module, raw_path, out
 
@@ -318,6 +321,25 @@ def test_readonly_figure_full_campaign_layout():
         for stem in ("depth_share", "boundary_age"):
             provenance = json.loads((out / f"{stem}.provenance.json").read_text())
             assert "T (tuned) vs R (default)" in provenance["caption"]
+
+
+def test_mut19_boundary_time_panels_use_log_scale():
+    scales = []
+
+    def capture(module):
+        original = module._save
+
+        def checked_save(fig, out, name, common, numbers, caption):
+            if name == "boundary_age":
+                scales.extend(ax.get_yscale() for ax in fig.axes)
+            return original(fig, out, name, common, numbers, caption)
+
+        module._save = checked_save
+
+    with tempfile.TemporaryDirectory(prefix="cvl-log-time-") as td:
+        _render_figure_campaign(td, before_render=capture)
+    assert len(scales) == 9
+    assert all(scales[i] == "log" for i in (0, 1, 2, 3, 6, 7, 8))
 
 
 def test_patch_draw_guard_and_readonly_gc_observation():
@@ -559,6 +581,8 @@ def test_smoke_recomputes_calibration_and_requires_success():
                 return
             raise AssertionError("invalid smoke accepted")
         rejected()  # Fixed 1M is the only permitted measure size.
+        raw["calibration"]["probes"]["1000000"]["maxrss_kb"] = 5000
+        rejected()  # 1M meets 4 x L3; selected 4M alone must be rejected.
         raw["calibration"]["selected_records"] = 1000000
         raw["calibration"]["probes"]["1000000"]["maxrss_kb"] = 5000
         path.write_text(json.dumps(raw))
@@ -769,6 +793,7 @@ def _run():
              test_tuned_compile_commands_match_cicada_definitions,
              test_default_compile_commands_match_cmake_defaults,
              test_readonly_figure_full_campaign_layout,
+             test_mut19_boundary_time_panels_use_log_scale,
              test_patch_draw_guard_and_readonly_gc_observation,
              test_mut11_event_generation_and_current_holder,
              test_mut12_measure_fixed_one_million,

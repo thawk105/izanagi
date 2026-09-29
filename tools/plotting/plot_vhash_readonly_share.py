@@ -13,6 +13,7 @@ import textwrap
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 import numpy as np
 from matplotlib.text import Text
 
@@ -113,7 +114,7 @@ def _independent_difference(summaries, terms, metric="gc_boundary_mean_us"):
     return float(mean), float(T95_3 * se)
 
 
-def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel):
+def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel, positive_only=False):
     drawn = []
     for gc, color in ((10, "tab:blue"), (100000, "tab:green")):
         for delay in ("none", "wait10msU"):
@@ -123,7 +124,7 @@ def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel):
                 for rate in (0, 50, 95):
                     cid = f"{prefix}{rate}-{delay}-gc{gc}"
                     value = _metric(runs[cid], metric, index)
-                    if value is not None:
+                    if value is not None and (not positive_only or value[0] > 0):
                         points.append((rate, *value))
                         condition_ids.append(cid)
                 if points:
@@ -140,14 +141,15 @@ def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel):
     return drawn
 
 
-def _draw(ax, ids, runs, metric, *, index=None, multiplier=1, title, ylabel):
+def _draw(ax, ids, runs, metric, *, index=None, multiplier=1, title, ylabel,
+          positive_only=False):
     for delay in STYLES:
         for gc, color in COLORS.items():
             points = []
             for rate in (0, 25, 50, 75, 95):
                 cid = f"R{rate}-{delay}-gc{gc}"
                 value = _metric(runs[cid], metric, index)
-                if value is not None:
+                if value is not None and (not positive_only or value[0] > 0):
                     points.append((rate, value[0] * multiplier, value[1] * multiplier))
             if points:
                 x, y, e = zip(*points)
@@ -157,6 +159,56 @@ def _draw(ax, ids, runs, metric, *, index=None, multiplier=1, title, ylabel):
     ax.set(title=title, xlabel="Specified read-only procedures (%)", ylabel=ylabel)
     ax.set_xlim(0, 100)
     ax.grid(alpha=.2)
+
+
+def _dc_fraction(reps, metric):
+    values = []
+    for payload in reps:
+        summary = V.summarize(payload)
+        parts = [summary[name] for name in ("dc_cf_wait_mean_us", "dc_ro_gap_mean_us",
+                                             "dc_leader_wait_mean_us")]
+        total = sum(parts) if all(part is not None for part in parts) else 0
+        values.append(summary[metric] / total if total > 0 else None)
+    return _ci(values)
+
+
+def _draw_none_comparison(ax, runs, summaries, *, metric, index=None, fixed=0):
+    drawn = []
+    for prefix, color, style in (("S", "tab:purple", "--"),
+                                 ("T", "tab:brown", "-.")):
+        for gc, marker in ((10, "s"), (100000, "D")):
+            points, condition_ids = [], []
+            for rate in (0, 50, 95):
+                cid = f"{prefix}{rate}-none-gc{gc}"
+                if metric == "readonly_candidate_rate":
+                    value = _ci([None if s[metric][index] is None else
+                                 (1 - fixed) * s[metric][index] for s in summaries[cid]])
+                else:
+                    value = _metric(runs[cid], metric, index)
+                if value is not None:
+                    points.append((rate, *value))
+                    condition_ids.append(cid)
+            if points:
+                x, y, e = zip(*points)
+                ax.errorbar(x, y, yerr=e, color=color, linestyle=style,
+                            marker=marker, capsize=2,
+                            label=f"{prefix} none GC {gc} µs" +
+                                  (f"; K=1 f={fixed:g}" if metric == "readonly_candidate_rate" else ""))
+                drawn.append({"series": f"{prefix}-none-gc{gc}",
+                              "condition_ids": condition_ids})
+    return drawn
+
+
+def _log_time_axis(ax):
+    ax.set_yscale("log")
+    low, high = ax.get_ylim()
+    lo_power = int(np.floor(np.log10(low)))
+    hi_power = int(np.ceil(np.log10(high)))
+    if lo_power == hi_power:
+        hi_power += 1
+    ax.set_ylim(10.0 ** lo_power, 10.0 ** hi_power)
+    ax.yaxis.set_major_locator(ticker.FixedLocator(
+        [10.0 ** power for power in range(lo_power, hi_power + 1)]))
 
 
 def _layout(fig):
@@ -193,7 +245,8 @@ def _save(fig, out, name, common, numbers, caption):
         ax.xaxis.label.set_fontsize(8)
         ax.yaxis.label.set_fontsize(8)
     top = .94 if len(fig.axes) == 2 else .99
-    fig.tight_layout(rect=(0, .095, 1, top), pad=3.5, h_pad=4, w_pad=4)
+    fig.tight_layout(rect=(.04 if name == "boundary_age" else 0, .095, 1, top),
+                     pad=3.5, h_pad=4, w_pad=4)
     _layout(fig)
     for suffix in ("png", "pdf"):
         fig.savefig(out / f"{name}.{suffix}", dpi=180)
@@ -255,19 +308,25 @@ def render(paths: list[Path], out: Path):
         (axes[1, 0], "ro_snapshot_age_mean_us", "Read-only snapshot age", "Mean µs"),
         (axes[1, 1], "gc_publications_per_s", "Publication frequency", "Publications / s"),
         (axes[1, 2], "same_boundary_publications", "Same-value republications", "Count / run")):
-        _draw(ax, ids, runs, metric,
-              title=title, ylabel=ylabel)
+        _draw(ax, ids, runs, metric, title=title, ylabel=ylabel,
+              positive_only=metric in ("gc_boundary_mean_us", "gc_boundary_p50_bucket_us",
+                                       "gc_publish_mean_us", "ro_snapshot_age_mean_us"))
+    for ax in (axes[0, 0], axes[0, 1], axes[0, 2], axes[1, 0]):
+        _log_time_axis(ax)
+    axes[0, 0].legend(fontsize=5, ncol=2, loc="upper left")
     tuned_panels = []
     for col, (metric, title) in enumerate((("gc_boundary_mean_us", "Boundary age"),
                                             ("gc_publish_mean_us", "Publication interval"),
                                             ("ro_snapshot_age_mean_us", "Read-only snapshot age"))):
         drawn = _draw_tuned(axes[2, col], runs, metric,
-                    title=f"T (tuned) vs R (default): {title}", ylabel="Mean µs")
+                    title=f"T (tuned) vs R (default): {title}", ylabel="Mean µs",
+                    positive_only=True)
+        _log_time_axis(axes[2, col])
         tuned_panels.append({"metric": metric, "series": drawn})
     _save(fig, out, "boundary_age", common,
           {"values": {cid: [s["gc_boundary_mean_us"] for s in rows] for cid, rows in summaries.items()},
            "tuned_panels": tuned_panels},
-          "Boundary and snapshot ages are distinct; T (tuned) vs R (default) panels use matched conditions. Timestamp ages include clock boost. Error bars: 95% t CI.")
+          "Boundary and snapshot ages are distinct; T (tuned) vs R (default) panels use matched conditions. Time panels use log scales; zero or missing points are omitted. Timestamp ages include clock boost. Error bars: 95% t CI.")
 
     fig, axes = plt.subplots(2, 2, figsize=(24, 15))
     for gc, color in COLORS.items():
@@ -317,15 +376,15 @@ def render(paths: list[Path], out: Path):
             ("dc_leader_wait_mean_us", ":", "last flag raise to publication detection")):
             points = []
             for rate in (0, 25, 50, 75, 95):
-                value = _metric(runs[f"R{rate}-none-gc{gc}"], metric)
+                value = _dc_fraction(runs[f"R{rate}-none-gc{gc}"], metric)
                 if value is not None:
                     points.append((rate, value[0], value[1]))
             if points:
                 x, y, e = zip(*points)
                 axes[1, 1].errorbar(x, y, yerr=e, color=color, linestyle=style,
                                     marker="o", capsize=2, label=f"GC {gc} µs; {label}")
-    axes[1, 1].set(title="D-C: observed flag-opportunity split, no long tx",
-                   xlabel="Specified read-only procedures (%)", ylabel="Mean per valid interval (µs)")
+    axes[1, 1].set(title="D-C: share of publication interval, no long tx",
+                   xlabel="Specified read-only procedures (%)", ylabel="Share of valid publication interval")
     axes[1, 1].set_xlim(0, 100)
     for ax in axes.flat:
         ax.grid(alpha=.2)
@@ -333,7 +392,7 @@ def render(paths: list[Path], out: Path):
         ax.legend(fontsize=6, ncol=2, loc="upper left")
     _save(fig, out, "decompositions", common,
           {cid: [s["dc_ro_gap_mean_us"] for s in rows] for cid, rows in summaries.items()},
-          "D-F is a between-condition total difference with independent-run uncertainty; D-C partitions observed timestamps. The third term ends at publication detection. Panels have separate units.")
+          "D-F is a between-condition total difference with independent-run uncertainty; D-C partitions observed timestamps as fractions of valid publication intervals. The third term ends at publication detection. Zero or missing fractions are omitted. Panels have separate units.")
 
     fig, axes = plt.subplots(1, 2, figsize=(24, 9))
     for k in (1, 4, 8):
@@ -349,16 +408,23 @@ def render(paths: list[Path], out: Path):
             if points:
                 x, y, e = zip(*points)
                 axes[0].errorbar(x, y, yerr=e, marker="o", capsize=2,
-                                 label=f"K={k}; fixed fraction f={fixed:g}")
+                                 label=f"R none GC 10 µs; K={k}; f={fixed:g}")
     axes[0].set(title="(a) Optimistic eligibility: observed chains, first K, read interval",
                 xlabel="Specified read-only procedures (%)", ylabel="Eligible share; first K versions and read interval")
+    a_comparison = _draw_none_comparison(axes[0], runs, summaries,
+                                         metric="readonly_candidate_rate", index=V.K.index(1))
     _draw(axes[1], ids, runs, "local_flag_opportunity", title="(b) Local opportunity relative to publication interval",
           ylabel="Observed read-only gap / publication interval")
+    b_comparison = _draw_none_comparison(axes[1], runs, summaries,
+                                         metric="local_flag_opportunity")
     for ax in axes:
         ax.set_xlim(0, 100)
-    axes[0].legend(fontsize=7, ncol=2)
+    axes[0].legend(fontsize=6, ncol=2)
+    axes[1].legend(fontsize=6, ncol=2)
     _save(fig, out, "opportunities", common,
-          {cid: [s["local_flag_opportunity"] for s in rows] for cid, rows in summaries.items()},
+          {"values": {cid: [s["local_flag_opportunity"] for s in rows]
+                      for cid, rows in summaries.items()},
+           "a_comparison": a_comparison, "b_comparison": b_comparison},
           "(a) Optimistic eligibility limited to observed chains, first K versions and read interval; assumes independence of fixed-snapshot need. (b) is a local opportunity relative to publication interval, not boundary advance.")
 
 
