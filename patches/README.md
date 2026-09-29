@@ -418,6 +418,35 @@ VHash 論文 (`docs/paper-story-vhash/`) の「cold 境界 (論理的な K 版) 
   build ごとに条件 gate の supply / meaning を通してから build する。stock 腕は `CICADA_LONGTX=1` だけの build (forwarding のコードは前処理で消える)。
 - **一次資料:** `output/insights/2026-09-29/vhash-forwarding-prototype/README.md`。
 
+## cicada-forwarding-gc.patch / cicada-forwarding-gc-broken-early-publish.patch — forwarding を Cicada の GC 回収境界へつなぐ構成 E と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_14)
+
+VHash 論文 (`docs/paper-story-vhash/`) の新規性の芯 U0 (abort せず既読を保った前進を、版の回収境界へ反映して保持期間を縮める) を確かめる試作。
+`cicada-forwarding-variant.patch` (md_6、構成 C) の**上に重ねる** patch で、読み取りの後に待つ transaction が待機の安全点で自分の timestamp を前進させ、
+確定してから GC 用の公開値 (ThreadWtsArray) を上げて GC flag を立てる (構成 E、小モデル md_10 の SP の形、D2290)。
+回収そのもの (gc_versions、後続の確定版で回収 = R10) は変えない。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない。この patch を使った値は「未検証の診断値」として扱う** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` に `patches/cicada-forwarding-variant.patch` を当てた `cc/cicada/transaction.cc` と
+  `cc/cicada/ycsb_cicada.cc`。trace patch (`instr-cicada-trace.patch`) → md_6 → 本 patch の順でも当たる。`include/*.hh` は変えない。md_6 の patch は変えない。
+- **macro (未定義 = 0 = md_6 適用後と同じ前処理結果):**
+  - `CICADA_GC_SAFEPOINT` (owner `cc/cicada/transaction.cc`、companion `CICADA_FWD_ENABLE=1`): 待機の安全点関数。実行時 flag `--cicada_gc_mode=off|hb|e` (既定 off)。
+    hb = GC flag を立てるだけ (ThreadWtsArray・ThreadRtsArray は tx 開始時の値のまま)。e = それに加えて前進 (事前確認 → 既読版 rts を t′ へ CAS-max → seq_cst fence →
+    版列を観測し直して可視を確認 → 確定) を試し、**成功したときだけ**別 step で ThreadWtsArray := t′、ThreadRtsArray := max(旧, t′−1) を公開する。失敗したら hb と同じ。
+    tx の途中で読み取り下限を最新の MinWts−1 へ上げる形は、待機中に既読版を回収させるので採らない (一次資料 §S7)。安全点では gc_versions を呼ばない。read-only・abort 済み・scan・特殊操作の後は何もしない。
+  - `CICADA_GC_WAIT` (owner `cc/cicada/ycsb_cicada.cc`、companion `CICADA_GC_SAFEPOINT=1`・`CICADA_FWD_ENABLE=1`・`CICADA_LONGTX=1`): md_6 の wait_after_reads の待機を
+    `--cicada_gc_slice_us` (既定 0 = md_6 と同じ単一 sleep) ずつに分け、各 slice 末で安全点関数を呼ぶ。待機の前後で保持版検査を行う。
+  - `CICADA_GC_COUNT` (owner `cc/cicada/transaction.cc`、companion なし = stock の build でも使える): GC の診断と E の計数。`--cicada_gc_sample_us` (既定 10)。
+    正常終了時に `CICADA_GC_V1 {json}` を 1 行出す (等間隔標本の回収境界の遅れ・論理生存版数・MinRts を決めた thread、公開 event、begin 標本、保持時間、thread 別の E の計数と保持版検査)。
+    **計数入り build の throughput は性能値に使わない。**
+- **壊し正例 `cicada-forwarding-gc-broken-early-publish.patch`:** 本 patch の上に重ねる無マクロの無条件 patch (新しい `#if` を足さない)。E の試行の最初に
+  ThreadWtsArray := t′・ThreadRtsArray := t′−1・GC flag を立て、確認に失敗しても戻さない (小モデルの UG1 + UF1 相当)。検査専用で、計測には使わない。
+- **登録:** 3 macro を `orchestrator/campaign/condition_meaning_gate.py` の許可ドメインへ登録 (DEFINE_SPECS・witness・site 数 3 / 2 / 7)、
+  `orchestrator/campaign/screening_driver.py` の既定値表と登録簿テストの件数を 3 macro 分だけ追随 (先例 md_6 と同じ足跡、判定・受理述語と既存 entry は不変)。
+  **`patches/ledger.json` には登録しない** (D2288 と同じ理由: 同 ledger は `silo_ladder_rung1` 専用で entry 1 件を契約が要求する)。
+- **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `gc-smoke` / `gc-run --workload normal|many_ops|wait_after_reads [--wait-us 1000|10000] [--skew 0.9|0]` / `gc-aggregate --raw ...`。
+  md_6 の `smoke` / `run` / `aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良 `BACK_OFF=0, INLINE_VERSION_OPT=1, INLINE_VERSION_PROMOTION=0, REUSE_VERSION=1, WRITE_LATEST_ONLY=0`。
+- **一次資料:** `output/insights/2026-09-29/vhash-gc-connection-prototype/README.md`。
+
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
 段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の

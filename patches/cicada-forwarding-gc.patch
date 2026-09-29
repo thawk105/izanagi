@@ -1,0 +1,563 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -6,6 +6,21 @@
+ #include <string>
+ #include <vector>
+ 
++#if CICADA_GC_SAFEPOINT
++#define GC_MODE_TEXT FLAGS_cicada_gc_mode
++#else
++#define GC_MODE_TEXT "none"
++#endif
++#line 9
++
++#if CICADA_GC_COUNT
++#include <algorithm>
++#include <array>
++#include <limits>
++#include <tuple>
++#endif
++#line 8
++
+ #if CICADA_FWD_ENABLE
+ #include <algorithm>
+ #include <cstdlib>
+@@ -114,6 +129,428 @@
+ } // namespace
+ #endif
+ 
++#if CICADA_GC_SAFEPOINT
++DEFINE_string(cicada_gc_mode, "off", "GC safe point mode: off, hb, or e.");
++#endif
++#line 29
++
++#if CICADA_GC_COUNT
++DEFINE_uint64(cicada_gc_sample_us, 10, "GC sample interval in microseconds.");
++namespace {
++using GcHist = std::array<uint64_t, 42>;
++struct GcCounters {
++  uint64_t safepoints = 0, requests = 0, attempts = 0, success = 0;
++  uint64_t read_mismatch = 0, write_constraint = 0, conflict = 0;
++  uint64_t ineligible = 0, overflow = 0, publishes = 0, flag_raises = 0;
++  uint64_t advance_clock_sum = 0, held_checks = 0, held_changed = 0;
++  uint64_t early_publishes = 0, early_publish_then_fail = 0;
++  std::atomic<uint64_t> installs{0}, detaches{0};
++};
++struct HeldVersion {
++  Version* ver;
++  uint64_t wts;
++  VersionStatus status;
++};
++struct GcLag {
++  uint64_t count = 0, negative = 0, sum = 0, max = 0;
++  GcHist hist{};
++};
++struct alignas(CACHE_LINE_SIZE) GcSlot {
++  GcCounters c;
++  std::vector<HeldVersion> held;
++  GcLag begin;
++  GcHist retention_hist{};
++  uint64_t retention_count = 0, retention_sum = 0;
++};
++GcSlot gc_slots[256];
++struct GcReport {
++  GcLag uniform_rts, uniform_wts, publish;
++  GcHist interval_hist{};
++  uint64_t publish_count = 0;
++  uint64_t live_sum = 0, live_max = 0, last_sample = 0;
++  uint64_t max_gap_intervals = 0;
++  uint64_t last_publish = 0, series_stride = 1;
++  std::array<uint64_t, 256> argmin{};
++  std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> series;
++  static size_t bucket(uint64_t v) {
++    if (!v) return 0;
++    size_t b = 0;
++    while (v >>= 1) ++b;
++    return std::min<size_t>(b, 41);
++  }
++  static void add(GcLag& l, uint64_t now, uint64_t stamp,
++                  uint64_t weight = 1) {
++    l.count += weight;
++    uint64_t value = 0;
++    if (now < (stamp >> 8))
++      l.negative += weight;
++    else
++      value = (now - (stamp >> 8)) / FLAGS_clocks_per_us;
++    l.hist[bucket(value)] += weight;
++    l.sum += value * weight;
++    l.max = std::max(l.max, value);
++  }
++  static void hist(const GcHist& h) {
++    std::cout << '[';
++    for (size_t i = 0; i < h.size(); ++i) {
++      if (i) std::cout << ',';
++      std::cout << h[i];
++    }
++    std::cout << ']';
++  }
++  uint64_t live() const {
++    uint64_t installs = 0, detaches = 0;
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      installs += gc_slots[i].c.installs.load(std::memory_order_relaxed);
++      detaches += gc_slots[i].c.detaches.load(std::memory_order_relaxed);
++    }
++    return FLAGS_tuple_num + installs - detaches;
++  }
++  void sample(uint64_t now) {
++    uint64_t r = MinRts.load(std::memory_order_acquire);
++    if (!r) {
++      last_sample = now;
++      return;
++    }
++    uint64_t interval = FLAGS_cicada_gc_sample_us * FLAGS_clocks_per_us;
++    if (!interval) interval = 1;
++    uint64_t k = last_sample ? (now - last_sample) / interval : 1;
++    if (!k) return;
++    last_sample = last_sample ? last_sample + k * interval : now;
++    max_gap_intervals = std::max(max_gap_intervals, k);
++    add(uniform_rts, now, r, k);
++    add(uniform_wts, now, MinWts.load(std::memory_order_acquire), k);
++    uint64_t n = live();
++    live_sum += n * k;
++    live_max = std::max(live_max, n);
++    uint64_t floor = std::numeric_limits<uint64_t>::max();
++    size_t owner = 0;
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      uint64_t x = __atomic_load_n(&ThreadRtsArray[i].obj_, __ATOMIC_ACQUIRE);
++      if (x < floor) {
++        floor = x;
++        owner = i;
++      }
++    }
++    argmin[owner] += k;
++    if ((uniform_rts.count - 1) % series_stride == 0) {
++      if (series.size() == 4096) {
++        for (size_t i = 0; i < 2048; ++i) series[i] = series[2 * i];
++        series.resize(2048);
++        series_stride *= 2;
++      }
++      uint64_t lag =
++          now < (r >> 8) ? 0 : (now - (r >> 8)) / FLAGS_clocks_per_us;
++      series.emplace_back(now / FLAGS_clocks_per_us, lag, n);
++    }
++  }
++  void published(uint64_t now) {
++    uint64_t r = MinRts.load(std::memory_order_acquire);
++    if (!r) return;
++    ++publish_count;
++    add(publish, now, r);
++    if (last_publish)
++      ++interval_hist[bucket((now - last_publish) / FLAGS_clocks_per_us)];
++    last_publish = now;
++  }
++  void detached(size_t thid, uint64_t now, Version* upper, Version* ver) {
++    auto& slot = gc_slots[thid];
++    while (ver) {
++      uint64_t clock = upper->ldAcqWts() >> 8;
++      uint64_t age = now < clock ? 0 : (now - clock) / FLAGS_clocks_per_us;
++      ++slot.retention_hist[bucket(age)];
++      ++slot.retention_count;
++      slot.retention_sum += age;
++      upper = ver;
++      ver = ver->ldAcqNext();
++    }
++  }
++  ~GcReport() {
++    GcLag begin;
++    GcHist retention_hist{};
++    uint64_t retention_count = 0, retention_sum = 0;
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& slot = gc_slots[i];
++      begin.count += slot.begin.count;
++      begin.negative += slot.begin.negative;
++      begin.sum += slot.begin.sum;
++      begin.max = std::max(begin.max, slot.begin.max);
++      retention_count += slot.retention_count;
++      retention_sum += slot.retention_sum;
++      for (size_t b = 0; b < retention_hist.size(); ++b) {
++        begin.hist[b] += slot.begin.hist[b];
++        retention_hist[b] += slot.retention_hist[b];
++      }
++    }
++    std::cout << "CICADA_GC_V1 {\"schema\":1,\"mode\":\"";
++    std::cout << GC_MODE_TEXT;
++    std::cout << "\",\"sample_us\":" << FLAGS_cicada_gc_sample_us
++              << ",\"clocks_per_us\":" << FLAGS_clocks_per_us
++              << ",\"initial_versions\":" << FLAGS_tuple_num
++              << ",\"version_struct_bytes\":" << sizeof(Version)
++              << ",\"threads\":[";
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      if (i) std::cout << ',';
++      auto& c = gc_slots[i].c;
++      std::cout << "{\"thid\":" << i << ",\"safepoints\":" << c.safepoints
++                << ",\"requests\":" << c.requests
++                << ",\"attempts\":" << c.attempts
++                << ",\"success\":" << c.success
++                << ",\"read_mismatch\":" << c.read_mismatch
++                << ",\"write_constraint\":" << c.write_constraint
++                << ",\"conflict\":" << c.conflict
++                << ",\"ineligible\":" << c.ineligible
++                << ",\"overflow\":" << c.overflow
++                << ",\"publishes\":" << c.publishes
++                << ",\"flag_raises\":" << c.flag_raises
++                << ",\"advance_clock_sum\":" << c.advance_clock_sum
++                << ",\"held_checks\":" << c.held_checks
++                << ",\"held_changed\":" << c.held_changed
++                << ",\"early_publishes\":" << c.early_publishes
++                << ",\"early_publish_then_fail\":" << c.early_publish_then_fail
++                << ",\"installs\":" << c.installs.load()
++                << ",\"detaches\":" << c.detaches.load() << '}';
++    }
++    std::cout << "],\"uniform\":{\"count\":" << uniform_rts.count
++              << ",\"negative\":" << uniform_rts.negative
++              << ",\"lag_rts_hist\":";
++    hist(uniform_rts.hist);
++    std::cout << ",\"lag_rts_sum_us\":" << uniform_rts.sum
++              << ",\"lag_rts_max_us\":" << uniform_rts.max
++              << ",\"lag_wts_hist\":";
++    hist(uniform_wts.hist);
++    std::cout << ",\"live_sum\":" << live_sum << ",\"live_max\":" << live_max
++              << ",\"argmin_rts_thid\":[";
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      if (i) std::cout << ',';
++      std::cout << argmin[i];
++    }
++    std::cout << "],\"series\":[";
++    for (size_t i = 0; i < series.size(); ++i) {
++      if (i) std::cout << ',';
++      auto [t, lag, n] = series[i];
++      std::cout << '[' << t << ',' << lag << ',' << n << ']';
++    }
++    std::cout << "],\"series_stride\":" << series_stride
++              << ",\"max_gap_intervals\":" << max_gap_intervals
++              << "},\"publish\":{\"count\":" << publish_count
++              << ",\"lag_rts_hist\":";
++    hist(publish.hist);
++    std::cout << ",\"interval_hist\":";
++    hist(interval_hist);
++    std::cout << "},\"begin\":{\"count\":" << begin.count
++              << ",\"lag_rts_hist\":";
++    hist(begin.hist);
++    std::cout << "},\"retention\":{\"count\":" << retention_count
++              << ",\"sum_us\":" << retention_sum << ",\"hist\":";
++    hist(retention_hist);
++    std::cout << "},\"live_end\":" << live() << '}' << std::endl;
++  }
++};
++GcReport gc_report;
++} // namespace
++#define GC_INC(id, field) (++gc_slots[id].c.field)
++#define GC_ADD(id, field, value) (gc_slots[id].c.field += (value))
++#define GC_INSTALL(id) gc_slots[id].c.installs.fetch_add(1)
++#define GC_DETACH(id, n) gc_slots[id].c.detaches.fetch_add(n)
++#define GC_HELD_BEGIN(tx)                                                      \
++  do {                                                                         \
++    auto& h = gc_slots[(tx).thid_].held;                                       \
++    h.clear();                                                                 \
++    for (auto& r : (tx).read_set_)                                             \
++      h.push_back({r.ver_, r.ver_->ldAcqWts(), r.ver_->ldAcqStatus()});        \
++  } while (0)
++#define GC_HELD_END(tx)                                                        \
++  do {                                                                         \
++    auto& h = gc_slots[(tx).thid_].held;                                       \
++    GC_ADD((tx).thid_, held_checks, h.size());                                 \
++    for (auto& v : h)                                                          \
++      if (v.ver->ldAcqWts() != v.wts || v.ver->ldAcqStatus() != v.status)      \
++        GC_INC((tx).thid_, held_changed);                                      \
++    h.clear();                                                                 \
++  } while (0)
++#else
++#define GC_INC(id, field) ((void) 0)
++#define GC_ADD(id, field, value) ((void) 0)
++#define GC_INSTALL(id) ((void) 0)
++#define GC_DETACH(id, n) ((void) 0)
++#define GC_HELD_BEGIN(tx) ((void) 0)
++#define GC_HELD_END(tx) ((void) 0)
++#endif
++
++#if CICADA_GC_SAFEPOINT
++namespace {
++void gc_publish_rts(uint8_t thid, uint64_t floor) {
++  uint64_t* ptr = &ThreadRtsArray[thid].obj_;
++  uint64_t old = __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
++  while (old < floor &&
++         !__atomic_compare_exchange_n(ptr, &old, floor, false, __ATOMIC_ACQ_REL,
++                                      __ATOMIC_ACQUIRE)) {}
++}
++
++void gc_failure([[maybe_unused]] uint8_t thid, ForwardCheck c) {
++  switch (c) {
++    case ForwardCheck::read_mismatch:
++      GC_INC(thid, read_mismatch);
++      break;
++    case ForwardCheck::write_constraint:
++      GC_INC(thid, write_constraint);
++      break;
++    case ForwardCheck::conflict:
++      GC_INC(thid, conflict);
++      break;
++    case ForwardCheck::ineligible:
++      GC_INC(thid, ineligible);
++      break;
++    case ForwardCheck::ok:
++      break;
++  }
++}
++
++bool gc_advance(TxExecutor& tx) {
++  const uint8_t thid = tx.thid_;
++  const uint64_t old_wts = tx.wts_.ts_;
++  const uint64_t published =
++      __atomic_load_n(&ThreadWtsArray[thid].obj_, __ATOMIC_ACQUIRE);
++  const uint64_t now = rdtscp();
++  const uint64_t max_clock = std::numeric_limits<uint64_t>::max() >> 8;
++  if (tx.wts_.localClock_ > max_clock ||
++      tx.wts_.clockBoost_ > max_clock - tx.wts_.localClock_) {
++    GC_INC(thid, overflow);
++    return false;
++  }
++  uint64_t clock = std::max(now, tx.wts_.localClock_ + tx.wts_.clockBoost_);
++  clock = std::max(clock, std::max(old_wts, published) >> 8);
++  if (clock >= max_clock) {
++    GC_INC(thid, overflow);
++    return false;
++  }
++  uint64_t target = (clock << 8) | thid;
++  if (target <= std::max(old_wts, published)) {
++    if (clock == max_clock) {
++      GC_INC(thid, overflow);
++      return false;
++    }
++    target = (++clock << 8) | thid;
++  }
++  if (clock == max_clock) {
++    GC_INC(thid, overflow);
++    return false;
++  }
++  GC_INC(thid, attempts);
++  ForwardCheck check = ForwardCheck::ok;
++  for (auto& r : tx.read_set_) {
++    bool conflict = false;
++    Version* visible = forward_visible(r.rcdptr_, target, conflict);
++    if (conflict) {
++      check = ForwardCheck::conflict;
++      break;
++    }
++    if (visible != r.ver_) {
++      check = ForwardCheck::read_mismatch;
++      break;
++    }
++  }
++  if (check == ForwardCheck::ok) {
++    for (auto& w : tx.write_set_) {
++      if (w.op_ == OpType::INSERT || w.op_ == OpType::DELETE) {
++        check = ForwardCheck::ineligible;
++        break;
++      }
++      Version* latest = w.rcdptr_->ldAcqLatest();
++      if (w.op_ == OpType::RMW) {
++        if (latest->ldAcqStatus() == VersionStatus::pending)
++          check = ForwardCheck::conflict;
++        else if (latest->ldAcqWts() >= target)
++          check = ForwardCheck::write_constraint;
++      } else {
++        bool conflict = false;
++        Version* visible = forward_visible(w.rcdptr_, target, conflict);
++        if (conflict)
++          check = ForwardCheck::conflict;
++        else if (visible->ldAcqRts() > target ||
++                 visible->ldAcqStatus() == VersionStatus::deleted)
++          check = ForwardCheck::write_constraint;
++      }
++      if (check != ForwardCheck::ok) break;
++    }
++  }
++  if (check == ForwardCheck::ok) {
++    for (auto& r : tx.read_set_) {
++      uint64_t expected = r.ver_->ldAcqRts();
++      while (expected < target &&
++             !r.ver_->rts_.compare_exchange_weak(expected, target,
++                                                 std::memory_order_acq_rel,
++                                                 std::memory_order_acquire)) {}
++    }
++    std::atomic_thread_fence(std::memory_order_seq_cst);
++    for (auto& r : tx.read_set_) {
++      bool conflict = false;
++      Version* visible = forward_visible(r.rcdptr_, target, conflict);
++      if (conflict) {
++        check = ForwardCheck::conflict;
++        break;
++      }
++      if (visible != r.ver_) {
++        check = ForwardCheck::read_mismatch;
++        break;
++      }
++    }
++  }
++  if (check != ForwardCheck::ok) {
++    gc_failure(thid, check);
++    return false;
++  }
++  tx.wts_.ts_ = target;
++  tx.wts_.localClock_ = std::max(tx.wts_.localClock_, clock + 1);
++  for (auto& w : tx.write_set_) {
++    w.new_ver_->wts_.store(target, std::memory_order_release);
++    w.later_ver_ = nullptr;
++  }
++  for (auto& r : tx.read_set_) r.later_ver_ = nullptr;
++  forward_slots[thid].forwarded = true;
++  GC_INC(thid, success);
++  GC_ADD(thid, advance_clock_sum, (target - old_wts) >> 8);
++  // Publish only after the local transaction state has been finalized.
++  __atomic_store_n(&ThreadWtsArray[thid].obj_, target, __ATOMIC_RELEASE);
++  GC_INC(thid, publishes);
++  gc_publish_rts(thid, target - 1);
++  return true;
++}
++} // namespace
++
++void cicada_gc_hold_begin([[maybe_unused]] TxExecutor& tx) { GC_HELD_BEGIN(tx); }
++void cicada_gc_hold_end([[maybe_unused]] TxExecutor& tx) { GC_HELD_END(tx); }
++
++void cicada_gc_safepoint(TxExecutor& tx) {
++  GC_INC(tx.thid_, safepoints);
++  static bool checked = [] {
++    if (FLAGS_cicada_gc_mode != "off" && FLAGS_cicada_gc_mode != "hb" &&
++        FLAGS_cicada_gc_mode != "e") {
++      std::cerr << "Invalid Cicada GC mode" << std::endl;
++      std::exit(2);
++    }
++    return true;
++  }();
++  (void) checked;
++  if (FLAGS_cicada_gc_mode == "off") return;
++  if (tx.is_ronly_ || tx.status_ == TransactionStatus::aborted ||
++      forward_slots[tx.thid_].scanning || forward_slots[tx.thid_].special) {
++    GC_INC(tx.thid_, ineligible);
++    return;
++  }
++  uint64_t now = rdtscp();
++  if (!chkClkSpan(tx.gcstart_, now, FLAGS_gc_inter_us * FLAGS_clocks_per_us) ||
++      loadAcquire(GCFlag[tx.thid_].obj_) != 0)
++    return;
++  GC_INC(tx.thid_, requests);
++  if (FLAGS_cicada_gc_mode == "e") gc_advance(tx);
++  storeRelease(GCFlag[tx.thid_].obj_, 1);
++  GC_INC(tx.thid_, flag_raises);
++  tx.gcstart_ = now;
++}
++#endif
++
+ #line 29
+ /**
+  * @brief Initialize function of transaction.
+@@ -147,6 +584,12 @@
+                    __ATOMIC_RELEASE);
+   this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
+   __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
++#if CICADA_GC_COUNT
++  uint64_t gc_min_rts = MinRts.load(std::memory_order_acquire);
++  if (gc_min_rts)
++    GcReport::add(gc_slots[thid_].begin, rdtscp(), gc_min_rts);
++#endif
++#line 44
+ 
+   /* one-sided synchronization
+    * tanabe... disabled.
+@@ -801,6 +1244,10 @@
+       }
+     }
+     (*itr).finish_version_install_ = true;
++#if CICADA_GC_COUNT
++    GC_INSTALL(thid_);
++#endif
++#line 531
+   }
+ 
+   /**
+@@ -1112,6 +1559,13 @@
+ 
+     // the thread detaches the rest of the version list from v
+     gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
++#if CICADA_GC_COUNT
++    uint64_t detached_count = 0;
++    for (Version* v = delTarget; v; v = v->ldAcqNext()) ++detached_count;
++    gc_report.detached(thid_, rdtscp(), gcq_.front().ver_, delTarget);
++    GC_DETACH(thid_, detached_count);
++#endif
++#line 836
+     // updates record.min_wts
+     tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
+     gcAfterThisVersion(tuple, delTarget);
+@@ -1245,7 +1699,17 @@
+ bool TxExecutor::isLeader() { return this->thid_ == 0; }
+ 
+ void TxExecutor::leaderWork() {
++#if CICADA_GC_COUNT
++  bool before = loadAcquire(GCFlag[0].obj_) != 0;
++#endif
++#line 963
+   cicadaLeaderWork();
++#if CICADA_GC_COUNT
++  uint64_t now = rdtscp();
++  if (before && loadAcquire(GCFlag[0].obj_) == 0) gc_report.published(now);
++  gc_report.sample(now);
++#endif
++#line 964
+ #if BACK_OFF
+   leaderBackoffWork(backoff_, CCBenchResults);
+ #endif
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -18,6 +18,15 @@
+ 
+ #include "../../common/runner.hh"
+ 
++#if CICADA_GC_WAIT
++#include <algorithm>
++DEFINE_uint64(cicada_gc_slice_us, 0, "GC wait slice in microseconds.");
++void cicada_gc_safepoint(TxExecutor&);
++void cicada_gc_hold_begin(TxExecutor&);
++void cicada_gc_hold_end(TxExecutor&);
++#endif
++#line 20
++
+ #if CICADA_LONGTX
+ #include <chrono>
+ #include <cstdlib>
+@@ -123,9 +132,33 @@
+         goto RETRY;
+       }
+     }
++#if CICADA_GC_WAIT
++    if (FLAGS_cicada_long_kind == "wait_after_reads") {
++      cicada_gc_hold_begin(tx);
++      if (FLAGS_cicada_gc_slice_us != 0) {
++        const uint64_t start = rdtscp();
++        const uint64_t total = FLAGS_cicada_long_wait_us * FLAGS_clocks_per_us;
++        while (rdtscp() - start < total) {
++          uint64_t elapsed = rdtscp() - start;
++          uint64_t remaining =
++              (total - elapsed + FLAGS_clocks_per_us - 1) / FLAGS_clocks_per_us;
++          std::this_thread::sleep_for(std::chrono::microseconds(
++              std::min(remaining, FLAGS_cicada_gc_slice_us)));
++          cicada_gc_safepoint(tx);
++        }
++      } else {
++        std::this_thread::sleep_for(
++            std::chrono::microseconds(FLAGS_cicada_long_wait_us));
++      }
++      cicada_gc_hold_end(tx);
++    }
++#else
++#line 119
+     if (FLAGS_cicada_long_kind == "wait_after_reads")
+       std::this_thread::sleep_for(
+           std::chrono::microseconds(FLAGS_cicada_long_wait_us));
++#endif
++#line 122
+     if (!tx.commit()) {
+       tx.abort();
+       ++tx.result_->local_abort_counts_;
