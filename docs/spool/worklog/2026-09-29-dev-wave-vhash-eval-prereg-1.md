@@ -29,7 +29,13 @@ title: VHash 論文の評価計画を事前登録の草稿として置く (docs 
 - **統計の文の反例 (起草時に自分で作って書かなかった文):** 「2 node の両方で同じ向きなら共通の偶然に強い」「A_best を最大の中央値で選ぶのは E に不利な向きにしか偏らない」など。草稿 §8.8 に残した。
 - **wave の運用:** EnterWorktree は name 形が filter driver のエラー、path 形が worktree 一覧の 10 秒 timeout で失敗し、手動の `git worktree add` (混雑で約 21 分) と
   絶対 path の作業で進めた。submodule 初期化は 1 回目が一過性の I/O 失敗 (rc=1)、同じ引数の再実行で rc=0。開始 gate は fresh で rc=0。
-  段 2・3 は軽量版の既定で省いた。実装面の差分が無いので変異 matrix は免除 (DW-S04)。受入全走はこの記録の commit の後に行う (記録の時点では未実施)。
+  段 2・3 は軽量版の既定で省いた。実装面の差分が無いので変異 matrix は免除 (DW-S04)。
+- **受入 1 回目 (tested main `3bf2d0a16`、post-claim merge 後の tip `f8593c7a3`) は rc=70、赤 11 件で、すべて `orchestrator/tests/test_dev_wave_cleanup.py` の
+  remove-child 系だった。** 9 件は本文が `occupancy result is indeterminate or inconsistent; attempts=3 retry_count=2` で、issue は
+  `{"error":"missing","source":"cwd"}` (走査中に cwd を読めなかった pid)。残る 2 件は `assert [] == [True]` (部分撤去の記録が空) で、本文だけでは同じ原因と言い切れない。
+  failures 台帳の occupancy 走査の不定 (docs のみの wave でも走ごとに別 node で落ちる) と同じ型と判断した。本 wave の差分は docs と `docs/spool/**` だけで、
+  `tools/dev_wave_cleanup.py` と占有検査に届く経路は無い (非帰属)。同じ tip でその file を単独再走したら 201 passed / rc=0 で非再現だったので、
+  受入を 1 回だけやり直す (DW-O18)。受入 2 回目はこの追記の commit の後に行う (記録の時点では未実施)。
 - 親は計算ノードを使っていない (計測なし)。
 
 ## 次の一手差分
