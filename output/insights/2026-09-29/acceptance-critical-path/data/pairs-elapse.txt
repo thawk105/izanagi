@@ -1,0 +1,12 @@
+8c7cdeb768fd74a2a34ab96a1a4fc958 0 | Elapse: 365S
+8c7cdeb768fd74a2a34ab96a1a4fc958 1 | Elapse: 325S
+8c7cdeb768fd74a2a34ab96a1a4fc958 2 | Elapse: 309S
+99d2234ae24b8c307d165915e1cb8736 0 | Elapse: 341S
+99d2234ae24b8c307d165915e1cb8736 1 | Elapse: 311S
+99d2234ae24b8c307d165915e1cb8736 2 | Elapse: 285S
+5e5ea7573f255cca31b61b1486e981fc 0 | Elapse: 343S
+5e5ea7573f255cca31b61b1486e981fc 1 | Elapse: 366S
+5e5ea7573f255cca31b61b1486e981fc 2 | Elapse: 310S
+ecf1fe5e9362b82fb8b3a1f001b9eaca 0 | Elapse: 517S
+ecf1fe5e9362b82fb8b3a1f001b9eaca 1 | Elapse: 297S
+ecf1fe5e9362b82fb8b3a1f001b9eaca 2 | Elapse: 289S

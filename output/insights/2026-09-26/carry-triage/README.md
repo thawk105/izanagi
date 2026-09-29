@@ -87,3 +87,8 @@ T-2035 (2026-09-18〜19、archive worklog entry 1660・1689) で登録 78 leaf �
   その後 `1f169cbbd` (entry 1873) まで進み、差は残す側の T-2273・T-2560・T-2850 の本文更新だけだった。取り下げ 501 項の base digest は `1f169cbbd` の現物から取った (その後 `c18633656` (entry 1876) まで進んでも取り下げ側の本文は不変)。
 - 取り下げた T-1851・T-2724 には worktree が残る (`.claude/worktrees/dev-wave-t1851-c3c-official-floor`、`.codex/worktrees/t2724-g1-gen`・`t2724-chain-scratch`、lock 付き)。
   最終更新は 2026-09-15・09-18 で、関係するプロセスも ListAgents の session も無いので、稼働 wave ではなく残置と判断した。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+取り下げた T-2724 の残置 worktree `.codex/worktrees/t2724-chain-scratch`・`t2724-g1-gen` と branch `scratch-t2724-chain-check`・`freeze-g1-gen-t2724` は、2026-09-30 の掃除 wave で回収せずに撤去する。G `32ba8cae4` は main の祖先で残り、scratch branch は束 bundle に退避した。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

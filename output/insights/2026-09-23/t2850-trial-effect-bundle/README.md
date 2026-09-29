@@ -40,3 +40,8 @@
   §10 の実値を確認前に揃える、smoke で測れる範囲の具体化、18 job で 1 つの cohort root を共有する (endpoint の失格の波及)。裁定は job dir の `s4-ruling.md`。
 - 段 6 (Codex read-only レビュー 2 本): 正しさレンズ NO-GO (must-fix 2: 親の起動前に request の期限を確かめる、費用記録 `--costs` を必須にする)、過剰・削除レンズ GO (hydrate 直後の重複 verify を削る)。
   fix は 3 巡 (準備 script・hydrate の source_root・qstat の消滅判定 / 再開型の親起動器 / write-heavy だけの spec)。投入順はレビューと親がそれぞれ独立に再計算して一致した。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight の job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/` にある submit-tree と `vprobe/submit-tree-vp` (detached `7ea9aa09d`、main の祖先) は、2026-09-30 の掃除 wave で回収せずに撤去する。同じ job dir の `vprobe/runs/`・`estimate/`・`consult-option/`・台帳は撤去しない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

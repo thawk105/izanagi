@@ -281,3 +281,8 @@ rr50 pass 終了 21:36:42.4 → rr5 bench_done 21:36:59.4 (+17 s = bench 1 本�
 | 受領証 | `<attempt root>/receipts/{submission,completion,acquisition}.json` |
 | 外からの採取 | wave job dir の `qstat-samples.log` (30 秒間隔の `qstat -f`、両 request) |
 | 段 3 相談・裁定・author | wave job dir と本 insight の `verbatim/` |
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元として名指す submit-tree `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2489-a2-nodes5-probe/submit-tree` と branch `probe/t2489-a2-nodes5-submit` (使い捨て commit `3f61c3408`) は、2026-09-30 の掃除 wave で回収せずに撤去する。commit `3f61c3408` は branch 束 bundle `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-originals-migration/backup/branches.bundle` から復元できる。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

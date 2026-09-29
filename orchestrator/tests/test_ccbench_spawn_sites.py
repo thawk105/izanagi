@@ -78,6 +78,8 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    # Exploratory Cicada hot-block runs use a bounded wait4 loop and trace gate.
+    ("campaign/vhash_cicada_hot_block.py", "<module>.run_one"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._checked"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._delay_compile"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._calibrate"): 1,
@@ -101,6 +103,10 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # CMake/Git/preprocess commands, a standalone sizeof probe, and the verifier.
+    ("campaign/vhash_cicada_hot_block.py", "<module>.checked"): 1,
+    ("campaign/vhash_cicada_hot_block.py", "<module>._tuple_size"): 1,
+    ("campaign/vhash_cicada_hot_block.py", "<module>._verify_trace"): 1,
     # Forked children run only the correctness verifier on collected traces;
     # they never launch a CCBench binary or a measurement.
     ("campaign/pipeline.py", "<module>._prepare_evaluation_core._run_local_concurrent_pass"): 1,
@@ -658,6 +664,10 @@ _CMAKE_INTERNAL_DEFINE_RE = re.compile(
 # an upstream CCBench define. Still require its actual added conditional in the
 # introducing patch; no registry key is used to discover the interface.
 _OVERLAY_BASE_DEFINE_INTERFACES = {
+    # Broken overlays quote the introducing patch's COUNT/WL conditions in context.
+    "patches/cicada-vhash-hot-block-variant.patch": frozenset({
+        "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
+    }),
     "patches/cicada-forwarding-variant.patch": frozenset({
         "CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT",
     }),
@@ -3601,10 +3611,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 65,
+        "proven-unreachable": 68,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 69})
+    assert classifications[s8b_sink] == Counter({"covered": 72})
     assert failures == []
 
 
@@ -3628,7 +3638,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 55})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 58})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3637,7 +3647,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 55,
+        "failure-reachable": 14, "proven-unreachable": 58,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

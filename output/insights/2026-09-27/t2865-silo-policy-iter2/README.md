@@ -110,3 +110,8 @@ runner `tools/run_tests.py --force-dispatch orchestrator/tests/test_silo_functio
 - 方策 loop を Pegasus で複数 iteration 回すための、job をまたぐ同じ loop campaign の claim の扱い (driver 設計、one-shot の claim leaf は不変)。これが解けるまで、Pegasus の方策系列は 1 campaign あたり評価 1 本。
 - iteration 3 の proposal (`verbatim/llm/prop-3.json`、critic の推奨 A の切り分け候補) は未評価。R2 (別 campaign) で測ると同じ job の stock 対照が付かず loop も進まないので、本 wave では測っていない。
 - [T-2870] (role・固定文面の改訂、ユーザー承認待ち) は触っていない。auditor の出力形は prompt の明記で 2 回とも 1 回目で gate を通った。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-iter2/trees/b` と `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-stage-f/trees/e2e` は、2026-09-30 の掃除 wave で回収せずに撤去する。値は本文に転記済み、`e2e` の campaign 原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260927/` (manifest `t2865-stage-f-originals`) にある。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
