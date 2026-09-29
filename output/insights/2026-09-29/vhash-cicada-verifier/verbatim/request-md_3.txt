@@ -1,0 +1,41 @@
+md_3: Cicada を izanagi の正しさ検査器に通せるようにする
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「Cicada に検査用トレースを足し」を含む item を grep して自分の対象とする (T 番号は固定しない。見つからなければ親セッションの登録がまだ main に無いだけなので、段 9 の main 取り込みの後にもう一度探し、それでも無いときだけ新規 item として登録する)。
+完了・更新の fragment にはその時点の実番号を書く。
+
+
+■ 目的
+VHash / forwarding の試作は timestamp を動かす変更で、serializability を壊す誤りが最も入りやすい。
+絶対規律 2 の正しさゲートを Cicada に対して働かせるため、Cicada の実行履歴を検査器で検査できるようにする。
+2026-09-29 時点で cc/cicada/ に TRACE の文字列は無く、orchestrator/verifier/ に cicada の文字列も無い。
+
+■ やること
+1. 過去の計画と裁定を読む: docs/phase3.md のクロスプロトコル対応 (Group C = Cicada)、output/insights/2026-08-20_tictoc-cicada-cross-protocol-task-definition.md の §6 (Cicada の技術構造)、D14 (#if TRACE の契約)、D16 (trace-hook の置き場。一回限りの試作例外が既に使われたかを decisions.md と patches/ で確かめる)。置き場の判断は段 4 で根拠を添えて決める。submodule の gitlink は動かさない。
+2. 多版の履歴をどう表すかを決める: Cicada の版の識別 (wts など)、読んだ版と書いた版、commit / abort、PENDING の確定待ち。既存の SI 用トレース (patches/instr-si-trace-v2.patch) と検査器の多版の扱いを先に読み、流用できるところは流用する。
+3. Cicada 用のトレース (#if TRACE で完全に除去される、D14) と、検査器側の読み込みを実装する (Codex author)。
+4. 正例・負例をそろえる:
+   - 負例 (通るべき): stock Cicada の小さい走行が anomaly 0 で通る。
+   - 正例 (落ちるべき): わざと壊した Cicada の patch を 2 本以上 (例: rts を更新しない、version consistency check を飛ばす、古い版を読んだまま commit させる) 用意し、検査器が anomaly を検出して理由 (どの transaction 間のどの依存か) を構造化して返すことを確かめる。壊した patch は patches/broken-cicada-*.patch に置き、既定で重ならない。
+   - 正例は実際に壊れた経路を名指しし、検査器がその経路を通って赤になることを確かめる (性質だけの stub で緑にしない)。
+5. trace を外したビルドで、trace 入りの差分が命令列に残らないことを確かめる (絶対規律 1)。
+
+■ 成果物
+- patches/ の trace patch・壊した patch と ledger の entry、orchestrator/verifier/ の変更とテスト。
+- 一次資料: output/insights/<着手日>/vhash-cicada-verifier/README.md (設計、正例・負例の結果、未対応の範囲 = 範囲読み取り・挿入・削除など)。
+- spool fragment (対象 item を完了または更新。置き場の判断に D が要れば decisions fragment も)。
+
+■ 所有
+patches/instr-cicada-trace*.patch と patches/broken-cicada-*.patch の新規 file、patches/ledger.json と patches/README.md の自分の entry、orchestrator/verifier/ とそのテスト、自分の一次資料と fragment。
+Cicada の診断計器 (md_2) と forwarding variant (md_6) は作らない。
+
+■ scope 外
+forwarding の実装。性能計測。
+
+■ 注意
+- 正しさゲートを緩める変更はしない。検査器の既存の protocol (silo・si・mocc 等) の判定を変えない。
+- テストは全体 5 分の上限を守り、数分かかるテストを足さない。
+- 正しさの防壁に触る wave なので、軽量版でも段 3 の相談と段 6 の review は省かない。
+- 計算ノードの使用は 2 node 時間未満。

@@ -1,0 +1,546 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "S10",
+  "protocol": "v1",
+  "faults": [
+    "U6"
+  ],
+  "o1": true,
+  "bounds": {
+    "keys": 2,
+    "transactions": 2,
+    "operations_per_transaction": {
+      "T": 3,
+      "W": 2
+    },
+    "versions_per_key": {
+      "A": 1,
+      "B": 2
+    },
+    "K": 1,
+    "timestamps": [
+      10,
+      11,
+      15,
+      20,
+      25
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B11",
+        "key": "B",
+        "wts": 11,
+        "rts": 11,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B25",
+        "key": "B",
+        "wts": 25,
+        "rts": 25,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 15,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "B"
+          ]
+        ],
+        "cand_ts": 15,
+        "gc_floor": 15,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "W",
+        "start": 20,
+        "ops": [
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 20,
+        "gc_floor": 20,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 9959,
+    "terminal": 21,
+    "deadlock": 0,
+    "seconds": 0.42085471199970925,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": {
+      "cycle": [
+        "T",
+        "W",
+        "T"
+      ],
+      "edges": [
+        {
+          "from": "T",
+          "to": "W",
+          "kind": "rw",
+          "key": "A",
+          "version": "A10"
+        },
+        {
+          "from": "W",
+          "to": "T",
+          "kind": "rw",
+          "key": "B",
+          "version": "B25"
+        }
+      ]
+    },
+    "J2": {
+      "txn": "T",
+      "key": "A",
+      "actual": "A10",
+      "expected": "W:A"
+    },
+    "J3": null
+  },
+  "counterexample": {
+    "judge": "J1",
+    "reason": {
+      "cycle": [
+        "T",
+        "W",
+        "T"
+      ],
+      "edges": [
+        {
+          "from": "T",
+          "to": "W",
+          "kind": "rw",
+          "key": "A",
+          "version": "A10"
+        },
+        {
+          "from": "W",
+          "to": "T",
+          "kind": "rw",
+          "key": "B",
+          "version": "B25"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "publish_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "install",
+        "version": "W:A",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "installed",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_rts",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validate_read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "write_rts_check",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_rts",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_check",
+        "version": "A10",
+        "fault": "U6"
+      },
+      {
+        "thread": "T",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "publish_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "install",
+        "version": "T:B",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "installed",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validation_rts",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validate_read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "validation_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "write_rts_check",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "writes_checked",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "decide_committed",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "writes_checked",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "decide_committed",
+        "version": "",
+        "fault": "",
+        "reason": {
+          "cycle": [
+            "T",
+            "W",
+            "T"
+          ],
+          "edges": [
+            {
+              "from": "T",
+              "to": "W",
+              "kind": "rw",
+              "key": "A",
+              "version": "A10"
+            },
+            {
+              "from": "W",
+              "to": "T",
+              "kind": "rw",
+              "key": "B",
+              "version": "B25"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "violation_kinds": {
+    "J1": [
+      "violation"
+    ],
+    "J2": [
+      "violation"
+    ],
+    "J3": []
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "publish_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "install",
+        "version": "W:A",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": null
+}

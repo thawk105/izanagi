@@ -1,0 +1,148 @@
+diff --git a/cc/cicada/include/cicada_op_element.hh b/cc/cicada/include/cicada_op_element.hh
+--- a/cc/cicada/include/cicada_op_element.hh
++++ b/cc/cicada/include/cicada_op_element.hh
+@@ -9,12 +9,23 @@
+ public:
+   using OpElement<T>::OpElement;
+ 
++#if TRACE
++  // Captured with its read-set element; vector moves preserve correspondence.
++  uint64_t trace_read_wts_;
++#else
++#line 11
++#endif
+   Version *later_ver_, *ver_;
+ 
+   ReadElement(Storage s, std::string_view key, T* rcdptr, Version* later_ver,
+               Version* ver)
+       : OpElement<T>::OpElement(s, key, rcdptr) {
+     later_ver_ = later_ver;
++#if TRACE
++    trace_read_wts_ = ver->ldAcqWts();
++#else
++#line 17
++#endif
+     ver_ = ver;
+   }
+ 
+diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -35,6 +35,20 @@
+ 
+ class TxScanCallback;
+ 
++#if TRACE
++#include "../../../include/trace.hh"
++namespace cicada_trace {
++inline std::atomic<uint64_t> initial_wts{0};
++inline std::atomic<bool> initial_wts_set{false};
++inline std::atomic<uint64_t> read_wts_mismatch{0};
++inline void report() {
++  std::cerr << "CICADA_TRACE_READ_WTS_MISMATCH n="
++            << read_wts_mismatch.load(std::memory_order_relaxed) << '\n';
++}
++}  // namespace cicada_trace
++#else
++#line 37
++#endif
+ class TxExecutor {
+ public:
+   TransactionStatus status_ = TransactionStatus::invalid;
+@@ -198,6 +212,11 @@
+ 
+ #if INLINE_VERSION_OPT
+ #if INLINE_VERSION_PROMOTION
++#if TRACE
++#error "Cicada TRACE cannot observe writes from inline version promotion"
++#else
++#line 200
++#endif
+   void inlineVersionPromotion(Storage s, std::string_view key, Tuple* tuple,
+                               Version* later_ver, Version* ver) {
+     if (ver != &(tuple->inline_ver_) &&
+@@ -244,6 +263,39 @@
+     return new Version(0, this->wts_.ts_, std::move(body));
+   }
+ 
++#if TRACE
++  void traceCommit() {
++    if (!cicada_trace::initial_wts_set.load(std::memory_order_acquire)) {
++      std::fputs("CICADA_TRACE_INITIAL_WTS unset\n", stderr);
++      std::abort();
++    }
++    const uint64_t txid = izanagi_trace::next_txid();
++    const std::size_t thid = static_cast<std::size_t>(thid_);
++    const uint64_t wts = wts_.ts_;
++    izanagi_trace::stream(thid) << "C " << txid << ' ' << thid << ' '
++        << (wts >> 32) << ' ' << (wts & 0xffffffffULL) << ' '
++        << read_set_.size() << ' ' << write_set_.size() << '\n';
++    for (const auto& re : read_set_) {
++      if (re.trace_read_wts_ != re.ver_->ldAcqWts())
++        cicada_trace::read_wts_mismatch.fetch_add(1, std::memory_order_relaxed);
++      const uint64_t seen = re.trace_read_wts_;
++      const bool genesis =
++          seen == cicada_trace::initial_wts.load(std::memory_order_acquire);
++      izanagi_trace::emit_read(thid, txid, izanagi_trace::key_to_hex(re.key_),
++                              genesis ? 1 : (seen >> 32),
++                              genesis ? 0 : (seen & 0xffffffffULL));
++    }
++    for (const auto& we : write_set_) {
++      const char op = we.op_ == OpType::INSERT ? 'I' :
++                      we.op_ == OpType::DELETE ? 'D' : 'U';
++      izanagi_trace::emit_write(thid, txid, izanagi_trace::key_to_hex(we.key_),
++                                op, wts >> 32, wts & 0xffffffffULL);
++    }
++    izanagi_trace::stream(thid) << "E " << txid << '\n';
++  }
++#else
++#line 246
++#endif
+   bool precheckInValidation() {
+     // Two optimizations can add unnecessary overhead under low contention
+     // because they do not improve the performance of uncontended workloads.
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -907,6 +907,11 @@
+   if (FLAGS_p_wal) pwal();
+   if (FLAGS_s_wal) swal();*/
+ 
++#if TRACE
++  traceCommit();
++#else
++#line 909
++#endif
+   this->wts_.set_clockBoost(0);
+   read_set_.clear();
+   write_set_.clear();
+@@ -932,6 +937,11 @@
+    * and does not track or validate the read set; 
+    */
+   if (this->is_ronly_) {
++#if TRACE
++    traceCommit();
++#else
++#line 934
++#endif
+     read_set_.clear();
+     node_map_.clear();
+     return true;
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -27,6 +27,14 @@
+   YcsbWorkload::displayWorkloadParameter();
+   TupleInitParam* param = new TupleInitParam();
+   YcsbWorkload::makeDB<Tuple, TupleInitParam>(param);
++#if TRACE
++  cicada_trace::initial_wts.store(param->initial_wts, std::memory_order_release);
++  cicada_trace::initial_wts_set.store(true, std::memory_order_release);
++  std::cerr << "CICADA_TRACE_INITIAL_WTS=" << param->initial_wts << '\n';
++  std::atexit(cicada_trace::report);
++#else
++#line 29
++#endif
+   MinWts.store(param->initial_wts + 2, memory_order_release);
+ 
+   initResult(TotalThreadNum);

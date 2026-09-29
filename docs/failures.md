@@ -9254,6 +9254,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `DW-O26` は「private symbol は consumer 表に出ないので symbol 名で production を grep する」と既に書いており、親がこの symbol で consumer test を grep しなかった
   (手順は在ったが適用しなかった)。焦点走 1 回目では同じ型の `_PreparedEvaluation` の直接構築 fixture 11 件を捕えていたので、同じ差分の別 private symbol へ grep を広げていれば受入前に出た。
   帰属判定と対処は `output/insights/2026-09-27/t2866-tpcc-campaign-wiring/README.md` §1 (payload への追加を取り下げて閉じた)。
+
+- **再発: 2026-09-29** (dev-wave-vhash-forwarding-model)。`tools/` に新 package (production file) と新 test file を足したのに、親の焦点走を新 test file と `test_pytest_collection_config.py` だけにし、`DW-O26` が名指す inventory test (`test_official_perf_closure.py`) と file 集合列挙のメタテスト (`test_plain_runner_coverage.py`) を含めなかった。段 6 の静的レビュー 2 本・焦点再レビュー 2 巡・docs レビューはどれも気づかず、受入全走の初回で赤 2 件 (探索の打ち切り判定の `perf_counter` が性能計測の述語として検出、test file に自走 harness が無い) が出て、fix 1 巡と受入 1 回を余分に使った。恒久対応は既存の `DW-O26` のとおりで、親は焦点走の file 集合を作る前に同節の 4 群とメタテストを列挙する。
 ### F243. 凍結表を共有する変異は超過検出になり単独帰属しない [テスト代表性]
 
 - 事象: [T-866] の変異本走で M7 (retry 表の変異) が MISMATCH。変異は KILLED されたが、
@@ -22200,6 +22202,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-11** — A-1実装waveのcampaign関連走で46件が/tmp/.gitにより出力先をrepo内と判定して赤になった。directoryは他者所有で非接触とし、Git祖先のない専用TMPDIRとrun_tests.pyの実行場所判定で再実行した。request991839の子は414passed/3skipped。親の取消要求はPRRで見送られinfra終了したため、子の終端・request hash・source cleanを確認してversioned/旧形式の両holdを解除した。記録はoutput/insights/2026-09-11/t2397-a1-attempt4/README.md。
+
+- **再発: 2026-09-29** — [T-2871] の変異 probe を login の実 pytest (`tools/run_tests.py` の自動判定) で走らせたところ、`/tmp` の空の `.git` のために `/tmp` 下の tmp_path が「repository 内」と判定され、結合検査 3 本が `IZANAGI_EXPLORATION_OUTPUT_ROOT は repository 外でなければならない` で偽赤になった (同じ test は同日 04 時台の wave worktree からの login 走では緑、偽赤は 05 時台の変異用 clone からの走行)。`--basetemp` を job dir 下に置いて解いた (`output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §4)。
 ### F764. 閉包 member を未 commit のまま検査すると全域が drift で赤になる [手順漏れ]
 
 - 事象: [T-2061] wave で `orchestrator/campaign/artifact_admission.py` を編集した直後の焦点走が
@@ -28561,3 +28565,43 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 生死確認の使い捨て driver は `git archive` で source を取り出すだけで tree 照合をしておらず、gitlink の有無を観測していなかった (単位 11 の probe は gitlink を照合から除外して記録していた)。親は「生死確認の全段が成立した」ことを、その driver が測っていない性質にまで広げて裁定の根拠に書いた。
 - 恒久対応: 裁定・brief に「実測で問題なし」と書く前に、その実測が当の性質を観測したかを確かめる (観測していなければ「未実測」と書き、既存 probe の扱いを引く)。memory `ruling-cites-only-observed-properties`。検査器側は D2275 項 5 で gitlink を照合から除外し旧新一致を確かめる形に改めた。記録 = `output/insights/2026-09-27/t2854-d297-header-v2/README.md` §5.3。
 - 再発検知: 実構成の判定 job が source 照合で止まる (fail-closed)。裁定の「問題なし」は根拠の実測 ID と観測項目を併記させる。
+
+### F1056. izanagi が CCBench に作った branch が CCBench の CI の format で落ち続け、現 pin もその状態だった [手順漏れ]
+
+- 事象: GitHub の CCBench の Actions で、izanagi が push した branch `izanagi-mocc-pin-e9e477ca` (e9e477ca、2026-09-20)・`izanagi-mocc-xp-instrumentation` (C `681066606`、現 pin、2026-09-21)・`izanagi-tpcc-v3-trace` (a6f2c7410、2026-09-22) は、どれも build は success、format (`.github/workflows/format.yml`、clang-format 14 の `--dry-run --Werror`) は failure だった。手元の clang-format 14 で C2' の変える 4 file を測ると、違反は C の時点で `cc/mocc/transaction.cc` 26・`cc/silo/transaction.cc` 17・`include/trace.hh` 3。ユーザーは第 39 回の裁定で「あなたの仕事はのちにCI落ちしたりしていた。CCBench CIが通る品質を意識してください」と指摘した。
+- 根本原因: CCBench への変更の検査を izanagi 側の検査 (TRACE=0 の前処理・逆アセンブルの一致、D297、計算ノードでの build・trace の確認) に限り、上流の CI の 2 本 (build・format) を通すことを手順に入れていなかった。format は CI でしか落ちないので、push 後の失敗が誰にも読まれず pin まで進んだ。
+- 恒久対応: D2277 項 1・2 (pin を進める先は CCBench の CI が緑の tip に限る、CCBench の変更は build と format を CI と同じ手順で通す)。memory `ccbench-changes-must-pass-upstream-ci`。
+- 再発検知: pin 前進 wave が GitHub の CI の結果 (build・format) を gitlink 更新の前に確かめる (D2277 項 1 (3))。
+
+### F1057. DBLP 検索 API が bot 判定の HTML を HTTP 200 で返し、0 件の検索に見えかけた [手順漏れ]
+
+- 事象: 2026-09-29、Pegasus login node から DBLP publ search API (`https://dblp.org/search/publ/api?...&format=json`) へ送った
+  事前登録済みの 12 本が、全て HTTP 200・`content-type: text/html` の bot 判定ページ (7,441 bytes、題 "Making sure you're not a bot!") を返した。
+  JSON として読めずに気づき、結果を 1 件も判定せず走行無効とした。子エージェントの WebFetch でも dblp.org・dblp.dagstuhl.de が同じページを返した。
+  記録は `output/insights/2026-09-29/vhash-related-work/README.md` §10.1。
+- 根本原因: DBLP 側が自動取得に challenge を返すようになった。HTTP の状態コードだけでは取得の成否を判定できない。
+  `docs/related-work/README.md` 7.7.4 は登録母集合検索 (RW3) の最小索引に DBLP を含めるため、この状態が続く限り RW3 は DBLP 枝で完走できない。
+- 恒久対応: memory `dblp-api-bot-challenge-http200` (取得の成否は content-type と JSON の構造で判定し、状態コードで判定しない。
+  DBLP 枝が取れないときは使えなかった索引として記録し、黙って母集合から外さない)。
+- 再発検知: 応答本文を JSON として読む段で失敗する (content-type が `text/html`)。件数 0 を「未検出」と読む前に `result.hits.@total` の実在を確かめる。
+
+### F1058. 壊し patch の帰属診断を先頭 N 件で打ち切り、判定器が報告する代表 witness と作りとして重ならなかった [変異帰属] [誤前提]
+
+- 事象: 2026-09-29 の Cicada 正例の本走 1 回目 (一次資料 `output/insights/2026-09-29/vhash-cicada-verifier/README.md` §4) で、壊し 3 本とも non-serializable (巡回 7,766 / 1,292 / 2,279) だったのに、事前登録の帰属規則を満たす witness が 3 本とも 0 件で「検出したが帰属不能」になった。判定器は巡回 (SCC) のうち代表 20 件だけを witness として出し (`notes`: `N cycles (SCCs) found; reporting 20 witnesses`、走行の終盤の txid)、壊し patch は事象を thread あたり先頭 200 件 (走行の序盤) で打ち切っていた。帰属規則は変えず、事象を全件出すよう直して再走し、3 本とも代表 20 件中 20 件が帰属した。計算ノード 2 job 分と fix 1 巡を失った。成果物への影響なし (記録前)。
+- 根本原因: 帰属を「判定器の witness と診断事象の突き合わせ」で設計したのに、判定器が witness を上限つきで選ぶことと、診断の標本窓がどこに落ちるかを突き合わせなかった。段 4 の事前登録で出力量を抑える上限 (200 件) を先に決め、上限と witness 選択の位置関係を検査しなかった。
+- 恒久対応: memory `attribution-diagnostics-must-cover-verifier-witness-window` (帰属の診断は全件出すか、判定器の witness の txn から逆に引ける形にし、標本を打ち切るなら打ち切り窓が witness を含むことを事前に確かめる)。判定器の witness 上限は `orchestrator/verifier/` の既定で、変えていない。
+- 再発検知: 帰属解析の自己検査に「witness の txn が事象列の後半にあるケース」を置く (今回の起動器の fix で足した、旧実装なら帰属 0・新実装なら 1 以上)。
+
+### F1059. 結合検査の代役を兄弟 driver の fixture から写し、対象 driver の production の流れ (checkout 回数・評価回数・patch の巻き戻し) と食い違ったまま焦点走 3 巡で 1 つずつ露見した [テスト代表性] [手順漏れ]
+
+- 事象: [T-2871] の結合検査 (方策 loop driver `main` を別 process で 2 回、実 claim・reservation・admission・auditor gate を通す) で、実装子が backoff 軸の pair fixture (`orchestrator/tests/test_p3_s4_loop.py` の 2 checkout・arm ごとの bench 台本) を写した。方策 driver は 1 checkout で候補 → stock を評価し、production の `patchharness.checkout` は process ごとに新しい隔離 worktree を作り、`applied` は抜けるときに source を戻す。代役がこれらを省いたため、焦点走 4・5 回目で実 admission (stock に非 STOCK の evidence)・模擬 bench 台本の枯渇・実 auditor gate (強制終了した候補の書込み残りで digest 不一致) が 1 巡に 1 つずつ正しく拒否し、fix が 3 巡 (fix-2〜4) かかった。偽緑ではなく赤で露見した。
+- 根本原因: 実装子への prompt が対象 driver の production の流れ (checkout の回数と寿命、1 checkout あたりの評価回数、patch 適用の巻き戻し) を明示せず、「手本」として兄弟 driver の fixture を指した。兄弟 driver は同じ機構を検査していても流れが違う。
+- 恒久対応: memory `test-double-must-follow-target-driver-flow` (結合検査を頼む prompt に対象 driver の production の流れを file:line で書き、兄弟 fixture を写すなら差分を列挙させる。代役の反復は login の `tools/run_tests.py <file> -k <pattern>` で回し、`--basetemp` を `/tmp` の外に置く)。記録 `output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §3。
+- 再発検知: 焦点走の赤が admission・auditor gate・模擬 pipeline の前提違いで出たら、まず代役と production の流れの差を列挙する。
+
+### F1060. 小モデル検査器が時刻の一意性を初期状態でしか検査せず、並行 forwarding の同時刻選択による偽の反例を出した [恒真ゲート]
+
+- 事象: VHash の選択的 forwarding の小モデル (`tools/vhash_forwarding_model/`) で、v1+O1 が場面 S10 で閉路反例 (39 step) を出し、段 6 の fix 報告は「O1 は安全でない」と読める結果を返した。親が反例列を読むと、T と W が forwarding 後にともに時刻 26 を使っていた。一次資料に載せる前に発見した (near miss)。
+- 根本原因: 空き時刻の計算が、他 txn が forwarding 候補として選んでまだ確定していない時刻を「使用中」に数えなかった。時刻の一意性 (仕様 R1) は `State` の生成時に初期版と開始時刻だけで assert しており、到達状態では検査していなかった。初期状態で成り立つ不変条件を、並行して値を選ぶ操作のあるモデルで全状態の保証と見なした。
+- 恒久対応: 空き時刻の計算に候補時刻を含め、探索器が全到達状態で `check_timestamp_uniqueness` を実行して破れたら例外で止める (`tools/vhash_forwarding_model/model.py`)。旧挙動で発火することを `orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness` が固定し、検査を外す変異 MU10b がこの test で KILLED になることを確かめた (`output/insights/2026-09-29/vhash-forwarding-model/README.md` §8・§9)。D2282 の決定 5 (「反例なし」は範囲付きでのみ書く) と合わせ、反例は列の中身 (時刻と持ち主) を読んでから結論にする。
+- 再発検知: 探索中の `TimestampCollisionError` (fail-closed)。モデル検査器を新設する wave は、仕様の不変条件を初期状態の assert でなく全到達状態の検査として実装しているかを段 6 レビューのレンズに入れる。

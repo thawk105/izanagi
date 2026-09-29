@@ -1,0 +1,258 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "S3",
+  "protocol": "v1",
+  "faults": [
+    "U3a"
+  ],
+  "o1": false,
+  "bounds": {
+    "keys": 2,
+    "transactions": 1,
+    "operations_per_transaction": {
+      "T": 2
+    },
+    "versions_per_key": {
+      "B": 2,
+      "A": 3
+    },
+    "K": 1,
+    "timestamps": [
+      10,
+      20,
+      40,
+      45,
+      55,
+      60
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "A20",
+        "key": "A",
+        "wts": 20,
+        "rts": 20,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "A55",
+        "key": "A",
+        "wts": 55,
+        "rts": 55,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B40",
+        "key": "B",
+        "wts": 40,
+        "rts": 40,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B60",
+        "key": "B",
+        "wts": 60,
+        "rts": 60,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 45,
+        "ops": [
+          [
+            "R",
+            "B"
+          ],
+          [
+            "R",
+            "A"
+          ]
+        ],
+        "cand_ts": 45,
+        "gc_floor": 45,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 212,
+    "terminal": 1,
+    "deadlock": 0,
+    "seconds": 0.00912507299653953,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": {
+      "version": "A20",
+      "txn": "T",
+      "reason": "future_read",
+      "cand_ts": 45,
+      "gc_step": "reclaim"
+    }
+  },
+  "counterexample": {
+    "judge": "J3",
+    "reason": {
+      "version": "A20",
+      "txn": "T",
+      "reason": "future_read",
+      "cand_ts": 45,
+      "gc_step": "reclaim"
+    },
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "forward_candidate",
+        "version": "B40",
+        "fault": "U3a"
+      },
+      {
+        "thread": "GC",
+        "operation": "read_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "reclaim",
+        "version": "A20",
+        "fault": "",
+        "reason": {
+          "version": "A20",
+          "txn": "T",
+          "reason": "future_read",
+          "cand_ts": 45,
+          "gc_step": "reclaim"
+        }
+      }
+    ]
+  },
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": [
+      "future_read"
+    ]
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "forward_candidate",
+        "version": "B40",
+        "fault": "U3a"
+      },
+      {
+        "thread": "T",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "read_floor",
+        "version": "",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "forward_candidate",
+        "version": "B40",
+        "fault": "U3a"
+      },
+      {
+        "thread": "T",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "read_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "reclaim",
+        "version": "A20",
+        "fault": ""
+      }
+    ]
+  }
+}

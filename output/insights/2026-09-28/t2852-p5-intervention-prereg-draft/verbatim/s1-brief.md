@@ -1,0 +1,21 @@
+# [T-2852] 段 1 brief (親、2026-09-28 JST、起点 local main 51f896352)
+
+- 研究前進: VLDB EA&B の中心命題「空間の構造・検証費・転移が LLM / 非 LLM の探索の有効性をどう決めるか」の「なぜ」の節 (差分分析 §4 P5) の実験を、結果を見る前に規則として固定する草稿と、試走 v2 の実測単価による見積りを出す。完了判定 = 草稿 (docs、未発効) + 起草 insight (見積りの計算・既知結果・未解決事項) + ユーザー確認の束。計算投入 0。
+- scope: 草稿 1 本 `docs/workload-description-critic-intervention-preregistration.md` (新規、未発効)、insight `output/insights/2026-09-28/t2852-p5-intervention-prereg-draft/`、docs/README.md の地図 1 項、worklog / decisions fragment。**実装面の変更 0** (段 5 なし)。gate・検査・台帳・一般化の追加は scope 外 (依頼の明示)。
+- 確定済み裁定: D2212 項 4 (2 node 時間以上は都度確認・LLM 直列時間を併記・一括承認しない)、D2265 (Q = {S1-wh}、試走 v2 の実測値、案 (a) 設計しない)、D2272 項 2 (T-2850 本比較は今は投入しない。理由 3 点)、D2273 (planner prompt の axis 固定文、T-2850 本比較には適用しない)、D2220 / 基盤設計 (K0 構成、R0)、転移登録 §3.1 (留保条件を生成・選択に使わない)、D2259 (値 1 個での LLM 対照は査読の決め手になりにくい)。
+- 実測した前提 (worktree の現物):
+  - workload の記述が LLM へ届く経路は 3 つ: coder 文脈の Measurement Setup `rr{rratio} ({workload})` (`tools/t2849_llm_round.py:51-53`)、critic 入力の `operating_point` (同 :210)、LLM 親の prompt (repo 外 glue `trial-v2/parents/header.md` ほか)。planner の入力には無い (同 :128-130)。錨 wh/bal/rh の違いは読み比率だけ (転移登録 §2.1)。
+  - critic を外す分岐は無い。評価 2 以降は診断が無いと例外で系列が止まる (`orchestrator/campaign/t2849_comparison_harness.py:444-446`)。
+  - verifier の構造化された失敗理由が planner・coder へ届く経路は critic 診断だけ (whiteboard は抽象 fail、事前拒否の列は分類名だけ、同 tool :118-133)。
+  - S1 の coder 出力は `double now_backoff = <数値>;` に固定され、他は backoff 文法で拒否 (`.claude/agents/coder-v4-autonomous.md:79-87`、`orchestrator/campaign/p3_s4_loop.py:879-906`)。受理された候補に機構の変更は構造上現れない。
+  - 試走 v2 (score 不読): LLM 系列 job Elapse 12,198 / 14,095 / 18,376 s、LLM 待ち 7,703〜13,904 s (中央 9,595)、機会 11〜14、block job 2,151〜2,359 s、anomaly 0、拒否は axis 名 6 件、s_llm 0.00708・s_plan 0.03894。
+  - 見積り (job dir `estimate_p5.py`): 6 cell × n block で n = 2〜4 は 48.2〜96.4 node 時間 (一次資料の 17〜34 の約 2.8 倍、LLM 待ちが node 時間の 66%)、LLM 直列 32.0〜64.0 時間。n = 2 は計画半幅 0.74 で分類不能。
+- (P1) 設計は 記述 3 水準 (正 = 現行 K0 / 伏せ = 錨を識別する field (読み比率と workload 名) だけを 3 経路とも伏せる / 入替 = rh の錨の値に 3 経路とも置き換える) × critic 2 水準 の 6 cell 要因配置、block ごとに各 cell 1 系列、族は主効果 3 対比 (正−伏せ・正−入替・critic 有−無)。親の provisional 裁定・攻撃対象。
+- (P2) critic 無しの cell は、critic 診断の代わりに verifier の構造化 digest を機械的に写した閉じた key を planner・coder へ渡し、失敗理由の返却を保つ (規律 3)。critic の LLM による解釈の有無だけを動かす。親の provisional 裁定・攻撃対象。
+- (P3) 全 6 cell は D2273 の修正を含む同じ新しい固定 commit で fresh に走らせ、試走 v2 の LLM 系列を標本に入れない。親の provisional 裁定・攻撃対象。
+- (P4) 主 outcome は事前登録と同じ E_B の score の対差 (同等幅 ln 1.03、Bonferroni M = 3)。副 outcome (記述)は提案値 ln v の分布 (特に最初の提案)、有効候補率、初到達時間、出力の人手分類。親の provisional 裁定・攻撃対象。
+- (P5) 出力の人手分類は cell を伏せた順序で 2 名が独立に行い一致度を報告、S1 では受理候補の「機構の変更」は構造上 0 で、文法等で拒否された出力の中の試みとして数える。親の provisional 裁定・攻撃対象。
+- 不変条件: 規律 2・3 (verifier・anomaly 即 reject・構造化失敗理由の返却は全 cell で不変)、規律 1 (trace-disabled 計測)、転移登録の留保条件を記述の入替先・生成・選択に使わない、score を起草に使わない (s と費用だけ)、本比較 (T-2850) の標本・規則を変えない。
+- 未解決事項として草稿に書く: D2272 項 2 の 3 理由 (S1 で分類が弱い / T-2869 / LLM 待ちが node 上) の本設計への効き方、課題が S1-wh 1 つで「成功・失敗を代表する課題」を課題の対比にできない点、S1 で機構の変更が構造上現れない点 (S3 = T-2867 軸で行う択一)、critic 無し・記述差し替えの実装が要る点。
+- 受入・実測環境: 計算 0。docs-only のため変異 matrix 免除 (差分ゼロ)。受入全走は D2212 項 4 の線 (2 node 時間) に触れない範囲で段 7 前に DW-S04 に従い実走する。記録は Pegasus login node。
+- 分割方針: 段 2 codex plan 1 本、段 3 codex 相談 2 本 (A 統計・事前登録適合 / B 実行可能性・規律・過剰)、段 5 なし、段 6 read-only review 1 本 (事実の再抽出)。
