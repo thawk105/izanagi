@@ -23327,6 +23327,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   'kind': 'update-no-fetch'}` を出し、submodule 自体は初期化済み (status 行頭の `-` が消えていた)、
   2 走目で `OK` rc=0。同 wave で後から作った 2 つ目の worktree (`…-scope-lift`、同一 commit) では
   1 走目で rc=0 だった。回数は固定ではないという既知の観測と整合する。
+
+- **再発: 2026-09-29** — dev-wave-vhash-forwarding-proof の wave 用 worktree で、`tools/dev_wave_submodule_init.py --worktree <ABS>` の 1 回目が **`ERROR: invalid-run: detail={'label': 'git', 'kind': 'timeout'}`** の rc=1 になった (本エントリの既載の再発はどれも `update-no-fetch` で、timeout を直接観測していなかった。今回は tool 自身が git の timeout を報告した)。2 回目は 57 秒かかって `runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}` の rc=1。その後 `git -c protocol.file.allow=always submodule update --init --recursive` を直接実行して rc=0 になったが、入れ子の googletest が未初期化 (`git submodule status --recursive` で `-`) のまま残り、同じ command の 2 回目で揃った。同時刻に別 session の `git worktree add` が 5 本並走し (load average 176)、本 wave の `git worktree add` 自体も 1 回目は checkout 中の `システムコール割り込み` (EINTR) で `fatal: cannot create directory` になって作り直した。既載の「`_GIT_TIMEOUT_S = 30` が submodule 段全体に配られ、高負荷の新規 worktree では収まらない」という候補と整合する観測である。恒久対応は引き続き未実施。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
@@ -23533,6 +23535,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   段 5 投入後だった。
 
 - **再発: 2026-09-27 (near miss)** — [T-2854] (1) の段 6 fix 1 の投げ文が「親の事前所見 parent-findings-s6.md (同じ dir)」と相対で書き、子は直前の行の `out/` 配下と解決して読めず、「読めなければ即停止」どおり 16 秒で止まった (fail-closed で実害は 1 往復)。全 path を絶対 path に直して再投入した。型 (親の投げ文の path 指定が子の解決先と食い違う) は同じで、F819 の初発では子が 0 byte のまま成功で戻った (fail-open) のに対し、今回は「読めなければ即停止」の定型で子が止まった (fail-closed)。DW-O02 の「絶対パスで読ませ」を親が 1 項目だけ守らなかった。
+
+- **再発: 2026-09-29** — [T-2854] pin 前進 (1)(2) の段 6 review の投げ文に、親が必読 path を相対 (`probe/line_macro_probe.log`) で書き足し、子が直前の `review/` からの相対と読んで存在しないため即停止した (rc=1、70 秒、6 call)。全 path を絶対化して再投入した。結末は fail-closed で、型 (親の投げ文の path が子の解決先と食い違う) は同じ。
 ### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
 
 - 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
@@ -28656,3 +28660,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 印字の実在を関数定義の grep で確かめ、呼出し側 (実行経路) を確かめなかった。`DW-O13` の「field の実在では足りない、実環境で取りうる値を実測」を、コード読みの段階で「実行経路に乗るか」まで当てなかった。
 - 恒久対応: memory `print-function-must-be-called-to-count`（印字・計測の関数は定義でなく呼出しを grep し、実行経路に乗ることを確かめてから照合の入力にする）。`docs/dev-wave/operations.md` の `DW-O13` (入力の実在は実環境の値で確かめる) の適用例。
 - 再発検知: binding や照合の入力を「stdout の行」「ログの行」にするとき、段 1 で呼出し元の file:line を brief に書けなければ未確認として扱う。
+
+### F1066. 親が段 4 の完了条件を、足させる変更自身が出力に現れる観測量で書き、実装子が不成立を実測して停止した [手順漏れ] [テスト代表性]
+
+- 事象: [T-2854] pin 前進 (1)(2) の段 4 裁定 R1 で、整形後に TRACE=0 の行番号を戻す `#line` を足させ、完了条件を「`-P` なしの前処理出力 (行番号マーカー込み) が C2' と byte 一致」と書いた。`#line` 自身が前処理出力に行番号マーカーを出すので、この条件は `#line` を足すかぎり原理的に成立しない。実装子 A は不成立を実測して規定どおり停止した (140 秒、9 call)。親が守るべき性質 (TRACE=0 で出力される各コード行の推定行番号の列) に直した追補を出し、続きの A2 で成立した。
+- 根本原因: 親は「行番号がずれないこと」を確かめる手段として、手元にあった行番号マーカーの byte 比較をそのまま完了条件にした。依頼する変更 (`#line` の追加) がその観測量を必ず変えることを確かめなかった。
+- 恒久対応: 完了条件を書く前に、依頼する変更自身がその観測量に現れないかを確かめ、守るべき性質そのもの (ここでは推定行番号の列、`__LINE__` の展開値) を観測量にする。性質の定義は参照実装つきで渡す (本 wave の `probe/presumed_lines.py`、insight `output/insights/2026-09-29/t2854-ccbench-format-ci/README.md` §5.2)。memory `completion-criterion-must-not-observe-own-change`。
+- 再発検知: 実装子が「完了条件が成立しない」と実測して停止する (fail-closed)。

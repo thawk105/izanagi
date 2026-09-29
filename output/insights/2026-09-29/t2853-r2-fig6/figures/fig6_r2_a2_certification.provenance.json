@@ -1,0 +1,761 @@
+{
+  "study": "paper-story-a2-certification",
+  "schema": "izanagi-a2-certification-figure-provenance/v1",
+  "generated_utc": "2026-09-29T06:12:12.200274+00:00",
+  "generator": {
+    "path": "tools/plotting/plot_a2_certification.py",
+    "sha256": "aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448"
+  },
+  "outputs": [
+    {
+      "path": "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/figure/fig6_r2_a2_certification.png",
+      "sha256": "376dada91f31f785dceac432d2323d2500f7d8726893cf398125541190d503ee"
+    },
+    {
+      "path": "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/figure/fig6_r2_a2_certification.pdf",
+      "sha256": "f00f786de44999008a8b2fa38b9c44d36f003e643f2fc1e010a6752fc07e5b24"
+    }
+  ],
+  "tracked_inputs": [
+    {
+      "kind": "certification",
+      "path": "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json",
+      "sha256": "89934470746055dcd505cd542bf451016a03d7b30056d458f2e957927f2af034",
+      "authority_scope": "canonical frozen report bytes",
+      "schema": "paper-story-a2-certification-result/v4"
+    },
+    {
+      "kind": "raw_manifest",
+      "path": "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification/raw-manifest.json",
+      "sha256": "309188a98a1b083613e180094541f46fc3690ff43fb800fc0dd97c87c0e910b2",
+      "authority_scope": "canonical frozen report bytes",
+      "schema": "paper-story-a2-full-raw-manifest/v4"
+    }
+  ],
+  "external_source_locator": {
+    "root_at_generation": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2853r2-20260929a",
+    "validation_key": "root-relative-path-plus-sha256"
+  },
+  "external_inputs": [
+    {
+      "kind": "wal",
+      "workload": "rr5",
+      "campaign": "paper-story-a2-rr5-paper-story-a2-certification-rr5-c17205bd",
+      "path": "jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-c17205bd/runs/wal.jsonl",
+      "sha256": "c95d5ab65b8187dc7ce4be25b3a54b4fb48829c595868c21174ec250691295eb"
+    },
+    {
+      "kind": "wal",
+      "workload": "rr50",
+      "campaign": "paper-story-a2-rr50-paper-story-a2-certification-rr50-1c7e07eb",
+      "path": "jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-1c7e07eb/runs/wal.jsonl",
+      "sha256": "e7f350f329b681c8b45c3c49c46b1aba545bef2619faaf23544dbd5e6cb2091a"
+    },
+    {
+      "kind": "raw-cell",
+      "workload": "rr5",
+      "cell": "rr5-stock",
+      "path": "jobs/rr5/raw/rr5-stock.json",
+      "sha256": "fa75a6e6b7de3c0f5d529371d5a717fba2317be4d1ba93dcaf1623d726c15d97"
+    },
+    {
+      "kind": "raw-cell",
+      "workload": "rr5",
+      "cell": "rr5-fixed10",
+      "path": "jobs/rr5/raw/rr5-fixed10.json",
+      "sha256": "854a4de207bf90141cb8805fa308c12c37cad0c22b855f4c186d9851fbfbe735"
+    },
+    {
+      "kind": "raw-cell",
+      "workload": "rr50",
+      "cell": "rr50-stock",
+      "path": "jobs/rr50/raw/rr50-stock.json",
+      "sha256": "c66f5940e3fb075765bc84567d19ce96f33168f3d029c18f12f2056a0362d2ae"
+    },
+    {
+      "kind": "raw-cell",
+      "workload": "rr50",
+      "cell": "rr50-fixed5",
+      "path": "jobs/rr50/raw/rr50-fixed5.json",
+      "sha256": "6bca9ee09359ec15883d5c50af8e82d8db9903057e533c4478ec730b524fe732"
+    },
+    {
+      "kind": "campaign-lock",
+      "workload": "rr5",
+      "path": "jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-c17205bd/campaign.lock",
+      "sha256": "4066d0fe1f367748e37c3b9831808e7a290587bad4fa6325789779fd9b319a3c"
+    },
+    {
+      "kind": "campaign-claim",
+      "workload": "rr5",
+      "path": "jobs/rr5/env/pegasus/claims/paper-story-a2-rr5-paper-story-a2-certification-rr5-c17205bd.claim",
+      "sha256": "9d3e0e5d3dcf40f01294ea1b4c250c65821e5a3d5dbcd71b480dcc25e19c8afe"
+    },
+    {
+      "kind": "condition-receipt",
+      "workload": "rr5",
+      "path": "receipts/condition-gate-rr5.admissions.jsonl",
+      "sha256": "825b1f228bb16d75090286961f8d270c3385571400d2c7d54f942e54f58a8abd"
+    },
+    {
+      "kind": "campaign-lock",
+      "workload": "rr50",
+      "path": "jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-1c7e07eb/campaign.lock",
+      "sha256": "2d7620f47c36d169398c1eea1e28bca0331a8f88045d6b08d0a134d39cc7ee4d"
+    },
+    {
+      "kind": "campaign-claim",
+      "workload": "rr50",
+      "path": "jobs/rr50/env/pegasus/claims/paper-story-a2-rr50-paper-story-a2-certification-rr50-1c7e07eb.claim",
+      "sha256": "51ba5fca93c852f04013ff98bc21248720cc8a2abf278aa3b3c350b4742cabeb"
+    },
+    {
+      "kind": "condition-receipt",
+      "workload": "rr50",
+      "path": "receipts/condition-gate-rr50.admissions.jsonl",
+      "sha256": "4cefe1d76992b5e7be0d45dfae7995300b51bc1ebe34fc9c5ea6fe08e84ec628"
+    }
+  ],
+  "measurement_conditions": {
+    "attempt": "t2853r2-20260929a",
+    "protocol_sha256": "d99f08bcc50c605d24d443d387a2c3144c16b9e670c9b9e247227c5db1be7f9c",
+    "izanagi_source_commit": "035fc11fa601547f5d68e54f5661c5daa70b93a5",
+    "ccbench_pin": "6810666",
+    "threads": 48,
+    "records": 1000000,
+    "reps": 5,
+    "extime": 3,
+    "zipf_skew": "0.9",
+    "rmw": "0",
+    "max_ope": "10",
+    "trace_disabled_performance": true,
+    "perf_used": false,
+    "environment": "pegasus",
+    "toolchain": {
+      "cc": {
+        "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+        "requested": "gcc",
+        "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+      },
+      "cmake": {
+        "realpath": "/usr/bin/cmake",
+        "requested": "cmake",
+        "version_first_line": "cmake version 3.22.1"
+      },
+      "cxx": {
+        "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+        "requested": "g++",
+        "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+      }
+    },
+    "workloads": [
+      {
+        "id": "rr5",
+        "label": "write-heavy",
+        "rratio": "5",
+        "host": "bnode104",
+        "request_id": "35310.nqsv",
+        "campaign_id": "paper-story-a2-rr5-paper-story-a2-certification-rr5-c17205bd",
+        "created_utc": "2026-09-29T06:00:17.909493+00:00"
+      },
+      {
+        "id": "rr50",
+        "label": "balanced",
+        "rratio": "50",
+        "host": "bnode084",
+        "request_id": "35327.nqsv",
+        "campaign_id": "paper-story-a2-rr50-paper-story-a2-certification-rr50-1c7e07eb",
+        "created_utc": "2026-09-29T06:01:00.688611+00:00"
+      }
+    ],
+    "artifact_profile": "current-full"
+  },
+  "cells": [
+    {
+      "workload": "rr5",
+      "role": "stock",
+      "cell_id": "rr5-stock",
+      "variant": "960e57e1aeba",
+      "build_attempt_id": "71271ae90f8834db52e9b60061b1342e",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "n": 5,
+      "samples_tps": [
+        2593574.0,
+        2372471.0,
+        2432681.0,
+        2405931.0,
+        2376790.0
+      ],
+      "median_tps": 2405931.0,
+      "mean_tps": 2436289.4,
+      "sample_stdev_tps": 91222.34536723993,
+      "ci95_half_tps": 113267.50207421197,
+      "cv": 0.03744314832517021,
+      "abort_rate": 0.788,
+      "raw_crosscheck": true,
+      "certification_crosscheck": true,
+      "workload_conditions": {
+        "extime": 3,
+        "records": 1000000,
+        "reps": 5,
+        "threads": 48,
+        "workload": {
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "5",
+          "ycsb_zipf_skew": "0.9"
+        }
+      },
+      "toolchain": {
+        "cc": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+          "requested": "gcc",
+          "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        },
+        "cmake": {
+          "realpath": "/usr/bin/cmake",
+          "requested": "cmake",
+          "version_first_line": "cmake version 3.22.1"
+        },
+        "cxx": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "requested": "g++",
+          "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        }
+      }
+    },
+    {
+      "workload": "rr5",
+      "role": "adopted",
+      "cell_id": "rr5-fixed10",
+      "variant": "ecad154a2cbf",
+      "build_attempt_id": "259f5eca6928a151c35df7d0339fc97e",
+      "genome": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1
+      },
+      "n": 5,
+      "samples_tps": [
+        4034712.0,
+        3968808.0,
+        3992528.0,
+        3979720.0,
+        3932153.0
+      ],
+      "median_tps": 3979720.0,
+      "mean_tps": 3981584.2,
+      "sample_stdev_tps": 37257.48231161091,
+      "ci95_half_tps": 46261.27445004091,
+      "cv": 0.009357451818201135,
+      "abort_rate": 0.3837,
+      "raw_crosscheck": true,
+      "certification_crosscheck": true,
+      "workload_conditions": {
+        "extime": 3,
+        "records": 1000000,
+        "reps": 5,
+        "threads": 48,
+        "workload": {
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "5",
+          "ycsb_zipf_skew": "0.9"
+        }
+      },
+      "toolchain": {
+        "cc": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+          "requested": "gcc",
+          "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        },
+        "cmake": {
+          "realpath": "/usr/bin/cmake",
+          "requested": "cmake",
+          "version_first_line": "cmake version 3.22.1"
+        },
+        "cxx": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "requested": "g++",
+          "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        }
+      }
+    },
+    {
+      "workload": "rr50",
+      "role": "stock",
+      "cell_id": "rr50-stock",
+      "variant": "960e57e1aeba",
+      "build_attempt_id": "2fe507893b46a1cfd40bb64fc7570baf",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "n": 5,
+      "samples_tps": [
+        4146812.0,
+        3813280.0,
+        3859091.0,
+        3806431.0,
+        3780253.0
+      ],
+      "median_tps": 3813280.0,
+      "mean_tps": 3881173.4,
+      "sample_stdev_tps": 151188.9260637167,
+      "ci95_half_tps": 187725.84642040814,
+      "cv": 0.038954437352300905,
+      "abort_rate": 0.684,
+      "raw_crosscheck": true,
+      "certification_crosscheck": true,
+      "workload_conditions": {
+        "extime": 3,
+        "records": 1000000,
+        "reps": 5,
+        "threads": 48,
+        "workload": {
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_zipf_skew": "0.9"
+        }
+      },
+      "toolchain": {
+        "cc": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+          "requested": "gcc",
+          "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        },
+        "cmake": {
+          "realpath": "/usr/bin/cmake",
+          "requested": "cmake",
+          "version_first_line": "cmake version 3.22.1"
+        },
+        "cxx": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "requested": "g++",
+          "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        }
+      }
+    },
+    {
+      "workload": "rr50",
+      "role": "adopted",
+      "cell_id": "rr50-fixed5",
+      "variant": "c48efb21ee4b",
+      "build_attempt_id": "fe207f0db397ac7f0bca591540df8390",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "n": 5,
+      "samples_tps": [
+        4409437.0,
+        4305015.0,
+        4338194.0,
+        4294395.0,
+        4299477.0
+      ],
+      "median_tps": 4305015.0,
+      "mean_tps": 4329303.6,
+      "sample_stdev_tps": 47954.59706639188,
+      "ci95_half_tps": 59543.49672570675,
+      "cv": 0.011076746169151058,
+      "abort_rate": 0.4623,
+      "raw_crosscheck": true,
+      "certification_crosscheck": true,
+      "workload_conditions": {
+        "extime": 3,
+        "records": 1000000,
+        "reps": 5,
+        "threads": 48,
+        "workload": {
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_zipf_skew": "0.9"
+        }
+      },
+      "toolchain": {
+        "cc": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+          "requested": "gcc",
+          "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        },
+        "cmake": {
+          "realpath": "/usr/bin/cmake",
+          "requested": "cmake",
+          "version_first_line": "cmake version 3.22.1"
+        },
+        "cxx": {
+          "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "requested": "g++",
+          "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+        }
+      }
+    }
+  ],
+  "artist_series": [
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "sample-points",
+      "label": "rr5-stock samples",
+      "x": 0,
+      "values_tps": [
+        2593574.0,
+        2372471.0,
+        2432681.0,
+        2405931.0,
+        2376790.0
+      ]
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "mean-ci95",
+      "label": "rr5-stock mean and t95 CI",
+      "x": 0,
+      "mean_tps": 2436289.4,
+      "ci95_half_tps": 113267.50207421197
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "median",
+      "label": "rr5-stock median",
+      "x": 0,
+      "value_tps": 2405931.0
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "abort-point",
+      "label": "rr5-stock abort rate",
+      "x": 0,
+      "value": 0.788
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-fixed10",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1
+      },
+      "kind": "sample-points",
+      "label": "rr5-fixed10 samples",
+      "x": 1,
+      "values_tps": [
+        4034712.0,
+        3968808.0,
+        3992528.0,
+        3979720.0,
+        3932153.0
+      ]
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-fixed10",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1
+      },
+      "kind": "mean-ci95",
+      "label": "rr5-fixed10 mean and t95 CI",
+      "x": 1,
+      "mean_tps": 3981584.2,
+      "ci95_half_tps": 46261.27445004091
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-fixed10",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1
+      },
+      "kind": "median",
+      "label": "rr5-fixed10 median",
+      "x": 1,
+      "value_tps": 3979720.0
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-fixed10",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1
+      },
+      "kind": "abort-point",
+      "label": "rr5-fixed10 abort rate",
+      "x": 1,
+      "value": 0.3837
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "baseline",
+      "label": "no-backoff median",
+      "value_tps": 2405931.0
+    },
+    {
+      "workload": "rr5",
+      "cell_id": "rr5-fixed10",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 10,
+        "BACK_OFF": 1
+      },
+      "kind": "effect-label",
+      "label": "65.4129%",
+      "value": 0.6541289006210069
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "sample-points",
+      "label": "rr50-stock samples",
+      "x": 0,
+      "values_tps": [
+        4146812.0,
+        3813280.0,
+        3859091.0,
+        3806431.0,
+        3780253.0
+      ]
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "mean-ci95",
+      "label": "rr50-stock mean and t95 CI",
+      "x": 0,
+      "mean_tps": 3881173.4,
+      "ci95_half_tps": 187725.84642040814
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "median",
+      "label": "rr50-stock median",
+      "x": 0,
+      "value_tps": 3813280.0
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "abort-point",
+      "label": "rr50-stock abort rate",
+      "x": 0,
+      "value": 0.684
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-fixed5",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "kind": "sample-points",
+      "label": "rr50-fixed5 samples",
+      "x": 1,
+      "values_tps": [
+        4409437.0,
+        4305015.0,
+        4338194.0,
+        4294395.0,
+        4299477.0
+      ]
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-fixed5",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "kind": "mean-ci95",
+      "label": "rr50-fixed5 mean and t95 CI",
+      "x": 1,
+      "mean_tps": 4329303.6,
+      "ci95_half_tps": 59543.49672570675
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-fixed5",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "kind": "median",
+      "label": "rr50-fixed5 median",
+      "x": 1,
+      "value_tps": 4305015.0
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-fixed5",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "kind": "abort-point",
+      "label": "rr50-fixed5 abort rate",
+      "x": 1,
+      "value": 0.4623
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-stock",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "kind": "baseline",
+      "label": "no-backoff median",
+      "value_tps": 3813280.0
+    },
+    {
+      "workload": "rr50",
+      "cell_id": "rr50-fixed5",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "kind": "effect-label",
+      "label": "12.8953%",
+      "value": 0.12895328955649732
+    }
+  ],
+  "outer_status": "observed-positive",
+  "effects": {
+    "rr5": 0.6541289006210069,
+    "rr50": 0.12895328955649732
+  },
+  "effect_crosschecks": {
+    "rr5": {
+      "computed": 0.6541289006210069,
+      "authority_matches": true
+    },
+    "rr50": {
+      "computed": 0.12895328955649732,
+      "authority_matches": true
+    }
+  },
+  "correctness": {
+    "cells": {
+      "rr5-stock": {
+        "disposition": "pass",
+        "legacy": "pass",
+        "legacy_repetitions_observed": 1,
+        "performance": "pass",
+        "performance_repetitions_observed": 5,
+        "status": "certified",
+        "workload_argv_observation": "not-independently-recorded-by-existing-pipeline"
+      },
+      "rr5-fixed10": {
+        "disposition": "pass",
+        "legacy": "pass",
+        "legacy_repetitions_observed": 1,
+        "performance": "pass",
+        "performance_repetitions_observed": 5,
+        "status": "certified",
+        "workload_argv_observation": "not-independently-recorded-by-existing-pipeline"
+      },
+      "rr50-stock": {
+        "disposition": "pass",
+        "legacy": "pass",
+        "legacy_repetitions_observed": 1,
+        "performance": "pass",
+        "performance_repetitions_observed": 5,
+        "status": "certified",
+        "workload_argv_observation": "not-independently-recorded-by-existing-pipeline"
+      },
+      "rr50-fixed5": {
+        "disposition": "pass",
+        "legacy": "pass",
+        "legacy_repetitions_observed": 1,
+        "performance": "pass",
+        "performance_repetitions_observed": 5,
+        "status": "certified",
+        "workload_argv_observation": "not-independently-recorded-by-existing-pipeline"
+      }
+    },
+    "legacy_repetitions": 1,
+    "performance_repetitions": 5,
+    "argv_observation_limit": "not-recorded-by-existing-pipeline"
+  },
+  "correctness_performance_note": "Correctness comes from separate trace-enabled runs and does not certify or change the trace-disabled performance verdict.",
+  "gate_note": "The raw manifest binds canonical condition-admission records reporting use_class=\"paper\" and admitted=true for all 4 policy cells; the original supply and meaning records are not retained in this artifact.",
+  "caption": "Figure 6. A-2 formal certification attempt t2853r2-20260929a (outer status: observed-positive). The independent workload campaigns were request 35310.nqsv on bnode104 at 2026-09-29T06:00:17.909493+00:00 and request 35327.nqsv on bnode084 at 2026-09-29T06:01:00.688611+00:00, at distinct recorded times; the outer status is their logical conjunction. The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. Median effects copied from certification are write-heavy (rr5) fixed 10 us 65.4129% and balanced (rr50) fixed 5 us 12.8953%. M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision. The displayed outer status is the protocol status based on the predefined median ratios. The bottom row is a descriptive leading indicator: one aggregate abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled runs: all 4 cells were certified, but this is not a performance certification. L01 limits that evidence to point-key traces; under D1257 the correctness argv was not independently recorded. The raw manifest binds canonical condition-admission records reporting use_class=\"paper\" and admitted=true for all 4 policy cells; the original supply and meaning records are not retained in this artifact. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, CCBench pin 6810666, no perf, trace-disabled performance. Top-row y axes are scaled independently by workload; do not compare panel heights. The older series is not a comparator, and the cause of the sign difference has not been identified.",
+  "reproduction": {
+    "cwd": "repository-root",
+    "argv": [
+      "python3",
+      "tools/plotting/plot_a2_certification.py",
+      "--measurement-root",
+      "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2853r2-20260929a",
+      "--certification",
+      "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json",
+      "--raw-manifest",
+      "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification/raw-manifest.json",
+      "/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/figure/fig6_r2_a2_certification"
+    ],
+    "command": "python3 tools/plotting/plot_a2_certification.py --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2853r2-20260929a --certification /work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json --raw-manifest /work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification/raw-manifest.json /work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/figure/fig6_r2_a2_certification"
+  }
+}

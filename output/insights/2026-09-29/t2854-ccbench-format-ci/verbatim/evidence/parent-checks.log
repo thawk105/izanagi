@@ -1,0 +1,34 @@
+start 2026-09-29 15:32:18 JST
+== clone status (C2' 基点の作業ツリー差分)
+40a7f4acb174ca43cb590f40d13847216a1564bc
+ M cc/mocc/transaction.cc
+ M cc/silo/transaction.cc
+ M include/trace.hh
+evacuated == clone: cc/mocc/transaction.cc
+scan copy == C2' blob: cc/mocc/transaction.cc
+evacuated == clone: cc/silo/transaction.cc
+scan copy == C2' blob: cc/silo/transaction.cc
+evacuated == clone: include/trace.hh
+scan copy == C2' blob: include/trace.hh
+== 親 probe: 推定行番号 (TRACE=0、2 文脈)
+-- cc/mocc/transaction.cc
+ctx=plain code_lines old=476 new=476 identical_presumed_lines=True
+ctx=analysis+locks code_lines old=611 new=611 identical_presumed_lines=True
+rc=0
+-- cc/silo/transaction.cc
+ctx=plain code_lines old=346 new=346 identical_presumed_lines=True
+ctx=analysis+locks code_lines old=367 new=367 identical_presumed_lines=True
+rc=0
+-- include/trace.hh
+ctx=plain code_lines old=0 new=0 identical_presumed_lines=True
+ctx=analysis+locks code_lines old=0 new=0 identical_presumed_lines=True
+rc=0
+== author verify_format_only.py (--new-worktree = 退避 file)
+{"old": "40a7f4acb174ca43cb590f40d13847216a1564bc", "new": null, "new_worktree": "/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/review/files", "files": {"cc/mocc/transaction.cc": {"checks": {"ii_nonwhitespace": true, "iii_literals": true, "iv_directives": true, "vi_presumed_lines": {"plain": true, "analysis+locks": true}}, "added_line_directives": [{"line": 113, "value": 115}]}, "cc/silo/transaction.cc": {"checks": {"ii_nonwhitespace": true, "iii_literals": true, "iv_directives": true, "vi_presumed_lines": {"plain": true, "analysis+locks": true}}, "added_line_directives": [{"line": 366, "value": 365}, {"line": 384, "value": 381}]}, "include/trace.hh": {"checks": {"ii_nonwhitespace": true, "iii_literals": true, "iv_directives": true, "vi_presumed_lines": {"plain": true, "analysis+locks": true}}, "added_line_directives": []}}, "checks": {}, "ok": true}
+rc=0
+== CI format step (login /usr/bin/clang-format) on clone
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+rc=0
+end 2026-09-29 15:32:23 JST

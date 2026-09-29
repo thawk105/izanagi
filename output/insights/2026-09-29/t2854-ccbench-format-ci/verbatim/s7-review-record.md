@@ -1,0 +1,29 @@
+## 所見
+
+1. **must-fix — GitHub 上に C2' の branch が無いという断定を裏付ける生の結果がない。** [insight §0.7](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/README.md) と [worklog](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/docs/spool/worklog/2026-09-29-dev-wave-t2854-ccbench-format-ci-1.md) は、16:05:21 JST の `ls-remote` 該当 0 件、API の「Branch not found」、Actions の run 0 件を主張する。指定された一次資料にはコマンドの生出力、HTTP 応答、取得時刻がない。[s1-brief](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/s1-brief.md) も結論の再記述にとどまる。**直し方:** 当時の応答を保存して出典を付ける。保存できない場合は「当時の確認では見つからなかったとの作業記録がある」まで弱め、現在も無いとは断定しない。
+
+2. **should — 「34 本の protocol 実行 file」は分類が違う。** [insight §0.4](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/README.md) の根拠である [build-report.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/build-report.json) は実行 file **38 本**を列挙する。うち CMake の確認用 4 本を除くと 34 本だが、その中には `replay_test.exe` がある。**直し方:** 「CCBench 配下の実行 file 34 本（protocol 33 本と replay_test 1 本）、CMake 確認用を含む総数 38 本」と書く。
+
+3. **should — 差分範囲の「すべて `#if TRACE` 区間内」は過大。** [insight §2](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/README.md) の hunk 説明に対し、[C2p-to-F-diff.md](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/C2p-to-F-diff.md) では追加した `#line 115`、`#line 365`、`#line 381` はいずれも `#endif` の**後**にある。**直し方:** 「整形対象のコードは `#if TRACE` 内、追加した `#line` 3 本は区間直後」と分ける。
+
+4. **should — worklog 更新の `base:` は、指定された元本文の digest と一致しない。** [worklog の更新末尾](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/docs/spool/worklog/2026-09-29-dev-wave-t2854-ccbench-format-ci-1.md) は `51f26ae8…`、[元本文](/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/t2854-item-current.txt) の raw SHA-256 は `de0031c6…`（末尾改行を除いても `fbf170ec…`）。[書式規約](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/docs/spool/worklog/README.md) は現本文の digest を要求する。canonical 側の状態差があり得るため、この照合だけで fold 失敗とは断定しない。**直し方:** land 先の現本文に対して `--base-digest` を取り直し、規約どおり fold の dry-run で確認する。
+
+5. **nit — D297 の 118 件は「各 GCC で」と明記すると誤読がない。** [insight §0.5](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/README.md) と [worklog](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/docs/spool/worklog/2026-09-29-dev-wave-t2854-ccbench-format-ci-1.md) の「実比較 118 件」は、[GCC 11 report](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/judge-gcc11.report.json) と [GCC 12 report](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/judge-gcc12.report.json) の**それぞれ**に 118 件ある。**直し方:** 「各 compiler で予定・実行 357、集約後 118 件すべて一致」とする。
+
+## 照合して一致した項目（短く）
+
+- D297 は両 report とも C `68106660…` → F `25898d00…` の pass。各 17 configure、consumer 21 entry／12 file、予定＝実行 357、集約後 118 件の完全展開と include 活性が一致し、未選定の tictoc・cicada は各 24 genome。判定の rc=0、GCC 11／12 の 974／983 秒、request `35460.nqsv`・Elapse 988 秒は [judge-1.log](/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/judge-1.log) と一致。
+- format は [F のログ](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/format-ci-F.log) で両版とも 213 file・rc=0。[C2' 対照](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/format-ci-C2p-control.log) は rc=123、違反 84 件＝36＋23＋25。
+- build の configure rc=0／2 秒、build rc=0／22 秒は [build-report.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/build-report.json) と一致。[build-build.log](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/build-build.log) の警告 13 件は masstree の処理中に出ており、うち 2 件は autotools／make の警告。CCBench 本体の警告と error は見当たらない。
+- request `35469.nqsv` の rc=3・Elapse 9 秒、`35484.nqsv` の rc=0・Elapse 33 秒は [build-1.log](/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/build-1.log)・[build-2.log](/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/build-2.log) と一致。3 job の Elapse 合計は 1,030 秒＝約 0.29 node 時間。
+- Codex receipt は 8 本で、`actuals` の合計は **96 call・1,392.844 秒**。F の 3 file・79 行追加／77 行削除、`#line` の値 115・365・381、行番号を戻す理由は [mk-F.log](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/mk-F.log)、[verify-F-commit.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/verify-F-commit.json)、[line_macro_probe.log](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2854-ccbench-format-ci/output/insights/2026-09-29/t2854-ccbench-format-ci/verbatim/evidence/line_macro_probe.log) と整合する。
+
+元本文と worklog 更新の比較では、解決済みの「問い 2」を更新したことによる変更以外に、明確な事実の脱落は見つからなかった。fragment の見出し・placeholder・節順にも明白な書式違反は見つからない。記録は GitHub CI の緑、TPC-C の certified、trace 完全除去、選定範囲外への一般化を明示的に主張していない。
+
+## 判定（GO / NO-GO）
+
+**NO-GO。** GitHub branch 不在の断定を支える生証拠を補うか表現を弱め、件数と差分範囲の記述を直してから記録を確定するのが妥当。
+
+## 総括
+
+主要な判定値と実行時間は一次資料に合う。修正の中心は、保存証拠を欠く GitHub 上の事実認定と、「34 本の protocol」「すべて `#if TRACE` 内」という量化である。
