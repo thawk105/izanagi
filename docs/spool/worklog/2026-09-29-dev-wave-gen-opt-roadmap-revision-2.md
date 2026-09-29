@@ -12,10 +12,12 @@ title: 活動範囲を新規最適化の創出へ広げる roadmap の協議改�
 - 依頼: 並行 gen-opt wave の md_1 (`/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_1.txt`、共通指示は同 dir の `common.txt`)。ユーザーは 2026-09-29 に親セッションの提案の (a) に「この形に改めて良い」と同意した。(b) 優先度には明示の回答が無く、親セッションが推奨どおり「計算を使わない手順だけ今から並行」と解釈した。発話の逐語と親の解釈の区別、却下した選択肢は {{D:gen-opt-activity-scope}}。
 - 台帳に「活動範囲を新規最適化の創出へ広げる roadmap 改訂」を含む item は無かった。本 wave が依頼の全体を届けるので、完了済みの item を新たに立てず、このエントリだけで記録した。
 - 一次資料: `output/insights/2026-09-29/gen-opt-direction/` (ユーザー発話の逐語と提案全文を、repo 外の原本から bytes 一致で写した)。
-- roadmap の文言を逐語で固定する test・道具は無かった (tests/・tools/・orchestrator/tests/・hooks/ を検索)。roadmap は改訂後 78,556 byte で、読み取り hook の全読上限 80,000 byte まで約 1.4 KB である。
+- roadmap の文言を逐語で固定する test・道具は無かった (tests/・tools/・orchestrator/tests/・hooks/ を検索)。roadmap は改訂後 78,542 byte で、読み取り hook の全読上限 80,000 byte まで約 1.4 KB である。
 - scope 外で改訂と食い違ったまま残る箇所: `docs/phase3.md` 後続段 7 の「b2 本格投資は 8b + 層3 の後に再判断」と、`README.md` 三層図の「他CCからの移植は拡張予約 D32」。追随を独立の docs 作業として起票した (段 6 review の指摘で、段 A の試しの着手時から分けた)。
 - 新規 item の優先度 (P2・P3) は、ユーザーの明示回答が無い (b) 優先度に対する親の暫定である。
-- エージェント工数: (段 6 後に記入)
+- 軽量版 (docs-only): 段 2・3 は省き、段 6 の read-only review 1 本 (レンズ: 整合・事実 / 規律・矛盾・過剰) を残した。所見 must-fix 1 (新しく足す小さいモデルでの全場面検査と §3.1 Tier 3 の関係が無く、最終候補まで先送りできると読める)・should-fix 2 (カタログ化を今から始めるのが親の解釈であることの明記、phase3.md / README.md への追随の独立起票)・nit 2 (優先度の根拠、§9 Phase 3.5 の 1 行は削除不要) をすべて real とし、§9 以外を直した。焦点再レビュー 1 本は 5 件すべて closed・GO で、新しい should-fix 1 件 (Tier 3 の保証範囲の言い過ぎ) も直した。
+- エージェント工数: Codex review 1・focus 1 (いずれも gpt-6-sol / medium、model call 9 + 6)。計算ノードの job は投げていない (受入全走を除く)。
+- セッション異常: EnterWorktree が name 形 (filter driver の設定読み取りエラー) と path 形 (worktree 一覧の 10 秒 timeout) の両方で失敗し、手動の worktree add (並行 wave 5 本と同時で約 20 分) の後、絶対 path で作業した。
 
 ## 次の一手差分
 
