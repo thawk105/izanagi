@@ -82,18 +82,24 @@ producer が書く全ファイル種を棚卸しして brief に列挙する。�
 `output/` 配下の一括削除は `git ls-files -- <path>` の空を確認してから行う。`git status` は
 tracked 無変更を出さず不在証明にならない。理解だけの `rm -rf` は別 wave の tracked file を消す。
 変異 scratch は `rm -rf` の後 `git worktree prune` まで行う。登録残置で次走が共有木検査で止まる。
+landの登録木前後比較は自wave木と着地差分のpathに重なる木だけなので、重ならない他waveの
+撤去はlandをrc=21で落とさず、landと並行してよい。撤去の同時実行を絞る理由はLustre混雑。
+撤去途中で`gitdir`を欠く管理dirはt810 coordinatorの登録走査で他waveの受入を赤にしうるので、
+受入の走行中は撤去を避ける。
 
 ## DW-O12 — 裁定手順と実行手順の差
 
-worklog には裁定予定を写さず、実際に実行した手順を書く。
-親担当と分割した裁定項目は段 7 前に着地差分と突き合わせる。
-一次資料と逆の工程記録を残してはならない。
-受理集合を変える指示を子へ出す直前に、この wave で凍結済みの事前登録・判定式を再読する。
-凍結は自分が直前に書いたものでも拘束する。
-DW-S06-C の受入投入記述は段6内の中間走行 (変異検証目的) を指す。land 対象 tip への最終受入投入は
-DW-S07 と段 8 の commit 完了後に行う——取り違えると記録 commit が tested tip から漏れ land が rc=23
-になる。測定値は測った checkout を併記する（F41）。dispatch した走の所要は job の Elapse か
-runner 自身の報告時間を正とし、親側の外側 wall を所要として記録しない（queue 待ちを含む）。
+worklogへ裁定予定でなく実行した手順を書く。
+親担当と分割した裁定項目は段7前に着地差分と照合する。
+一次資料と逆の工程記録を残さない。
+受理集合を変える指示を子へ出す直前にこのwaveで凍結済みの事前登録・判定式を再読する。
+自分が直前に書いた凍結も拘束する。
+DW-S06-Cの受入投入は段6の中間走行(変異検証)を指す。land対象tipの最終受入は
+DW-S07と段8のcommit後。tested tip後の記録commitと手解決mergeはrc=23。
+受入後の前進merge競合はabortし解いたtipで再受入。
+共有文書(phase3.md等)は段1で稼働waveの編集と重なれば追記位置を分ける(同位置は競合しうる)。
+測定値は測ったcheckoutを併記する(F41)。dispatchした走の所要はjobのElapseかrunner自身の報告時間を
+正とし、queue待ちを含む親の外側wallは使わない。
 
 ## DW-O13 — gate 入力の実在
 
@@ -155,17 +161,18 @@ cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走�
 
 ## DW-O20 — clean-tree gate
 
-専用handoffはworktree外（背景jobはrepo外）。untrackedを残してgateを走らせない。
+専用handoffはworktree外(背景jobはrepo外)。untrackedを残してgateを走らせない。
 cwdがworktreeなら作らず、directory/branch不一致をhandoff・worklogに記しwave用へ流用しない。
-開始gateは`tools/check_wave_startup.py`（再開は`--mode resume`、背景jobは
-`--external-handoff`も）。非0で停止。resumeもbranch・clean tree・main包含を要求。
-gate成功後の再走は`DW-S05-A`だけ。取り込みは
+開始gateは`tools/check_wave_startup.py`(再開は`--mode resume`、背景jobは
+`--external-handoff`も)。非0で停止。resumeもbranch・clean tree・main包含を要求。
+gate成功後の再走は`DW-S05-A`だけ。取込は
 `tools/dev_wave_wait.py acceptance`のpost-claim merge。
-待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
-HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
-`DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
+待ち手・launcher・runnerのbytesを変える前進は先に取り込む(F524)。
+HEAD差は`--ff-only`で揃える(F48)。新規worktreeは未初期化submoduleで非0。
+`DW-C01`に従い初期化して再検査(`deinit`禁止)。取込はpointerだけ進む。受入前に
 `git submodule update --init --recursive`で揃える。
-子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
+子を走らせるworktreeは`git worktree lock`(cwd走査はlauncher型を逃す)。
+共有文書追記は段1で`DW-O12`。
 
 ## DW-O23 — 並行 session の local main land
 

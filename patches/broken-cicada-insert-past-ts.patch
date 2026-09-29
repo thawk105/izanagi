@@ -1,0 +1,100 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -24,6 +24,38 @@
+ 
+ using namespace std;
+ 
++// Events are reported only after their transaction commits.
++namespace {
++struct BreakEvent { uint64_t tx, table, a, b; std::string key; };
++std::atomic<uint64_t> break_reached{0}, break_changed{0}, break_committed{0};
++thread_local std::vector<BreakEvent> break_pending;
++std::string break_hex(const std::string& key) {
++  static constexpr char digits[] = "0123456789abcdef";
++  std::string out;
++  for (unsigned char c : key) { out += digits[c >> 4]; out += digits[c & 15]; }
++  return out;
++}
++void break_commit() {
++  for (const auto& e : break_pending) {
++    break_committed.fetch_add(1, std::memory_order_relaxed);
++    std::fprintf(stderr, "CICADA_BREAK_EVENT slug=insert-past-ts tx_wts=%llu table=%llu key=%s a_wts=%llu b_wts=%llu\n",
++                 static_cast<unsigned long long>(e.tx),
++                 static_cast<unsigned long long>(e.table), break_hex(e.key).c_str(),
++                 static_cast<unsigned long long>(e.a),
++                 static_cast<unsigned long long>(e.b));
++  }
++  break_pending.clear();
++}
++struct BreakReport {
++  ~BreakReport() {
++    std::fprintf(stderr, "CICADA_BREAK_FIRED slug=insert-past-ts reached=%llu changed=%llu committed=%llu\n",
++                 static_cast<unsigned long long>(break_reached.load()),
++                 static_cast<unsigned long long>(break_changed.load()),
++                 static_cast<unsigned long long>(break_committed.load()));
++  }
++} break_report;
++}  // namespace
++
+ #define MSK_TID 0b11111111
+ 
+ /**
+@@ -32,6 +64,7 @@
+  * @return void
+  */
+ void TxExecutor::begin() {
++  break_pending.clear();
+   /**
+    * Allocate timestamp in read phase.
+    */
+@@ -298,6 +331,7 @@
+ }
+ 
+ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
++  break_reached.fetch_add(1, std::memory_order_relaxed);
+ #if ADD_ANALYSIS
+   uint64_t start = rdtscp();
+ #endif // if ADD_ANALYSIS
+@@ -312,6 +346,8 @@
+ 
+   tuple = new Tuple();
+   Version* new_ver = newVersionGeneration(tuple, std::move(body));
++  new_ver->wts_.store(this->rts_, std::memory_order_relaxed);
++  break_changed.fetch_add(1, std::memory_order_relaxed);
+   tuple->init(this->thid_, new_ver, this->wts_.ts_);
+ 
+   typename MasstreeWrapper<Tuple>::insert_info_t insert_info;
+@@ -338,6 +374,8 @@
+   }
+ 
+   write_set_.emplace_back(s, key, tuple, new_ver, OpType::INSERT);
++  break_pending.push_back({this->wts_.ts_, static_cast<uint64_t>(s),
++                           this->rts_, this->wts_.ts_, std::string(key)});
+ 
+ #if ADD_ANALYSIS
+   result_->local_write_latency_ += rdtscp() - start;
+@@ -743,6 +781,7 @@
+  * @return void
+  */
+ void TxExecutor::abort() {
++  break_pending.clear();
+   // remove inserted records
+   for (auto& we : write_set_) {
+     if (we.op_ == OpType::INSERT) {
+@@ -912,6 +951,7 @@
+ #else
+ #line 909
+ #endif
++  break_commit();
+   this->wts_.set_clockBoost(0);
+   read_set_.clear();
+   write_set_.clear();
+@@ -942,6 +982,7 @@
+ #else
+ #line 934
+ #endif
++    break_commit();
+     read_set_.clear();
+     node_map_.clear();
+     return true;
