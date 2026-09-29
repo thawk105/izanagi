@@ -1470,6 +1470,8 @@ def _read_policy_archive(tmp_path: Path) -> list[str | None]:
               "/absolute/policy proposal.json", "--stock-control"]),
     ("replay", ["--allow-coder-derived-build", "--replay-proposal",
                 "/absolute/policy proposal.json"]),
+    ("contrast", ["--allow-coder-derived-build", "--contrast-run-unit",
+                  "/absolute/unit.json"]),
 ])
 def test_policy_actual_job_argv_archive_and_lock(tmp_path, mode, action):
     archive = tmp_path / "archive"
@@ -1479,7 +1481,10 @@ def test_policy_actual_job_argv_archive_and_lock(tmp_path, mode, action):
         "IZANAGI_TRACE_ARCHIVE_ROOT": str(archive),
     }
     if mode != "stock":
-        env["IZANAGI_S4_POLICY_PROPOSAL_PATH"] = "/absolute/policy proposal.json"
+        if mode == "contrast":
+            env["IZANAGI_S4_POLICY_UNIT_PATH"] = "/absolute/unit.json"
+        else:
+            env["IZANAGI_S4_POLICY_PROPOSAL_PATH"] = "/absolute/policy proposal.json"
     history, rc, result = _run_actual_job_body_through_driver(tmp_path, env)
     receipt = str(tmp_path / "evidence/masstree-prebuild-receipt.json")
     assert history == [[
@@ -1494,6 +1499,23 @@ def test_policy_actual_job_argv_archive_and_lock(tmp_path, mode, action):
         "IZANAGI_BENCH_LOCK": str(tmp_path / "scratch-base/0_945411.nqsv/bench.lock"),
     }]
     assert _read_policy_archive(tmp_path) == [str(archive)]
+
+
+@pytest.mark.parametrize('extra', [{},
+    {'IZANAGI_S4_POLICY_UNIT_PATH': 'relative/unit.json'},
+    {'IZANAGI_S4_POLICY_UNIT_PATH': '/absolute/unit.json',
+     'IZANAGI_S4_POLICY_PROPOSAL_PATH': '/absolute/proposal.json'}])
+def test_policy_contrast_requires_exclusive_absolute_unit(tmp_path, extra):
+    env = {'IZANAGI_S4_POLICY_MODE': 'contrast',
+           'IZANAGI_S4_POLICY_FORM': 'ir', **extra}
+    reason = ('S4 policy contrast excludes proposal path'
+              if 'IZANAGI_S4_POLICY_PROPOSAL_PATH' in extra
+              else 'S4 policy contrast requires absolute unit path')
+    history, rc, result = _run_actual_job_body_through_driver(
+        tmp_path, env, expected_stderr=f'p3 S4 loop job refused: {reason}\n',
+        expect_driver=False)
+    assert rc == 2
+    assert not history
 
 
 def test_policy_actual_job_uses_policy_pin(tmp_path):
