@@ -9,6 +9,8 @@
 
 - 依頼の保護条件 (sha256 / blob id 束縛、事前登録・受領証・凍結・正しさ材料、テスト・道具が読む file、README から引かれる file) を守ると、
   **第 1 段で確信を持って外せたのは 6 file だけ**だった (A 4: Codex 子へ渡した投入 prompt、B 2: README が結果を要約済みの device probe 出力)。
+  計数範囲は固定 commit 035fc11fa の `output/insights/` 27,176 file である。output/ の残り 4,475 file (env・campaigns・凍結・事前登録系など) は
+  依頼どおり最初から対象外とし、035fc11fa から削除基準 c0bcf1abb までに insights へ追加された 109 file は走査していない (基準日以降の root として残す側)。
 - output/insights 27,176 file の大半は「参照されない機械出力」ではなく、**束縛された証拠**である。file 数の大きい塊は、
   自分の root の manifest が sha256 を持つ文献探索の bundle、事前登録が dir ごと根拠に引く t361-t362 の observer 生ログ、
   別 insight の probe-ledger が path で列挙する受入分析の生出力、G2 の正しさ材料 (mocc-g2) である。
@@ -97,7 +99,7 @@ harness `measure_pair.sh` (Codex author、source は親 job dir の `measure/too
 | 比べた commit | 追跡 file | worktree add の B/A (組 1〜3 / 11〜13) | git status の B/A (各組の 3 回の中央値の比) |
 |---|---:|---|---|
 | A 基準 c0bcf1abb | 35,275 | — | — |
-| B 仮 commit c7bfccd7b (次段候補 7,549 を外した tree、着地させない) | 27,721 (−21.4%) | 0.853 / 0.847 / 0.846 | 1.395 / 0.783 / 1.090 |
+| B 仮 commit c7bfccd7b (第 1 段 commit の上で次段候補 7,549 を外した tree、着地させない) | 27,721 (−7,554 = 次段候補 7,549 + 第 1 段 6 − 索引 1、−21.4%) | 0.853 / 0.847 / 0.846 | 1.395 / 0.783 / 1.090 |
 | B 第 1 段 535d6d221 (本 wave で land する) | 35,270 (−5) | 1.000 / 1.000 / 1.000 | 1.463 / 1.004 / 1.285 |
 
 - worktree add の所要は基準で 188〜220 秒。次段候補を全部外した tree は、同時刻の基準より 3 組とも約 15% 短かった (160.5・186.2・168.4 秒)。
