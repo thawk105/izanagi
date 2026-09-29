@@ -15,6 +15,8 @@ title: [T-2853] R2 の fig6 単位 (A-2) を現行 driver・現行 policy 5 node
 - collect の `--repo-root` を repo 外の一時 root にして、policy の tracked destination (原 attempt の dir) へは書かなかった。collect は既存 leaf を拒否する作りで、原 attempt を上書きする経路は元から無い。
 - 図は生成器の Python の差し替え口 `expected_hashes` に実行時計算した sha256 を渡す repo 外 wrapper (Codex author 1 本) で描いた。陽性対照で既存 fig6 の artist_series と完全一致。provenance の再現 argv は生成器の直接起動で、pin 表に R2 が無いためそのままでは再生成できない (insight §5 に wrapper 経由の argv を書いた)。
 - EnterWorktree が name 形 (git config 読み取り) と path 形 (worktree list の 10 秒上限) の両方で失敗したので、手動 add の作業木を絶対 path で使った。submodule 初期化 tool は 1 回目に rc=1 (入れ子 googletest 未初期化) を 3 か所で返し、wave 作業木は 2 回目も rc=1 だったが `git submodule status --recursive` で 3 本とも初期化済みを確かめた。
-- 段 2・3 は軽量版で省略 (設計択一なし、repo の実装面の差分ゼロ)。変異は免除、受入は 1 回。
+- 段 2・3 は軽量版で省略 (設計択一なし、repo の実装面の差分ゼロ)。変異は免除、受入は land 前の最終 tip に 1 回 (受領証 `/work/1/SFC/tanab/tmp/t2853-r2-fig6-20260929/acceptance-receipt-1.json`、実測 Elapse は受領証と shard の会計にあり、tested tip の中には書けないので本 entry には書かない)。
+- 段 6: レビュー A (一次資料・正しさ境界) GO 所見なし、B (過剰・削除) NO-GO の 3 件と焦点再レビューの 1 件はすべて docs で処置 (図の置き場の注記と、実行できる再生成手順。親が手順をそのまま実行して bytes 一致を確認)。
+- 段 8: submodule 初期化 tool の rc=1 と木の完備が食い違う件は、DW-O08 の「なお赤なら止める」と「rc でなく中身で測る」の食い違いとして候補にしたが、原因を調べておらず dev-wave 文書の byte 予算も満杯なので、文書は変えずここに観測として残す。
 
 ## 次の一手差分

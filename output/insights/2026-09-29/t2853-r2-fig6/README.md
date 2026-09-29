@@ -148,7 +148,8 @@
 
 - 測定: 2 job の Elapse 973 + 583 = 1,556 s、× 5 node = 7,780 node 秒 = **2.16 node 時間** ((a) Elapse、`verbatim/elapse.log`)。見積り 1.96 を 0.20 上回った。
   rr5 は見積り元 t2489 の 680 s に対し 973 s、rr50 は 728 s に対し 583 s。差の内訳は調べていない。
-- 開発の検査: 受入全走 1 回 (実測は worklog に書く)。見積り 0.25 を足すと約 2.41 node 時間で、投入前にユーザーへ示した約 2.21 を上回る見込みである。
+- 開発の検査: 受入全走 1 回 (land 前、本 insight を含む最終 tip に対して)。見積り 0.25 を足すと約 2.41 node 時間で、投入前にユーザーへ示した約 2.21 を上回る見込みである。
+  受入の実測 Elapse は受領証 (`/work/1/SFC/tanab/tmp/t2853-r2-fig6-20260929/acceptance-receipt-1.json` と shard の会計) にあり、本 insight には書かない。受入の後に記録 commit を足すと受入済み tip が変わり受入をやり直すことになるためである。
 - finish-group・collect・描画・表は login で数秒〜数十秒 (計算ノードは使っていない)。Codex 実装子 1 本 (約 5 分)。
 
 ## 7. 言わないこと
@@ -183,7 +184,7 @@ commit `75749a951` と repo 外の成果物を対象に、Codex の read-only �
 |---|---|---|---|
 | B-1 | provenance の `reproduction` をそのまま実行すると入力 hash 検査で止まる | real | 図と同じ dir に `figures/README.md` を置き、wrapper 経由の実行できる手順を書いた。provenance は生成器の出力のまま変えない |
 | B-2 | caption 末尾の「符号差」の定型文が、図だけを読む人を誤解させる | real | caption は生成器の既定のまま (段 4 (P2)) とし、`figures/README.md` に「R2 と原 attempt の効果はどちらも正で符号差は無い、この文は原 fig6 の定型文」と注記した |
-| B-3 | 受入の実測が worklog にまだ無い | real (nit) | 受入後に worklog fragment へ実測を書く |
+| B-3 | 受入の実測が worklog にまだ無い | real (nit) | 受入は land 前の最終 tip に対して走らせるので、その値を同じ tip の中へ書くことはできない (書けば tip が変わり受入のやり直し)。§6 と worklog fragment に受領証の置き場を書き、実測値は wave の最終報告で示す |
 
 焦点再レビュー (Codex、read-only、commit `297a20555` が対象、受理検査 rc=0、`verbatim/s6-focus.md`) は **NO-GO**。B-1・B-2 は partial、B-3 は open (受入後に記録する予定をそう書いていることは確認)、新規 1 件。
 
