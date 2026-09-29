@@ -1,5 +1,5 @@
 diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
-index dbaeb1b3c..1ff8d11bd 100644
+index dbaeb1b3c..aa2769c9a 100644
 --- a/cc/cicada/include/transaction.hh
 +++ b/cc/cicada/include/transaction.hh
 @@ -24,6 +24,10 @@
@@ -13,13 +13,14 @@ index dbaeb1b3c..1ff8d11bd 100644
  #define CONTINUING_COMMIT_THRESHOLD 5
  
  enum class TransactionStatus : uint8_t {
-@@ -45,6 +49,15 @@ public:
+@@ -45,6 +49,16 @@
    std::deque<Tuple*> gc_records_;    // for records
    std::deque<GCElement<Tuple>> gcq_; // for versions
    std::deque<Version*> reuse_version_from_gc_;
 +#if CICADA_INTERVAL_GC
 +  struct IGCRetiredVersion {
 +    Version* version;
++    Tuple* tuple;
 +    uint64_t epoch;
 +    uint64_t retired_tsc;
 +  };
@@ -29,7 +30,7 @@ index dbaeb1b3c..1ff8d11bd 100644
    std::vector<Procedure> pro_set_;
    Result* result_ = nullptr;
    const bool& quit_; // for thread termination control
-@@ -95,6 +108,10 @@ public:
+@@ -95,6 +109,10 @@
    }
  
    ~TxExecutor() {
@@ -40,11 +41,27 @@ index dbaeb1b3c..1ff8d11bd 100644
      for (auto itr = reuse_version_from_gc_.begin();
           itr != reuse_version_from_gc_.end(); ++itr) {
        if ((*itr)->status_ == VersionStatus::unused) delete (*itr);
+diff --git a/cc/cicada/include/tuple.hh b/cc/cicada/include/tuple.hh
+index 1d5e61f3b..cc1efd9e1 100644
+--- a/cc/cicada/include/tuple.hh
++++ b/cc/cicada/include/tuple.hh
+@@ -32,6 +32,11 @@
+   atomic<uint64_t> continuing_commit_;
+   atomic<uint8_t> gc_lock_;
+   TupleBody body_; // only used for index tuple as single version
++#if CICADA_INTERVAL_GC
++  // Most recent interval unlink on this tuple, for stock tail reclamation.
++  std::atomic<uint64_t> igc_last_prune_epoch_{0};
++#endif
++#line 35
+ 
+   Tuple() : latest_(nullptr), gc_lock_(0) {}
+ 
 diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
 index 12de93b80..4678155a3 100644
 --- a/cc/cicada/include/version.hh
 +++ b/cc/cicada/include/version.hh
-@@ -30,6 +30,13 @@ public:
+@@ -30,6 +30,13 @@
    atomic<VersionStatus> status_; // commit record
  
    TupleBody body_;
@@ -58,7 +75,7 @@ index 12de93b80..4678155a3 100644
  
    Version() {
      status_.store(VersionStatus::pending, memory_order_release);
-@@ -83,11 +90,21 @@ public:
+@@ -83,11 +90,21 @@
    uint64_t ldAcqWts() { return wts_.load(std::memory_order_acquire); }
  
    void set(const uint64_t rts, const uint64_t wts, TupleBody&& body) {
@@ -80,7 +97,7 @@ index 12de93b80..4678155a3 100644
    }
  
    void set(const uint64_t rts, const uint64_t wts, Version* next,
-@@ -136,3 +153,28 @@ public:
+@@ -136,3 +153,28 @@
      next_.store(next, std::memory_order_release);
    }
  };
@@ -110,7 +127,7 @@ index 12de93b80..4678155a3 100644
 +#endif
 +#line 139
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
-index efcf02d75..fd0f8eed2 100644
+index efcf02d75..58fd9db69 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -5,6 +5,20 @@
@@ -134,10 +151,11 @@ index efcf02d75..fd0f8eed2 100644
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -26,12 +40,656 @@ using namespace std;
+@@ -25,6 +39,644 @@
+ using namespace std;
  
  #define MSK_TID 0b11111111
- 
++
 +#if CICADA_INTERVAL_COUNT
 +DEFINE_uint64(cicada_igc_count_long_threads, 0,
 +              "Number of long workers at the end, excluding leader.");
@@ -186,10 +204,8 @@ index efcf02d75..fd0f8eed2 100644
 +void igc_record_install(Version* v) {
 +  v->igc_install_tsc_.store(rdtscp(), std::memory_order_relaxed);
 +}
-+unsigned igc_retention_bucket(Version* v, bool erase) {
-+  uint64_t installed =
-+      erase ? v->igc_install_tsc_.exchange(0, std::memory_order_relaxed)
-+            : v->igc_install_tsc_.load(std::memory_order_relaxed);
++unsigned igc_retention_bucket(Version* v) {
++  uint64_t installed = v->igc_install_tsc_.load(std::memory_order_relaxed);
 +  if (!installed) return 64;
 +  return igc_bucket(rdtscp() - installed);
 +}
@@ -306,7 +322,7 @@ index efcf02d75..fd0f8eed2 100644
 +[[maybe_unused]] void igc_count_pruned(uint8_t thid, Version* v) {
 +  ++igc_counts[thid].pruned;
 +  igc_counts[thid].pruned_bytes += igc_bytes(v);
-+  unsigned bucket = igc_retention_bucket(v, false);
++  unsigned bucket = igc_retention_bucket(v);
 +  if (bucket < 64)
 +    ++igc_counts[thid].prune_age[bucket];
 +  else
@@ -318,7 +334,6 @@ index efcf02d75..fd0f8eed2 100644
 +[[maybe_unused]] void igc_count_reuse(uint8_t thid, Version* v) {
 +  ++igc_counts[thid].reuse;
 +  igc_counts[thid].reuse_bytes += igc_bytes(v);
-+  igc_retention_bucket(v, true);
 +}
 +} // namespace
 +void cicadaIgcRecordReusePool(uint8_t thid, size_t n) {
@@ -703,6 +718,10 @@ index efcf02d75..fd0f8eed2 100644
 +               return false;
 +             }()));
 +      }
++      // Publish after unlink while holding gc_lock_. A stock cutter takes
++      // the same tuple lock before checking this epoch.
++      tuple->igc_last_prune_epoch_.store(
++          igc_epoch.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
 +      IGC_COUNT(thid, success);
 +    } else
 +      IGC_COUNT(thid, cas_fail);
@@ -774,10 +793,10 @@ index efcf02d75..fd0f8eed2 100644
 +#define IGC_ASSERT_A4(id, tuple, version)
 +#endif
 +#line 29
-+
+ 
  /**
   * @brief Initialize function of transaction.
-  * Allocate timestamp.
+@@ -32,6 +684,13 @@
   * @return void
   */
  void TxExecutor::begin() {
@@ -791,7 +810,7 @@ index efcf02d75..fd0f8eed2 100644
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +699,10 @@ void TxExecutor::begin() {
+@@ -41,6 +700,10 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -802,7 +821,7 @@ index efcf02d75..fd0f8eed2 100644
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +763,16 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+@@ -101,6 +764,16 @@
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -819,7 +838,7 @@ index efcf02d75..fd0f8eed2 100644
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -123,6 +795,8 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+@@ -123,6 +796,8 @@
      return nullptr;
    }
  
@@ -828,7 +847,7 @@ index efcf02d75..fd0f8eed2 100644
    read_set_.emplace_back(s, key, tuple, later_ver, ver);
  
  #if INLINE_VERSION_OPT
-@@ -267,6 +941,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+@@ -267,6 +942,10 @@
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -839,7 +858,7 @@ index efcf02d75..fd0f8eed2 100644
      }
    }
  
-@@ -298,6 +976,10 @@ FINISH_WRITE:
+@@ -298,6 +977,10 @@
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -850,7 +869,7 @@ index efcf02d75..fd0f8eed2 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +1028,10 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -346,6 +1029,10 @@
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -861,7 +880,7 @@ index efcf02d75..fd0f8eed2 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +1103,10 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -417,6 +1104,10 @@
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -872,7 +891,7 @@ index efcf02d75..fd0f8eed2 100644
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -485,6 +1175,50 @@ bool TxExecutor::validation() {
+@@ -485,6 +1176,50 @@
      // prove that across the (op != RMW && op != DELETE && !WRITE_LATEST_ONLY
      // && ver != expected) condition. Initialize to silence -Wmaybe-uninitialized
      // without changing runtime behavior.
@@ -881,7 +900,7 @@ index efcf02d75..fd0f8eed2 100644
 +        !WRITE_LATEST_ONLY) {
 +      Tuple* tuple = (*itr).rcdptr_;
 +      uint64_t wait_spins = 0;
-+      uint64_t wait_start = 0;
++      [[maybe_unused]] uint64_t wait_start = 0;
 +      // Install and pruning each hold only this tuple's gc_lock_. Neither
 +      // waits for a second tuple lock, so serialization cannot deadlock.
 +      while (!tuple->getGCRight(thid_ + 1)) {
@@ -923,7 +942,7 @@ index efcf02d75..fd0f8eed2 100644
      Version *expected(nullptr), *ver, *pre_ver = nullptr;
      for (;;) {
        if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
-@@ -520,6 +1254,8 @@ bool TxExecutor::validation() {
+@@ -520,6 +1255,8 @@
          }
        } else {
          (*itr).new_ver_->strRelNext(ver);
@@ -932,7 +951,7 @@ index efcf02d75..fd0f8eed2 100644
          if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
                                                     memory_order_acq_rel,
                                                     memory_order_acquire)) {
-@@ -547,17 +1283,34 @@ bool TxExecutor::validation() {
+@@ -547,17 +1284,34 @@
      else
        ver = (*itr).rcdptr_->ldAcqLatest();
  
@@ -967,7 +986,7 @@ index efcf02d75..fd0f8eed2 100644
      /**
       * This part is different from the original.
       * Checking that view is not broken.
-@@ -576,13 +1329,27 @@ bool TxExecutor::validation() {
+@@ -576,13 +1330,27 @@
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
      Version* ver = (*itr).new_ver_->ldAcqNext();
@@ -995,7 +1014,7 @@ index efcf02d75..fd0f8eed2 100644
      }
  
      if (ver->ldAcqRts() > this->wts_.ts_ ||
-@@ -716,6 +1483,22 @@ inline void TxExecutor::cpv() // commit pending versions
+@@ -716,6 +1484,22 @@
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -1018,18 +1037,19 @@ index efcf02d75..fd0f8eed2 100644
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -743,6 +1526,10 @@ void TxExecutor::gcpv() {
-  * @return void
-  */
- void TxExecutor::abort() {
+@@ -754,6 +1538,11 @@
+   writeSetClean();
+   read_set_.clear();
+   node_map_.clear();
 +#if CICADA_INTERVAL_GC
++  // All abort cleanup that can touch transaction pointers has finished.
 +  igc_tx_start_epoch[thid_].store(0, std::memory_order_seq_cst);
 +#endif
-+#line 746
-   // remove inserted records
-   for (auto& we : write_set_) {
-     if (we.op_ == OpType::INSERT) {
-@@ -804,6 +1591,25 @@ bool TxExecutor::chkGcpvTimeout() {
++#line 757
+ 
+   if (FLAGS_group_commit) { chkGcpvTimeout(); }
+ 
+@@ -804,6 +1593,32 @@
  }
  
  void TxExecutor::gc_versions() {
@@ -1045,6 +1065,13 @@ index efcf02d75..fd0f8eed2 100644
 +           (std::fprintf(stderr, "A6 thid=%u epoch=%lu oldest=%lu\n", thid_,
 +                         retired.epoch, oldest),
 +            false));
++    // A9: hold the tuple lock so the diagnostic walk cannot race stock GC.
++    assert(([&] {
++      while (!retired.tuple->getGCRight(thid_ + 1)) _mm_pause();
++      bool detached = !igc_on_chain(retired.tuple, retired.version);
++      retired.tuple->returnGCRight();
++      return detached;
++    }()));
 +    IGC_COUNT_UNRETIRE(thid_, retired.version, rdtscp() - retired.retired_tsc);
 +    IGC_COUNT_REUSE(thid_, retired.version);
 +    reuse_version_from_gc_.emplace_back(retired.version);
@@ -1055,7 +1082,7 @@ index efcf02d75..fd0f8eed2 100644
    while (!gcq_.empty()) {
      if (gcq_.front().wts_ >= MinRts.load(memory_order_acquire)) break;
  
-@@ -813,12 +1619,51 @@ void TxExecutor::gc_versions() {
+@@ -813,12 +1628,51 @@
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -1094,7 +1121,7 @@ index efcf02d75..fd0f8eed2 100644
 +      if (FLAGS_cicada_igc_debug_mode != 1) {
 +        // Keep next intact until every tx active at pop has ended.
 +        igc_retired_versions_.push_back(
-+            {pruned, igc_epoch.load(std::memory_order_seq_cst),
++            {pruned, tuple, igc_epoch.load(std::memory_order_seq_cst),
 +             IGC_RETIRE_TSC()});
 +        IGC_COUNT_RETIRE(thid_, pruned);
 +      }
@@ -1107,7 +1134,24 @@ index efcf02d75..fd0f8eed2 100644
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -832,9 +1677,24 @@ void TxExecutor::gc_versions() {
+@@ -826,15 +1680,50 @@
+       gcq_.pop_front();
+       continue;
+     }
++#if CICADA_INTERVAL_GC
++    // Frozen links from pruned runs can still reach this stock tail,
++    // including inline storage. Wait for readers active at the last unlink.
++    const uint64_t last_prune =
++        tuple->igc_last_prune_epoch_.load(std::memory_order_seq_cst);
++    if (last_prune && igc_oldest_active_epoch() <= last_prune) {
++      tuple->returnGCRight();
++      break;
++    }
++#endif
++#line 829
+     // this pointer may be dangling.
+ 
+     Version* delTarget =
          gcq_.front().ver_->next_.load(std::memory_order_acquire);
  
      // the thread detaches the rest of the version list from v
@@ -1116,12 +1160,21 @@ index efcf02d75..fd0f8eed2 100644
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
++#if CICADA_INTERVAL_GC
++    // A10: check every stock-discarded version, including inline storage.
++    assert(([&] {
++      for (Version* v = delTarget; v; v = v->ldAcqNext())
++        if (igc_on_chain(tuple, v)) return false;
++      return true;
++    }()));
++#endif
++#line 838
 +#if CICADA_INTERVAL_COUNT
 +    for (Version* v = delTarget; v; v = v->ldAcqNext()) {
 +      if (v->ldAcqStatus() != VersionStatus::committed) continue;
 +      ++igc_counts[thid_].stock_removed;
 +      igc_counts[thid_].stock_removed_bytes += igc_bytes(v);
-+      unsigned bucket = igc_retention_bucket(v, true);
++      unsigned bucket = igc_retention_bucket(v);
 +      if (bucket < 64)
 +        ++igc_counts[thid_].stock_age[bucket];
 +      else
@@ -1132,7 +1185,7 @@ index efcf02d75..fd0f8eed2 100644
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -911,12 +1771,26 @@ void TxExecutor::writePhase() {
+@@ -911,12 +1800,26 @@
    read_set_.clear();
    write_set_.clear();
    node_map_.clear();
@@ -1159,7 +1212,7 @@ index efcf02d75..fd0f8eed2 100644
    /**
     * Tanabe Optimization for analysis
     */
-@@ -961,6 +1835,13 @@ bool TxExecutor::isLeader() { return this->thid_ == 0; }
+@@ -961,6 +1864,13 @@
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
