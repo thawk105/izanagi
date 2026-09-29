@@ -60,151 +60,6 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 アーカイブは凍結 (訂正注記のみ追記可)。既存アーカイブの一覧は `docs/archive/README.md`。
 
 ---
-## 2026-09-29 (1911) — VHash と timestamp forwarding の論文ストーリー系列を新設し、並行 wave の投げ文を用意する (docs のみ、branch worktree-paper-story-vhash-setup)
-
-- ユーザー指示 (2026-09-29): 外部の対話 AI との議論をまとめた研究メモ (VHash・選択的 timestamp forwarding・GC の協調) を
-  貼り、「これで論文を一本書こうかと考えている」「docs/ に新しい paper-story のディレクトリを専用に設けてくれ」
-  「図やグラフを多用してわかりやすく」「dev-wave を並列で投げまくって調査・試行錯誤・実装・実験を進めたい」
-  「投げ文は /work/1/SFC/tanabe/tmp に md_1.txt のように外出しして」と依頼した。`/work/1/SFC/tanabe` は実在せず、
-  実在する `/work/1/SFC/tanab/tmp` の下に置いた。
-- 新設の判断は D2280。初版 `2026-09-29.md` は Mermaid 24 枚・文字の図 1 枚・画像 0 枚。
-- 確かめた事実: CCBench の `cc/silo/transaction.cc` には `#if TRACE` があり、`cc/cicada/` の全ファイルには `TRACE` の
-  文字列が無い。`orchestrator/verifier/` にも `cicada` の文字列が無い。Cicada の variant は現状、正しさ検査器を通せない。
-- 並行 wave の投げ文 6 本 (文献・実測・正しさ検査・小さいモデル・配置の微小計測・forwarding 試作) を repo の外に置いた。
-  各 wave は下の新規 item に対応する。投げ文は T 番号を持たず、item を本文の文言で探す形にした (ユーザー指摘「T番号に依存する必要ある？」)。
-  本エントリの land より先に、同じ投げ文 (md_1) の文献調査 wave が docs の repo 外複製を読んで着手・着地し、
-  文献調査の残件を [T-2873] として自分で登録した。重複を避けるため、本エントリは文献調査の新規 item を登録しない。
-- 本エントリの land は、Pegasus の gen_S が 80〜90 本待ちの混雑で受入の shard が queue 待ち 900 秒で 8 回打ち切られ
-  (テストは 0 件実行)、06:31 JST に門番経由の 9 回目で child-green になった。その後 main へ md_1 wave が着地したので
-  取り込み直し、断片を直して受入をやり直した。
-- 受入の赤の帰属 (DW-O18): 07:07 JST の受入 (tip 5104356aa、main f6772df03) で
-  `orchestrator/tests/test_env_contract_activation.py` の 3 件
-  (`test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]`・同 `[modified]`・
-  `test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage`) が、テスト内の
-  `git archive ... HEAD` の 30 秒 timeout (`subprocess.TimeoutExpired`) で落ちた。本 branch の差分は docs と spool fragment だけで
-  この経路に触れない。同じ tip で 3 件だけを計算ノードへ投げた単独再走 (request 33958.nqsv) は `3 passed in 11.11s`。
-  混雑時の共有 FS による一過性で、本 branch に帰属しないと判定した。
-- 同じく 07:31 JST の受入 (tip 58c6906aa、main da4068e0e) で `orchestrator/tests/test_t810_coordinator.py` の 3 件
-  (`test_prepare_group_accepts_external_root_with_anchor_union`・`test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir`・
-  `test_prepare_group_rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で落ちた。
-  本 branch は worktree 登録の経路に触れない。3 件だけの計算ノード単独再走は `3 passed in 5.27s`。受入中の並行 session による
-  worktree 登録の変化と読み、本 branch に帰属しないと判定した。
-
-### 次の一手 — 「(番号)」だけの項は、その番号のエントリ (archive 含む) から変わらない持ち越し
-
-- [T-139] (1910)
-- [T-265] (1910)
-- [T-129] (1910)
-- [T-238] (1910)
-- [T-570] (1910)
-- [T-580] (1910)
-- [T-793] (1910)
-- [T-823] (1910)
-- [T-841] (1910)
-- [T-1069] (1910)
-- [T-1071] (1910)
-- [T-1234] (1910)
-- [T-1295] (1910)
-- [T-1524] (1910)
-- [T-1660] (1910)
-- [T-1702] (1910)
-- [T-1703] (1910)
-- [T-1708] (1910)
-- [T-1784] (1910)
-- [T-1794] (1910)
-- [T-1832] (1910)
-- [T-1834] (1910)
-- [T-1882] (1910)
-- [T-1883] (1910)
-- [T-1944] (1910)
-- [T-1950] (1910)
-- [T-2000] (1910)
-- [T-2005] (1910)
-- [T-2052] (1910)
-- [T-2084] (1910)
-- [T-2092] (1910)
-- [T-2100] (1910)
-- [T-2172] (1910)
-- [T-2205] (1910)
-- [T-2218] (1910)
-- [T-2221] (1910)
-- [T-2222] (1910)
-- [T-2244] (1910)
-- [T-2245] (1910)
-- [T-2250] (1910)
-- [T-2273] (1910)
-- [T-2277] (1910)
-- [T-2288] (1910)
-- [T-2300] (1910)
-- [T-2318] (1910)
-- [T-2322] (1910)
-- [T-2323] (1910)
-- [T-2351] (1910)
-- [T-2378] (1910)
-- [T-2387] (1910)
-- [T-2404] (1910)
-- [T-2415] (1910)
-- [T-2422] (1910)
-- [T-2425] (1910)
-- [T-2451] (1910)
-- [T-2453] (1910)
-- [T-2459] (1910)
-- [T-2461] (1910)
-- [T-2463] (1910)
-- [T-2511] (1910)
-- [T-2522] (1910)
-- [T-2538] (1910)
-- [T-2541] (1910)
-- [T-2559] (1910)
-- [T-2560] (1910)
-- [T-2561] (1910)
-- [T-2575] (1910)
-- [T-2604] (1910)
-- [T-2606] (1910)
-- [T-2648] (1910)
-- [T-2685] (1910)
-- [T-2699] (1910)
-- [T-2725] (1910)
-- [T-2739] (1910)
-- [T-2740] (1910)
-- [T-2741] (1910)
-- [T-2754] (1910)
-- [T-2755] (1910)
-- [T-2759] (1910)
-- [T-2767] (1910)
-- [T-2787] (1910)
-- [T-2806] (1910)
-- [T-2808] (1910)
-- [T-2818] (1910)
-- [T-2820] (1910)
-- [T-2827] (1910)
-- [T-2829] (1910)
-- [T-2838] (1910)
-- [T-2840] (1910)
-- [T-2846] (1910)
-- [T-2848] (1910)
-- [T-2850] (1910)
-- [T-2851] (1910)
-- [T-2852] (1910)
-- [T-2853] (1910)
-- [T-2854] (1910)
-- [T-2855] (1910)
-- [T-2859] (1910)
-- [T-2864] (1910)
-- [T-2865] (1910)
-- [T-2867] (1910)
-- [T-2870] (1910)
-- [T-2871] (1910)
-- [T-2872] (1910)
-- [T-2873] (1910)
-- [T-2874] (1910)
-- [T-2875] **P1・新規**: Cicada の版探索長・hot 相当の当たり率 (K 別の反実仮想)・forwarding の機会・GC 境界の遅れ・生存版数を診断計器 patch で実測する (メモ §29 段階 1)。
-- [T-2876] **P1・新規**: Cicada に検査用トレースを足し、izanagi の正しさ検査器で多版の履歴を検査できるようにする。壊した Cicada の positive control も用意する (forwarding 試作の正しさゲートの前提)。
-- [T-2877] **P1・新規**: 選択的 forwarding のプロトコルを小さいモデルで書き、reader・writer・forwarding・GC の割り込みを全探索して serializability を検査する (メモ §29 段階 2)。
-- [T-2878] **P1・新規**: 版選択の配置を微小計測で比べる (連結リスト・連続配置 + scalar・連続配置 + SIMD、K・版の深さ・値の大きさ)。
-- [T-2879] **P1・新規**: Cicada に cold 境界 (論理的な K 版) で発火する選択的 forwarding を inert variant patch として試作し、abort して再実行する対照と比べる (GC 保護は変えない、メモ §29 段階 3)。
-- [T-2880] **P2・新規**: 上の 5 件と [T-2873] (文献調査) の一次資料が揃ったら、`docs/paper-story-vhash/` の 2 版目を全面再導出する (図を先に)。
-
 ## 2026-09-29 (1912) — [T-2871] 方策 loop を Pegasus で job をまたいで複数 iteration 回せるようにした — pair を系列の iteration ごとの計測 campaign で測り (claim は iteration ごとに one-shot、stock skip も解消)、本番入口の pair job 2 本を同じ系列で連続して通した (コード + test + runbook + insight、branch worktree-dev-wave-t2871-policy-loop-iter)
 
 - 依頼 (ユーザー直接起動の `/dev-wave`、逐語 = insight `output/insights/2026-09-29/t2871-policy-loop-iter/verbatim/request.md`): claim leaf と one-shot 性を変えず、claim を手で退避せず、driver 側で解く。記録 = 同 insight、設計判断 = D2281。
@@ -1804,3 +1659,139 @@ Phase 境界または現行ファイルの肥大時 (`tools/check_docs.py` の�
 - [T-2891] (1922)
 - [T-2892] (1922)
 - [T-2893] (1922)
+
+## 2026-09-29 (1924) — [T-2879] Cicada に cold 境界 (論理 K 版) で発火する選択的 forwarding を inert patch で試作し、stock・C・F を同時刻に測った。通常 YCSB で試行の約 75% が成功、操作数の多い長い tx では約 18%、throughput の差は floor の内側、md_3 の検査器で発火付き巡回 0 (上限 indeterminate、未検証の診断値) (patch + driver + gate 登録 + insight、branch worktree-dev-wave-vhash-forwarding)
+
+- 依頼: VHash 論文の並行 wave md_6 (`/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_6.txt`)。一次資料 `output/insights/2026-09-29/vhash-forwarding-prototype/README.md`、設計判断 D2287・D2288。
+- 素材: 通常 YCSB (100 万件・zipf 0.9・48 thread、K=3) で C は 1 秒に試行 1,131〜2,069 回・成功率 0.73〜0.75。操作数型は全体 0.18 (長い thread は約 1%)、失敗の大半は既読不一致。throughput の stock 比は 0.95〜1.03 で 95% CI は全条件で 1 をまたぐ (K=1 の F だけ 0.66)。長い tx の完了は操作数型で 3 腕とも 0、待機型で一貫した差なし。すべて未検証の診断値。
+- 正しさ: md_3 の trace 計器 (main `159999d44`) に重ね、md_3 の起動器の派生 (Codex author、repo 外) で ENABLE+COUNT を渡して発火を数えながら検査。10 走行すべてで発火・成功 (計 285)、巡回 0、上限 indeterminate。serializable とは書かない。md_4 の小モデル (main `1887f56e4`) の規則 R9'・R5・R6→R7・R10 と静的に照合し、O1 を採らない本設計では R5 は該当しないことを一次資料 §2 に書いた。
+- ユーザー不在 (マネージャー連絡 03:23 JST): needs input を出さず、所有外の条件 gate 登録は段 3 の 2 レンズ (賛否) の一致で決めた。
+- 依頼との食い違い 2 点: patches/ledger.json に entry を足さない (rung1 契約が 1 件固定、マネージャー連絡でも確認)、IZANAGI_ 接頭辞を使わない。
+- セッション異常: DW-O13 の期限後成立 (条件 gate の登録が必須) で段 2 からやり直し (旧 brief / plan / review は無効化して退避、段 3 の旧 2 子を停止)。gen_S 混雑で dispatch の待ち切れ 3 回 (rc=16、子未起動)。手動 qdel は規約どおりせず、待ち job のある木に触れないよう統合用の木を 2 本 (vhash-fwd-integ / integ2) 使い、wave branch は最後に fast-forward した。
+- 実機でだけ出た不具合 6 件 (compile entry 4 件、config.h 未生成 ×2、gate への重複 define、__LINE__ のずれ、登録なしの検査木) を smoke の 7 回で潰した (insight §10)。登録簿の追随漏れ 2 件 (screening_driver の既定値表、tests/README の pytest 専用 allowlist) はマネージャー経由の md_2 実測と焦点走で見つけて直した。handoff の節見出しに推定時刻を書いて実際より 1 時間進んでいた (date で訂正)。
+- 段 2〜6 (Codex gpt-6-sol・medium): plan 2 (1 本は無効化)、consult 4 (2 本は無効化)、author 4 (A・B1・B2・probe)、fix 12、review 2、focus 2。段 6 の real 所見は fix で閉じ、refuted 1 (inert_values)、手順で対処 2 (予算の再積算、aggregate の workload 欠落)。
+- 変異 (事前登録 M1〜M5、独立 clone `60bd0eb8b`): probe で観測 node を集めた後の正式走で 5/5 KILLED・期待 node と完全一致・baseline PASSED。C++ の論理変異は login の pytest で殺せないので登録せず、段 6 の必須攻撃点と検査器の発火付き実走で代えた。
+- テスト: 登録関連一式 457 passed / 2 skipped (`60bd0eb8b`)、DW-O26 焦点走 2,387 passed / 1 failed (赤は未 commit の tests/README.md を作業木の dirt として数える `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes`、commit 後は該当しない)。受入全走 1 回目 (tip `3fe09d189`、main `3bf2d0a16`) は 2 failed / 27,953 passed / 74 skipped。赤 2 件は本 wave に帰属 (`test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible` と `test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches`: 新 driver の `cmake --build` 関数が materializer 登録簿に無い、F39 と同型)。md_2 の着地 (main `e8d115e8e`) の取り込みで gate の登録簿 3 file が衝突したので、Codex が clean な子木で取り込み後の最終内容 (両側の entry、件数の数え直し) と materializer 登録を書き、同じ merge commit で直した。焦点走 1,748 passed。受入全走 2 回目は記録時点では未実施。
+- 計算 (受入を除く): smoke 7・本計測 3・検査 3 の Elapse 合計 1,325 s、焦点走・登録関連テストの dispatch 9 本 1,132 s、変異 probe・正式走 12 run (推定 約 1,560 s)。合計約 4,000 s (約 1.1 node 時間)。2 node 時間の線の下なのでユーザー確認なしで投入した。
+
+- [T-2879] 試作・計測・正しさ検査を終え、一次資料 output/insights/2026-09-29/vhash-forwarding-prototype/README.md に記録した。
+
+### 次の一手 — 「(番号)」だけの項は、その番号のエントリ (archive 含む) から変わらない持ち越し
+
+- [T-139] (1923)
+- [T-265] (1923)
+- [T-129] (1923)
+- [T-238] (1923)
+- [T-570] (1923)
+- [T-580] (1923)
+- [T-793] (1923)
+- [T-823] (1923)
+- [T-841] (1923)
+- [T-1069] (1923)
+- [T-1071] (1923)
+- [T-1234] (1923)
+- [T-1295] (1923)
+- [T-1524] (1923)
+- [T-1660] (1923)
+- [T-1702] (1923)
+- [T-1703] (1923)
+- [T-1708] (1923)
+- [T-1784] (1923)
+- [T-1794] (1923)
+- [T-1832] (1923)
+- [T-1834] (1923)
+- [T-1882] (1923)
+- [T-1883] (1923)
+- [T-1944] (1923)
+- [T-1950] (1923)
+- [T-2000] (1923)
+- [T-2005] (1923)
+- [T-2052] (1923)
+- [T-2084] (1923)
+- [T-2092] (1923)
+- [T-2100] (1923)
+- [T-2172] (1923)
+- [T-2205] (1923)
+- [T-2218] (1923)
+- [T-2221] (1923)
+- [T-2222] (1923)
+- [T-2244] (1923)
+- [T-2245] (1923)
+- [T-2250] (1923)
+- [T-2277] (1923)
+- [T-2288] (1923)
+- [T-2300] (1923)
+- [T-2318] (1923)
+- [T-2322] (1923)
+- [T-2323] (1923)
+- [T-2351] (1923)
+- [T-2378] (1923)
+- [T-2387] (1923)
+- [T-2404] (1923)
+- [T-2415] (1923)
+- [T-2422] (1923)
+- [T-2425] (1923)
+- [T-2451] (1923)
+- [T-2453] (1923)
+- [T-2459] (1923)
+- [T-2461] (1923)
+- [T-2463] (1923)
+- [T-2511] (1923)
+- [T-2522] (1923)
+- [T-2538] (1923)
+- [T-2541] (1923)
+- [T-2559] (1923)
+- [T-2561] (1923)
+- [T-2575] (1923)
+- [T-2604] (1923)
+- [T-2606] (1923)
+- [T-2648] (1923)
+- [T-2685] (1923)
+- [T-2699] (1923)
+- [T-2725] (1923)
+- [T-2739] (1923)
+- [T-2740] (1923)
+- [T-2741] (1923)
+- [T-2754] (1923)
+- [T-2755] (1923)
+- [T-2759] (1923)
+- [T-2767] (1923)
+- [T-2787] (1923)
+- [T-2806] (1923)
+- [T-2808] (1923)
+- [T-2818] (1923)
+- [T-2820] (1923)
+- [T-2827] (1923)
+- [T-2829] (1923)
+- [T-2838] (1923)
+- [T-2840] (1923)
+- [T-2846] (1923)
+- [T-2848] (1923)
+- [T-2850] (1923)
+- [T-2851] (1923)
+- [T-2852] (1923)
+- [T-2853] (1923)
+- [T-2854] (1923)
+- [T-2855] (1923)
+- [T-2859] (1923)
+- [T-2864] (1923)
+- [T-2865] (1923)
+- [T-2867] (1923)
+- [T-2870] (1923)
+- [T-2872] (1923)
+- [T-2873] (1923)
+- [T-2874] (1923)
+- [T-2880] (1923)
+- [T-2881] (1923)
+- [T-2883] (1923)
+- [T-2884] (1923)
+- [T-2885] (1923)
+- [T-2886] (1923)
+- [T-2887] (1923)
+- [T-2888] (1923)
+- [T-2889] (1923)
+- [T-2890] (1923)
+- [T-2891] (1923)
+- [T-2892] (1923)
+- [T-2893] (1923)
+- [T-2894] **P2・新規**: 選択的 forwarding の前進先の選び方 (最小前進 / 既読の可視区間に収まる最大 / 1 tx 1 回の制限) を比べ、長い tx の読み集合で成功率が落ちる (操作数型で約 18%、長い thread で約 1%、主因は既読不一致) 問題を調べる。基盤は patches/cicada-forwarding-variant.patch と orchestrator/campaign/vhash_forwarding_prototype.py (一次資料 output/insights/2026-09-29/vhash-forwarding-prototype/README.md §8)。
