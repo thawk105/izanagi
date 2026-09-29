@@ -95,3 +95,8 @@ pilot (2026-09-11) 時点の helper は FetchContent 3 本だけを hydrate し�
 - 段 1 brief = `verbatim/brief.md`、段 4 裁定 = `verbatim/adjudication.md` (実装しない、子ゼロ、変異免除)。段 2・3・5・6 は省略 (設計択一なし・防壁に触れない・受理集合不変)。
 - 実測は親 (submit / 監視 / complete / materialize)。codex 子は 0 本。
 - 受入全走は記録 commit 後の tip で 1 走 (結果は land の受領証)。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元・原本の所在として名指す submit-tree `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1505-a1-sized-submit/submit-tree` (detached `d2ebef7a4`、main の祖先) は、2026-09-30 の掃除 wave で回収せずに撤去する。公開 leaf 4 file は repo の `output/insights/2026-09-13/paper-story-a1-balanced5-sized/` に byte 一致で在り、測定本体は durable base (`/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` にも写し) にある。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

@@ -137,3 +137,8 @@ default_effect: no-state-change
 - 段 5: Codex author 1 本が probe 1 file (465 行) を unit 木に書いた。親は内容を読んで監査し、selftest 6 項目 (正例: write skew の 2 辺成立・template + literal の合格。負例: 直列の辺不成立・書き手不明・transaction.cc の hunk の不合格・hole 外 1 行変更の不合格) を実走した。
 - 変異 matrix: repo の実装面の差分が 0 なので免除 (DW-S04)。probe の機構は selftest の正例・負例で確かめた。
 - 段 6: read-only レビュー 1 本 (事実の再抽出)。件数・witness・統計値・Elapse・該当コードの行 (1 件を除く) は一次資料と一致した。所見 5 件 (patch 照合からの「意味の変更」の排除が広すぎた、非有意な率比較から候補の原因を断定していた、publish の行番号、(iii) の判定語、率の書き方) をすべて real とし、本文を修正した。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が名指す branch `t2868-probe-author` (commit `d86ec8f48`、probe の repo 側の保存先) と unit 木、job dir の submit 木 `/work/1/SFC/tanab/tmp/t2868-mocc-g2-20260927/trees/sb1`〜`sb4` は、2026-09-30 の掃除 wave で回収せずに撤去する。probe は branch 束 bundle `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-originals-migration/backup/branches.bundle` から復元でき、job dir の `probe/`・`recheck-output/` は撤去しない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
