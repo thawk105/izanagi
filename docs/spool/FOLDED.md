@@ -5612,3 +5612,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{"F:print-function-defined-not-called":"F1065"},"authored":"2026-09-29","base":"035fc11fa601547f5d68e54f5661c5daa70b93a5","content_sha256":"42a75cde7afcac3d783758afd943faa497f6fb95446441e585e26b9e488565ed","seq":3,"tested_tip":"799f9fc575e0973850b7523ebdd51264cfceb087","wave":"dev-wave-vhash-cicada-baseline-tuning","wave_ref":"refs/heads/dev-wave-vhash-cicada-baseline-tuning"}
 
 - {"allocations":{},"authored":"2026-09-29","base":"ce124f3887185efbf44ed6d5a2063b13fb427e9b","content_sha256":"426008e7b12c639ab4828a475e6ec198e7ffa54baa60073312a1071b66b4f899","seq":1,"tested_tip":"c5dae7b23bda7edb5c6f1871938d91842ae4e038","wave":"dev-wave-gen-opt-stage-a-candidate","wave_ref":"refs/heads/dev-wave-gen-opt-stage-a-candidate"}
+
+- {"allocations":{},"authored":"2026-09-29","base":"b18f87b5dbdf500dacd70d5cac0151daae7fc8c5","content_sha256":"09908a4200266b3506bf9c40d20d57e46043418019f608b9efe7a5f8e33dd644","seq":1,"tested_tip":"a6c32004ffcf92e95fd182f8c576ef0b0f93a896","wave":"dev-wave-gen-opt-phase3-readme-sync","wave_ref":"refs/heads/dev-wave-gen-opt-phase3-readme-sync"}

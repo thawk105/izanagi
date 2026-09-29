@@ -1,0 +1,24 @@
+# 投入前の login 検査 (2026-09-29 14:51 JST、submit-tree = /work/1/SFC/tanab/tmp/t2853-r2-fig6-20260929/submit-tree)
+# guard が `$()` と ccbench path の同居を拒否したため、単文の command 2 本に分けて実行した出力を逐語で写す。
+
+## 1 本目
+2026-09-29 14:51:10 JST
+035fc11fa601547f5d68e54f5661c5daa70b93a5
+tracked-clean-listed-above(empty=clean)
+68106660686232781bca3be792a750d3e19d7a8a
+ccbench-clean-listed-above
+
+## 2 本目
+32:CURRENT_PIN = "6810666"
+{"project":"SFC","queue":"gen_S","nodes":5,"walltime":"06:00:00","job_body":"tools/pegasus/paper_story_a2_certification.sh"}
+/work/1/SFC/tanab/izanagi-a2-deps
+output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/googletest
+output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/masstree
+output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src/mimalloc
+2a3205cf5c171563f715556e1ca347821df75f7dc3d74934511caf7a7e820d70  tools/pegasus/paper_story_a2_certification.sh
+320b5780601a8024384a983bb71cd4d43ca196ea77c9e9d6eb07f61860070eba  tools/pegasus/submit_paper_story_a2_certification.sh
+f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c  orchestrator/campaign/paper_story_a2_certification.v2.json
+gen_S             1  149 ENA ACT   30  164   0   0  82   0  51   0   0  31   0   0   0   0
+quota_rc=0
+0
+# (最後の 0 は `qstat -f` の出力中の "Request Name = paper-a2-cert" の行数)
