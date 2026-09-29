@@ -3630,7 +3630,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 55})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 58})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3639,7 +3639,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 55,
+        "failure-reachable": 14, "proven-unreachable": 58,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target
