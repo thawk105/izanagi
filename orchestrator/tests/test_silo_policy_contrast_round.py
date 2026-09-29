@@ -62,6 +62,31 @@ def test_preview_reject_records_without_auditor(tmp_path):
     assert (end["reject_subtype"], end["reject_rule_id"]) == ("x", "x")
 
 
+def test_role_proposal_is_unwrapped_for_check_and_finalize(tmp_path):
+    root = _ledger(tmp_path)
+    ledger = ContrastLedger(root)
+    ledger.append("opportunity-start", a=1)
+    out = tmp_path / "out"
+    coder = tmp_path / "coder-response.json"
+    proposal = {"axis": "silo-function-policy", "implementation": "valid shape",
+                "justification": "test", "confidence": "medium"}
+    coder.write_text(json.dumps({"proposal": proposal}))
+    seen = []
+    def run(argv, **_kwargs):
+        path = Path(argv[argv.index("--preview-diff") + 1])
+        seen.append(json.loads(path.read_text()))
+        return SimpleNamespace(returncode=0, stdout=json.dumps({"passed": True,
+            "working_diff": "diff", "diff_digest": "digest", "subtype": None,
+            "rule_id": None}), stderr="")
+    assert R.check(ledger, 1, coder, out, ledger_root=root, run=run)["status"] == "auditor-needed"
+    assert seen == [{"coder": proposal}]
+    auditor = tmp_path / "auditor-response.json"
+    auditor.write_text(json.dumps({"verdict": "pass", "diff_digest": "digest", "violations": [],
+                                   "nits": [], "proposed_tests": [], "uncertainty": ""}))
+    assert R.finalize(ledger, 1, coder, auditor, out, ledger_root=root, run=run)["status"] == "proposed"
+    assert seen[1] == {"coder": proposal, "auditor": json.loads(auditor.read_text())}
+
+
 def test_check_and_finalize_reuse_existing_terminal(tmp_path):
     root = _ledger(tmp_path)
     ledger = ContrastLedger(root)

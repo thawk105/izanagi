@@ -25,6 +25,12 @@ def _json(path: Path, value: object) -> None:
     _write(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
 
+def _coder_document(value: dict) -> dict:
+    if set(value) == {"coder"}:
+        return value
+    return {"coder": value["proposal"] if set(value) == {"proposal"} else value}
+
+
 def _events(ledger, kind):
     return [e for e in ledger.events if e["kind"] == kind]
 
@@ -175,8 +181,7 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
         value = json.loads(coder.read_text(), object_pairs_hook=_unique_pairs)
         if type(value) is not dict:
             raise ValueError("invalid coder")
-        if set(value) != {"coder"}:
-            value = {"coder": value}
+        value = _coder_document(value)
     except (ValueError, TypeError, KeyError):
         return _schema_reject(ledger_root, a, "coder-schema", "invalid-json")
     _json(out / "coder.json", value)
@@ -224,7 +229,7 @@ def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
         return _schema_reject(ledger_root, a, "auditor-schema", "invalid-json")
     try:
         value = json.loads(coder.read_text(), object_pairs_hook=_unique_pairs)
-        value = value["coder"] if type(value) is dict and set(value) == {"coder"} else value
+        value = _coder_document(value)["coder"] if type(value) is dict else value
     except (ValueError, TypeError, KeyError):
         return _schema_reject(ledger_root, a, "coder-schema", "invalid-json")
     _json(out / "coder.json", {"coder": value})
