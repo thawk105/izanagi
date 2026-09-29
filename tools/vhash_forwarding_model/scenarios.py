@@ -247,9 +247,9 @@ def danger_witness(name):
                        for v in a.versions if v.id == vid), None)
             return bool(ta and wb and any(
                 v.key == "A" and v.owner == "W" and v.status == "COMMITTED"
-                and ta.wts < v.wts <= t.cand_ts for v in a.versions) and any(
+                and ta.wts < v.wts for v in a.versions) and any(
                 v.key == "B" and v.owner == "T" and v.status == "COMMITTED"
-                and wb.wts < v.wts <= w.cand_ts for v in a.versions))
+                and wb.wts < v.wts for v in a.versions))
         return danger
     if name == "G3":
         return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(

@@ -197,6 +197,20 @@ def test_expired_decision_is_not_committed():
     assert next(v for v in decided.versions if v.id == "T:A").status == "ABORTED"
 
 
+def test_h5_danger_write_skew_cycle():
+    versions = (Version("A10", "A", 10, 10), Version("B11", "B", 11, 11),
+                Version("W:A", "A", 20, 20, owner="W"),
+                Version("T:B", "B", 15, 15, owner="T"))
+    t = Txn("T", 15, (), phase="done", read_log=(("A", "A10"),))
+    w = Txn("W", 20, (), phase="done", read_log=(("B", "B11"),))
+    state = State(versions, (t, w))
+    danger = danger_witness("H5")
+    step = Step("W", "decide_committed", "W:A")
+    assert danger(state, state, step)
+    assert not danger(state, replace(state, versions=versions[:2] + versions[3:]), step)
+    assert not danger(state, replace(state, versions=versions[:3]), step)
+
+
 def test_healthy_h2_h3_complete():
     for name in ("H2", "H3"):
         _, result = _search(name)
