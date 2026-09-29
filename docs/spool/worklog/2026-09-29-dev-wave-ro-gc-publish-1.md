@@ -16,8 +16,9 @@ title: [T-2911] VHash md_22: Cicada の read-only commit でも GC の公開を�
 - land の調整: 並行 land 調整役への `LAND-READY` 申告と、撤去の `CLEANUP-READY` 申告の手順を別 session から受けた。
 - 棄却・限定した所見: 段 6 レビュー B の「陰性対照が前進あり = 反証」は refuted (段 4 の「発火」は GC 安全違反を指し、前進は対象外)。B の「smoke に時間見積りを入れる」は driver の要件にせず親が raw から計算。レビュー A の「rc=3 を受理している」は受理自体は先例どおり正しく、記録名 (`verdict_label`) だけ直した。焦点再レビュー 1 の partial 4 件は一次資料で範囲を限る (探索した 5 構成、slot 引上げの正例は途中の flag を要する条件付き、非 ro の write は実行時に数えていない、非同居は計測後に照合) として閉じた。
 - 親の誤記: 長い ro なしの throughput 比の範囲を途中報告で 0.985〜1.073 と書き、焦点再レビュー 2 が 36 対の再計算で 0.964〜1.073 と指摘した。一次資料は訂正済み。
-- 子の工数: Codex plan 1・相談 2・author 2・review 2・fix 10 (単位 A 1、単位 B 9)・焦点再レビュー 2・merge 合成監査 1。fix の 8 巡はレビュー所見ではなく、親の実機 (焦点走・smoke・verify・作図) で見つけた不具合への対応。
-- 計算ノード: 合計 6,325 s (約 1.76 node 時間)。内訳は一次資料 §12。受入全走は記録 commit の後に local main を取り込んだ tip で行う。
+- main の取り込み (2026-09-30): VHash hot block wave と登録簿 7 file が衝突し、衝突の外でも両 wave が件数 pin を同じ新値へ書き換えていて git が 1 回分の加算しか残さなかった ({{F:same-value-pin-automerge}})。Codex author の fix 子が合成の最終形を書き (75 macro に合わせて pin を再導出)、merge commit afd33c945 で焦点走 8 (47 file) 緑、変異 B (MB3) の取り直しも KILLED。子を merge 途中の作業木へ投入して起動時に停止した (F815 の再発)。
+- 子の工数: Codex plan 1・相談 2・author 2・review 2・fix 11 (単位 A 1、単位 B 10、うち 1 本は起動時停止の後に再投入)・焦点再レビュー 2・merge 合成監査 1。fix の 8 巡はレビュー所見ではなく、親の実機 (焦点走・smoke・verify・作図) で見つけた不具合への対応、1 巡は main 取り込みの合成。
+- 計算ノード: 合計 6,610 s (約 1.84 node 時間)。内訳は一次資料 §12。受入全走は local main を取り込んだ tip で行う。
 
 ## 次の一手差分
 
