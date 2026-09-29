@@ -8552,6 +8552,9 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/instr-silo-function-policy-probe.patch": frozenset({
             "IZANAGI_SILO_POLICY_PROBE",
         }),
+        "patches/instr-cicada-version-lifetime.patch": frozenset({
+            "IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX", "IZANAGI_CICADA_VLIFE_JSON",
+        }),
         "patches/broken-silo-policy-norw-validation.patch": frozenset({
             "IZANAGI_BREAK_NOREAD_VALIDATION",
         }),
