@@ -1,0 +1,1 @@
+M1 erratum: 4fcbbdba4 の自走で観測した期待 node (plot 2 本: test_partial_workloads_and_input_binding / test_real_size_figures_and_overlap_rejection) は fix-5〜7 の作図 test 追加で変わり、cdd14ea8f の自走では test_j1_stock_buildable_genomes_and_missing_cells / test_measured_throughput_scale_layout と test_genomes_and_control。旧 spec = mutation-spec-v1-erratum-M1.json

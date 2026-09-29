@@ -18,6 +18,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2898] roadmap §2 層2 の 2026-09-29 協議改訂 (D2289) に、本書の後続段 7 の着手条件 (見出し・本文の予約・
+  2026-08-21 試作記録への追記)、本節の b2 の 1 文、2026-09-17 改訂 (5) への追記、`README.md` の冒頭と三層図を
+  追随させた (2026-09-29、docs のみ、計算なし)。過去の改訂記録の本文は変えず、日付付きの追記で現況の正本を指す。
 - [x] [T-2849] (1) 5 手法比較基盤の実装 (D2220 の単位 1〜7、S1 = silo の backoff 値空間) と [T-2853] (1) の標準評価経路の trace 保全口 (2026-09-23)。
   B-5 の兄弟 module の系列 driver と BO・進化の生成器、`--reference-genome` と harness slot の評価入口、K0 LLM の巡 tool と planner-v4・coder-v4-autonomous の改訂、
   job body の harness 分岐、env `IZANAGI_TRACE_ARCHIVE_ROOT` の opt-in の zstd 保全。焦点走 3,645 passed、変異 26 / 26 KILLED。[T-2849] の (2) MOCC と (3) 疎通、
@@ -42,6 +45,14 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   R2-a (cohort 1 の source `0600887d9`・事前登録 `cad6f46d8`) と R2-b (cohort 2 の source `8737cacb4`) の 2 group × 3 job を 6 ノードで同時に走らせ、両 group とも集団 verdict `not-observed-in-any-workload`・18/18 区間 declining・正しさ 120/0。
   地位 (別 attempt・非合成) は投入前に commit。同じ生成器で fig8 形の図 2 枚を描いた (fig8b 形はレイアウト検査で拒否、検査は外さない)。原 cohort と並べた表つき。trace 保全口はこの経路に渡す口が無く未使用。
   fig8b 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-28/t2853-r2-fig8b/README.md`。
+- [x] [T-2853] (5'') R2 の fig6 単位 (A-2: stock `BACK_OFF=0` 対 fixed 10 / 5 µs) を現行 driver `submit_paper_story_a2_certification.sh`・現行 policy (5 node・現行 `pin.CURRENT_PIN`) で測り直した (2026-09-29、2.16 node 時間、投入前にユーザー確認)。
+  attempt `t2853r2-20260929a` の 2 job とも完走、outer `observed-positive` (rr5 +65.4129%・rr50 +12.8953%)、4 cell とも正しさ certified・anomaly 0。地位 (別 attempt・非合成・条件差) は投入前に commit。
+  collect は repo 外へ書き、原 attempt の成果物・fig6 は不変。同じ生成器 (bytes 不変) で R2 の図と原 attempt との対照表を作った。trace 保全口はこの driver に渡す口が無く未使用。
+  fig6・fig8b 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-29/t2853-r2-fig6/README.md`。
+- [x] [T-2853] (5'') R2 の fig11 単位 (A-6 read-heavy、stock 対 fixed 2 µs) を現行 repo の certification driver・現行 policy (5 node)・現行 CCBench pin (`pin.CURRENT_PIN`、投入時の値は insight に記録) で測り直した (2026-09-29、1.47 node 時間)。
+  attempt `a6-r2-20260929a` (request 35349) は完走し、outer status `reject`・効果 −5.2144%・正しさ 2/2 certified・source binding 2/2 bound。地位 (別 attempt・非合成・投げ直し条件) は投入前に commit。
+  collect は repo 外の空 dir へ materialize し、元 attempt の tracked leaf に触れていない。同じ生成器で R2 図を描き (全検査通過、caption の役割語 4 箇所だけ差し替え)、元 attempt と並べた表つき。trace 保全口はこの経路に渡す口が無く未使用。
+  fig6・fig8b・fig11 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-29/t2853-r2-fig11/README.md`。
 - [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
   4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
   (certified はまだ出さない)、(b) に関数単位の軸の段階 C (LLM 生成は未実施)、3.3 節に SI の検出件数の時点、限界節に合成ループの小構成を反映した。主張は増やしていない。組版 15 頁 (初版 14 頁)。
@@ -226,8 +237,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   8c セッション非依存駆動は「反復運営が再び律速なら着手」の条件付きだったが、
   **ユーザーの優先度変更により条件を待たず bounded MVP を先に実装した** (D106)。
   正式実験 (H1/H2 × on/off/swapped) と crash resume は未完で、ここは条件が外れていない。
-  段 7 のうち cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能 (pin 前進は別途再承認)。b2 移植への
-  本格投資は従来どおり 8b と層3の後に判断する。
+  段 7 のうち cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能 (pin 前進は別途再承認)。b2 移植・
+  カタログ化は roadmap §2 層2 の 2026-09-29 協議改訂 (D2289) で段 A の経路へ上がり、「8b と層3の後」の
+  着手条件は外れた。条件の正本は roadmap §2 層2 (段 7 の項に要約)。
 - 既知の rr5/rr50/rr95 結果は配線確認・**結果既知の事前登録付き追試** (confirmatory とは呼ばない) にだけ使う。新しい workload 特化主張は、
   結果を見ていない holdout workload/競合条件と全件報告規則を実走前に凍結してから評価する。
 - bench-first screening v2 は**実装済み** (2026-07-15、D58。監査 must-fix 対応込み)。positive
@@ -391,6 +403,9 @@ SHA 束縛の置換を認めない)。
 **roadmap 本体 (§9 E の順序文、§2 の b1 主経路 / b2 拡張予約) は改訂しない** — 本改訂は phase 内の準備
 着手順の変更であり、E の本格投資判断や C-1 の必須化まで行う場合は `docs/roadmap-history/README.md` の
 改訂規則に従う別件とする。
+**(2026-09-29 追記)** 上の (5) の「b2 への本格投資の条件は従来どおり」と「b2 拡張予約は改訂しない」は、
+roadmap §2 層2 の 2026-09-29 協議改訂 (D2289) で改まった。(b2) は段 A の経路になり、カタログ化は
+「8b + 層 3 の後」を待たずに計算を使わない手順から着手する。現行の条件は後続段 7 の項と roadmap §2 層2 が正本。
 
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
@@ -698,15 +713,24 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    再判断の発火条件 = 「学習型 CC を定量的に上回る」の headline 昇格時のみ** (ユーザー協議、worklog
    2026-07-10 (9)、材料は worklog 2026-07-10 (8))。生データ =
    `docs/related-work/literature-map/gap-research-2026-07-10.md`。
-7. **(cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能。b2 移植・カタログ化への本格投資は 8b + 層3の後に再判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
+7. **(cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能。b2 移植・カタログ化は 2026-09-29 の roadmap 協議改訂 (D2289) で段 A の経路となり、カタログ化は計算を使わない手順から着手可能。移植の本格投資はカタログで移植先の前提が満たせるかを見て判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
    「他 CC の最適化を CCBench コーパスから移植する」+「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、
    **workload descriptor と evidence-bound report の最小 E2E を先に成立させた後の拡張**として
-   ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成には P2-4 の成立例がある一方、**移植の価値は未検証仮説** (I5 =
+   ここに予約していた (a' 方針、D32。この予約は 2026-09-29 に外れた — 本項末尾の追記)。根拠 = 非対称性: 空間外合成には P2-4 の成立例がある一方、**移植の価値は未検証仮説** (I5 =
    「異なる実装の混合は不適切」という CCBench 著者の警告 + 他 CC のメタデータ前提を持ち込む正しさ攻撃面) なので、
    現行 Silo 内でシステム主張を成立させてから投資判断する (規律5 / P2-5 の教訓 = 仮説に工数を先払いしない)。着手時の
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
+
+   **(2026-09-29 追記、roadmap §2 層2 の協議改訂 = D2289 への追随)** 上の「最小 E2E を先に成立させた後の拡張」
+   という予約と、その根拠の「現行 Silo 内でシステム主張を成立させてから投資判断する」順序は外れた。(b2) は
+   段 A (文献にはあるが CCBench に無い最適化を、正しく実装して workload 別に選べることを示す) の経路であり、
+   持ち込み元は CCBench の他 CC に限らず文献の最適化まで含む。一歩目のカタログ化は計算を使わない手順から今
+   着手でき、移植の本格投資 (段 A の試し以降) はカタログで移植先の前提が満たせるかを見て決める。I5 と正しさ
+   攻撃面の懸念は残り、CCBench に無い仕組みを入れる候補には roadmap §2 層2 の追加の正しさ関門 2 つを課す。
+   優先度の読み (計算を使わない手順だけ今から並行) は親セッションの解釈であり、その区別は D2289 に書かれている。
+   着手条件と順序の正本は roadmap §2 層2 (「段 A と段 B」の節と「移植可能性の判定」の着手時期) で、本項は要約である。
 
    - [x] [T-2780] mocc pilot の discriminator 入力配線を修正 (2026-09-18)。hydrate の interpreter 選択、build 前の X/P patch、verifier source と receipt v2 の束縛を実装。計算ノード job 5905 は終端 accounting 確認後に no-g2 / rc0 で finalization 到達。公式認証への昇格や rc1 の実機被覆を意味しない。
      受入で再発したT1259のmodule snapshot重複取得は、既存process memo集合への配置で抑える。実snapshot・独立copy・全51ケース・30秒timeout・P/S lockを維持する。
@@ -740,6 +764,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    (8b+層3後) は 2026-08-21 時点でこの結果と無関係に未成立だった (現在の条件は上記 2026-09-17 改訂 —
    基盤準備は着手可能、b2 本格投資の条件は従来どおり)。詳細・見送った候補・今後の芽は
    `output/insights/2026-08-21_cicada-selective-precheck-catalog-card.md`。
+   **(2026-09-29 追記)** 上の括弧書きの「現在の条件」は 2026-09-17 改訂時点のもので、2026-09-29 以後の条件は
+   本項の 2026-09-29 追記 (段 7 本文の直後) が要約し、正本は roadmap §2 層2 である。
 8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は bounded MVP 済み・正式実験と resume は未完)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
    リスクに応じてレビューする。新しい統計主張・不可逆な決定は D41 相当の 3 レンズ、可逆な schema/文言は
