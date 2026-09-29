@@ -332,8 +332,8 @@ def _build_one(source, build, spec, dependencies, toolchain):
             "tuple_size_bytes": tuple_size}
 
 
-def runtime_dependencies(binary):
-    """Require resolved shared libraries on a stable shared path; record hashes."""
+def runtime_dependency_paths(binary):
+    """Return resolved shared library paths without opening them."""
     result = checked(["ldd", str(binary)], timeout=30).stdout.decode("utf-8", "replace")
     paths = []
     for line in result.splitlines():
@@ -342,7 +342,12 @@ def runtime_dependencies(binary):
         match = re.search(r"=>\s+(/\S+)|^\s*(/\S+)\s+\(", line)
         if match:
             paths.append(Path(match[1] or match[2]))
-    return {str(p): sha(p) for p in paths}
+    return paths
+
+
+def runtime_dependencies(binary):
+    """Require resolved shared libraries on a stable shared path; record hashes."""
+    return {str(p): sha(p) for p in runtime_dependency_paths(binary)}
 
 
 def verify_binary(manifest, name):
@@ -350,7 +355,16 @@ def verify_binary(manifest, name):
     binary = Path(entry["path"])
     if sha(binary) != entry["sha256"]:
         raise RuntimeError(f"binary sha256 mismatch: {name}")
-    for path, digest in entry["runtime_dependencies"].items():
+    recorded = entry["runtime_dependencies"]
+    try:
+        current = {str(path) for path in runtime_dependency_paths(binary)}
+    except RuntimeError as exc:
+        if not str(exc).startswith("unresolved binary dependency:"):
+            raise
+        raise RuntimeError(f"ldd dependency resolution mismatch: {name}") from exc
+    if current != set(recorded) or any(not Path(path).is_file() for path in recorded):
+        raise RuntimeError(f"ldd dependency resolution mismatch: {name}")
+    for path, digest in recorded.items():
         if sha(path) != digest:
             raise RuntimeError(f"runtime dependency sha256 mismatch: {path}")
     return binary
@@ -360,9 +374,7 @@ def sharing_preflight(manifest, names):
     """Verify every shared binary and its current dynamic linker resolution."""
     for name in names:
         try:
-            binary = verify_binary(manifest, name)
-            if runtime_dependencies(binary) != manifest["builds"][name]["runtime_dependencies"]:
-                return f"ldd dependency resolution mismatch: {name}"
+            verify_binary(manifest, name)
         except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
             return f"shared binary verification failed: {name}: {exc}"
     return None

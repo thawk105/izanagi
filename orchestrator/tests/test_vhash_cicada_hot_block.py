@@ -306,7 +306,25 @@ def test_shared_ldd_resolution_change_stops(tmp_path, monkeypatch):
     digest = hashlib.sha256(b"expected").hexdigest()
     manifest = {"builds": {"perf-k0": {"path": str(binary),
         "sha256": digest, "runtime_dependencies": {"/lib/old.so": digest}}}}
-    monkeypatch.setattr(h, "runtime_dependencies", lambda _: {"/lib/new.so": digest})
+    monkeypatch.setattr(h, "runtime_dependency_paths", lambda _: ["/lib/new.so"])
+    assert "ldd dependency resolution mismatch" in h.sharing_preflight(manifest, ["perf-k0"])
+
+
+def test_shared_dependency_hash_checked_after_resolution(tmp_path, monkeypatch):
+    binary = tmp_path / "bench"
+    binary.write_bytes(b"expected")
+    dependency = tmp_path / "lib.so"
+    dependency.write_bytes(b"changed")
+    manifest = {"builds": {"perf-k0": {"path": str(binary),
+        "sha256": hashlib.sha256(b"expected").hexdigest(),
+        "runtime_dependencies": {str(dependency): hashlib.sha256(b"original").hexdigest()}}}}
+    monkeypatch.setattr(h, "runtime_dependency_paths", lambda _: [dependency])
+    assert "runtime dependency sha256 mismatch" in h.sharing_preflight(manifest, ["perf-k0"])
+    dependency.unlink()
+    assert "ldd dependency resolution mismatch" in h.sharing_preflight(manifest, ["perf-k0"])
+    def unresolved(_):
+        raise RuntimeError("unresolved binary dependency: lib.so => not found")
+    monkeypatch.setattr(h, "runtime_dependency_paths", unresolved)
     assert "ldd dependency resolution mismatch" in h.sharing_preflight(manifest, ["perf-k0"])
 
 
