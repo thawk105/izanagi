@@ -24,6 +24,11 @@ title: 知識面だけの wave を縮小受入で land できるようにした 
   `orchestrator/tests/test_dev_wave_cleanup.py::test_repository_removal_lock_is_nonblocking_and_released[sigkill-remove-child]`。**非帰属**: 本 wave の変更 module
   (dev_wave_land・dev_wave_wait・run_tests・scoped_acceptance*) を test も対象 tool も import しない。同じ木で当該 test を計算ノードで単独再走して 4 passed (8.04 s) で非再現。
   受入を投げ直す。独立 clone の受入全走 2 回でも同じ file の別 node が赤になっていた (clone 環境、同じく本 wave 非帰属)。
+- 受入 attempt 2 の赤の判定 (DW-O18): 466f0aa05 に main 681f1bbca を post-claim merge した木 0de838820 で 28,261 passed / 赤 1 件 —
+  `orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate` (`Failed: first evaluation did not finish`、
+  実時間 5000 tick の待ち loop)。**非帰属**: test と対象 module (tools/pegasus/b5_contrast_launch.py・orchestrator/campaign/b5_generator_contrast.py) は本 wave の変更を import しない。
+  当該 file の単独再走は wave の木で 1 回目赤・2 回目 65 passed、本 wave を含まない main 681f1bbca の木 (独立 clone) で 1 回目 65 passed・2 回目赤と、両方の木で割れた。
+  2026-09-29 の VHash wave の受入でも同じ node が同じ本文で 1 度落ちている。受入を投げ直す。
 - 受入全走はこの記録 commit の tip で行い、受領証は job dir (`/work/1/SFC/tanab/tmp/scoped-acceptance-2026-09-29/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
 
 ## 次の一手差分
