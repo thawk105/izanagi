@@ -1,0 +1,21 @@
+{
+  "builds": [],
+  "ccbench_head": "68106660686232781bca3be792a750d3e19d7a8a",
+  "dependencies_seconds": 11.358763909993286,
+  "finished_utc": "2026-09-29T02:03:27.567277+00:00",
+  "host": "bnode068",
+  "job_id": "cicada-j0",
+  "schema": "vhash-cicada-diagnostic/v1",
+  "spec_sha256": "19de58b3ffca0446b07656b156c4a266b36132105dca10a4275a7b97087ee10d",
+  "stage": "j0",
+  "started_utc": "2026-09-29T02:03:13.454846+00:00",
+  "status": "failed",
+  "toolchain": {
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "version_body_sha256": {
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    }
+  }
+}
