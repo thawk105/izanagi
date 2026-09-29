@@ -31,13 +31,17 @@ rr95/rr80/rr20/rr5 の certification・計測・collector・登録は、**dev-wa
 | `tools/pegasus/collect_receipt.py` | `compute-only` | `unknown` |
 | `tools/pegasus/fetch_third_party.py` | `login-direct` | `local-ok` |
 | `tools/pegasus/p3_s4_loop_pegasus.sh` | `qsub-job-body` | `dispatch-required` |
+| `tools/pegasus/silo_policy_contrast_launch.py` | `login-direct` | `local-ok` |
+| `tools/pegasus/silo_policy_contrast_parent.py` | `login-direct` | `local-ok` |
 | `tools/pegasus/smoke_probe.sh` | `qsub-job-body` | `dispatch-required` |
 | `tools/pegasus/submit_certify.sh` | `login-direct` | `local-ok` |
 | `tools/pegasus/submit_floor.sh` | `login-direct` | `local-ok` |
 
-`login-direct` の 4 本のうち実測済みは `fetch_third_party.py` だけで、submitter 2 本は
+`login-direct` の 6 本のうち実測済みは `fetch_third_party.py` だけで、submitter 2 本は
 `legacy-admitted (未実測)`、`b5_contrast_launch.py` は `static login-side submitter classification`
-(qsub と Git 読取りだけで計算処理は job body に委譲、資源実測なし、[T-2797]) である (2026-08-05 のユーザー裁定で grandfather を追認。
+(qsub と Git 読取りだけで計算処理は job body に委譲、資源実測なし、[T-2797]) である。[T-2867] の
+`silo_policy_contrast_launch.py` (台帳・機械候補の生成と driver の preview・qsub) と `silo_policy_contrast_parent.py`
+(1 原提案ごとの `claude -p` 親) も `static login-side classification` で、計測は job body に委譲する (2026-08-05 のユーザー裁定で grandfather を追認。
 [T-520] の測定経路が確定したら実測して昇格するか再裁定する)。詳細は
 `docs/pegasus-runbook.md` §7.0。
 
@@ -493,6 +497,18 @@ replay は mode を `replay` にする):
 ARCHIVE_ROOT=/absolute/archive-outside-all-repositories
 mkdir -m 0700 "$EVIDENCE_ROOT/$ATTEMPT"
 qsub -v IZANAGI_S4_REPO_ROOT="$REPO_ROOT",IZANAGI_S4_EXPECTED_HEAD="$EXPECTED_HEAD",IZANAGI_S4_EVIDENCE_ROOT="$EVIDENCE_ROOT/$ATTEMPT",IZANAGI_S4_THIRDPARTY_SOURCE_ROOT="$THIRDPARTY_SOURCE_ROOT",IZANAGI_S4_POLICY_MODE=pair,IZANAGI_S4_POLICY_FORM=cpp,IZANAGI_S4_POLICY_PROPOSAL_PATH="$PROPOSAL_PATH",IZANAGI_TRACE_ARCHIVE_ROOT="$ARCHIVE_ROOT" -o "$EVIDENCE_ROOT/$ATTEMPT/job.stdout" -e "$EVIDENCE_ROOT/$ATTEMPT/job.stderr" tools/pegasus/p3_s4_loop_pegasus.sh
+```
+
+**対照 mode ([T-2867]、生成器対照の系列)。** `IZANAGI_S4_POLICY_MODE=contrast` は `IZANAGI_S4_POLICY_UNIT_PATH`
+(launcher が書く単位 file の絶対 path) を必須にし、`IZANAGI_S4_POLICY_PROPOSAL_PATH` を拒否する。job body は driver を
+`--contrast-run-unit <単位 file>` で呼び、driver は単位が系列台帳から導いた次の単位と一致することを最初の slot の前に確かめる。
+qsub の argv は手で組まず launcher が作る (既定は argv の表示だけ、`--submit` で投入)。手順は `docs/phase3-silo-policy-runbook.md` §3.3:
+
+```text
+# admission-site: login-direct
+python3 tools/pegasus/silo_policy_contrast_launch.py submit --ledger "$LEDGER" \
+  --evidence-root /absolute/evidence-outside-all-repositories \
+  --archive-root /absolute/archive-outside-all-repositories --walltime 2700 --submit
 ```
 
 B-5 試走の投入は上の fence を手で組まず launcher で行う (arm ごとの 4 checkout それぞれに準備 (1)〜(3) を行い、

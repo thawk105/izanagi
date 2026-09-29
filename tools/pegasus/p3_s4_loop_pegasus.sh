@@ -227,7 +227,7 @@ fi
 policy_mode=${IZANAGI_S4_POLICY_MODE-}
 if [[ -v IZANAGI_S4_POLICY_MODE ]]; then
   case "$policy_mode" in
-    stock|pair|replay) ;;
+    stock|pair|replay|contrast) ;;
     *) refuse "invalid S4 policy mode" ;;
   esac
   case "${IZANAGI_S4_POLICY_FORM-}" in
@@ -246,15 +246,24 @@ if [[ -v IZANAGI_S4_POLICY_MODE ]]; then
   for name in "${b5_env_names[@]}" IZANAGI_S4_B5_PURPOSE IZANAGI_S4_B5_STEP; do
     [[ ! -v $name ]] || refuse "S4 policy mode excludes B-5 environment"
   done
-  if [[ "$policy_mode" == stock ]]; then
+  if [[ "$policy_mode" == contrast ]]; then
+    [[ ! -v IZANAGI_S4_POLICY_PROPOSAL_PATH ]] \
+      || refuse "S4 policy contrast excludes proposal path"
+    [[ "${IZANAGI_S4_POLICY_UNIT_PATH:-}" = /* ]] \
+      || refuse "S4 policy contrast requires absolute unit path"
+  elif [[ "$policy_mode" == stock ]]; then
     [[ ! -v IZANAGI_S4_POLICY_PROPOSAL_PATH ]] \
       || refuse "S4 policy stock excludes proposal path"
   else
     [[ -n "${IZANAGI_S4_POLICY_PROPOSAL_PATH:-}" ]] \
       || refuse "S4 policy proposal path is required"
   fi
+  if [[ "$policy_mode" != contrast && -v IZANAGI_S4_POLICY_UNIT_PATH ]]; then
+    refuse "S4 policy unit path requires contrast mode"
+  fi
 else
-  [[ ! -v IZANAGI_S4_POLICY_FORM && ! -v IZANAGI_S4_POLICY_PROPOSAL_PATH ]] \
+  [[ ! -v IZANAGI_S4_POLICY_FORM && ! -v IZANAGI_S4_POLICY_PROPOSAL_PATH \
+     && ! -v IZANAGI_S4_POLICY_UNIT_PATH ]] \
     || refuse "S4 policy environment requires mode"
 fi
 
@@ -795,6 +804,8 @@ if [[ -n "$policy_mode" ]]; then
       --run-iteration "$IZANAGI_S4_POLICY_PROPOSAL_PATH" --stock-control) ;;
     replay) policy_argv+=(--allow-coder-derived-build
       --replay-proposal "$IZANAGI_S4_POLICY_PROPOSAL_PATH") ;;
+    contrast) policy_argv+=(--allow-coder-derived-build
+      --contrast-run-unit "$IZANAGI_S4_POLICY_UNIT_PATH") ;;
   esac
   policy_rc=0
   export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
