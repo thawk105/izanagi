@@ -2,6 +2,8 @@
 from copy import deepcopy
 import hashlib
 import json
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 import pytest
 
@@ -45,7 +47,7 @@ def jobs():
         result.append({"records": records})
     trace = [{"cell": cell, "k": k, "build_kind": "trace",
               "build": f"trace-k{k}", "rc": 0,
-              "trace": {"clean": True, "rc": 0, "total_cycles": 0,
+              "trace": {"clean": True, "rc": 3, "total_cycles": 0,
                         "verdict": "indeterminate"}}
              for cell in h.TRACE_CELLS for k in (0, 1)]
     trace += [{"cell": cell, "k": 4, "build_kind": "broken",
@@ -217,10 +219,13 @@ def test_patch_break_event_stages_and_witness_attribution():
 def test_m6_estimate_threshold_and_ladder():
     smoke = {"build_seconds": 500, "max_perf_run_seconds": 9,
              "max_count_run_seconds": 4, "trace_run_verify_seconds": 10,
-             "smoke_seconds": 500}
+             "smoke_seconds": 500,
+             "build_sharing": {"mode": "shared-verified", "reason": None}}
     first = h.estimate(smoke)
     assert first["threshold_node_seconds"] == 7200
     assert first["steps"][0]["perf_job_seconds"] == 120 * 9 + 60
+    assert first["steps"][0]["count_job_seconds"] == 20 * 9 + 60
+    assert first["steps"][0]["total_node_seconds"] == 500 + 3 * (120 * 9 + 60) + (20 * 9 + 60) + 2 * 14 * 10
     assert first["steps"][0]["accepted"]
     ladder = h.estimate({**smoke, "max_perf_run_seconds": 100})
     assert [s["rounds"] for s in ladder["steps"]] == [6, 4, 4, 4]
@@ -228,10 +233,107 @@ def test_m6_estimate_threshold_and_ladder():
     assert ladder["steps"][3]["ks"] == [0, 1, 8]
     assert ladder["stop"]
     assert not any(s["accepted"] for s in ladder["steps"])
-    boundary = h.estimate({**smoke, "max_perf_run_seconds": 15.97223})
-    assert boundary["steps"][0]["total_node_seconds"] > 7200
-    assert boundary["steps"][0]["accepted"] is False
-    assert boundary["steps"][1]["rounds"] == 4
+    for wall, accepted in ((2879, True), (2880, False)):
+        boundary = h.estimate({**smoke, "max_perf_run_seconds": 10,
+                               "smoke_seconds": wall})
+        assert boundary["steps"][0]["total_node_seconds"] == wall + 3 * (120 * 10 + 60) + (20 * 10 + 60) + 2 * 14 * 10
+        assert boundary["steps"][0]["accepted"] is accepted
+        if not accepted:
+            assert boundary["steps"][1]["rounds"] == 4
+
+
+def test_m7_manifest_patch_order_survives_sorted_json(tmp_path, monkeypatch):
+    manifest = {"builds": {name: {"patch_order": spec["patches"],
+        "patch_sha256": {path: "digest" for path in spec["patches"]}}
+        for name, spec in h.build_specs().items()}}
+    h.write_json(tmp_path / "manifest.json", manifest)
+    loaded = json.loads((tmp_path / "manifest.json").read_text())
+    assert loaded["builds"]["trace-k4"]["patch_order"] == [h.TRACE, h.VARIANT]
+    assert loaded["builds"]["broken-B1"]["patch_order"] == [h.TRACE, h.VARIANT, h.BROKEN["B1"]]
+    assert loaded["builds"]["broken-B2"]["patch_order"] == [h.TRACE, h.VARIANT, h.BROKEN["B2"]]
+    seen = []
+    monkeypatch.setattr(h, "compute_only", lambda: None)
+    monkeypatch.setattr(h, "probe", lambda: {})
+    monkeypatch.setattr(h, "_load_manifest", lambda _: loaded)
+    monkeypatch.setattr(h, "plan_trace", lambda *_: [
+        {"build": name} for name in ("trace-k4", "broken-B1", "broken-B2")])
+    monkeypatch.setattr(h, "sharing_preflight", lambda *_: None)
+    monkeypatch.setattr(h, "sha", lambda _: "digest")
+    monkeypatch.setattr(h, "strict_patches", lambda source, order: seen.append(order))
+    monkeypatch.setattr(h, "run_one", lambda *_args, **_kw: {})
+    @contextmanager
+    def checkout(_pin):
+        yield str(tmp_path)
+    monkeypatch.setattr(h.patchharness, "checkout", checkout)
+    args = SimpleNamespace(command="trace", output=tmp_path, scratch_root=tmp_path,
+                           selection=None, job_index=0)
+    h._run_job(args)
+    assert seen == [[h.TRACE, h.VARIANT], [h.TRACE, h.VARIANT, h.BROKEN["B1"]],
+                    [h.TRACE, h.VARIANT, h.BROKEN["B2"]]]
+
+
+def test_m8_count_argv_extime():
+    assert "-extime=3" in h._flags("rr5", "perf")
+    assert "-extime=3" in h._flags("rr5", "count")
+    assert "-extime=1" in h._flags("T1", "trace")
+    assert "-extime=1" in h._flags("T1", "broken")
+
+
+def test_m9_shared_binary_failure_stops_without_rebuild(tmp_path, monkeypatch):
+    binary = tmp_path / "bench"
+    binary.write_bytes(b"changed")
+    manifest = {"pin": h.PIN, "builds": {"count-k0": {"path": str(binary),
+        "sha256": hashlib.sha256(b"expected").hexdigest(),
+        "runtime_dependencies": {}}}}
+    monkeypatch.setattr(h, "compute_only", lambda: None)
+    monkeypatch.setattr(h, "probe", lambda: {})
+    monkeypatch.setattr(h, "_load_manifest", lambda _: manifest)
+    monkeypatch.setattr(h, "plan_count", lambda *_: [{"build": "count-k0"}])
+    monkeypatch.setattr(h, "_build_all", lambda _: pytest.fail("rebuilt after sharing failure"))
+    args = SimpleNamespace(command="count", output=tmp_path, scratch_root=tmp_path,
+                           selection=None, job_index=None)
+    with pytest.raises(RuntimeError, match="shared binary verification failed"):
+        h._run_job(args)
+    raw = json.loads((tmp_path / "raw-count-0.json").read_text())
+    assert raw["build_sharing"]["mode"] == "unavailable"
+    assert "sha256 mismatch" in raw["failure"]
+    assert h.estimate({"build_sharing": raw["build_sharing"]})["stop"]
+
+
+def test_shared_ldd_resolution_change_stops(tmp_path, monkeypatch):
+    binary = tmp_path / "bench"
+    binary.write_bytes(b"expected")
+    digest = hashlib.sha256(b"expected").hexdigest()
+    manifest = {"builds": {"perf-k0": {"path": str(binary),
+        "sha256": digest, "runtime_dependencies": {"/lib/old.so": digest}}}}
+    monkeypatch.setattr(h, "runtime_dependencies", lambda _: {"/lib/new.so": digest})
+    assert "ldd dependency resolution mismatch" in h.sharing_preflight(manifest, ["perf-k0"])
+
+
+def test_plot_series_uses_all_points_median_and_range():
+    from tools.plotting.plot_vhash_cicada_hot_block import _series
+    data = {"cells": {"rr5": {"1": {"points": [
+        {"ratio": value} for value in (1, 2, 3, 20)]}}}}
+    x, centers, errors, points = _series(data, ["rr5"], 1)
+    assert x == [0]
+    assert centers == [2.5]
+    assert errors == [[1.5], [17.5]]
+    assert points == [(0, 1), (0, 2), (0, 3), (0, 20)]
+
+
+@pytest.mark.parametrize("rc,cycles,verdict,valid", [
+    (3, 0, "indeterminate", True), (1, 1, "non-serializable", True),
+    (0, 0, "serializable", False), (0, 0, "indeterminate", False),
+    (3, 1, "non-serializable", False), (1, 0, "non-serializable", False),
+    (3, 0, "serializable", False)])
+def test_trace_verdict_contract(rc, cycles, verdict, valid):
+    assert h._valid_trace_verdict({"rc": rc, "total_cycles": cycles,
+                                   "verdict": verdict}) is valid
+    if not valid:
+        raw = jobs()
+        raw[-2]["records"][0]["trace"].update(rc=rc, total_cycles=cycles, verdict=verdict)
+        with pytest.raises(ValueError, match="invalid trace"):
+            aggregate(raw)
 
 
 def test_broken_rules():

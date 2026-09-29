@@ -460,7 +460,7 @@ def _compile_time_source_root(
     if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
         owner_text = "int izanagi_owner_present = 1;\n" + owner_text
     owner.write_text(owner_text, encoding="utf-8")
-    if macro in G._CONDITIONAL_BRANCH_COMPANION_SITES:
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX", "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL"):
         includes = []
         for source_rel, start, n in G._CONDITIONAL_BRANCH_COMPANION_SITES[macro]:
             path = root / source_rel
@@ -513,7 +513,7 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
         )
         expected_pair = (source_rel, expected_directive)
         count = 1
-    if macro in G._CONDITIONAL_BRANCH_COMPANION_SITES:
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX", "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL"):
         expected = [expected_pair] * count
         expected += [(path, directive) for path, directive, n
                      in G._CONDITIONAL_BRANCH_COMPANION_SITES[macro]
@@ -1579,7 +1579,7 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
 ):
     root = _compile_time_source_root(tmp_path, macro)
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))
-    if macro in G._CONDITIONAL_BRANCH_COMPANION_SITES:
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX", "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL"):
         count = G._declared_total_site_count(macro)
     if macro == "BACKOFF_REQUESTED_US":
         count, contrast = 4, _REQUESTED_US_CONTRAST
@@ -1625,7 +1625,7 @@ def test_new_branch_selection_supply_meaning_and_admission(tmp_path, macro):
     dynamic reachability, or misattribution firing.
     """
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS[macro]
-    if macro in G._CONDITIONAL_BRANCH_COMPANION_SITES:
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX", "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL"):
         count = G._declared_total_site_count(macro)
     root = _compile_time_source_root(tmp_path, macro)
     request = _compile_time_request(macro, default=contrast)

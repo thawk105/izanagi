@@ -933,7 +933,7 @@ pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 
 | broken-cicada-vhash-stale-hot | なし | hot から選んだ版の 1 件古い確定版を ro 読みの一部に返す (variant の上だけ) |
 | broken-cicada-vhash-skip-pending | なし | hot から選んだ PENDING 版を待たずに次の確定版へ進む (variant の上だけ) |
 
-- **重ね方:** 壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
+- **重ね方:** md_3 の旧壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
   instr が `cc/cicada/` の 4 file)。壊しは裸マクロを持たない無条件 patch なので、既定で重ならず、正例の build にだけ当てる。
   新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない (条件 gate の定義一覧・裸マクロ登録の照合を変えない)。
 - **発火診断 (壊しだけ):** 事象を commit した txn の分だけ stderr の `CICADA_BREAK_EVENT slug= tx_wts= key= a_wts= b_wts=` に全件出し、

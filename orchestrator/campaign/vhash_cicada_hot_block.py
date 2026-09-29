@@ -157,12 +157,16 @@ def plan_trace(job_index, ks=KS):
 
 def estimate(smoke):
     """Predeclared ladder, using only smoke wall times, never throughput."""
+    sharing = smoke.get("build_sharing", {})
+    if sharing.get("mode") != "shared-verified":
+        return {"schema": "vhash-hot-estimate/v1", "stop": True,
+                "selection": None, "steps": [],
+                "reason": sharing.get("reason") or "shared binaries not verified by smoke"}
     build = float(smoke["build_seconds"])
     perf_wall = float(smoke["max_perf_run_seconds"])
     trace_wall = float(smoke["trace_run_verify_seconds"])
-    count_wall = float(smoke.get("max_count_run_seconds", perf_wall))
     smoke_wall = float(smoke["smoke_seconds"])
-    if min(build, perf_wall, trace_wall, count_wall, smoke_wall) <= 0:
+    if min(build, perf_wall, trace_wall, smoke_wall) <= 0:
         raise ValueError("smoke durations must be positive")
     steps = []
     configs = [(6, list(CELLS), KS), (4, list(CELLS), KS),
@@ -175,14 +179,14 @@ def estimate(smoke):
         perf_runs_per_job = 2 * len(cells) * len(ks)
         perf_job = perf_runs_per_job * perf_wall + 60
         count_runs = len(COUNT_CELLS) * len(ks)
-        count_job = count_runs * count_wall
+        count_job = count_runs * perf_wall + 60
         trace_jobs = [len(plan_trace(j, ks)) for j in (0, 1)]
         trace_job = max(trace_jobs) * trace_wall
-        total = smoke_wall + build + perf_jobs * perf_job + count_job + sum(trace_jobs) * trace_wall
+        total = smoke_wall + perf_jobs * perf_job + count_job + 2 * trace_job
         entry = {"rounds": rounds, "cells": cells, "ks": list(ks), "perf_jobs": perf_jobs,
                  "perf_job_seconds": perf_job, "count_job_seconds": count_job,
                  "trace_job_seconds_upper": trace_job, "total_node_seconds": total,
-                 "job_walltime_seconds": {"build": 2 * build + 600,
+                 "job_walltime_seconds": {"smoke": 2 * smoke_wall + 600,
                     "perf": 2 * perf_job + 600, "count": 2 * count_job + 600,
                     "trace": 2 * trace_job + 600}, "accepted": total < 7200}
         steps.append(entry)
@@ -321,7 +325,9 @@ def _build_one(source, build, spec, dependencies, toolchain):
     if not binary.is_file():
         raise RuntimeError(f"missing binary {binary}")
     return {"sha256": sha(binary), "path": str(binary), "seconds": time.monotonic() - tick,
-            "kind": spec["kind"], "k": spec["k"], "patches": {n: sha(ROOT / n) for n in spec["patches"]},
+            "kind": spec["kind"], "k": spec["k"],
+            "patch_order": list(spec["patches"]),
+            "patch_sha256": {n: sha(ROOT / n) for n in spec["patches"]},
             "configure_args": args, "compile_commands": commands, "gate_receipts": gates,
             "tuple_size_bytes": tuple_size}
 
@@ -351,17 +357,14 @@ def verify_binary(manifest, name):
 
 
 def sharing_preflight(manifest, names):
-    """A binary hash mismatch is corruption; absent or changed runtime paths need a local build."""
+    """Verify every shared binary and its current dynamic linker resolution."""
     for name in names:
-        entry = manifest["builds"][name]
-        binary = Path(entry["path"])
-        if not binary.is_file():
-            return f"binary path unavailable on this node: {binary}"
-        if sha(binary) != entry["sha256"]:
-            raise RuntimeError(f"binary sha256 mismatch: {name}")
-        for path, digest in entry["runtime_dependencies"].items():
-            if not Path(path).is_file() or sha(path) != digest:
-                return f"runtime dependency unavailable or different on this node: {path}"
+        try:
+            binary = verify_binary(manifest, name)
+            if runtime_dependencies(binary) != manifest["builds"][name]["runtime_dependencies"]:
+                return f"ldd dependency resolution mismatch: {name}"
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+            return f"shared binary verification failed: {name}: {exc}"
     return None
 
 
@@ -371,7 +374,7 @@ def _flags(cell, kind):
     return ["-thread_num=48", f"-ycsb_tuple_num={200 if trace else 1000000}",
             "-ycsb_zipf_skew=0.9", f"-ycsb_rratio={cfg['rr']}",
             f"-ycsb_max_ope={cfg['max_ope']}", f"-ycsb_rmw={cfg['rmw']}",
-            f"-extime={1 if trace or kind == 'count' else 3}", "-clocks_per_us=2100",
+            f"-extime={1 if trace else 3}", "-clocks_per_us=2100",
             f"-gc_inter_us={cfg['gc']}", f"--vhash_ronly_pct={cfg['ro']}",
             *( ["-group_commit=0"] if trace else [])]
 
@@ -530,6 +533,9 @@ def _verify_trace(trace_dir, source, commits, stderr, build):
               "total_cycles": record.get("total_cycles"), "integrity": integrity,
               "rows": counts, "expected_commits": commits, "clean": clean,
               "json_sha256": hashlib.sha256(completed.stdout).hexdigest()}
+    if not _valid_trace_verdict(result):
+        raise RuntimeError(f"verifier rc/verdict/cycles contract violation: {result['rc']}, "
+                           f"{result['verdict']}, {result['total_cycles']}")
     if build.startswith("broken-"):
         event = _break_events(stderr, build)
         match = re.search(r"^CICADA_TRACE_INITIAL_WTS=(\d+)$", stderr, re.MULTILINE)
@@ -577,7 +583,7 @@ def run_one(manifest, spec, *, scratch, source=None):
     record = {"schema": "vhash-hot-run/v1", "node": socket.gethostname(),
         "started": start, "ended": now(), "pbs_job_id": os.environ.get("PBS_JOBID"),
         "job_id": manifest.get("job_id"), "job_index": spec.get("job_index"),
-        "pin": PIN, "patch_sha256": entry["patches"], "binary_sha256": entry["sha256"],
+        "pin": PIN, "patch_sha256": entry["patch_sha256"], "binary_sha256": entry["sha256"],
         "compile_commands": entry["compile_commands"], "build": spec["build"],
         "gate_receipts": entry["gate_receipts"],
         "tuple_size_bytes": entry["tuple_size_bytes"],
@@ -619,6 +625,15 @@ def broken_verdict(record):
     return {"status": "validation-stopped" if predicted and fired["changed"] else
             "unreached" if predicted else "prediction-failed",
             "prediction_met": predicted, "attributed_cycles": event["witness_count"]}
+
+
+def _valid_trace_verdict(trace):
+    cycles = trace.get("total_cycles")
+    return (type(cycles) is int and cycles >= 0 and
+            ((cycles == 0 and trace.get("rc") == 3 and
+              trace.get("verdict") == "indeterminate") or
+             (cycles > 0 and trace.get("rc") == 1 and
+              trace.get("verdict") == "non-serializable")))
 
 
 def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
@@ -671,13 +686,12 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
         raise ValueError(f"broken trace coverage mismatch: missing={required_broken-broken_keys}")
     for r in traces:
         if r["build_kind"] == "trace" and (r["rc"] != 0 or not r.get("trace") or
-              not r["trace"].get("clean") or r["trace"].get("total_cycles") is None or
-              (r["trace"].get("rc") == 1 and r["trace"].get("total_cycles") == 0) or
-              (r["trace"].get("total_cycles") == 0 and
-               r["trace"].get("verdict") != "indeterminate")):
+              not r["trace"].get("clean") or
+              not _valid_trace_verdict(r["trace"])):
             raise ValueError("invalid trace run")
         if r["build_kind"] == "broken" and (r["rc"] != 0 or
               not r.get("trace") or not r["trace"].get("clean") or
+              not _valid_trace_verdict(r["trace"]) or
               not r["trace"].get("break")):
             raise ValueError("invalid broken trace run")
     if 0 in failed:
@@ -802,22 +816,24 @@ def _run_job(args):
                    "build": "trace-k8"}]
     if not specs:
         raise ValueError("job index has no rounds in selected budget")
-    sharing_reason = sharing_preflight(manifest, {s["build"] for s in specs})
-    local_build_seconds = 0.0
-    if sharing_reason:
-        local_args = argparse.Namespace(**vars(args))
-        local_args.output = args.scratch_root / "local-build-output"
-        local_args.scratch_root = args.scratch_root / "local-build-scratch"
-        manifest = _build_all(local_args)
-        local_build_seconds = manifest["dependency_build_seconds"] + sum(
-            item["seconds"] for item in manifest["builds"].values())
+    required_builds = (set(manifest["builds"]) if args.command == "smoke" else
+                       {s["build"] for s in specs})
+    sharing_reason = sharing_preflight(manifest, required_builds)
     job = {"schema": "vhash-hot-job/v1", "command": args.command,
            "job_index": args.job_index, "job_id": os.environ.get("PBS_JOBID") or
            socket.gethostname() + ":" + now(), "node": socket.gethostname(),
            "started": now(), "job_probe": job_probe, "records": [],
-           "build_sharing": {"mode": "local-rebuild" if sharing_reason else "shared-verified",
-                             "reason": sharing_reason,
-                             "local_build_seconds": local_build_seconds}}
+           "build_sharing": {"mode": "unavailable" if sharing_reason else "shared-verified",
+                             "reason": sharing_reason}}
+    if sharing_reason:
+        job["failure"] = sharing_reason
+        args.output.mkdir(parents=True, exist_ok=True)
+        write_json(args.output / f"raw-{args.command}-{args.job_index or 0}.json", job)
+        if args.command == "smoke":
+            job["smoke_seconds"] = time.monotonic() - args._smoke_tick
+            job["build_seconds"] = args._build_seconds
+            write_json(args.output / "smoke.json", job)
+        raise RuntimeError(sharing_reason)
     manifest["job_id"] = job["job_id"]
     scratch = args.scratch_root.resolve()
     scratch.mkdir(parents=True, exist_ok=True)
@@ -825,7 +841,13 @@ def _run_job(args):
         if spec["build"].startswith("trace-") or spec["build"].startswith("broken-"):
             with patchharness.checkout(PIN) as source_name:
                 source = Path(source_name)
-                strict_patches(source, manifest["builds"][spec["build"]]["patches"])
+                entry = manifest["builds"][spec["build"]]
+                order = entry["patch_order"]
+                if len(order) != len(set(order)) or set(order) != set(entry["patch_sha256"]):
+                    raise ValueError("manifest patch order/hash mismatch")
+                if any(sha(ROOT / patch) != entry["patch_sha256"][patch] for patch in order):
+                    raise ValueError("manifest patch sha256 mismatch")
+                strict_patches(source, order)
                 job["records"].append(run_one(manifest, spec, scratch=scratch, source=source))
         else:
             job["records"].append(run_one(manifest, spec, scratch=scratch))

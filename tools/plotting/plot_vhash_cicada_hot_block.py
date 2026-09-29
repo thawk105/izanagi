@@ -56,26 +56,34 @@ def _save(fig, path, payload, source):
         "disqualified_ks": payload["disqualified_ks"],
         "caption": "Exploratory same-time comparison; short YCSB transactions; "
                    "48 threads, 1M tuples, skew 0.9, extime 3 s. "
-                   "Bars show 95% Student t confidence intervals for the paired-round mean."
+                   "Dots show every paired-round ratio; bars show minimum to maximum; "
+                   "markers show medians. No significance claim."
     }, indent=2, ensure_ascii=False) + "\n")
 
 
 def _series(data, cells, k):
-    x, y, low, high = [], [], [], []
+    x, y, low, high, all_points = [], [], [], [], []
     for index, cell in enumerate(cells):
         value = data["cells"].get(cell, {}).get(str(k))
         if value:
             points = [float(item["ratio"]) for item in value["points"]]
-            critical = {4: 3.182446, 6: 2.570582}.get(len(points))
-            if critical is None:
-                raise ValueError("expected four or six paired rounds for confidence interval")
-            center = statistics.mean(points)
-            radius = critical * statistics.stdev(points) / len(points) ** .5
+            center = statistics.median(points)
             x.append(index)
             y.append(center)
-            low.append(radius)
-            high.append(radius)
-    return x, y, [low, high]
+            low.append(center - min(points))
+            high.append(max(points) - center)
+            all_points.extend((index, point) for point in points)
+    return x, y, [low, high], all_points
+
+
+def _draw_series(ax, data, cells, k, positions=None, **kwargs):
+    x, y, err, points = _series(data, cells, k)
+    locate = (lambda i: positions[i]) if positions is not None else (lambda i: i)
+    line = ax.errorbar([locate(i) for i in x], y, yerr=err,
+                       marker="D", linewidth=1, capsize=2, **kwargs)
+    color = line[0].get_color()
+    ax.scatter([locate(i) for i, _ in points], [value for _, value in points],
+               color=color, s=9, alpha=.65, zorder=3)
 
 
 def make_figures(data, source, output):
@@ -94,8 +102,7 @@ def make_figures(data, source, output):
 
     fig, ax = plt.subplots(figsize=(12, 6), constrained_layout=True)
     for k in ks:
-        x, y, err = _series(data, cell_names, k)
-        ax.errorbar(x, y, yerr=err, marker="o", linewidth=1, capsize=2, label=f"K={k}")
+        _draw_series(ax, data, cell_names, k, label=f"K={k}")
     ax.axhline(1, linestyle="--", color="black", linewidth=.8, label="Cicada stock")
     ax.set(xticks=range(len(cell_names)), xticklabels=cell_names,
            ylabel="Throughput / same-round stock", title="Hot block size by workload")
@@ -108,10 +115,9 @@ def make_figures(data, source, output):
     for gc in (10, 1000, 100000):
         for k in ks:
             names = [f"ro{ro}-gc{gc}" for ro in (0, 50, 95)]
-            x, y, err = _series(data, names, k)
-            ax.errorbar([int(names[i].split("-")[0][2:]) for i in x], y,
-                        yerr=err, marker="o", linewidth=1, capsize=2,
-                        label=f"K={k}, GC {gc} us")
+            _draw_series(ax, data, names, k,
+                         positions=[int(name.split("-")[0][2:]) for name in names],
+                         label=f"K={k}, GC {gc} us")
     ax.axhline(1, linestyle="--", color="black", linewidth=.8)
     ax.set(xlabel="Requested read-only transactions (%)", ylabel="Throughput / stock",
            title="Gain by GC interval")
@@ -123,8 +129,7 @@ def make_figures(data, source, output):
     write_cells = [name for name in ("ro0-gc10", "ro0-gc1000", "ro0-gc100000", "rr5")
                    if name in data["cells"]]
     for k in ks:
-        x, y, err = _series(data, write_cells, k)
-        ax.errorbar(x, y, yerr=err, marker="o", capsize=2, label=f"K={k}")
+        _draw_series(ax, data, write_cells, k, label=f"K={k}")
     ax.axhline(1, linestyle="--", color="black", linewidth=.8)
     ax.set(xticks=range(len(write_cells)), xticklabels=write_cells,
            ylabel="Throughput / stock", title="Update-heavy cells")
