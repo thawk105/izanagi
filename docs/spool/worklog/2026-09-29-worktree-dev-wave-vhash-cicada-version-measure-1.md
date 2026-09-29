@@ -17,7 +17,8 @@ title: [T-2875] stock Cicada の版探索と版保持を診断計器 patch で�
 - commit: 7a4f9a592..52bea740c (実装 1 + fix 6 本)、283ecf1a8 (一次資料)。patch base = gitlink 68106660。既定 build の `.text`・`.rodata` は stock と一致 (smoke4、33984.nqsv)。
 - 相談・レビュー: 段 2 plan 1、段 3 相談 1 (条件付き GO)、段 6 レビュー 1 (NO-GO、must-fix 6 real) と焦点再レビュー 3 (残 3 → 残 1 (成果物影響なしの nit へ格下げ) → 残 1 real)。計算ノード smoke で実機 blocker 2 件 (compile_commands の 4 行、condition gate の meaning が owner TU しか見ない) → F139 の再発として記録。
 - 変異: MUT-1〜10 + 等価 1 を login probe で登録どおり確認後、計算ノード 1 job (34027.nqsv) で本走。台帳は KILLED 10・SURVIVED 1 (等価) で完全一致、wrapper は走行中の他 wave の land で共有木検査だけ rc=125 (child_rc=0)。
-- 工数: codex 13 本 (plan 1・consult 1・author 1・review 1・fix 6・focus 3)、Explore (sonnet) 1 本。計算ノード 10 job、Elapse 合計約 2,450 秒。
+- 受入 1 走目 (tip f5c726138、claimed main f1c633b9b): 2 failed / 27919 passed。2 件とも自分起因 (新 2 macro の登録漏れ): `test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted` (裸 `IZANAGI_*` トークン、出力名 `IZANAGI_CICADA_VLIFE_JSON` も拾う) と `test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs` (`_CONDITION_DEFAULTS` == DEFINE_SPECS)。段 2 plan の「_CONDITION_DEFAULTS は不要」が誤りで、login の在庫 test では検出されなかった。fix 2 本 (codex) で前例 `IZANAGI_SILO_POLICY_PROBE` と同形に登録し、受入を取り直した。
+- 工数: codex 15 本 (plan 1・consult 1・author 1・review 1・fix 8・focus 3)、Explore (sonnet) 1 本。計算ノード 10 job、Elapse 合計約 2,450 秒。
 
 ## 次の一手差分
 
