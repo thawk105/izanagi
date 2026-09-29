@@ -19,10 +19,11 @@ provenance の `reproduction` は生成器を直接起動する argv を記録�
 A=/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929
 R=$A/collect-root/output/insights/2026-09-07_t2364-paper-story-a2-certification
 M=/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824
+OUT=$(mktemp -d)
 python3.10 $A/tools/t2853_r2_fig6_plot.py --generator $PWD/tools/plotting/plot_a2_certification.py \
   --expected-generator-sha256 aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448 \
   draw --measurement-root $M/t2853r2-20260929a --certification $R/certification.json \
-  --raw-manifest $R/raw-manifest.json --out-prefix <出力 dir>/fig6_r2_a2_certification
+  --raw-manifest $R/raw-manifest.json --out-prefix "$OUT/fig6_r2_a2_certification"
 ```
 
 `$R` の dir 名は policy の tracked destination の写しで、中身は R2 attempt である (原 attempt の dir ではない)。対照表の argv は `$A/README.md`。

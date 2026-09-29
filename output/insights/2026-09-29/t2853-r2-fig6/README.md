@@ -185,6 +185,15 @@ commit `75749a951` と repo 外の成果物を対象に、Codex の read-only �
 | B-2 | caption 末尾の「符号差」の定型文が、図だけを読む人を誤解させる | real | caption は生成器の既定のまま (段 4 (P2)) とし、`figures/README.md` に「R2 と原 attempt の効果はどちらも正で符号差は無い、この文は原 fig6 の定型文」と注記した |
 | B-3 | 受入の実測が worklog にまだ無い | real (nit) | 受入後に worklog fragment へ実測を書く |
 
+焦点再レビュー (Codex、read-only、commit `297a20555` が対象、受理検査 rc=0、`verbatim/s6-focus.md`) は **NO-GO**。B-1・B-2 は partial、B-3 は open (受入後に記録する予定をそう書いていることは確認)、新規 1 件。
+
+| ID | 所見 | 判定 | 処置 |
+|---|---|---|---|
+| F-1 (B-1 の残り) | 再生成手順の `--out-prefix <出力 dir>/…` は shell でリダイレクトとして解釈され、そのまま実行できない | real | `OUT=$(mktemp -d)` を定義して `"$OUT/…"` を渡す形にした (`figures/README.md` と置き場の README)。親が置き場の README の code block をそのまま抜き出して実行し (rc=0、`verbatim/repro-run.log`)、再生成した PNG と対照表が insight の file と bytes 一致、provenance の `artist_series` と caption も一致した |
+| B-2 の残り | 注記は画像自体に無く、PNG・PDF 単体での誤読が残る | refuted | 問題の文は provenance の `caption` にだけあり、画像には描かれていない (画像内の文字は題・status 行・正しさの行・軸・脚注だけ)。画像単体で読む人はこの文を見ない |
+
+DW-O16 に従い、F-1 は親の実機での再実行で closed とし、再レビューは重ねない。
+
 ### 9.1 逐語の可逆最小正規化
 
 Codex の出力 2 本は markdown の行末 2 空白を含み `git diff --check` に抵触したので、**行末の 2 空白だけを除去**した (可視文字は不変)。復元は列挙した行の末尾へ 2 空白 (U+0020 ×2) を戻す。
