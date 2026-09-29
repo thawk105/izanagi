@@ -1,9 +1,0 @@
-host pegasus02
-TMPDIR None
-gettempdir /tmp
-st_dev gettempdir /tmp -> 2304
-st_dev /tmp /tmp -> 2304
-st_dev shared-parent /work/1/SFC/tanab -> 743766374
-st_dev authority /work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem -> 743766374
-device-branch-fires True
-os.link real-path OK, same-inode True
