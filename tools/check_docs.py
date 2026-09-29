@@ -283,9 +283,9 @@ class TextLimit:
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
-    # 2026-09-29 の個別裁定による最小幅引き上げ (§5 の push 失敗時 1 行、
-    # D730 の 3 例例外ではない)。
-    ".claude/commands/cleanup-branches.md": TextLimit(7_437, 110),
+    # 2026-09-29 のユーザー指示 (古い・価値の小さい木と branch を退避して消す
+    # 既定動作) の収容。完成本文 + 余白 3。
+    ".claude/commands/cleanup-branches.md": TextLimit(9_109, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
     ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
@@ -776,20 +776,18 @@ CODEX_CLEANUP_BRANCHES_SKILL_FILES = frozenset(
     CODEX_CLEANUP_BRANCHES_SKILL_LIMITS
 )
 CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
-    "Safely inventory and clean up merged local Izanagi branches and worktrees "
-    "through the shared dispatcher. Use for merged-branch or worktree cleanup; "
-    "deletion needs explicit $cleanup-branches."
+    "Safely back up and clean up merged or stale local Izanagi branches and worktrees through the shared dispatcher. Use for branch or worktree cleanup; deletion needs explicit $cleanup-branches."
 )
 CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
-    "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
+    "1f037df09695c9da6a45b321754f8288ad7839eb808f4890f87b3b0976bf7ec9"
 )
 CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   display_name: "Cleanup Branches"
-  short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
-  default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
+  short_description: "Izanagi の古い・取込済み branch と worktree を退避して整理"
+  default_prompt: "Use $cleanup-branches to back up and clean up merged or stale local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "e777a6f489e8ec53d306effbb73dc9c13a2c8b7c66ec066f5eeb5e049d0eb5dc"
+    "052fa316a5557b072bbdba4bf9162f54cfea706ba12517fa5fe2776cbc006229"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (
