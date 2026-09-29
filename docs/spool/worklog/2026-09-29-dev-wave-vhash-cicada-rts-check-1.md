@@ -34,7 +34,13 @@ title: [T-2882] Cicada の書き込み側 rts 検査に、VHash 小モデル v0 
   - 両方とも直した。W が確定する側の説明は推測で書かず、解析に両決着の最短列を足して実際の列から書き直した。
   - should-fix 7 件も直した (一次資料 §9)。
   - 修正後の焦点再レビュー 1 本では、全所見が closed、新しい must-fix はなかった。should-fix 2 件 (件数の数え違い、precheck の INSERT 除外の記述) も直した。
+- 受入全走 1 回目 (2026-09-29 10:05〜10:40 JST、記録 commit 799b4a6ef に local main ab5fd6bd9 を post-claim merge した 57c8d3dcf) は赤 3 件だった。
+  - 3 件はすべて `orchestrator/tests/test_t810_coordinator.py` の node で、本文は「cannot read worktree registration: file is absent」だった。
+  - 本 wave に帰属しないと判定した。この処理 (`tools/pegasus/t810_coordinator.py` の `repository_roots_from_git_identity`) は共有 repo の `.git/worktrees/*` をすべて読む。管理 dir に gitdir が無い瞬間 (他セッションが worktree を作成・撤去している途中) に当たると赤になる。本 wave の差分は docs と insight の JSON だけで、この経路に到達しない。
+  - 判定後の実測: gitdir を欠く管理 dir は 233 中 0。同じ file の単独再走は 45 passed。
+  - 記録を受入より先に commit していたので (下のセッション異常)、この結果を書き足した tip で受入を取り直した。
 - セッション異常 (親の作法、実害なし): 相談 2 本の待ち手を重複して張り、即座に止めた (DW-C00 の 1 条件 1 本)。
+- セッション異常 (親の手順の誤り、受入 1 回分の損): DW-S04 は受入全走を記録の前に求めるが、記録を先に commit した。land は受入済み tip より後ろに main の前進 merge しか許さないので、受入を取り直した。
 - エージェント工数: Codex plan 1・consult 2・review 2・focus 1 (gpt-6-sol / medium)。計算ノードは 0 (probe は Pegasus login で合計 47 秒)。
 
 ## 次の一手差分
