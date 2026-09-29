@@ -1068,7 +1068,9 @@ def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) ->
     gc_v1 = _target_json_line(stdout, "CICADA_GC_V1 ", gc_expected and gc_default)
     gc_v2 = _target_json_line(stdout, "CICADA_GC_V2 ", gc_expected and not gc_default)
     longtx = _target_json_line(stdout, "CICADA_LONGTX_V1 ", True)
-    if type(longtx) is not dict or longtx.keys() != {"threads"} or type(longtx.get("threads")) is not list:
+    if type(longtx) is not dict or longtx.keys() != {"schema", "threads"} or \
+            type(longtx["schema"]) is not int or longtx["schema"] != 1 or \
+            type(longtx["threads"]) is not list:
         raise ValueError("longtx schema invalid")
     for row in longtx["threads"]:
         if type(row) is not dict or row.keys() != LONGTX_FIELDS or any(
