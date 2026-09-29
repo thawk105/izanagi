@@ -125,6 +125,94 @@ def test_partial_workloads_and_input_binding():
             raise AssertionError("unanalysed runs accepted")
 
 
+def test_j1_stock_buildable_genomes_and_missing_cells():
+    all_genomes = [m.canonical(g) for g in m.genomes()]
+    buildable = [g for g in all_genomes if not (
+        "INLINE_VERSION_OPT=1" in g and "INLINE_VERSION_PROMOTION=1" in g)]
+    assert len(buildable) == 16
+    rows = [r for r in _rows() if r["stage"] == "j2" or r["genome"] in buildable]
+    summary_data = _summary(rows)
+    fig, axes = p.make_j1_figure(rows, summary_data)
+    try:
+        p.check_figure_layout(fig, axes)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, summary = root / "runs.jsonl", root / "summary.json"
+            raw.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+            summary.write_text(json.dumps(summary_data))
+            prefix = root / "j1"
+            p.publish(fig, axes, prefix, [raw], summary, "j1", rows, summary_data)
+            provenance = json.loads(Path(str(prefix) + ".provenance.json").read_text())
+            assert provenance["missing_genome_count"] == 8
+            assert provenance["missing_genomes"] == [g for g in all_genomes if g not in buildable]
+            assert provenance["missing_cells"] == []
+            assert len(provenance["raw_aggregates"]) == 16 * 6
+            assert "J1 で測れなかった genome: 8 件" in provenance["caption"]
+    finally:
+        plt.close(fig)
+
+    # A measured genome with one missing GC condition must remain a gap.
+    omitted = buildable[0]
+    partial = [r for r in rows if not (r["stage"] == "j1" and r["workload"] == "W2"
+                                        and r["genome"] == omitted and r["gc_inter_us"] == 1000)]
+    partial_summary = _summary(partial)
+    groups, _ = p._plot_data(partial, partial_summary, "j1")
+    _, missing_cells = p._j1_missing(groups, ["W1", "W2", "W3", "W4"])
+    assert {"workload": "W2", "genome": omitted, "gc_inter_us": 1000} in missing_cells
+    assert ("W2", omitted, 1000, 1_000_000) not in groups
+    fig, axes = p.make_j1_figure(partial, partial_summary)
+    try:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, summary = root / "runs.jsonl", root / "summary.json"
+            raw.write_text("\n".join(json.dumps(r) for r in partial) + "\n")
+            summary.write_text(json.dumps(partial_summary))
+            prefix = root / "partial"
+            p.publish(fig, axes, prefix, [raw], summary, "j1", partial, partial_summary)
+            provenance = json.loads(Path(str(prefix) + ".provenance.json").read_text())
+            assert {"workload": "W2", "genome": omitted, "gc_inter_us": 1000} in provenance["missing_cells"]
+            assert f"W2|{omitted}|1000|1000000" not in provenance["raw_aggregates"]
+    finally:
+        plt.close(fig)
+
+
+def test_j2_summary_missing_condition_is_not_drawn():
+    rows = _rows()
+    summary_data = _summary(rows)
+    candidate = next(r for r in rows if r["stage"] == "j2" and r["workload"] == "W1")
+    key = f"W1|{candidate['genome']}|{candidate['gc_inter_us']}|{candidate['records']}"
+    listed = summary_data["condition_medians"]["j2"]
+    del listed[key]
+    removed_genome = next(r["genome"] for r in rows if r["stage"] == "j2"
+                          and r["workload"] == "W2" and r["genome"] != candidate["genome"])
+    removed = {k for k in listed if k.startswith("W4|") or
+               k.startswith(f"W2|{removed_genome}|") or k.startswith("W3|") and "|10000|" in k}
+    for condition in removed:
+        del listed[condition]
+    fig, axes = p.make_j2_figure(rows, summary_data)
+    try:
+        p.check_figure_layout(fig, axes)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw, summary = root / "runs.jsonl", root / "summary.json"
+            raw.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+            summary.write_text(json.dumps(summary_data))
+            prefix = root / "j2"
+            p.publish(fig, axes, prefix, [raw], summary, "j2", rows, summary_data)
+            provenance = json.loads(Path(str(prefix) + ".provenance.json").read_text())
+            assert key not in provenance["raw_aggregates"]
+            assert not removed.intersection(provenance["raw_aggregates"])
+            assert provenance["missing_workloads"]["W4"] == "not_selected"
+            assert {"workload": "W1", "genome": candidate["genome"],
+                    "gc_inter_us": candidate["gc_inter_us"]} in provenance["missing_cells"]
+            unavailable = {f"{c['workload']}|{c['genome']}|{c['gc_inter_us']}|{c['records']}"
+                           for c in provenance["unavailable_conditions"]
+                           if c["reason"] == "summary_missing"}
+            assert {key, *removed} <= unavailable
+    finally:
+        plt.close(fig)
+
+
 def _run():
     failed = 0
     for name, fn in sorted(globals().items()):

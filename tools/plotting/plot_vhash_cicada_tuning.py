@@ -80,48 +80,86 @@ def _caption(summary, measured):
                                     if missing else "none")
 
 
-def _measured(groups, summary=None, stage=None):
-    listed = summary.get("condition_medians", {}).get(stage, {}) if summary else {}
-    return [w for w in model.WORKLOADS if any(key[0] == w for key in groups)
-            and any(key.startswith(f"{w}|") for key in listed)]
+def _plot_data(rows, summary, stage):
+    """Keep only measured conditions bound to the analyzed summary."""
+    raw = _groups(rows, stage)
+    listed = summary.get("condition_medians", {}).get(stage, {})
+    groups = {}
+    missing = []
+    for (w, genome, gc), group in raw.items():
+        for n in sorted({r["records"] for r in group}):
+            key = f"{w}|{genome}|{gc}|{n}"
+            if key in listed:
+                groups[(w, genome, gc, n)] = [r for r in group if r["records"] == n]
+            else:
+                missing.append({"workload": w, "genome": genome, "gc_inter_us": gc,
+                                "records": n, "reason": "summary_missing"})
+    for (w, genome, gc, n) in list(groups):
+        if stage == "j2" and n != summary.get("calibration", {}).get(w, {}).get("records"):
+            del groups[(w, genome, gc, n)]
+    # Summary-only cells cannot be plotted either. Keep their exact condition keys.
+    available = {f"{w}|{g}|{gc}|{n}" for w, g, gc, n in groups}
+    for key in listed:
+        if key not in available:
+            missing.append({"condition": key, "reason": "raw_missing"})
+    return groups, missing
+
+
+def _j1_missing(groups, measured):
+    order = [model.canonical(g) for g in model.genomes()]
+    present = {g for _, g, _, _ in groups}
+    missing_genomes = [g for g in order if g not in present]
+    missing_cells = []
+    for w in measured:
+        records = {n for ww, _, _, n in groups if ww == w}
+        for genome in order:
+            if genome not in present:
+                continue
+            for gc in ((10, 100, 1000) if w == "W2" else (10,)):
+                if not any((w, genome, gc, n) in groups for n in records):
+                    missing_cells.append({"workload": w, "genome": genome, "gc_inter_us": gc})
+    return missing_genomes, missing_cells
 
 
 def make_j1_figure(rows, summary):
-    groups = _groups(rows, "j1")
-    measured = _measured(groups, summary, "j1")
+    groups, _ = _plot_data(rows, summary, "j1")
+    measured = [w for w in model.WORKLOADS if any(key[0] == w for key in groups)]
     if not measured:
         raise ValueError("no measured J1 workloads")
-    groups = {key: group for key, group in groups.items() if key[0] in measured}
+    missing_genomes, _ = _j1_missing(groups, measured)
     order = [model.canonical(g) for g in model.genomes()]
     fig, axes = plt.subplots(len(measured), 1, figsize=(17, 3 * len(measured) + 1), squeeze=False)
     fig.subplots_adjust(left=0.07, right=0.87, top=0.89, bottom=0.11, hspace=0.75)
     for axis, w in zip(axes[:, 0], measured):
-        records = {r["records"] for group in groups.values() for r in group if r["workload"] == w}
+        records = {n for ww, _, _, n in groups if ww == w}
         if len(records) != 1:
             raise ValueError(f"J1 records ambiguous for {w}")
         gcs = (10, 100, 1000) if w == "W2" else (10,)
         ratio_axis = axis.twinx()
         for gc in gcs:
-            estimates = []
-            for genome in order:
-                values = [r["throughput_tps"] for r in groups.get((w, genome, gc), [])]
-                estimates.append(_estimate(values))
-            x = list(range(24))
+            points = [(i, genome, groups[(w, genome, gc, next(iter(records)))])
+                      for i, genome in enumerate(order)
+                      if (w, genome, gc, next(iter(records))) in groups]
+            x = [i for i, _, _ in points]
+            estimates = [_estimate([r["throughput_tps"] for r in samples])
+                         for _, _, samples in points]
             offset = {10: -0.22, 100: 0, 1000: 0.22}.get(gc, 0)
             width = 0.22 if len(gcs) > 1 else 0.65
             axis.bar([v + offset for v in x], estimates, width, label=f"GC {gc} µs")
             ratios = []
-            for genome in order:
-                samples = groups[(w, genome, gc)]
+            ratio_x = []
+            for i, genome, samples in points:
                 paired = []
                 for sample in samples:
-                    controls = [r["throughput_tps"] for r in groups[(w, model.canonical(model.CONTROL), gc)]
+                    controls = [r["throughput_tps"] for r in groups.get(
+                                (w, model.canonical(model.CONTROL), gc, next(iter(records))), [])
                                 if r["job_id"] == sample["job_id"]]
-                    if not controls:
-                        raise ValueError("J1 matching job control missing")
-                    paired.append(sample["throughput_tps"] / st.median(controls))
-                ratios.append(_estimate(paired))
-            ratio_axis.plot(x, ratios, linewidth=0.8, marker=".", markersize=2, alpha=0.6)
+                    if controls:
+                        paired.append(sample["throughput_tps"] / st.median(controls))
+                if paired:
+                    ratio_x.append(i)
+                    ratios.append(_estimate(paired))
+            ratio_axis.plot(ratio_x, ratios, linewidth=0.8, marker=".", markersize=2, alpha=0.6)
         control = order.index(model.canonical(model.CONTROL))
         axis.axvline(control, linestyle="--", color="black", linewidth=0.8)
         axis.set_title(f"{w}: 48 threads, N={next(iter(records)):,}, skew 0.9", fontsize=10)
@@ -132,35 +170,31 @@ def make_j1_figure(rows, summary):
         axis.legend(loc="upper left", fontsize=8)
     axes[-1, 0].set_xlabel("canonical genome index (control dashed)")
     fig.suptitle(f"Cicada J1: absolute throughput and paired control ratios | {NOTES['j1']}", fontsize=14)
-    fig.text(0.5, 0.025, _caption(summary, measured), ha="center", fontsize=9)
+    fig.text(0.5, 0.025, f"{_caption(summary, measured)} | J1 で測れなかった genome: "
+             f"{len(missing_genomes)} 件 (詳細は一次資料)", ha="center", fontsize=9)
     return fig, list(fig.axes)
 
 
 def make_j2_figure(rows, summary):
-    groups = _groups(rows, "j2")
-    for key in list(groups):
-        selected_n = summary.get("calibration", {}).get(key[0], {}).get("records")
-        if selected_n is not None:
-            groups[key] = [r for r in groups[key] if r["records"] == selected_n]
-            if not groups[key]:
-                del groups[key]
-    measured = _measured(groups, summary, "j2")
+    groups, _ = _plot_data(rows, summary, "j2")
+    measured = [w for w in model.WORKLOADS if any(key[0] == w for key in groups)]
     if not measured:
         raise ValueError("no measured J2 workloads")
     groups = {key: group for key, group in groups.items() if key[0] in measured}
     fig, axes = plt.subplots(len(measured), 1, figsize=(12, 3 * len(measured) + 1), squeeze=False)
     fig.subplots_adjust(left=0.09, right=0.76, top=0.89, bottom=0.11, hspace=0.7)
     for axis, w in zip(axes[:, 0], measured):
-        keys = sorted({(g, gc) for ww, g, gc in groups if ww == w})
+        keys = sorted({(g, gc) for ww, g, gc, _ in groups if ww == w})
         if not keys:
             raise ValueError(f"J2 workload missing: {w}")
         genomes = sorted({g for g, _ in keys})
-        records = {r["records"] for (ww, _, _), group in groups.items() if ww == w for r in group}
+        records = {n for ww, _, _, n in groups if ww == w}
         if len(records) != 1:
             raise ValueError(f"J2 records ambiguous for {w}")
         for i, genome in enumerate(genomes):
             gcs = sorted(gc for g, gc in keys if g == genome)
-            values = [_estimate([r["throughput_tps"] for r in groups[(w, genome, gc)]]) for gc in gcs]
+            values = [_estimate([r["throughput_tps"] for r in
+                                 groups[(w, genome, gc, next(iter(records)))]]) for gc in gcs]
             label = "control" if genome == model.canonical(model.CONTROL) else f"candidate {i + 1}"
             axis.plot(gcs, values, marker="o", label=label)
         axis.set_xscale("log")
@@ -178,23 +212,38 @@ def make_j2_figure(rows, summary):
 def publish(fig, axes, prefix: Path, rows_path: list[Path], summary_path: Path,
             figure: str, rows, summary) -> None:
     check_figure_layout(fig, axes)
-    measured = _measured(_groups(rows, figure), summary, figure)
+    groups, unavailable = _plot_data(rows, summary, figure)
+    measured = [w for w in model.WORKLOADS if any(key[0] == w for key in groups)]
+    missing_genomes = []
+    missing_cells = []
+    if figure == "j1":
+        missing_genomes, missing_cells = _j1_missing(groups, measured)
+    else:
+        for w in measured:
+            genomes = {g for ww, g, _, _ in groups if ww == w}
+            gcs = {gc for ww, _, gc, _ in groups if ww == w}
+            records = {n for ww, _, _, n in groups if ww == w}
+            for genome in sorted(genomes):
+                for gc in sorted(gcs):
+                    if not any((w, genome, gc, n) in groups for n in records):
+                        missing_cells.append({"workload": w, "genome": genome, "gc_inter_us": gc})
     cells = {}
-    for (workload, genome, gc), group in sorted(_groups(rows, figure).items()):
-        if workload not in measured:
-            continue
-        records = sorted({r["records"] for r in group})
-        for n in records:
-            selected = [r["throughput_tps"] for r in group if r["records"] == n]
-            cells[f"{workload}|{genome}|{gc}|{n}"] = {
-                "median_tps": _estimate(selected),
-                "median_maxrss_kb": st.median(r["maxrss_kb"] for r in group if r["records"] == n),
-                "n_reps": len(selected)}
+    for (workload, genome, gc, n), group in sorted(groups.items()):
+        selected = [r["throughput_tps"] for r in group]
+        cells[f"{workload}|{genome}|{gc}|{n}"] = {
+            "median_tps": _estimate(selected),
+            "median_maxrss_kb": st.median(r["maxrss_kb"] for r in group),
+            "n_reps": len(selected)}
     provenance = {"figure": figure, "diagnostic_only": True, "correctness_verified": False,
                   "inputs": {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
                              for p in [*rows_path, summary_path]},
                   "conditions": {"threads": 48, "skew": "0.9", "workloads": measured},
-                  "caption": _caption(summary, measured), "missing_workloads": _missing(summary, measured),
+                  "caption": (_caption(summary, measured) +
+                              (f" | J1 で測れなかった genome: {len(missing_genomes)} 件 (詳細は一次資料)"
+                               if figure == "j1" else "")),
+                  "missing_workloads": _missing(summary, measured),
+                  "missing_genome_count": len(missing_genomes), "missing_genomes": missing_genomes,
+                  "missing_cells": missing_cells, "unavailable_conditions": unavailable,
                   "raw_run_count": len(rows), "raw_aggregates": cells, "summary": summary}
     prefix.parent.mkdir(parents=True, exist_ok=True)
     if any(Path(str(prefix) + suffix).exists() for suffix in (".png", ".pdf", ".provenance.json")):
