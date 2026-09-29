@@ -209,7 +209,7 @@ _NEW_BRANCH_EXPECTATIONS = {
         "cc/cicada/transaction.cc", "#if CICADA_GC_COUNT", 7, 0,
     ),
     "CICADA_INTERVAL_GC": (
-        "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_GC", 19, 0,
+        "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_GC", 20, 0,
     ),
     "CICADA_INTERVAL_GC_GENERAL": (
         "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_GC_GENERAL", 1, 0,
@@ -1244,7 +1244,7 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
     tmp_path: Path,
 ):
     assert tuple(G.CONDITIONAL_BRANCH_WITNESSES) == _COMPILE_TIME_BRANCH_MACROS
-    assert sum(G._CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 236
+    assert sum(G._CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 237
     assert G._CONDITIONAL_BRANCH_COMPANION_SITES["CICADA_INTERVAL_GC"] == (
         ("cc/cicada/include/transaction.hh", "#if CICADA_INTERVAL_GC", 1),
         ("cc/cicada/include/version.hh", "#if CICADA_INTERVAL_GC", 3),
