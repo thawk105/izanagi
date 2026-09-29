@@ -26,6 +26,46 @@ from orchestrator.campaign.model import STAGE_BENCH_DONE, STAGE_BUILD_START
 from orchestrator.campaign.pipeline import EvalResult, variant_id
 from orchestrator.verifier.model import Anomaly, Integrity, VerifyResult
 
+
+def test_contrast_cfg_keeps_default_identity_and_separates_attempts():
+    from orchestrator.campaign import ident
+    baseline = P.default_cfg(form='ir')
+    assert P.default_cfg(form='ir', contrast=None) == baseline
+    assert set(baseline.search_config) == {
+        'axis', 'build_admission', 'form', 'perf', 'reflux', 'scale', 'verify'}
+    header = {'cohort': 'silo-policy-contrast-test-2026-09-29',
+              'arm': 'random-ir', 'series': 1, 'form': 'ir'}
+    series = P.contrast_cfg(header, campaign_env=P.ENV_TAG)
+    assert series.search_config['verify_performance_concurrent'] is True
+    first = P.contrast_cfg(header, campaign_env=P.ENV_TAG,
+                           slot='eval', index=1, attempt=0)
+    retry = P.contrast_cfg(header, campaign_env=P.ENV_TAG,
+                           slot='eval', index=1, attempt=1)
+    assert first.search_config['contrast_slot'] == 'eval-1-a0'
+    assert retry.search_config['contrast_slot'] == 'eval-1-a1'
+    assert len({str(ident.campaign_id(cfg)) for cfg in (baseline, series, first, retry)}) == 4
+
+
+def test_contrast_initial_points_and_machine_arm_provenance(tmp_path):
+    first, second = P.initial_proposal('0000'), P.initial_proposal('0001')
+    assert first.ir != second.ir
+    assert '5u' in first.implementation and '10u' in second.implementation
+    machine = {'generator': {'name': 'random-ir',
+        'version': 'silo-policy-contrast-test-2026-09-29', 'series': 1,
+        'a': 1, 'counter': 0,
+        'preimage': 'silo-policy-contrast-test-2026-09-29|random|1|1|0'},
+        'ir': first.ir}
+    path = tmp_path / 'machine.json'
+    path.write_text(json.dumps(machine))
+    assert P.load_machine_proposal(path, arm='random-ir', series=1,
+                                    form='ir').ir == first.ir
+    with pytest.raises(ValueError, match='forbidden'):
+        P.load_machine_proposal(path, arm='llm-ir', series=1, form='ir')
+    machine['generator']['preimage'] += 'x'
+    path.write_text(json.dumps(machine))
+    with pytest.raises(ValueError, match='preimage'):
+        P.load_machine_proposal(path, arm='random-ir', series=1, form='ir')
+
 BODY = (ROOT / 'orchestrator/campaign/silo_function_policy_hand/abort0.cpp').read_text()
 GOOD = BODY.replace('return 0u;', 'return 1u;')
 
@@ -339,6 +379,22 @@ def test_policy_gate_digest_and_no_write_on_reject(tmp_path):
         compiler=compiler, scratch_dir=str(tmp_path), write=True)
     assert result.passed and compute_diff_digest(rebound) == accepted.diff_digest
     assert source.read_bytes() != original
+
+
+def test_machine_origin_can_write_only_after_shared_gate(tmp_path):
+    compiler = find_compiler()
+    if compiler is None:
+        pytest.skip('g++ unavailable')
+    source = _source(tmp_path)
+    original = source.read_bytes()
+    with pytest.raises(AuditorGateFailure, match='auditor required'):
+        P.policy_gate(str(tmp_path), GOOD, None, compiler=compiler,
+                      scratch_dir=str(tmp_path), write=True)
+    assert source.read_bytes() == original
+    passed, _ = P.policy_gate(str(tmp_path), GOOD, None, compiler=compiler,
+                              scratch_dir=str(tmp_path), write=True,
+                              origin='machine')
+    assert passed.passed and source.read_bytes() != original
 
 
 def test_budget_stop_preserves_checkpoint_without_candidate_work(tmp_path):
