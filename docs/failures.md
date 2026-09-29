@@ -19543,6 +19543,9 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-21 ([T-2844] wave の受入 attempt 2)** — `test_t810_coordinator.py` の prepare_group 系 2 node (`test_prepare_group_rejects_self_consistent_foreign_git_identity_before_any_mkdir` / `test_prepare_group_rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (同時刻に別 wave が land 後の撤去を行っていた)。本 wave の worktree 登録 3 つは健在で、差分 (mocc driver の候補 mode・候補 test・patch・JSON・docs) から到達しない。同じ tip の単独再走 (15978.nqsv) は 2 passed。恒久対応は未実施のまま (受理集合を変えるため裁定を要する、既存記述どおり)。
 
 - **再発: 2026-09-27** ([T-2850] 試走 v2 後段 wave の受入 final2 attempt 1、session root `.izanagi-acceptance-shards/664541b207b8da004472b54e961286e7`) — `test_t810_coordinator.py` の prepare_group 系 3 node (`test_prepare_group_accepts_external_root_with_anchor_union`・`..._rejects_self_consistent_foreign_git_identity_before_any_mkdir`・`..._rejects_forged_git_identity_before_any_mkdir`) が `cannot read worktree registration: file is absent` で赤 (受入中の 15:4x〜15:5x に他 wave 2 本が land していた)。本 wave の差分は docs と insight だけで同 test から到達しない。同じ tip `6a2ae3d73` の単独再走 (31432.nqsv) は 45 passed。非帰属として受入を再走した。
+
+- **再発: 2026-09-29** — land 調整役が、撤去途中で `gitdir` を欠き `modules` だけが残る管理 dir が数分続く間に受入全走が走ると `test_t810_coordinator.py` の live 3 node が `cannot read worktree registration: file is absent` で決定的に赤になると報告し (t-2288 wave)、撤去と受入を窓で分けて land を遅らせていた。D2303 で本番の走査が gitdir も locked も無い管理 dir を飛ばすよう改めた。
+- **supersede: 2026-09-29** — 恒久対応「未実施」は古い。D2303 (ユーザー裁定) が本番の走査で gitdir 不在かつ locked 不在の管理 dir を飛ばす形で撤去途中の不在を閉じた。add 途中 (locked あり・gitdir 無し) と読み中変化は従来どおり拒否し、テストは既存の再試行で吸収、本番の coordinator は止まりうる。land 側の同型走査は未変更。
 ### F634. 凍結完了と宣言した装置に投入器が無く、次 wave が「投入だけが残る」と信じて着手した [誤前提] [手順漏れ]
 
 - 事象: [T-1721] の裁定要約と作業依頼が「装置と事前登録は凍結済みで投入だけが残る」と述べ、
@@ -20432,6 +20435,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 修理案が「消滅」だけを名指しして種別で閉じた条件を持つなら本件である。
   親の実測値 (所要中央値 17.391 ms、最大 808.553 ms、44 登録) と、
   取り直し 3 回でも連続 churn 下で 1.5% 残る点を前提に読む。
+- **supersede: 2026-09-29** — 「production は未変更」は古い。D2303 が消滅のうち locked の無いものだけを吸収した。読み中変化と locked 付きの消滅は従来どおり拒否で、本件の指摘 (消滅だけを名指しする修理は残差を取り残す) は有効のまま。
 
 ### F671. 事前登録した変異を確実に赤にする node が 1 つも存在しなかった [恒真ゲート] [手順漏れ]
 
@@ -28732,3 +28736,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: ファイルシステムの一時的な失敗 (割り込まれた system call) で index の書き込みが失敗し、`git worktree add` は作りかけの worktree を片付けるが `-b` で作った branch は消さない。同じ引数での再実行は「branch が既にある」で失敗する。
 - 恒久対応: 回復手順を memory `worktree-discipline` に足した — 残った branch が main と同じ commit であることを `git rev-parse` で確かめ、`-b` を付けずに既存 branch を指定して `git worktree add <path> <branch>` を 1 回だけ再実行する (今回はこれで 14:58 に完成)。add には timeout を掛けない (既存の規律)。
 - 再発検知: `git worktree add` の rc と、`git worktree list` に path が無いのに `git branch --list <branch>` が残る状態。
+
+### F1072. trace の整形を打ち消す `#line` の前に TRACE=0 の行数を変える修正を入れ、`#line` が修正の行数まで打ち消すことを見落として D297 補助比較の事前登録を外した [手順漏れ]
+
+- 事象: CCBench の F `25898d00` (整形で行数が変わる `#if TRACE` 区間の直後に `#line` を置き、TRACE=0 の行番号を整形前に揃えた commit) の上に、Silo の修正 (update に +3 行) を `#line` を変えずに入れた。pin + 同じ修正 → 修正 tip の D297 比較を pass と事前登録したが、GCC 11・12 とも `header expanded 不一致` で拒否された。親の probe (Silo の 1 file・TRACE=0・1 文脈) で見た差は `ERR` の `__LINE__` 定数 (pin + 修正 693、修正 tip 690) の 1 行 (検査器は最初の不一致で止まるので他の entry は未確認)。段 3 の相談も親の段 4 裁定も「`#line` を変えなければ ERR の値が F と同じで安全」と読んでいた。
+- 根本原因: `#line` は固定値で行番号を戻すので、後から入る TRACE=0 側の行数変化も打ち消す。その帰結を「trace 無し + 修正」との比較の側から検討しなかった。
+- 恒久対応: memory `line-directive-cancels-later-trace0-changes` (izanagi branch の CCBench に TRACE=0 の行数を変える commit を入れるときは、後ろの `#line` を動かすかを段 1 で決め、比較の期待をその決定から導く。行番号の予測 probe の所在つき)。
+- 再発検知: D297 の header 分岐 (include を展開した比較) が `ERR` の定数差で拒否する。本件もそれで検出した (`output/insights/2026-09-29/silo-intra-txn-fix/README.md` §3)。
