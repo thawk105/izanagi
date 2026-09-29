@@ -1,0 +1,23 @@
+{
+  "old_oid": "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+  "new_oid": "f4a5169ede52630d9357444e3412ffe9aed7c78f",
+  "result_name": "D297 不合格 (意図した修理差分)",
+  "diff_tree_raw": ":100644 100644 cc1c72877f3b45de6a66512bf85233f4276f3f7b a914efa11f18de838924b980da783b000cab0e91 M\tcc/mocc/transaction.cc\n",
+  "compilers": {
+    "gcc11": {
+      "rc": 1,
+      "stdout": "",
+      "stderr": "error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: TRACE=0 正規化 preprocess 出力が不一致: path='cc/mocc/transaction.cc' genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0' context='base'\n",
+      "mismatch_reason": "TRACE=0 正規化 preprocess 出力が不一致: path='cc/mocc/transaction.cc' genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0' context='base'",
+      "expected_failure": true
+    },
+    "gcc12": {
+      "rc": 1,
+      "stdout": "",
+      "stderr": "error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: TRACE=0 正規化 preprocess 出力が不一致: path='cc/mocc/transaction.cc' genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0' context='base'\n",
+      "mismatch_reason": "TRACE=0 正規化 preprocess 出力が不一致: path='cc/mocc/transaction.cc' genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0' context='base'",
+      "expected_failure": true
+    }
+  },
+  "expected": true
+}
