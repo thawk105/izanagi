@@ -100,10 +100,10 @@ def test_schema_failures_consume_one_a_and_do_not_retry(tmp_path):
     auditor.write_text(json.dumps({"verdict": "pass", "diff_digest": "digest", "violations": [],
                                    "nits": [], "proposed_tests": [], "uncertainty": ""}))
     def run(*_args, **_kwargs): return SimpleNamespace(returncode=1, stdout="", stderr="auditor preview failed\ntrace")
-    assert R.finalize(ContrastLedger(root), 2, coder, auditor, out, ledger_root=root, run=run) == {"status": "rejected"}
+    with pytest.raises(RuntimeError, match="auditor preview failed"):
+        R.finalize(ContrastLedger(root), 2, coder, auditor, out, ledger_root=root, run=run)
     ends = [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"]
-    assert len(ends) == 2 and (ends[-1]["reject_subtype"], ends[-1]["reject_rule_id"]) == (
-        "auditor-schema", "auditor preview failed")
+    assert len(ends) == 1 and ends[0]["reject_subtype"] == "coder-schema"
 
 
 @pytest.mark.parametrize("action, subtype", [("check", None), ("finalize", None),

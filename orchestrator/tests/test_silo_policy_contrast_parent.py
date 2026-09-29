@@ -29,7 +29,9 @@ def test_fresh_sessions_and_429_retry_same_a(tmp_path):
     waits = []
     assert P.run_opportunity(root, 1, tmp_path / "out", settings=tmp_path / "settings.json",
         model="fixed", checkout=tmp_path, spawn=spawn, sleep=waits.append) == "empty"
-    assert len(argv_seen) == 2 and all("--resume" not in a and "--session-id" not in a for a in argv_seen)
+    assert len(argv_seen) == 2
+    assert all(not {"--resume", "--continue", "-c", "--session-id"}.intersection(a)
+               for a in argv_seen)
     assert all("--settings" in a and "--model" in a and "--allowedTools" in a for a in argv_seen)
     assert waits == [900]
     assert [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"][-1]["a"] == 1
