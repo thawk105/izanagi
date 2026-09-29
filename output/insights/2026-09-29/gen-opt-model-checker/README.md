@@ -14,7 +14,7 @@
 | 問い | 結論 |
 |---|---|
 | 何を共通部品にしたか | VHash の小モデルのうち仕組みに依らない 4 つ: (1) 状態の全探索、(2) 確定した履歴の依存グラフの閉路判定、(3) 場面の全列挙 (L3 の記述子)、(4) 反例の閉じた形 (schema)。仕組みの状態・遷移規則・仕組み固有の安全性判定・場面の初期状態と witness は、仕組みごとの adapter が書く (§2)。 |
-| 実際に使えるか (生死確認) | 共通部品の上で VHash の場面 S8 を再現した。VHash の状態遷移をそのまま共通の探索器に渡し、閉路判定だけを共通部品に替えると、v0 で閉路反例 (最短 12 手)、v1 で反例なしになり、訪問状態数 (v0 2,480、v1 2,032)・反例の有無・最短列の長さが VHash 自身の探索と一致した。v0 の反例は閉じた schema を通り、反例列を再生した最終履歴に閉路の各辺が実在した (§5)。 |
+| 実際に使えるか (生死確認) | 共通部品の上で VHash の場面 S8 の途中状態 (S8 の初期状態から 18 手進めた、VHash 自身の test が使う prefix) からの探索を再現した (S8 の初期状態からの全探索ではない)。VHash の状態遷移をそのまま共通の探索器に渡し、閉路判定だけを共通部品に替えると、v0 で閉路反例 (最短 12 手)、v1 で反例なしになり、訪問状態数 (v0 2,480、v1 2,032)・反例の有無・最短列の長さが VHash 自身の探索と一致した。v0 の反例が閉じた schema を通ることと、反例列を再生した最終履歴に閉路の各辺が実在することは probe の assert で確かめた (probe rc=0。個別の照合結果は stdout に出していない、§5)。 |
 | 検査器が弱くないか | 手作りの正例・負例 9 test。検査器自身への変異 19 本 (対照 1 本 + 1 本 1 条件の 18 本) で、対照は生存、18 本はすべて登録した test で赤になった (login の自走)。計算ノードの本走は §4.3。 |
 | VHash の受入で赤になった 2 件の再発防止 | 探索の時間上限は `time.monotonic` で `perf` を含む名前を条件に使わない (性能計測 file の検出 test に掛からない)。新 test file は自走 harness を持つ。焦点走でこの 2 群を含めて緑 (§6)。 |
 | 限界 | **「固定した範囲で反例なし」は証明ではない。** 探索は adapter が定義した原子 step と逐次一貫のメモリの下での、与えた初期状態からの全 interleaving に限る。L3 の記述子を生成できることと、その場面を探索したことは別で、本 wave は L3 のどの場面も探索していない (§7)。 |
@@ -86,7 +86,7 @@ result.first_by_judgment["J1"]  # 判定ごとの最初の違反 (幅優先な�
 field は次で全部: `schema`、`specification_digest` (`sha256:` + 64 hex)、`scenario_id`、`judgment_id`、`steps` (各 step は `number`・`thread`・`name`・`key`・`version_id`・`observed_value`)、`cycle_txns`、`cycle_edges` (各辺は `source`・`target`・`kind`・`key`・`from_version`・`to_version`)、`rule_ids`。
 
 - 未知 field・欠落 field・型違い (bool を int として受けない)・重複 JSON key・NaN を拒否する。
-- 文字列は `[A-Za-z0-9_.:-]` の 1〜64 文字 (空白・改行を含む自由文は通らない)。観測値は null・bool・|値| ≤ 2^63 の整数・同じ文字種の原子文字列だけ。VHash のように値を持たないモデルは null を使う (生死確認で確認)。
+- 文字列は `[A-Za-z0-9_.:-]` の 1〜64 文字 (空白・改行を含む自由文は通らない)。観測値は null・bool・|値| ≤ 2^63 の整数・同じ文字種の 1〜64 文字の原子文字列・`sha256:` + 64 桁の hex (71 文字) の digest だけ。VHash のように値を持たないモデルは null を使う (生死確認で確認)。
 - 件数上限: steps 1,024、閉路の txn・辺と規則 ID は各 64。
 - `J1` の反例は閉路が必須で、辺が txn の並びを順に結んで閉じていること。他の判定 ID では閉路 field は null。
 - 任意の `vocabulary` を渡すと、`judgment_id`・step の `name`・`rule_id` を仕様が宣言した語彙と照合する。
@@ -140,7 +140,7 @@ eb083d44e の package と test の複製に 1 本ずつ注入し、test file の
 
 1 回目の投入 (request 35499.nqsv) は、束ね経路の dispatcher が `tools/mutation_worktree.py` を自分で前置するのに、起動 script が argv の先頭へ `python3 tools/mutation_worktree.py` を重ねて渡したため、計算ノード上の wrapper が引数不足 (argparse、rc=2) で 6 秒で終わった。変異は 1 本も注入されていない。起動 script から重ねた部分を外して投げ直したのが上の結果である。
 
-## 5. 生死確認 — VHash の場面 S8 を共通部品で再現
+## 5. 生死確認 — VHash の場面 S8 の途中状態からの探索を共通部品で再現
 
 repo 外の使い捨て probe (`/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_7-model-checker/probe/liveness_vhash_s8.py`、sha256 `ddc76b01…`、Codex author が書き親が実行後に repo 外へ退避。repo には入れていない) を、親が wave の木 (084e8820b) に対して実行した。生出力 `raw/liveness-stdout.json`。
 
@@ -151,7 +151,7 @@ repo 外の使い捨て probe (`/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_7-mo
 | v0 | J1 反例あり、最短 12 手、訪問 2,480 | J1 反例あり、最短 12 手、訪問 2,480 |
 | v1 | 反例なし、訪問 2,032 | 反例なし、訪問 2,032 |
 
-v0 の反例は閉じた schema に変換して検証を通り (step の `observed_value` は全て null)、反例列を VHash の `replay` で再生した最終状態で VHash 自身の J1 も閉路を返し、共通部品の閉路の各辺 (種類・key・根拠の版) が再生後の履歴に実在した。所要は 1 探索 0.14〜0.18 秒 (親の実走)。
+probe は次を assert で確かめ、rc=0 で終わった (assert が 1 つでも破れれば rc≠0 になる): v0 の反例を閉じた schema に変換すると検証を通る (step の `observed_value` は全て null)、反例列を VHash の `replay` で再生した最終状態で VHash 自身の J1 も閉路を返す、共通部品の閉路が再生後の履歴から作り直した閉路と一致し、その各辺 (種類・key・根拠の版) が再生後の履歴に実在する。**証拠の限界:** stdout (`raw/liveness-stdout.json`) には訪問数・反例の有無・最短長・所要だけが出ており、これらの個別照合の結果欄は無い。根拠は probe の rc=0 と assert の本文 (probe の sha256 で束縛) である。所要は 1 探索 0.14〜0.18 秒 (親の実走)。
 
 示していないこと: S8 の初期状態からの全探索 (prefix から始めた)、J2・J3 を共通部品で扱うこと (VHash 固有として移していない)、S8 以外の場面、L3 の場面。
 
@@ -194,7 +194,7 @@ v0 の反例は閉じた schema に変換して検証を通り (step の `observ
 
 ## 10. 次の一手
 
-- 段 A の最初の仕組みのモデル: adapter (状態・遷移・時刻割り当て・場面の初期状態・witness) を書き、`explore` と `find_cycle` と schema を使う。L3 の txn 2 個の層 (1,600 構成) をまず login で流して 1 構成の所要を実測し、txn 3 個の層を計算ノードに流すかを見積もる (仕組み 1 つあたり 2 node 時間を超えるならユーザー確認)。
+- 段 A の最初の仕組みのモデル: adapter (状態・遷移・時刻割り当て・場面の初期状態・witness) を書き、`explore` と `find_cycle` と schema を使う。1 構成の所要を計算ノードで測り、その実測値から L3 の txn 2 個の層 (1,600 構成) と txn 3 個の層 (32,000 構成) の投入規模を見積もる (仕組み 1 つあたり 2 node 時間を超えるならユーザー確認)。
 - U5 ([T-2888]): §8 の結果記録と語彙の照合を driver 側に置く。
 
 ## 11. 再現

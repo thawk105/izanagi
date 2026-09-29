@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-29
 wave: dev-wave-gen-opt-model-checker
 seq: 1
-title: [T-2887] 仕組みごとの小さいモデルでの全場面検査の共通部品を VHash の小モデルから切り出した — 探索・閉路判定・場面の全列挙・閉じた反例 schema、VHash の S8 を共通部品で再現し結果が一致 (コード + test + insight、branch dev-wave-gen-opt-model-checker)
+title: [T-2887] 仕組みごとの小さいモデルでの全場面検査の共通部品を VHash の小モデルから切り出した — 探索・閉路判定・場面の全列挙・閉じた反例 schema、VHash の S8 の途中状態からの探索を共通部品で再現し結果が一致 (コード + test + insight、branch dev-wave-gen-opt-model-checker)
 ---
 
 ## 本文
@@ -21,6 +21,6 @@ title: [T-2887] 仕組みごとの小さいモデルでの全場面検査の共�
 
 ### 完了
 
-- [T-2887] 共通部品 `tools/cc_model_checker/` (探索・閉路判定・L3 の場面記述子・閉じた反例 schema) と test を入れ、VHash の S8 を共通部品で再現して結果の一致を確かめた。検査器への変異 19 本は事前登録どおり。一次資料 `output/insights/2026-09-29/gen-opt-model-checker/README.md`。
+- [T-2887] 共通部品 `tools/cc_model_checker/` (探索・閉路判定・L3 の場面記述子・閉じた反例 schema) と test を入れ、VHash の S8 の途中状態 (18 手後の prefix) からの探索を共通部品で再現し、訪問数・反例の有無・最短長の一致を確かめた。検査器への変異 19 本は事前登録どおり。一次資料 `output/insights/2026-09-29/gen-opt-model-checker/README.md`。
   remaining: none
   base: 9f9d7c16be6a689d8322d6e45b16a42de2a9be356c2261adc38991b7c7f6b60a
