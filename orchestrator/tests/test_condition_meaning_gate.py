@@ -3624,10 +3624,15 @@ def test_v1_domain_and_claim_boundaries_are_exact():
             "patches/cicada-forwarding-variant.patch",
             companion_defines=companion, inert_values=(),
         )
-    for macro in ("CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL"):
+    for macro, companion in (
+        ("CICADA_VHASH_K", ()),
+        ("CICADA_VHASH_COUNT", (("CICADA_VHASH_K", "1"),)),
+        ("CICADA_VHASH_WL", ()),
+    ):
         assert G.DEFINE_SPECS[macro] == G.DefineSpec(
             G.ROUTE_CMAKE_CXX_FLAGS, ("cc/cicada/transaction.cc",), "ycsb_cicada.exe",
             "patches/cicada-vhash-hot-block-variant.patch",
+            companion_defines=companion,
         )
     for macro, owner, companion in (
         ("CICADA_GC_SAFEPOINT", "cc/cicada/transaction.cc",

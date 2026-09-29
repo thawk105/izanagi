@@ -268,6 +268,7 @@ _DEFINE_SPECS = {
     "CICADA_VHASH_COUNT": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
         "patches/cicada-vhash-hot-block-variant.patch",
+        companion_defines=(("CICADA_VHASH_K", "1"),),
     ),
     "CICADA_VHASH_WL": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
