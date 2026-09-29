@@ -1,0 +1,125 @@
+{
+  "schema_version": "t2872-summary/v1",
+  "arms": {
+    "T": {
+      "runs": 56,
+      "commit_count_mean": 5648944.053571428,
+      "commit_count_range": [
+        5566938,
+        5766297
+      ],
+      "validated_items": 3020512543,
+      "class_a": 314,
+      "class_b": 482,
+      "commits": 316340867,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "class_a_per_commit": 9.92600175177493e-07,
+      "class_b_per_commit": 1.5236728803679988e-06,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "N": {
+      "runs": 56,
+      "commit_count_mean": 7171158.25,
+      "commit_count_range": [
+        6932282,
+        7303521
+      ],
+      "validated_items": 3833087038,
+      "class_a": 2181,
+      "class_b": 7229,
+      "commits": 401584862,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "class_a_per_commit": 5.430981609062744e-06,
+      "class_b_per_commit": 1.800117654833314e-05,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "P": {
+      "runs": 28,
+      "commit_count_mean": 7223978.035714285,
+      "commit_count_range": [
+        7039304,
+        7391780
+      ],
+      "validated_items": 0,
+      "class_a": 0,
+      "class_b": 0,
+      "commits": 0,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "class_a_per_commit": 0.0,
+      "class_b_per_commit": 0.0,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    }
+  },
+  "t_g2_runs": [
+    {
+      "run": "0079-T",
+      "total_cycles": 1,
+      "r0_errors": [],
+      "verify_indeterminate_reasons": [],
+      "witness_set_incomplete": false
+    }
+  ],
+  "witnesses": [
+    {
+      "run": "0079-T",
+      "ordinal": 1,
+      "status": "B_only",
+      "edges": [
+        {
+          "reader_txid": 3857483,
+          "writer_txid": 3857485,
+          "key": "000000000000000b",
+          "read_version": [
+            52,
+            4285
+          ],
+          "overwritten_version": [
+            52,
+            4397
+          ],
+          "match": "none"
+        },
+        {
+          "reader_txid": 3857485,
+          "writer_txid": 3857483,
+          "key": "0000000000000000",
+          "read_version": [
+            52,
+            4393
+          ],
+          "overwritten_version": [
+            52,
+            4396
+          ],
+          "match": "B"
+        }
+      ]
+    }
+  ],
+  "rules": {
+    "R0_indeterminate_runs": {
+      "T": 0,
+      "N": 0,
+      "P": 0
+    },
+    "R1_N_clean_class_a": 2181,
+    "R1_N_indeterminate_runs": 0,
+    "R2_T_G2_witnesses_with_A": 0,
+    "R2_T_G2_witnesses_total": 1,
+    "R3_B_only": 1,
+    "R3_none": 0,
+    "R3_indeterminate": 0,
+    "R2_T_incomplete_witness_runs": 0,
+    "R2_all_witnesses_status": "not_all_A",
+    "R4_T_eligible_runs": 56,
+    "R4_T_verifier_indeterminate_runs": 0,
+    "R4_T_G2_runs": 1,
+    "R4_zero_G2_conclusive": false
+  }
+}
