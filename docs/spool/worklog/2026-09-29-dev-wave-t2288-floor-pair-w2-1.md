@@ -21,6 +21,12 @@ title: [T-2288] B-4 床値の w2 と finalize を w1 と同じ submit-tree か�
   (実行 argv は保存していない)。
 - 段 6 相当の read-only review 1 本 (codex `review`、gpt-6-sol / medium、16 call、331 秒): GO、must-fix 0。所見 2 件 (should: expected_specs の取得元の主張が argv 未保存で
   独立に確かめられない → 一致の主張へ狭めた、nit: 強調記号) をともに real・採用で反映した。数値・hash・件数の不一致は 0。
+- 受入 1 回目 (tip `e67ea485d` → post-claim merge `62a4987cc`、claimed main `8cd0ef4a3`) は rc=70、赤 3 件はすべて
+  `orchestrator/tests/test_t810_coordinator.py` (`test_prepare_group_accepts_external_root_with_anchor_union` と `…_rejects_forged_git_identity…`・
+  `…_rejects_self_consistent_foreign_git_identity…`) の `cannot read worktree registration: file is absent`。計算ノードの単独再走 (request
+  `35681.nqsv`) でも 3 件再現し、欠けていた file は他 session の撤去途中の `.git/worktrees/dev-wave-vhash-forwarding-proof/gitdir` だった
+  (`dev_wave_cleanup.py` が走行中で、管理 dir に `modules` だけが残っていた)。テストは共有 `.git/worktrees/` の全管理 dir を読む。本 wave の差分
+  (計測データ・docs) は `tools/pegasus/t810_coordinator.py` にもテストにも届かないので非帰属と判定し、撤去の終了後に受入を取り直した。
 - 採用裁定 (D1641 決定 2) と §5 floor 欄の記入はしていない (依頼が「材料を返す」まで)。§5 に書く pin 文字列と、統計関数が標本最大値で
   床値が 372 差分中の 1 標本で決まる性質を insight の材料節に並べた。
 - セッション事象: `EnterWorktree(name)` が "Could not read the repository git config to neutralize filter drivers" で 2 回失敗 (同日の
