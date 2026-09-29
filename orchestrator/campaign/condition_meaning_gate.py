@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 64 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-six
+Claim boundary: the supply domain contains the 66 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-eight
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -80,6 +80,14 @@ _SI_OWNER = ("cc/si/transaction.cc",)
 _CICADA_OWNER = ("cc/cicada/transaction.cc",)
 _CICADA_YCSB_OWNER = ("cc/cicada/ycsb_cicada.cc",)
 _DEFINE_SPECS = {
+    "IZANAGI_CICADA_VLIFE": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
+    ),
+    "IZANAGI_CICADA_LONGTX": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
+    ),
     "SILO_POLICY_VARIANT": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-function-policy-variant.patch",
@@ -369,6 +377,12 @@ def _request_spec(request: DefineRequest) -> DefineSpec:
     return DEFINE_SPECS[request.macro]
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "IZANAGI_CICADA_VLIFE": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE",
+    ),
+    "IZANAGI_CICADA_LONGTX": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_LONGTX",
+    ),
     "SILO_POLICY_VARIANT": (
         "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT",
     ),
@@ -510,6 +524,8 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
 }
 _CONDITIONAL_BRANCH_SITE_COUNTS = {
+    "IZANAGI_CICADA_VLIFE": 33,
+    "IZANAGI_CICADA_LONGTX": 3,
     "SILO_POLICY_VARIANT": 15,
     "IZANAGI_SILO_POLICY_PROBE": 21,
     "IZANAGI_SILO_LADDER_RUNG1": 2,
@@ -538,6 +554,10 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "CICADA_LONGTX": 4,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
+    "IZANAGI_CICADA_VLIFE": (
+        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 9),
+    ),
+    "IZANAGI_CICADA_LONGTX": (),
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),
 }
 
@@ -1144,14 +1164,14 @@ def make_define_request(
     stock_comparison: bool = False,
     protocol: str = "silo",
 ) -> DefineRequest:
-    """Construct a request from the independently declared 64-macro supply domain."""
+    """Construct a request from the independently declared 66-macro supply domain."""
     try:
         if protocol not in ("silo", "mocc") or (protocol == "mocc" and macro != "BACKOFF_FIXED"):
             raise KeyError(protocol)
         spec = _MOCC_BACKOFF_SPEC if protocol == "mocc" else DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", f"macro is outside the 64-macro domain: {macro!r}",
+            "request-contract-invalid", f"macro is outside the 66-macro domain: {macro!r}",
         ) from exc
     if len(spec.owner_tus) != 1:
         raise ConditionMeaningGateError(
@@ -1221,7 +1241,7 @@ def _validate_define_request(request: DefineRequest) -> tuple[DefineSpec, str, s
         spec = _request_spec(request)
     except KeyError as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", "macro is outside the 64-macro domain",
+            "request-contract-invalid", "macro is outside the 66-macro domain",
         ) from exc
     if request.route != spec.route:
         raise ConditionMeaningGateError(

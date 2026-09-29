@@ -78,6 +78,10 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    ("campaign/vhash_cicada_vlife.py", "<module>._checked"): 1,
+    ("campaign/vhash_cicada_vlife.py", "<module>._delay_compile"): 1,
+    ("campaign/vhash_cicada_vlife.py", "<module>._calibrate"): 1,
+    ("campaign/vhash_cicada_vlife.py", "<module>._run"): 1,
     # Coverage/smoke YCSB runs with a mandatory timeout and diagnostic admission.
     ("campaign/silo_policy_coverage.py", "<module>._run"): 1,
     # Fixed balanced argv under the compute-site bench lock, shell disabled,
@@ -3580,12 +3584,11 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     )
     assert classifications[s1_sink] == Counter({
         "covered": 4,
-        # Patches B and C, the mocc controls, both si variants, and Cicada
-        # forwarding cannot reach this sink.
-        "proven-unreachable": 60,
+        # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
+        "proven-unreachable": 62,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 64})
+    assert classifications[s8b_sink] == Counter({"covered": 66})
     assert failures == []
 
 
@@ -3609,7 +3612,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 50})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 52})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3618,7 +3621,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 50,
+        "failure-reachable": 14, "proven-unreachable": 52,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

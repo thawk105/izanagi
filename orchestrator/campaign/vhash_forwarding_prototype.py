@@ -28,11 +28,13 @@ from orchestrator.calibrator.benchparse import parse_bench_stdout
 from orchestrator.calibrator.runner import competing_bench_pids
 from . import condition_meaning_gate as condition
 from . import patchharness, pin, s3_mocc_lock_coverage as compute
+from .materializer_admission import non_admissible_materializer
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "patches/cicada-forwarding-variant.patch"
 DEFAULT_OUTPUT = ROOT / "output/env/pegasus/vhash-forwarding-prototype"
 DRIVER_ID = "orchestrator.campaign.vhash_forwarding_prototype"
+MATERIALIZER = DRIVER_ID + "._build_variant"
 MACROS = {"dependency": (), "stock": ("CICADA_LONGTX",), "fwd": ("CICADA_FWD_ENABLE", "CICADA_LONGTX"),
           "count": ("CICADA_FWD_ENABLE", "CICADA_FWD_COUNT", "CICADA_LONGTX")}
 WORKLOADS = ("normal", "many_ops", "wait_after_reads")
@@ -99,6 +101,7 @@ def _condition_gate(source: Path, macro: str, args: list[str], cxx: str) -> dict
 def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
                    toolchain: dict) -> tuple[Path, list[dict], float]:
     """Single Cicada build sink, including the ungated dependency build."""
+    non_admissible_materializer(MATERIALIZER)
     start = time.monotonic()
     args = build_args(dependencies, toolchain, kind)
     receipts = [_condition_gate(source, macro, args, toolchain["cxx_path"])
@@ -521,14 +524,16 @@ def main(argv: list[str] | None = None) -> int:
                                                            "dependency", deps, toolchain)
                     job["builds"]["dependency"] = {"seconds": seconds,
                                                     "binary_sha256": sha_file(binary),
-                                                    "gate_receipts": gates}
+                                                    "gate_receipts": gates,
+                                                    "admission": non_admissible_materializer(MATERIALIZER)}
                     for kind in ("stock", "fwd", "count"):
                         binary, gates, seconds = _build_variant(source, scratch / ("build-" + kind),
                                                                kind, deps, toolchain)
                         binaries[kind] = (binary, gates)
                         job["gate_receipts"][kind] = gates
                         job["builds"][kind] = {"seconds": seconds, "binary_sha256": sha_file(binary),
-                                               "gate_receipts": gates}
+                                               "gate_receipts": gates,
+                                               "admission": non_admissible_materializer(MATERIALIZER)}
                 if args.command == "smoke":
                     tick = time.monotonic()
                     job["inert_receipt"] = _inert_receipt(source, scratch / "build-stock")
