@@ -269,6 +269,7 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
                                output=root / 'output', scratch_root=root / 'scratch',
                                third_party_cache=root, no_gen_perf=False,
                                with_trace_builds=True, diag_builds=True,
+                               debug_modes=(0, 1, 2, 3),
                                diag_run_timeout=60, diag_gdb_timeout=120)
         with patch.object(d.socket, 'gethostname', return_value='compute'), \
              patch.object(d, 'assert_solo'), \
@@ -295,13 +296,20 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
         manifest = json.loads((out / 'manifest.json').read_text())
         assert manifest['status'] == 'failed'
         assert set(manifest['builds']) == set(attempted)
+        expected = {(cell, arm, kind, mode)
+                    for cell in ('rr50-wait1-gc10', 'rr95-ronly-gc10')
+                    for arm in d.ARMS for kind in ('perf', 'count')
+                    for mode in ((0, 1, 2, 3) if cell == 'rr50-wait1-gc10'
+                                 and arm != 'stock' else (None,))}
+        assert {(s['cell'], s['arm'], s['build_kind'], s.get('debug_mode'))
+                for s in diagnostic_specs} == expected
+        assert len(diagnostic_specs) == len(expected) == 24
+        assert not any('debug_mode' in s for s in diagnostic_specs if s['arm'] == 'stock')
         assert set(manifest['diagnostics']) == {
-            f'{arm}-{kind}-diag{suffix}' for arm in d.ARMS
-            for kind in ('perf', 'count') for suffix in ('', '-rr95-ronly-gc10')}
-        assert {(s['cell'], s['arm'], s['build_kind'], s['extime']) for s in diagnostic_specs} == {
-            (cell, arm, kind, 3) for cell in ('rr50-wait1-gc10', 'rr95-ronly-gc10')
-            for arm in d.ARMS for kind in ('perf', 'count')}
-        assert len(diagnostic_specs) == 12
+            f'{arm}-{kind}-diag'
+            + ('-rr95-ronly-gc10' if cell == 'rr95-ronly-gc10' else '')
+            + (f'-mode{mode}' if mode is not None else '')
+            for cell, arm, kind, mode in expected}
         assert all(not manifest['diagnostics'][name]['perf_eligible']
                    for name in manifest['diagnostics'])
         assert all(not manifest['builds'][name]['perf_eligible'] for name in attempted
@@ -344,7 +352,8 @@ def test_diagnostic_signal_reruns_gdb_once_and_logs_output():
 
         def fake_gdb(argv, **kwargs):
             calls.append(argv)
-            return subprocess.CompletedProcess(argv, 0, b'full backtrace\n', b'')
+            return SimpleNamespace(pid=111, returncode=0,
+                                   communicate=lambda **_kwargs: (b'full backtrace\n', b''))
 
         with patch.object(d, 'assert_solo'), \
              patch.object(d, 'bench_argv', return_value=['/fake/ycsb', '-extime=1']), \
@@ -352,7 +361,7 @@ def test_diagnostic_signal_reruns_gdb_once_and_logs_output():
              patch.object(d, 'run_measured', return_value=SimpleNamespace(
                  returncode=-6, stdout=b'flags\n',
                  stderr=b'assertion failed: pinned version\nvariant=general\n')), \
-             patch.object(d.subprocess, 'run', side_effect=fake_gdb):
+             patch.object(d.subprocess, 'Popen', side_effect=fake_gdb):
             result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out)
         assert result['abnormal'] and result['perf_eligible'] is False
         assert len(calls) == 1
@@ -419,9 +428,10 @@ def test_diagnostic_missing_gdb_records_and_continues():
              patch.object(d.shutil, 'which', return_value=None), \
              patch.object(d, 'run_measured', return_value=SimpleNamespace(
                  returncode=-9, stdout=b'', stderr=b'')), \
-             patch.object(d.subprocess, 'run', side_effect=AssertionError('gdb launched')):
+             patch.object(d.subprocess, 'Popen', side_effect=AssertionError('gdb launched')):
             result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out)
         assert b'gdb unavailable' in Path(result['log']['path']).read_bytes()
+        assert not any('cicada_igc_debug_mode' in arg for arg in result['argv'])
 
 
 def test_diagnostic_timeout_attaches_before_kill_and_reruns():
@@ -439,13 +449,14 @@ def test_diagnostic_timeout_attaches_before_kill_and_reruns():
 
         def fake_gdb(argv, **kwargs):
             calls.append(argv)
-            return subprocess.CompletedProcess(argv, 0, b'backtrace\n', b'')
+            return SimpleNamespace(pid=111, returncode=0,
+                                   communicate=lambda **_kwargs: (b'backtrace\n', b''))
 
         with patch.object(d, 'assert_solo'), \
              patch.object(d, 'bench_argv', return_value=['/fake/ycsb']), \
              patch.object(d.shutil, 'which', return_value='/usr/bin/gdb'), \
              patch.object(d, 'run_measured', side_effect=fake_run), \
-             patch.object(d.subprocess, 'run', side_effect=fake_gdb):
+             patch.object(d.subprocess, 'Popen', side_effect=fake_gdb):
             result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out,
                                       run_timeout=2, gdb_timeout=3)
         assert result['timeout'] and len(calls) == 2
@@ -464,12 +475,145 @@ def test_measured_timeout_calls_attach_before_kill():
 
     with patch.object(d.subprocess, 'Popen', return_value=SimpleNamespace(pid=1234)), \
          patch.object(d.os, 'wait4', side_effect=fake_wait4), \
-         patch.object(d.os, 'kill', side_effect=lambda pid, sig: events.append(('kill', pid))), \
+         patch.object(d.os, 'killpg', side_effect=lambda pid, sig: events.append(('kill', pid))), \
+         patch.object(d, 'competing_bench_pids', return_value=[]), \
          patch.object(d.time, 'monotonic', side_effect=[0, 2]):
         raises(subprocess.TimeoutExpired, d.run_measured, ['/fake/ycsb'], timeout=1,
                before_timeout_kill=lambda pid: events.append(('attach', pid)))
     assert events == [('wait4', d.os.WNOHANG), ('attach', 1234),
                       ('kill', 1234), ('wait4', 0)]
+
+
+def test_measured_timeout_survivor_stops_run():
+    def fake_wait4(pid, options):
+        return (0, 0, None) if options == d.os.WNOHANG else (pid, 0, None)
+
+    with patch.object(d.subprocess, 'Popen', return_value=SimpleNamespace(pid=1234)), \
+         patch.object(d.os, 'wait4', side_effect=fake_wait4), \
+         patch.object(d.os, 'killpg'), \
+         patch.object(d.time, 'monotonic', side_effect=[0, 2]), \
+         patch.object(d.time, 'sleep'), \
+         patch.object(d, 'competing_bench_pids', return_value=['1234 ycsb_cicada.exe']):
+        raises(d.ResidualBenchmarkError, d.run_measured, ['/fake/ycsb'], timeout=1)
+
+
+def test_gdb_timeout_kills_group_and_confirms_benchmark_exit():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        (out / 'logs').mkdir()
+        spec = {'arm': 'min', 'build_kind': 'perf', 'cell': 'rr50-wait1-gc10',
+                'extime': 3, 'debug_mode': 2}
+        receipts = [{'macro': key, 'admission': {'admitted': True}}
+                    for key in d.arm_macros('min', 'perf')]
+        events = []
+
+        class Gdb:
+            pid = 4321
+            returncode = -9
+
+            def communicate(self, **kwargs):
+                if kwargs:
+                    raise subprocess.TimeoutExpired(['gdb'], 1)
+                return b'partial gdb output', b'gdb stderr'
+
+            def wait(self):
+                events.append('wait')
+
+        with patch.object(d, 'assert_solo'), \
+             patch.object(d, 'bench_argv', return_value=['/fake/ycsb']), \
+             patch.object(d.shutil, 'which', return_value='/usr/bin/gdb'), \
+             patch.object(d, 'run_measured', return_value=SimpleNamespace(
+                 returncode=-11, stdout=b'CICADA_INTERVAL_V1 {"x":1}\n', stderr=b'crash')), \
+             patch.object(d.subprocess, 'Popen', return_value=Gdb()), \
+             patch.object(d.os, 'killpg', side_effect=lambda pid, sig: events.append(('kill', pid))), \
+             patch.object(d, 'competing_bench_pids', side_effect=[['123 ycsb_cicada.exe'], []]):
+            result = d.run_diagnostic(Path('/fake/ycsb'), spec, receipts, out,
+                                      gdb_timeout=1)
+        assert events == [('kill', 4321), 'wait']
+        assert result['signal'] == 11 and result['stderr'] == 'crash'
+        assert result['count_lines'] == ['CICADA_INTERVAL_V1 {"x":1}']
+        assert '--cicada_igc_debug_mode=2' in result['argv']
+        assert b'gdb stderr' in Path(result['log']['path']).read_bytes()
+
+
+def test_gdb_timeout_survivor_stops_diagnostic():
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp)
+        (out / 'logs').mkdir()
+        spec = {'arm': 'gen', 'build_kind': 'perf', 'cell': 'rr50-wait1-gc10', 'extime': 3}
+        receipts = [{'macro': key, 'admission': {'admitted': True}}
+                    for key in d.arm_macros('gen', 'perf')]
+
+        class Gdb:
+            pid = 4321
+
+            def communicate(self, **kwargs):
+                raise subprocess.TimeoutExpired(['gdb'], 1)
+
+            def wait(self):
+                pass
+
+        with patch.object(d, 'assert_solo'), \
+             patch.object(d, 'bench_argv', return_value=['/fake/ycsb']), \
+             patch.object(d.shutil, 'which', return_value='/usr/bin/gdb'), \
+             patch.object(d, 'run_measured', return_value=SimpleNamespace(
+                 returncode=-11, stdout=b'', stderr=b'')), \
+             patch.object(d.subprocess, 'Popen', return_value=Gdb()), \
+             patch.object(d.os, 'killpg'), \
+             patch.object(d.time, 'sleep'), \
+             patch.object(d, 'competing_bench_pids', return_value=['123 ycsb_cicada.exe']):
+            raises(d.ResidualBenchmarkError, d.run_diagnostic, Path('/fake/ycsb'),
+                   spec, receipts, out, gdb_timeout=1)
+
+
+def test_debug_modes_parse_and_stock_flag_exclusion():
+    assert d.parse_debug_modes('0,1,2,3') == (0, 1, 2, 3)
+    raises(ValueError, d.parse_debug_modes, '0,0')
+    raises(ValueError, d.parse_debug_modes, '4')
+
+
+def test_smoke_stops_after_residual_benchmark():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for name in ('source', 'scratch', 'output'):
+            (root / name).mkdir()
+
+        @contextmanager
+        def checkout(_pin):
+            yield root / 'source'
+
+        def fake_build(_source, build, _deps, _toolchain, arm, kind,
+                       *, dependency=False, build_log=None, diag=False):
+            binary = build / 'cc/cicada/ycsb_cicada.exe'
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b'binary')
+            return binary, [{'macro': key, 'admission': {'admitted': True}}
+                            for key in ({} if dependency else d.arm_macros(arm, kind))]
+
+        args = SimpleNamespace(command='smoke', group=None, job=None,
+                               output=root / 'output', scratch_root=root / 'scratch',
+                               third_party_cache=root, no_gen_perf=False,
+                               with_trace_builds=False, diag_builds=True,
+                               debug_modes=(0, 1, 2, 3),
+                               diag_run_timeout=1, diag_gdb_timeout=1)
+        with patch.object(d.socket, 'gethostname', return_value='compute'), \
+             patch.object(d, 'assert_solo'), \
+             patch.object(d.compute, '_load_policy', return_value={}), \
+             patch.object(d.compute, '_resolve_toolchain', return_value={}), \
+             patch.object(d.compute, '_prepare_dependencies', return_value={}), \
+             patch.object(d.patchharness, 'checkout', checkout), \
+             patch.object(d, '_build_variant', fake_build), \
+             patch.object(d, 'inert_receipt', return_value={'matched': True}), \
+             patch.object(d, 'apply_patches'), \
+             patch.object(d, 'sha_file', return_value='test-sha'), \
+             patch.object(d, 'run_binary', side_effect=AssertionError('continued benchmark')), \
+             patch.object(d, 'run_diagnostic', side_effect=d.ResidualBenchmarkError('pid 123 survives')) as diag:
+            raises(d.ResidualBenchmarkError, d.run_job, args)
+        manifest = json.loads(next((root / 'output').glob('*/manifest.json')).read_text())
+        assert manifest['status'] == 'failed'
+        assert list(manifest['diagnostics']) == ['stock-perf-diag']
+        assert 'pid 123 survives' in manifest['diagnostics']['stock-perf-diag']['error']
+        assert diag.call_count == 1
 
 
 def _run():

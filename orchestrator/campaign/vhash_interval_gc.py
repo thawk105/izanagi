@@ -68,6 +68,26 @@ MACRO_NAMES = ('CICADA_INTERVAL_GC', 'CICADA_INTERVAL_GC_GENERAL',
 FAILURE_LOG_DIR = ContextVar('vhash_igc_failure_log_dir', default=None)
 
 
+class ResidualBenchmarkError(RuntimeError):
+    """A timed-out command left a benchmark that could contaminate later runs."""
+
+
+def kill_group_and_confirm(child, *, check_benchmark=True):
+    """Kill a command's process group, reap its leader, and check for survivors."""
+    try:
+        os.killpg(child.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    child.wait()
+    if check_benchmark:
+        for _ in range(20):
+            remaining = competing_bench_pids()
+            if not remaining:
+                return
+            time.sleep(0.05)
+        raise ResidualBenchmarkError(f'benchmark survived process-group kill: {remaining}')
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -163,7 +183,8 @@ def attempt_build(manifest, out, name, source, build, deps, toolchain, arm, kind
 def run_measured(argv, *, cwd=None, env=None, timeout=180, before_timeout_kill=None):
     """wait4 captures this child, rather than a cumulative RUSAGE_CHILDREN high water mark."""
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-        child = subprocess.Popen(argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr)
+        child = subprocess.Popen(argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr,
+                                 start_new_session=True)
         deadline = time.monotonic() + timeout
         while True:
             pid, status, usage = os.wait4(child.pid, os.WNOHANG)
@@ -176,10 +197,19 @@ def run_measured(argv, *, cwd=None, env=None, timeout=180, before_timeout_kill=N
                         before_timeout_kill(child.pid)
                 finally:
                     try:
-                        os.kill(child.pid, signal.SIGKILL)
+                        os.killpg(child.pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
                     os.wait4(child.pid, 0)
+                    child.returncode = -signal.SIGKILL
+                    for _ in range(20):
+                        remaining = competing_bench_pids()
+                        if not remaining:
+                            break
+                        time.sleep(0.05)
+                    else:
+                        raise ResidualBenchmarkError(
+                            f'benchmark survived process-group kill: {remaining}')
                 stdout.seek(0)
                 stderr.seek(0)
                 output, errors = stdout.read(), stderr.read()
@@ -621,24 +651,37 @@ def run_diagnostic(binary, spec, receipts, out, *, run_timeout=60, gdb_timeout=1
     assert_solo()
     argv = bench_argv(binary, spec['cell'], spec['extime'],
                       count=spec['build_kind'] == 'count')
+    if spec.get('debug_mode') is not None:
+        if spec['arm'] == 'stock' or spec['debug_mode'] not in range(4):
+            raise ValueError('debug mode requires min/gen and a value from 0 to 3')
+        argv.append(f"--cicada_igc_debug_mode={spec['debug_mode']}")
     name = f"{spec['arm']}-{spec['build_kind']}-diag"
     debugger = shutil.which('gdb')
     attach = []
 
-    def debugger_call(command):
+    def debugger_call(command, *, attach=False):
         if debugger is None:
             return (command, b'', b'gdb unavailable\n', None, 'unavailable')
         try:
-            result = subprocess.run(command, capture_output=True, timeout=gdb_timeout)
-            return (command, result.stdout, result.stderr, result.returncode, 'gdb')
-        except subprocess.TimeoutExpired as exc:
-            return (command, exc.stdout or b'', exc.stderr or b'', None, 'gdb timeout')
+            child = subprocess.Popen(command, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, start_new_session=True)
+            try:
+                stdout, stderr = child.communicate(timeout=gdb_timeout)
+                return (command, stdout, stderr, child.returncode, 'gdb')
+            except subprocess.TimeoutExpired:
+                try:
+                    kill_group_and_confirm(child, check_benchmark=not attach)
+                except ResidualBenchmarkError as exc:
+                    log_failed_command(command, b'', str(exc).encode(), None)
+                    raise
+                stdout, stderr = child.communicate()
+                return (command, stdout, stderr, None, 'gdb timeout')
         except OSError as exc:
             return (command, b'', str(exc).encode(), None, 'gdb error')
 
     def before_kill(pid):
         attach.append(debugger_call([debugger or 'gdb', '-batch', '-p', str(pid),
-                                     '-ex', 'thread apply all bt 20']))
+                                     '-ex', 'thread apply all bt 20'], attach=True))
 
     timed_out = False
     try:
@@ -649,25 +692,44 @@ def run_diagnostic(binary, spec, receipts, out, *, run_timeout=60, gdb_timeout=1
         timed_out, rc = True, None
         timed_out_stdout, timed_out_stderr = exc.stdout or b'', exc.stderr or b''
     abnormal = timed_out or rc != 0
+    stdout = timed_out_stdout if timed_out else completed.stdout
+    stderr = timed_out_stderr if timed_out else completed.stderr
     result = {'build': name, 'perf_eligible': False, 'argv': argv,
-              'returncode': rc, 'timeout': timed_out, 'abnormal': abnormal}
-    if abnormal:
-        suffix = '' if spec['cell'] == 'rr50-wait1-gc10' else f"-{spec['cell']}"
-        log = BuildLog(out / 'logs' / f'diag-{name}{suffix}.log')
-        try:
-            log.record(argv, timed_out_stdout if timed_out else completed.stdout,
-                       timed_out_stderr if timed_out else completed.stderr, rc,
-                       label='diagnostic run timeout' if timed_out else 'diagnostic run')
+              'returncode': rc, 'signal': -rc if rc is not None and rc < 0 else None,
+              'timeout': timed_out, 'abnormal': abnormal,
+              'stdout': stdout.decode('utf-8', 'replace'),
+              'stderr': stderr.decode('utf-8', 'replace'),
+              'count_lines': [line for line in stdout.decode('utf-8', 'replace').splitlines()
+                              if line.startswith(('CICADA_INTERVAL_V1 ',
+                                                  'CICADA_IGC_LONGTX_V1 '))]}
+    suffix = '' if spec['cell'] == 'rr50-wait1-gc10' else f"-{spec['cell']}"
+    if spec.get('debug_mode') is not None:
+        suffix += f"-mode{spec['debug_mode']}"
+    log = BuildLog(out / 'logs' / f'diag-{name}{suffix}.log')
+    try:
+        log.record(argv, stdout, stderr, rc,
+                   label='diagnostic run timeout' if timed_out else 'diagnostic run')
+        if abnormal:
             for command, stdout, stderr, code, label in attach:
                 log.record(command, stdout, stderr, code, label='attach ' + label)
             command = [debugger or 'gdb', '-batch', '-ex', 'run',
                        '-ex', 'thread apply all bt 20', '--args', *argv]
             rerun_command, stdout, stderr, code, label = debugger_call(command)
             log.record(rerun_command, stdout, stderr, code, label='rerun ' + label)
-        finally:
-            log.close()
-        result['log'] = {'path': str(log.path), 'sha256': sha_file(log.path)}
+    finally:
+        log.close()
+    result['log'] = {'path': str(log.path), 'sha256': sha_file(log.path)}
     return result
+
+
+def parse_debug_modes(value):
+    try:
+        modes = tuple(int(part) for part in value.split(','))
+    except ValueError as exc:
+        raise ValueError('debug modes must be comma-separated integers from 0 to 3') from exc
+    if not modes or len(set(modes)) != len(modes) or any(mode not in range(4) for mode in modes):
+        raise ValueError('debug modes must be unique integers from 0 to 3')
+    return modes
 
 
 def trace_counts(trace_dir):
@@ -895,18 +957,29 @@ def run_job(args):
                                 if built is None:
                                     continue
                                 name = f"{spec['arm']}-{spec['build_kind']}-diag"
-                                key = name if cell == diagnostic_cells[0] else f'{name}-{cell}'
-                                try:
-                                    manifest['diagnostics'][key] = run_diagnostic(
-                                        built[0], spec, built[1], out,
-                                        run_timeout=args.diag_run_timeout,
-                                        gdb_timeout=args.diag_gdb_timeout)
-                                    if manifest['diagnostics'][key]['abnormal']:
+                                modes = (None,)
+                                if cell == 'rr50-wait1-gc10' and spec['arm'] != 'stock':
+                                    modes = getattr(args, 'debug_modes', ()) or (None,)
+                                for mode in modes:
+                                    mode_spec = {**spec, 'debug_mode': mode} if mode is not None else spec
+                                    key = name if cell == diagnostic_cells[0] else f'{name}-{cell}'
+                                    if mode is not None:
+                                        key += f'-mode{mode}'
+                                    try:
+                                        manifest['diagnostics'][key] = run_diagnostic(
+                                            built[0], mode_spec, built[1], out,
+                                            run_timeout=args.diag_run_timeout,
+                                            gdb_timeout=args.diag_gdb_timeout)
+                                        if manifest['diagnostics'][key]['abnormal']:
+                                            failures.append(key + '-run')
+                                    except ResidualBenchmarkError as exc:
+                                        manifest['diagnostics'][key] = {'error': str(exc),
+                                                                        'perf_eligible': False}
+                                        raise
+                                    except Exception as exc:
                                         failures.append(key + '-run')
-                                except Exception as exc:
-                                    failures.append(key + '-run')
-                                    manifest['diagnostics'][key] = {'error': str(exc),
-                                                                    'perf_eligible': False}
+                                        manifest['diagnostics'][key] = {'error': str(exc),
+                                                                        'perf_eligible': False}
                     for spec in plan_runs(args.group or 'rr50_wait', args.no_gen_perf,
                                           smoke=args.command == 'smoke'):
                         built = binaries.get((spec['arm'], spec['build_kind']))
@@ -917,6 +990,8 @@ def run_job(args):
                             try:
                                 records.append(run_binary(binary, spec, receipts,
                                                           manifest['patches'], raw_dir))
+                            except ResidualBenchmarkError:
+                                raise
                             except Exception as exc:
                                 name = f'{spec["arm"]}-{spec["build_kind"]}-run'
                                 failures.append(name)
@@ -956,6 +1031,7 @@ def main(argv=None):
     parser.add_argument('--no-gen-perf', action='store_true')
     parser.add_argument('--with-trace-builds', action='store_true')
     parser.add_argument('--diag-builds', action='store_true')
+    parser.add_argument('--debug-modes', type=parse_debug_modes, default=())
     parser.add_argument('--diag-run-timeout', type=float, default=60)
     parser.add_argument('--diag-gdb-timeout', type=float, default=120)
     parser.add_argument('--third-party-cache', type=Path)
@@ -979,6 +1055,8 @@ def main(argv=None):
         parser.error('--with-trace-builds applies to smoke only')
     if args.diag_builds and args.command != 'smoke':
         parser.error('--diag-builds applies to smoke only')
+    if args.debug_modes and not (args.command == 'smoke' and args.diag_builds):
+        parser.error('--debug-modes requires smoke --diag-builds')
     if args.diag_run_timeout <= 0 or args.diag_gdb_timeout <= 0:
         parser.error('diagnostic timeouts must be positive')
     if args.command == 'verify' and not args.job:
