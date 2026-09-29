@@ -224,15 +224,26 @@ def test_patch_size_and_owner_paths():
 def test_full_size_figure_layout_fixture():
     from tools.plotting.plot_vhash_ro_gc_publish import make_figure, check_figure_layout
     import matplotlib.pyplot as plt
-    # Production grid: 12 conditions, six paired repetitions, three metrics.
-    publication = {cid: [float(rep + i) for rep in range(6)]
-                   for i, cid in enumerate(P.CONDITIONS)}
-    boundary = {cid: [float(rep - i) for rep in range(6)]
-                for i, cid in enumerate(P.CONDITIONS)}
-    throughput = {cid: [1 + .01 * (rep - i) for rep in range(6)]
-                  for i, cid in enumerate(P.CONDITIONS)}
+    # Production grid and observed magnitude ranges, including undefined stock
+    # boundary ages when all six stock repetitions publish zero times.
+    publication, boundary, throughput = {}, {}, {}
+    for cid, condition in P.CONDITIONS.items():
+        wait = condition["delay"] == "wait10msR"
+        ro = condition["ro_pct"]
+        publication[cid] = [
+            (0.0 if wait else float((5000 if ro == 95 else 18000) + rep * 100),
+             float((294 if wait else 140000 if ro == 95 else 20000) + rep))
+            for rep in range(6)]
+        boundary[cid] = [
+            (None if wait else float(32 + rep),
+             float((13500 if wait else 100 + ro) + rep * 10))
+            for rep in range(6)]
+        throughput[cid] = [float((8 if wait else 1) + rep * .04)
+                           for rep in range(6)]
     figures = make_figure(publication, boundary, throughput)
     try:
+        assert [ax.get_yscale() for fig in figures for ax in fig.axes] == ["log"] * 3
+        assert "stock: 0 publications" in figures[0].axes[0].get_legend_handles_labels()[1]
         for fig in figures:
             check_figure_layout(fig)
     finally:

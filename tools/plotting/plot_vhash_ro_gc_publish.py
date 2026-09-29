@@ -24,7 +24,8 @@ T95_5 = 2.57058184
 IDS = tuple(P.CONDITIONS)
 
 
-def paired_values(raw: dict, command: str, metric: str) -> dict[str, list[float | None]]:
+def paired_values(raw: dict, command: str, metric: str, *,
+                  absolute: bool = False) -> dict:
     if raw.get("command") != command or set(raw.get("conditions", {})) != set(IDS):
         raise ValueError("complete raw condition grid required")
     if any(raw["conditions"][cid] != P.CONDITIONS[cid] for cid in IDS):
@@ -68,9 +69,12 @@ def paired_values(raw: dict, command: str, metric: str) -> dict[str, list[float 
         for rep in range(1, 7):
             group = groups[cid, rep]
             a, b = group["stock"], group["variant"]
-            values.append(None if a is None or b is None else
-                          (b / a if command == "throughput" and a > 0 else
-                           b - a if command == "measure" else None))
+            if absolute:
+                values.append((a, b))
+            else:
+                values.append(None if a is None or b is None else
+                              (b / a if command == "throughput" and a > 0 else
+                               b - a if command == "measure" else None))
         result[cid] = values
     return result
 
@@ -163,47 +167,78 @@ def _mean_ci(values: list[float | None]) -> tuple[float, float] | None:
     return float(array.mean()), float(T95_5 * array.std(ddof=1) / np.sqrt(6))
 
 
+def _set_log_range(ax, values: list[float]) -> None:
+    lower, upper = min(values) * .8, max(values) * 1.3
+    ax.set_ylim(lower, upper)
+    ax.set_yticks([10.0 ** exponent for exponent in range(
+        math.ceil(math.log10(lower)), math.floor(math.log10(upper)) + 1)])
+
+
 def make_figure(publications: dict, boundary: dict, throughput: dict):
     plt.rcParams.update({"font.size": 8, "figure.dpi": 150})
-    fig1, axes = plt.subplots(2, 1, figsize=(15, 8), constrained_layout=True)
-    fig2, perf_ax = plt.subplots(figsize=(15, 5), constrained_layout=True)
+    fig1, axes = plt.subplots(2, 1, figsize=(16, 8), constrained_layout=True)
+    fig2, perf_ax = plt.subplots(figsize=(16, 5), constrained_layout=True)
     xs = np.arange(len(IDS))
     labels = [cid.replace("-gc10", "") for cid in IDS]
+    arms = (("stock", "tab:blue", -.16), ("variant", "tab:orange", .16))
     for ax, values, title, unit in (
-        (axes[0], publications, "Publication frequency: variant − stock", "publications/s"),
-        (axes[1], boundary, "Boundary age: variant − stock", "µs"),
+        (axes[0], publications, "Publication frequency", "publications/s"),
+        (axes[1], boundary, "Mean boundary age", "µs"),
     ):
-        for i, cid in enumerate(IDS):
-            estimate = _mean_ci(values[cid])
-            if estimate is not None:
-                ax.errorbar([i], [estimate[0]], yerr=[estimate[1]], fmt="o",
-                            color="tab:blue" if cid.startswith("S") else "tab:orange",
-                            capsize=2)
-            for rep, value in enumerate(values[cid]):
-                if value is not None:
-                    ax.scatter(i + (rep - 2.5) * .045, value, s=7, alpha=.35,
-                               color="tab:blue" if cid.startswith("S") else "tab:orange")
-        ax.axhline(0, color="black", linestyle="--", linewidth=.8)
+        zero_labeled = False
+        for arm_index, (arm, color, offset) in enumerate(arms):
+            for i, cid in enumerate(IDS):
+                points = [pair[arm_index] for pair in values[cid]]
+                positive = [v for v in points if v is not None and v > 0]
+                if len(positive) == 6:
+                    mean, ci = _mean_ci(positive)
+                    ax.errorbar(i + offset, mean, yerr=ci, fmt="D", ms=4,
+                                color=color, capsize=2,
+                                label=f"{arm} mean ± 95% CI" if i == 0 else None)
+                for rep, value in enumerate(points):
+                    x = i + offset + (rep - 2.5) * .025
+                    if value is not None and value > 0:
+                        ax.scatter(x, value, s=8, alpha=.4, color=color,
+                                   label="individual runs" if i == 0 and rep == 0
+                                   and arm == "stock" else None)
+                    elif arm == "stock" and publications[cid][rep][0] == 0:
+                        ax.scatter(x, .04, transform=ax.get_xaxis_transform(),
+                                   marker="x", s=12, color=color,
+                                   label="stock: 0 publications" if not zero_labeled else None)
+                        zero_labeled = True
+        ax.set_yscale("log")
+        _set_log_range(ax, [value for cid in IDS for pair in values[cid]
+                            for value in pair if value is not None and value > 0])
         ax.set(title=title, ylabel=unit, xticks=xs, xticklabels=labels)
-        ax.tick_params(axis="x", labelrotation=35)
+        ax.set_xlim(-.7, len(IDS) - .25)
+        ax.tick_params(axis="x", labelrotation=45)
+        plt.setp(ax.get_xticklabels(), ha="right")
         ax.grid(alpha=.2)
+        ax.legend(loc="upper left", ncol=3, fontsize=7)
     for i, cid in enumerate(IDS):
         values = throughput[cid]
         estimate = _mean_ci(values)
         if estimate is not None:
             perf_ax.errorbar([i], [estimate[0]], yerr=[estimate[1]], fmt="o",
                              color="tab:blue" if cid.startswith("S") else "tab:orange",
-                             capsize=2)
+                             capsize=2,
+                             label=f"{cid[0]} mean ± 95% CI" if i in (0, 6) else None)
         for rep, value in enumerate(values):
             if value is not None:
                 perf_ax.scatter(i + (rep - 2.5) * .045, value, s=9, alpha=.5,
-                                color="tab:blue" if cid.startswith("S") else "tab:orange")
+                                color="tab:blue" if cid.startswith("S") else "tab:orange",
+                                label="individual runs" if i == 0 and rep == 0 else None)
     perf_ax.axhline(1, color="black", linestyle="--", linewidth=.8,
                     label="same throughput as stock")
+    perf_ax.set_yscale("log")
+    _set_log_range(perf_ax, [value for cid in IDS for value in throughput[cid]])
     perf_ax.set(title="Throughput: variant / stock", ylabel="ratio",
                 xticks=xs, xticklabels=labels)
-    perf_ax.tick_params(axis="x", labelrotation=35)
+    perf_ax.set_xlim(-.7, len(IDS) - .25)
+    perf_ax.tick_params(axis="x", labelrotation=45)
+    plt.setp(perf_ax.get_xticklabels(), ha="right")
     perf_ax.grid(alpha=.2)
+    perf_ax.legend(loc="upper left", ncol=4, fontsize=7)
     fig1.suptitle("48 workers; 1M records; 3 s; GC 10 µs; S skew 0 / T skew 0.9")
     fig2.suptitle("48 workers; 1M records; 3 s; GC 10 µs; no TRACE, VLIFE or COUNT")
     return (fig1, fig2)
@@ -220,7 +255,7 @@ def check_figure_layout(fig) -> None:
         box = artist.get_window_extent(renderer)
         if not (bounds.x0 <= box.x0 and box.x1 <= bounds.x1 and
                 bounds.y0 <= box.y0 and box.y1 <= bounds.y1):
-            raise ValueError("figure text outside canvas")
+            raise ValueError(f"figure text outside canvas: {artist.get_text()!r} {box.bounds}")
         labels.append((artist, box))
     # Tick labels on separate axes may align; text on the same axis may not overlap.
     for i, (left, box) in enumerate(labels):
@@ -240,8 +275,8 @@ def main(argv: list[str] | None = None) -> int:
            load_raw(args.throughput, "throughput")]
     if raw[0].get("patch_sha256") != raw[1].get("patch_sha256"):
         raise ValueError("different patch identities")
-    values = (paired_values(raw[0], "measure", "gc_publications_per_s"),
-              paired_values(raw[0], "measure", "gc_boundary_mean_us"),
+    values = (paired_values(raw[0], "measure", "gc_publications_per_s", absolute=True),
+              paired_values(raw[0], "measure", "gc_boundary_mean_us", absolute=True),
               paired_values(raw[1], "throughput", "throughput_tps"))
     context = boundary_context(raw[0])
     figures = make_figure(*values)
