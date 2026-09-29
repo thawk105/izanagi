@@ -1,0 +1,4 @@
+2026-09-28 07:53 JST python3 tools/check_wave_startup.py --repo /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2273-issue-subprocess --mode fresh --external-handoff /work/1/SFC/tanab/tmp/t2273-issue-subprocess-20260928/handoff.md
+rc=0
+INFO: local main との乖離なし (0 commit; HEAD は refs/heads/main を含む)
+OK: wave startup checks passed (fresh; ...)
