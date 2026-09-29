@@ -125,8 +125,11 @@ def test_job1_stops_before_seed_slots_when_stock_is_not_certified(tmp_path, monk
     result = P.run_contrast_unit(unit, form='ir', contract=contract,
         fetchcontent_options=None, context=None, stock_context=None,
         sub=None, cache_root='', compiler=None, scratch_dir=None, log=lambda *_: None)
+    ledger = ContrastLedger(ledger.root)
     assert [event['logical_slot'] for event in ledger.events
             if event['kind'] == 'slot-start'] == ['stock-0']
+    assert [(event['kind'], event['reason']) for event in ledger.events
+            if event['kind'] == 'series-end'] == [('series-end', 'stock-unestablished')]
     assert [row['logical_slot'] for row in result['slots']] == ['stock-0']
 
 
