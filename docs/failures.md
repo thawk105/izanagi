@@ -387,6 +387,8 @@
   条件を満たさない。段 6 の read-only review が must-fix R3 として検出し、「本 wave の個別裁定、D730 の 3 例例外ではない」と
   書き直した (a9a96fd2a、実害なし)。転写対象が**委任先の裁定の発動条件**へ広がった顕在化である。恒久対応は memory から変更なし
   — 裁定を根拠に引くときは、委任の連鎖 (D782 → D730) の末端の本文まで読む。
+
+- **再発: 2026-09-29 (near miss、3 件)** — md_16 の wave の親が、子 worktree で fix branch を切るときに短縮 SHA を**手で伸ばして書き**、`git checkout -b vhash-hlp-fix1 e5a825d57601547` と `git checkout -b vhash-hlp-fix3 ade14b4d1c` が「not a commit」で拒否された (もう 1 件は同じ形で rev-parse の出力に切り替えて回避)。git が拒否したので誤った commit から branch を切る実害はなかった。型は「一次資料 (rev-parse の出力) から転写せず手で書き直す」で、2026-09-20・21 の再発と同じ。恒久対応は変更なし (memory `worktree-discipline` の「sha は rev-parse の 40 hex をそのまま使う」) — branch を切るときは `HEAD` や `$(git rev-parse <短縮>)` の出力を使い、SHA を手で書かない。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -25945,6 +25947,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-26** — [T-2865] 段階 E の wave で、焦点走 (`tools/run_tests.py --force-dispatch`) の job が待ち行列にいる間に、親が runbook を未 commit で編集した。job は走行開始時点の作業ツリーを見るため、`orchestrator/tests/test_p3_b4_wiring_probe.py` の「作業ツリーの変更は source と test だけ」検査が docs の未 commit 変更で赤になった (非帰属の赤 1 件)。runbook を commit してから次の焦点走で緑を確かめた。実害なし。恒久対応は既存どおり (memory `dirty-tree-during-pending-job`: 投入中の job がある worktree では書かない)。
+
+- **再発: 2026-09-29 (near miss)** — md_16 の wave で、焦点走 (`tools/run_tests.py --force-dispatch`) の job が待ち行列にいる間に、親が wave の worktree の `output/insights/` へ一次資料の下書きを書いた。job の起動前に気づき、下書きを job dir (`insight-stage/`) へ移して worktree を clean に戻したので、job は緑で走った。実害なし。恒久対応は既存どおり (memory `dirty-tree-during-pending-job`: 投入中の job がある worktree では書かない。一次資料の下書きは計測と受入が全部終わるまで job dir で作る)。
 ### F937. 凍結物の「人間裁定待ち」を decisions.md で照合せず、未裁定を前提に段 1 brief を書いた [ドリフト]
 
 - 事象: 軸 3 の凍結契約 `2026-09-01-axis3-search-amendment.md` §6 と凍結実行記録
@@ -28717,3 +28721,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 参照閉包を「現行 path の文字列一致」で定義し、repo 内で行われた改名 (gz 置換・配置移行) の対応表と、本文の意味による参照を閉包に入れていなかった。
 - 恒久対応: D2297 決定 2 が参照閉包に gz 化前の名前・配置移行前の旧 path・同 root md 本文での言及を含めると定めた。走査器の修正と再走査は worklog の新規項 [T-2912]。一次資料 `output/insights/2026-09-29/output-pruning/README.md` §6。memory `output-pruning-scan-holes`。
 - 再発検知: 次段の削除候補に対し、段 3 の「消すと困る」側レンズが標本ではなく全数を監査する (今回は全数監査で発見した)。削除前に索引生成器の verify と README 本文の照合を行う。
+
+### F1071. 高負荷の Lustre で `git worktree add -b` が checkout の後に失敗し、dir と管理情報は消えて branch だけが残った [セッション死・救出]
+
+- 事象: 2026-09-29 14:10〜14:29 JST、背景 job の wave 開始で `EnterWorktree(name)` が既知の「Could not read the repository git config」で失敗したため、手動で `git worktree add -b worktree-dev-wave-vhash-helper-forwarding <path> main` を走らせた。35,128 file の checkout が 100% まで進んだ後に `fatal: Could not reset index file to revision 'HEAD'` rc=128 で終わり、worktree の dir と `.git/worktrees/` の管理情報は消えたが、branch (main と同じ commit) だけが残った。展開中に「システムコール割り込み」の警告があり、同時刻に 16 本の worktree 撤去で Lustre が詰まっていた (land 調整役の通知)。
+- 根本原因: ファイルシステムの一時的な失敗 (割り込まれた system call) で index の書き込みが失敗し、`git worktree add` は作りかけの worktree を片付けるが `-b` で作った branch は消さない。同じ引数での再実行は「branch が既にある」で失敗する。
+- 恒久対応: 回復手順を memory `worktree-discipline` に足した — 残った branch が main と同じ commit であることを `git rev-parse` で確かめ、`-b` を付けずに既存 branch を指定して `git worktree add <path> <branch>` を 1 回だけ再実行する (今回はこれで 14:58 に完成)。add には timeout を掛けない (既存の規律)。
+- 再発検知: `git worktree add` の rc と、`git worktree list` に path が無いのに `git branch --list <branch>` が残る状態。
