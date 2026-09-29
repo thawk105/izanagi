@@ -1,0 +1,173 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "S9",
+  "protocol": "v0",
+  "faults": [],
+  "o1": false,
+  "bounds": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": {
+      "T": 2,
+      "W": 2,
+      "U": 2
+    },
+    "versions_per_key": {
+      "A": 1,
+      "B": 1
+    },
+    "K": 1,
+    "timestamps": [
+      10,
+      11,
+      50,
+      60,
+      80
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B11",
+        "key": "B",
+        "wts": 11,
+        "rts": 11,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 60,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "W",
+            "B"
+          ]
+        ],
+        "cand_ts": 60,
+        "gc_floor": 60,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "W",
+        "start": 50,
+        "ops": [
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 50,
+        "gc_floor": 50,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "U",
+        "start": 80,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 80,
+        "gc_floor": 80,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 112984,
+    "terminal": 89,
+    "deadlock": 0,
+    "seconds": 6.398955493001267,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": null
+  },
+  "counterexample": null,
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": []
+  },
+  "witness": {
+    "reached": false,
+    "steps": []
+  },
+  "danger": null
+}

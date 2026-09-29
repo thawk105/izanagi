@@ -1,0 +1,229 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "S10",
+  "protocol": "v1",
+  "faults": [],
+  "o1": false,
+  "bounds": {
+    "keys": 2,
+    "transactions": 2,
+    "operations_per_transaction": {
+      "T": 3,
+      "W": 2
+    },
+    "versions_per_key": {
+      "B": 2,
+      "A": 1
+    },
+    "K": 1,
+    "timestamps": [
+      10,
+      11,
+      15,
+      20,
+      25
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A10",
+        "key": "A",
+        "wts": 10,
+        "rts": 10,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B11",
+        "key": "B",
+        "wts": 11,
+        "rts": 11,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B25",
+        "key": "B",
+        "wts": 25,
+        "rts": 25,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 15,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "B"
+          ]
+        ],
+        "cand_ts": 15,
+        "gc_floor": 15,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      },
+      {
+        "id": "W",
+        "start": 20,
+        "ops": [
+          [
+            "R",
+            "B"
+          ],
+          [
+            "W",
+            "A"
+          ]
+        ],
+        "cand_ts": 20,
+        "gc_floor": 20,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": ""
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 12905,
+    "terminal": 28,
+    "deadlock": 0,
+    "seconds": 0.48467729100229917,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": null
+  },
+  "counterexample": null,
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": []
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "A10",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "forward_candidate",
+        "version": "B11",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "forward_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "publish_floor",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "read",
+        "version": "B25",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "buffer_write",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "begin_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "fix_timestamp",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "W",
+        "operation": "install",
+        "version": "W:A",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": null
+}

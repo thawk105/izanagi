@@ -1,0 +1,858 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/39ad420d6d8a29603edc5adf5d4cdd69/izdw-39ad420d6d.o33886",
+      "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/39ad420d6d8a29603edc5adf5d4cdd69/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................                                                        [100%]\n17 passed in 7.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3be6b2febed9dbb307daf0d3c9ec3f6aa19493bd42d838df3fe6f4761098efbe"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+    "duration_s": 48.428,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "82aada145ce85d661205e1b2f92723008117abe3b3f68930681e40dd1f1afd0f",
+    "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+    "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+    "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+    "status": "PASSED",
+    "test_output_sha256": "3be6b2febed9dbb307daf0d3c9ec3f6aa19493bd42d838df3fe6f4761098efbe",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+  },
+  "date": "2026-09-28T21:38:22.922821+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/131c17e82793bd0ce17be140751ee0e8/izdw-131c17e827.o33888",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/131c17e82793bd0ce17be140751ee0e8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....FF..F.F....F                                                        [100%]\n=================================== FAILURES ===================================\n____________________ test_j1_handmade_positive_and_negative ____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_j1_handmade_positive_and_negative():\n        cycle = j1(handmade_j1(True))\n>       assert cycle and {e[\"kind\"] for e in cycle[\"edges\"]} == {\"rw\"}\nE       assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:25: AssertionError\n_____________________ test_s9_u2_after_other_reader_aborts _____________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s9_u2_after_other_reader_aborts():\n        initial, _ = forwarding.scenario(\"S9\")\n        actors = (\"T\", \"T\", \"W\", \"W\", \"U\", \"U\") + (\"W\",) * 12 + (\"U\",) * 12 + (\"T\",) * 12\n        for fault in (\"\", \"U2\"):\n            state = initial\n            steps = []\n            after_abort = None\n            for actor in actors:\n                matches = [(n, x) for n, x in enabled_steps(\n                    state, \"v1\", frozenset((fault,)) if fault else frozenset()) if x.thread == actor]\n                assert len(matches) == 1\n                state, step = matches[0]\n                steps.append(step)\n                if actor == \"U\" and step.operation == \"release_refs\":\n                    after_abort = state\n            assert replay(initial, steps, \"v1\", fault) == state\n            assert next(t for t in state.txns if t.id == \"U\").failed\n            assert next(v for v in state.versions if v.id == \"A10\").rts == 80\n            assert changed_step_in_trace(steps, \"U2\") == bool(fault)\n>           assert bool(j1(state)) == bool(fault)\nE           AssertionError: assert False == True\nE            +  where False = bool(None)\nE            +    where None = j1(State(versions=(Version(id='A10', key='A', wts=10, rts=80, status='COMMITTED', owner='initial', reclaimed=False), Vers...True, failed=True, pending=('U:A',), observed_end=(), observed_rts=(('A10', 10),), forward_hot='')), k=1, gc_seen=None))\nE            +  and   True = bool('U2')\n\norchestrator/tests/test_vhash_forwarding_model.py:151: AssertionError\n_________________ test_single_rule_faults_detected_and_replay __________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_detected_and_replay():\n        cases = ((\"U1v\", \"S1\", \"J1\"),\n                 (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n                 (\"U4\", \"S7\", \"J3\"))\n        for fault, name, expected in cases:\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness,\n                             danger=danger_witness(\"S3\") if name == \"S3\" else None)\n            counterexample = result[\"counterexample\"]\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert counterexample and counterexample[\"judge\"] == expected, fault\nE           AssertionError: U1v\nE           assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n_________________________ test_v0_s8_cycle_and_replay __________________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v0_s8_cycle_and_replay():\n        initial, witness = forwarding.scenario(\"S8\")\n        prefix, state = s8_prefix()\n        assert replay(initial, prefix, \"v0\") == state\n        result = explore(state, \"v0\", witness=witness, danger=danger_witness(\"S8\"))\n        counterexample = result[\"counterexample\"]\n        assert result[\"statistics\"][\"complete\"]\n>       assert counterexample and counterexample[\"judge\"] == \"J1\"\nE       assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:66: AssertionError\n______________________ test_s10_write_skew_search_results ______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_write_skew_search_results():\n        initial, witness = forwarding.scenario(\"S10\")\n        assert len({v.key for v in initial.versions}) == 2\n        assert len(initial.txns) == 2\n        assert all(len(t.ops) <= 3 for t in initial.txns)\n        expected = (\n            (\"v0\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", True, (False, False, False), 10607),\n            (\"v1\", \"U1f\", False, (False, False, False), 12939),\n            (\"v1\", \"U6\", False, (False, False, False), 12281),\n            (\"v1\", \"U1f\", True, (True, True, False), 10617),\n            (\"v1\", \"U6\", True, (True, True, False), 9959),\n        )\n        results = [_s10_search(case) for case in expected]\n        for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n            assert result[\"statistics\"][\"complete\"]\n            assert result[\"statistics\"][\"visited\"] == visited\n>           assert tuple(bool(result[\"verdicts\"][name]) for name in (\"J1\", \"J2\", \"J3\")) == verdicts\nE           assert (False, True, False) == (True, True, False)\nE             \nE             At index 0 diff: False != True\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_forwarding_model.py:276: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\n5 failed, 12 passed in 7.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1577 retained_bytes=1577 omitted_bytes=0 rendered_excerpt_bytes=1634 sha256=f173f0c3a2fea851173306f532ee73c25fc568400c74a455e339effeb3d69268\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s9_u2_after_other_reader_aborts():\n>         initial, _ = forwarding.scenario(\"S9\")\n>         actors = (\"T\", \"T\", \"W\", \"W\", \"U\", \"U\") + (\"W\",) * 12 + (\"U\",) * 12 + (\"T\",) * 12\n>         for fault in (\"\", \"U2\"):\n>             state = initial\n>             steps = []\n>             after_abort = None\n>             for actor in actors:\n>                 matches = [(n, x) for n, x in enabled_steps(\n>                     state, \"v1\", frozenset((fault,)) if fault else frozenset()) if x.thread == actor]\n>                 assert len(matches) == 1\n>                 state, step = matches[0]\n>                 steps.append(step)\n>                 if actor == \"U\" and step.operation == \"release_refs\":\n>                     after_abort = state\n>             assert replay(initial, steps, \"v1\", fault) == state\n>             assert next(t for t in state.txns if t.id == \"U\").failed\n>             assert next(v for v in state.versions if v.id == \"A10\").rts == 80\n>             assert changed_step_in_trace(steps, \"U2\") == bool(fault)\n> >           assert bool(j1(state)) == bool(fault)\n> E           AssertionError: assert False == True\n> E            +  where False = bool(None)\n> E            +    where None = j1(State(versions=(Version(id='A10', key='A', wts=10, rts=80, status='COMMITTED', owner='initial', reclaimed=False), Vers...True, failed=True, pending=('U:A',), observed_end=(), observed_rts=(('A10', 10),), forward_hot='')), k=1, gc_seen=None))\n> E            +  and   True = bool('U2')\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:151: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1355 retained_bytes=1355 omitted_bytes=0 rendered_excerpt_bytes=1410 sha256=184b4f6f198c61d9974602afe2b255f674fd53a3c035c053d4232eb3c7496be5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_write_skew_search_results():\n>         initial, witness = forwarding.scenario(\"S10\")\n>         assert len({v.key for v in initial.versions}) == 2\n>         assert len(initial.txns) == 2\n>         assert all(len(t.ops) <= 3 for t in initial.txns)\n>         expected = (\n>             (\"v0\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", True, (False, False, False), 10607),\n>             (\"v1\", \"U1f\", False, (False, False, False), 12939),\n>             (\"v1\", \"U6\", False, (False, False, False), 12281),\n>             (\"v1\", \"U1f\", True, (True, True, False), 10617),\n>             (\"v1\", \"U6\", True, (True, True, False), 9959),\n>         )\n>         results = [_s10_search(case) for case in expected]\n>         for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n>             assert result[\"statistics\"][\"complete\"]\n>             assert result[\"statistics\"][\"visited\"] == visited\n> >           assert tuple(bool(result[\"verdicts\"][name]) for name in (\"J1\", \"J2\", \"J3\")) == verdicts\n> E           assert (False, True, False) == (True, True, False)\n> E             \n> E             At index 0 diff: False != True\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:276: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=802 retained_bytes=802 omitted_bytes=0 rendered_excerpt_bytes=837 sha256=8e5bf54b7e160754fe3eaeed57ab9737bacc8183569b9001fcd4d085d7ef041f\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_detected_and_replay():\n>         cases = ((\"U1v\", \"S1\", \"J1\"),\n>                  (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n>                  (\"U4\", \"S7\", \"J3\"))\n>         for fault, name, expected in cases:\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness,\n>                              danger=danger_witness(\"S3\") if name == \"S3\" else None)\n>             counterexample = result[\"counterexample\"]\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert counterexample and counterexample[\"judge\"] == expected, fault\n> E           AssertionError: U1v\n> E           assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=568 retained_bytes=568 omitted_bytes=0 rendered_excerpt_bytes=595 sha256=89d6c5ef8547f67a478aed8e5ab93b22492ed1db905440e723b84c080f617f7e\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v0_s8_cycle_and_replay():\n>         initial, witness = forwarding.scenario(\"S8\")\n>         prefix, state = s8_prefix()\n>         assert replay(initial, prefix, \"v0\") == state\n>         result = explore(state, \"v0\", witness=witness, danger=danger_witness(\"S8\"))\n>         counterexample = result[\"counterexample\"]\n>         assert result[\"statistics\"][\"complete\"]\n> >       assert counterexample and counterexample[\"judge\"] == \"J1\"\n> E       assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:66: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=297 retained_bytes=297 omitted_bytes=0 rendered_excerpt_bytes=314 sha256=d4ec95c23f75ce2f872dae1c7c6e278bf72ea78cdfa4852338d19bba8992ef2d\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_j1_handmade_positive_and_negative():\n>         cycle = j1(handmade_j1(True))\n> >       assert cycle and {e[\"kind\"] for e in cycle[\"edges\"]} == {\"rw\"}\n> E       assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:25: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=4599 retained_bytes=4599 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7201 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4e58f9db1ba3867123af97b4fc5565b5aa99313a68f6eb4ee4e1ac8128a07344"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 48.777,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "hang_risk": false,
+      "id": "mu1-drop-rw-edges",
+      "injection_diff_sha256": "336651443575d13e85027621aa44af31ff5090a84109c399c327c7aff4539522",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9228639860055c992aa66f1e02a6aad88e528f1c60973aca614741be9846d000",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/judge.py",
+          "new": "                pass  # MU1\n",
+          "old": "                edge(t.id, later.owner, \"rw\", key, vid)\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "4e58f9db1ba3867123af97b4fc5565b5aa99313a68f6eb4ee4e1ac8128a07344",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d40bd5fd6aa5a34dd9156b0541b462a9/izdw-d40bd5fd6a.o33890",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d40bd5fd6aa5a34dd9156b0541b462a9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....FF..F.......                                                        [100%]\n=================================== FAILURES ===================================\n____________________ test_j3_handmade_positive_and_negative ____________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_j3_handmade_positive_and_negative():\n        before, after = handmade_j3(True)\n        reason = j3(before, after, Step(\"GC\", \"reclaim\", \"A20\"))\n>       assert reason and reason[\"reason\"] == \"future_read\" and reason[\"txn\"] == \"T\"\nE       assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:32: AssertionError\n________________________ test_j3_future_forward_version ________________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_j3_future_forward_version():\n        before, after = handmade_future_forward()\n>       assert j3(before, after, Step(\"GC\", \"reclaim\", \"A30\"))[\"reason\"] == \"future_read\"\nE       TypeError: 'NoneType' object is not subscriptable\n\norchestrator/tests/test_vhash_forwarding_model.py:160: TypeError\n_________________ test_single_rule_faults_detected_and_replay __________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_detected_and_replay():\n        cases = ((\"U1v\", \"S1\", \"J1\"),\n                 (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n                 (\"U4\", \"S7\", \"J3\"))\n        for fault, name, expected in cases:\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness,\n                             danger=danger_witness(\"S3\") if name == \"S3\" else None)\n            counterexample = result[\"counterexample\"]\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert counterexample and counterexample[\"judge\"] == expected, fault\nE           AssertionError: U3a\nE           assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\n3 failed, 14 passed in 7.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=802 retained_bytes=802 omitted_bytes=0 rendered_excerpt_bytes=837 sha256=5042266cb04a68e41be6b65a4f9ec1c907e2fbe8e639574c16fd7f0499a8b463\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_detected_and_replay():\n>         cases = ((\"U1v\", \"S1\", \"J1\"),\n>                  (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n>                  (\"U4\", \"S7\", \"J3\"))\n>         for fault, name, expected in cases:\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness,\n>                              danger=danger_witness(\"S3\") if name == \"S3\" else None)\n>             counterexample = result[\"counterexample\"]\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert counterexample and counterexample[\"judge\"] == expected, fault\n> E           AssertionError: U3a\n> E           assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=380 retained_bytes=380 omitted_bytes=0 rendered_excerpt_bytes=399 sha256=0ab85898c119a47efe675d8c4d16c11287cd53c5968a854994df0cf69d941c21\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_j3_handmade_positive_and_negative():\n>         before, after = handmade_j3(True)\n>         reason = j3(before, after, Step(\"GC\", \"reclaim\", \"A20\"))\n> >       assert reason and reason[\"reason\"] == \"future_read\" and reason[\"txn\"] == \"T\"\n> E       assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:32: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=353 retained_bytes=353 omitted_bytes=0 rendered_excerpt_bytes=370 sha256=d0d2250000a5740972a36132bfc4cc0c7284a49c2e3f07c3d99d3898bc7c4aee\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_j3_future_forward_version():\n>         before, after = handmade_future_forward()\n> >       assert j3(before, after, Step(\"GC\", \"reclaim\", \"A30\"))[\"reason\"] == \"future_read\"\n> E       TypeError: 'NoneType' object is not subscriptable\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:160: TypeError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1535 retained_bytes=1535 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3168 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e6f15ffac0142d9cd35e37322b39c0d9c22336a78647a1a7aa64dab01e81702e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 43.892,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay"
+      ],
+      "hang_risk": false,
+      "id": "mu2-j3-future-never",
+      "injection_diff_sha256": "fa01adb8431e03ee17e35e8009999bde1ad16e659dc28649c81e51ff2fad21e9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8af6b04de305b889ba902de89702273a53f60c0ef3e29cdded186b2ccce766fb",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/judge.py",
+          "new": "        if False and _needed_future(before, t, v):  # MU2\n",
+          "old": "        if _needed_future(before, t, v):\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "e6f15ffac0142d9cd35e37322b39c0d9c22336a78647a1a7aa64dab01e81702e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/123fd504712442870987215413b56a78/izdw-123fd50471.o33891",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/123fd504712442870987215413b56a78/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F..........                                                        [100%]\n=================================== FAILURES ===================================\n_________________________ test_s4_pending_blocks_read __________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s4_pending_blocks_read():\n        initial, _ = forwarding.scenario(\"S4\")\n        state = initial\n        for thread in (\"W\", \"W\", \"W\", \"W\"):\n            state, _ = next((n, x) for n, x in enabled_steps(state) if x.thread == thread)\n        assert any(v.id == \"W:B\" and v.status == \"PENDING\" and v.wts <= 45 for v in state.versions)\n>       assert not any(x.thread == \"T\" for _, x in enabled_steps(state))\nE       assert not True\nE        +  where True = any(<generator object test_s4_pending_blocks_read.<locals>.<genexpr> at 0x1542410af990>)\n\norchestrator/tests/test_vhash_forwarding_model.py:113: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read\n1 failed, 16 passed in 7.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=673 retained_bytes=673 omitted_bytes=0 rendered_excerpt_bytes=700 sha256=5d6580ed1f9bfd31070ae80a4d0e218d47f326cf0190fc058ba52a21e37590ef\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s4_pending_blocks_read():\n>         initial, _ = forwarding.scenario(\"S4\")\n>         state = initial\n>         for thread in (\"W\", \"W\", \"W\", \"W\"):\n>             state, _ = next((n, x) for n, x in enabled_steps(state) if x.thread == thread)\n>         assert any(v.id == \"W:B\" and v.status == \"PENDING\" and v.wts <= 45 for v in state.versions)\n> >       assert not any(x.thread == \"T\" for _, x in enabled_steps(state))\n> E       assert not True\n> E        +  where True = any(<generator object test_s4_pending_blocks_read.<locals>.<genexpr> at 0x1542410af990>)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:113: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=673 retained_bytes=673 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1400 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1de12bba0744d6a6cd3fe9c5237b305650dfe49fdc54e4df0c41d83a0d052aea"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 49.213,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read"
+      ],
+      "hang_risk": false,
+      "id": "mu3-read-skips-pending",
+      "injection_diff_sha256": "4f46c779e89db3ac0967b3cf5020044084ad5a1ade349269ae055a77f64a8302",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "344d326772e21219f5ef4fef96b088a8935234b58c05bc3564eef74bdf7404b2",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        v = visible(s, key, t.cand_ts, faults | {\"U5\"})  # MU3\n        if v is None or v.status == \"PENDING\":\n",
+          "old": "        v = visible(s, key, t.cand_ts, faults)\n        if v is None or v.status == \"PENDING\":\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "1de12bba0744d6a6cd3fe9c5237b305650dfe49fdc54e4df0c41d83a0d052aea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f5956ebcae48db8a77783a090874f998/izdw-f5956ebcae.o33892",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f5956ebcae48db8a77783a090874f998/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........FFF....F                                                        [100%]\n=================================== FAILURES ===================================\n__________________ test_all_scenario_witnesses_and_v1_bounds ___________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_scenario_witnesses_and_v1_bounds():\n        for name in forwarding.NAMES:\n            if name in (\"S9\", \"S10\"):\n                continue  # S9 runs through the CLI; S10 has its own result pins below.\n            initial, witness = forwarding.scenario(name)\n            if name == \"S8\":\n                prefix, state = s8_prefix()\n                assert replay(initial, prefix, \"v1\") == state\n                initial = state\n            result = explore(initial, \"v1\", witness=witness,\n                             danger=danger_witness(name) if name in (\"S3\", \"S8\") else None)\n            assert result[\"statistics\"][\"complete\"], name\n            assert result[\"witness\"][\"reached\"], name\n            assert result[\"verdicts\"][\"J1\"] is None, name\n>           assert result[\"verdicts\"][\"J3\"] is None, name\nE           AssertionError: S1\nE           assert {'version': 'B11', 'txn': 'W', 'reason': 'future_read', 'cand_ts': 50, ...} is None\n\norchestrator/tests/test_vhash_forwarding_model.py:51: AssertionError\n_________________ test_single_rule_faults_detected_and_replay __________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_detected_and_replay():\n        cases = ((\"U1v\", \"S1\", \"J1\"),\n                 (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n                 (\"U4\", \"S7\", \"J3\"))\n        for fault, name, expected in cases:\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness,\n                             danger=danger_witness(\"S3\") if name == \"S3\" else None)\n            counterexample = result[\"counterexample\"]\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert counterexample and counterexample[\"judge\"] == expected, fault\nE           AssertionError: U1v\nE           assert ({'judge': 'J3', 'reason': {'version': 'B11', 'txn': 'W', 'reason': 'future_read', 'cand_ts': 50, ...}, 'steps': [Step(...T', operation='install', version='T:B', fault=''), Step(thread='T', operation='installed', version='', fault=''), ...]} and 'J3' == 'J1'\nE             \nE             - J1\nE             + J3)\n\norchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n______________ test_single_rule_faults_undetected_in_fixed_bounds ______________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_undetected_in_fixed_bounds():\n        for fault, name in ((\"U1f\", \"S2\"), (\"U5\", \"S4\"), (\"U6\", \"S6\")):\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness)\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert result[\"counterexample\"] is None, fault\nE           AssertionError: U1f\nE           assert {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='B40', fault='')]} is None\n\norchestrator/tests/test_vhash_forwarding_model.py:104: AssertionError\n______________________ test_s10_write_skew_search_results ______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_write_skew_search_results():\n        initial, witness = forwarding.scenario(\"S10\")\n        assert len({v.key for v in initial.versions}) == 2\n        assert len(initial.txns) == 2\n        assert all(len(t.ops) <= 3 for t in initial.txns)\n        expected = (\n            (\"v0\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", True, (False, False, False), 10607),\n            (\"v1\", \"U1f\", False, (False, False, False), 12939),\n            (\"v1\", \"U6\", False, (False, False, False), 12281),\n            (\"v1\", \"U1f\", True, (True, True, False), 10617),\n            (\"v1\", \"U6\", True, (True, True, False), 9959),\n        )\n        results = [_s10_search(case) for case in expected]\n        for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n            assert result[\"statistics\"][\"complete\"]\n>           assert result[\"statistics\"][\"visited\"] == visited\nE           assert 14004 == 12905\n\norchestrator/tests/test_vhash_forwarding_model.py:275: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\n4 failed, 13 passed in 8.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1128 retained_bytes=1128 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=aaeba82bed83dd3db3cd10309d6d8553448b36bb00e4ed1b29709a638df7a714\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_write_skew_search_results():\n>         initial, witness = forwarding.scenario(\"S10\")\n>         assert len({v.key for v in initial.versions}) == 2\n>         assert len(initial.txns) == 2\n>         assert all(len(t.ops) <= 3 for t in initial.txns)\n>         expected = (\n>             (\"v0\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", True, (False, False, False), 10607),\n>             (\"v1\", \"U1f\", False, (False, False, False), 12939),\n>             (\"v1\", \"U6\", False, (False, False, False), 12281),\n>             (\"v1\", \"U1f\", True, (True, True, False), 10617),\n>             (\"v1\", \"U6\", True, (True, True, False), 9959),\n>         )\n>         results = [_s10_search(case) for case in expected]\n>         for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n>             assert result[\"statistics\"][\"complete\"]\n> >           assert result[\"statistics\"][\"visited\"] == visited\n> E           assert 14004 == 12905\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:275: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1108 retained_bytes=1108 omitted_bytes=0 rendered_excerpt_bytes=1149 sha256=14750e55a88392848a8083e35be44e5b462abc556676ff8b2cd0baedcece8b97\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_detected_and_replay():\n>         cases = ((\"U1v\", \"S1\", \"J1\"),\n>                  (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n>                  (\"U4\", \"S7\", \"J3\"))\n>         for fault, name, expected in cases:\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness,\n>                              danger=danger_witness(\"S3\") if name == \"S3\" else None)\n>             counterexample = result[\"counterexample\"]\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert counterexample and counterexample[\"judge\"] == expected, fault\n> E           AssertionError: U1v\n> E           assert ({'judge': 'J3', 'reason': {'version': 'B11', 'txn': 'W', 'reason': 'future_read', 'cand_ts': 50, ...}, 'steps': [Step(...T', operation='install', version='T:B', fault=''), Step(thread='T', operation='installed', version='', fault=''), ...]} and 'J3' == 'J1'\n> E             \n> E             - J1\n> E             + J3)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1072 retained_bytes=1072 omitted_bytes=0 rendered_excerpt_bytes=1115 sha256=6aa3b19b540e13614ac4420bcc6c057d4fcd7c34c6dc0849ada7ca61a72e4acb\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_all_scenario_witnesses_and_v1_bounds():\n>         for name in forwarding.NAMES:\n>             if name in (\"S9\", \"S10\"):\n>                 continue  # S9 runs through the CLI; S10 has its own result pins below.\n>             initial, witness = forwarding.scenario(name)\n>             if name == \"S8\":\n>                 prefix, state = s8_prefix()\n>                 assert replay(initial, prefix, \"v1\") == state\n>                 initial = state\n>             result = explore(initial, \"v1\", witness=witness,\n>                              danger=danger_witness(name) if name in (\"S3\", \"S8\") else None)\n>             assert result[\"statistics\"][\"complete\"], name\n>             assert result[\"witness\"][\"reached\"], name\n>             assert result[\"verdicts\"][\"J1\"] is None, name\n> >           assert result[\"verdicts\"][\"J3\"] is None, name\n> E           AssertionError: S1\n> E           assert {'version': 'B11', 'txn': 'W', 'reason': 'future_read', 'cand_ts': 50, ...} is None\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=786 retained_bytes=786 omitted_bytes=0 rendered_excerpt_bytes=811 sha256=a113d34fa407850eea200cee0d989eb4c54e510e0fe7da21e547c48631d476d1\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_undetected_in_fixed_bounds():\n>         for fault, name in ((\"U1f\", \"S2\"), (\"U5\", \"S4\"), (\"U6\", \"S6\")):\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness)\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert result[\"counterexample\"] is None, fault\n> E           AssertionError: U1f\n> E           assert {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='B40', fault='')]} is None\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:104: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=4094 retained_bytes=4094 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6267 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e8fe87f74e19375a9cdb6cab1280ec5746cbe892f8ce81882a0db5777a73649d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 543.207,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "hang_risk": false,
+      "id": "mu4-publish-floor-before-confirm",
+      "injection_diff_sha256": "80700b498531b692724b9a3040475633db5de0d877ec42f00f1268cd0419b745",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3803e04c3d8ea4d89ea3387ae42f57f378bdb583abe7588c13431c17f605607f",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            if True:  # MU4\n                nt = replace(nt, gc_floor=target)\n",
+          "old": "            if \"U3a\" in faults:\n                nt = replace(nt, gc_floor=target)\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "e8fe87f74e19375a9cdb6cab1280ec5746cbe892f8ce81882a0db5777a73649d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b6c3a7b57a3eddb23c0436cd41cd5a4b/izdw-b6c3a7b57a.o33931",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b6c3a7b57a3eddb23c0436cd41cd5a4b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........FFF..F..F                                                        [100%]\n=================================== FAILURES ===================================\n__________________ test_all_scenario_witnesses_and_v1_bounds ___________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_scenario_witnesses_and_v1_bounds():\n        for name in forwarding.NAMES:\n            if name in (\"S9\", \"S10\"):\n                continue  # S9 runs through the CLI; S10 has its own result pins below.\n            initial, witness = forwarding.scenario(name)\n            if name == \"S8\":\n                prefix, state = s8_prefix()\n                assert replay(initial, prefix, \"v1\") == state\n                initial = state\n            result = explore(initial, \"v1\", witness=witness,\n                             danger=danger_witness(name) if name in (\"S3\", \"S8\") else None)\n            assert result[\"statistics\"][\"complete\"], name\n            assert result[\"witness\"][\"reached\"], name\n            assert result[\"verdicts\"][\"J1\"] is None, name\n>           assert result[\"verdicts\"][\"J3\"] is None, name\nE           AssertionError: S1\nE           assert {'version': 'A10', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 70, ...} is None\n\norchestrator/tests/test_vhash_forwarding_model.py:51: AssertionError\n_________________ test_single_rule_faults_detected_and_replay __________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_detected_and_replay():\n        cases = ((\"U1v\", \"S1\", \"J1\"),\n                 (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n                 (\"U4\", \"S7\", \"J3\"))\n        for fault, name, expected in cases:\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness,\n                             danger=danger_witness(\"S3\") if name == \"S3\" else None)\n            counterexample = result[\"counterexample\"]\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert counterexample and counterexample[\"judge\"] == expected, fault\nE           AssertionError: U1v\nE           assert ({'judge': 'J3', 'reason': {'version': 'A10', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 70, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='A10', fault='')]} and 'J3' == 'J1'\nE             \nE             - J1\nE             + J3)\n\norchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n______________ test_single_rule_faults_undetected_in_fixed_bounds ______________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_undetected_in_fixed_bounds():\n        for fault, name in ((\"U1f\", \"S2\"), (\"U5\", \"S4\"), (\"U6\", \"S6\")):\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness)\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert result[\"counterexample\"] is None, fault\nE           AssertionError: U1f\nE           assert {'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='A20', fault='')]} is None\n\norchestrator/tests/test_vhash_forwarding_model.py:104: AssertionError\n_________________________ test_v0_s8_cycle_and_replay __________________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v0_s8_cycle_and_replay():\n        initial, witness = forwarding.scenario(\"S8\")\n        prefix, state = s8_prefix()\n        assert replay(initial, prefix, \"v0\") == state\n        result = explore(state, \"v0\", witness=witness, danger=danger_witness(\"S8\"))\n        counterexample = result[\"counterexample\"]\n        assert result[\"statistics\"][\"complete\"]\n>       assert counterexample and counterexample[\"judge\"] == \"J1\"\nE       AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A10', 'txn': 'P', 'reason': 'use_after_free'}, 'steps': [Step(thread='T', opera...peration='installed', version='', fault=''), Step(thread='P', operation='validation_pass', version='', fault=''), ...]} and 'J3' == 'J1'\nE         \nE         - J1\nE         + J3)\n\norchestrator/tests/test_vhash_forwarding_model.py:66: AssertionError\n______________________ test_s10_write_skew_search_results ______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_write_skew_search_results():\n        initial, witness = forwarding.scenario(\"S10\")\n        assert len({v.key for v in initial.versions}) == 2\n        assert len(initial.txns) == 2\n        assert all(len(t.ops) <= 3 for t in initial.txns)\n        expected = (\n            (\"v0\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", True, (False, False, False), 10607),\n            (\"v1\", \"U1f\", False, (False, False, False), 12939),\n            (\"v1\", \"U6\", False, (False, False, False), 12281),\n            (\"v1\", \"U1f\", True, (True, True, False), 10617),\n            (\"v1\", \"U6\", True, (True, True, False), 9959),\n        )\n        results = [_s10_search(case) for case in expected]\n        for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n            assert result[\"statistics\"][\"complete\"]\n>           assert result[\"statistics\"][\"visited\"] == visited\nE           assert 16863 == 12905\n\norchestrator/tests/test_vhash_forwarding_model.py:275: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\n5 failed, 12 passed in 8.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1128 retained_bytes=1128 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=91273fcb63c6ca44c38afb0e37abcfcc9b3cfad78666386c983b066fc5a71246\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_write_skew_search_results():\n>         initial, witness = forwarding.scenario(\"S10\")\n>         assert len({v.key for v in initial.versions}) == 2\n>         assert len(initial.txns) == 2\n>         assert all(len(t.ops) <= 3 for t in initial.txns)\n>         expected = (\n>             (\"v0\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", True, (False, False, False), 10607),\n>             (\"v1\", \"U1f\", False, (False, False, False), 12939),\n>             (\"v1\", \"U6\", False, (False, False, False), 12281),\n>             (\"v1\", \"U1f\", True, (True, True, False), 10617),\n>             (\"v1\", \"U6\", True, (True, True, False), 9959),\n>         )\n>         results = [_s10_search(case) for case in expected]\n>         for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n>             assert result[\"statistics\"][\"complete\"]\n> >           assert result[\"statistics\"][\"visited\"] == visited\n> E           assert 16863 == 12905\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:275: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1108 retained_bytes=1108 omitted_bytes=0 rendered_excerpt_bytes=1149 sha256=84e58a81a375007dc404d6d3c22fb958025aebf1136aa7db8f3893c34db3f3c0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_detected_and_replay():\n>         cases = ((\"U1v\", \"S1\", \"J1\"),\n>                  (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n>                  (\"U4\", \"S7\", \"J3\"))\n>         for fault, name, expected in cases:\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness,\n>                              danger=danger_witness(\"S3\") if name == \"S3\" else None)\n>             counterexample = result[\"counterexample\"]\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert counterexample and counterexample[\"judge\"] == expected, fault\n> E           AssertionError: U1v\n> E           assert ({'judge': 'J3', 'reason': {'version': 'A10', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 70, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='A10', fault='')]} and 'J3' == 'J1'\n> E             \n> E             - J1\n> E             + J3)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1072 retained_bytes=1072 omitted_bytes=0 rendered_excerpt_bytes=1115 sha256=c6574b65ec051846be2d565f763bd0892b3c62382cd14b308b73c60b84fb2542\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_all_scenario_witnesses_and_v1_bounds():\n>         for name in forwarding.NAMES:\n>             if name in (\"S9\", \"S10\"):\n>                 continue  # S9 runs through the CLI; S10 has its own result pins below.\n>             initial, witness = forwarding.scenario(name)\n>             if name == \"S8\":\n>                 prefix, state = s8_prefix()\n>                 assert replay(initial, prefix, \"v1\") == state\n>                 initial = state\n>             result = explore(initial, \"v1\", witness=witness,\n>                              danger=danger_witness(name) if name in (\"S3\", \"S8\") else None)\n>             assert result[\"statistics\"][\"complete\"], name\n>             assert result[\"witness\"][\"reached\"], name\n>             assert result[\"verdicts\"][\"J1\"] is None, name\n> >           assert result[\"verdicts\"][\"J3\"] is None, name\n> E           AssertionError: S1\n> E           assert {'version': 'A10', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 70, ...} is None\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=878 retained_bytes=878 omitted_bytes=0 rendered_excerpt_bytes=911 sha256=a03f4401324785f1cb4a94067f71e2fedae5d5cc760321e859a51bc3fec73720\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v0_s8_cycle_and_replay():\n>         initial, witness = forwarding.scenario(\"S8\")\n>         prefix, state = s8_prefix()\n>         assert replay(initial, prefix, \"v0\") == state\n>         result = explore(state, \"v0\", witness=witness, danger=danger_witness(\"S8\"))\n>         counterexample = result[\"counterexample\"]\n>         assert result[\"statistics\"][\"complete\"]\n> >       assert counterexample and counterexample[\"judge\"] == \"J1\"\n> E       AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A10', 'txn': 'P', 'reason': 'use_after_free'}, 'steps': [Step(thread='T', opera...peration='installed', version='', fault=''), Step(thread='P', operation='validation_pass', version='', fault=''), ...]} and 'J3' == 'J1'\n> E         \n> E         - J1\n> E         + J3)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:66: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=786 retained_bytes=786 omitted_bytes=0 rendered_excerpt_bytes=811 sha256=6600ac4e18f665331dff1106363423bc539997b77f8004c953a43a4f782bd084\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_undetected_in_fixed_bounds():\n>         for fault, name in ((\"U1f\", \"S2\"), (\"U5\", \"S4\"), (\"U6\", \"S6\")):\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness)\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert result[\"counterexample\"] is None, fault\n> E           AssertionError: U1f\n> E           assert {'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='A20', fault='')]} is None\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:104: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=4972 retained_bytes=4972 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7593 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "72bbb037043fbf134c1aa182225eb4d4622a715304117781a10077dfe8a9122e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 116.107,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "hang_risk": false,
+      "id": "mu5-reclaim-by-wts",
+      "injection_diff_sha256": "5d799e8037750fb9cd35954c40548e541145b771d0bff6e8baed1efae9bca7de",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9fd75cd196edea6d49864851f9bae9ea7730dd376885eadbb94d56d4e6871c0c",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        if True:  # MU5\n            legal = v.wts < b\n",
+          "old": "        if \"U4\" in faults:\n            legal = v.wts < b\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "72bbb037043fbf134c1aa182225eb4d4622a715304117781a10077dfe8a9122e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d101e55fa229e6abde35e74b1a9a464d/izdw-d101e55fa2.o33936",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d101e55fa229e6abde35e74b1a9a464d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........FFFFFFFF.                                                        [100%]\n=================================== FAILURES ===================================\n________________ test_reclaimed_touch_is_j3_even_on_same_state _________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_reclaimed_touch_is_j3_even_on_same_state():\n        initial, _ = forwarding.scenario(\"S1\")\n        result = explore(initial, \"v1\", \"U3b\")\n>       assert result[\"counterexample\"] and result[\"counterexample\"][\"judge\"] == \"J3\"\nE       assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:119: AssertionError\n__________________ test_all_scenario_witnesses_and_v1_bounds ___________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_scenario_witnesses_and_v1_bounds():\n        for name in forwarding.NAMES:\n            if name in (\"S9\", \"S10\"):\n                continue  # S9 runs through the CLI; S10 has its own result pins below.\n            initial, witness = forwarding.scenario(name)\n            if name == \"S8\":\n                prefix, state = s8_prefix()\n                assert replay(initial, prefix, \"v1\") == state\n                initial = state\n            result = explore(initial, \"v1\", witness=witness,\n                             danger=danger_witness(name) if name in (\"S3\", \"S8\") else None)\n            assert result[\"statistics\"][\"complete\"], name\n>           assert result[\"witness\"][\"reached\"], name\nE           AssertionError: S2\nE           assert False\n\norchestrator/tests/test_vhash_forwarding_model.py:49: AssertionError\n_________________ test_single_rule_faults_detected_and_replay __________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_single_rule_faults_detected_and_replay():\n        cases = ((\"U1v\", \"S1\", \"J1\"),\n                 (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n                 (\"U4\", \"S7\", \"J3\"))\n        for fault, name, expected in cases:\n            initial, witness = forwarding.scenario(name)\n            result = explore(initial, \"v1\", fault, witness,\n                             danger=danger_witness(\"S3\") if name == \"S3\" else None)\n            counterexample = result[\"counterexample\"]\n            assert result[\"statistics\"][\"complete\"], fault\n>           assert counterexample and counterexample[\"judge\"] == expected, fault\nE           AssertionError: U1v\nE           assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n_______________ test_scenario_witness_order_and_s5_writer_abort ________________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_scenario_witness_order_and_s5_writer_abort():\n        for name in (\"S1\", \"S2\", \"S5\", \"S6\", \"S7\"):\n            initial, witness = forwarding.scenario(name)\n            fault = \"U1v\" if name == \"S5\" else \"\"\n            result = explore(initial, \"v1\", fault, witness)\n>           assert result[\"witness\"][\"reached\"], name\nE           AssertionError: S2\nE           assert False\n\norchestrator/tests/test_vhash_forwarding_model.py:208: AssertionError\n__________________ test_s4_pending_commit_and_abort_reachable __________________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s4_pending_commit_and_abort_reachable():\n        initial, _ = forwarding.scenario(\"S4\")\n        for operation in (\"decide_committed\", \"decide_aborted\"):\n            result = explore(initial, \"v1\", witness=lambda b, a, x: x.thread == \"W\" and x.operation == operation)\n>           assert result[\"witness\"][\"reached\"], operation\nE           AssertionError: decide_committed\nE           assert False\n\norchestrator/tests/test_vhash_forwarding_model.py:76: AssertionError\n_________________________ test_v0_s8_cycle_and_replay __________________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_v0_s8_cycle_and_replay():\n        initial, witness = forwarding.scenario(\"S8\")\n        prefix, state = s8_prefix()\n        assert replay(initial, prefix, \"v0\") == state\n        result = explore(state, \"v0\", witness=witness, danger=danger_witness(\"S8\"))\n        counterexample = result[\"counterexample\"]\n        assert result[\"statistics\"][\"complete\"]\n>       assert counterexample and counterexample[\"judge\"] == \"J1\"\nE       assert (None)\n\norchestrator/tests/test_vhash_forwarding_model.py:66: AssertionError\n_________ test_s10_old_target_allocation_violates_timestamp_uniqueness _________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_old_target_allocation_violates_timestamp_uniqueness():\n        initial, _ = forwarding.scenario(\"S10\")\n    \n        def old_next_free(state, minimum):\n            used = ({v.wts for v in state.versions} | {t.start for t in state.txns}\n                    | {t.cand_ts for t in state.txns})\n            while minimum in used:\n                minimum += 1\n            return minimum\n    \n        with patch.object(model, \"_next_free\", old_next_free):\n            try:\n                explore(initial, \"v1\")\n            except model.TimestampCollisionError as exc:\n                assert \"timestamp 26\" in str(exc)\n            else:\n>               raise AssertionError(\"old target allocation did not expose a timestamp collision\")\nE               AssertionError: old target allocation did not expose a timestamp collision\n\norchestrator/tests/test_vhash_forwarding_model.py:255: AssertionError\n______________________ test_s10_write_skew_search_results ______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_write_skew_search_results():\n        initial, witness = forwarding.scenario(\"S10\")\n        assert len({v.key for v in initial.versions}) == 2\n        assert len(initial.txns) == 2\n        assert all(len(t.ops) <= 3 for t in initial.txns)\n        expected = (\n            (\"v0\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", True, (False, False, False), 10607),\n            (\"v1\", \"U1f\", False, (False, False, False), 12939),\n            (\"v1\", \"U6\", False, (False, False, False), 12281),\n            (\"v1\", \"U1f\", True, (True, True, False), 10617),\n            (\"v1\", \"U6\", True, (True, True, False), 9959),\n        )\n        results = [_s10_search(case) for case in expected]\n        for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n            assert result[\"statistics\"][\"complete\"]\n>           assert result[\"statistics\"][\"visited\"] == visited\nE           assert 48 == 12905\n\norchestrator/tests/test_vhash_forwarding_model.py:275: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\n8 failed, 9 passed in 4.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1125 retained_bytes=1125 omitted_bytes=0 rendered_excerpt_bytes=1172 sha256=24b87b6a673e75e2f08a17b084e654489362815e39466a3ea921720d05091381\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_write_skew_search_results():\n>         initial, witness = forwarding.scenario(\"S10\")\n>         assert len({v.key for v in initial.versions}) == 2\n>         assert len(initial.txns) == 2\n>         assert all(len(t.ops) <= 3 for t in initial.txns)\n>         expected = (\n>             (\"v0\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", True, (False, False, False), 10607),\n>             (\"v1\", \"U1f\", False, (False, False, False), 12939),\n>             (\"v1\", \"U6\", False, (False, False, False), 12281),\n>             (\"v1\", \"U1f\", True, (True, True, False), 10617),\n>             (\"v1\", \"U6\", True, (True, True, False), 9959),\n>         )\n>         results = [_s10_search(case) for case in expected]\n>         for (protocol, fault, o1, verdicts, visited), result in zip(expected, results):\n>             assert result[\"statistics\"][\"complete\"]\n> >           assert result[\"statistics\"][\"visited\"] == visited\n> E           assert 48 == 12905\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:275: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=955 retained_bytes=955 omitted_bytes=0 rendered_excerpt_bytes=1000 sha256=ec00ba69553791342acf0f7dbe45d34cb5ffa9a1f1393f98ee05264f4bfaa45f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_old_target_allocation_violates_timestamp_uniqueness():\n>         initial, _ = forwarding.scenario(\"S10\")\n>     \n>         def old_next_free(state, minimum):\n>             used = ({v.wts for v in state.versions} | {t.start for t in state.txns}\n>                     | {t.cand_ts for t in state.txns})\n>             while minimum in used:\n>                 minimum += 1\n>             return minimum\n>     \n>         with patch.object(model, \"_next_free\", old_next_free):\n>             try:\n>                 explore(initial, \"v1\")\n>             except model.TimestampCollisionError as exc:\n>                 assert \"timestamp 26\" in str(exc)\n>             else:\n> >               raise AssertionError(\"old target allocation did not expose a timestamp collision\")\n> E               AssertionError: old target allocation did not expose a timestamp collision\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:255: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=878 retained_bytes=878 omitted_bytes=0 rendered_excerpt_bytes=917 sha256=ae824c8104d1921be81ce70d2256d3891d4f0af1c312edc8967f30ae46df8e11\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_all_scenario_witnesses_and_v1_bounds():\n>         for name in forwarding.NAMES:\n>             if name in (\"S9\", \"S10\"):\n>                 continue  # S9 runs through the CLI; S10 has its own result pins below.\n>             initial, witness = forwarding.scenario(name)\n>             if name == \"S8\":\n>                 prefix, state = s8_prefix()\n>                 assert replay(initial, prefix, \"v1\") == state\n>                 initial = state\n>             result = explore(initial, \"v1\", witness=witness,\n>                              danger=danger_witness(name) if name in (\"S3\", \"S8\") else None)\n>             assert result[\"statistics\"][\"complete\"], name\n> >           assert result[\"witness\"][\"reached\"], name\n> E           AssertionError: S2\n> E           assert False\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:49: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=802 retained_bytes=802 omitted_bytes=0 rendered_excerpt_bytes=837 sha256=8e5bf54b7e160754fe3eaeed57ab9737bacc8183569b9001fcd4d085d7ef041f\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_single_rule_faults_detected_and_replay():\n>         cases = ((\"U1v\", \"S1\", \"J1\"),\n>                  (\"U3a\", \"S3\", \"J3\"), (\"U3b\", \"S1\", \"J3\"),\n>                  (\"U4\", \"S7\", \"J3\"))\n>         for fault, name, expected in cases:\n>             initial, witness = forwarding.scenario(name)\n>             result = explore(initial, \"v1\", fault, witness,\n>                              danger=danger_witness(\"S3\") if name == \"S3\" else None)\n>             counterexample = result[\"counterexample\"]\n>             assert result[\"statistics\"][\"complete\"], fault\n> >           assert counterexample and counterexample[\"judge\"] == expected, fault\n> E           AssertionError: U1v\n> E           assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\" nodeid_bytes=78 nodeid_omitted_bytes=0 source_bytes=568 retained_bytes=568 omitted_bytes=0 rendered_excerpt_bytes=595 sha256=89d6c5ef8547f67a478aed8e5ab93b22492ed1db905440e723b84c080f617f7e\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_v0_s8_cycle_and_replay():\n>         initial, witness = forwarding.scenario(\"S8\")\n>         prefix, state = s8_prefix()\n>         assert replay(initial, prefix, \"v0\") == state\n>         result = explore(state, \"v0\", witness=witness, danger=danger_witness(\"S8\"))\n>         counterexample = result[\"counterexample\"]\n>         assert result[\"statistics\"][\"complete\"]\n> >       assert counterexample and counterexample[\"judge\"] == \"J1\"\n> E       assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:66: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=525 retained_bytes=525 omitted_bytes=0 rendered_excerpt_bytes=548 sha256=d5b8af07c25592769f028fd6ff3611c033c14819adb6c24948ab4c01b60e55db\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s4_pending_commit_and_abort_reachable():\n>         initial, _ = forwarding.scenario(\"S4\")\n>         for operation in (\"decide_committed\", \"decide_aborted\"):\n>             result = explore(initial, \"v1\", witness=lambda b, a, x: x.thread == \"W\" and x.operation == operation)\n> >           assert result[\"witness\"][\"reached\"], operation\n> E           AssertionError: decide_committed\n> E           assert False\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:76: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=506 retained_bytes=506 omitted_bytes=0 rendered_excerpt_bytes=531 sha256=6216697779e96c97c16b23676ecbdcef6914d560c90bfdda4fcf78434d1cdea6\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_scenario_witness_order_and_s5_writer_abort():\n>         for name in (\"S1\", \"S2\", \"S5\", \"S6\", \"S7\"):\n>             initial, witness = forwarding.scenario(name)\n>             fault = \"U1v\" if name == \"S5\" else \"\"\n>             result = explore(initial, \"v1\", fault, witness)\n> >           assert result[\"witness\"][\"reached\"], name\n> E           AssertionError: S2\n> E           assert False\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:208: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=376 retained_bytes=376 omitted_bytes=0 rendered_excerpt_bytes=395 sha256=b3595ae23dffa4c888ed66a90e27cc9f2a50b2d1086264a04e65bab86a6ba749\n--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_reclaimed_touch_is_j3_even_on_same_state():\n>         initial, _ = forwarding.scenario(\"S1\")\n>         result = explore(initial, \"v1\", \"U3b\")\n> >       assert result[\"counterexample\"] and result[\"counterexample\"][\"judge\"] == \"J3\"\n> E       assert (None)\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:119: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=8 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=8 failed=8 errors=0 selected=8 omitted_failures=0 source_bytes=5735 retained_bytes=5735 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9730 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "da874ba7d88b3fe97c13b2da0b271288a134d628e67704e09aa00b5ae016207a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 403.065,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "hang_risk": false,
+      "id": "mu6-first-step-only",
+      "injection_diff_sha256": "c1264b2c7538ed3a2a369d2bbbf56b4e706cb0ff4a684b15071e4f60c4dd2436",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e2fc37a0cc4fec3fef1249f82f15fcd419d73385551f818456c1146c3e46618f",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        for ns, step in steps[:1]:  # MU6\n            if ns not in parent:\n",
+          "old": "        for ns, step in steps:\n            if ns not in parent:\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "da874ba7d88b3fe97c13b2da0b271288a134d628e67704e09aa00b5ae016207a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/66fa24a6bd1190f3c9cc073fa944d45e/izdw-66fa24a6bd.o33948",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/66fa24a6bd1190f3c9cc073fa944d45e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F........                                                        [100%]\n=================================== FAILURES ===================================\n________________ test_reclaimed_touch_is_j3_even_on_same_state _________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_reclaimed_touch_is_j3_even_on_same_state():\n        initial, _ = forwarding.scenario(\"S1\")\n        result = explore(initial, \"v1\", \"U3b\")\n        assert result[\"counterexample\"] and result[\"counterexample\"][\"judge\"] == \"J3\"\n>       assert \"use_after_free\" in result[\"violation_kinds\"][\"J3\"]\nE       AssertionError: assert 'use_after_free' in ['read_log']\n\norchestrator/tests/test_vhash_forwarding_model.py:120: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\n1 failed, 16 passed in 7.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=485 retained_bytes=485 omitted_bytes=0 rendered_excerpt_bytes=506 sha256=0d2459de6be39699ec061f4a400310093bd34a4c76eb3d3c1a9e7c02f90d9faa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_reclaimed_touch_is_j3_even_on_same_state():\n>         initial, _ = forwarding.scenario(\"S1\")\n>         result = explore(initial, \"v1\", \"U3b\")\n>         assert result[\"counterexample\"] and result[\"counterexample\"][\"judge\"] == \"J3\"\n> >       assert \"use_after_free\" in result[\"violation_kinds\"][\"J3\"]\n> E       AssertionError: assert 'use_after_free' in ['read_log']\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:120: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=485 retained_bytes=485 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1224 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f10ae36e395ad75bf5d1f0d70168a1200ca73f6895327f761a911bc9577538df"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 38.627,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state"
+      ],
+      "hang_risk": false,
+      "id": "mu7-judge-new-states-only",
+      "injection_diff_sha256": "b61e0be40e9564409cde070c97c596fef34e374e8f8cd74bac7062381237981e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "01794e20739f7edd02e2b089916c31691e458a2337fc6049f3f9cae5d02024b5",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "                found = judge(s, ns, step, all_transitions=all_transitions) if ns not in parent else {}  # MU7\n",
+          "old": "                found = judge(s, ns, step, all_transitions=all_transitions)\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "f10ae36e395ad75bf5d1f0d70168a1200ca73f6895327f761a911bc9577538df",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a7ac5fa749fc296dd0f020dcdae8c7d/izdw-0a7ac5fa74.o33949",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a7ac5fa749fc296dd0f020dcdae8c7d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......F..........                                                        [100%]\n=================================== FAILURES ===================================\n________________________ test_j3_future_forward_version ________________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_j3_future_forward_version():\n        before, after = handmade_future_forward()\n>       assert j3(before, after, Step(\"GC\", \"reclaim\", \"A30\"))[\"reason\"] == \"future_read\"\nE       TypeError: 'NoneType' object is not subscriptable\n\norchestrator/tests/test_vhash_forwarding_model.py:160: TypeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\n1 failed, 16 passed in 7.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=353 retained_bytes=353 omitted_bytes=0 rendered_excerpt_bytes=370 sha256=d0d2250000a5740972a36132bfc4cc0c7284a49c2e3f07c3d99d3898bc7c4aee\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_j3_future_forward_version():\n>         before, after = handmade_future_forward()\n> >       assert j3(before, after, Step(\"GC\", \"reclaim\", \"A30\"))[\"reason\"] == \"future_read\"\n> E       TypeError: 'NoneType' object is not subscriptable\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:160: TypeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=353 retained_bytes=353 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1073 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8e8b84b2bb868ebc8577fd3e5aa8aaad1f1e4af56c5ebe1e9fd17b4d2d2ce095"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 33.904,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version"
+      ],
+      "hang_risk": false,
+      "id": "mu8-future-needs-visible-now",
+      "injection_diff_sha256": "d0961aec4ed60692aece350bcee1b6c67234997727d4051e72a63534a8b0c5fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a18ce75bd0d8056c99b4e44d9f87447c4e08e712525d675dfd8ec3524569625c",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/judge.py",
+          "new": "    return v.status == \"COMMITTED\" and not successors and v.wts <= t.cand_ts  # MU8\n",
+          "old": "    return v.status == \"COMMITTED\" and not successors\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "8e8b84b2bb868ebc8577fd3e5aa8aaad1f1e4af56c5ebe1e9fd17b4d2d2ce095",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a1932b729864d8a2e596f5f2e7ab04dd/izdw-a1932b7298.o33953",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a1932b729864d8a2e596f5f2e7ab04dd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................                                                        [100%]\n17 passed in 7.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2093301c6533cd76ff2f7e29d31f4e00344ee8cf1939e22e9ed1a6bab3602fb2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 591.042,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "mu9-o1-ignore-confirm-time",
+      "injection_diff_sha256": "f9f6663fede3b68a376bf660fe4ccb5c45f7024bd4a5347e6a808bb6540fc788",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "8e8d788a3cc252c587126a59557c210777e4ff6ab26faa5bfcef5bfaefdca9e3",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            ids = tuple(vid for vid in ids if vid not in {c for c, _ in t.confirmed})  # MU9\n",
+          "old": "            ids = tuple(vid for vid in ids if (vid, t.cand_ts) not in t.confirmed)\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "SURVIVED",
+      "test_output_sha256": "2093301c6533cd76ff2f7e29d31f4e00344ee8cf1939e22e9ed1a6bab3602fb2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/13e9f281c32e77a5bb537ea6d3eee3aa/izdw-13e9f281c3.o33961",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/13e9f281c32e77a5bb537ea6d3eee3aa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F........                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_s10_write_skew_search_results ______________________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_write_skew_search_results():\n        initial, witness = forwarding.scenario(\"S10\")\n        assert len({v.key for v in initial.versions}) == 2\n        assert len(initial.txns) == 2\n        assert all(len(t.ops) <= 3 for t in initial.txns)\n        expected = (\n            (\"v0\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", False, (False, False, False), 12905),\n            (\"v1\", \"\", True, (False, False, False), 10607),\n            (\"v1\", \"U1f\", False, (False, False, False), 12939),\n            (\"v1\", \"U6\", False, (False, False, False), 12281),\n            (\"v1\", \"U1f\", True, (True, True, False), 10617),\n            (\"v1\", \"U6\", True, (True, True, False), 9959),\n        )\n>       results = [_s10_search(case) for case in expected]\n\norchestrator/tests/test_vhash_forwarding_model.py:272: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model.py:272: in <listcomp>\n    results = [_s10_search(case) for case in expected]\norchestrator/tests/test_vhash_forwarding_model.py:236: in _s10_search\n    return explore(initial, protocol, fault, witness, o1=o1)\ntools/vhash_forwarding_model/model.py:446: in explore\n    check_timestamp_uniqueness(ns)\ntools/vhash_forwarding_model/model.py:113: in check_timestamp_uniqueness\n    claim(t.target, t.id)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nts = 26, owner = 'W'\n\n    def claim(ts: int, owner: str) -> None:\n        previous = owners.setdefault(ts, owner)\n        if previous != owner:\n>           raise TimestampCollisionError(f\"timestamp {ts}: {previous} and {owner}\")\nE           vhash_forwarding_model.model.TimestampCollisionError: timestamp 26: T and W\n\ntools/vhash_forwarding_model/model.py:103: TimestampCollisionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\n1 failed, 16 passed in 4.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1869 retained_bytes=1869 omitted_bytes=0 rendered_excerpt_bytes=1948 sha256=52a3a2fe625f01e81db9625c387a6c70678941a38167397cf28f066ddcc737f6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_write_skew_search_results():\n>         initial, witness = forwarding.scenario(\"S10\")\n>         assert len({v.key for v in initial.versions}) == 2\n>         assert len(initial.txns) == 2\n>         assert all(len(t.ops) <= 3 for t in initial.txns)\n>         expected = (\n>             (\"v0\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", False, (False, False, False), 12905),\n>             (\"v1\", \"\", True, (False, False, False), 10607),\n>             (\"v1\", \"U1f\", False, (False, False, False), 12939),\n>             (\"v1\", \"U6\", False, (False, False, False), 12281),\n>             (\"v1\", \"U1f\", True, (True, True, False), 10617),\n>             (\"v1\", \"U6\", True, (True, True, False), 9959),\n>         )\n> >       results = [_s10_search(case) for case in expected]\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:272: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model.py:272: in <listcomp>\n>     results = [_s10_search(case) for case in expected]\n> orchestrator/tests/test_vhash_forwarding_model.py:236: in _s10_search\n>     return explore(initial, protocol, fault, witness, o1=o1)\n> tools/vhash_forwarding_model/model.py:446: in explore\n>     check_timestamp_uniqueness(ns)\n> tools/vhash_forwarding_model/model.py:113: in check_timestamp_uniqueness\n>     claim(t.target, t.id)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> ts = 26, owner = 'W'\n> \n>     def claim(ts: int, owner: str) -> None:\n>         previous = owners.setdefault(ts, owner)\n>         if previous != owner:\n> >           raise TimestampCollisionError(f\"timestamp {ts}: {previous} and {owner}\")\n> E           vhash_forwarding_model.model.TimestampCollisionError: timestamp 26: T and W\n> \n> tools/vhash_forwarding_model/model.py:103: TimestampCollisionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1869 retained_bytes=1869 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2660 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "785f3a47b7612361c57f7587f5aa70999bd3e5e6b047f5b9e4087ed0d0954135"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 98.951,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "hang_risk": false,
+      "id": "mu10a-next-free-ignores-targets",
+      "injection_diff_sha256": "f6cc88c661cad8cc8cf96f5813e6694c82b8bc026d1fa8970f3f5dbbe278c41d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f331c9e34bbf05d2908be9058f4a48d4ac7737fa79da1f7eda37bb75bb812df9",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            | {t.cand_ts for t in s.txns})  # MU10a\n",
+          "old": "            | {t.cand_ts for t in s.txns} | {t.target for t in s.txns if t.target})\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "785f3a47b7612361c57f7587f5aa70999bd3e5e6b047f5b9e4087ed0d0954135",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/090b6e5eb35feb01c4efce0616a21b5d/izdw-090b6e5eb3.o33962",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/090b6e5eb35feb01c4efce0616a21b5d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............F.                                                        [100%]\n=================================== FAILURES ===================================\n_________ test_s10_old_target_allocation_violates_timestamp_uniqueness _________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_s10_old_target_allocation_violates_timestamp_uniqueness():\n        initial, _ = forwarding.scenario(\"S10\")\n    \n        def old_next_free(state, minimum):\n            used = ({v.wts for v in state.versions} | {t.start for t in state.txns}\n                    | {t.cand_ts for t in state.txns})\n            while minimum in used:\n                minimum += 1\n            return minimum\n    \n        with patch.object(model, \"_next_free\", old_next_free):\n            try:\n                explore(initial, \"v1\")\n            except model.TimestampCollisionError as exc:\n                assert \"timestamp 26\" in str(exc)\n            else:\n>               raise AssertionError(\"old target allocation did not expose a timestamp collision\")\nE               AssertionError: old target allocation did not expose a timestamp collision\n\norchestrator/tests/test_vhash_forwarding_model.py:255: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\n1 failed, 16 passed in 7.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=955 retained_bytes=955 omitted_bytes=0 rendered_excerpt_bytes=1000 sha256=ec00ba69553791342acf0f7dbe45d34cb5ffa9a1f1393f98ee05264f4bfaa45f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_s10_old_target_allocation_violates_timestamp_uniqueness():\n>         initial, _ = forwarding.scenario(\"S10\")\n>     \n>         def old_next_free(state, minimum):\n>             used = ({v.wts for v in state.versions} | {t.start for t in state.txns}\n>                     | {t.cand_ts for t in state.txns})\n>             while minimum in used:\n>                 minimum += 1\n>             return minimum\n>     \n>         with patch.object(model, \"_next_free\", old_next_free):\n>             try:\n>                 explore(initial, \"v1\")\n>             except model.TimestampCollisionError as exc:\n>                 assert \"timestamp 26\" in str(exc)\n>             else:\n> >               raise AssertionError(\"old target allocation did not expose a timestamp collision\")\n> E               AssertionError: old target allocation did not expose a timestamp collision\n> \n> orchestrator/tests/test_vhash_forwarding_model.py:255: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=955 retained_bytes=955 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1735 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c80f059ecdcb3709bae2b8c7b00e045119aeffd3ff871803843b2e5489173760"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "f0d259645efd6cbd013db6c9ebeded18f3975f16666431f7dbf7e3649730e1a4",
+      "duration_s": 33.194,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness"
+      ],
+      "hang_risk": false,
+      "id": "mu10b-no-uniqueness-check",
+      "injection_diff_sha256": "230b0f565bbf85e74418ec6d9e7a02c13b58e6b1c7b685bdb6a0b46e1ff98200",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c1d7327804eeacded828e336a6c782e995cc63e71b516277f900acb22707861a",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            if ns not in parent:\n                pass  # MU10b\n",
+          "old": "            if ns not in parent:\n                check_timestamp_uniqueness(ns)\n"
+        }
+      ],
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "KILLED",
+      "test_output_sha256": "c80f059ecdcb3709bae2b8c7b00e045119aeffd3ff871803843b2e5489173760",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d817e90196de63b4c9427aa5e9456a12/izdw-d817e90196.o33843",
+        "receipt_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d817e90196de63b4c9427aa5e9456a12/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative\norchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative\norchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\norchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\norchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable\norchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\norchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\norchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read\norchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\norchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition\norchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts\norchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\norchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes\norchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation\norchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort\norchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\norchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\n\n17 tests collected in 0.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "60148565be0fa73ad339d32560a6104289a16beb37e15a4dc019899be025ab50"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+      ],
+      "duration_s": 3120.903,
+      "rc": 0,
+      "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+      "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+      "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+      "status": "PASSED",
+      "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "mu1-drop-rw-edges": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "336651443575d13e85027621aa44af31ff5090a84109c399c327c7aff4539522",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/judge.py",
+            "new": "                pass  # MU1\n",
+            "old": "                edge(t.id, later.owner, \"rw\", key, vid)\n"
+          }
+        ]
+      },
+      "mu10a-next-free-ignores-targets": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f6cc88c661cad8cc8cf96f5813e6694c82b8bc026d1fa8970f3f5dbbe278c41d",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            | {t.cand_ts for t in s.txns})  # MU10a\n",
+            "old": "            | {t.cand_ts for t in s.txns} | {t.target for t in s.txns if t.target})\n"
+          }
+        ]
+      },
+      "mu10b-no-uniqueness-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "230b0f565bbf85e74418ec6d9e7a02c13b58e6b1c7b685bdb6a0b46e1ff98200",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            if ns not in parent:\n                pass  # MU10b\n",
+            "old": "            if ns not in parent:\n                check_timestamp_uniqueness(ns)\n"
+          }
+        ]
+      },
+      "mu2-j3-future-never": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fa01adb8431e03ee17e35e8009999bde1ad16e659dc28649c81e51ff2fad21e9",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/judge.py",
+            "new": "        if False and _needed_future(before, t, v):  # MU2\n",
+            "old": "        if _needed_future(before, t, v):\n"
+          }
+        ]
+      },
+      "mu3-read-skips-pending": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4f46c779e89db3ac0967b3cf5020044084ad5a1ade349269ae055a77f64a8302",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        v = visible(s, key, t.cand_ts, faults | {\"U5\"})  # MU3\n        if v is None or v.status == \"PENDING\":\n",
+            "old": "        v = visible(s, key, t.cand_ts, faults)\n        if v is None or v.status == \"PENDING\":\n"
+          }
+        ]
+      },
+      "mu4-publish-floor-before-confirm": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "80700b498531b692724b9a3040475633db5de0d877ec42f00f1268cd0419b745",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            if True:  # MU4\n                nt = replace(nt, gc_floor=target)\n",
+            "old": "            if \"U3a\" in faults:\n                nt = replace(nt, gc_floor=target)\n"
+          }
+        ]
+      },
+      "mu5-reclaim-by-wts": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5d799e8037750fb9cd35954c40548e541145b771d0bff6e8baed1efae9bca7de",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        if True:  # MU5\n            legal = v.wts < b\n",
+            "old": "        if \"U4\" in faults:\n            legal = v.wts < b\n"
+          }
+        ]
+      },
+      "mu6-first-step-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c1264b2c7538ed3a2a369d2bbbf56b4e706cb0ff4a684b15071e4f60c4dd2436",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        for ns, step in steps[:1]:  # MU6\n            if ns not in parent:\n",
+            "old": "        for ns, step in steps:\n            if ns not in parent:\n"
+          }
+        ]
+      },
+      "mu7-judge-new-states-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b61e0be40e9564409cde070c97c596fef34e374e8f8cd74bac7062381237981e",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "                found = judge(s, ns, step, all_transitions=all_transitions) if ns not in parent else {}  # MU7\n",
+            "old": "                found = judge(s, ns, step, all_transitions=all_transitions)\n"
+          }
+        ]
+      },
+      "mu8-future-needs-visible-now": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0961aec4ed60692aece350bcee1b6c67234997727d4051e72a63534a8b0c5fe",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/judge.py",
+            "new": "    return v.status == \"COMMITTED\" and not successors and v.wts <= t.cand_ts  # MU8\n",
+            "old": "    return v.status == \"COMMITTED\" and not successors\n"
+          }
+        ]
+      },
+      "mu9-o1-ignore-confirm-time": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "f9f6663fede3b68a376bf660fe4ccb5c45f7024bd4a5347e6a808bb6540fc788",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            ids = tuple(vid for vid in ids if vid not in {c for c, _ in t.confirmed})  # MU9\n",
+            "old": "            ids = tuple(vid for vid in ids if (vid, t.cand_ts) not in t.confirmed)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "82aada145ce85d661205e1b2f92723008117abe3b3f68930681e40dd1f1afd0f",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_vhash_forwarding_model.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 14400.0
+  },
+  "repo_head": "7cf165a415241b592dc7a1a7f071fac07c73de5e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_vhash_forwarding_model.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "bea7c5721c60f6070f85a6daf347f5cc4084b994",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "22e037b130e1fb236888849a185b949260fcd1c102f7fd13720d416213e134cc",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ec943592d40ce0d95da6565ebc1aa59eaa717dc33b827f6d3037783b24768529",
+  "summary": {
+    "KILLED": 10,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 11,
+    "matching": 11,
+    "recorded": 11,
+    "registered": 11
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-forwarding-model-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "ca03e3c77fa75f43abc50beb7f94ed7ea49f5e4d1d15af2059b0a097d40de971",
+  "updated_at": "2026-09-28T22:16:57.433150+00:00"
+}

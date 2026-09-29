@@ -1,0 +1,202 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 1800,
+ "timeout_seconds": 14400,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "mu1-drop-rw-edges",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "old": "                edge(t.id, later.owner, \"rw\", key, vid)\n",
+     "new": "                pass  # MU1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu2-j3-future-never",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "old": "        if _needed_future(before, t, v):\n",
+     "new": "        if False and _needed_future(before, t, v):  # MU2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu3-read-skips-pending",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        v = visible(s, key, t.cand_ts, faults)\n        if v is None or v.status == \"PENDING\":\n",
+     "new": "        v = visible(s, key, t.cand_ts, faults | {\"U5\"})  # MU3\n        if v is None or v.status == \"PENDING\":\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu4-publish-floor-before-confirm",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            if \"U3a\" in faults:\n                nt = replace(nt, gc_floor=target)\n",
+     "new": "            if True:  # MU4\n                nt = replace(nt, gc_floor=target)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu5-reclaim-by-wts",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        if \"U4\" in faults:\n            legal = v.wts < b\n",
+     "new": "        if True:  # MU5\n            legal = v.wts < b\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu6-first-step-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        for ns, step in steps:\n            if ns not in parent:\n",
+     "new": "        for ns, step in steps[:1]:  # MU6\n            if ns not in parent:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu7-judge-new-states-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "                found = judge(s, ns, step, all_transitions=all_transitions)\n",
+     "new": "                found = judge(s, ns, step, all_transitions=all_transitions) if ns not in parent else {}  # MU7\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu8-future-needs-visible-now",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "old": "    return v.status == \"COMMITTED\" and not successors\n",
+     "new": "    return v.status == \"COMMITTED\" and not successors and v.wts <= t.cand_ts  # MU8\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu9-o1-ignore-confirm-time",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            ids = tuple(vid for vid in ids if (vid, t.cand_ts) not in t.confirmed)\n",
+     "new": "            ids = tuple(vid for vid in ids if vid not in {c for c, _ in t.confirmed})  # MU9\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu10a-next-free-ignores-targets",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            | {t.cand_ts for t in s.txns} | {t.target for t in s.txns if t.target})\n",
+     "new": "            | {t.cand_ts for t in s.txns})  # MU10a\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mu10b-no-uniqueness-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            if ns not in parent:\n                check_timestamp_uniqueness(ns)\n",
+     "new": "            if ns not in parent:\n                pass  # MU10b\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
