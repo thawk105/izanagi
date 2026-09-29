@@ -6,6 +6,7 @@ import argparse
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timezone
+import difflib
 import hashlib
 import json
 import os
@@ -431,11 +432,12 @@ def preprocess(entry):
             continue
         clean.append(arg)
     output = checked([*clean, '-E'], cwd=Path(entry['directory']), timeout=180).stdout
-    return digest(b'\n'.join(line for line in output.splitlines()
-                             if line.strip() and not line.lstrip().startswith(b'#')))
+    lines = (line for line in output.splitlines()
+             if line.strip() and not line.lstrip().startswith(b'#'))
+    return b'\n'.join(lines)
 
 
-def inert_receipt(source, build):
+def inert_receipt(source, build, logs_dir):
     names = ('transaction.cc', 'util.cc', 'ycsb_cicada.cc')
     targets = ('ycsb_cicada.exe', 'tpcc_cicada.exe', 'bomb_cicada.exe', 'sbomb_cicada.exe')
     entries = [(target, name, compile_entry(build, name, target)) for target in targets
@@ -451,10 +453,36 @@ def inert_receipt(source, build):
     finally:
         for patch in reversed(applied):
             checked(['git', '-C', str(source), 'apply', '-R', str(ROOT / patch)])
-    receipt = {'before': before, 'after': after, 'matched': before == after,
-               'normalization': 'omit preprocessor markers and whitespace-only lines'}
-    if not receipt['matched']:
-        raise RuntimeError('inert preprocessing mismatch')
+    receipt = {'before': {key: digest(data) for key, data in before.items()},
+               'after': {key: digest(data) for key, data in after.items()},
+               'matched': before == after,
+               'normalization': 'omit preprocessor markers and whitespace-only lines',
+               'units': {}}
+    for target, name, _ in entries:
+        key = f'{target}/{name}'
+        matched = before[key] == after[key]
+        unit = {'matched': matched}
+        if not matched:
+            diff = difflib.diff_bytes(
+                difflib.unified_diff,
+                [line + b'\n' for line in before[key].splitlines()],
+                [line + b'\n' for line in after[key].splitlines()],
+                fromfile=f'pin/{key}'.encode(), tofile=f'variant/{key}'.encode())
+            first = []
+            total = 0
+            for line in diff:
+                total += 1
+                if total <= 400:
+                    first.append(line)
+            if total > 400:
+                first.append(f'... diff truncated after 400 of {total} lines\n'.encode())
+            path = logs_dir / f'inert-{target}-{name}.diff'
+            data = b''.join(first)
+            with path.open('xb') as handle:
+                handle.write(data)
+            unit['diff'] = {'path': str(path), 'sha256': digest(data),
+                            'lines': total, 'shown_lines': min(total, 400)}
+        receipt['units'][key] = unit
     return receipt
 
 
@@ -886,7 +914,10 @@ def run_job(args):
                                        dependency=True)
                 if args.command == 'smoke' and dependency is not None:
                     try:
-                        manifest['inert'] = inert_receipt(source, scratch / 'dependency')
+                        manifest['inert'] = inert_receipt(source, scratch / 'dependency', logs_dir)
+                        if not manifest['inert']['matched']:
+                            manifest['inert']['error'] = 'inert preprocessing mismatch'
+                            failures.append('inert')
                     except Exception as exc:
                         manifest['inert'] = {'matched': False, 'error': str(exc)}
                         failures.append('inert')

@@ -194,6 +194,77 @@ def test_smoke_candidate_delta():
            {'min': {'threads': [{}]}, 'gen': counters['gen']})
 
 
+def test_inert_mismatch_writes_diff_and_records_matching_units():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        logs = root / 'logs'
+        logs.mkdir()
+        calls = {}
+
+        def fake_entry(_build, name, target):
+            return {'name': name, 'target': target}
+
+        def fake_preprocess(entry):
+            key = (entry['target'], entry['name'])
+            calls[key] = calls.get(key, 0) + 1
+            if key == ('ycsb_cicada.exe', 'transaction.cc') and calls[key] == 2:
+                return b'first\nvariant\nlast'
+            return b'first\npin\nlast'
+
+        with patch.object(d, 'compile_entry', fake_entry), \
+             patch.object(d, 'preprocess', fake_preprocess), \
+             patch.object(d, 'checked'):
+            receipt = d.inert_receipt(root, root, logs)
+        key = 'ycsb_cicada.exe/transaction.cc'
+        assert receipt['matched'] is False
+        assert len(receipt['units']) == 12
+        assert receipt['units'][key]['matched'] is False
+        diff = receipt['units'][key]['diff']
+        path = Path(diff['path'])
+        assert path == logs / 'inert-ycsb_cicada.exe-transaction.cc.diff'
+        assert diff['sha256'] == d.sha_file(path)
+        assert diff['lines'] == len(path.read_bytes().splitlines())
+        assert b'-pin' in path.read_bytes() and b'+variant' in path.read_bytes()
+        assert len(list(logs.iterdir())) == 1
+        assert all(unit == {'matched': True} for name, unit in receipt['units'].items()
+                   if name != key)
+        calls.clear()
+        with patch.object(d, 'compile_entry', fake_entry), \
+             patch.object(d, 'preprocess', fake_preprocess), \
+             patch.object(d, 'checked'):
+            raises(FileExistsError, d.inert_receipt, root, root, logs)
+
+
+def test_inert_diff_truncation_reports_full_line_count():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        logs = root / 'logs'
+        logs.mkdir()
+        calls = {}
+
+        def fake_entry(_build, name, target):
+            return {'name': name, 'target': target}
+
+        def fake_preprocess(entry):
+            key = (entry['target'], entry['name'])
+            calls[key] = calls.get(key, 0) + 1
+            if key == ('ycsb_cicada.exe', 'transaction.cc'):
+                prefix = b'variant' if calls[key] == 2 else b'pin'
+                return b'\n'.join(prefix + str(i).encode() for i in range(450)) + b'\n'
+            return b'same\n'
+
+        with patch.object(d, 'compile_entry', fake_entry), \
+             patch.object(d, 'preprocess', fake_preprocess), \
+             patch.object(d, 'checked'):
+            receipt = d.inert_receipt(root, root, logs)
+        diff = receipt['units']['ycsb_cicada.exe/transaction.cc']['diff']
+        lines = Path(diff['path']).read_bytes().splitlines()
+        assert diff['lines'] > 400 and diff['shown_lines'] == 400
+        assert len(lines) == 401
+        assert lines[-1] == f'... diff truncated after 400 of {diff["lines"]} lines'.encode()
+        assert diff['sha256'] == d.sha_file(diff['path'])
+
+
 def test_overprune_parser_and_attribution():
     stderr = 'CICADA_OVERPRUNE_EVENT tx_wts=4 key=0a removed_wts=30\nCICADA_OVERPRUNE_FIRED n=1\n'
     diag = d.parse_overprune(stderr)
@@ -278,7 +349,10 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
              patch.object(d.compute, '_prepare_dependencies', return_value={}), \
              patch.object(d.patchharness, 'checkout', checkout), \
              patch.object(d, '_build_variant', fake_build), \
-             patch.object(d, 'inert_receipt', return_value={'matched': True}), \
+             patch.object(d, 'inert_receipt', return_value={
+                 'matched': False, 'units': {'ycsb_cicada.exe/transaction.cc': {
+                     'matched': False, 'diff': {'path': 'logs/inert-test.diff',
+                                                'sha256': 'test-sha', 'lines': 5}}}}), \
              patch.object(d, 'apply_patches'), \
              patch.object(d, 'sha_file', side_effect=lambda path: d.digest(Path(path).read_bytes())
                           if Path(path).exists() else 'missing-test-patch'), \
@@ -295,6 +369,8 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
         out = next((root / 'output').iterdir())
         manifest = json.loads((out / 'manifest.json').read_text())
         assert manifest['status'] == 'failed'
+        assert manifest['inert']['error'] == 'inert preprocessing mismatch'
+        assert manifest['inert']['units']['ycsb_cicada.exe/transaction.cc']['diff']['lines'] == 5
         assert set(manifest['builds']) == set(attempted)
         expected = {(cell, arm, kind, mode)
                     for cell in ('rr50-wait1-gc10', 'rr95-ronly-gc10')
