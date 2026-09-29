@@ -1,0 +1,27 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-09-29
+wave: dev-wave-t2865-series-c
+seq: 1
+title: [T-2865] silo-function-policy 軸の研究系列 C を新しい submit checkout で起こし、LLM の coder・auditor・critic を回して 4 iteration (preview 拒否 1、候補 certified 3) を walltime 予算まで Pegasus で実走した (実走 + insight + runbook 1 文、branch dev-wave-t2865-series-c)
+---
+
+## 本文
+
+- 依頼 (ユーザー直接起動の `/dev-wave`、逐語 = insight `output/insights/2026-09-29/t2865-silo-policy-series-c/verbatim/request.md`): 新しい系列を bootstrap stock から起こして coder・auditor・critic を回し、2 本目以降の pair は `qsub --after` で先に待ち行列へ入れる。記録 = 同 insight。
+- 起点 = local main `1887f56e4` (開始 gate rc=0)。コード変更なし。段 2 を省き、段 3 は read-only codex 1 本 (2 レンズ、real 5・要実測 1)、段 4 で「実装しない」(4→7→8→9)。
+- **段 3 で訂正した親の読み:** brief の「停止判定は driver 起動時だけ」は誤りで、開始前と結果記録後の 2 回 (起動済みの pair は最後まで評価される)。保留解除の前の照合 (preview 通過・auditor digest 一致・coder 一致) と qsub / qrls の失敗検出を親専用の運用 script に足した (repo の gate ではない)。
+- **運用の新事実:** LLM を回す系列では次の proposal が前の pair の critic の後にしかできないため、`--after` だけで先に入れると 前の pair の終了後に proposal の確定を待たず job が始まりうる。保留 (`qsub -h`) で投入し、照合後に `qrls` して回した (runbook §1(f) に 1 文追記)。保留解除から開始まで 37 秒・22 秒。`--after` の指定は投入記録に残っていない (insight §3)。
+- **セッション異常:** `EnterWorktree` は name 形が git config 読取失敗、手動 `git worktree add` は並行 7 本の add と重なって EINTR で 79% 地点失敗 (`nohup setsid` で再試行して成功)、path 形は worktree 231 本の一覧が 10 秒を超えて 2 回失敗し、絶対 path で作業した。
+- 計算: job Elapse 合計 2,517 秒 (約 0.70 node 時間、受入を除く)。2 node 時間の線の下なのでユーザー確認なしで投入した。
+- 工数: Claude 子 = coder 4、auditor 3、critic 2 (登録 role)。Codex 子 = 段 3 相談 1、記録 review 1 (NO-GO、must-fix 3 = 証跡を超えた記述)、焦点再レビュー 2 (2 巡目の残り 1 点「`--after` を渡した」の断定は上限 3 巡のため親が real と裁定し削除)。
+
+- [T-2865] 研究系列 C で LLM の閉ループ (coder → auditor → pair → critic → coder) が評価済み 3 iteration で回った。候補 3 件とも certified、同じ job の比は 2.17・1.86・2.64 (各 1 観測、記録 `output/insights/2026-09-29/t2865-silo-policy-series-c/README.md`)。
+
+## 次の一手差分
+
+### 更新
+
+- [T-2865] **P1・研究系列 C を評価済み 3 iteration で閉じた → 次は候補の再測定か次の系列 (AI)**: silo-function-policy 軸 (D2214、段階 F = D2270) の系列 C は、新しい submit checkout (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/trees/c`、HEAD `1887f56e4`) で bootstrap stock から 4 iteration (preview 拒否 1、候補 certified 3) を回し `budget-walltime` で止まった (記録 `output/insights/2026-09-29/t2865-silo-policy-series-c/README.md`)。同じ job の比は 2.17・1.86・2.64 だが各 1 観測で、同じ候補の再測定が無いので候補間の差として読めない。次は iteration 2〜4 の候補の R2 再測定 (runbook §3.1) で並びの再現を確かめるか、新しい系列で iteration を重ねる。単価は pair Elapse 696〜807 秒・bootstrap 308 秒、LLM は 1 iteration 約 5〜6 分 (coder・auditor・critic)。2 本目以降の pair の投入手順は runbook §1(f) (保留投入 → proposal の照合 → `qrls`)。critic が 2 回とも求めた施錠競合時の方策の発火回数・abort 要因別の件数は v1 に無い。LLM 対 非 LLM の対照は [T-2867]、固定文面の改訂は [T-2870]、予算の数え方は [T-2881]。
+  base: d213836d786b19a7bdeb8824180e4f168644b087f5127c70aac69d5c3a3fb291
