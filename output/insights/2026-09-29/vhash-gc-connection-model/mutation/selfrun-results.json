@@ -1,0 +1,213 @@
+{
+ "commit": "28873adbdb7fb90461e0c77a7e15346202f85930",
+ "baseline": {
+  "results": {
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_explore_counts_one_added_floor_lowering_edge": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_floor_lowering_counter_positive_and_representative_zero": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_old_representative_pins": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_restricted_judgment_matches_reference_gc": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants": "PASS",
+   "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_ug2r_and_ug3_without_o1": "PASS"
+  },
+  "seconds": 16.44,
+  "failed": []
+ },
+ "mutations": [
+  {
+   "id": "mg1-no-publish",
+   "why": "SP の G4 公開を行わない (gc_floor を進めない)",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "488c8faf3747f871d98468fd05d7932a7e7b3842512de6b2ff19ad62a6149476",
+     "after_sha256": "8f6b5d22f2892bbd29699d7df2ab62c6821c9a373a4fb094707cd6c59ce2303f"
+    }
+   ],
+   "seconds": 10.71,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays": "FAIL:AssertionError:G6",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative": "FAIL:StopIteration:",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants": "FAIL:AssertionError:('G1', False)"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg2-no-rollback-judge",
+   "why": "J3 の rollback 判定を外す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "count": 1,
+     "before_sha256": "aec0d8b594b48a79992ee4ced2137e3af27a6debcd888610c01df44008ddeddb",
+     "after_sha256": "44143a227844482d5e1e5ce804137d1154adaa8db671db6bda8165225153526d"
+    }
+   ],
+   "seconds": 16.55,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays": "FAIL:AssertionError:G6",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative": "FAIL:StopIteration:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg3-no-pressure-rts",
+   "why": "圧力前進の rts 更新を省く (可視確認は残す)",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "488c8faf3747f871d98468fd05d7932a7e7b3842512de6b2ff19ad62a6149476",
+     "after_sha256": "5f09ed88737183b6ca67b9ddd4cdc18af916b0756e46af697cd4d4d1d037a7f1"
+    }
+   ],
+   "seconds": 14.81,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg4-sound-fallback-to-start",
+   "why": "健全な fallback の戻り先を開始時刻にする",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "488c8faf3747f871d98468fd05d7932a7e7b3842512de6b2ff19ad62a6149476",
+     "after_sha256": "f6070bd98fbeaeb75fea62ea48250de97cbc23cad6273c69edbb1323275fc75a"
+    }
+   ],
+   "seconds": 13.9,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg5-reclaimable-ignores-refs",
+   "why": "効果の reclaimable が refs を無視する",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/gc_connection.py",
+     "count": 1,
+     "before_sha256": "b5a1152263d6561db12daf19cc72f762eae33441ded646830385ded47681ef08",
+     "after_sha256": "ce7b0fbcd5204e3deecfec3858e27972b921bbd8828b18b452889198bf1300d5"
+    }
+   ],
+   "seconds": 16.25,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg6-pressure-outside-wait",
+   "why": "圧力前進の発火を待機区間の外でも許す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "488c8faf3747f871d98468fd05d7932a7e7b3842512de6b2ff19ad62a6149476",
+     "after_sha256": "38586e297f98c69e73476c33b896880594a33c41144c24530d6906206893b7b4"
+    }
+   ],
+   "seconds": 720.91,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds": "FAIL:AssertionError:",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg7-pressure-leaks-into-off",
+   "why": "新 option off でも圧力の分岐が状態を足す (pressure の条件だけを外し WAIT の条件は残す。2026-09-29 再照準: 両条件を外す初案は既存場面で状態が爆発し hang しうるため)",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "488c8faf3747f871d98468fd05d7932a7e7b3842512de6b2ff19ad62a6149476",
+     "after_sha256": "bf0c361e0953ae6c257d0bde03475bb3fd0b8b50a8313e173f81da0f38a39f4c"
+    }
+   ],
+   "seconds": 15.84,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  },
+  {
+   "id": "mg8-g2-without-both-wait",
+   "why": "G2 の効果の行で T と U がともに WAIT の条件を外す",
+   "injected": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "count": 1,
+     "before_sha256": "488c8faf3747f871d98468fd05d7932a7e7b3842512de6b2ff19ad62a6149476",
+     "after_sha256": "a99142f453b9b7f80b889585e3079a33de91d57f6905c2fecc0efee1aba43a9a"
+    }
+   ],
+   "seconds": 16.43,
+   "failed_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary"
+   ],
+   "details": {
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary": "FAIL:AssertionError:"
+   },
+   "status": "KILLED"
+  }
+ ]
+}

@@ -1,0 +1,143 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 2400,
+ "timeout_seconds": 14400,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "mg1-no-publish",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        nt = replace(t, gc_floor=max(t.gc_floor, t.cand_ts) if \"UG2\" not in faults else t.gc_floor, phase=\"ops\",\n",
+     "new": "        nt = replace(t, gc_floor=t.gc_floor, phase=\"ops\",  # MG1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg2-no-rollback-judge",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "old": "                if v.reclaimed and _needed_future(after, new, v):\n",
+     "new": "                if False and v.reclaimed and _needed_future(after, new, v):  # MG2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg3-no-pressure-rts",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            ns = _put_version(s, replace(v, rts=max(v.rts, t.target)))\n            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, \"pressure_rts\", vid)\n",
+     "new": "            ns = s  # MG3\n            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, \"pressure_rts\", vid)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg4-sound-fallback-to-start",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            base = t.start if \"UF1\" in faults and t.gc_floor > t.start else t.attempt_base\n",
+     "new": "            base = t.start  # MG4\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg5-reclaimable-ignores-refs",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/gc_connection.py",
+     "old": "                 if not v.reclaimed and v.status != \"PENDING\" and v.id not in refs\n",
+     "new": "                 if not v.reclaimed and v.status != \"PENDING\"  # MG5\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg6-pressure-outside-wait",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):\n",
+     "new": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops):  # MG6\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg7-pressure-leaks-into-off",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):\n",
+     "new": "        if t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):  # MG7\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mg8-g2-without-both-wait",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "                    both_wait = u.phase == \"ops\" and u.pc < len(u.ops) and u.ops[u.pc] == (\"WAIT\", \"\")\n",
+     "new": "                    both_wait = True  # MG8\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
