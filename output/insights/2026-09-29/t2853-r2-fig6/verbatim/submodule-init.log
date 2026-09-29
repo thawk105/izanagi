@@ -1,0 +1,8 @@
+ERROR: runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}
+rc=1
+ERROR: runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}
+rc=1
+ERROR: runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}
+rc=1
+OK: submodules initialized in /work/1/SFC/tanab/tmp/t2853-r2-fig6-20260929/submit-tree
+rc=0
