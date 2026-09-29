@@ -207,3 +207,8 @@ submit-tree は pair 走とは別の `submit-tree-r4` (同じ SHA・同じ PIN�
   `submit-tree-pair2` / `submit-tree-r4` の `output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/` と `output/env/pegasus/claims/`、byte 複製は `originals-copy-20260922/`。
 - job root の glue (repo 外、実装面ではない): `precheck.py`、`setup-submit-trees.sh`、`lock-trees.sh`、`qsub-submit-pair.sh`、`wal_outcomes.py`、`check_stock_variant.py`、
   `build_round4_inputs.py`、`build_coder_input_5.py`、`build_proposal_5.py`、`extract_coder_json.py`、`concat_prompt.py`、`epoch_diff.py`、`ratios.py`。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が名指す submit-tree `submit-tree-pair2`・`submit-tree-r4` (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair-resubmit/`) と `submit-tree-pair` は、2026-09-30 の掃除 wave で回収せずに撤去する。campaign 原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` (manifest `k2-*-originals`) と job dir の `originals-copy-20260922/` に残る。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
