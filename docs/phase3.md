@@ -63,7 +63,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [x] 論文ストーリー 2026-09-29 版を作った (2026-09-29 の執筆依頼、台帳 ID 未起票、docs のみ、計算なし)。版 `docs/paper-story/2026-09-29.md` は起点 local main `1887f56e4` (entry 1914) までの正典
   (entry 1897〜1914 のうち 1899 を除く 17 件、D2272〜D2282、F1055〜F1060、前版 README の stale 注記 1 件) を全面再導出の作法で反映した。MOCC の read-heavy は比較に使い stock の G2 3/109 を事実として書く
   (D2277 項 2、「非直列化可能」とは書かない)、D2275 の C → C2' の判定は `40a7f4ac` に限り TPC-C の certified は名乗らない、[T-2871] の複数 iteration 化は経路の到達、R2 fig8b は原 cohort と合成しない別 attempt。
-  前版の執筆時点の誤りは 0 件。本文の埋め込み図 30 か所・15 図 (うち 2 枚は R2 の insight の記録図)、Mermaid 17。記録 = 版の §10。
+  前版の執筆時点の誤りは 0 件。本文の埋め込み図 28 か所・13 図 (R2 の insight の記録図 2 枚は埋め込まず path で指す)、Mermaid 17。記録 = 版の §10。
 - [x] 論文ストーリー 2026-09-26 版と日本語草稿 5 節の 2026-09-26 版を作った (2026-09-26 の執筆依頼、台帳 ID 未起票、docs のみ、計算なし)。版 `docs/paper-story/2026-09-26.md` は
   起点 local main `6d198ca8a` (entry 1867) までの正典 (entry 1847〜1867、D2235〜D2248、F1047〜F1051、前版 README の stale 注記 3 件) を全面再導出の作法で反映し、前版の執筆時点の誤り 1 件
   (§1 の機序仮説層の巡数) を訂正した。草稿は `output/insights/2026-09-26/paper-{intro,methods,related-work,results,abstract-conclusion}-ja/` (序論・貢献・限界、方法・実装対応、関連研究、
