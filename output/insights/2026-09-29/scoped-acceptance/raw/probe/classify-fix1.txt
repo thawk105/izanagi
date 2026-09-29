@@ -1,0 +1,11 @@
+bf9f67138 3d9d852c7 False 1 19 ['missing inventory', 'path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0819-684.md']
+9463bcbcb ad08cd475 False 1 70 ['missing inventory', 'path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0826-977.md']
+dd6621397 3a177bdfa False 93 39 ['path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0827-1024-1025.md', 'path:docs/archive/worklog-phase3-0827-1026.md']
+f5423e2ff c48507e66 True 142 13 []
+e43f6d8da bb3b124ca True 148 8 []
+3886a1fd3 bacc92f14 False 149 152 ['path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0922-1826.md', 'path:docs/failures.md']
+65fd1422f 3bb0e8225 True 149 8 []
+bad8365b9 4361d5f4f True 149 13 []
+3bcf17276 aad743206 True 149 8 []
+8b261bcf8 92dc6428b False 149 42 ['path:output/insights/2026-09-27/t2849-mocc-conn/verbatim/startup-gate.log', 'production-reference:docs/phase3.md:.codex/role-adapters/auditor.json', 'production-reference:output/insights/2026-09-27/t2849-mocc-conn/verbatim/brief.md:orchestrator/campaign/condition_meaning_gate.py']
+{False: 5, True: 5}

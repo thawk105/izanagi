@@ -1,0 +1,9 @@
+C ['docs/phase3.md']
+C ['docs/paper-story/README.md', 'docs/paper-story/results/2026-09-23-k2-manual-loop-four-rounds.md', 'docs/phase3.md']
+C ['docs/paper-story/README.md', 'docs/paper-story/figures/README.md', 'docs/phase3.md']
+C ['docs/skill-self-improvement.md']
+C ['docs/paper-story/README.md']
+C ['docs/archive/worklog-phase3-0817-622.md', 'docs/archive/worklog-phase3-0818-660.md', 'docs/decisions.md', 'docs/handoff/2026-08-24-t1376-receipt-ledger-scope.md']
+C ['docs/pegasus-runbook.md']
+C ['docs/handoff/2026-08-20-t1334-explore-scale-pin.md']
+80 {'impl-or-other': 49, 'B: spool+insights incl. modify': 11, 'C: other docs md': 8, 'A: new spool+insights only': 11, 'D: docs incl dev-wave/prereg': 1}
