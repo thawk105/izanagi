@@ -59,6 +59,10 @@ OLD_CONDITIONS = frozenset(CONDITIONS)
 TUNED_GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
                 "INLINE_VERSION_PROMOTION": 0, "REUSE_VERSION": 1,
                 "WRITE_LATEST_ONLY": 0}
+DEFAULT_GENOME = {"BACK_OFF": 1, "INLINE_VERSION_OPT": 0,
+                  "INLINE_VERSION_PROMOTION": 1, "REUSE_VERSION": 1,
+                  "WRITE_LATEST_ONLY": 0}
+MEASURE_RECORDS = 1000000
 for prefix, rates, delays, intervals, skew, genome in (
     ("R", (0, 25, 50, 75, 95), ("none", "wait1msU", "wait10msU", "wait10msR"),
      (10, 1000, 100000), 0.9, "default"),
@@ -93,10 +97,7 @@ def verify_genome_commands(path: Path, genome: str) -> dict:
     relevant = [row for row in rows if "/cc/cicada/" in str(row.get("file", ""))]
     if not relevant:
         raise ValueError("no Cicada compile commands")
-    expected = TUNED_GENOME if genome == "tuned" else {
-        "BACK_OFF": 1, "INLINE_VERSION_OPT": 0,
-        "INLINE_VERSION_PROMOTION": 0, "REUSE_VERSION": 1,
-        "WRITE_LATEST_ONLY": 0}
+    expected = TUNED_GENOME if genome == "tuned" else DEFAULT_GENOME
     records = []
     for row in relevant:
         args = row.get("arguments") or shlex.split(row["command"])
@@ -557,12 +558,12 @@ def _smoke_records(path: Path) -> int:
     for probe in probes.values():
         if not isinstance(probe, dict) or type(probe.get("rc")) is not int or probe["rc"] != 0 or type(probe.get("maxrss_kb")) is not int or probe["maxrss_kb"] <= 0:
             raise ValueError("failed calibration probe")
-    eligible = [n for n in (1000000, 2000000, 4000000)
-                if probes[str(n)]["maxrss_kb"] * 1024 > 4 * l3_bytes]
-    expected = eligible[0] if eligible else 1000000
+    expected = MEASURE_RECORDS
     records = calibration.get("selected_records")
     if type(records) is not int or records != expected:
-        raise ValueError("calibrated records do not match probes")
+        raise ValueError("measure requires 1M records")
+    if probes[str(MEASURE_RECORDS)]["maxrss_kb"] * 1024 < 4 * l3_bytes:
+        raise ValueError("1M records do not meet four times L3")
     return records
 
 
@@ -645,14 +646,8 @@ def _calibrate(stock_binary: Path, scratch: Path) -> dict:
         "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3,
     }[match.group(2)]
     result["l3_bytes"] = l3_bytes
-    eligible = [n for n in (1000000, 2000000, 4000000)
-                if result["probes"][str(n)]["maxrss_kb"] is not None
-                and result["probes"][str(n)]["maxrss_kb"] * 1024 > 4 * l3_bytes]
-    result["selected_records"] = eligible[0] if eligible else 1000000
-    result["selection_reason"] = (
-        "smallest N with maxrss > 4x L3" if eligible else
-        "4M below 4x L3; use paper section 7.2 1M fallback"
-    )
+    result["selected_records"] = MEASURE_RECORDS
+    result["selection_reason"] = "D15 second baseline: fixed 1M; require maxrss >= 4x L3"
     return result
 
 
@@ -743,13 +738,14 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
         stage("calibration", lambda: _calibrate(binaries["stock"], scratch),
               valid=lambda value: all(
                   probe["rc"] == 0 and probe["maxrss_kb"] is not None
-                  for probe in value["probes"].values()))
+                  for probe in value["probes"].values())
+              and value["probes"][str(MEASURE_RECORDS)]["maxrss_kb"] * 1024
+                  >= 4 * value["l3_bytes"])
     else:
         skipped("calibration", "stock build failed")
     if "enabled" in binaries and "error" not in result["calibration"]:
         def short_run():
-            flags = _flags("A-none-gc10", result["calibration"]["selected_records"], locks.CLK)
-            flags["extime"] = 1
+            flags = _flags("A-none-gc10", MEASURE_RECORDS, locks.CLK)
             return _run(binaries["enabled"], flags, cwd=scratch)
         stage("short_run", short_run,
               valid=lambda value: value["rc"] == 0 and value["parsed"] is not None)
@@ -757,8 +753,7 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
         skipped("short_run", "enabled build or calibration failed")
     if "tuned_enabled" in binaries and "error" not in result["calibration"]:
         def tuned_short_run():
-            flags = _flags("T50-none-gc10", result["calibration"]["selected_records"], locks.CLK)
-            flags["extime"] = 1
+            flags = _flags("T50-none-gc10", MEASURE_RECORDS, locks.CLK)
             return _run(binaries["tuned_enabled"], flags, cwd=scratch, genome="tuned")
         stage("tuned_short_run", tuned_short_run,
               valid=lambda value: value["rc"] == 0 and value["parsed"] is not None)
@@ -767,14 +762,21 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
     if all(name in builds and "error" not in builds[name] for name in ("enabled", "tuned_enabled")) and all(
         name in result and "error" not in result[name] for name in ("short_run", "tuned_short_run")
     ):
-        times = [builds[name].get("elapsed_s") for name in ("enabled", "tuned_enabled")]
+        times = [builds[name].get("elapsed_s") for name in
+                 ("stock", "default", "enabled", "tuned_enabled")]
         times += [result[name].get("wall_s") for name in ("short_run", "tuned_short_run")]
+        preparation = result.get("dependency_preparation_s")
+        if preparation is None:
+            preparation = dependencies.get("elapsed_s")
         if all(type(x) in (int, float) and math.isfinite(x) and x > 0 for x in times):
-            # 86 cells * 3 runs; each 1 s probe extrapolates to 3 s. Four
-            # jobs may each rebuild stock/default/tuned, hence 12 builds.
-            estimate = 258 * (max(times[2:]) + 2) + 12 * max(times[:2])
+            # Four jobs each build stock/default/enabled/tuned and prepare dependencies.
+            if type(preparation) not in (int, float) or not math.isfinite(preparation) or preparation < 0:
+                preparation = 0
+            estimate = 258 * max(times[4:]) + 4 * (sum(times[:4]) + preparation)
             result["time_budget"] = {"estimated_node_s": estimate,
-                                     "limit_node_s": 7200, "method": "258*(max short wall+2)+12*max build wall"}
+                                     "limit_node_s": 7200,
+                                     "method": "258*max(3s run wall)+4*(all four build walls+dependency preparation)",
+                                     "dependency_preparation_s": preparation}
         else:
             result["time_budget"] = _stage_error(ValueError("smoke timing missing"))
     else:
@@ -822,9 +824,11 @@ def main(argv: list[str] | None = None) -> int:
         result["toolchain"] = toolchain
         with tempfile.TemporaryDirectory(prefix="cicada-vlife-") as td:
             scratch = Path(td)
+            preparation_started = time.monotonic()
             dependencies = compute._prepare_dependencies(
                 ROOT, policy, args.third_party_cache.resolve(strict=True), scratch, toolchain)
             if args.command == "smoke":
+                result["dependency_preparation_s"] = time.monotonic() - preparation_started
                 _smoke(scratch, toolchain, dependencies, result)
             else:
                 with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as stock_path:

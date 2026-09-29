@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import textwrap
 
 import matplotlib
 matplotlib.use("Agg")
@@ -59,6 +60,10 @@ def _load(paths: list[Path]):
                     raise ValueError("schema 2 raw/parsed mismatch")
                 if len(parsed["workers"]) != 48:
                     raise ValueError("worker count mismatch")
+                argv = run.get("argv")
+                if argv is not None and (not isinstance(argv, list) or
+                    "-extime=3" not in argv):
+                    raise ValueError("raw run duration differs from 3 s")
                 parsed_reps.append(parsed)
             runs[cid] = parsed_reps
         provenance.append({"path": str(path.resolve()),
@@ -78,6 +83,43 @@ def _ci(values):
 def _metric(reps, name, index=None):
     summaries = [V.summarize(p) for p in reps]
     return _ci([s[name] if index is None else s[name][index] for s in summaries])
+
+
+def _independent_difference(summaries, terms, metric="gc_boundary_mean_us"):
+    """CI for a sum of independent condition means, with signs in terms."""
+    coefficients = {}
+    for cid, sign in terms:
+        coefficients[cid] = coefficients.get(cid, 0) + sign
+    samples = []
+    for cid, sign in coefficients.items():
+        if sign == 0:
+            continue
+        values = np.asarray([row[metric] for row in summaries[cid]], dtype=float)
+        if len(values) != 3 or not np.all(np.isfinite(values)):
+            return None
+        samples.append((sign, values))
+    mean = sum(sign * values.mean() for sign, values in samples)
+    se = np.sqrt(sum(sign**2 * values.var(ddof=1) / 3 for sign, values in samples))
+    return float(mean), float(T95_3 * se)
+
+
+def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel):
+    for gc, color in ((10, "tab:blue"), (100000, "tab:green")):
+        for delay in ("none", "wait10msU"):
+            for prefix, style in (("R", "--"), ("T", "-")):
+                points = []
+                for rate in (0, 50, 95):
+                    value = _metric(runs[f"{prefix}{rate}-{delay}-gc{gc}"], metric, index)
+                    if value is not None:
+                        points.append((rate, *value))
+                if points:
+                    x, y, e = zip(*points)
+                    ax.errorbar(x, y, yerr=e, color=color, linestyle=style,
+                                marker="s" if delay == "wait10msU" else "o",
+                                capsize=2, label=f"{prefix} {delay} GC {gc} µs")
+    ax.set(title=title, xlabel="Specified read-only procedures (%)", ylabel=ylabel)
+    ax.grid(alpha=.2)
+    ax.legend(fontsize=5, ncol=2, loc="upper left")
 
 
 def _draw(ax, ids, runs, metric, *, index=None, multiplier=1, title, ylabel):
@@ -126,8 +168,12 @@ def _layout(fig):
 
 
 def _save(fig, out, name, common, numbers, caption):
-    fig.text(.03, .02, caption, fontsize=8)
-    fig.tight_layout(rect=(0, .08, 1, .98), pad=2)
+    fig.text(.03, .012, textwrap.fill(caption, width=105), fontsize=7)
+    for ax in fig.axes:
+        ax.title.set_fontsize(9)
+        ax.xaxis.label.set_fontsize(8)
+        ax.yaxis.label.set_fontsize(8)
+    fig.tight_layout(rect=(0, .095, 1, .99), pad=3.5, h_pad=4, w_pad=4)
     _layout(fig)
     for suffix in ("png", "pdf"):
         fig.savefig(out / f"{name}.{suffix}", dpi=180)
@@ -140,7 +186,10 @@ def _save(fig, out, name, common, numbers, caption):
 def render(paths: list[Path], out: Path):
     runs, inputs, identity = _load(paths)
     out.mkdir(parents=True, exist_ok=True)
-    summaries = {cid: [V.summarize(p) for p in reps] for cid, reps in runs.items()}
+    summaries = {cid: [{**V.summarize(p),
+                        "update_commits_per_s": V.summarize(p)["update_commits"] / 3,
+                        "install_per_s": V.summarize(p)["install"] / 3}
+                       for p in reps] for cid, reps in runs.items()}
     common = {"campaign_id": "vhash-readonly-share", "inputs": inputs,
               "ccbench_commit": identity[0], "patch_sha256": identity[1],
               "records": identity[2], "n_reps": 3,
@@ -149,7 +198,7 @@ def render(paths: list[Path], out: Path):
               "replicate_summaries": summaries}
     ids = sorted(runs)
 
-    fig, axes = plt.subplots(2, 3, figsize=(17, 9))
+    fig, axes = plt.subplots(3, 3, figsize=(24, 15))
     for col, k in enumerate((1, 4, 8)):
         index = V.K.index(k)
         _draw(axes[0, col], ids, runs, "readonly_deep_rate", index=index,
@@ -157,11 +206,15 @@ def render(paths: list[Path], out: Path):
         _draw(axes[1, col], ids, runs, "readonly_share_of_deep", index=index,
               title=f"Read-only share of depth ≥ {k}", ylabel="Share of deep reads")
     axes[0, 0].legend(fontsize=5, ncol=2, loc="upper left")
+    for col, k in enumerate((1, 4, 8)):
+        _draw_tuned(axes[2, col], runs, "readonly_deep_rate", index=V.K.index(k),
+                    title=f"T (tuned) vs R (default): depth ≥ {k}",
+                    ylabel="Share of selected read-only reads")
     _save(fig, out, "depth_share", common,
           {cid: [s["readonly_deep_rate"] for s in rows] for cid, rows in summaries.items()},
-          "Observed chain positions. Error bars: 95% t CI across three runs; specified and realized rates differ.")
+          "Observed chain positions. T (tuned) vs R (default) panels use matched conditions. Error bars: 95% t CI across three runs; specified and realized rates differ.")
 
-    fig, axes = plt.subplots(2, 3, figsize=(18, 9))
+    fig, axes = plt.subplots(3, 3, figsize=(24, 15))
     for ax, metric, title, ylabel in (
         (axes[0, 0], "gc_boundary_mean_us", "Published boundary age", "Mean µs"),
         (axes[0, 1], "gc_boundary_p50_bucket_us", "Published boundary age p50", "Bucket upper bound (µs)"),
@@ -171,20 +224,21 @@ def render(paths: list[Path], out: Path):
         (axes[1, 2], "same_boundary_publications", "Same-value republications", "Count / 3 s")):
         _draw(ax, ids, runs, metric, multiplier=1/3 if metric == "gc_publications" else 1,
               title=title, ylabel=ylabel)
+    for col, (metric, title) in enumerate((("gc_boundary_mean_us", "Boundary age"),
+                                            ("gc_publish_mean_us", "Publication interval"),
+                                            ("ro_snapshot_age_mean_us", "Read-only snapshot age"))):
+        _draw_tuned(axes[2, col], runs, metric,
+                    title=f"T (tuned) vs R (default): {title}", ylabel="Mean µs")
     _save(fig, out, "boundary_age", common,
           {cid: [s["gc_boundary_mean_us"] for s in rows] for cid, rows in summaries.items()},
-          "Boundary and snapshot ages are distinct; timestamp ages include clock boost. Error bars: 95% t CI.")
+          "Boundary and snapshot ages are distinct; T (tuned) vs R (default) panels use matched conditions. Timestamp ages include clock boost. Error bars: 95% t CI.")
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+    fig, axes = plt.subplots(2, 2, figsize=(24, 15))
     for gc, color in COLORS.items():
         points = []
         for rate in (0, 25, 50, 75, 95):
-            values = []
-            for rep in range(3):
-                a = summaries[f"R{rate}-none-gc{gc}"][rep]["gc_boundary_mean_us"]
-                b = summaries[f"R0-none-gc{gc}"][rep]["gc_boundary_mean_us"]
-                values.append(a-b if a is not None and b is not None else None)
-            value = _ci(values)
+            value = _independent_difference(summaries,
+                [(f"R{rate}-none-gc{gc}", 1), (f"R0-none-gc{gc}", -1)])
             if value is not None:
                 points.append((rate, value[0], value[1]))
         if points:
@@ -196,12 +250,8 @@ def render(paths: list[Path], out: Path):
     labels, centers, errors = [], [], []
     for gc in COLORS:
         for delay in ("wait1msU", "wait10msU"):
-            values = []
-            for rep in range(3):
-                a = summaries[f"R0-{delay}-gc{gc}"][rep]["gc_boundary_mean_us"]
-                b = summaries[f"R0-none-gc{gc}"][rep]["gc_boundary_mean_us"]
-                values.append(a-b if a is not None and b is not None else None)
-            value = _ci(values)
+            value = _independent_difference(summaries,
+                [(f"R0-{delay}-gc{gc}", 1), (f"R0-none-gc{gc}", -1)])
             if value is not None:
                 labels.append(f"{gc} µs\n{delay}")
                 centers.append(value[0]); errors.append(value[1])
@@ -213,14 +263,9 @@ def render(paths: list[Path], out: Path):
         for delay in ("wait1msU", "wait10msU", "wait10msR"):
             x, y, err = [], [], []
             for rate in (0, 25, 50, 75, 95):
-                cells = []
-                for rep in range(3):
-                    terms = [summaries[cid][rep]["gc_boundary_mean_us"] for cid in (
-                        f"R{rate}-{delay}-gc{gc}", f"R{rate}-none-gc{gc}",
-                        f"R0-{delay}-gc{gc}", f"R0-none-gc{gc}")]
-                    cells.append(V.df_interaction(*terms) if all(x is not None for x in terms)
-                                 else None)
-                value = _ci(cells)
+                value = _independent_difference(summaries, [
+                    (f"R{rate}-{delay}-gc{gc}", 1), (f"R{rate}-none-gc{gc}", -1),
+                    (f"R0-{delay}-gc{gc}", -1), (f"R0-none-gc{gc}", 1)])
                 if value is not None:
                     x.append(rate); y.append(value[0]); err.append(value[1])
             axes[1, 0].errorbar(x, y, yerr=err, color=color, linestyle=STYLES[delay],
@@ -231,7 +276,7 @@ def render(paths: list[Path], out: Path):
         for metric, style, label in (
             ("dc_cf_wait_mean_us", "-", "first flag opportunity"),
             ("dc_ro_gap_mean_us", "--", "actual flag gap"),
-            ("dc_leader_wait_mean_us", ":", "leader observation")):
+            ("dc_leader_wait_mean_us", ":", "last flag raise to publication detection")):
             points = []
             for rate in (0, 25, 50, 75, 95):
                 value = _metric(runs[f"R{rate}-none-gc{gc}"], metric)
@@ -249,9 +294,9 @@ def render(paths: list[Path], out: Path):
         ax.legend(fontsize=6, ncol=2, loc="upper left")
     _save(fig, out, "decompositions", common,
           {cid: [s["dc_ro_gap_mean_us"] for s in rows] for cid, rows in summaries.items()},
-          "D-F is a between-condition total difference; D-C partitions observed timestamps. Panels have separate units.")
+          "D-F is a between-condition total difference with independent-run uncertainty; D-C partitions observed timestamps. The third term ends at publication detection. Panels have separate units.")
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(24, 9))
     for k in (1, 4, 8):
         idx = V.K.index(k)
         for fixed in (0, .5, 1):
@@ -266,14 +311,14 @@ def render(paths: list[Path], out: Path):
                 x, y, e = zip(*points)
                 axes[0].errorbar(x, y, yerr=e, marker="o", capsize=2,
                                  label=f"K={k}; fixed fraction f={fixed:g}")
-    axes[0].set(title="(a) Optimistic eligibility on observed chains",
+    axes[0].set(title="(a) Optimistic eligibility: observed chains, first K, read interval",
                 xlabel="Specified read-only procedures (%)", ylabel="Eligible share; first K versions and read interval")
     _draw(axes[1], ids, runs, "local_flag_opportunity", title="(b) Local opportunity relative to publication interval",
           ylabel="Observed read-only gap / publication interval")
     axes[0].legend(fontsize=7, ncol=2)
     _save(fig, out, "opportunities", common,
           {cid: [s["local_flag_opportunity"] for s in rows] for cid, rows in summaries.items()},
-          "(a) Assumes independence of fixed-snapshot need and eligibility; (b) is a local timestamp opportunity, not boundary advance.")
+          "(a) Optimistic eligibility limited to observed chains, first K versions and read interval; assumes independence of fixed-snapshot need. (b) is a local opportunity relative to publication interval, not boundary advance.")
 
 
 def main(argv=None):

@@ -225,6 +225,25 @@ def test_tuned_compile_commands_match_cicada_definitions():
             raise AssertionError("missing tuned inline version definition accepted")
 
 
+def test_default_compile_commands_match_cmake_defaults():
+    with tempfile.TemporaryDirectory(prefix="cvl-default-genome-") as td:
+        path = Path(td) / "compile_commands.json"
+        row = {"file": str(ROOT / "external/ccbench/cc/cicada/transaction.cc"),
+               "arguments": ["c++", *[f"-D{k}={v}" for k, v in V.DEFAULT_GENOME.items()],
+                             "-c", "transaction.cc"]}
+        path.write_text(json.dumps([row]))
+        assert V.verify_genome_commands(path, "default")["genome"] == "default"
+        row["arguments"].remove("-DINLINE_VERSION_PROMOTION=1")
+        row["arguments"].append("-DINLINE_VERSION_PROMOTION=0")
+        path.write_text(json.dumps([row]))
+        try:
+            V.verify_genome_commands(path, "default")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("wrong default promotion accepted")
+
+
 def test_readonly_figure_full_campaign_layout():
     script = ROOT / "tools/plotting/plot_vhash_readonly_share.py"
     spec = importlib.util.spec_from_file_location("plot_vhash_readonly_share", script)
@@ -285,6 +304,9 @@ def test_readonly_figure_full_campaign_layout():
         for stem in ("depth_share", "boundary_age", "decompositions", "opportunities"):
             assert all((out / f"{stem}.{suffix}").is_file()
                        for suffix in ("png", "pdf", "provenance.json"))
+        for stem in ("depth_share", "boundary_age"):
+            provenance = json.loads((out / f"{stem}.provenance.json").read_text())
+            assert "T (tuned) vs R (default)" in provenance["caption"]
 
 
 def test_patch_draw_guard_and_readonly_gc_observation():
@@ -298,12 +320,53 @@ def test_patch_draw_guard_and_readonly_gc_observation():
     assert "draw.next()" in guard
     assert "pro.ope_ = Ope::READ" in guard
     assert guard.index("FLAGS_izanagi_ronly_pct >= 0") < guard.index("draw.next()")
+    outside = begin.replace(guard, "")
+    assert "draw.next()" not in outside
+    assert "pro.ope_ = Ope::READ" not in outside
     commit = source.split(" bool TxExecutor::commit() {", 1)[1]
     ro = commit.split("   if (this->is_ronly_) {", 1)[1].split("+#line 935", 1)[0]
     assert "loadAcquire(GCFlag[thid_].obj_)" in ro
     assert "chkClkSpan(gcstart_, now" in ro
     assert not re.search(r"(?:store|exchange|fetch_\w+)\s*\([^;]*?(?:GCFlag|gcstart_)", ro)
-    assert not re.search(r"(?:GCFlag\[[^]]+\]|gcstart_)\s*=", ro)
+    assert not re.search(r"(?:GCFlag\[[^]]+\](?:\.obj_)?|gcstart_)\s*=", ro)
+    assert not re.search(r"(?:__atomic_store_n|storeRelease|\.store)\s*\([^;]*?(?:GCFlag|gcstart_)", ro)
+    assert not re.search(r"GCFlag\[[^]]+\](?:\.obj_)?\.store\s*\(", ro)
+    assert not re.search(r"(?:this->)?gcstart_\s*(?:=|\+=|-=|\+\+|--)", ro)
+
+
+def test_mut11_event_generation_and_current_holder():
+    source = V.PATCH.read_text()
+    mainte = source.split("@@ -883", 1)[1].split(
+        "bool TxExecutor::commit()", 1)[0]
+    assert "vlife_epoch_.load(std::memory_order_acquire)" in mainte
+    assert "vlife_slot_generation_" not in mainte
+    leader = source.split("void TxExecutor::leaderWork()", 1)[1]
+    assert "vlife_holders_[i]" in leader
+    assert "holder_match[i]" in leader
+
+
+def test_mut12_measure_fixed_one_million():
+    assert V.MEASURE_RECORDS == 1000000
+    source = Path(V.__file__).read_text()
+    assert 'records = _smoke_records(args.smoke_json)' in source
+    assert 'if probes[str(MEASURE_RECORDS)]["maxrss_kb"] * 1024 < 4 * l3_bytes' in source
+
+
+def test_mut13_readonly_depth_and_reads_follow_deleted_guard():
+    source = V.PATCH.read_text()
+    read = source.split('if (ver->ldAcqStatus() == VersionStatus::deleted)', 1)[1]
+    section = read.split('read_set_.emplace_back', 1)[1].split('vlife_lower_ =', 1)[0]
+    assert '++vlife().readonly_reads' in section
+    assert '++vlife().readonly_deep[i]' in section
+    assert '++vlife().readonly_candidate[i]' in section
+    before = source.split('if (ver->ldAcqStatus() == VersionStatus::deleted)', 1)[0]
+    assert '++vlife().readonly_deep[i]' not in before
+
+
+def test_mut15_tuned_comparison_panels_exist():
+    script = (ROOT / "tools/plotting/plot_vhash_readonly_share.py").read_text()
+    assert script.count('_draw_tuned(axes[2,') >= 2
+    assert '"T (tuned) vs R (default)"' in script or 'T (tuned) vs R (default):' in script
 
 
 def test_k_boundary_and_condition_subset():
@@ -384,12 +447,12 @@ def test_smoke_identity_binds_records():
                "time_budget": {"estimated_node_s": 3000},
                "calibration": {"l3_bytes": 1000000,
                                "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
-                                          for n, rss in ((1000000, 1000),
+                                          for n, rss in ((1000000, 5000),
                                                          (2000000, 5000),
                                                          (4000000, 8000))},
-                               "selected_records": 2000000}}
+                               "selected_records": 1000000}}
         path.write_text(json.dumps(raw))
-        assert V._smoke_records(path) == 2000000
+        assert V._smoke_records(path) == 1000000
         raw["patch_sha256"] = "0" * 64
         path.write_text(json.dumps(raw))
         try:
@@ -425,10 +488,11 @@ def test_smoke_recomputes_calibration_and_requires_success():
             except ValueError:
                 return
             raise AssertionError("invalid smoke accepted")
-        rejected()  # MUT-8: 2M is the smallest passing probe, not 4M.
-        raw["calibration"]["selected_records"] = 2000000
+        rejected()  # Fixed 1M is the only permitted measure size.
+        raw["calibration"]["selected_records"] = 1000000
+        raw["calibration"]["probes"]["1000000"]["maxrss_kb"] = 5000
         path.write_text(json.dumps(raw))
-        assert V._smoke_records(path) == 2000000
+        assert V._smoke_records(path) == 1000000
         raw["witness"]["normalized_rodata_equal"] = False
         rejected()
         raw["witness"]["normalized_rodata_equal"] = True
@@ -498,9 +562,9 @@ def test_smoke_delay_failure_preserves_other_stages_and_rejects_measure():
             return binaries[name], {"sha256": name, "elapsed_s": 1.0}
         calibration = {"l3_bytes": 1000000,
                        "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
-                                  for n, rss in ((1000000, 1000), (2000000, 5000),
+                                  for n, rss in ((1000000, 5000), (2000000, 5000),
                                                  (4000000, 8000))},
-                       "selected_records": 2000000}
+                       "selected_records": 1000000}
         with (patch.object(V.site_policy, "current_site", return_value="compute"),
               patch.object(V.site_policy, "refuses_heavy_work", return_value=False),
               patch.object(V, "_assert_single_tenant"),
@@ -526,7 +590,7 @@ def test_smoke_delay_failure_preserves_other_stages_and_rejects_measure():
         assert raw["delay_compile"]["stderr_tail"] == ""
         assert set(raw["builds"]) == {"stock", "default", "enabled", "tuned_enabled"}
         assert raw["witness"]["normalized_objdump_equal"]
-        assert raw["calibration"]["selected_records"] == 2000000
+        assert raw["calibration"]["selected_records"] == 1000000
         assert raw["short_run"]["rc"] == 0
         assert "error" in raw
         try:
@@ -552,9 +616,9 @@ def test_smoke_records_failed_delay_compile_without_failing():
             return binaries[name], {"sha256": name, "elapsed_s": 1.0}
         calibration = {"l3_bytes": 1000000,
                        "probes": {str(n): {"rc": 0, "maxrss_kb": rss}
-                                  for n, rss in ((1000000, 1000), (2000000, 5000),
+                                  for n, rss in ((1000000, 5000), (2000000, 5000),
                                                  (4000000, 8000))},
-                       "selected_records": 2000000}
+                       "selected_records": 1000000}
         with (patch.object(V, "checkout", return_value=nullcontext(str(root))),
               patch.object(V, "applied", return_value=nullcontext()),
               patch.object(V, "_build_variant", side_effect=build),
@@ -574,7 +638,7 @@ def test_smoke_records_failed_delay_compile_without_failing():
         raw.update(schema_version=1, command="smoke", ccbench_commit=V.PIN,
                    patch_sha256=hashlib.sha256(V.PATCH.read_bytes()).hexdigest())
         path.write_text(json.dumps(raw))
-        assert V._smoke_records(path) == 2000000
+        assert V._smoke_records(path) == 1000000
 
 
 def test_batch_extension_stays_in_begin_and_retries_same_procedure():
@@ -633,8 +697,13 @@ def _run():
              test_schema2_readonly_denominator_and_holder_weights,
              test_conditions_and_genome_binding, test_df_interaction_sign,
              test_tuned_compile_commands_match_cicada_definitions,
+             test_default_compile_commands_match_cmake_defaults,
              test_readonly_figure_full_campaign_layout,
              test_patch_draw_guard_and_readonly_gc_observation,
+             test_mut11_event_generation_and_current_holder,
+             test_mut12_measure_fixed_one_million,
+             test_mut13_readonly_depth_and_reads_follow_deleted_guard,
+             test_mut15_tuned_comparison_panels_exist,
              test_k_boundary_and_condition_subset,
              test_real_patch_define_registry_and_rejection,
              test_patch_default_preprocess_matches_stock,
