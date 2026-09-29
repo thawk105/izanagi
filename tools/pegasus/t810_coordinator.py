@@ -535,8 +535,19 @@ def repository_roots_from_git_identity(identity: GitIdentity) -> frozenset[Path]
             gitdir = admin / "gitdir"
             if gitdir.is_symlink():
                 _fail("git common-dir contains an invalid worktree registration")
-            registered_raw = _read_regular_bytes(gitdir, "worktree registration")
-            assert registered_raw is not None
+            registered_raw = _read_regular_bytes(
+                gitdir, "worktree registration", missing_ok=True,
+            )
+            if registered_raw is None:
+                try:
+                    os.lstat(admin / "locked")
+                except FileNotFoundError:
+                    continue
+                except OSError as exc:
+                    raise T810CoordinatorError(
+                        "cannot inspect worktree registration lock"
+                    ) from exc
+                _fail("cannot read worktree registration: file is absent")
             try:
                 registered_text = registered_raw.decode("utf-8").strip()
             except UnicodeError as exc:
