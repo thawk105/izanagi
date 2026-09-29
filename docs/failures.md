@@ -19948,6 +19948,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   indeterminate になって初めて判明した (D2241 項 4、`output/insights/2026-09-26/t2851-transfer-runner/README.md` §3)。
   今回の穴は実装子の選択ではなく**親が prompt で検査対象の機構そのものの stub を許した**ことで、`DW-S05-C` の「依存先を stub しない」の例外句が機構の中心に掛かった。
   fix で、実 verifier のまま最小 trace で certified / indeterminate を切り替える正例・負例 test を足した (変異 M13 で検出を確認)。
+
+- **再発: 2026-09-29** — silo-function-policy 軸の生成器対照 ([T-2867]) の driver の単位実行を、テストは `measure_slot` を差し替えて確かめていたため、1 job の全 slot で 1 つの authorization session を共有する欠陥 (session は最初の計測 identity に束縛される) が緑のまま残り、計算ノードの生死確認で 3 本とも stock の後に `binding mismatch` で止まった。実物の `authorization_session`・`_authorize_measurement`・claim を通す結合テストを足し (修正前のコードでは同じ例外で赤)、slot ごとに session を開いて直した。記録 `output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md` §4。
 ### F650. 共有 hydrate 先を job が in-place でビルドし、2 本目以降が必ず fail-closed する [手順漏れ] [計測汚染]
 
 - 事象: mocc trace pilot の 2 本目が build 前に rc=1 で止まった。message は
@@ -28603,6 +28605,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: `docs/phase3-silo-policy-runbook.md` §1(d) に「spawn の prompt に gate の閉じた出力形を明記し、拒否されたら値を直さず同じ入力で再審査させる」手順を足した (本 wave の 2 回目の auditor はこの形で gate を通った)。role 本文の改訂はユーザー承認事項なので [T-2870] に起票した。
 - 再発検知: driver の `load_proposal_file` が auditor 出力を gate に通す時点の `AuditorGateFailure` (fails-closed。値の補正で迂回しない)。
 
+
+- **再発: 2026-09-29** — 同じ対照の round tool のテストは coder の出力を axis と implementation を直接持つ object で与えていたが、coder role の実出力は runbook §1(b) のとおり `proposal` だけを top key に持つ object で、round tool がそれを剥がさずに `coder` の値として包み、実 LLM の初回の原提案で driver の preview が schema 不合格にした (LLM 2 系列で A を誤って 1 消費)。role の実出力と同じ形のテストを足し、round tool が `proposal` を展開するよう直した。記録は同じ insight §4。
 ### F1055. 段 4 裁定が「生死確認で問題なし」として、生死確認が観測していない性質 (source tree の gitlink) の扱いを決め、実 CCBench の判定 job が止まった [未実測] [手順漏れ]
 
 - 事象: [T-2854] (1) の段 4 裁定 S8 に「symlink・gitlink は拒否 (CCBench では生死確認で問題なし)」と書いた。実装どおりの検査器で走らせた判定 job 1 回目 (31898.nqsv、Elapse 10 秒) は、C・C2' の tree にある gitlink `third_party/shirakami` を「source tree に regular file 以外」として GCC 2 版とも拒否し、比較に入れなかった。計算 job 1 本と fix 1 巡 (実機 blocker) を失った。
