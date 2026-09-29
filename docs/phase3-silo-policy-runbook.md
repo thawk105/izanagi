@@ -118,7 +118,11 @@ python3 -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-en
   数える。login の record-reject が先に loop_state を作った系列では、queue 待ちも予算に入る。残りが足りなければ
   投入せず、予算停止として記録する。2 本目以降の pair は、前の pair の request ID を `qsub --after <request>` に
   渡して先に待ち行列へ入れると、直列を scheduler に保たせたまま待ちを前の job と重ねられる (2026-09-29 に 2 本連続で
-  実測、`output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §5)。
+  実測、`output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §5)。LLM を回す系列では次の proposal が
+  前の pair の critic の後にしかできないので、`qsub -h --after <request>` で保留状態のまま入れ、proposal の preview 通過と
+  auditor の `diff_digest` の一致を確かめてから `qrls` する (保留しないと、前の pair の終了後に proposal の確定を待たず job が
+  始まりうる。保留投入と解除は 2026-09-29 系列 C で 2 本実測、`output/insights/2026-09-29/t2865-silo-policy-series-c/README.md` §3。
+  同系列は `--after` の指定を投入記録に残していない)。
 - `--allow-coder-derived-build` が無ければ build は拒否される。配線確認だけなら login で `--no-build`
   (検査を通れば `dry-pass` を返すが、WAL・履歴・critic digest には載らない)。
 - driver は検疫 → 構文検査 → 単独 TU → auditor digest 照合 → 書込 → digest 再照合 → build → legacy verify →
