@@ -6,6 +6,7 @@ from .model import State, Txn, Version, enabled_steps, visible, _hot
 
 NAMES = tuple(f"S{i}" for i in range(1, 11))
 GC_NAMES = tuple(f"G{i}" for i in range(1, 7))
+HELPER_NAMES = tuple(f"H{i}" for i in range(1, 7))
 
 
 def _v(key, ts, rts=None):
@@ -17,6 +18,49 @@ def _t(name, ts, *ops):
 
 
 def scenario(name):
+    if name in HELPER_NAMES:
+        specs = {
+            "H1": ((("A", 20), ("B", 40), ("B", 60)),
+                   (("T", 45, (("R", "A"), ("WAIT", ""))), ("W", 50, (("W", "B"),)))),
+            "H2": ((("A", 20), ("B", 40), ("B", 60), ("B", 80)),
+                   (("T", 45, (("R", "A"), ("WAIT", ""), ("R", "B"))),)),
+            "H3": ((("A", 20), ("B", 40), ("B", 60)),
+                   (("T", 45, (("R", "A"), ("WAIT", ""), ("R", "B"))),
+                    ("W", 50, (("W", "A"),)))),
+            "H4": ((("A", 20), ("B", 40)),
+                   (("T", 45, (("R", "A"), ("WAIT", ""), ("R", "B"))),
+                    ("W", 50, (("W", "A"), ("W", "B"))))),
+            "H5": ((("A", 10), ("B", 11), ("B", 25)),
+                   (("T", 15, (("R", "A"), ("WAIT", ""), ("W", "B"))),
+                    ("W", 20, (("R", "B"), ("W", "A"))))),
+            "H6": ((("A", 20), ("B", 40), ("B", 60)),
+                   (("T", 45, (("R", "A"), ("WAIT", ""))),
+                    ("U", 35, (("R", "A"), ("WAIT", ""))))),
+        }
+        versions, txns = specs[name]
+        state = State(tuple(_v(k, ts) for k, ts in versions),
+                      tuple(_t(tid, ts, *ops) for tid, ts, ops in txns))
+        def predicate(b, a, x, trace):
+            steps = trace()
+            ops = [z.operation for z in steps]
+            t = next(t for t in a.txns if t.id == "T")
+            if name == "H1":
+                return x.operation == "read_floor" and "h_publish" in ops and t.pc == 1
+            if name == "H2":
+                return (x.operation in ("h_commit", "h_commit_fail") and "end_wait" in ops
+                        and ops.index("h_snapshot") < ops.index("end_wait")) or (
+                            x.operation in ("end_wait", "end_wait_revert") and "h_commit" in ops
+                            and "h_publish" not in ops)
+            if name == "H3":
+                return (x.operation == "read_floor" and "h_snapshot" in ops
+                        and any(z.operation == "install" and z.version == "W:A" for z in steps)
+                        and t.cand_ts == t.start and a.helper.failed)
+            if name == "H4":
+                return x.operation == "end_wait" and "h_expire" in ops and "reclaim" in ops
+            if name == "H5":
+                return x.operation == "install" and x.version == "W:A" and "h_check" in ops and "h_commit" not in ops
+            return x.operation == "read_floor" and "h_publish" in ops and t.pc == 1 and next(u for u in a.txns if u.id == "U").gc_floor == 35
+        return state, predicate
     if name == "G1":
         state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
                       (_t("T", 45, ("R", "A"), ("WAIT", "")),
@@ -149,8 +193,21 @@ def scenario(name):
 
 def danger_witness(name):
     """Unsafe outcomes, distinct from the interruption-window witnesses."""
-    if name in ("G1", "G2"):
+    if name in ("H1", "H6", "G1", "G2"):
         return None
+    if name == "H2":
+        from .judge import j3
+        return lambda b, a, x: (bool(j3(b, a, x)) and any(
+            t.id == "T" and t.cand_ts < t.gc_floor for t in a.txns))
+    if name == "H3":
+        return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(
+            t.id == "T" and t.cand_ts == 45 for t in b.txns)
+    if name == "H4":
+        return lambda b, a, x: x.thread == "T" and x.operation == "touch_reclaimed" and any(
+            t.id == "T" and t.expired for t in b.txns)
+    if name == "H5":
+        from .judge import j1
+        return lambda b, a, x: x.operation == "decide_committed" and bool(j1(a))
     if name == "G3":
         return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(
             t.id == "T" and t.cand_ts == 45 and t.pc == 1 and t.phase in

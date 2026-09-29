@@ -85,7 +85,7 @@ def j3(before, after, step):
     if step.operation == "touch_reclaimed":
         return {"version": step.version, "txn": step.thread, "reason": "use_after_free"}
     for old, new in zip(before.txns, after.txns):
-        if new.cand_ts < old.cand_ts:
+        if not new.expired and new.cand_ts < old.cand_ts:
             for v in after.versions:
                 if v.reclaimed and _needed_future(after, new, v):
                     return {"version": v.id, "txn": new.id, "reason": "rollback",
@@ -98,6 +98,8 @@ def j3(before, after, step):
             continue
         if v.id in t.refs:
             return {"version": v.id, "txn": t.id, "reason": "reference", "gc_step": step.operation}
+        if t.expired:
+            continue
         if v.id in (vid for _, vid in t.read_log):
             return {"version": v.id, "txn": t.id, "reason": "read_log", "gc_step": step.operation}
         if _needed_future(before, t, v):

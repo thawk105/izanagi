@@ -16,6 +16,7 @@ from collections import deque
 from dataclasses import dataclass, field, replace
 from inspect import signature
 from time import monotonic
+from .helper import HelperState, helper_steps
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,11 @@ class Txn:
     tried_targets: tuple[int, ...] = ()
     pressure_base_confirmed: int = 0
     pressure_base_floor: int = 0
+    gen: int = 0
+    expired: bool = False
+    helper_base: int = 0
+    resume_used: bool = False
+    held_refs: tuple[str, ...] = ()
 
     def __post_init__(self):
         if not self.cand_ts:
@@ -68,6 +74,7 @@ class State:
     txns: tuple[Txn, ...]
     k: int = 1
     gc_seen: int | None = None
+    helper: HelperState = HelperState()
     _cached_hash: int = field(init=False, compare=False, repr=False)
 
     def __post_init__(self):
@@ -77,7 +84,7 @@ class State:
         assert all(len(t.ops) <= 4 and sum(op != "WAIT" for op, _ in t.ops) <= 3
                    for t in self.txns)
         assert self.k in (1, 2)
-        object.__setattr__(self, "_cached_hash", hash((self.versions, self.txns, self.k, self.gc_seen)))
+        object.__setattr__(self, "_cached_hash", hash((self.versions, self.txns, self.k, self.gc_seen, self.helper)))
 
     def __hash__(self):
         return self._cached_hash
@@ -120,7 +127,7 @@ def check_timestamp_uniqueness(s: State) -> None:
 
 
 def _put_txn(s: State, t: Txn) -> State:
-    return State(s.versions, tuple(t if x.id == t.id else x for x in s.txns), s.k, s.gc_seen)
+    return replace(s, txns=tuple(t if x.id == t.id else x for x in s.txns))
 
 
 def floor_lowering_transition(before: State, after: State) -> bool:
@@ -129,7 +136,7 @@ def floor_lowering_transition(before: State, after: State) -> bool:
 
 
 def _put_version(s: State, v: Version) -> State:
-    return State(tuple(v if x.id == v.id else x for x in s.versions), s.txns, s.k, s.gc_seen)
+    return replace(s, versions=tuple(v if x.id == v.id else x for x in s.versions))
 
 
 def _version(s: State, vid: str) -> Version:
@@ -168,7 +175,8 @@ def _writes(t: Txn) -> tuple[str, ...]:
 
 def _next_free(s: State, minimum: int) -> int:
     used = ({v.wts for v in s.versions} | {t.start for t in s.txns}
-            | {t.cand_ts for t in s.txns} | {t.target for t in s.txns if t.target})
+            | {t.cand_ts for t in s.txns} | {t.target for t in s.txns if t.target}
+            | ({s.helper.target} if s.helper.target else set()))
     while minimum in used:
         minimum += 1
     return minimum
@@ -211,7 +219,7 @@ def _abort_or_next(t: Txn, success: bool) -> Txn:
 
 
 def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool = False,
-             pressure: str = "off") -> tuple[State, Step] | None:
+             pressure: str = "off", revert_after_confirm: bool = False) -> tuple[State, Step] | None:
     if t.phase == "done":
         return None
     if t.phase == "ops":
@@ -219,6 +227,15 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
             return _put_txn(s, replace(t, phase="fixed")), Step(t.id, "begin_commit")
         op, key = t.ops[t.pc]
         if op == "WAIT":
+            if pressure == "helper":
+                base = t.cand_ts
+                if "UH4" in faults and t.helper_base:
+                    base = t.helper_base
+                nt = replace(t, pc=t.pc + 1, phase="resume", gen=t.gen + 1,
+                             cand_ts=base, resume_used=False)
+                if base != t.cand_ts:
+                    nt = replace(nt, confirmed=tuple((vid, ts) for vid, ts in t.confirmed if ts <= base))
+                return _put_txn(s, nt), Step(t.id, "end_wait", fault="UH4" if "UH4" in faults and base != t.cand_ts else "")
             return _put_txn(s, replace(t, pc=t.pc + 1, pressure_request=False,
                                        tried_targets=())), Step(t.id, "end_wait")
         if op == "W" or key in _writes(t) and any(o == "W" and k == key for o, k in t.ops[:t.pc]):
@@ -248,6 +265,19 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
         return _read(s, t, key, cold=True, faults=faults)
     if t.phase == "drop_refs":
         return _put_txn(s, replace(t, phase="ops", refs=())), Step(t.id, "early_release_refs", fault="U3b")
+    if t.phase == "resume":
+        if not t.resume_used:
+            for vid in dict.fromkeys(t.refs + t.held_refs):
+                if _version(s, vid).reclaimed:
+                    return s, Step(t.id, "touch_reclaimed", vid)
+            return _put_txn(s, replace(t, resume_used=True)), Step(t.id, "use_values")
+        if t.expired:
+            if "UH5" in faults:
+                return _put_txn(s, replace(t, phase="ops")), Step(t.id, "check_expired", fault="UH5")
+            return _put_txn(s, replace(t, phase="resume_abort")), Step(t.id, "check_expired")
+        return _put_txn(s, replace(t, phase="ops")), Step(t.id, "check_expired")
+    if t.phase == "resume_abort":
+        return _put_txn(s, replace(t, phase="release", failed=True)), Step(t.id, "decide_aborted")
     if t.phase in ("f_rts", "f_check"):
         ids = tuple(vid for _, vid in t.read_log)
         # U1f swaps the two passes.
@@ -329,7 +359,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
         key = keys[t.index]
         vid = f"{t.id}:{key}"
         v = Version(vid, key, t.cand_ts, t.cand_ts, "PENDING", t.id)
-        ns = State(s.versions + (v,), s.txns, s.k, s.gc_seen)
+        ns = replace(s, versions=s.versions + (v,))
         nt = replace(t, index=t.index + 1, pending=t.pending + (vid,))
         return _put_txn(ns, nt), Step(t.id, "install", vid)
     if t.phase in ("v_rts", "v_check"):
@@ -375,8 +405,9 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                                            "")
     if t.phase == "decision":
         status = "ABORTED" if t.failed else "COMMITTED"
-        ns = State(tuple(replace(v, status=status) if v.id in t.pending else v for v in s.versions),
-                   s.txns, s.k, s.gc_seen)
+        if t.expired:
+            status = "ABORTED"
+        ns = replace(s, versions=tuple(replace(v, status=status) if v.id in t.pending else v for v in s.versions))
         return _put_txn(ns, replace(t, phase="release")), Step(t.id, "decide_" + status.lower())
     if t.phase == "release":
         return _put_txn(s, replace(t, phase="done", refs=())), Step(t.id, "release_refs", fault="U3b" if "U3b" in faults else "")
@@ -384,10 +415,10 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
 
 
 def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
-    active = [t for t in s.txns if t.phase != "done"]
+    active = [t for t in s.txns if t.phase != "done" and not t.expired]
     b = min((t.gc_floor for t in active), default=max((v.wts for v in s.versions), default=0) + 1)
     if s.gc_seen != b:
-        return [(State(s.versions, s.txns, s.k, b), Step("GC", "read_floor"))]
+        return [(replace(s, gc_seen=b), Step("GC", "read_floor"))]
     out = []
     refs = {vid for t in s.txns for vid in t.refs}
     for v in s.versions:
@@ -405,13 +436,27 @@ def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
 
 
 def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = frozenset(),
-                  o1: bool = False, pressure: str = "off", revert_after_confirm: bool = False):
+                  o1: bool = False, pressure: str = "off", revert_after_confirm: bool = False,
+                  resume: str = "accept"):
     assert protocol in ("v0", "v1")
     assert len(faults) <= 1
     for t in s.txns:
-        result = txn_step(s, t, protocol, faults, o1, pressure)
+        result = txn_step(s, t, protocol, faults, o1, pressure, revert_after_confirm)
         if result is not None:
             yield result
+        if pressure == "helper" and t.phase == "resume" and not t.resume_used:
+            if t.expired and "UH5" not in faults:
+                yield _put_txn(s, replace(t, phase="resume_abort")), Step(t.id, "check_expired")
+            elif t.expired:
+                yield _put_txn(s, replace(t, phase="ops")), Step(t.id, "check_expired", fault="UH5")
+            else:
+                yield _put_txn(s, replace(t, phase="ops")), Step(t.id, "check_expired")
+        if pressure == "helper" and revert_after_confirm and t.phase == "ops" and t.pc < len(t.ops) and t.ops[t.pc][0] == "WAIT" and t.helper_base and t.gc_floor < t.cand_ts:
+            # The alternate end_wait edge cancels an unpublished H4.
+            nt = replace(t, pc=t.pc + 1, phase="resume", gen=t.gen + 1,
+                         cand_ts=t.helper_base, resume_used=False,
+                         confirmed=tuple((vid, ts) for vid, ts in t.confirmed if ts <= t.helper_base))
+            yield _put_txn(s, nt), Step(t.id, "end_wait_revert")
         if pressure == "self" and t.phase == "ops" and t.pc < len(t.ops) and t.ops[t.pc] == ("WAIT", ""):
             if not t.pressure_request:
                 yield _put_txn(s, replace(t, pressure_request=True)), Step("GC", "request_pressure", t.id)
@@ -433,6 +478,9 @@ def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = froze
                          confirmed=t.confirmed[:t.pressure_base_confirmed],
                          pressure_request=False)
             yield _put_txn(s, nt), Step(t.id, "pressure_revert")
+    if pressure == "helper":
+        assert all(sum(op == "WAIT" for op, _ in t.ops) <= 1 for t in s.txns)
+        yield from helper_steps(s, faults, resume)
     yield from gc_steps(s, faults)
 
 
@@ -464,11 +512,11 @@ def fault_changes_forward_check(initial: State, trace: list[Step], fault: str,
 
 
 def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False,
-           pressure="off", revert_after_confirm=False) -> State:
+           pressure="off", revert_after_confirm=False, resume="accept") -> State:
     s = initial
     for step in trace:
         matches = [(n, x) for n, x in enabled_steps(s, protocol, frozenset((fault,)) if fault else frozenset(), o1,
-                                                pressure, revert_after_confirm)
+                                                pressure, revert_after_confirm, resume)
                    if x == step]
         assert len(matches) == 1, step
         s = matches[0][0]
@@ -478,7 +526,7 @@ def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False,
 def explore(initial: State, protocol="v1", fault="", witness=None, max_states=None,
             o1=False, max_seconds=None, all_transitions=False, danger=None,
             pressure="off", revert_after_confirm=False, state_invariant=None,
-            transition_invariant=None, collect_effects=True):
+            transition_invariant=None, collect_effects=True, resume="accept"):
     """Explore every enabled edge, including edges to states already visited.
 
     J1 and J2 depend only on committed transactions and committed versions, so
@@ -488,6 +536,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     """
     from .judge import judge
     faults = frozenset((fault,)) if fault else frozenset()
+    assert resume in ("accept", "expire")
     began = monotonic()
     witness_uses_trace = witness is not None and len(signature(witness).parameters) == 4
     danger_uses_trace = danger is not None and len(signature(danger).parameters) == 4
@@ -508,6 +557,8 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                    "g2": {"T_only": None, "both": None}}
     terminals = deadlocks = floor_lowering_transitions = 0
     timed_out = False
+    fault_step_seen = False
+    floor_above_cand_states = 0
     def trace(s):
         steps = []
         while parent[s] is not None:
@@ -519,6 +570,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             timed_out = True
             break
         s = queue.popleft()
+        floor_above_cand_states += any(t.gc_floor > t.cand_ts and not t.expired for t in s.txns)
         if effects is not None:
             from .gc_connection import effect_snapshot
             t = next((t for t in s.txns if t.id == "T"), None)
@@ -536,12 +588,13 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                         "both" if both_wait and t.gc_floor > t.start and u.gc_floor > u.start else "")
                     if label and (effects["g2"][label] is None or snap["B"] > effects["g2"][label]["snapshot"]["B"]):
                         effects["g2"][label] = {"snapshot": snap, "steps": trace(s)}
-        steps = list(enabled_steps(s, protocol, faults, o1, pressure, revert_after_confirm))
+        steps = list(enabled_steps(s, protocol, faults, o1, pressure, revert_after_confirm, resume))
         if not steps:
             terminals += 1
             if any(t.phase != "done" for t in s.txns):
                 deadlocks += 1
         for ns, step in steps:
+            fault_step_seen |= bool(fault and step.fault == fault)
             floor_lowering_transitions += floor_lowering_transition(s, ns)
             if transition_invariant is not None:
                 transition_invariant(s, ns, step)
@@ -587,6 +640,21 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                     if best is None or (delta_B, delta_freed) > (best["delta_B"], best["delta_freed"]):
                         effects["attributable"] = {"delta_B": delta_B, "delta_freed": delta_freed,
                                                    "before": old, "after": new, "steps": trace(s) + [step]}
+            if effects is not None and pressure == "helper" and step.thread == "H" and step.operation in ("h_publish", "h_expire") and step.version == "T":
+                old_t = next(t for t in s.txns if t.id == "T")
+                new_t = next(t for t in ns.txns if t.id == "T")
+                if step.operation == "h_publish":
+                    control = _put_txn(ns, replace(new_t, gc_floor=old_t.gc_floor))
+                else:
+                    control = _put_txn(ns, replace(new_t, expired=False))
+                old, new = effect_snapshot(control), effect_snapshot(ns)
+                row = {"delta_B": new["B"] - old["B"], "delta_freed": new["freed"] - old["freed"],
+                       "delta_reclaimed": new["reclaimed"] - old["reclaimed"],
+                       "delta_reclaimable": new["reclaimable"] - old["reclaimable"],
+                       "before": old, "after": new, "steps": trace(s) + [step]}
+                best = effects["attributable"]
+                if best is None or (row["delta_B"], row["delta_freed"]) > (best["delta_B"], best["delta_freed"]):
+                    effects["attributable"] = row
             if ns in parent:
                 continue
             parent[ns] = (s, step)
@@ -612,17 +680,18 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             "violation_kinds": {k: sorted(v) for k, v in violation_kinds.items()},
             "witness": {"reached": witness_trace is not None, "steps": witness_trace or []},
             "danger": {"reached": danger_trace is not None, "steps": danger_trace or []},
-            "effects": effects}
+            "effects": effects, "fault_step_seen": fault_step_seen,
+            "floor_above_cand_states": floor_above_cand_states}
 
 
 def aborted_after_fault(initial: State, fault: str, o1: bool = False,
-                        pressure: str = "off") -> list[Step] | None:
+                        pressure: str = "off", revert_after_confirm=False, resume="accept") -> list[Step] | None:
     """Find a fault step followed by that transaction's failed commit validation."""
     queue = deque([(initial, "", False, [])])
     seen = {(initial, "", False)}
     while queue:
         state, actor, failed_validation, trace = queue.popleft()
-        for next_state, step in enabled_steps(state, "v1", frozenset((fault,)), o1, pressure):
+        for next_state, step in enabled_steps(state, "v1", frozenset((fault,)), o1, pressure, revert_after_confirm, resume):
             changed = step.fault == fault
             if changed and fault == "U5":
                 txn = next(t for t in state.txns if t.id == step.thread)
