@@ -242,8 +242,18 @@ def test_full_size_figure_layout_fixture():
                            for rep in range(6)]
     figures = make_figure(publication, boundary, throughput)
     try:
-        assert [ax.get_yscale() for fig in figures for ax in fig.axes] == ["log"] * 3
+        assert [ax.get_yscale() for fig in figures for ax in fig.axes] == [
+            "log", "linear", "log", "linear", "log"]
         assert "stock: 0 publications" in figures[0].axes[0].get_legend_handles_labels()[1]
+        assert len(figures[0].axes[1].texts) == 6
+        assert len(figures[0].axes[3].texts) == 6
+        assert all("0 (6/6)" in item.get_text() for item in figures[0].axes[1].texts)
+        assert all("undefined (6/6)" in item.get_text()
+                   for item in figures[0].axes[3].texts)
+        assert {item.get_color() for item in figures[1].axes[0].lines
+                if item.get_marker() in ("o", "s")} == {"tab:orange"}
+        assert {item.get_marker() for item in figures[1].axes[0].lines
+                if item.get_marker() in ("o", "s")} == {"o", "s"}
         for fig in figures:
             check_figure_layout(fig)
     finally:
@@ -259,6 +269,19 @@ def test_figure_layout_rejects_overlapping_real_text():
         ax.text(.5, .5, "overlap", transform=ax.transAxes)
         ax.text(.5, .5, "overlap", transform=ax.transAxes)
         with pytest.raises(ValueError, match="overlapping"):
+            check_figure_layout(fig)
+    finally:
+        plt.close(fig)
+
+
+def test_figure_layout_rejects_legend_inside_data_axes():
+    from tools.plotting.plot_vhash_ro_gc_publish import check_figure_layout
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    try:
+        ax.scatter([.5], [.5], label="point")
+        ax.legend(loc="upper left")
+        with pytest.raises(ValueError, match="legend overlaps data axes"):
             check_figure_layout(fig)
     finally:
         plt.close(fig)

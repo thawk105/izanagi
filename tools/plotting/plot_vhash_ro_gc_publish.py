@@ -176,16 +176,17 @@ def _set_log_range(ax, values: list[float]) -> None:
 
 def make_figure(publications: dict, boundary: dict, throughput: dict):
     plt.rcParams.update({"font.size": 8, "figure.dpi": 150})
-    fig1, axes = plt.subplots(2, 1, figsize=(16, 8), constrained_layout=True)
-    fig2, perf_ax = plt.subplots(figsize=(16, 5), constrained_layout=True)
+    fig1, rows = plt.subplots(4, 1, figsize=(17, 9), constrained_layout=True,
+                             gridspec_kw={"height_ratios": [3, .42, 3, .42]})
+    axes, strips = (rows[0], rows[2]), (rows[1], rows[3])
+    fig2, perf_ax = plt.subplots(figsize=(17, 5), constrained_layout=True)
     xs = np.arange(len(IDS))
     labels = [cid.replace("-gc10", "") for cid in IDS]
     arms = (("stock", "tab:blue", -.16), ("variant", "tab:orange", .16))
-    for ax, values, title, unit in (
-        (axes[0], publications, "Publication frequency", "publications/s"),
-        (axes[1], boundary, "Mean boundary age", "µs"),
+    for ax, strip, values, title, unit, absent in (
+        (axes[0], strips[0], publications, "Publication frequency", "publications/s", "0"),
+        (axes[1], strips[1], boundary, "Mean boundary age", "µs", "undefined"),
     ):
-        zero_labeled = False
         for arm_index, (arm, color, offset) in enumerate(arms):
             for i, cid in enumerate(IDS):
                 points = [pair[arm_index] for pair in values[cid]]
@@ -201,32 +202,41 @@ def make_figure(publications: dict, boundary: dict, throughput: dict):
                         ax.scatter(x, value, s=8, alpha=.4, color=color,
                                    label="individual runs" if i == 0 and rep == 0
                                    and arm == "stock" else None)
-                    elif arm == "stock" and publications[cid][rep][0] == 0:
-                        ax.scatter(x, .04, transform=ax.get_xaxis_transform(),
-                                   marker="x", s=12, color=color,
-                                   label="stock: 0 publications" if not zero_labeled else None)
-                        zero_labeled = True
+        for i, cid in enumerate(IDS):
+            missing = [pair[0] is None or pair[0] == 0 for pair in values[cid]]
+            if any(missing):
+                strip.text(i - .16, .5, f"× {absent} ({sum(missing)}/6)", color="tab:blue",
+                           ha="center", va="center", fontsize=7)
         ax.set_yscale("log")
         _set_log_range(ax, [value for cid in IDS for pair in values[cid]
                             for value in pair if value is not None and value > 0])
-        ax.set(title=title, ylabel=unit, xticks=xs, xticklabels=labels)
+        ax.set(title=title, ylabel=unit, xticks=[])
         ax.set_xlim(-.7, len(IDS) - .25)
-        ax.tick_params(axis="x", labelrotation=45)
-        plt.setp(ax.get_xticklabels(), ha="right")
         ax.grid(alpha=.2)
-        ax.legend(loc="upper left", ncol=3, fontsize=7)
+        ax.plot([], [], marker="x", linestyle="None", color="tab:blue",
+                label="stock: 0 publications" if absent == "0" else
+                      "stock: boundary age undefined")
+        ax.legend(loc="upper left", bbox_to_anchor=(1.005, 1), fontsize=7)
+        strip.set(xlim=(-.7, len(IDS) - .25), ylim=(0, 1), xticks=xs,
+                  xticklabels=labels, ylabel="stock")
+        strip.set_facecolor("#f2f2f2")
+        strip.set_yticks([])
+        strip.tick_params(axis="x", labelrotation=45)
+        plt.setp(strip.get_xticklabels(), ha="right")
     for i, cid in enumerate(IDS):
         values = throughput[cid]
         estimate = _mean_ci(values)
         if estimate is not None:
-            perf_ax.errorbar([i], [estimate[0]], yerr=[estimate[1]], fmt="o",
-                             color="tab:blue" if cid.startswith("S") else "tab:orange",
+            perf_ax.errorbar([i], [estimate[0]], yerr=[estimate[1]],
+                             fmt="o" if cid.startswith("S") else "s",
+                             color="tab:orange",
                              capsize=2,
                              label=f"{cid[0]} mean ± 95% CI" if i in (0, 6) else None)
         for rep, value in enumerate(values):
             if value is not None:
                 perf_ax.scatter(i + (rep - 2.5) * .045, value, s=9, alpha=.5,
-                                color="tab:blue" if cid.startswith("S") else "tab:orange",
+                                marker="o" if cid.startswith("S") else "s",
+                                color="tab:orange",
                                 label="individual runs" if i == 0 and rep == 0 else None)
     perf_ax.axhline(1, color="black", linestyle="--", linewidth=.8,
                     label="same throughput as stock")
@@ -238,7 +248,7 @@ def make_figure(publications: dict, boundary: dict, throughput: dict):
     perf_ax.tick_params(axis="x", labelrotation=45)
     plt.setp(perf_ax.get_xticklabels(), ha="right")
     perf_ax.grid(alpha=.2)
-    perf_ax.legend(loc="upper left", ncol=4, fontsize=7)
+    perf_ax.legend(loc="upper left", bbox_to_anchor=(1.005, 1), fontsize=7)
     fig1.suptitle("48 workers; 1M records; 3 s; GC 10 µs; S skew 0 / T skew 0.9")
     fig2.suptitle("48 workers; 1M records; 3 s; GC 10 µs; no TRACE, VLIFE or COUNT")
     return (fig1, fig2)
@@ -248,6 +258,10 @@ def check_figure_layout(fig) -> None:
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     bounds = fig.bbox
+    for ax in fig.axes:
+        legend = ax.get_legend()
+        if legend is not None and legend.get_window_extent(renderer).overlaps(ax.bbox):
+            raise ValueError("legend overlaps data axes")
     labels = []
     for artist in fig.findobj(match=Text):
         if not artist.get_visible() or not artist.get_text().strip():
