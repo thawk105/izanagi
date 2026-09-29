@@ -123,6 +123,11 @@ def _put_txn(s: State, t: Txn) -> State:
     return State(s.versions, tuple(t if x.id == t.id else x for x in s.txns), s.k, s.gc_seen)
 
 
+def floor_lowering_transition(before: State, after: State) -> bool:
+    """Whether one explored edge lowers any transaction's published GC floor."""
+    return any(new.gc_floor < old.gc_floor for old, new in zip(before.txns, after.txns))
+
+
 def _put_version(s: State, v: Version) -> State:
     return State(tuple(v if x.id == v.id else x for x in s.versions), s.txns, s.k, s.gc_seen)
 
@@ -501,7 +506,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
         effects = {"waiting_states": 0, "max_B": None, "max_freed": None,
                    "simultaneous": None, "attributable": None,
                    "g2": {"T_only": None, "both": None}}
-    terminals = deadlocks = 0
+    terminals = deadlocks = floor_lowering_transitions = 0
     timed_out = False
     def trace(s):
         steps = []
@@ -532,13 +537,12 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                     if label and (effects["g2"][label] is None or snap["B"] > effects["g2"][label]["snapshot"]["B"]):
                         effects["g2"][label] = {"snapshot": snap, "steps": trace(s)}
         steps = list(enabled_steps(s, protocol, faults, o1, pressure, revert_after_confirm))
-        if pressure == "self":
-            steps.sort(key=lambda item: item[1].thread != "GC")
         if not steps:
             terminals += 1
             if any(t.phase != "done" for t in s.txns):
                 deadlocks += 1
         for ns, step in steps:
+            floor_lowering_transitions += floor_lowering_transition(s, ns)
             if transition_invariant is not None:
                 transition_invariant(s, ns, step)
             if ns not in parent:
@@ -601,6 +605,7 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                     effects["simultaneous"] = {"snapshot": snap, "steps": trace(state)}
                     break
     return {"statistics": {"visited": len(parent), "terminal": terminals, "deadlock": deadlocks,
+                           "floor_lowering_transitions": floor_lowering_transitions,
                            "seconds": monotonic() - began,
                            "complete": not timed_out and (not bool(max_states) or len(parent) < max_states)},
             "verdicts": verdicts, "counterexample": counterexample,

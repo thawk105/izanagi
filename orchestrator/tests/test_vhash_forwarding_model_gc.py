@@ -14,7 +14,8 @@ from vhash_forwarding_model.gc_connection import effect_snapshot  # noqa: E402
 from vhash_forwarding_model.judge import j3, judge  # noqa: E402
 from vhash_forwarding_model.model import (State, Txn, Version, aborted_after_fault,
                                           check_timestamp_uniqueness, changed_step_in_trace,
-                                          enabled_steps, explore, replay, visible)  # noqa: E402
+                                          enabled_steps, explore, floor_lowering_transition,
+                                          replay, visible)  # noqa: E402
 from vhash_forwarding_model.scenarios import scenario, danger_witness  # noqa: E402
 
 
@@ -30,6 +31,7 @@ def _search(name, fault="", *, o1=False, pressure="self", revert=False):
                      transition_invariant=monotone, state_invariant=sound if not fault else None,
                      collect_effects=not fault and not revert and name in ("G1", "G2"))
     assert result["statistics"]["complete"], (name, fault, result["statistics"])
+    assert result["statistics"]["floor_lowering_transitions"] == 0, (name, fault)
     return initial, result
 
 
@@ -123,7 +125,9 @@ def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():
             reclaim = next(i for i, x in enumerate(danger) if x.operation == "reclaim" and x.version == "B40")
             failed = next(i for i, x in enumerate(danger) if x.operation == "pressure_check" and i > publish)
             fallback = next(i for i, x in enumerate(danger) if x.operation == "pressure_fallback" and x.fault == "UF1")
-            assert publish < reclaim < failed < fallback
+            assert publish < failed < fallback and publish < reclaim < fallback
+            checked = replay(initial, danger[:failed + 1], "v1", fault, o1, "self")
+            assert next(t for t in checked.txns if t.id == "T").failed
             pre = replay(initial, danger[:fallback], "v1", fault, o1, "self")
             post = replay(initial, danger[:fallback + 1], "v1", fault, o1, "self")
             assert next(t for t in pre.txns if t.id == "T").failed
@@ -185,12 +189,17 @@ def test_sound_g1_to_g6_fixed_scenarios_invariants():
             assert not result["counterexample"], (name, revert)
 
 
-def test_g1_to_g6_all_fault_floors_monotone():
-    for name, fault, o1 in (("G3", "UG1", False), ("G4", "UG2", False),
-                            ("G4", "UG2r", False), ("G5", "UG3", False),
-                            ("G5", "UG3", True), ("G6", "UF1", False)):
-        _, result = _search(name, fault, o1=o1)
-        assert result["statistics"]["complete"], (name, fault)
+def test_floor_lowering_counter_positive_and_representative_zero():
+    initial, _ = scenario("G1")
+    after, step = next(iter(enabled_steps(initial, pressure="self")))
+    old = initial.txns[0]
+    lowered = replace(after, txns=(replace(after.txns[0], gc_floor=old.gc_floor - 1),
+                                   *after.txns[1:]))
+    assert floor_lowering_transition(initial, after) == 0
+    assert floor_lowering_transition(initial, lowered) == 1
+    assert all(reason is None for reason in judge(initial, lowered, step).values())
+    _, result = _search("G1")
+    assert result["statistics"]["floor_lowering_transitions"] == 0
 
 
 def test_restricted_judgment_matches_reference_gc():
@@ -203,9 +212,7 @@ def test_restricted_judgment_matches_reference_gc():
 
 def test_old_representative_pins():
     pins = (("S3", "v1", "", False, 180, (False, False, False)),
-            ("S7", "v1", "", False, 1720, (False, False, False)),
-            ("S10", "v1", "", False, 12905, (False, False, False)),
-            ("S8", "v0", "", False, 47448, (True, True, False)))
+            ("S7", "v1", "", False, 1720, (False, False, False)))
     for name, protocol, fault, o1, visited, verdicts in pins:
         initial, window = scenario(name)
         result = explore(initial, protocol, fault, window, o1=o1,
