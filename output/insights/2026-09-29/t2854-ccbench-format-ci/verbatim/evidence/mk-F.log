@@ -1,0 +1,63 @@
+start 2026-09-29 15:41:37 JST
+message: /work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/msg-F.txt sha256=82aa22ec8efe286a9cee09abc6a4e44063bbc80203d7adaa3c09037e20a099f5
+input: cc/mocc/transaction.cc sha256=b9f7b869d632889d907f4e79d2b9ac96a9403c8a862faea3bd2dfa198fc9745e
+input: cc/silo/transaction.cc sha256=7634d05d082b8e79290dc149736efc086ebefaef233fd0d1e88a04e17c236a41
+input: include/trace.hh sha256=c8ed4fef672bc7a6b0893d11321e4deaebcf6a99637df7ab7acb2e9e622dda7b
+sub HEAD before: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+Preparing worktree (detached HEAD 40a7f4acb)
+Updating files:  13% (53/405)Updating files:  14% (57/405)Updating files:  15% (61/405)Updating files:  16% (65/405)Updating files:  17% (69/405)Updating files:  18% (73/405)Updating files:  19% (77/405)Updating files:  20% (81/405)Updating files:  21% (86/405)Updating files:  22% (90/405)Updating files:  23% (94/405)Updating files:  23% (96/405)Updating files:  24% (98/405)Updating files:  25% (102/405)Updating files:  26% (106/405)Updating files:  27% (110/405)Updating files:  28% (114/405)Updating files:  29% (118/405)Updating files:  30% (122/405)Updating files:  31% (126/405)Updating files:  32% (130/405)Updating files:  33% (134/405)Updating files:  34% (138/405)Updating files:  35% (142/405)Updating files:  36% (146/405)Updating files:  37% (150/405)Updating files:  38% (154/405)Updating files:  39% (158/405)Updating files:  40% (162/405)Updating files:  41% (167/405)Updating files:  42% (171/405)Updating files:  43% (175/405)Updating files:  44% (179/405)Updating files:  45% (183/405)Updating files:  45% (185/405)Updating files:  46% (187/405)Updating files:  47% (191/405)Updating files:  48% (195/405)Updating files:  49% (199/405)Updating files:  50% (203/405)Updating files:  51% (207/405)Updating files:  52% (211/405)Updating files:  53% (215/405)Updating files:  54% (219/405)Updating files:  55% (223/405)Updating files:  56% (227/405)Updating files:  57% (231/405)Updating files:  58% (235/405)Updating files:  58% (237/405)Updating files:  59% (239/405)Updating files:  60% (243/405)Updating files:  61% (248/405)Updating files:  62% (252/405)Updating files:  63% (256/405)Updating files:  64% (260/405)Updating files:  65% (264/405)Updating files:  66% (268/405)Updating files:  67% (272/405)Updating files:  68% (276/405)Updating files:  69% (280/405)Updating files:  70% (284/405)Updating files:  71% (288/405)Updating files:  72% (292/405)Updating files:  73% (296/405)Updating files:  74% (300/405)Updating files:  75% (304/405)Updating files:  76% (308/405)Updating files:  77% (312/405)Updating files:  78% (316/405)Updating files:  79% (320/405)Updating files:  80% (324/405)Updating files:  81% (329/405)Updating files:  82% (333/405)Updating files:  83% (337/405)Updating files:  84% (341/405)Updating files:  85% (345/405)Updating files:  86% (349/405)Updating files:  87% (353/405)Updating files:  88% (357/405)Updating files:  89% (361/405)Updating files:  90% (365/405)Updating files:  91% (369/405)Updating files:  92% (373/405)Updating files:  93% (377/405)Updating files:  94% (381/405)Updating files:  95% (385/405)Updating files:  96% (389/405)Updating files:  97% (393/405)Updating files:  98% (397/405)Updating files:  99% (401/405)Updating files: 100% (405/405)Updating files: 100% (405/405), done.
+HEAD is now at 40a7f4acb feat(silo/trace): emit trace v3 frames under the TPC-C context
+Switched to a new branch 'izanagi-tpcc-v3-silo-mocc-fmt'
+cc/mocc/transaction.cc placed=cc1c72877f3b45de6a66512bf85233f4276f3f7b expected=cc1c72877f3b45de6a66512bf85233f4276f3f7b
+cc/silo/transaction.cc placed=8808b55c42821df95c5240fa87a032d080a20454 expected=8808b55c42821df95c5240fa87a032d080a20454
+include/trace.hh placed=1b8e013ca06d9dd5f58b29434c5f809250ae2254 expected=1b8e013ca06d9dd5f58b29434c5f809250ae2254
+staged:
+:100644 100644 30bea5c21 cc1c72877 M	cc/mocc/transaction.cc
+:100644 100644 4434447d2 8808b55c4 M	cc/silo/transaction.cc
+:100644 100644 1ff95bcec 1b8e013ca M	include/trace.hh
+modes unchanged
+[izanagi-tpcc-v3-silo-mocc-fmt 25898d00b] style(trace): apply clang-format 14 to the izanagi trace changes
+ 3 files changed, 79 insertions(+), 77 deletions(-)
+F = 25898d00b9a6bbf09329ff8e8318c77d4f08b46e parents: 25898d00b9a6bbf09329ff8e8318c77d4f08b46e 40a7f4acb174ca43cb590f40d13847216a1564bc tree: c96b282d12bcbedb6d7513d6c9409f2d02337856
+diff-tree C2'..F (raw):
+:100644 100644 30bea5c21911182cde7c1f428f3185c7124fb47f cc1c72877f3b45de6a66512bf85233f4276f3f7b M	cc/mocc/transaction.cc
+:100644 100644 4434447d2fa3fe31c21f014f30d2c4695e0b3422 8808b55c42821df95c5240fa87a032d080a20454 M	cc/silo/transaction.cc
+:100644 100644 1ff95bcec49e49d02669321b09414ab114c20df2 1b8e013ca06d9dd5f58b29434c5f809250ae2254 M	include/trace.hh
+message:
+style(trace): apply clang-format 14 to the izanagi trace changes
+
+Run clang-format 14 (the major version used by
+.github/workflows/format.yml) on the three files that the izanagi trace
+instrumentation left unformatted: cc/mocc/transaction.cc,
+cc/silo/transaction.cc and include/trace.hh. With this commit the
+format job's check
+
+  git ls-files -- cc include common | grep -E '\.(cc|hh|cpp)$' \
+    | xargs clang-format --dry-run --Werror
+
+passes on all 213 files.
+
+Every reformatted line is inside an #if TRACE block. Where reformatting
+changed the line count of a TRACE block, one #line directive after its
+#endif restores the logical line numbers that the following code had in
+the previous commit (cc/mocc/transaction.cc: #line 115;
+cc/silo/transaction.cc: #line 365 and #line 381). Without them the
+TRACE=0 build would change: ERR in cc/mocc/transaction.cc expands to
+__LINE__ via NNN in include/debug.hh. With them every TRACE=0 source
+line keeps its line number, so the TRACE=0 build is unchanged. No
+tokens, string literals, comments or existing directives are changed.
+
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-5-1m; reasoning=unknown; role=manager
+
+sub HEAD after: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+branch ref: 25898d00b9a6bbf09329ff8e8318c77d4f08b46e
+izanagi-tpcc-v3-silo-mocc: refs/heads/izanagi-tpcc-v3-silo-mocc
+/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/F.bundle is okay
+The bundle contains this ref:
+25898d00b9a6bbf09329ff8e8318c77d4f08b46e refs/heads/izanagi-tpcc-v3-silo-mocc-fmt
+The bundle records a complete history.
+25898d00b9a6bbf09329ff8e8318c77d4f08b46e refs/heads/izanagi-tpcc-v3-silo-mocc-fmt
+bundle bytes: 3206018 sha256: 5253d961056098bc89a1f2b40a99576a2d247a3a8b323dab24777f183eb183fd
+end 2026-09-29 15:42:23 JST
