@@ -301,6 +301,34 @@ def test_contrast_preview_checks_auditor_veto_without_writing(tmp_path):
     assert source.read_bytes() == original
 
 
+def test_contrast_preview_classifies_schema_and_digest(tmp_path, capsys):
+    from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS
+    ledger = ContrastLedger.create(tmp_path / 'ledger', {
+        'version': 'silo-policy-contrast-test-2026-09-29',
+        'cohort': 'silo-policy-contrast-test-2026-09-29',
+        'arm': 'llm-cpp', 'series': 1, 'form': 'cpp',
+        'submit_checkout': str(ROOT), 'checkout_head': 'unused',
+        'pin': P.axis.PIN, 'budgets': DEFAULT_BUDGETS})
+    path = _proposal(tmp_path, change=lambda d: d['coder'].update(extra=True))
+    args = ['--form', 'cpp', '--contrast-ledger', str(ledger.root),
+            '--preview-diff', str(path)]
+    assert P.main(args) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        'passed': False, 'working_diff': None, 'diff_digest': None,
+        'subtype': 'proposal-schema', 'rule_id': 'invalid preview coder'}
+    compiler = find_compiler() or pytest.skip('policy compiler unavailable')
+    _source(tmp_path)
+    path = _proposal(tmp_path, change=lambda d: d['coder'].update(implementation=GOOD))
+    proposal, auditor = P.load_proposal_file(path, form='cpp', preview=True,
+                                              preview_auditor=True)
+    assert P._preview_policy_gate(str(tmp_path), proposal, auditor, compiler,
+                                  str(tmp_path), contrast=True) is None
+    out = json.loads(capsys.readouterr().out)
+    assert out == {'passed': False, 'working_diff': None, 'diff_digest': None,
+                   'subtype': 'auditor-digest', 'rule_id': out['rule_id']}
+    assert 'auditor.diff_digest' in out['rule_id']
+
+
 def test_policy_gate_veto_checks_types_22_through_26(tmp_path):
     compiler = find_compiler()
     if compiler is None:

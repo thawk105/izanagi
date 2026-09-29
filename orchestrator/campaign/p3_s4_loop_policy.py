@@ -634,6 +634,25 @@ def _contrast_header(ledger_root, form, campaign_env):
     return ledger, contrast_cfg(ledger.header, campaign_env=campaign_env)
 
 
+def _contrast_preview_failure(subtype, exc):
+    print(json.dumps({'passed': False, 'working_diff': None,
+        'diff_digest': None, 'subtype': subtype, 'rule_id': str(exc)[:80]},
+        ensure_ascii=False))
+    return 1
+
+
+def _preview_policy_gate(sub, proposal, auditor, compiler, scratch, *, contrast):
+    try:
+        return policy_gate(sub, proposal.implementation, auditor,
+            compiler=compiler, scratch_dir=scratch, write=False)
+    except AuditorGateFailure as exc:
+        if not contrast:
+            raise
+        subtype = 'auditor-digest' if 'auditor.diff_digest' in str(exc) else 'auditor-gate'
+        _contrast_preview_failure(subtype, exc)
+        return None
+
+
 def drive_contrast_record_reject(cfg, perf, proposal, auditor, sub, *, a, compiler,
                                  scratch_dir, build_context, layout=None):
     """Record a rejected opportunity without consulting the legacy loop state."""
@@ -970,13 +989,18 @@ def main(argv=None):
     proposal = auditor = None
     if not args.stock_baseline and not args.contrast_run_unit:
         proposal_path = args.preview_diff or args.record_reject or args.run_iteration or args.replay_proposal
-        if ledger is not None and ledger.header['arm'] in MACHINE_NAMES:
-            proposal = load_machine_proposal(proposal_path,
-                arm=ledger.header['arm'], series=ledger.header['series'], form=args.form)
-        else:
-            proposal, auditor = load_proposal_file(proposal_path,
-                form=args.form, preview=bool(args.preview_diff or args.record_reject),
-                preview_auditor=ledger is not None)
+        try:
+            if ledger is not None and ledger.header['arm'] in MACHINE_NAMES:
+                proposal = load_machine_proposal(proposal_path,
+                    arm=ledger.header['arm'], series=ledger.header['series'], form=args.form)
+            else:
+                proposal, auditor = load_proposal_file(proposal_path,
+                    form=args.form, preview=bool(args.preview_diff or args.record_reject),
+                    preview_auditor=ledger is not None)
+        except ValueError as exc:
+            if ledger is None or not args.preview_diff:
+                raise
+            return _contrast_preview_failure('proposal-schema', exc)
     compiler = find_compiler() if not args.stock_baseline else None
     if not args.stock_baseline and compiler is None:
         raise RuntimeError('policy compiler unavailable')
@@ -1003,8 +1027,11 @@ def main(argv=None):
         if args.preview_diff:
             from .patchharness import applied
             with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
-                result, diff = policy_gate(sub, proposal.implementation, auditor,
-                    compiler=compiler, scratch_dir=scratch, write=False)
+                gate = _preview_policy_gate(sub, proposal, auditor, compiler, scratch,
+                                            contrast=ledger is not None)
+            if gate is None:
+                return 1
+            result, diff = gate
             print(json.dumps({'passed': result.passed, 'working_diff': diff,
                 'diff_digest': compute_diff_digest(diff),
                 'subtype': result.digest.get('subtype') if result.digest else None,

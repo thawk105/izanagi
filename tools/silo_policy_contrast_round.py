@@ -59,8 +59,24 @@ def _preview_result(result):
             and {"working_diff", "diff_digest", "subtype", "rule_id"} <= set(data) else None)
 
 
-def _invalid_preview(result):
-    return (result.stderr.splitlines()[0][:120] if result.stderr.splitlines() else "invalid-json")
+def _require_preview(result):
+    data = _preview_result(result)
+    if data is None or (result.returncode and data["passed"]):
+        raise RuntimeError(result.stderr or "driver preview returned invalid JSON")
+    return data
+
+
+def _record_preview_reject(ledger, ledger_root, a, proposal, data, run):
+    if data["subtype"] not in {"proposal-schema", "auditor-gate", "auditor-digest"}:
+        rejection = _call(ledger, ledger_root, "--record-reject", str(proposal.resolve()), run=run)
+        if rejection.returncode:
+            raise RuntimeError(rejection.stderr)
+    existing = _terminal(ledger_root, a)
+    if existing is not None:
+        return existing
+    ledger.append("opportunity-end", a=a, outcome="rejected",
+                  reject_subtype=data["subtype"], reject_rule_id=data["rule_id"])
+    return {"status": "rejected"}
 
 
 def _call(ledger, ledger_root: Path, *args, run=subprocess.run):
@@ -169,20 +185,10 @@ def check(ledger, a: int, coder: Path, out: Path, *, ledger_root: Path, run=subp
     except (ValueError, TypeError, KeyError):
         return _schema_reject(ledger_root, a, "coder-schema", "invalid-schema")
     preview = _call(ledger, ledger_root, "--preview-diff", str((out / "coder.json").resolve()), run=run)
-    data = _preview_result(preview)
-    if data is None or (preview.returncode and data["passed"]):
-        return _schema_reject(ledger_root, a, "coder-schema", _invalid_preview(preview))
+    data = _require_preview(preview)
     _json(out / "preview.json", data)
     if not data["passed"]:
-        rejection = _call(ledger, ledger_root, "--record-reject", str((out / "coder.json").resolve()), run=run)
-        if rejection.returncode:
-            raise RuntimeError(rejection.stderr)
-        existing = _terminal(ledger_root, a)
-        if existing is not None:
-            return existing
-        ledger.append("opportunity-end", a=a, outcome="rejected",
-                      reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
-        return {"status": "rejected"}
+        return _record_preview_reject(ledger, ledger_root, a, out / "coder.json", data, run)
     sources = [str(Path("orchestrator/campaign") / name) for name in
                ("silo_function_policy_api.hh", "silo_function_policy_coder_spec.md")]
     sources.append("patches/silo-function-policy-variant.patch")
@@ -233,19 +239,9 @@ def finalize(ledger, a: int, coder: Path, auditor: Path, out: Path, *,
     except (ValueError, TypeError, KeyError):
         return _schema_reject(ledger_root, a, "auditor-schema", "invalid-schema")
     checked = _call(ledger, ledger_root, "--preview-diff", str(proposal.resolve()), run=run)
-    data = _preview_result(checked)
-    if data is None or (checked.returncode and data["passed"]):
-        return _schema_reject(ledger_root, a, "auditor-schema", _invalid_preview(checked))
+    data = _require_preview(checked)
     if not data["passed"]:
-        rejection = _call(ledger, ledger_root, "--record-reject", str(proposal.resolve()), run=run)
-        if rejection.returncode:
-            raise RuntimeError(rejection.stderr)
-        existing = _terminal(ledger_root, a)
-        if existing is not None:
-            return existing
-        ledger.append("opportunity-end", a=a, outcome="rejected",
-                      reject_subtype=data.get("subtype"), reject_rule_id=data.get("rule_id"))
-        return {"status": "rejected"}
+        return _record_preview_reject(ledger, ledger_root, a, proposal, data, run)
     digest = hashlib.sha256(proposal.read_bytes()).hexdigest()
     existing = _terminal(ledger_root, a)
     if existing is not None:

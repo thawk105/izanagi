@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from types import SimpleNamespace
+import pytest
 
 from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS
 from tools import silo_policy_contrast_round as R
@@ -103,3 +104,35 @@ def test_schema_failures_consume_one_a_and_do_not_retry(tmp_path):
     ends = [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"]
     assert len(ends) == 2 and (ends[-1]["reject_subtype"], ends[-1]["reject_rule_id"]) == (
         "auditor-schema", "auditor preview failed")
+
+
+@pytest.mark.parametrize("action, subtype", [("check", None), ("finalize", None),
+    ("check", "proposal-schema"), ("finalize", "auditor-digest")])
+def test_preview_failure_classification(tmp_path, action, subtype):
+    root = _ledger(tmp_path)
+    ContrastLedger(root).append("opportunity-start", a=1)
+    out = tmp_path / "out"
+    out.mkdir()
+    coder = out / "coder-input.json"
+    coder.write_text(json.dumps({"axis": "silo-function-policy", "implementation": "valid shape"}))
+    auditor = out / "auditor-input.json"
+    auditor.write_text(json.dumps({"verdict": "pass", "diff_digest": "digest", "violations": [],
+                                   "nits": [], "proposed_tests": [], "uncertainty": ""}))
+    (out / "preview.json").write_text('{"passed": true}')
+    def run(argv, **_kwargs):
+        assert "--preview-diff" in argv
+        stdout = (json.dumps({"passed": False, "working_diff": None, "diff_digest": None,
+                              "subtype": subtype, "rule_id": "rule"}) if subtype else "")
+        return SimpleNamespace(returncode=1, stdout=stdout, stderr="policy compiler unavailable")
+    ledger = ContrastLedger(root)
+    def invoke():
+        return (R.check(ledger, 1, coder, out, ledger_root=root, run=run) if action == "check"
+                else R.finalize(ledger, 1, coder, auditor, out, ledger_root=root, run=run))
+    if subtype is None:
+        with pytest.raises(RuntimeError, match="policy compiler unavailable"):
+            invoke()
+    else:
+        assert invoke() == {"status": "rejected"}
+    ends = [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"]
+    assert [(e["reject_subtype"], e["reject_rule_id"]) for e in ends] == (
+        [] if subtype is None else [(subtype, "rule")])
