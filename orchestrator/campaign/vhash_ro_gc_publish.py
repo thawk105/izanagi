@@ -205,6 +205,14 @@ def _build_variant(source: Path, build: Path, genome: str, macros: tuple[str, ..
                     "elapsed_s": time.monotonic() - started}
 
 
+def _prepare_build_dependencies(source: Path, build: Path, toolchain: dict,
+                                dependencies: dict) -> dict:
+    # Fresh source copies lack Masstree's generated config.h until a stock build.
+    _, receipt = _build_variant(source, build, "default", (), trace=False,
+                                toolchain=toolchain, dependencies=dependencies)
+    return receipt
+
+
 def _flags(cell: dict, *, records: int, extime: int, clocks_per_us: int,
            workers: int = 48, seed: int = 0) -> dict:
     return {"tuple_num": records, "ycsb_tuple_num": records,
@@ -336,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
            "started_at": now(),
            "patch_sha256": {p.name: sha(p) for p in (VARIANT, WORKLOAD, VLIFE, TRACE)},
            "conditions": {cid: CONDITIONS[cid] for cid in ids}, "plan": plan,
-           "runs": [], "builds": {}, "trace_genome_coverage":
+           "runs": [], "builds": {}, "dependency_builds": {}, "trace_genome_coverage":
            "tuned OPT=1/PROM=0 awaiting md_20"}
     try:
         _assert_single_tenant()
@@ -350,6 +358,8 @@ def main(argv: list[str] | None = None) -> int:
             patches = ((TRACE,) if mode == "verify" else
                        (VLIFE,) if mode == "measure" else ()) + (WORKLOAD, VARIANT)
             _apply(source, patches)
+            raw["dependency_builds"]["primary"] = _prepare_build_dependencies(
+                source, scratch / "build-dependency", toolchain, dependencies)
             genomes = (["default"] if mode == "smoke" else
                        sorted({CONDITIONS[cid]["genome"] for cid in ids}))
             arms = ("variant",) if mode == "verify" else ("stock", "variant")
@@ -411,6 +421,9 @@ def main(argv: list[str] | None = None) -> int:
                     for kind, extra in (("trace", TRACE), ("vlife", VLIFE)):
                         other = _source_copy(scratch / f"ccbench-{kind}")
                         _apply(other, (extra, WORKLOAD, VARIANT))
+                        raw["dependency_builds"][kind] = _prepare_build_dependencies(
+                            other, scratch / f"smoke-{kind}-dependency", toolchain,
+                            dependencies)
                         macros = ("IZANAGI_CICADA_ROGC_WORKLOAD",
                                   "IZANAGI_CICADA_RO_GCFLAG",
                                   "IZANAGI_CICADA_RO_GCFLAG_COUNT")

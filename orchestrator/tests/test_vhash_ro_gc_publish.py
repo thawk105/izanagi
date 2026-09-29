@@ -1,6 +1,8 @@
 """Read-only GC publication patch, ordering, and acceptance contracts."""
 from __future__ import annotations
 
+import ast
+import inspect
 import json
 import shutil
 import subprocess
@@ -28,6 +30,46 @@ def test_condition_grid_and_balanced_order():
             ["stock", "variant"], ["variant", "stock"],
         ]
         assert sum(row["order"][0] == "stock" for row in rows) == 3
+
+
+def test_each_source_copy_prepares_ungated_build_before_condition_gates(monkeypatch, tmp_path):
+    calls = []
+
+    def observe_build(source, build, genome, macros, *, trace, toolchain, dependencies):
+        calls.append((source, build, genome, macros, trace))
+        return build / "cc/cicada/ycsb_cicada.exe", {"elapsed_s": 1.25}
+
+    monkeypatch.setattr(P, "_build_variant", observe_build)
+    for label in ("primary", "trace", "vlife"):
+        source = tmp_path / label
+        receipt = P._prepare_build_dependencies(
+            source, tmp_path / f"build-{label}", {"cxx_path": "/fake/c++"}, {})
+        assert receipt["elapsed_s"] == 1.25
+    assert [(source.name, genome, macros, trace)
+            for source, _, genome, macros, trace in calls] == [
+        ("primary", "default", (), False),
+        ("trace", "default", (), False),
+        ("vlife", "default", (), False),
+    ]
+
+    # Inspect the real driver call sites: both fresh-copy paths prepare before
+    # the real _build_variant reaches its _gates call.
+    tree = ast.parse(inspect.getsource(P))
+    main = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                and node.name == "main")
+    ordered = [(node.lineno, node.func.id) for node in ast.walk(main)
+               if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+               and node.func.id in {"_source_copy", "_apply",
+                                    "_prepare_build_dependencies", "_build_variant"}]
+    ordered.sort()
+    assert [name for _, name in ordered] == [
+        "_source_copy", "_apply", "_prepare_build_dependencies", "_build_variant",
+        "_source_copy", "_apply", "_prepare_build_dependencies", "_build_variant",
+    ]
+    build = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                 and node.name == "_build_variant")
+    assert any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+               and node.func.id == "_gates" for node in ast.walk(build))
 
 
 @pytest.mark.parametrize("forbidden", (
