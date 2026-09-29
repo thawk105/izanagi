@@ -94,9 +94,10 @@ scope/must-fix は、放置時に成果物（certified 選択・レポート・�
 裁定パッケージでユーザーへ返し、他は起票せず insight に記録する。
 gate の禁止は署名で書き、通る正例を 1 つ添える。
 
-実装面 (D95 決定 2) の差分ゼロの wave だけ変異 matrix を免除する。受入全走は免除せず、
+実装面 (D95 決定 2) の差分ゼロの wave だけ変異 matrix を免除する。受入全走は縮小受入を land が
+再検証した wave 以外は免除せず、
 実 repo を読むテストは段 7 の記録前に実走し、結果を worklog へ書く。
-段 4 直前に裁定 inbox を再走査し、wave 開始後の更新を取り込む。
+段 4 直前に裁定 inbox を再走査し、開始後の更新を取り込む。
 
 承認済み裁定は裁定時の未見事実でだけ止め、裁定文・worklog に未記録か確認する。親は不採用にせず、
 新事実を添えてユーザー再裁定待ちへ戻す。実装方向まで裁定済みなら、コードで代案の等価性を
@@ -106,7 +107,7 @@ gate の禁止は署名で書き、通る正例を 1 つ添える。
 
 親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。配置は`output/README.md` に従う。
 **worklog / decisions / failures の 3 台帳は直接編集せず、`docs/spool/README.md` の形式に従う
-fragment として書く**（insights は従来どおり直接書く）。fragment は wave branch へ commit するだけとし、
+fragment として書く**。fragment は wave branch へ commit するだけとし、
 canonical への追記・採番・ローテーションは段 9 の land が lock 内で一度だけ行う。
 **wave 側で fold してはならない。**
 凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +

@@ -115,6 +115,7 @@ class OccupancyObservation:
 class CleanupResult:
     outcome: str
     occupancy: tuple[OccupancyObservation, ...]
+    integration_basis: str | None = None
 
 
 class CleanupFailure(Exception):
@@ -299,6 +300,15 @@ def _validate_git_argv(args: Sequence[str], *, evidence: Path | None = None) -> 
             or _SHA_RE.fullmatch(argv[3]) is not None
         )
     ):
+        return
+    if (len(argv) == 4 and argv[:2] == ("update-ref", "-d")
+            and argv[2].startswith("refs/heads/")
+            and _SHA_RE.fullmatch(argv[3])
+            and argv[2][11:] and not argv[2][11:].startswith("-")
+            and all(part and part not in {".", ".."} and not part.endswith(".lock")
+                    for part in argv[2][11:].split("/"))
+            and re.search(r"[\x00-\x20\x7f~^:?*\[\\]", argv[2]) is None
+            and "@{" not in argv[2]):
         return
     if (
         len(argv) == 4
@@ -827,6 +837,7 @@ class AdminBinding:
     snapshot: dict
     recovery: dict | None = None
     child_proof: ChildProof | None = None
+    child_archive: bool = False
 
 
 def _inode(st: os.stat_result) -> tuple[int, int]:
@@ -1033,7 +1044,8 @@ def _assert_snapshot_subset(current: dict, expected: dict) -> None:
             raise ValueError("admin recovery entry bytes changed")
 
 
-def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
+def _recheck_admin(args: Args, common: Path, admin: AdminBinding,
+                   child_wave: Path | None = None) -> dict:
     _assert_admin_binding(common, admin)
     if os.path.lexists(args.wave_worktree):
         raise ValueError("wave path exists before admin removal")
@@ -1061,6 +1073,9 @@ def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
     shas = _parse_head_reflog(bytes.fromhex(snapshot["logs"][2]["HEAD"][2]["raw"]))
     if admin.child_proof is None:
         _assert_reflog_commits_reachable(args.main_worktree, shas, "worktree HEAD reflog")
+    elif admin.child_archive:
+        _assert_archived_child(args.main_worktree, child_wave,
+                               admin.child_proof, path, common, shas)
     else:
         _assert_child_integration(args.main_worktree, admin.child_proof, shas)
     _assert_admin_binding(common, admin)
@@ -1102,10 +1117,11 @@ def _rename_journal(fd: int, temporary: str, final: str) -> None:
     os.unlink(temporary, dir_fd=fd)
 
 
-def _remove_admin(args: Args, common: Path, admin: AdminBinding, snapshot: dict) -> None:
+def _remove_admin(args: Args, common: Path, admin: AdminBinding, snapshot: dict,
+                  child_wave: Path | None = None) -> None:
     # Persist the exact deletion set before removing HEAD/gitdir. On reentry only
     # missing entries are allowed; surviving bytes and inodes must still match.
-    if _recheck_admin(args, common, admin) != snapshot:
+    if _recheck_admin(args, common, admin, child_wave) != snapshot:
         raise ValueError("admin changed before removal")
     data = admin.recovery or {
         "wave": os.fspath(args.wave_worktree), "branch": args.wave_branch,
@@ -1576,7 +1592,8 @@ def _tree_entry(repo: Path, tip: str, path: str) -> bytes:
 
 
 def _assert_child_integration(repo: Path, proof: ChildProof, shas: Sequence[str]) -> None:
-    if _resolve_commit(repo, "refs/heads/main^{commit}") != proof.main_tip:
+    current_main = _resolve_commit(repo, "refs/heads/main^{commit}")
+    if current_main is None or not _ancestor(repo, proof.main_tip, current_main):
         raise ValueError("main changed since integration proof")
     if proof.branch is not None and _resolve_commit(repo, proof.branch + "^{commit}") != proof.head:
         raise ValueError("child branch changed since integration proof")
@@ -1598,6 +1615,44 @@ def _assert_child_history(repo: Path, proof: ChildProof, history: Sequence[str])
             if _must_git(repo, "branch", "--contains", sha, "--format=%(refname)").stdout.strip():
                 continue
             raise ValueError("HEAD reflog history is unreachable from main and retained branch")
+
+
+def _assert_archived_child(repo: Path, wave: Path | None, proof: ChildProof,
+                           admin: Path, common: Path, history: Sequence[str]) -> None:
+    main_head = _resolve_commit(repo, "refs/heads/main^{commit}")
+    if wave is not None:
+        if not wave.is_dir():
+            raise ValueError("wave_worktree is absent")
+        wave_head = _resolve_commit(wave, "HEAD^{commit}")
+        if wave_head is None or main_head is None or not _ancestor(repo, wave_head, main_head):
+            raise ValueError("wave_worktree HEAD is not a main ancestor")
+    if main_head is None:
+        raise ValueError("main HEAD cannot be resolved")
+    if proof.branch is None and not _ancestor(repo, proof.head, main_head):
+        raise ValueError("detached child HEAD is not a main ancestor")
+    if proof.branch is not None:
+        branch_log = common / "logs" / proof.branch
+        history = tuple(dict.fromkeys((*history, *_parse_head_reflog(branch_log.read_bytes()))))
+    _assert_child_history(repo, proof, history)
+    for root in (admin / "refs", admin / "logs" / "refs"):
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                raise ValueError("per-worktree ref has unsupported type")
+            if path.is_dir():
+                continue
+            raw = path.read_bytes()
+            if root.name == "refs" and root.parent == admin:
+                sha = raw.strip().decode("ascii", "strict")
+                if not _SHA_RE.fullmatch(sha):
+                    raise ValueError("per-worktree ref is not a commit id")
+                shas = (sha,)
+            else:
+                shas = _parse_head_reflog(raw)
+            for sha in shas:
+                if not _ancestor(repo, sha, main_head):
+                    raise ValueError("per-worktree ref is not reachable from main")
 
 
 def _assert_child_index(child: Path) -> None:
@@ -1857,9 +1912,22 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         payload = _child_payload(args.child, proof)
         phase = "integration"
         history = tuple(dict.fromkeys((*_head_reflog_shas(identity.gitdir), proof.head)))
-        _assert_child_integration(args.main, proof, history)
+        try:
+            _assert_child_integration(args.main, proof, history)
+        except ValueError as exc:
+            if not str(exc).startswith("child is not integrated;"):
+                raise
+            try:
+                _assert_archived_child(args.main, wave, proof, identity.gitdir, common, history)
+            except Exception as archive_exc:
+                raise ValueError(f"{exc}; archive precondition: {archive_exc}") from archive_exc
+            basis = "archived-unintegrated"
+        else:
+            basis = None
         ancestry = all(_ancestor(args.main, sha, proof.main_tip) for sha in history)
-        admin = replace(admin, child_proof=proof)
+        if basis is None:
+            basis = "ancestry" if ancestry else "owned-tree-match"
+        admin = replace(admin, child_proof=proof, child_archive=basis == "archived-unintegrated")
         phase = "evidence"
         _outside_roots(args.evidence, [common, _REPO, *(r.path for r in records)])
         if os.path.lexists(args.evidence) and (not args.evidence.is_dir() or any(args.evidence.iterdir())):
@@ -1917,24 +1985,27 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         _assert_child_no_conversion(args.child)
         _assert_child_submodules(args.child, common, identity.gitdir)
         admin = replace(admin, snapshot=_admin_snapshot(admin.admin_fd))
+        if admin.child_archive:
+            _assert_archived_child(args.main, wave, proof, identity.gitdir,
+                                   common, history)
         phase = "remove-directory"
         _remove_verified_tree(VerifiedWavePath(args.child, identity), common)
         phase = "admin-recheck"
-        snapshot = _recheck_admin(adapter, common, admin)
+        snapshot = _recheck_admin(adapter, common, admin, wave)
         phase = "admin-remove"
-        _remove_admin(adapter, common, admin, snapshot)
+        _remove_admin(adapter, common, admin, snapshot, wave)
         phase = "registry"
         _verify_record_state(args.main, args.child, absent=True)
         phase = "postcondition"
         _child_absent(args, common)
-        def _delete_integrated_child_branch() -> None:
+        def _delete_child_branch() -> None:
             assert proof.branch is not None
-            if _resolve_commit(args.main, "refs/heads/main^{commit}") != proof.main_tip:
+            current_main = _resolve_commit(args.main, "refs/heads/main^{commit}")
+            if current_main is None or not _ancestor(args.main, proof.main_tip, current_main):
                 raise ValueError("main changed since integration proof")
             if _resolve_commit(args.main, proof.branch + "^{commit}") != proof.head:
                 raise ValueError("child branch changed since integration proof")
-            name = proof.branch[11:]
-            argv = ("branch", "-D", "--", name)
+            argv = ("update-ref", "-d", proof.branch, proof.head)
             _validate_git_argv(argv)
             result = subprocess.run(
                 ["git", "-C", os.fspath(args.main), *argv], stdin=subprocess.DEVNULL,
@@ -1942,25 +2013,19 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
             )
             if result.returncode:
                 raise GitFailure(argv, result)
-            output = (result.stdout + result.stderr).decode("utf-8", "replace").strip()
-            match = re.fullmatch(rf"Deleted branch {re.escape(name)} \(was ([0-9a-f]+)\)\.", output)
-            if match is None:
-                raise ValueError("branch deletion diagnostic is malformed")
-            if _resolve_commit(args.main, match.group(1) + "^{commit}") != proof.head:
-                raise ValueError("branch deletion diagnostic sha differs from child HEAD")
             if _git(args.main, "rev-parse", "--verify", proof.branch + "^{commit}").returncode != 128:
                 raise ValueError("deleted child branch remains or absence is unproven")
 
         if proof.branch is not None:
             phase = "branch-delete"
-            _delete_integrated_child_branch()
+            _delete_child_branch()
         phase = "receipt"
         receipt = {"path": os.fspath(args.child), "branch": proof.branch, "HEAD": head,
                    "admin_gitdir": os.fspath(identity.gitdir), "files": hashes,
                    "branch_deleted": proof.branch is not None,
                    "deleted_branch_tip": proof.head if proof.branch is not None else None,
                    "integration_main_tip": proof.main_tip,
-                   "integration_basis": "ancestry" if ancestry else "owned-tree-match",
+                   "integration_basis": basis,
                    "history_bundle": os.fspath(bundle) if bundle is not None else None,
                    "history_bundle_sha256": bundle_digest,
                    "history_bundle_reason": bundle_reason}
@@ -1971,7 +2036,7 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         os.fsync(_open_directory(args.evidence, stack))
     except BaseException as exc:
         raise _partial(phase, exc) from exc
-    return CleanupResult("removed", (OccupancyObservation("preflight", before), OccupancyObservation("recheck", after)))
+    return CleanupResult("removed", (OccupancyObservation("preflight", before), OccupancyObservation("recheck", after)), basis)
 
 
 def run(argv: Sequence[str]) -> CleanupResult:
@@ -2044,6 +2109,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return RC_REJECTED
     for observation in result.occupancy:
         _print_occupancy_diagnostic(observation)
+    if result.integration_basis is not None:
+        print(f"dev-wave-cleanup: integration_basis={result.integration_basis}", file=sys.stderr)
     print(result.outcome)
     return 0
 

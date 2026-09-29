@@ -1,6 +1,6 @@
 ---
 name: cleanup-branches
-description: Safely inventory and clean up merged local Izanagi branches and worktrees through the shared dispatcher. Use for merged-branch or worktree cleanup; deletion needs explicit $cleanup-branches.
+description: Safely back up and clean up merged or stale local Izanagi branches and worktrees through the shared dispatcher. Use for branch or worktree cleanup; deletion needs explicit $cleanup-branches.
 ---
 
 # Cleanup Branches
@@ -22,13 +22,13 @@ description: Safely inventory and clean up merged local Izanagi branches and wor
 - Claude 固有の `ExitWorktree` が使えると仮定しない。cwd を対象外へ固定できなければ F51 とし、
   現在の worktree directory の削除と prune を行わない。
 - `/proc/*/cwd` の miss は非使用の証拠に数えず、この Codex session の所有を証明できない
-  worktree は command の foreign/unknown として保持する。
+  worktree は command の削除対象でも保持して報告する。
 - 各破壊操作の直前に dispatcher の全 eligibility と canonical path、process residency を再評価する。
   unknown、棚卸し後の change、新しい residency があれば停止する。
 - `git worktree prune --dry-run --verbose` は報告用 preview としてだけ実行する。Codex は real
-  `git worktree prune` を実行せず、preview と残作業を人間へ引き渡す。
+  `git worktree prune` と command §3 の mv を実行せず、preview と残作業を人間へ引き渡す。
 - 未追跡 `output/` (`exploration/`・`env/`) を抱える worktree は、command §2 の原本確認 (insight
-  「証拠の所在」節) を経るまで foreign/unknown と同じく保持して報告する。
+  「証拠の所在」節) を経るまで保持して報告する。
 - dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・非 dir entry 数照合) を前提にし、
   検算を欠く撤去手順を人間へ渡さない (F1034)。
 - sandbox または shared Git metadata の権限が不足する場合は権限を拡大しない。安全に実行できた操作、

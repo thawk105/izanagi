@@ -182,6 +182,8 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_s8c_acceptance_receipt.py
 - test_s8c_preregistration_invariant.py
 - test_s8c_preregistration_predicates.py
+- test_scoped_acceptance.py
+- test_scoped_acceptance_land.py
 - test_screening_driver.py
 - test_screening_opt_in.py
 - test_t419_probe_causality.py

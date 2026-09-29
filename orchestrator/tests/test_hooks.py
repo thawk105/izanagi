@@ -53,6 +53,10 @@ GW = _load_hook("guard_write")
 GB = _load_hook("guard_bash")
 GR = _load_hook("guard_read")
 GA = _load_hook("guard_agent")
+STOP = _load_source_module(
+    "dev_wave_cleanup_stop_hook",
+    os.path.join(_REPO, "tools", "dev_wave_cleanup_stop_hook.py"),
+)
 
 
 def _load_pegasus_registry_loader():
@@ -5263,6 +5267,14 @@ def _assert_settings_json_wires_all_hooks(cfg):
     assert any(m == "Read" for m in matchers), "guard_read の Read matcher が未配線"
     assert "guard_agent.py" in cmds
     assert any(m == "Agent" for m in matchers), "guard_agent の Agent matcher が未配線"
+    stop = cfg["hooks"]["Stop"]
+    assert len(stop) == 1
+    assert set(stop[0]) == {"hooks"}
+    assert stop[0]["hooks"] == [{
+        "type": "command",
+        "command": 'python3 "$CLAUDE_PROJECT_DIR/tools/dev_wave_cleanup_stop_hook.py"',
+        "timeout": 10,
+    }]
 
 
 def test_settings_json_wires_all_hooks():
@@ -5281,6 +5293,152 @@ def test_settings_json_missing_hooks_is_assertion_failure():
         assert "hooks/README.md" in reason
     else:
         raise AssertionError("hooks key 欠落が assert failure にならなかった")
+
+
+def _stop_git(cwd, *args):
+    return subprocess.run(
+        ["git", "-C", os.fspath(cwd), *args], capture_output=True,
+        text=True, check=True, timeout=2,
+    ).stdout.strip()
+
+
+def _stop_repo(tmp_path):
+    main = tmp_path / "main"
+    wave = tmp_path / "wave"
+    main.mkdir()
+    _stop_git(main, "init", "-q", "-b", "main")
+    _stop_git(main, "config", "user.name", "Stop Test")
+    _stop_git(main, "config", "user.email", "stop@example.invalid")
+    (main / "base.txt").write_text("base\n")
+    _stop_git(main, "add", "base.txt")
+    _stop_git(main, "commit", "-qm", "base")
+    _stop_git(main, "worktree", "add", "-q", "-b", "wave", os.fspath(wave))
+    return main, wave
+
+
+def _stop_advance(wave):
+    (wave / "wave.txt").write_text("wave\n")
+    _stop_git(wave, "add", "wave.txt")
+    _stop_git(wave, "commit", "-qm", "wave")
+
+
+def test_cleanup_stop_blocks_landed_linked_worktree(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    block, reason = STOP.decide({"cwd": os.fspath(wave)})
+    assert block
+    assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
+
+
+def test_cleanup_stop_active_allows_landed_wave(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    assert STOP.decide({"cwd": os.fspath(wave), "stop_hook_active": True}) == (False, "")
+
+
+def test_cleanup_stop_allows_wave_with_zero_commits(tmp_path):
+    _, wave = _stop_repo(tmp_path)
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (False, "")
+
+
+def test_cleanup_stop_allows_unlanded_wave(tmp_path):
+    _, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (False, "")
+
+
+def test_cleanup_stop_allows_primary_detached_and_outside(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    assert STOP.decide({"cwd": os.fspath(main)}) == (False, "")
+    _stop_git(wave, "checkout", "--detach", "-q")
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (False, "")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    assert STOP.decide({"cwd": os.fspath(outside)}) == (False, "")
+
+
+def test_cleanup_stop_git_timeout_allows(tmp_path):
+    _, wave = _stop_repo(tmp_path)
+
+    def timeout(cwd, *args, **kwargs):
+        assert kwargs["timeout"] <= 2
+        raise subprocess.TimeoutExpired(["git", *args], kwargs["timeout"])
+
+    assert STOP.decide({"cwd": os.fspath(wave)}, git=timeout) == (False, "")
+
+
+def test_cleanup_stop_invalid_payload_allows(tmp_path):
+    _, wave = _stop_repo(tmp_path)
+    for payload in (None, [], {}, {"cwd": os.fspath(wave), "stop_hook_active": "true"}):
+        assert STOP.decide(payload) == (False, "")
+
+
+def test_cleanup_stop_subprocess_stdin_stdout(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    script = Path(_REPO) / "tools" / "dev_wave_cleanup_stop_hook.py"
+    result = subprocess.run(
+        [sys.executable, os.fspath(script)],
+        input=json.dumps({"cwd": os.fspath(wave)}), capture_output=True,
+        text=True, timeout=5,
+    )
+    assert result.returncode == 0 and result.stderr == ""
+    assert json.loads(result.stdout)["decision"] == "block"
+    repeated = subprocess.run(
+        [sys.executable, os.fspath(script)],
+        input=json.dumps({"cwd": os.fspath(wave), "stop_hook_active": True}),
+        capture_output=True, text=True, timeout=5,
+    )
+    assert repeated.returncode == 0 and repeated.stdout == "" and repeated.stderr == ""
+    malformed = subprocess.run(
+        [sys.executable, os.fspath(script)], input="{", capture_output=True,
+        text=True, timeout=5,
+    )
+    assert malformed.returncode == 0 and malformed.stdout == "" and malformed.stderr == ""
+
+
+def test_cleanup_stop_subprocess_rejects_oversized_and_non_utf8_stdin(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    script = Path(_REPO) / "tools" / "dev_wave_cleanup_stop_hook.py"
+    oversized = json.dumps({"cwd": os.fspath(wave), "padding": "x" * (1024 * 1024)}).encode()
+    assert len(oversized) > 1024 * 1024
+    for payload in (oversized, b'\xff' + json.dumps({"cwd": os.fspath(wave)}).encode()):
+        result = subprocess.run(
+            [sys.executable, os.fspath(script)], input=payload,
+            capture_output=True, timeout=5,
+        )
+        assert result.returncode == 0 and result.stdout == b"" and result.stderr == b""
+
+
+def test_cleanup_stop_subprocess_size_limit_prevents_block(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    script = Path(_REPO) / "tools" / "dev_wave_cleanup_stop_hook.py"
+    def payload(padding):
+        return json.dumps({"cwd": os.fspath(wave), "padding": padding}).encode()
+
+    small = payload("x" * 32)
+    limit = 1024 * 1024
+    large = payload("x" * (limit + 1 - len(payload(""))))
+    assert len(small) < limit and len(large) == limit + 1
+    for data, should_block in ((small, True), (large, False)):
+        result = subprocess.run(
+            [sys.executable, os.fspath(script)], input=data,
+            capture_output=True, timeout=5,
+        )
+        assert result.returncode == 0 and result.stderr == b""
+        if should_block:
+            assert json.loads(result.stdout)["decision"] == "block"
+        else:
+            assert result.stdout == b""
 
 
 def test_hook_scripts_run_as_subprocess():

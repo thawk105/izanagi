@@ -1330,6 +1330,23 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
    原因や成功を load や本数だけで断定しない。
 3. 2026-09-18 の調停実測は 252e24b4f 以前の regime の事実である。当時の件数を現行 regime の予測に使わない (insight §6)。
 
+#### 縮小受入 (`--scoped`) — 知識面だけの wave (2026-09-30)
+
+`DW-S04` の受入全走の免除は、縮小受入を land が再検証した wave だけに限る。設計・許可差分・選択規則・限界・実測の一次資料は
+`output/insights/2026-09-29/scoped-acceptance/README.md`。
+
+1. **適格性は wave が決めない。** 投入前に `python3 tools/scoped_acceptance.py plan --repo <wave の絶対 path> --tested-main <main SHA> --tested-tip HEAD`
+   で確かめられる (出力 JSON の `classification.eligible` と `reasons`)。不適格なら通常の受入全走へ戻す。
+2. **起動形は受入全走と同じ引数に `--scoped` を足すだけ。** `--` の後も `python3 tools/run_tests.py` のまま渡す。実際に回す集合
+   (実 repo を読む test の一覧・固定 file・変更 path を参照する test) と直接実行の検査 2 本 (`python3 tools/check_docs.py`、
+   `python3 tools/spool_fold.py --dry-run`) は、tested main の分類選択器と縮小 launcher が決める。
+3. **計算ノードへの dispatch と queue 待ちは残る。** login の実効メモリ天井を同じ user の他 session が使い切っていることが多い。短縮は走る量と、
+   無関係な赤に当たる面から出る。
+4. 直接実行の検査か pytest が 1 つでも赤なら受領証は出ない。赤の判定は `DW-O18` のまま。
+5. land は同じ `tools/dev_wave_land.py --acceptance-receipt <受領証>` で、`dev-wave-scoped-acceptance-receipt/v1` を lock 内で再検証する
+   (分類と選択の再導出、`tools/` の差分があれば拒否)。取り込んだ main で runner・分類選択器・縮小 launcher・直接実行の検査 2 本・
+   `orchestrator/tests/conftest.py` のいずれかが変わっていれば、縮小受領証は再利用できず再受入になる。
+
 ### 7.4 変異 harness の runner argv
 
 `tools/mutation_harness.py --runner-mode dispatch` は「runner が計算ノードへ投げる」ことを

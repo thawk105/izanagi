@@ -74344,3 +74344,176 @@ TPC-C 全 mix × 4 thread の `gc_records()` の ERR は、後から作られた
 - `tools/run_tests.py` の login collection で env を外す恒久策 — run_tests.py の blob 差は D987 により in-flight の全 wave の再受入を招く。初回受入でも shard 開始前に cache をそろえる設計択一として次の一手に残す。
 - 所要台帳の再生成 — 効果 0 秒 (上記)。land のたびに台帳が競合する既知の循環 (memory) も負う。
 - 事前登録の判定を結果を見た後に緩めて「支持」と書く — 規律 3 の後付け禁止と同じ向き。観測値として並記するに留める。
+
+## D2313. `/cleanup-branches` は「残す対象」以外の古い・価値の小さい木と branch を、施錠・未取込でも repo 外へ退避してから消す (2026-09-30)
+
+**決定 (ユーザー指示 2026-09-29 15:5x JST「main に取り込むものがない・取り込む価値が小さい・古いものはどんどん消して」
+「cleanup branches スキルでやれるようにして」、21:4x JST「削除で失われていいコミットもある。hello world とか、研究に取り込む価値のない
+ちょっとした検証やお試しコード」、22:5x JST「私がやらなければいけない仕事を増やさないで。cleanup-branches というスキルでやりなさい、今後も」
+(cleanup 実行 session 経由の中継を、本 wave の session でユーザーが「やれば？」で採用) に基づく):**
+
+- 既定を「消す対象を条件で選ぶ」から「残す対象を列挙し、他は消す」へ反転する。残すのは main / primary checkout、占有 (cwd・cmdline)、
+  HEAD・tip が直近 (目安: 稼働 wave の開始以降か 6h 以内) に動いた木・branch、稼働 session の主題の木・branch (棚卸し後に起動した
+  同系列の新 wave を含む)、現行 docs (phase doc・worklog 末尾の次の一手・decisions) が残す・保存と名指しした branch、land 中の wave の
+  branch、稼働 wave の manifest (`child-worktrees.json`) に載る子木、棚卸し後の新規、原本の置き場 (insight が計測原本の所在と名指しする木と
+  未追跡 `output/` の原本、`dev-wave-jobs/` の投入木を含む)。止まった wave の manifest は子木を保護しない。
+- 残す対象以外は施錠・ahead>0・未着地・dirty・rescue 判定不能でも消す。損失ゼロは要件でない。
+- 消す前に repo 外 `/work/1/SFC/tanab/dev-wave-jobs/cleanup-branches-<日付>/` へ退避する: ahead>0 の削除 branch の 1 本の bundle
+  (`^main`、create + verify + list-heads 一致。ahead=0 は main にあるので bundle しない)、main に無い detached HEAD と submodule HEAD の
+  木ごとの bundle、追跡差分 (`diff HEAD --binary`)、未追跡と `output/` 下の ignored の tar (件数照合、F1034)、submodule 内の差分・未追跡も同様。
+  退避は安価なので既定で取るが、復元手順の検算までは要求しない (損失ゼロを要件にしないため)。
+- 削除範囲は AI が Codex 2 役 (決定役・攻撃役の read-only consult) に掛けて決め、ユーザーへ確認・実行を回さない。
+  land 中の wave の branch は残す。branch は名前と期待 tip の表で一括削除する。
+- 施錠木は退避後に unlock する。land 調整役がいれば予告と OK を取る。撤去は、木を同じ file system のゴミ置き場へ mv
+  (rename で数秒/本) → 全 mv 後に prune を 1 回 (調整役の PRUNE OK と dry-run 候補の同意集合との完全一致が条件) →
+  実体を `cleanup_remove_dirs.py` へ 2 path ずつ背景で渡して消す (渡した全 path を同時に rm するので Lustre では多並列にしない)。
+  全 job の終了 status と path 不在を確かめてから事後検査へ進む。Codex 経路は real prune をしないので mv も始めない。
+- rescue gate (`check_branch_rescue.py --ledger-check`) の rc2 は削除を止めない。worktree 200 本超では `git worktree list` が
+  tool の 8 秒上限を超えて必ず rc2 になるので、worktree 撤去後・branch 削除前に branch 候補だけで再走し、再び rc2 でも JSON を残して進む。
+- 原本の置き場は tar の写しが SHA 一致でも消さない。写しへの移管は insight の所在更新を伴うので、cleanup 実行ではなく別 dev-wave が行う。
+- 撤去・削除 script は対象を本文に名指しする。Claude Code の auto mode 判定に拒否されてもユーザーへ実行を回さず、
+  名指しの形で再申請し、なお拒否なら迂回せず final で報告する。
+- command の byte 予算を 7,437 から 9,064 へ上げる (完成本文 9,061 + 余白 3)。
+
+**維持・supersede の対応:**
+
+| 既存裁定 | supersede する文 | 維持する文 |
+|---|---|---|
+| D2197 | 経路 2 の条件 (i) 完了 entry、(ii) のうち locked checkout の除外、(iv) rescue gate の JSON を削除の前提とする部分 | 経路 1 (dev-wave 段 9)、bundle 退避、稼働 wave・棚卸し後の新規の除外、別の裁定が保持と名指しした対象を消さない、台帳転記を別 dev-wave へ引き渡す |
+| D2042 | 決定「削除が成立する述語の連言と閾値は 1 つも変えない」(本決定は保持条件の列挙へ反転する)、安い条件のうち「foreign / locked / 所有不明の除外」「HEAD の古さ (目安 1h)」「worktree の HEAD の main 取込」、却下の「撤去を並列化する」のうち directory の実体削除 (本決定は mv 後の実体を 2 本ずつ並列に消す。detach・branch 削除・prune の直列は維持) | 安い条件 → 高い条件の評価順、全 surviving status の保存、破壊操作の直列化、ahead=0 の `-d` |
+| D204 | — | /cleanup-branches を例外経路とする範囲、remote / push 境界 |
+
+**理由:**
+- 2026-09-29 の実走で、報告止まりの既定は worktree 223 本・branch 160 本超を残し、rescue gate が時間切れで必ず rc2、
+  `git worktree list` が 7〜9 秒になった。ユーザーは報告止まりを拒み (「一覧に載せて報告するだけ？ゴミも？」)、スキルで消せるよう求めた。
+  同日の手作業 (worktree 38 本撤去・施錠 7 本 unlock・branch 90 本削除・prune 59 件) で 223→167 本・`git worktree list` 1.7 秒になり、
+  rescue gate が完走した (損失閉包 92 commit、全件 bundle 内)。
+- 退避 (bundle・tar) は repo を変えず安価 (同日 119 本で約 50 分、tar 計 22 MB)。損失ゼロを要件にしない代わりに、戻せる形は既定で取る。
+- 原本の置き場を残すのは、Codex 2 レンズ (決定役・攻撃役) が同日「insight が原本の所在として名指しする投入木は、tar 写しが SHA 一致でも
+  原本 path を消すのは別問題」「登録だけ外す案は Git の再現手順と submodule を壊すので不可」と判断したためである。移管は所在記録の更新で、
+  cleanup 実行の許可集合 (repo file を変えない) の外にある。
+- mv 方式は同日の 3 回目の撤去で使った (50 本を名指しで mv、後で prune、実体は 2 本ずつ削除)。`cleanup_remove_dirs.py` への 1 本ずつの
+  前景撤去は 1 本 75〜250 秒で、200 本規模では数時間かかる。rename は共有 git metadata を触らず、prune は 1 回に畳めるので、
+  D2042 が並列化を禁じた detach・branch 削除・prune の直列性は保たれる (並列にするのは実体の削除だけ)。
+- rescue gate の上限は tool を直さず手順で扱う。上限の変更は判定の受理集合を変え、worktree が減れば完走することを同日実測した。
+
+**却下した選択肢:**
+- `check_branch_rescue.py` の 8 秒上限を worktree 数に合わせて伸ばす — 受理集合の変更で、撤去後の再走で足りる。
+- 旧予算 7,437 bytes へ圧縮して収める — §1 の読取 argv 規律・§3 の F26・§5 の push 失敗時手順などの安全義務を削ることになる (自己改善契約が禁じる)。
+- 原本の置き場を写しへ移管してから cleanup 内で消す — insight の編集は cleanup の許可集合外。
+
+## D2314. dev-wave 段 9 の子木撤去に「退避してから撤去」の経路を足し、撤去中の main 前進では止めず、land 済み wave 木の終了時 hook を置く (2026-09-30)
+
+**決定 (ユーザー依頼 2026-09-29「land に成功しつつワークツリーやブランチを掃除せずに終了する wave が多い。改善してくれ」、同日のユーザー裁定「自分で出したゴミは自分で掃除しろ」「価値の小さい残骸は退避してから消す」に基づく):**
+
+1. `tools/dev_wave_cleanup.py remove-child` は、統合証明 (子の履歴が main 祖先、または所有 path の中身が main と一致) が不成立でも、
+   次を全部満たせば `integration_basis="archived-unintegrated"` で撤去し、子 branch を削除する。
+   (a) manifest の `wave_worktree` が現存し、その HEAD が `refs/heads/main` の祖先 (= wave が land 済み)。
+   (b) 子の HEAD reflog・branch reflog の全 commit が main・子 branch tip・他の既存 branch のどれかから到達可能 (子 branch tip からだけ届く commit は history.bundle に入る)。
+   (c) 子木の admin dir 配下の per-worktree ref が main 非到達 commit を指さない。
+   (d) 占有・index flag・変換 filter・submodule・dirty 退避と再読照合・bundle verify の既存検査を全部通る。
+   満たさなければ従来どおり rc=20 で木も branch も残す。D2163 の却下案「非祖先は退避して撤去する」をこの条件つきで採用し、
+   D2197 の `-D` 経路を退避済みの子へ広げる。
+2. 統合証明の後に main が前進しただけ (証明時の main tip が現 main の祖先) なら撤去を続ける。巻戻し・分岐・判定不能は従来どおり拒否する。
+   所有 path の比較は証明時の tip のままとする。
+3. 子 branch の削除は、削除直前の tip を条件にした compare-and-delete (`git update-ref -d <ref> <old>`) にする。
+   `DW-O28` の「`-D`」は非統合 branch の強制削除という意味で読み、期待 OID の照合はその安全側の上乗せとする
+   (同節は 996/997 bytes で表記を足せない)。退避経路の条件 (a) は証明時だけでなく、子木の削除直前と admin 再検査でも確かめる。
+4. Claude Code の `Stop` hook `tools/dev_wave_cleanup_stop_hook.py` を置く (`.claude/settings.json` に timeout 10 秒で配線)。
+   session の cwd が linked worktree で、その branch が作成点 (branch reflog の最古 entry) から前進し tip が
+   `refs/heads/main` の祖先なら、終了を 1 回だけ止めて `DW-O28` の撤去を促す。`stop_hook_active` の再 Stop・判定不能・
+   git 失敗・1 MiB 超や非 UTF-8 の入力は通す (注意喚起であって正しさ防壁ではない)。本体を `hooks/` の外に置くのは、
+   `hooks/` が guard_write の自己保護で AI の直接書き込みを拒否され、変更に D427 の別 worktree 経路を要する防壁の置き場だからである。
+   この hook は書込みや操作を防護しないので、AI が書き換えても防壁は弱まらない。D427 が退けた「`hooks/` の中身を script 越しに
+   書く迂回」には当たらない。
+5. `DW-S05-A`: fix は同じ子木と同じ branch を再利用し、補助・計測・probe 木も作成時に manifest へ登録する。
+
+**理由:**
+- 2026-09-29 に land した wave 約 35 本の transcript 集計で、wave 本体の木はおおむね撤去されていた。残骸の主因は子木の `remove-child` rc=20
+  (fix 巡の途中版の木が所有 path 不一致、repo に入れない probe・作図の木が所有 path 空で、構造的に統合証明が成り立たない。約 10 wave)、
+  撤去中の main 前進による rc=30 (4 wave)、撤去を呼ばず終了 (2 wave、うち 1 本は終了時に wave 木内) だった。
+- 退避経路でも子の commit は history.bundle に、未 commit の差分と未追跡物は patch・tar に残り、撤去前に再読照合と `git bundle verify` を行う。
+  失うものが無い状態でだけ消す、という D2163 の「main から到達可能なものだけ捨ててよい」の原理を「証拠 dir から復元可能なもの」へ広げる。
+  ユーザーは損失ゼロの厳密さより残骸が消えることを求め、同時に退避を求めている。
+- wave が land 済みであることを退避経路の条件にするのは、land 前の呼出しで作業中の子を消さないため。
+- 証明時の main tip が現 main の祖先なら、「子の内容が証明時の main に存在した」という事実は main の履歴に残り続ける。
+
+**却下した選択肢:**
+- 退避の完全化 (木の全 entry 目録、index の生 bytes、stash、submodule admin の保存、空 repo での bundle 検証) — 実測した残骸の原因と対応せず、
+  既存の patch・tar・bundle と重複する (段 3 過剰レンズ)。
+- 途中停止 (rc=30) からの段階別再開の journal — 現行は木の削除後・受領証の前に止まると再実行で完了できない (実在する弱点) が、
+  実測 4 件の主因は main の前進で本決定 2 が消す。残る頻度を測ってから設計する。
+- land tool の成功出力に撤去の案内を足す — JSON 出力に consumer があり、終了時 hook の方が「撤去せず終了」に直接効く。
+- 周期的な自動 sweep、他 wave の木の自動撤去 — D2163 と D204 の対象限定を維持する。
+
+## D2315. VHash の前進先は、構成 E では「既読の可視区間に収まる最大の時刻」(E-max) を U0 の主な腕とし、構成 C では最小前進 (D2287) を既定のまま部分前進を別の腕として扱う。選び方は目標時刻の計算だけを変え、確認・確定・公開の手順は変えない (2026-09-30)
+
+**決定:** VHash 論文の前進先の選び方を次のとおりとする (一次資料 `output/insights/2026-09-29/vhash-forwarding-target-policy/README.md`、`patches/cicada-forwarding-target.patch`)。
+1. 前進先の選び方は目標時刻の計算だけを実行時 flag で切り替え、確認 (事前確認 → 既読版の rts を t′ へ CAS-max → fence → 再観測)・確定・公開 (成功時だけ、D2295) の手順は選び方によらず同じ行を走らせる。md_6・md_14 の patch は記録が hash に束縛されているので変えず、第 3 の patch を重ねる。flag の既定は md_6 (最小)・md_14 (今) のままとし、既定では計数行も同じ形にする。
+2. 構成 E の前進先の既定を論文で使う腕として E-max (各既読版の直上の非 aborted 版の wts の最小より小さい最大の自 thread 形式の時刻、「今」で打ち切る) とする。E-now は md_14 との対照として残す。
+3. 構成 C の既定は D2287 の最小前進のままとし、C-max は採らない (既読不一致について最小前進と同じ成功集合を持つ)。部分前進 (C-partial: 目標に届かなくても可視区間の上端まで進む) は長い tx の成功率を上げる別の腕として扱い、完了率が上がらない限り C の既定にしない。
+4. 「1 tx 1 回」は「1 tx で目標計算に入るのは 1 回」(成功・失敗を問わない) と定義する。成功率の分母は要求 (E) / 発火 (C) とし、試行当たりは補助にする。成功回数は GC 改善の指標にしない。
+5. 前進の壊し正例 (既読不一致を無視する) は E-now で走らせる。E-max は可視区間の内側に目標を取るので、その正例に構造上到達しない。
+
+**理由:**
+- 最良設定の Cicada の上の実測で、E-max は skew 0.6・待機 10 ms で回収境界の遅れを E-hb 比 19.5 → 10.0 ms にし (E-now は 17.4 ms でほぼ効かない)、skew 0 でも E-now の 9.6 ms より短い 6.0 ms だった。skew 0.9 では E-max でも −1.0 ms と小さい。
+- 前進先だけを変え、確認の手順を共有すれば、D2290・D2295 の安全の論証 (既読版と t′ の間に確定版も pending も無く、t′ 未満の writer は rts で止まる) は t′ の値に依らず使える。ただし確認の後に置かれた pending を writer 側が捕まえるかは E-now と同じく条件 W* (D2292 で未認定) に依存する。
+- C-max は many_ops で長い thread の成功率を C-min と同じ程度にしかせず (0.048 対 0.050、skew 0.6)、C-partial は 0.320 にした。ただし長い tx の完了率はどの腕でも 0.0003 以下だった。
+
+**却下した選択肢:**
+- md_6・md_14 の patch を直接書き換える — 検査・図の記録がその patch の hash に束縛されている (D2295 と同じ)。
+- 新しい macro と条件 gate の登録で方策を切り替える — 既存の `#if` の内側の実行時 flag で足り、登録簿 (所有外) を変える理由が無い。
+- 「1 tx 1 回」を「成功後は試さない」とする — 依頼の「1 tx 1 回に制限」と違い、失敗した tx が何度でも試せる。
+- 成功率を試行当たりで比べる — E-max は `no_room` を試行の前で数えるので、試行当たりでは E-now より高く見える。
+
+## D2316. 知識面だけの wave は、機械分類と land の再検証を条件に縮小受入で land してよい (2026-09-30)
+
+**ユーザー裁定 (2026-09-29 夜、逐語):** 「あなたとやっている仕事ってさ、これまで昔からあった izanagi のテストを回さなくても問題ない話だよね？なぜなら izanagi システムとあまり関係ないじゃん？
+あなたと私と dev-wave で試行錯誤して知識を izanagi に蓄積させてるだけでしょ？つまり、特定スタイルの開発であったら main land めっちゃ早く終わらせられるよね？
+そういうことがすでに dev-wave スキル定義でわかっていそうなのか、わかっていそうでなければわからせてやりたい」
+
+**決定:**
+
+1. 受入全走の免除は、変更面が知識面の許可差分に閉じると `tools/scoped_acceptance.py` が機械で判定し、その縮小受入の受領証
+   (`dev-wave-scoped-acceptance-receipt/v1`) を `tools/dev_wave_land.py` が lock 内で再検証した wave だけに認める。wave の自己申告では免除しない。
+   それ以外の wave (実装面が 1 byte でもある wave、分類不能な差分を持つ wave) は従来どおり受入全走 (v5 受領証) を要する。
+2. 許可差分は閉じた列挙で最小に始める: `docs/spool/{worklog,decisions,failures}/` の fragment の新規追加、`output/insights/**` のテキスト
+   (md/txt/csv/tsv/json/jsonl)、`docs/**/*.md`。いずれも通常 file の追加・内容変更だけを許し、削除・rename・mode 変更・symlink・gitlink・非 UTF-8 path・
+   2 MiB 超は全受入。手順書 (`docs/dev-wave/**`、`docs/skill-self-improvement.md`)、台帳正本、`docs/archive/**`、`docs/handoff/**`、
+   `docs/ai-provenance.md`、名前に preregistration・erratum・freeze を含む文書は全受入。
+3. 正しさの門の入力は全受入に倒す。変更 path ごとの鍵 (full path、汎用名 README.md・index.md と日付以外の basename、
+   `docs/<x>` 以下と `output/insights/<日付>/<slug>` 以下の祖先 path と汎用名以外の dir 名) のいずれかを、production code
+   (docs/・output/・external/・Markdown・test・直接実行する検査 2 本を除く tracked file) の本文が部分文字列として持てば全受入とする。
+   引用符やコメントを区別せず file 全体で照合し、過大除外側に倒す。`docs/spool/*`・`output/insights`・`output/insights/<日付>`・`docs` のような
+   入れ物 dir は鍵にしない (入れ物を列挙する reader は fold・直接実行の検査・land の fold gate が担う)。この入れ物 reader を鍵で拾えないことは限界である。
+4. 縮小受入で回す集合は、実 repo を読む test の一覧 (`_REAL_REPO_NODE_INVENTORY`)、docs・spool・provenance・inventory 系の固定 test file、
+   変更 path と同じ鍵を文字列で持つ test file、insight を変えるときは `"insights"` を持つ test file、直接実行
+   `python3 tools/check_docs.py` と `python3 tools/spool_fold.py --dry-run` とする。恒久除外と growth hold は受入全走と同じ意味で効く。
+5. 取り込んだ main で runner・分類選択器・縮小 launcher・直接実行の検査 2 本・`orchestrator/tests/conftest.py` のいずれかの blob が
+   tested main と違えば、縮小受領証を再利用せず再受入とする (D987 の拡張)。test file の追加・変更だけでは再受入しない (D662 と同じ割り切り)。
+
+**D747 との関係:** D747 は受入を速くする手段として test の削除を採らないと決めた。本決定は test を 1 件も削らず、hold も足さない。
+変更面に応じて回す集合を選ぶだけで、実装面を含む wave は引き続き全 test を回す。削除 (全 wave から検出力を奪う) と選択
+(知識面だけの wave に対し、その変更が到達しうる検査を回す) は別の操作である。
+
+**D237・D301 との関係:** D237 は「docs のみの wave も check_docs・spool fold を実 repo に対して走らせる test があるので受入全走を免除しない」とし、
+機械 gate 化は範囲外としてユーザー裁定へ返していた。本決定はその裁定にあたり、D237 が挙げた検査を縮小集合と直接実行に必ず含めることで
+その理由を保つ。D237・D301 の本文は遡及改変しない。`DW-S04` の受入の文だけを前向きに「縮小受入を land が再検証した wave 以外は免除せず」へ改めた
+(変異 matrix の免除文は変えていない)。
+
+**効果の限界 (実測は insight):** 縮小受入も計算ノードへ dispatch される。login の実効メモリ天井を同じ user の他 session が使い切っている
+時間帯が多く、queue 待ちそのものは残る。短縮は走る test の量と、無関係な赤に当たる面 (再投入回数) から出る。
+
+**budget:** `DW-S04` の追記は L1 予算 (余白 6 bytes) に入らず、D782 に従い既存記述の意味等価な削減で収容した
+(`DW-S07` の括弧書き「insights は従来どおり直接書く」は直前の文が 3 台帳だけを縛ることと等価、`DW-S04` の「wave 開始後」を「開始後」)。
+上限は引き上げていない。
+
+**却下した選択肢:**
+- `docs/**`・`output/insights/**` を一括許可する — 事前登録・凍結・論文の束縛が path で読む文書や、実 repo の insight を glob で読む test が実在し、
+  縮小受入で見逃す (段 3 相談)。
+- production reader を AST で全走査する — 初回工数が大きく、動的連結・glob・subprocess を追えず完全にならない。文字列一致で過大除外に倒す方が安く安全。
+- 引用符で囲まれた文字列の中だけで照合する — コメント中のアポストロフィで引用の対応がずれ、後続の path 文字列を見逃す (段 6 レビュー)。
+- basename と入れ物 dir を常に鍵にする — 直近の知識面だけの land 10 件が 10/10 全受入になり効果が消えた (段 6 の親の実測)。
+- spool fragment と新規 insight の追加だけに絞る — 直近 80 land のうち知識面だけの 31 件中 11 件しか対象にならない。
+- 受領証に分類結果を書かせて land がそれを信じる — 自己申告と同じ。land が固定 SHA から再導出する。
+- 受入全走の v5 受領証を拡張する — 既存の全 wave の land 経路を変える。別 schema に隔離した。

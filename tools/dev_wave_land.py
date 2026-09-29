@@ -43,6 +43,7 @@ from tools.dev_waves.git_state import (  # noqa: E402
     verify_declared_fold_commit,
 )
 from tools import wave_land_window as _wave_land_window  # noqa: E402
+from tools import scoped_acceptance as _scoped_acceptance  # noqa: E402
 
 
 RC_OK = 0
@@ -97,6 +98,16 @@ _BRANCH_MERGE_OPTIONS_SUFFIX = b".mergeoptions"
 _MERGE_DRIVER_CONFIG_PREFIX = b"merge."
 _MERGE_DRIVER_CONFIG_SUFFIXES = (b".driver", b".recursive")
 _ACCEPTANCE_RECEIPT_SCHEMA = "dev-wave-acceptance-receipt/v5"
+_SCOPED_RECEIPT_SCHEMA = "dev-wave-scoped-acceptance-receipt/v1"
+_SCOPED_FIELDS = frozenset({
+    "classification", "selection", "direct_gate_results",
+    "selector_blob_sha", "selector_executed_sha256",
+})
+_SCOPED_FORWARD_BLOBS = (
+    "tools/run_tests.py", "tools/scoped_acceptance.py",
+    "tools/scoped_acceptance_launcher.py", "tools/check_docs.py",
+    "tools/spool_fold.py", "orchestrator/tests/conftest.py",
+)
 _ACCEPTANCE_AUTHORITY_KINDS = {
     "tested-main": "dev-wave-acceptance-launcher",
     "tested-tip-bootstrap": "dev-wave-acceptance-launcher-bootstrap-tip",
@@ -454,6 +465,7 @@ class _AcceptanceVerification:
     red_nodeids: tuple[str, ...]
     flake_nodeids: tuple[str, ...]
     bootstrap: bool = False
+    scoped: bool = False
 
 
 @dataclass
@@ -816,7 +828,12 @@ def _receipt_object(raw: bytes) -> dict[str, object]:
         )
     except (json.JSONDecodeError, UnicodeError, ValueError, RecursionError):
         raise _acceptance_rejected() from None
-    if not isinstance(value, dict) or set(value) != _ACCEPTANCE_RECEIPT_FIELDS:
+    if not isinstance(value, dict):
+        raise _acceptance_rejected()
+    expected = (_SCOPED_FIELDS | _ACCEPTANCE_RECEIPT_FIELDS
+                if value.get("schema_version") == _SCOPED_RECEIPT_SCHEMA
+                else _ACCEPTANCE_RECEIPT_FIELDS)
+    if set(value) != expected:
         raise _acceptance_rejected()
     return value
 
@@ -910,6 +927,22 @@ def _verify_forward_main_runner_blob(
         raise _acceptance_rejected()
 
 
+def _verify_forward_main_scoped_blobs(
+    repository: _Repository,
+    tested_main: str,
+    forward_main_merges: Sequence[_ForwardMainMerge],
+) -> None:
+    if not forward_main_merges:
+        return
+    for path in _SCOPED_FORWARD_BLOBS:
+        before = _acceptance_tree_entry(repository, tested_main, path)
+        after = _acceptance_tree_entry(
+            repository, forward_main_merges[-1].incorporated_main_sha, path,
+        )
+        if not _regular_blob_entry(before) or before != after:
+            raise _acceptance_rejected()
+
+
 def _acceptance_tree_entry(
     repository: _Repository,
     revision: str,
@@ -976,6 +1009,10 @@ def _verify_acceptance_static(
     tested_tip: str,
 ) -> _AcceptanceVerification:
     receipt = _receipt_object(raw)
+    if receipt["schema_version"] == _SCOPED_RECEIPT_SCHEMA:
+        return _verify_scoped_acceptance_static(
+            repository, receipt, raw, acceptance_wave, tested_main, tested_tip,
+        )
     try:
         expected_holder = hashlib.sha256(
             acceptance_wave.encode("utf-8")
@@ -1187,6 +1224,101 @@ def _verify_acceptance_static(
         flake_nodeids=accepted_flake_nodeids,
         bootstrap=launcher_source_revision == "tested-tip-bootstrap",
     )
+
+
+def _verify_scoped_acceptance_static(
+    repository: _Repository,
+    receipt: dict[str, object],
+    raw: bytes,
+    acceptance_wave: str,
+    tested_main: str,
+    tested_tip: str,
+) -> _AcceptanceVerification:
+    # Independent implementation-surface guard: a selector regression cannot
+    # authorize the wave that changes the selector or another tool.
+    tool_diff = _git(
+        repository.wave, "diff-tree", "-r", "--name-only", "-z",
+        "--no-renames", tested_main, tested_tip, "--", "tools/",
+    )
+    if tool_diff.returncode != 0 or tool_diff.stdout:
+        raise _acceptance_rejected()
+    if (receipt["authority_kind"] != "dev-wave-scoped-acceptance-launcher"
+            or receipt["launcher_source_revision"] != "tested-main"
+            or receipt["verdict"] != "child-green"
+            or receipt["child_rc"] != 0):
+        raise _acceptance_rejected()
+    try:
+        expected = _scoped_acceptance.plan(repository.wave, tested_main, tested_tip)
+    except (OSError, ValueError, UnicodeError):
+        raise _acceptance_rejected() from None
+    if (not expected["classification"]["eligible"]
+            or not expected["selection"]["eligible"]
+            or receipt["classification"] != expected["classification"]
+            or receipt["selection"] != expected["selection"]):
+        raise _acceptance_rejected()
+    selector_entry = _acceptance_tree_entry(
+        repository, tested_main, "tools/scoped_acceptance.py",
+    )
+    launcher_entry = _acceptance_tree_entry(
+        repository, tested_main, "tools/scoped_acceptance_launcher.py",
+    )
+    if not _regular_blob_entry(selector_entry) or not _regular_blob_entry(launcher_entry):
+        raise _acceptance_rejected()
+    assert selector_entry is not None and launcher_entry is not None
+    try:
+        land_module_blob = subprocess.run(
+            [_GIT_EXE, "-C", str(repository.wave), "hash-object",
+             str(Path(_scoped_acceptance.__file__).resolve())],
+            capture_output=True, check=True, text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        raise _acceptance_rejected() from None
+    if (receipt["selector_blob_sha"] != selector_entry[2]
+            or land_module_blob != selector_entry[2]
+            or receipt["selector_executed_sha256"]
+            != _acceptance_blob_content_sha256(repository, selector_entry[2])
+            or receipt["launcher_blob_sha"] != launcher_entry[2]
+            or receipt["launcher_executed_sha256"]
+            != _acceptance_blob_content_sha256(repository, launcher_entry[2])):
+        raise _acceptance_rejected()
+    gate_results = receipt["direct_gate_results"]
+    if (not isinstance(gate_results, list)
+            or len(gate_results) != len(_scoped_acceptance.GATES)):
+        raise _acceptance_rejected()
+    for result, argv in zip(gate_results, _scoped_acceptance.GATES):
+        if (not isinstance(result, dict)
+                or set(result) != {"argv", "rc", "log_sha256"}
+                or result["argv"] != argv
+                or type(result["rc"]) is not int or result["rc"] != 0
+                or not isinstance(result["log_sha256"], str)
+                or _SHA256_RE.fullmatch(result["log_sha256"]) is None):
+            raise _acceptance_rejected()
+    # Reuse every unchanged v5 common-field and tested-object check. Its
+    # launcher fields are supplied from the verified tested-main v5 blob.
+    base_launcher = _acceptance_tree_entry(
+        repository, tested_main, _ACCEPTANCE_LAUNCHER_PATH,
+    )
+    if not _regular_blob_entry(base_launcher):
+        raise _acceptance_rejected()
+    assert base_launcher is not None
+    common = {key: receipt[key] for key in _ACCEPTANCE_RECEIPT_FIELDS}
+    common.update({
+        "schema_version": _ACCEPTANCE_RECEIPT_SCHEMA,
+        "authority_kind": _ACCEPTANCE_AUTHORITY_KINDS["tested-main"],
+        "launcher_source_revision": "tested-main",
+        "launcher_blob_sha": base_launcher[2],
+        "launcher_executed_sha256": _acceptance_blob_content_sha256(
+            repository, base_launcher[2],
+        ),
+    })
+    checked = _verify_acceptance_static(
+        repository, raw=json.dumps(common, sort_keys=True,
+                                   separators=(",", ":")).encode(),
+        acceptance_wave=acceptance_wave, tested_main=tested_main,
+        tested_tip=tested_tip,
+    )
+    return replace(checked, receipt_sha256=hashlib.sha256(raw).hexdigest(),
+                   scoped=True)
 
 
 def _verify_acceptance_locked_authority(
@@ -5699,7 +5831,9 @@ def land(request: LandRequest) -> LandResult:
             main_before = preflight.locked_main
             quiescent_rejection = preflight.active_plan is None
             if preflight.forward_main_merges:
-                _verify_forward_main_runner_blob(
+                verifier = (_verify_forward_main_scoped_blobs if registered_verification.scoped
+                            else _verify_forward_main_runner_blob)
+                verifier(
                     repository,
                     tested_main,
                     preflight.forward_main_merges,
@@ -5790,7 +5924,9 @@ def land(request: LandRequest) -> LandResult:
                 quiescent_rejection = preflight.active_plan is None
                 _verify_provenance_receipt(repository, receipt, landing_tip)
                 if preflight.forward_main_merges:
-                    _verify_forward_main_runner_blob(
+                    verifier = (_verify_forward_main_scoped_blobs if registered_verification.scoped
+                                else _verify_forward_main_runner_blob)
+                    verifier(
                         repository,
                         tested_main,
                         preflight.forward_main_merges,
