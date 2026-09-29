@@ -1,0 +1,1475 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.............................                                            [100%]\n29 passed in 20.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "2b639c118b0ef1d66819190093d0eb74dbb8ec904bd9edf693158569270caf3f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+    "duration_s": 21.553,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "864d4d1cfb1dbe726c0e1163bbd02920654c0530a493dcd2eb75adf2cac9044b",
+    "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+    "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+    "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+    "status": "PASSED",
+    "test_output_sha256": "2b639c118b0ef1d66819190093d0eb74dbb8ec904bd9edf693158569270caf3f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+  },
+  "date": "2026-09-29T10:21:24.321075+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n_____________ test_schema2_required_fields_and_three_term_identity _____________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_schema2_required_fields_and_three_term_identity():\n        p = _payload2()\n        p[\"workers\"][0].update(gc_boundary_count=2, gc_publish_count=1,\n                                gc_publish_sum_us=10, dc_first=1, dc_count=1,\n                                dc_cf_wait_sum_us=3, dc_ro_gap_sum_us=4,\n                                dc_leader_wait_sum_us=3, dc_interval_sum_us=10)\n        p[\"workers\"][0][\"gc_boundary_us\"][0] = 2\n        p[\"workers\"][0][\"gc_publish_us\"][4] = 1\n        p[\"workers\"][0][\"dc_cf_kind_count\"][3] = 1\n        p[\"workers\"][0][\"dc_cf_kind_sum_us\"][3] = 3\n        p[\"workers\"][0][\"dc_late_epoch\"] = 1\n        assert V.parse_vlife_line(_line(p)) == p\n        assert V.summarize(p)[\"dc_late_epoch\"] == 1\n        for change in (\n            lambda q: q[\"workers\"][0].pop(\"readonly_reads\"),\n            lambda q: q[\"workers\"][0].pop(\"dc_late_epoch\"),\n            lambda q: q[\"workers\"][0].update(extra=0),\n            lambda q: q[\"workers\"][0].update(dc_ro_gap_sum_us=5),\n            lambda q: q[\"workers\"][0].update(dc_ro_gap_sum_us=3),\n            lambda q: q[\"workers\"][0].update(readonly_candidate=[1, 0, 0, 0, 0]),\n            lambda q: q[\"workers\"][0].update(ro_snapshot_age_us=[0]),\n            lambda q: q[\"workers\"][0].update(gc_publish_sum_us=-1),\n            lambda q: q[\"workers\"][0].update(dc_late_epoch=3),\n        ):\n            q = json.loads(json.dumps(p))\n            change(q)\n            try:\n>               V.parse_vlife_line(_line(q))\n\norchestrator/tests/test_vhash_cicada_vlife.py:161: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstdout = 'IZANAGI_CICADA_VLIFE_JSON {\"schema_version\": 2, \"clocks_per_us\": 2100, \"bucket_bounds\": [0, 1, 2, 3, 4, 5, 6, 7, 8, 1..., 0, 0], \"dc_cf_kind_count\": [0, 0, 0, 0, 0], \"dc_cf_kind_sum_us\": [0, 0, 0, 0, 0], \"holder_units\": [0, 0, 0, 0, 0]}]}'\n\n    def parse_vlife_line(stdout: str) -> dict:\n        lines = [line[len(PREFIX):] for line in stdout.splitlines()\n                 if line.startswith(PREFIX)]\n        if len(lines) != 1:\n            raise ValueError(\"missing or duplicate Cicada vlife JSON line\")\n        def unique_pairs(pairs):\n            result = {}\n            for key, value in pairs:\n                if key in result:\n                    raise ValueError(\"duplicate JSON key\")\n                result[key] = value\n            return result\n        payload = json.loads(lines[0], object_pairs_hook=unique_pairs)\n        if not isinstance(payload, dict) or set(payload) != {\n            \"schema_version\", \"clocks_per_us\", \"bucket_bounds\", \"time_bucket_bounds\",\n            \"position_origin\", \"sites\", \"build\", \"workers\",\n        }:\n            raise ValueError(\"schema fields\")\n        schema = _nonnegative(payload[\"schema_version\"])\n        if schema not in (1, 2):\n            raise ValueError(\"schema version\")\n        if not _nonnegative(payload[\"clocks_per_us\"]):\n            raise ValueError(\"zero clock\")\n        if _vector(payload[\"bucket_bounds\"], 18) != [\n            0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256, 512, 1024, 2048,\n            18446744073709551615\n        ]:\n            raise ValueError(\"bucket bounds\")\n        if payload[\"sites\"] != list(SITES):\n            raise ValueError(\"site names\")\n        if _vector(payload[\"time_bucket_bounds\"], 42) != TIME_BOUNDS:\n            raise ValueError(\"time bucket bounds\")\n        if payload[\"position_origin\"] != POSITION_ORIGIN:\n            raise ValueError(\"position origin\")\n        build = payload[\"build\"]\n        build_fields = {\"reuse_version\", \"inline_version_opt\", \"longtx\"}\n        if schema == 2:\n            build_fields |= {\"izanagi_ronly_pct\", \"izanagi_long_kind\"}\n        if not isinstance(build, dict) or set(build) != build_fields:\n            raise ValueError(\"build fields\")\n        for field in (\"reuse_version\", \"inline_version_opt\", \"longtx\"):\n            _nonnegative(build[field])\n        if schema == 2:\n            if type(build[\"izanagi_ronly_pct\"]) is not int or not -1 <= build[\"izanagi_ronly_pct\"] <= 100:\n                raise ValueError(\"read-only flag\")\n            if type(build[\"izanagi_long_kind\"]) is not int or build[\"izanagi_long_kind\"] not in (0, 1, 2):\n                raise ValueError(\"long kind flag\")\n        workers = payload[\"workers\"]\n        if not isinstance(workers, list) or not workers:\n            raise ValueError(\"workers\")\n        scalars = {\"readonly_attempt\", \"readonly_commit\",\n                   \"install\", \"detach\", \"gc_negative\"}\n        vectors = {\"no_scan\": 8, \"deep\": 5, \"candidate\": 5, \"readonly_deep\": 5,\n                   \"deep_read_zero\": 5, \"candidate_read_zero\": 5,\n                   \"gc_boundary_us\": 42, \"gc_publish_us\": 42,\n                   \"age_create_us\": 42, \"age_overwrite_us\": 42,\n                   \"attempts\": 2, \"commits\": 2, \"aborts\": 2,\n                   \"operations\": 2, \"cycles\": 2}\n        if schema == 2:\n            scalars |= {\"readonly_reads\", \"gc_boundary_sum_us\", \"gc_boundary_count\",\n                        \"gc_publish_sum_us\", \"gc_publish_count\", \"gc_publish_negative\",\n                        \"gc_boundary_overflow\", \"gc_publish_overflow\",\n                        \"ro_snapshot_age_sum_us\", \"ro_snapshot_age_count\",\n                        \"ro_snapshot_age_negative\", \"ro_snapshot_age_overflow\", \"gc_same\",\n                        \"dc_cf_wait_sum_us\", \"dc_ro_gap_sum_us\", \"dc_leader_wait_sum_us\",\n                        \"dc_interval_sum_us\",\n                        \"dc_count\", \"dc_first\", \"dc_missing\", \"dc_generation\",\n                        \"dc_negative\", \"dc_epoch_mismatch\", \"dc_late_epoch\",\n                        \"dc_leader_count\", \"holder_count\",\n                        \"holder_unresolved\"}\n            vectors.update(readonly_candidate=5, ro_snapshot_age_us=42,\n                           dc_cf_kind_count=5, dc_cf_kind_sum_us=5, holder_units=5)\n        for worker in workers:\n            if not isinstance(worker, dict) or not set(worker) <= {\n                \"hops\", \"position\", *scalars, *vectors\n            }:\n                raise ValueError(\"worker fields\")\n            for field in (\"hops\", \"position\"):\n                if not isinstance(worker[field], list) or len(worker[field]) != len(SITES):\n                    raise ValueError(\"site vector\")\n                for row in worker[field]:\n                    _vector(row, 18)\n            for field in scalars:\n>               _nonnegative(worker[field])\nE               KeyError: 'readonly_reads'\n\norchestrator/campaign/vhash_cicada_vlife.py:223: KeyError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity\n1 failed, 28 passed in 20.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=6596 retained_bytes=3949 omitted_bytes=2647 rendered_excerpt_bytes=4096 sha256=50f1c1fd944ffbdb01230c40112da60fe83856aaa51ed852d0f710c5314e4860\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> t_bounds\",\n>             \"position_origin\", \"sites\", \"build\", \"workers\",\n>         }:\n>             raise ValueError(\"schema fields\")\n>         schema = _nonnegative(payload[\"schema_version\"])\n>         if schema not in (1, 2):\n>             raise ValueError(\"schema version\")\n>         if not _nonnegative(payload[\"clocks_per_us\"]):\n>             raise ValueError(\"zero clock\")\n>         if _vector(payload[\"bucket_bounds\"], 18) != [\n>             0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256, 512, 1024, 2048,\n>             18446744073709551615\n>         ]:\n>             raise ValueError(\"bucket bounds\")\n>         if payload[\"sites\"] != list(SITES):\n>             raise ValueError(\"site names\")\n>         if _vector(payload[\"time_bucket_bounds\"], 42) != TIME_BOUNDS:\n>             raise ValueError(\"time bucket bounds\")\n>         if payload[\"position_origin\"] != POSITION_ORIGIN:\n>             raise ValueError(\"position origin\")\n>         build = payload[\"build\"]\n>         build_fields = {\"reuse_version\", \"inline_version_opt\", \"longtx\"}\n>         if schema == 2:\n>             build_fields |= {\"izanagi_ronly_pct\", \"izanagi_long_kind\"}\n>         if not isinstance(build, dict) or set(build) != build_fields:\n>             raise ValueError(\"build fields\")\n>         for field in (\"reuse_version\", \"inline_version_opt\", \"longtx\"):\n>             _nonnegative(build[field])\n>         if schema == 2:\n>             if type(build[\"izanagi_ronly_pct\"]) is not int or not -1 <= build[\"izanagi_ronly_pct\"] <= 100:\n>                 raise ValueError(\"read-only flag\")\n>             if type(build[\"izanagi_long_kind\"]) is not int or build[\"izanagi_long_kind\"] not in (0, 1, 2):\n>                 raise ValueError(\"long kind flag\")\n>         workers = payload[\"workers\"]\n>         if not isinstance(workers, list) or not workers:\n>             raise ValueError(\"workers\")\n>         scalars = {\"readonly_attempt\", \"readonly_commit\",\n>                    \"install\", \"detach\", \"gc_negative\"}\n>         vectors = {\"no_scan\": 8, \"deep\": 5, \"candidate\": 5, \"readonly_deep\": 5,\n>                    \"deep_read_zero\": 5, \"candidate_read_zero\": 5,\n>                    \"gc_boundary_us\": 42, \"gc_publish_us\": 42,\n>                    \"age_create_us\": 42, \"age_overwrite_us\": 42,\n>                    \"attempts\": 2, \"commits\": 2, \"aborts\": 2,\n>                    \"operations\": 2, \"cycles\": 2}\n>         if schema == 2:\n>             scalars |= {\"readonly_reads\", \"gc_boundary_sum_us\", \"gc_boundary_count\",\n>                         \"gc_publish_sum_us\", \"gc_publish_count\", \"gc_publish_negative\",\n>                         \"gc_boundary_overflow\", \"gc_publish_overflow\",\n>                         \"ro_snapshot_age_sum_us\", \"ro_snapshot_age_count\",\n>                         \"ro_snapshot_age_negative\", \"ro_snapshot_age_overflow\", \"gc_same\",\n>                         \"dc_cf_wait_sum_us\", \"dc_ro_gap_sum_us\", \"dc_leader_wait_sum_us\",\n>                         \"dc_interval_sum_us\",\n>                         \"dc_count\", \"dc_first\", \"dc_missing\", \"dc_generation\",\n>                         \"dc_negative\", \"dc_epoch_mismatch\", \"dc_late_epoch\",\n>                         \"dc_leader_count\", \"holder_count\",\n>                         \"holder_unresolved\"}\n>             vectors.update(readonly_candidate=5, ro_snapshot_age_us=42,\n>                            dc_cf_kind_count=5, dc_cf_kind_sum_us=5, holder_units=5)\n>         for worker in workers:\n>             if not isinstance(worker, dict) or not set(worker) <= {\n>                 \"hops\", \"position\", *scalars, *vectors\n>             }:\n>                 raise ValueError(\"worker fields\")\n>             for field in (\"hops\", \"position\"):\n>                 if not isinstance(worker[field], list) or len(worker[field]) != len(SITES):\n>                     raise ValueError(\"site vector\")\n>                 for row in worker[field]:\n>                     _vector(row, 18)\n>             for field in scalars:\n> >               _nonnegative(worker[field])\n> E               KeyError: 'readonly_reads'\n> \n> orchestrator/campaign/vhash_cicada_vlife.py:223: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=6596 retained_bytes=3949 omitted_bytes=2647 budget_bytes=49152 rendered_bytes=4828 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "acf52d2b1acc0e5db8b85293927c2fc8c6b7f509ddf54936fc58a58fa0c81bb2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.151,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+      ],
+      "hang_risk": false,
+      "id": "MUT-1-schema2-missing-field-accepted",
+      "injection_diff_sha256": "aacf49574dc701159cea14da643b77decf75e442753beef434996d4cf4a21108",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "299712f8b5ed75274fac030377969403e13a82fc3bfd9dda4e67cd68ae4f54fb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "        if not isinstance(worker, dict) or not set(worker) <= {\n",
+          "old": "        if not isinstance(worker, dict) or set(worker) != {\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "acf52d2b1acc0e5db8b85293927c2fc8c6b7f509ddf54936fc58a58fa0c81bb2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n_____________ test_schema2_required_fields_and_three_term_identity _____________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_schema2_required_fields_and_three_term_identity():\n        p = _payload2()\n        p[\"workers\"][0].update(gc_boundary_count=2, gc_publish_count=1,\n                                gc_publish_sum_us=10, dc_first=1, dc_count=1,\n                                dc_cf_wait_sum_us=3, dc_ro_gap_sum_us=4,\n                                dc_leader_wait_sum_us=3, dc_interval_sum_us=10)\n        p[\"workers\"][0][\"gc_boundary_us\"][0] = 2\n        p[\"workers\"][0][\"gc_publish_us\"][4] = 1\n        p[\"workers\"][0][\"dc_cf_kind_count\"][3] = 1\n        p[\"workers\"][0][\"dc_cf_kind_sum_us\"][3] = 3\n        p[\"workers\"][0][\"dc_late_epoch\"] = 1\n        assert V.parse_vlife_line(_line(p)) == p\n        assert V.summarize(p)[\"dc_late_epoch\"] == 1\n        for change in (\n            lambda q: q[\"workers\"][0].pop(\"readonly_reads\"),\n            lambda q: q[\"workers\"][0].pop(\"dc_late_epoch\"),\n            lambda q: q[\"workers\"][0].update(extra=0),\n            lambda q: q[\"workers\"][0].update(dc_ro_gap_sum_us=5),\n            lambda q: q[\"workers\"][0].update(dc_ro_gap_sum_us=3),\n            lambda q: q[\"workers\"][0].update(readonly_candidate=[1, 0, 0, 0, 0]),\n            lambda q: q[\"workers\"][0].update(ro_snapshot_age_us=[0]),\n            lambda q: q[\"workers\"][0].update(gc_publish_sum_us=-1),\n            lambda q: q[\"workers\"][0].update(dc_late_epoch=3),\n        ):\n            q = json.loads(json.dumps(p))\n            change(q)\n            try:\n                V.parse_vlife_line(_line(q))\n            except ValueError:\n                pass\n            else:\n>               raise AssertionError(\"invalid schema 2 payload accepted\")\nE               AssertionError: invalid schema 2 payload accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:165: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity\n1 failed, 28 passed in 20.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1816 retained_bytes=1816 omitted_bytes=0 rendered_excerpt_bytes=1891 sha256=f9d88e4b2f7511580ec3e2df94230eb1ddf9666d7550c84d32f43d49469c37c8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_schema2_required_fields_and_three_term_identity():\n>         p = _payload2()\n>         p[\"workers\"][0].update(gc_boundary_count=2, gc_publish_count=1,\n>                                 gc_publish_sum_us=10, dc_first=1, dc_count=1,\n>                                 dc_cf_wait_sum_us=3, dc_ro_gap_sum_us=4,\n>                                 dc_leader_wait_sum_us=3, dc_interval_sum_us=10)\n>         p[\"workers\"][0][\"gc_boundary_us\"][0] = 2\n>         p[\"workers\"][0][\"gc_publish_us\"][4] = 1\n>         p[\"workers\"][0][\"dc_cf_kind_count\"][3] = 1\n>         p[\"workers\"][0][\"dc_cf_kind_sum_us\"][3] = 3\n>         p[\"workers\"][0][\"dc_late_epoch\"] = 1\n>         assert V.parse_vlife_line(_line(p)) == p\n>         assert V.summarize(p)[\"dc_late_epoch\"] == 1\n>         for change in (\n>             lambda q: q[\"workers\"][0].pop(\"readonly_reads\"),\n>             lambda q: q[\"workers\"][0].pop(\"dc_late_epoch\"),\n>             lambda q: q[\"workers\"][0].update(extra=0),\n>             lambda q: q[\"workers\"][0].update(dc_ro_gap_sum_us=5),\n>             lambda q: q[\"workers\"][0].update(dc_ro_gap_sum_us=3),\n>             lambda q: q[\"workers\"][0].update(readonly_candidate=[1, 0, 0, 0, 0]),\n>             lambda q: q[\"workers\"][0].update(ro_snapshot_age_us=[0]),\n>             lambda q: q[\"workers\"][0].update(gc_publish_sum_us=-1),\n>             lambda q: q[\"workers\"][0].update(dc_late_epoch=3),\n>         ):\n>             q = json.loads(json.dumps(p))\n>             change(q)\n>             try:\n>                 V.parse_vlife_line(_line(q))\n>             except ValueError:\n>                 pass\n>             else:\n> >               raise AssertionError(\"invalid schema 2 payload accepted\")\n> E               AssertionError: invalid schema 2 payload accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:165: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1816 retained_bytes=1816 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2617 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e278a3a9b3f52dab80e8c01119cb0c0f62673adc3893ddab2c85601c26c33dd2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.044,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+      ],
+      "hang_risk": false,
+      "id": "MUT-2-three-term-identity-unchecked",
+      "injection_diff_sha256": "1a54ee790172e4d086e767ca5b1324d3e4b7719c5017f22307562dc287ca237d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "641c5c5281e2e9c809ae40a0c0fe7cea24fd3653e0f2329d641e21c5b9dd3e5b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "                worker[\"dc_leader_wait_sum_us\"] != worker[\"dc_interval_sum_us\"]) and False:\n",
+          "old": "                worker[\"dc_leader_wait_sum_us\"] != worker[\"dc_interval_sum_us\"]):\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "e278a3a9b3f52dab80e8c01119cb0c0f62673adc3893ddab2c85601c26c33dd2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n___________________________ test_df_interaction_sign ___________________________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_df_interaction_sign():\n>       assert V.df_interaction(17, 8, 5, 2) == 6\nE       assert 2 == 6\nE        +  where 2 = <function df_interaction at 0x15457822c4c0>(17, 8, 5, 2)\nE        +    where <function df_interaction at 0x15457822c4c0> = V.df_interaction\n\norchestrator/tests/test_vhash_cicada_vlife.py:213: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign\n1 failed, 28 passed in 20.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=387 retained_bytes=387 omitted_bytes=0 rendered_excerpt_bytes=406 sha256=4521a673d2856ccc729e63c4ebd1d698e9515aa90f6a847b286c95421e31114b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_df_interaction_sign():\n> >       assert V.df_interaction(17, 8, 5, 2) == 6\n> E       assert 2 == 6\n> E        +  where 2 = <function df_interaction at 0x15457822c4c0>(17, 8, 5, 2)\n> E        +    where <function df_interaction at 0x15457822c4c0> = V.df_interaction\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:213: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=387 retained_bytes=387 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1099 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4bc63fee117a3fcfb76e258e6c2700ce854ae180805b73a20e589b1d3c90b80d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.222,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign"
+      ],
+      "hang_risk": false,
+      "id": "MUT-3-df-interaction-sign",
+      "injection_diff_sha256": "fd1c405ed748f5fe82fa094370b966e674b50d7a4fef61d4d5c4794277571df4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d6c43391ce50a5c4d0eeb1f267d64cc5c783bedd00604d1342ff27be51261809",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    return lag_r_long - lag_r_none - lag_0_long - lag_0_none\n",
+          "old": "    return lag_r_long - lag_r_none - lag_0_long + lag_0_none\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "4bc63fee117a3fcfb76e258e6c2700ce854ae180805b73a20e589b1d3c90b80d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F.FFF                                            [100%]\n=================================== FAILURES ===================================\n______________________ test_conditions_and_genome_binding ______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_conditions_and_genome_binding():\n        old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")\n               for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")\n               for gc in (10, 1000, 100000)}\n        assert V.OLD_CONDITIONS == old\n>       assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12\nE       AssertionError: assert 93 == 108\nE        +  where 93 = len({'A-none-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, 'A-none-gc1000': {...m': 0, ...}, 'A-wait1ms-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, ...})\nE        +    where {'A-none-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, 'A-none-gc1000': {...m': 0, ...}, 'A-wait1ms-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, ...} = V.CONDITIONS\n\norchestrator/tests/test_vhash_cicada_vlife.py:200: AssertionError\n__________________ test_readonly_figure_full_campaign_layout ___________________\n[gw8] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_readonly_figure_full_campaign_layout():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-figure-grid-\") as td:\n>           _, _, out = _render_figure_campaign(td)\n\norchestrator/tests/test_vhash_cicada_vlife.py:317: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntd = '/tmp/cvl-figure-grid-xbcjzdju', before_render = None\n\n    def _render_figure_campaign(td, before_render=None):\n        script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n        spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n        module = importlib.util.module_from_spec(spec)\n        assert spec.loader is not None\n        spec.loader.exec_module(module)\n        raw_path = Path(td) / \"raw.json\"\n        out = Path(td) / \"figures\"\n        ids = sorted(module.REQUIRED)\n>       assert len(ids) == 86\nE       AssertionError: assert 71 == 86\nE        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])\n\norchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError\n________________ test_mut19_boundary_time_panels_use_log_scale _________________\n[gw9] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut19_boundary_time_panels_use_log_scale():\n        scales = []\n    \n        def capture(module):\n            original = module._save\n    \n            def checked_save(fig, out, name, common, numbers, caption):\n                if name == \"boundary_age\":\n                    scales.extend(ax.get_yscale() for ax in fig.axes)\n                return original(fig, out, name, common, numbers, caption)\n    \n            module._save = checked_save\n    \n        with tempfile.TemporaryDirectory(prefix=\"cvl-log-time-\") as td:\n>           _render_figure_campaign(td, before_render=capture)\n\norchestrator/tests/test_vhash_cicada_vlife.py:340: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntd = '/tmp/cvl-log-time-wsl2w70l'\nbefore_render = <function test_mut19_boundary_time_panels_use_log_scale.<locals>.capture at 0x14a4fcbe7e20>\n\n    def _render_figure_campaign(td, before_render=None):\n        script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n        spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n        module = importlib.util.module_from_spec(spec)\n        assert spec.loader is not None\n        spec.loader.exec_module(module)\n        raw_path = Path(td) / \"raw.json\"\n        out = Path(td) / \"figures\"\n        ids = sorted(module.REQUIRED)\n>       assert len(ids) == 86\nE       AssertionError: assert 71 == 86\nE        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])\n\norchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError\n___________________ test_mut15_tuned_comparison_panels_exist ___________________\n[gw14] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut15_tuned_comparison_panels_exist():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-tuned-panels-\") as td:\n>           _, _, out = _render_figure_campaign(td)\n\norchestrator/tests/test_vhash_cicada_vlife.py:401: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntd = '/tmp/cvl-tuned-panels-i2d2ncs4', before_render = None\n\n    def _render_figure_campaign(td, before_render=None):\n        script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n        spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n        module = importlib.util.module_from_spec(spec)\n        assert spec.loader is not None\n        spec.loader.exec_module(module)\n        raw_path = Path(td) / \"raw.json\"\n        out = Path(td) / \"figures\"\n        ids = sorted(module.REQUIRED)\n>       assert len(ids) == 86\nE       AssertionError: assert 71 == 86\nE        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])\n\norchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\n4 failed, 25 passed in 5.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1670 retained_bytes=1670 omitted_bytes=0 rendered_excerpt_bytes=1747 sha256=81890e71116deeffc3667876f1415e27eb79e263adc71dce364fc0a2f6c47eb6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut19_boundary_time_panels_use_log_scale():\n>         scales = []\n>     \n>         def capture(module):\n>             original = module._save\n>     \n>             def checked_save(fig, out, name, common, numbers, caption):\n>                 if name == \"boundary_age\":\n>                     scales.extend(ax.get_yscale() for ax in fig.axes)\n>                 return original(fig, out, name, common, numbers, caption)\n>     \n>             module._save = checked_save\n>     \n>         with tempfile.TemporaryDirectory(prefix=\"cvl-log-time-\") as td:\n> >           _render_figure_campaign(td, before_render=capture)\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:340: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> td = '/tmp/cvl-log-time-wsl2w70l'\n> before_render = <function test_mut19_boundary_time_panels_use_log_scale.<locals>.capture at 0x14a4fcbe7e20>\n> \n>     def _render_figure_campaign(td, before_render=None):\n>         script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n>         spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n>         module = importlib.util.module_from_spec(spec)\n>         assert spec.loader is not None\n>         spec.loader.exec_module(module)\n>         raw_path = Path(td) / \"raw.json\"\n>         out = Path(td) / \"figures\"\n>         ids = sorted(module.REQUIRED)\n> >       assert len(ids) == 86\n> E       AssertionError: assert 71 == 86\n> E        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1173 retained_bytes=1173 omitted_bytes=0 rendered_excerpt_bytes=1224 sha256=39edb421a785750e8bad6ea15eef0e5d994b3c656cafb1efe27d5e7adb35e84b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut15_tuned_comparison_panels_exist():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-tuned-panels-\") as td:\n> >           _, _, out = _render_figure_campaign(td)\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:401: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> td = '/tmp/cvl-tuned-panels-i2d2ncs4', before_render = None\n> \n>     def _render_figure_campaign(td, before_render=None):\n>         script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n>         spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n>         module = importlib.util.module_from_spec(spec)\n>         assert spec.loader is not None\n>         spec.loader.exec_module(module)\n>         raw_path = Path(td) / \"raw.json\"\n>         out = Path(td) / \"figures\"\n>         ids = sorted(module.REQUIRED)\n> >       assert len(ids) == 86\n> E       AssertionError: assert 71 == 86\n> E        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=1171 retained_bytes=1171 omitted_bytes=0 rendered_excerpt_bytes=1222 sha256=332935f6ba2c1c9c15f951c43eb8e947f5325980f4ea273c9cad9d7680411fc5\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_readonly_figure_full_campaign_layout():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-figure-grid-\") as td:\n> >           _, _, out = _render_figure_campaign(td)\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:317: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> td = '/tmp/cvl-figure-grid-xbcjzdju', before_render = None\n> \n>     def _render_figure_campaign(td, before_render=None):\n>         script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n>         spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n>         module = importlib.util.module_from_spec(spec)\n>         assert spec.loader is not None\n>         spec.loader.exec_module(module)\n>         raw_path = Path(td) / \"raw.json\"\n>         out = Path(td) / \"figures\"\n>         ids = sorted(module.REQUIRED)\n> >       assert len(ids) == 86\n> E       AssertionError: assert 71 == 86\n> E        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=1039 retained_bytes=1039 omitted_bytes=0 rendered_excerpt_bytes=1066 sha256=2c686b49c9643df6b5352d8339379d7a26f1f6da751fba54be18b9ec665b2bba\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_conditions_and_genome_binding():\n>         old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")\n>                for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")\n>                for gc in (10, 1000, 100000)}\n>         assert V.OLD_CONDITIONS == old\n> >       assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12\n> E       AssertionError: assert 93 == 108\n> E        +  where 93 = len({'A-none-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, 'A-none-gc1000': {...m': 0, ...}, 'A-wait1ms-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, ...})\n> E        +    where {'A-none-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, 'A-none-gc1000': {...m': 0, ...}, 'A-wait1ms-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, ...} = V.CONDITIONS\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:200: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5053 retained_bytes=5053 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7254 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "861047a1674c98f9e15ade2c7c6f6fd5b59ec92cd345ee04679e11eea9e1f62b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 6.052,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+      ],
+      "hang_risk": false,
+      "id": "MUT-4-main-grid-drops-long-readonly",
+      "injection_diff_sha256": "a5a6dff15c0dc282dac9def0fb90ba60f8ee27412a7dbb7619bc102cec98af3b",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "c286f90c589766ea39267a4351d5905328b133004da424a9dbfb412343988151",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\"),\n",
+          "old": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\", \"wait10msR\"),\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "MISMATCH",
+      "test_output_sha256": "861047a1674c98f9e15ade2c7c6f6fd5b59ec92cd345ee04679e11eea9e1f62b",
+      "test_output_tail": [
+        "> >       assert len(ids) == 86",
+        "> E       AssertionError: assert 71 == 86",
+        "> E        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])",
+        "> ",
+        "> orchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+        "IZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1173 retained_bytes=1173 omitted_bytes=0 rendered_excerpt_bytes=1224 sha256=39edb421a785750e8bad6ea15eef0e5d994b3c656cafb1efe27d5e7adb35e84b",
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> [gw14] linux -- Python 3.10.12 /usr/bin/python3.10",
+        "> ",
+        ">     def test_mut15_tuned_comparison_panels_exist():",
+        ">         with tempfile.TemporaryDirectory(prefix=\"cvl-tuned-panels-\") as td:",
+        "> >           _, _, out = _render_figure_campaign(td)",
+        "> ",
+        "> orchestrator/tests/test_vhash_cicada_vlife.py:401: ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        "> td = '/tmp/cvl-tuned-panels-i2d2ncs4', before_render = None",
+        "> ",
+        ">     def _render_figure_campaign(td, before_render=None):",
+        ">         script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"",
+        ">         spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)",
+        ">         module = importlib.util.module_from_spec(spec)",
+        ">         assert spec.loader is not None",
+        ">         spec.loader.exec_module(module)",
+        ">         raw_path = Path(td) / \"raw.json\"",
+        ">         out = Path(td) / \"figures\"",
+        ">         ids = sorted(module.REQUIRED)",
+        "> >       assert len(ids) == 86",
+        "> E       AssertionError: assert 71 == 86",
+        "> E        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])",
+        "> ",
+        "> orchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=1171 retained_bytes=1171 omitted_bytes=0 rendered_excerpt_bytes=1222 sha256=332935f6ba2c1c9c15f951c43eb8e947f5325980f4ea273c9cad9d7680411fc5",
+        "--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---",
+        "> [gw8] linux -- Python 3.10.12 /usr/bin/python3.10",
+        "> ",
+        ">     def test_readonly_figure_full_campaign_layout():",
+        ">         with tempfile.TemporaryDirectory(prefix=\"cvl-figure-grid-\") as td:",
+        "> >           _, _, out = _render_figure_campaign(td)",
+        "> ",
+        "> orchestrator/tests/test_vhash_cicada_vlife.py:317: ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        "> td = '/tmp/cvl-figure-grid-xbcjzdju', before_render = None",
+        "> ",
+        ">     def _render_figure_campaign(td, before_render=None):",
+        ">         script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"",
+        ">         spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)",
+        ">         module = importlib.util.module_from_spec(spec)",
+        ">         assert spec.loader is not None",
+        ">         spec.loader.exec_module(module)",
+        ">         raw_path = Path(td) / \"raw.json\"",
+        ">         out = Path(td) / \"figures\"",
+        ">         ids = sorted(module.REQUIRED)",
+        "> >       assert len(ids) == 86",
+        "> E       AssertionError: assert 71 == 86",
+        "> E        +  where 71 = len(['B-none-gc10', 'B-wait10ms-gc10', 'R0-none-gc10', 'R0-none-gc1000', 'R0-none-gc100000', 'R0-wait10msU-gc10', ...])",
+        "> ",
+        "> orchestrator/tests/test_vhash_cicada_vlife.py:262: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=3 END ---",
+        "IZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=1039 retained_bytes=1039 omitted_bytes=0 rendered_excerpt_bytes=1066 sha256=2c686b49c9643df6b5352d8339379d7a26f1f6da751fba54be18b9ec665b2bba",
+        "--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---",
+        "> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10",
+        "> ",
+        ">     def test_conditions_and_genome_binding():",
+        ">         old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")",
+        ">                for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")",
+        ">                for gc in (10, 1000, 100000)}",
+        ">         assert V.OLD_CONDITIONS == old",
+        "> >       assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12",
+        "> E       AssertionError: assert 93 == 108",
+        "> E        +  where 93 = len({'A-none-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, 'A-none-gc1000': {...m': 0, ...}, 'A-wait1ms-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, ...})",
+        "> E        +    where {'A-none-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, 'A-none-gc1000': {...m': 0, ...}, 'A-wait1ms-gc10': {'ycsb_rratio': 50, 'ycsb_zipf_skew': 0, 'thread_num': 48, 'batch_th_num': 0, ...}, ...} = V.CONDITIONS",
+        "> ",
+        "> orchestrator/tests/test_vhash_cicada_vlife.py:200: AssertionError",
+        "--- IZANAGI FAILURE EXCERPT rank=4 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5053 retained_bytes=5053 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7254 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n______________________ test_conditions_and_genome_binding ______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_conditions_and_genome_binding():\n        old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")\n               for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")\n               for gc in (10, 1000, 100000)}\n        assert V.OLD_CONDITIONS == old\n        assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12\n        assert len([x for x in V.CONDITIONS if x.startswith(\"R\")]) == 60\n        assert len([x for x in V.CONDITIONS if x.startswith(\"S\")]) == 12\n        assert len([x for x in V.CONDITIONS if x.startswith(\"T\")]) == 12\n        assert \"R95-wait10msR-gc100000\" in V.CONDITIONS\n>       assert V._flags(\"B-none-gc10\", 1000000, 2100)[\"izanagi_ronly_pct\"] == -1\nE       assert 0 == -1\n\norchestrator/tests/test_vhash_cicada_vlife.py:205: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\n1 failed, 28 passed in 20.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=832 retained_bytes=832 omitted_bytes=0 rendered_excerpt_bytes=865 sha256=fe0d4b68ea531d7ebf5f1906947ad09be17c4dfa1604918ae7d584b10e4a0b43\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_conditions_and_genome_binding():\n>         old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")\n>                for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")\n>                for gc in (10, 1000, 100000)}\n>         assert V.OLD_CONDITIONS == old\n>         assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12\n>         assert len([x for x in V.CONDITIONS if x.startswith(\"R\")]) == 60\n>         assert len([x for x in V.CONDITIONS if x.startswith(\"S\")]) == 12\n>         assert len([x for x in V.CONDITIONS if x.startswith(\"T\")]) == 12\n>         assert \"R95-wait10msR-gc100000\" in V.CONDITIONS\n> >       assert V._flags(\"B-none-gc10\", 1000000, 2100)[\"izanagi_ronly_pct\"] == -1\n> E       assert 0 == -1\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:205: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=832 retained_bytes=832 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1568 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "29b28142b33c66435ea5d4b578d322f51e71e2b45788ffa70f8b50a8c8b84b92"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.044,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding"
+      ],
+      "hang_risk": false,
+      "id": "MUT-5-old-ids-get-zero-readonly-pct",
+      "injection_diff_sha256": "2c7457642c1ab8eb92d1de9457c7405d931c2a273050743456d61d207f1ee890",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "96e8dc72990511afa226cdb799c2838f60d79feb4b2d66f5bef27830c3f5c9a6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "            \"izanagi_ronly_pct\": condition.get(\"izanagi_ronly_pct\", 0),\n",
+          "old": "            \"izanagi_ronly_pct\": condition.get(\"izanagi_ronly_pct\", -1),\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "29b28142b33c66435ea5d4b578d322f51e71e2b45788ffa70f8b50a8c8b84b92",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n_____________ test_schema2_readonly_denominator_and_holder_weights _____________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_schema2_readonly_denominator_and_holder_weights():\n        p = _payload2()\n        w = p[\"workers\"][0]\n        w[\"readonly_reads\"] = 4\n        w[\"readonly_deep\"][0] = 2\n        w[\"readonly_candidate\"][0] = 1\n        w[\"hops\"][1][0] = 100\n        w[\"gc_boundary_count\"] = 1\n        w[\"gc_boundary_us\"][0] = 1\n        w[\"holder_count\"] = 1\n        w[\"holder_units\"][3] = 500000\n        w[\"holder_units\"][4] = 500000\n        parsed = V.parse_vlife_line(_line(p))\n        summary = V.summarize(parsed)\n>       assert summary[\"readonly_deep_rate\"][0] == 0.5\nE       assert 0.02 == 0.5\n\norchestrator/tests/test_vhash_cicada_vlife.py:182: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights\n1 failed, 28 passed in 20.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=710 retained_bytes=710 omitted_bytes=0 rendered_excerpt_bytes=751 sha256=bd0d80016a3999d5cb629627cc83462caa25ffefdb7c3e6aedc4c1b475d028b3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_schema2_readonly_denominator_and_holder_weights():\n>         p = _payload2()\n>         w = p[\"workers\"][0]\n>         w[\"readonly_reads\"] = 4\n>         w[\"readonly_deep\"][0] = 2\n>         w[\"readonly_candidate\"][0] = 1\n>         w[\"hops\"][1][0] = 100\n>         w[\"gc_boundary_count\"] = 1\n>         w[\"gc_boundary_us\"][0] = 1\n>         w[\"holder_count\"] = 1\n>         w[\"holder_units\"][3] = 500000\n>         w[\"holder_units\"][4] = 500000\n>         parsed = V.parse_vlife_line(_line(p))\n>         summary = V.summarize(parsed)\n> >       assert summary[\"readonly_deep_rate\"][0] == 0.5\n> E       assert 0.02 == 0.5\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:182: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=710 retained_bytes=710 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1472 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fc7797934167908ab24083f2d0a29fbaebfe4192bd37b001ff4020ca3b6308b1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.182,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+      ],
+      "hang_risk": false,
+      "id": "MUT-6-readonly-rate-denominator-all-sites",
+      "injection_diff_sha256": "4083473b74bd494c0ed0ec349e99d7eb3c26f80e4e742a9b478a638cd85af86c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3d3ab8dc5ef261da6c7673ee149cae5bbee5db06da55db35585e2161e60ac0af",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "        readonly_deep_rate=[rate(value, sum(sum(w[\"hops\"][1]) for w in workers)) for value in readonly],\n",
+          "old": "        readonly_deep_rate=[rate(value, readonly_reads) for value in readonly],\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "fc7797934167908ab24083f2d0a29fbaebfe4192bd37b001ff4020ca3b6308b1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n______________ test_patch_draw_guard_and_readonly_gc_observation _______________\n[gw10] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_patch_draw_guard_and_readonly_gc_observation():\n        source = V.PATCH.read_text()\n        begin = source.split(\"+  vlife_long_ =\", 1)[1]\n>       guard = begin.split(\"+  if (vlife_new_procedure_) {\", 1)[1].split(\n            \"+    vlife_new_procedure_ = false;\", 1)[0]\nE       IndexError: list index out of range\n\norchestrator/tests/test_vhash_cicada_vlife.py:348: IndexError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation\n1 failed, 28 passed in 20.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=442 retained_bytes=442 omitted_bytes=0 rendered_excerpt_bytes=463 sha256=8b92d5ca512b949b94ee8e5de5e02acd9bbaa4c79607861f27c4e39259a13f87\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_patch_draw_guard_and_readonly_gc_observation():\n>         source = V.PATCH.read_text()\n>         begin = source.split(\"+  vlife_long_ =\", 1)[1]\n> >       guard = begin.split(\"+  if (vlife_new_procedure_) {\", 1)[1].split(\n>             \"+    vlife_new_procedure_ = false;\", 1)[0]\n> E       IndexError: list index out of range\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:348: IndexError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=442 retained_bytes=442 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1181 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3cb1044cd16c9407ebcb95e82aead4616e4ad0fb78b9418f92ad48219a418fe3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 20.996,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+      ],
+      "hang_risk": false,
+      "id": "MUT-7-draw-guard-disabled",
+      "injection_diff_sha256": "636228c87fb4b2c08d2394eeebf67b8a539e9a7e4c8d2aaa8aa30071fe994a7e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dc479259ca08645b3af74ac7066cd1922ffa655d0f1f1561fe4d90cf97467c7b",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+  if (true || vlife_new_procedure_) {\n",
+          "old": "+  if (vlife_new_procedure_) {\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "3cb1044cd16c9407ebcb95e82aead4616e4ad0fb78b9418f92ad48219a418fe3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n______________ test_patch_draw_guard_and_readonly_gc_observation _______________\n[gw10] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_patch_draw_guard_and_readonly_gc_observation():\n        source = V.PATCH.read_text()\n        begin = source.split(\"+  vlife_long_ =\", 1)[1]\n        guard = begin.split(\"+  if (vlife_new_procedure_) {\", 1)[1].split(\n            \"+    vlife_new_procedure_ = false;\", 1)[0]\n        assert \"FLAGS_izanagi_ronly_pct < -1\" in begin\n        assert \"FLAGS_izanagi_ronly_pct > 100\" in begin\n        assert \"FLAGS_izanagi_ronly_pct >= 0\" in guard\n        assert \"draw.next()\" in guard\n        assert \"pro.ope_ = Ope::READ\" in guard\n        assert guard.index(\"FLAGS_izanagi_ronly_pct >= 0\") < guard.index(\"draw.next()\")\n        outside = begin.replace(guard, \"\")\n        assert \"draw.next()\" not in outside\n        assert \"pro.ope_ = Ope::READ\" not in outside\n        commit = source.split(\" bool TxExecutor::commit() {\", 1)[1]\n        ro = commit.split(\"   if (this->is_ronly_) {\", 1)[1].split(\"+#line 935\", 1)[0]\n        assert \"loadAcquire(GCFlag[thid_].obj_)\" in ro\n        assert \"chkClkSpan(gcstart_, now\" in ro\n        assert not re.search(r\"(?:store|exchange|fetch_\\w+)\\s*\\([^;]*?(?:GCFlag|gcstart_)\", ro)\n        assert not re.search(r\"(?:GCFlag\\[[^]]+\\](?:\\.obj_)?|gcstart_)\\s*=\", ro)\n>       assert not re.search(r\"(?:__atomic_store_n|storeRelease|\\.store)\\s*\\([^;]*?(?:GCFlag|gcstart_)\", ro)\nE       AssertionError: assert not <re.Match object; span=(1128, 1147), match='storeRelease(GCFlag'>\nE        +  where <re.Match object; span=(1128, 1147), match='storeRelease(GCFlag'> = <function search at 0x1554471b51b0>('(?:__atomic_store_n|storeRelease|\\\\.store)\\\\s*\\\\([^;]*?(?:GCFlag|gcstart_)', '\\n+#if IZANAGI_CICADA_VLIFE\\n+    // Observe the existing timer and flag. This path never stores either.\\n+    uint64...commit;\\n+    ++vlife().commits[vlife_long_];\\n+    vlife().cycles[vlife_long_] += rdtscp() - vlife_start_;\\n+#endif\\n')\nE        +    where <function search at 0x1554471b51b0> = re.search\n\norchestrator/tests/test_vhash_cicada_vlife.py:365: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation\n1 failed, 28 passed in 20.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2036 retained_bytes=2036 omitted_bytes=0 rendered_excerpt_bytes=2162 sha256=d4b8e88d704606116f8f4ee6c0f88fc2c747a2d121ef7e0370da24fe584042e6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_patch_draw_guard_and_readonly_gc_observation():\n>         source = V.PATCH.read_text()\n>         begin = source.split(\"+  vlife_long_ =\", 1)[1]\n>         guard = begin.split(\"+  if (vlife_new_procedure_) {\", 1)[1].split(\n>             \"+    vlife_new_procedure_ = false;\", 1)[0]\n>         assert \"FLAGS_izanagi_ronly_pct < -1\" in begin\n>         assert \"FLAGS_izanagi_ronly_pct > 100\" in begin\n>         assert \"FLAGS_izanagi_ronly_pct >= 0\" in guard\n>         assert \"draw.next()\" in guard\n>         assert \"pro.ope_ = Ope::READ\" in guard\n>         assert guard.index(\"FLAGS_izanagi_ronly_pct >= 0\") < guard.index(\"draw.next()\")\n>         outside = begin.replace(guard, \"\")\n>         assert \"draw.next()\" not in outside\n>         assert \"pro.ope_ = Ope::READ\" not in outside\n>         commit = source.split(\" bool TxExecutor::commit() {\", 1)[1]\n>         ro = commit.split(\"   if (this->is_ronly_) {\", 1)[1].split(\"+#line 935\", 1)[0]\n>         assert \"loadAcquire(GCFlag[thid_].obj_)\" in ro\n>         assert \"chkClkSpan(gcstart_, now\" in ro\n>         assert not re.search(r\"(?:store|exchange|fetch_\\x5cw+)\\x5cs*\\x5c([^;]*?(?:GCFlag|gcstart_)\", ro)\n>         assert not re.search(r\"(?:GCFlag\\x5c[[^]]+\\x5c](?:\\x5c.obj_)?|gcstart_)\\x5cs*=\", ro)\n> >       assert not re.search(r\"(?:__atomic_store_n|storeRelease|\\x5c.store)\\x5cs*\\x5c([^;]*?(?:GCFlag|gcstart_)\", ro)\n> E       AssertionError: assert not <re.Match object; span=(1128, 1147), match='storeRelease(GCFlag'>\n> E        +  where <re.Match object; span=(1128, 1147), match='storeRelease(GCFlag'> = <function search at 0x1554471b51b0>('(?:__atomic_store_n|storeRelease|\\x5c\\x5c.store)\\x5c\\x5cs*\\x5c\\x5c([^;]*?(?:GCFlag|gcstart_)', '\\x5cn+#if IZANAGI_CICADA_VLIFE\\x5cn+    // Observe the existing timer and flag. This path never stores either.\\x5cn+    uint64...commit;\\x5cn+    ++vlife().commits[vlife_long_];\\x5cn+    vlife().cycles[vlife_long_] += rdtscp() - vlife_start_;\\x5cn+#endif\\x5cn')\n> E        +    where <function search at 0x1554471b51b0> = re.search\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:365: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2036 retained_bytes=2036 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2885 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "26b7b92e36f30472428da53f71820445e36bf0907759117ab1c8661f31c6d130"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.104,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+      ],
+      "hang_risk": false,
+      "id": "MUT-8-readonly-commit-raises-flag",
+      "injection_diff_sha256": "c2d5ddddb5ea36a8243e7c2f8b2dbaa652c1aaf65dd0c71d78910ed2d076d2a8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "47f598290b73824d5708e8de5c30eda5b3a9ffee81693ecc00f1e28af8570ed3",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+    vlife_new_procedure_ = true; storeRelease(GCFlag[thid_].obj_, 1);\n+    ++vlife().readonly_commit;\n",
+          "old": "+    vlife_new_procedure_ = true;\n+    ++vlife().readonly_commit;\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "26b7b92e36f30472428da53f71820445e36bf0907759117ab1c8661f31c6d130",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n_____________ test_schema2_readonly_denominator_and_holder_weights _____________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_schema2_readonly_denominator_and_holder_weights():\n        p = _payload2()\n        w = p[\"workers\"][0]\n        w[\"readonly_reads\"] = 4\n        w[\"readonly_deep\"][0] = 2\n        w[\"readonly_candidate\"][0] = 1\n        w[\"hops\"][1][0] = 100\n        w[\"gc_boundary_count\"] = 1\n        w[\"gc_boundary_us\"][0] = 1\n        w[\"holder_count\"] = 1\n        w[\"holder_units\"][3] = 500000\n        w[\"holder_units\"][4] = 500000\n        parsed = V.parse_vlife_line(_line(p))\n        summary = V.summarize(parsed)\n        assert summary[\"readonly_deep_rate\"][0] == 0.5\n        assert summary[\"readonly_candidate_rate\"][0] == 0.5\n        assert summary[\"holder_fraction\"][3:5] == [0.5, 0.5]\n        assert sum(summary[\"holder_fraction\"]) == 1\n        w[\"holder_units\"][3] += 1\n        try:\n            V.parse_vlife_line(_line(p))\n        except ValueError:\n            pass\n        else:\n>           raise AssertionError(\"holder weights exceed one publication\")\nE           AssertionError: holder weights exceed one publication\n\norchestrator/tests/test_vhash_cicada_vlife.py:192: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights\n1 failed, 28 passed in 20.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1142 retained_bytes=1142 omitted_bytes=0 rendered_excerpt_bytes=1203 sha256=61ce36649550ed95587ef5117ad27ee3a6dc772c7dca2b51a76d123e71b34f3a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_schema2_readonly_denominator_and_holder_weights():\n>         p = _payload2()\n>         w = p[\"workers\"][0]\n>         w[\"readonly_reads\"] = 4\n>         w[\"readonly_deep\"][0] = 2\n>         w[\"readonly_candidate\"][0] = 1\n>         w[\"hops\"][1][0] = 100\n>         w[\"gc_boundary_count\"] = 1\n>         w[\"gc_boundary_us\"][0] = 1\n>         w[\"holder_count\"] = 1\n>         w[\"holder_units\"][3] = 500000\n>         w[\"holder_units\"][4] = 500000\n>         parsed = V.parse_vlife_line(_line(p))\n>         summary = V.summarize(parsed)\n>         assert summary[\"readonly_deep_rate\"][0] == 0.5\n>         assert summary[\"readonly_candidate_rate\"][0] == 0.5\n>         assert summary[\"holder_fraction\"][3:5] == [0.5, 0.5]\n>         assert sum(summary[\"holder_fraction\"]) == 1\n>         w[\"holder_units\"][3] += 1\n>         try:\n>             V.parse_vlife_line(_line(p))\n>         except ValueError:\n>             pass\n>         else:\n> >           raise AssertionError(\"holder weights exceed one publication\")\n> E           AssertionError: holder weights exceed one publication\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:192: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1142 retained_bytes=1142 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1929 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9c119aa11103be480509bd3e224e17f4f1195fb0c8d0dbe38020fd3c25bb6f90"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.194,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+      ],
+      "hang_risk": false,
+      "id": "MUT-9-holder-weight-unchecked",
+      "injection_diff_sha256": "1f35807be03cdd87c28672563ca5c54c6e5999e8e34669021e7db41cbc14413f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "13dadb33ba790af9ce104560e6c309561d2b5f31619f9cfe36748c20a0841738",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "            if False and sum(worker[\"holder_units\"]) != 1000000 * worker[\"holder_count\"]:\n",
+          "old": "            if sum(worker[\"holder_units\"]) != 1000000 * worker[\"holder_count\"]:\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "9c119aa11103be480509bd3e224e17f4f1195fb0c8d0dbe38020fd3c25bb6f90",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.......................FF....                                            [100%]\n=================================== FAILURES ===================================\n______________________ test_conditions_and_genome_binding ______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_conditions_and_genome_binding():\n        old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")\n               for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")\n               for gc in (10, 1000, 100000)}\n        assert V.OLD_CONDITIONS == old\n        assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12\n        assert len([x for x in V.CONDITIONS if x.startswith(\"R\")]) == 60\n        assert len([x for x in V.CONDITIONS if x.startswith(\"S\")]) == 12\n        assert len([x for x in V.CONDITIONS if x.startswith(\"T\")]) == 12\n        assert \"R95-wait10msR-gc100000\" in V.CONDITIONS\n        assert V._flags(\"B-none-gc10\", 1000000, 2100)[\"izanagi_ronly_pct\"] == -1\n        assert V._flags(\"B-none-gc10\", 1000000, 2100)[\"izanagi_long_kind\"] == 0\n        assert V._flags(\"R50-wait10msR-gc10\", 1000000, 2100)[\"izanagi_long_kind\"] == 2\n        assert V.CONDITIONS[\"T50-none-gc10\"][\"genome\"] == \"tuned\"\n>       assert \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=1\" in V.genome_args(\"tuned\")\nE       AssertionError: assert '-DCCBENCH_INLINE_VERSION_OPT_CICADA=1' in ['-DCCBENCH_BACK_OFF=0', '-DCCBENCH_INLINE_VERSION_OPT_CICADA=0', '-DCCBENCH_INLINE_VERSION_PROMOTION=0', '-DCCBENCH_REUSE_VERSION=1', '-DCCBENCH_WRITE_LATEST_ONLY=0']\nE        +  where ['-DCCBENCH_BACK_OFF=0', '-DCCBENCH_INLINE_VERSION_OPT_CICADA=0', '-DCCBENCH_INLINE_VERSION_PROMOTION=0', '-DCCBENCH_REUSE_VERSION=1', '-DCCBENCH_WRITE_LATEST_ONLY=0'] = <function genome_args at 0x1553aedafd90>('tuned')\nE        +    where <function genome_args at 0x1553aedafd90> = V.genome_args\n\norchestrator/tests/test_vhash_cicada_vlife.py:209: AssertionError\n_____________ test_tuned_compile_commands_match_cicada_definitions _____________\n[gw6] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_tuned_compile_commands_match_cicada_definitions():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-genome-\") as td:\n            path = Path(td) / \"compile_commands.json\"\n            definitions = [f\"-D{axis}={value}\" for axis, value in V.TUNED_GENOME.items()]\n            row = {\"file\": str(ROOT / \"external/ccbench/cc/cicada/transaction.cc\"),\n                   \"arguments\": [\"c++\", *definitions, \"-c\", \"transaction.cc\"]}\n            path.write_text(json.dumps([row]))\n            assert V.verify_genome_commands(path, \"tuned\")[\"genome\"] == \"tuned\"\n>           row[\"arguments\"].remove(\"-DINLINE_VERSION_OPT=1\")\nE           ValueError: list.remove(x): x not in list\n\norchestrator/tests/test_vhash_cicada_vlife.py:224: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions\n2 failed, 27 passed in 20.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=1680 retained_bytes=1680 omitted_bytes=0 rendered_excerpt_bytes=1725 sha256=b42bc984c562bda7eef0b1f579c8f8625f331a8e177c884d454a443d9080b9dc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_conditions_and_genome_binding():\n>         old = {f\"{w}-{l}-gc{gc}\" for w in (\"A\", \"B\")\n>                for l in (\"none\", \"wait1ms\", \"wait10ms\", \"ops1000\")\n>                for gc in (10, 1000, 100000)}\n>         assert V.OLD_CONDITIONS == old\n>         assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12\n>         assert len([x for x in V.CONDITIONS if x.startswith(\"R\")]) == 60\n>         assert len([x for x in V.CONDITIONS if x.startswith(\"S\")]) == 12\n>         assert len([x for x in V.CONDITIONS if x.startswith(\"T\")]) == 12\n>         assert \"R95-wait10msR-gc100000\" in V.CONDITIONS\n>         assert V._flags(\"B-none-gc10\", 1000000, 2100)[\"izanagi_ronly_pct\"] == -1\n>         assert V._flags(\"B-none-gc10\", 1000000, 2100)[\"izanagi_long_kind\"] == 0\n>         assert V._flags(\"R50-wait10msR-gc10\", 1000000, 2100)[\"izanagi_long_kind\"] == 2\n>         assert V.CONDITIONS[\"T50-none-gc10\"][\"genome\"] == \"tuned\"\n> >       assert \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=1\" in V.genome_args(\"tuned\")\n> E       AssertionError: assert '-DCCBENCH_INLINE_VERSION_OPT_CICADA=1' in ['-DCCBENCH_BACK_OFF=0', '-DCCBENCH_INLINE_VERSION_OPT_CICADA=0', '-DCCBENCH_INLINE_VERSION_PROMOTION=0', '-DCCBENCH_REUSE_VERSION=1', '-DCCBENCH_WRITE_LATEST_ONLY=0']\n> E        +  where ['-DCCBENCH_BACK_OFF=0', '-DCCBENCH_INLINE_VERSION_OPT_CICADA=0', '-DCCBENCH_INLINE_VERSION_PROMOTION=0', '-DCCBENCH_REUSE_VERSION=1', '-DCCBENCH_WRITE_LATEST_ONLY=0'] = <function genome_args at 0x1553aedafd90>('tuned')\n> E        +    where <function genome_args at 0x1553aedafd90> = V.genome_args\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:209: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=797 retained_bytes=797 omitted_bytes=0 rendered_excerpt_bytes=826 sha256=332a97ca10f81982467a5e358aa32172fb86f367c9cdbe1dc0bff5d0ea7f5325\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_tuned_compile_commands_match_cicada_definitions():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-genome-\") as td:\n>             path = Path(td) / \"compile_commands.json\"\n>             definitions = [f\"-D{axis}={value}\" for axis, value in V.TUNED_GENOME.items()]\n>             row = {\"file\": str(ROOT / \"external/ccbench/cc/cicada/transaction.cc\"),\n>                    \"arguments\": [\"c++\", *definitions, \"-c\", \"transaction.cc\"]}\n>             path.write_text(json.dumps([row]))\n>             assert V.verify_genome_commands(path, \"tuned\")[\"genome\"] == \"tuned\"\n> >           row[\"arguments\"].remove(\"-DINLINE_VERSION_OPT=1\")\n> E           ValueError: list.remove(x): x not in list\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:224: ValueError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2477 retained_bytes=2477 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3695 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ee4d59daa348fcdaa20730b9452edecc8437d28147098dfa98769cc218be83c6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.021,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions"
+      ],
+      "hang_risk": false,
+      "id": "MUT-10-tuned-genome-drops-inline-version",
+      "injection_diff_sha256": "3c6baf7ceb2561e846c6663381bec910c8dae2c7037673159c82fdcead17739c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1438d51ae10e9288aa8dd6a9c873a46be77e55f36d445e21c514c42d8225fbbe",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "TUNED_GENOME = {\"BACK_OFF\": 0, \"INLINE_VERSION_OPT\": 0,\n",
+          "old": "TUNED_GENOME = {\"BACK_OFF\": 0, \"INLINE_VERSION_OPT\": 1,\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "ee4d59daa348fcdaa20730b9452edecc8437d28147098dfa98769cc218be83c6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n________________ test_mut11_event_generation_and_current_holder ________________\n[gw11] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut11_event_generation_and_current_holder():\n        source = V.PATCH.read_text()\n        mainte = source.split(\"@@ -883\", 1)[1].split(\n            \"bool TxExecutor::commit()\", 1)[0]\n>       assert \"vlife_epoch_.load(std::memory_order_acquire)\" in mainte\nE       AssertionError: assert 'vlife_epoch_.load(std::memory_order_acquire)' in ',6 +1305,27 @@\\n   if (chkClkSpan(this->gcstart_, this->gcstop_,\\n                  FLAGS_gc_inter_us * FLAGS_clocks_...     storeRelease(GCFlag[thid_].obj_, 1);\\n     this->gcstart_ = this->gcstop_;\\n   }\\n@@ -917,6 +1360,15 @@\\n }\\n \\n '\n\norchestrator/tests/test_vhash_cicada_vlife.py:374: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder\n1 failed, 28 passed in 20.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=708 retained_bytes=708 omitted_bytes=0 rendered_excerpt_bytes=753 sha256=ffdad97c6d3e505be8d3f546d25d3afd0fb07116f357a7d5907df5ce2ab53ac4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut11_event_generation_and_current_holder():\n>         source = V.PATCH.read_text()\n>         mainte = source.split(\"@@ -883\", 1)[1].split(\n>             \"bool TxExecutor::commit()\", 1)[0]\n> >       assert \"vlife_epoch_.load(std::memory_order_acquire)\" in mainte\n> E       AssertionError: assert 'vlife_epoch_.load(std::memory_order_acquire)' in ',6 +1305,27 @@\\x5cn   if (chkClkSpan(this->gcstart_, this->gcstop_,\\x5cn                  FLAGS_gc_inter_us * FLAGS_clocks_...     storeRelease(GCFlag[thid_].obj_, 1);\\x5cn     this->gcstart_ = this->gcstop_;\\x5cn   }\\x5cn@@ -917,6 +1360,15 @@\\x5cn }\\x5cn \\x5cn '\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:374: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=708 retained_bytes=708 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1468 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2460c781b03482022b64d36c4f766fb4b3de4910ccdab4afcc15f0befe6c1377"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.14,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder"
+      ],
+      "hang_risk": false,
+      "id": "MUT-11-mainte-generation-from-begin",
+      "injection_diff_sha256": "2240a2058247e37f55395b3f119e07363c84ade659a314ddd6baccb873c8c05e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9108ec1d83cf031a2f1fe3fce9391fd51f9223270121adba90ad18e0a5179eca",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+    const uint64_t event_generation = vlife_slot_generation_;\n",
+          "old": "+    const uint64_t event_generation = vlife_epoch_.load(std::memory_order_acquire);\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "2460c781b03482022b64d36c4f766fb4b3de4910ccdab4afcc15f0befe6c1377",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n____________ test_smoke_recomputes_calibration_and_requires_success ____________\n[gw21] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_smoke_recomputes_calibration_and_requires_success():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-smoke-selection-\") as td:\n            path = Path(td) / \"smoke.json\"\n            raw = {\"schema_version\": 1, \"command\": \"smoke\", \"ccbench_commit\": V.PIN,\n                   \"patch_sha256\": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),\n                   \"witness\": {\"normalized_objdump_equal\": True,\n                               \"normalized_rodata_equal\": True,\n                               \"stock_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]},\n                               \"default_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]}},\n                   \"short_run\": {\"rc\": 0, \"parsed\": _payload2()},\n                   \"tuned_short_run\": {\"rc\": 0, \"parsed\": _payload2_tuned()},\n                   \"time_budget\": {\"estimated_node_s\": 3000},\n                   \"calibration\": {\"l3_bytes\": 1000000,\n                                   \"probes\": {str(n): {\"rc\": 0, \"maxrss_kb\": rss}\n                                              for n, rss in ((1000000, 1000),\n                                                             (2000000, 5000),\n                                                             (4000000, 8000))},\n                                   \"selected_records\": 4000000}}\n            def rejected():\n                path.write_text(json.dumps(raw))\n                try:\n                    V._smoke_records(path)\n                except ValueError:\n                    return\n                raise AssertionError(\"invalid smoke accepted\")\n            rejected()  # Fixed 1M is the only permitted measure size.\n            raw[\"calibration\"][\"probes\"][\"1000000\"][\"maxrss_kb\"] = 5000\n>           rejected()  # 1M meets 4 x L3; selected 4M alone must be rejected.\n\norchestrator/tests/test_vhash_cicada_vlife.py:585: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def rejected():\n        path.write_text(json.dumps(raw))\n        try:\n            V._smoke_records(path)\n        except ValueError:\n            return\n>       raise AssertionError(\"invalid smoke accepted\")\nE       AssertionError: invalid smoke accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:582: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\n1 failed, 28 passed in 20.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2317 retained_bytes=2317 omitted_bytes=0 rendered_excerpt_bytes=2406 sha256=137935678df693a30fe0895626b387958ee9d0403d6c461736ddad9dd206ee46\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_smoke_recomputes_calibration_and_requires_success():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-smoke-selection-\") as td:\n>             path = Path(td) / \"smoke.json\"\n>             raw = {\"schema_version\": 1, \"command\": \"smoke\", \"ccbench_commit\": V.PIN,\n>                    \"patch_sha256\": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),\n>                    \"witness\": {\"normalized_objdump_equal\": True,\n>                                \"normalized_rodata_equal\": True,\n>                                \"stock_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]},\n>                                \"default_absence\": {\"nm\": True, \"strings\": [\"izanagi stock\"]}},\n>                    \"short_run\": {\"rc\": 0, \"parsed\": _payload2()},\n>                    \"tuned_short_run\": {\"rc\": 0, \"parsed\": _payload2_tuned()},\n>                    \"time_budget\": {\"estimated_node_s\": 3000},\n>                    \"calibration\": {\"l3_bytes\": 1000000,\n>                                    \"probes\": {str(n): {\"rc\": 0, \"maxrss_kb\": rss}\n>                                               for n, rss in ((1000000, 1000),\n>                                                              (2000000, 5000),\n>                                                              (4000000, 8000))},\n>                                    \"selected_records\": 4000000}}\n>             def rejected():\n>                 path.write_text(json.dumps(raw))\n>                 try:\n>                     V._smoke_records(path)\n>                 except ValueError:\n>                     return\n>                 raise AssertionError(\"invalid smoke accepted\")\n>             rejected()  # Fixed 1M is the only permitted measure size.\n>             raw[\"calibration\"][\"probes\"][\"1000000\"][\"maxrss_kb\"] = 5000\n> >           rejected()  # 1M meets 4 x L3; selected 4M alone must be rejected.\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:585: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n>     def rejected():\n>         path.write_text(json.dumps(raw))\n>         try:\n>             V._smoke_records(path)\n>         except ValueError:\n>             return\n> >       raise AssertionError(\"invalid smoke accepted\")\n> E       AssertionError: invalid smoke accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:582: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2317 retained_bytes=2317 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3135 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "31335c93c6d134710869163945253fac00f512f550c59d7ea7fa65ff620a5730"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.098,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+      ],
+      "hang_risk": false,
+      "id": "MUT-12-measure-accepts-calibrated-records",
+      "injection_diff_sha256": "7f2bf30932c67374d93fdd9cc9faa91de0ab34b558bb6f17fa739d41ea87775c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b1c78877c7ce1303635398cd056348054ec87ae65a536eefa5a1dc1d29a11a9f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if type(records) is not int:\n",
+          "old": "    if type(records) is not int or records != expected:\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "31335c93c6d134710869163945253fac00f512f550c59d7ea7fa65ff620a5730",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n___________ test_mut13_readonly_depth_and_reads_follow_deleted_guard ___________\n[gw13] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut13_readonly_depth_and_reads_follow_deleted_guard():\n        source = V.PATCH.read_text()\n        read = source.split('if (ver->ldAcqStatus() == VersionStatus::deleted)', 1)[1]\n        section = read.split('read_set_.emplace_back', 1)[1].split('vlife_lower_ =', 1)[0]\n>       assert '++vlife().readonly_reads' in section\nE       AssertionError: assert '++vlife().readonly_reads' in '(s, key, tuple, later_ver, ver);\\n+  if (is_ronly_) {\\n+    ;\\n+    for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]...vlife_upper_);\\n+        if (lo < hi) { ++vlife().readonly_candidate[i]; break; }\\n+      }\\n+    }\\n+  }\\n+  {\\n+    '\n\norchestrator/tests/test_vhash_cicada_vlife.py:392: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard\n1 failed, 28 passed in 20.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=756 retained_bytes=756 omitted_bytes=0 rendered_excerpt_bytes=804 sha256=115be780baaccd3817acdfe6303c94cd27991bd207f372e54f058e059ab6db7f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut13_readonly_depth_and_reads_follow_deleted_guard():\n>         source = V.PATCH.read_text()\n>         read = source.split('if (ver->ldAcqStatus() == VersionStatus::deleted)', 1)[1]\n>         section = read.split('read_set_.emplace_back', 1)[1].split('vlife_lower_ =', 1)[0]\n> >       assert '++vlife().readonly_reads' in section\n> E       AssertionError: assert '++vlife().readonly_reads' in '(s, key, tuple, later_ver, ver);\\x5cn+  if (is_ronly_) {\\x5cn+    ;\\x5cn+    for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]...vlife_upper_);\\x5cn+        if (lo < hi) { ++vlife().readonly_candidate[i]; break; }\\x5cn+      }\\x5cn+    }\\x5cn+  }\\x5cn+  {\\x5cn+    '\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:392: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=756 retained_bytes=756 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1530 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "474c8006ae5054da40c866d0a1a5ace0aea73753a631f1b3f1ca94759c66ef0b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.1,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard"
+      ],
+      "hang_risk": false,
+      "id": "MUT-13-readonly-reads-before-deleted-guard",
+      "injection_diff_sha256": "c8d54e7c10bd5586fb5bb34be68117a2e03da4bf28fdac4bbc2a3ea4c10d2a80",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2828e225a38e766ccca9cf59675b488048f5d282e9754f8e09b8130a0609e34a",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+    ;\n",
+          "old": "+    ++vlife().readonly_reads;\n"
+        },
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+    if (is_ronly_) { if (i == 0) ++vlife().readonly_reads; continue; }\n",
+          "old": "+    if (is_ronly_) continue;\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "474c8006ae5054da40c866d0a1a5ace0aea73753a631f1b3f1ca94759c66ef0b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n______________ test_default_compile_commands_match_cmake_defaults ______________\n[gw7] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_default_compile_commands_match_cmake_defaults():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-default-genome-\") as td:\n            path = Path(td) / \"compile_commands.json\"\n            row = {\"file\": str(ROOT / \"external/ccbench/cc/cicada/transaction.cc\"),\n                   \"arguments\": [\"c++\", *[f\"-D{k}={v}\" for k, v in V.DEFAULT_GENOME.items()],\n                                 \"-c\", \"transaction.cc\"]}\n            path.write_text(json.dumps([row]))\n            assert V.verify_genome_commands(path, \"default\")[\"genome\"] == \"default\"\n>           row[\"arguments\"].remove(\"-DINLINE_VERSION_PROMOTION=1\")\nE           ValueError: list.remove(x): x not in list\n\norchestrator/tests/test_vhash_cicada_vlife.py:242: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults\n1 failed, 28 passed in 20.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=796 retained_bytes=796 omitted_bytes=0 rendered_excerpt_bytes=825 sha256=7d7dcb3f72571a08928c0eec84ded7989222170d7b0ed59391a992125bf46d0e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_default_compile_commands_match_cmake_defaults():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-default-genome-\") as td:\n>             path = Path(td) / \"compile_commands.json\"\n>             row = {\"file\": str(ROOT / \"external/ccbench/cc/cicada/transaction.cc\"),\n>                    \"arguments\": [\"c++\", *[f\"-D{k}={v}\" for k, v in V.DEFAULT_GENOME.items()],\n>                                  \"-c\", \"transaction.cc\"]}\n>             path.write_text(json.dumps([row]))\n>             assert V.verify_genome_commands(path, \"default\")[\"genome\"] == \"default\"\n> >           row[\"arguments\"].remove(\"-DINLINE_VERSION_PROMOTION=1\")\n> E           ValueError: list.remove(x): x not in list\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:242: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=796 retained_bytes=796 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1544 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "73cd0f18f0352ef02bd0586e21f41886de17b94a2364b5ddb32d38ddf63081f8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.14,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults"
+      ],
+      "hang_risk": false,
+      "id": "MUT-14-default-promotion-zero",
+      "injection_diff_sha256": "b8ee2ecbba10a8b7732d0f01fb02d6cd8b8ecc68f10bd4efd96a68ed4520fdb4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "272257f3ff6a8bdc85116f643605c15725cb3e37ad4c3db5c5560327b1a8447c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "                  \"INLINE_VERSION_PROMOTION\": 0, \"REUSE_VERSION\": 1,\n",
+          "old": "                  \"INLINE_VERSION_PROMOTION\": 1, \"REUSE_VERSION\": 1,\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "73cd0f18f0352ef02bd0586e21f41886de17b94a2364b5ddb32d38ddf63081f8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n............................F                                            [100%]\n=================================== FAILURES ===================================\n___________________ test_mut15_tuned_comparison_panels_exist ___________________\n[gw14] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut15_tuned_comparison_panels_exist():\n        with tempfile.TemporaryDirectory(prefix=\"cvl-tuned-panels-\") as td:\n            _, _, out = _render_figure_campaign(td)\n            for stem in (\"depth_share\", \"boundary_age\"):\n                provenance = json.loads((out / f\"{stem}.provenance.json\").read_text())\n                panels = provenance[\"numbers\"][\"tuned_panels\"]\n>               assert len(panels) == 3\nE               assert 0 == 3\nE                +  where 0 = len([])\n\norchestrator/tests/test_vhash_cicada_vlife.py:405: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\n1 failed, 28 passed in 19.74s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=613 retained_bytes=613 omitted_bytes=0 rendered_excerpt_bytes=640 sha256=69b424af2f9c1b2681b795093377c57cb00c979cfc9453e320d6c07b63409a18\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut15_tuned_comparison_panels_exist():\n>         with tempfile.TemporaryDirectory(prefix=\"cvl-tuned-panels-\") as td:\n>             _, _, out = _render_figure_campaign(td)\n>             for stem in (\"depth_share\", \"boundary_age\"):\n>                 provenance = json.loads((out / f\"{stem}.provenance.json\").read_text())\n>                 panels = provenance[\"numbers\"][\"tuned_panels\"]\n> >               assert len(panels) == 3\n> E               assert 0 == 3\n> E                +  where 0 = len([])\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:405: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=613 retained_bytes=613 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1349 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0492283cde3b67888722b72f6a8977d15a714b7803ace8b03ecc2160b7a26fcd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 20.427,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+      ],
+      "hang_risk": false,
+      "id": "MUT-15-depth-tuned-panels-removed",
+      "injection_diff_sha256": "27692dda72afa54bc4eae7ef551d0ff020dfb89d623d71267784483392df11a4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "38602f50c8a15b777c1b21558521c6073a514a5d135a84f66afd7aeb76659611",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_readonly_share.py",
+          "new": "    for col, k in enumerate(()):\n        drawn = _draw_tuned(axes[2, col], runs, \"readonly_deep_rate\", index=V.K.index(k),\n",
+          "old": "    for col, k in enumerate((1, 4, 8)):\n        drawn = _draw_tuned(axes[2, col], runs, \"readonly_deep_rate\", index=V.K.index(k),\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "0492283cde3b67888722b72f6a8977d15a714b7803ace8b03ecc2160b7a26fcd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.......................FF....                                            [100%]\n=================================== FAILURES ===================================\n_____________ test_mut16_epoch_advances_before_cicada_publication ______________\n[gw15] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut16_epoch_advances_before_cicada_publication():\n        leader = V.PATCH.read_text().split(\" void TxExecutor::leaderWork() {\", 1)[1]\n        before, after = leader.split(\"   cicadaLeaderWork();\", 1)\n        advance = \"if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);\"\n>       assert advance in before\nE       AssertionError: assert 'if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);' in '\\n+#if IZANAGI_CICADA_VLIFE\\n+  const bool leader_ready =\\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE...ter;\\n+  }\\n+  // No flag can rise for the next publication until leaderWork resets them.\\n+  ;\\n+#endif\\n+#line 963\\n'\n\norchestrator/tests/test_vhash_cicada_vlife.py:424: AssertionError\n__________________ test_mut18_late_publication_advances_epoch __________________\n[gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut18_late_publication_advances_epoch():\n        leader = V.PATCH.read_text().split(\" void TxExecutor::leaderWork() {\", 1)[1]\n        after = leader.split(\"   cicadaLeaderWork();\", 1)[1]\n        publication = after.split(\"+  if (leader_ready &&\", 1)[1].split(\n            \"+    const uint64_t now = rdtscp();\", 1)[0]\n>       assert re.search(\n            r\"\\+    if \\(!all_ready\\) \\{\\n\\+      \\+\\+vlife_epoch_;\",\n            publication,\n        )\nE       AssertionError: assert None\nE        +  where None = <function search at 0x14c6dc8751b0>('\\\\+    if \\\\(!all_ready\\\\) \\\\{\\\\n\\\\+      \\\\+\\\\+vlife_epoch_;', '\\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {\\n+    // A flag can rise after sampling and sti... path did not advance it.\\n+    if (true) {\\n+      ++vlife_epoch_;\\n+      ++vlife_stats_[0].dc_late_epoch;\\n+    }\\n')\nE        +    where <function search at 0x14c6dc8751b0> = re.search\n\norchestrator/tests/test_vhash_cicada_vlife.py:434: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch\n2 failed, 27 passed in 20.41s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1051 retained_bytes=1051 omitted_bytes=0 rendered_excerpt_bytes=1177 sha256=de43c726a63c79dc2a23a52f4aac93a16e28bcdf24adfe6da1042ffaee2b5c63\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut18_late_publication_advances_epoch():\n>         leader = V.PATCH.read_text().split(\" void TxExecutor::leaderWork() {\", 1)[1]\n>         after = leader.split(\"   cicadaLeaderWork();\", 1)[1]\n>         publication = after.split(\"+  if (leader_ready &&\", 1)[1].split(\n>             \"+    const uint64_t now = rdtscp();\", 1)[0]\n> >       assert re.search(\n>             r\"\\x5c+    if \\x5c(!all_ready\\x5c) \\x5c{\\x5cn\\x5c+      \\x5c+\\x5c+vlife_epoch_;\",\n>             publication,\n>         )\n> E       AssertionError: assert None\n> E        +  where None = <function search at 0x14c6dc8751b0>('\\x5c\\x5c+    if \\x5c\\x5c(!all_ready\\x5c\\x5c) \\x5c\\x5c{\\x5c\\x5cn\\x5c\\x5c+      \\x5c\\x5c+\\x5c\\x5c+vlife_epoch_;', '\\x5cn+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {\\x5cn+    // A flag can rise after sampling and sti... path did not advance it.\\x5cn+    if (true) {\\x5cn+      ++vlife_epoch_;\\x5cn+      ++vlife_stats_[0].dc_late_epoch;\\x5cn+    }\\x5cn')\n> E        +    where <function search at 0x14c6dc8751b0> = re.search\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:434: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=800 retained_bytes=800 omitted_bytes=0 rendered_excerpt_bytes=848 sha256=b703a05b5adfa39f926b9211a1ca81078d53848ebb139c6d1ff2d1622f4570c3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut16_epoch_advances_before_cicada_publication():\n>         leader = V.PATCH.read_text().split(\" void TxExecutor::leaderWork() {\", 1)[1]\n>         before, after = leader.split(\"   cicadaLeaderWork();\", 1)\n>         advance = \"if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);\"\n> >       assert advance in before\n> E       AssertionError: assert 'if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);' in '\\x5cn+#if IZANAGI_CICADA_VLIFE\\x5cn+  const bool leader_ready =\\x5cn+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE...ter;\\x5cn+  }\\x5cn+  // No flag can rise for the next publication until leaderWork resets them.\\x5cn+  ;\\x5cn+#endif\\x5cn+#line 963\\x5cn'\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:424: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1851 retained_bytes=1851 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3176 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4c35de35b2d736499bcce76daaef2002619418ebc78eacdc69745b6987384cd4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.084,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+      ],
+      "hang_risk": false,
+      "id": "MUT-16-epoch-advance-after-publication",
+      "injection_diff_sha256": "55dbd4f63fe311a2c4aa404821cfb808c0a5aeca993c6bd2d3f75bb70fbed0ca",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b4a26dd1efc0b2bafeb0ec1e5a9e77c05ac709dad21a82d7235f41cd7e31df13",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+  ;\n",
+          "old": "+  if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);\n"
+        },
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+    if (true) {\n",
+          "old": "+    if (!all_ready) {\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "4c35de35b2d736499bcce76daaef2002619418ebc78eacdc69745b6987384cd4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.........................F...                                            [100%]\n=================================== FAILURES ===================================\n______________ test_mut17_run_duration_controls_provenance_rates _______________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut17_run_duration_controls_provenance_rates():\n        script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n        spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n        module = importlib.util.module_from_spec(spec)\n        assert spec.loader is not None\n        spec.loader.exec_module(module)\n>       assert module._duration([\"-extime=1\"]) == 1\nE       AssertionError: assert 3 == 1\nE        +  where 3 = <function _duration at 0x14c0cae52560>(['-extime=1'])\nE        +    where <function _duration at 0x14c0cae52560> = <module 'plot_vhash_readonly_share' from '/work/1/SFC/tanab/tmp/vhash-readonly-share-2026-09-29/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/plotting/plot_vhash_readonly_share.py'>._duration\n\norchestrator/tests/test_vhash_cicada_vlife.py:446: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates\n1 failed, 28 passed in 20.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=903 retained_bytes=903 omitted_bytes=0 rendered_excerpt_bytes=932 sha256=a72511fbdd263d84327f43d7b5f56e9a78193c2a9133d6cf7c311d4c707e2fb1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut17_run_duration_controls_provenance_rates():\n>         script = ROOT / \"tools/plotting/plot_vhash_readonly_share.py\"\n>         spec = importlib.util.spec_from_file_location(\"plot_vhash_readonly_share\", script)\n>         module = importlib.util.module_from_spec(spec)\n>         assert spec.loader is not None\n>         spec.loader.exec_module(module)\n> >       assert module._duration([\"-extime=1\"]) == 1\n> E       AssertionError: assert 3 == 1\n> E        +  where 3 = <function _duration at 0x14c0cae52560>(['-extime=1'])\n> E        +    where <function _duration at 0x14c0cae52560> = <module 'plot_vhash_readonly_share' from '/work/1/SFC/tanab/tmp/vhash-readonly-share-2026-09-29/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/plotting/plot_vhash_readonly_share.py'>._duration\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:446: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=903 retained_bytes=903 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1650 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f640a888108d7e5de9c47d3e14ff8610ff47c69d8b01edb5a26ec75d4b33d05d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.007,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates"
+      ],
+      "hang_risk": false,
+      "id": "MUT-17-fixed-three-second-duration",
+      "injection_diff_sha256": "13f04756b476f6a14bcfe67987b76c50b25d0de4391e4c1d24e6cd3bba70a4ef",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "116ff471b26d9ec13c03e784eea9ef580c5d8e7a84dca423033d0475cb94f8e3",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_readonly_share.py",
+          "new": "    return 3\n",
+          "old": "    return int(values[0].split(\"=\", 1)[1])\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "f640a888108d7e5de9c47d3e14ff8610ff47c69d8b01edb5a26ec75d4b33d05d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n__________________ test_mut18_late_publication_advances_epoch __________________\n[gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut18_late_publication_advances_epoch():\n        leader = V.PATCH.read_text().split(\" void TxExecutor::leaderWork() {\", 1)[1]\n        after = leader.split(\"   cicadaLeaderWork();\", 1)[1]\n        publication = after.split(\"+  if (leader_ready &&\", 1)[1].split(\n            \"+    const uint64_t now = rdtscp();\", 1)[0]\n>       assert re.search(\n            r\"\\+    if \\(!all_ready\\) \\{\\n\\+      \\+\\+vlife_epoch_;\",\n            publication,\n        )\nE       AssertionError: assert None\nE        +  where None = <function search at 0x146aadfc91b0>('\\\\+    if \\\\(!all_ready\\\\) \\\\{\\\\n\\\\+      \\\\+\\\\+vlife_epoch_;', '\\n+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {\\n+    // A flag can rise after sampling and sti...lication path did not advance it.\\n+    if (!all_ready) {\\n+      ;\\n+      ++vlife_stats_[0].dc_late_epoch;\\n+    }\\n')\nE        +    where <function search at 0x146aadfc91b0> = re.search\n\norchestrator/tests/test_vhash_cicada_vlife.py:434: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch\n1 failed, 28 passed in 20.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1051 retained_bytes=1051 omitted_bytes=0 rendered_excerpt_bytes=1177 sha256=ccd957170faeca66adde5d031630b724a05636c9a079397fc78794cc60c40900\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut18_late_publication_advances_epoch():\n>         leader = V.PATCH.read_text().split(\" void TxExecutor::leaderWork() {\", 1)[1]\n>         after = leader.split(\"   cicadaLeaderWork();\", 1)[1]\n>         publication = after.split(\"+  if (leader_ready &&\", 1)[1].split(\n>             \"+    const uint64_t now = rdtscp();\", 1)[0]\n> >       assert re.search(\n>             r\"\\x5c+    if \\x5c(!all_ready\\x5c) \\x5c{\\x5cn\\x5c+      \\x5c+\\x5c+vlife_epoch_;\",\n>             publication,\n>         )\n> E       AssertionError: assert None\n> E        +  where None = <function search at 0x146aadfc91b0>('\\x5c\\x5c+    if \\x5c\\x5c(!all_ready\\x5c\\x5c) \\x5c\\x5c{\\x5c\\x5cn\\x5c\\x5c+      \\x5c\\x5c+\\x5c\\x5c+vlife_epoch_;', '\\x5cn+      __atomic_load_n(&(GCFlag[0].obj_), __ATOMIC_ACQUIRE) == 0) {\\x5cn+    // A flag can rise after sampling and sti...lication path did not advance it.\\x5cn+    if (!all_ready) {\\x5cn+      ;\\x5cn+      ++vlife_stats_[0].dc_late_epoch;\\x5cn+    }\\x5cn')\n> E        +    where <function search at 0x146aadfc91b0> = re.search\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:434: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1051 retained_bytes=1051 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1893 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "275c1ad5d6f76d4cffa0255d07bd9cc5063f715d5315876bcee9d6a2e668922f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.028,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+      ],
+      "hang_risk": false,
+      "id": "MUT-18-late-publication-epoch-removed",
+      "injection_diff_sha256": "59ef696ea1e489ccb4e213787c29ceed828d8a168bb0a1da14832fb0bbe61309",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4457983846bc8fc69c701a0f1cd7ec13470a8a7cb8dc64fb6b0e554d7923c5bd",
+      "replacements": [
+        {
+          "file": "patches/instr-cicada-version-lifetime.patch",
+          "new": "+      ;\n",
+          "old": "+      ++vlife_epoch_;\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "275c1ad5d6f76d4cffa0255d07bd9cc5063f715d5315876bcee9d6a2e668922f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n............................F                                            [100%]\n=================================== FAILURES ===================================\n________________ test_mut19_boundary_time_panels_use_log_scale _________________\n[gw9] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mut19_boundary_time_panels_use_log_scale():\n        scales = []\n    \n        def capture(module):\n            original = module._save\n    \n            def checked_save(fig, out, name, common, numbers, caption):\n                if name == \"boundary_age\":\n                    scales.extend(ax.get_yscale() for ax in fig.axes)\n                return original(fig, out, name, common, numbers, caption)\n    \n            module._save = checked_save\n    \n        with tempfile.TemporaryDirectory(prefix=\"cvl-log-time-\") as td:\n            _render_figure_campaign(td, before_render=capture)\n        assert len(scales) == 9\n>       assert all(scales[i] == \"log\" for i in (0, 1, 2, 3, 6, 7, 8))\nE       assert False\nE        +  where False = all(<generator object test_mut19_boundary_time_panels_use_log_scale.<locals>.<genexpr> at 0x14c6085a7760>)\n\norchestrator/tests/test_vhash_cicada_vlife.py:342: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale\n1 failed, 28 passed in 19.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=969 retained_bytes=969 omitted_bytes=0 rendered_excerpt_bytes=1016 sha256=2ce62a442c45ea1677d0c651e1dd9c4226ad23f516604d3646e6b53c3de7bc50\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mut19_boundary_time_panels_use_log_scale():\n>         scales = []\n>     \n>         def capture(module):\n>             original = module._save\n>     \n>             def checked_save(fig, out, name, common, numbers, caption):\n>                 if name == \"boundary_age\":\n>                     scales.extend(ax.get_yscale() for ax in fig.axes)\n>                 return original(fig, out, name, common, numbers, caption)\n>     \n>             module._save = checked_save\n>     \n>         with tempfile.TemporaryDirectory(prefix=\"cvl-log-time-\") as td:\n>             _render_figure_campaign(td, before_render=capture)\n>         assert len(scales) == 9\n> >       assert all(scales[i] == \"log\" for i in (0, 1, 2, 3, 6, 7, 8))\n> E       assert False\n> E        +  where False = all(<generator object test_mut19_boundary_time_panels_use_log_scale.<locals>.<genexpr> at 0x14c6085a7760>)\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:342: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=969 retained_bytes=969 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1731 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b271507e8c6c52064ae9e67357b39db215b8e32ae8e704ce784e0c676d1939dd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 19.889,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale"
+      ],
+      "hang_risk": false,
+      "id": "MUT-19-time-panels-linear",
+      "injection_diff_sha256": "bf50e08818982368518be98457b2300b9bc0039fa3e1f46d8d214f524cdb9c26",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "817ae53b42ca30445dd3d338acdbf23e6cfb7cfb29ed647588d5cc79d9aad3d7",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_readonly_share.py",
+          "new": "def _log_time_axis(ax):\n    return\n",
+          "old": "def _log_time_axis(ax):\n    ax.set_yscale(\"log\")\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "KILLED",
+      "test_output_sha256": "b271507e8c6c52064ae9e67357b39db215b8e32ae8e704ce784e0c676d1939dd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.............................                                            [100%]\n29 passed in 20.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "c01c812f9685e4862ab4fcd13bc2b31744c52b3ae86fcd214216cf1b9836fe51"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "aa5f1ff4de592e6d245749ebb98afe9319ff647cd250ff52dc91897f3566f894",
+      "duration_s": 21.028,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "EQ-1-nonnegative-rewrite",
+      "injection_diff_sha256": "f6d8effb99202e3795dfd9a420145abe82c12caefcb4fff9231c00c886ca4cae",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "c0b53ac982f115d2ede066ae3793a4df75298518882d2884f6c826b9f5a1d0af",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if type(value) is not int or not value >= 0:\n",
+          "old": "    if type(value) is not int or value < 0:\n"
+        }
+      ],
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "SURVIVED",
+      "test_output_sha256": "c01c812f9685e4862ab4fcd13bc2b31744c52b3ae86fcd214216cf1b9836fe51",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\norchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract\norchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights\norchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\norchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign\norchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions\norchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults\norchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale\norchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut12_measure_fixed_one_million\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates\norchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\norchestrator/tests/test_vhash_cicada_vlife.py::test_real_patch_define_registry_and_rejection\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\norchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_records_failed_delay_compile_without_failing\norchestrator/tests/test_vhash_cicada_vlife.py::test_batch_extension_stays_in_begin_and_retries_same_procedure\norchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store\norchestrator/tests/test_vhash_cicada_vlife.py::test_worker_limit_checked_at_construction\norchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\n\n29 tests collected in 0.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e0df835c1f43c6e0efe2b45a67708caa94b246c9ef8beb846af79660fc42081e"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut12_measure_fixed_one_million",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_real_patch_define_registry_and_rejection",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_delay_failure_preserves_other_stages_and_rejects_measure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_records_failed_delay_compile_without_failing",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_batch_extension_stays_in_begin_and_retries_same_procedure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_limit_checked_at_construction",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+      ],
+      "duration_s": 1.445,
+      "rc": 0,
+      "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+      "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+      "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+      "status": "PASSED",
+      "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "EQ-1-nonnegative-rewrite": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "f6d8effb99202e3795dfd9a420145abe82c12caefcb4fff9231c00c886ca4cae",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if type(value) is not int or not value >= 0:\n",
+            "old": "    if type(value) is not int or value < 0:\n"
+          }
+        ]
+      },
+      "MUT-1-schema2-missing-field-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aacf49574dc701159cea14da643b77decf75e442753beef434996d4cf4a21108",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "        if not isinstance(worker, dict) or not set(worker) <= {\n",
+            "old": "        if not isinstance(worker, dict) or set(worker) != {\n"
+          }
+        ]
+      },
+      "MUT-10-tuned-genome-drops-inline-version": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3c6baf7ceb2561e846c6663381bec910c8dae2c7037673159c82fdcead17739c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "TUNED_GENOME = {\"BACK_OFF\": 0, \"INLINE_VERSION_OPT\": 0,\n",
+            "old": "TUNED_GENOME = {\"BACK_OFF\": 0, \"INLINE_VERSION_OPT\": 1,\n"
+          }
+        ]
+      },
+      "MUT-11-mainte-generation-from-begin": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2240a2058247e37f55395b3f119e07363c84ade659a314ddd6baccb873c8c05e",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+    const uint64_t event_generation = vlife_slot_generation_;\n",
+            "old": "+    const uint64_t event_generation = vlife_epoch_.load(std::memory_order_acquire);\n"
+          }
+        ]
+      },
+      "MUT-12-measure-accepts-calibrated-records": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7f2bf30932c67374d93fdd9cc9faa91de0ab34b558bb6f17fa739d41ea87775c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if type(records) is not int:\n",
+            "old": "    if type(records) is not int or records != expected:\n"
+          }
+        ]
+      },
+      "MUT-13-readonly-reads-before-deleted-guard": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c8d54e7c10bd5586fb5bb34be68117a2e03da4bf28fdac4bbc2a3ea4c10d2a80",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+    ;\n",
+            "old": "+    ++vlife().readonly_reads;\n"
+          },
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+    if (is_ronly_) { if (i == 0) ++vlife().readonly_reads; continue; }\n",
+            "old": "+    if (is_ronly_) continue;\n"
+          }
+        ]
+      },
+      "MUT-14-default-promotion-zero": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b8ee2ecbba10a8b7732d0f01fb02d6cd8b8ecc68f10bd4efd96a68ed4520fdb4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "                  \"INLINE_VERSION_PROMOTION\": 0, \"REUSE_VERSION\": 1,\n",
+            "old": "                  \"INLINE_VERSION_PROMOTION\": 1, \"REUSE_VERSION\": 1,\n"
+          }
+        ]
+      },
+      "MUT-15-depth-tuned-panels-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "27692dda72afa54bc4eae7ef551d0ff020dfb89d623d71267784483392df11a4",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_readonly_share.py",
+            "new": "    for col, k in enumerate(()):\n        drawn = _draw_tuned(axes[2, col], runs, \"readonly_deep_rate\", index=V.K.index(k),\n",
+            "old": "    for col, k in enumerate((1, 4, 8)):\n        drawn = _draw_tuned(axes[2, col], runs, \"readonly_deep_rate\", index=V.K.index(k),\n"
+          }
+        ]
+      },
+      "MUT-16-epoch-advance-after-publication": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication",
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "55dbd4f63fe311a2c4aa404821cfb808c0a5aeca993c6bd2d3f75bb70fbed0ca",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+  ;\n",
+            "old": "+  if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);\n"
+          },
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+    if (true) {\n",
+            "old": "+    if (!all_ready) {\n"
+          }
+        ]
+      },
+      "MUT-17-fixed-three-second-duration": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "13f04756b476f6a14bcfe67987b76c50b25d0de4391e4c1d24e6cd3bba70a4ef",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_readonly_share.py",
+            "new": "    return 3\n",
+            "old": "    return int(values[0].split(\"=\", 1)[1])\n"
+          }
+        ]
+      },
+      "MUT-18-late-publication-epoch-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "59ef696ea1e489ccb4e213787c29ceed828d8a168bb0a1da14832fb0bbe61309",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+      ;\n",
+            "old": "+      ++vlife_epoch_;\n"
+          }
+        ]
+      },
+      "MUT-19-time-panels-linear": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bf50e08818982368518be98457b2300b9bc0039fa3e1f46d8d214f524cdb9c26",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_readonly_share.py",
+            "new": "def _log_time_axis(ax):\n    return\n",
+            "old": "def _log_time_axis(ax):\n    ax.set_yscale(\"log\")\n"
+          }
+        ]
+      },
+      "MUT-2-three-term-identity-unchecked": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1a54ee790172e4d086e767ca5b1324d3e4b7719c5017f22307562dc287ca237d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "                worker[\"dc_leader_wait_sum_us\"] != worker[\"dc_interval_sum_us\"]) and False:\n",
+            "old": "                worker[\"dc_leader_wait_sum_us\"] != worker[\"dc_interval_sum_us\"]):\n"
+          }
+        ]
+      },
+      "MUT-3-df-interaction-sign": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fd1c405ed748f5fe82fa094370b966e674b50d7a4fef61d4d5c4794277571df4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    return lag_r_long - lag_r_none - lag_0_long - lag_0_none\n",
+            "old": "    return lag_r_long - lag_r_none - lag_0_long + lag_0_none\n"
+          }
+        ]
+      },
+      "MUT-4-main-grid-drops-long-readonly": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout",
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a5a6dff15c0dc282dac9def0fb90ba60f8ee27412a7dbb7619bc102cec98af3b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\"),\n",
+            "old": "    (\"R\", (0, 25, 50, 75, 95), (\"none\", \"wait1msU\", \"wait10msU\", \"wait10msR\"),\n"
+          }
+        ]
+      },
+      "MUT-5-old-ids-get-zero-readonly-pct": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2c7457642c1ab8eb92d1de9457c7405d931c2a273050743456d61d207f1ee890",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "            \"izanagi_ronly_pct\": condition.get(\"izanagi_ronly_pct\", 0),\n",
+            "old": "            \"izanagi_ronly_pct\": condition.get(\"izanagi_ronly_pct\", -1),\n"
+          }
+        ]
+      },
+      "MUT-6-readonly-rate-denominator-all-sites": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4083473b74bd494c0ed0ec349e99d7eb3c26f80e4e742a9b478a638cd85af86c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "        readonly_deep_rate=[rate(value, sum(sum(w[\"hops\"][1]) for w in workers)) for value in readonly],\n",
+            "old": "        readonly_deep_rate=[rate(value, readonly_reads) for value in readonly],\n"
+          }
+        ]
+      },
+      "MUT-7-draw-guard-disabled": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "636228c87fb4b2c08d2394eeebf67b8a539e9a7e4c8d2aaa8aa30071fe994a7e",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+  if (true || vlife_new_procedure_) {\n",
+            "old": "+  if (vlife_new_procedure_) {\n"
+          }
+        ]
+      },
+      "MUT-8-readonly-commit-raises-flag": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c2d5ddddb5ea36a8243e7c2f8b2dbaa652c1aaf65dd0c71d78910ed2d076d2a8",
+        "replacements": [
+          {
+            "file": "patches/instr-cicada-version-lifetime.patch",
+            "new": "+    vlife_new_procedure_ = true; storeRelease(GCFlag[thid_].obj_, 1);\n+    ++vlife().readonly_commit;\n",
+            "old": "+    vlife_new_procedure_ = true;\n+    ++vlife().readonly_commit;\n"
+          }
+        ]
+      },
+      "MUT-9-holder-weight-unchecked": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1f35807be03cdd87c28672563ca5c54c6e5999e8e34669021e7db41cbc14413f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "            if False and sum(worker[\"holder_units\"]) != 1000000 * worker[\"holder_count\"]:\n",
+            "old": "            if sum(worker[\"holder_units\"]) != 1000000 * worker[\"holder_count\"]:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "864d4d1cfb1dbe726c0e1163bbd02920654c0530a493dcd2eb75adf2cac9044b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_vlife.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "ec896c10a7e04689d8ad2004ff7383c528656380",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_vlife.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-readonly-share-2026-09-29/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "60bf3b450fa12fadaa776dd5a4c677b12b119472",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "63b1f8e64f78c98221722457e6e3164bd237db12b12cccb5d398702afa4fec79",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "4afb7ddd4c8ab65143bd9004cd95e1c8db02a0cf6760629b46932ae69d1e7b43",
+  "summary": {
+    "KILLED": 18,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 20,
+    "matching": 19,
+    "recorded": 20,
+    "registered": 20
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-readonly-share-2026-09-29/mutation/scratch4/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "582e5f84ae800d712909dcf2cd90374ff567e96ea3561d60198a3912182ad98b",
+  "updated_at": "2026-09-29T10:30:38.903501+00:00"
+}

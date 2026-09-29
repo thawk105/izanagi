@@ -1,0 +1,22 @@
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -401,6 +401,11 @@
+     GC_INC(thid, overflow);
+     return false;
+   }
++  // Deliberately publish an unvalidated timestamp and raise the leader flag.
++  __atomic_store_n(&ThreadWtsArray[thid].obj_, target, __ATOMIC_RELEASE);
++  gc_publish_rts(thid, target - 1);
++  storeRelease(GCFlag[thid].obj_, 1);
++  GC_INC(thid, early_publishes);
+   GC_INC(thid, attempts);
+   ForwardCheck check = ForwardCheck::ok;
+   for (auto& r : tx.read_set_) {
+@@ -462,6 +467,7 @@
+     }
+   }
+   if (check != ForwardCheck::ok) {
++    GC_INC(thid, early_publish_then_fail);
+     gc_failure(thid, check);
+     return false;
+   }

@@ -664,6 +664,9 @@ _CMAKE_INTERNAL_DEFINE_RE = re.compile(
 # an upstream CCBench define. Still require its actual added conditional in the
 # introducing patch; no registry key is used to discover the interface.
 _OVERLAY_BASE_DEFINE_INTERFACES = {
+    "patches/cicada-forwarding-variant.patch": frozenset({
+        "CICADA_FWD_ENABLE", "CICADA_LONGTX",
+    }),
     "patches/instr-silo-function-policy-probe.patch": frozenset({
         "IZANAGI_SILO_POLICY_PROBE",
     }),
@@ -3591,10 +3594,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 66,
+        "proven-unreachable": 69,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 70})
+    assert classifications[s8b_sink] == Counter({"covered": 73})
     assert failures == []
 
 
@@ -3618,7 +3621,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 56})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 59})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3627,7 +3630,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 56,
+        "failure-reachable": 14, "proven-unreachable": 59,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

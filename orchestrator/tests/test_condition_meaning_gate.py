@@ -66,6 +66,9 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "CICADA_FWD_ENABLE",
     "CICADA_FWD_COUNT",
     "CICADA_LONGTX",
+    "CICADA_GC_SAFEPOINT",
+    "CICADA_GC_WAIT",
+    "CICADA_GC_COUNT",
     "CICADA_INTERVAL_GC",
     "CICADA_INTERVAL_GC_GENERAL",
     "CICADA_INTERVAL_COUNT",
@@ -110,7 +113,7 @@ _REQUESTED_US_CONTRAST = 0
 # Independent patch expectations: source, exact directive, site count, contrast.
 _NEW_BRANCH_EXPECTATIONS = {
     "IZANAGI_CICADA_VLIFE": (
-        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE", 33, 0,
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE", 37, 0,
     ),
     "IZANAGI_CICADA_LONGTX": (
         "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_LONGTX", 3, 0,
@@ -195,6 +198,15 @@ _NEW_BRANCH_EXPECTATIONS = {
     ),
     "CICADA_LONGTX": (
         "cc/cicada/ycsb_cicada.cc", "#if CICADA_LONGTX", 4, 0,
+    ),
+    "CICADA_GC_SAFEPOINT": (
+        "cc/cicada/transaction.cc", "#if CICADA_GC_SAFEPOINT", 3, 0,
+    ),
+    "CICADA_GC_WAIT": (
+        "cc/cicada/ycsb_cicada.cc", "#if CICADA_GC_WAIT", 2, 0,
+    ),
+    "CICADA_GC_COUNT": (
+        "cc/cicada/transaction.cc", "#if CICADA_GC_COUNT", 7, 0,
     ),
     "CICADA_INTERVAL_GC": (
         "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_GC", 11, 0,
@@ -3560,6 +3572,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
         "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
         "CICADA_FWD_ENABLE", "CICADA_FWD_COUNT", "CICADA_LONGTX",
+        "CICADA_GC_SAFEPOINT", "CICADA_GC_WAIT", "CICADA_GC_COUNT",
         "CICADA_INTERVAL_GC", "CICADA_INTERVAL_GC_GENERAL",
         "CICADA_INTERVAL_COUNT", "CICADA_INTERVAL_LONGTX",
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
@@ -3612,6 +3625,19 @@ def test_v1_domain_and_claim_boundaries_are_exact():
             "patches/cicada-forwarding-variant.patch",
             companion_defines=companion, inert_values=(),
         )
+    for macro, owner, companion in (
+        ("CICADA_GC_SAFEPOINT", "cc/cicada/transaction.cc",
+         (("CICADA_FWD_ENABLE", "1"),)),
+        ("CICADA_GC_WAIT", "cc/cicada/ycsb_cicada.cc",
+         (("CICADA_GC_SAFEPOINT", "1"), ("CICADA_FWD_ENABLE", "1"),
+          ("CICADA_LONGTX", "1"))),
+        ("CICADA_GC_COUNT", "cc/cicada/transaction.cc", ()),
+    ):
+        assert G.DEFINE_SPECS[macro] == G.DefineSpec(
+            G.ROUTE_CMAKE_CXX_FLAGS, (owner,), "ycsb_cicada.exe",
+            "patches/cicada-forwarding-gc.patch",
+            companion_defines=companion, inert_values=(),
+        )
     for macro, owner, patch, companion in (
         ("CICADA_INTERVAL_GC", "cc/cicada/transaction.cc",
          "cicada-interval-gc-variant.patch", ()),
@@ -3629,8 +3655,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 52
-    assert len(G.MEANING_SUPPORTED_MACROS) == 53
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 55
+    assert len(G.MEANING_SUPPORTED_MACROS) == 56
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3721,7 +3747,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 46
+    ) == 49
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -3840,10 +3866,10 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
     assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
 
 
-def test_module_claim_names_the_exact_70_define_supply_domain() -> None:
-    assert "supply domain contains the 70 patch-derived defines" in G.__doc__
+def test_module_claim_names_the_exact_73_define_supply_domain() -> None:
+    assert "supply domain contains the 73 patch-derived defines" in G.__doc__
     assert (
-        "Fifty-two\nregistered macros additionally have a bounded compile-time witness"
+        "Fifty-five\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__

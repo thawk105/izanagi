@@ -1,0 +1,71 @@
+{
+  "campaign_id": "vhash-gc-connection-prototype-2026-09-29",
+  "inputs": {
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/aggregate/gc-aggregate.json": "b6a229cbb1d75b65c7865752e59d2c70f64f54a4369fb70d2645eb382e5a4919",
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/meas-w1k-s09/raw-gc-run-wait_after_reads-skew0.9-2026-09-29T09-29-09.402787+00-00.json": "0ec2e2f24b263d1012002fab30016b0451723772533e0c8dd4b62f56df8bf373",
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/meas-w10k-s09/raw-gc-run-wait_after_reads-skew0.9-2026-09-29T09-26-23.962994+00-00.json": "e74f4f0329e624a5d1cf410394e12b415d22ce3592d7a859c8cc4508c80b4ee9",
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/meas-w1k-s0/raw-gc-run-wait_after_reads-skew0-2026-09-29T09-23-37.334399+00-00.json": "3fb8c517d677ad5fdf1b3b17e93549defa962acd3c71ba85046f121b624360eb",
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/meas-w10k-s0/raw-gc-run-wait_after_reads-skew0-2026-09-29T09-29-08.630621+00-00.json": "d793765c60acaa04bb2eb4b52818356bb663c73adabb60ac12fc91e5de7bc259",
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/meas-normal/raw-gc-run-normal-skew0.9-2026-09-29T09-29-09.464542+00-00.json": "3f4fefac62e4e734e4a4d3523246e62f808eee9b768523cfe73388bc37a6ffa2",
+    "/work/1/SFC/tanab/tmp/vhash-gc-connection-prototype-2026-09-29/jobs/meas-manyops/raw-gc-run-many_ops-skew0.9-2026-09-29T09-29-09.402310+00-00.json": "594672693c4920229931ea1ff2cdd3b485f5d67874aeaa35ea762ea5cf17c153"
+  },
+  "conditions": {
+    "threads": 48,
+    "tuples": 1000000,
+    "skew": [
+      0,
+      0.9
+    ],
+    "rratio": 50,
+    "environment": "not captured in raw jobs",
+    "ccbench_pin": "6810666",
+    "value_bytes": 4
+  },
+  "major_values": {
+    "stock": {
+      "series_stride": 64,
+      "points_in_window": 175,
+      "first_t_us": 81904517903,
+      "first_below_100ms_elapsed_us": 10958,
+      "window_start_elapsed_us": 10958,
+      "window_end_elapsed_us": 210958,
+      "first_window_elapsed_us": 10958,
+      "last_elapsed_us": 210682,
+      "first_lag_rts_us": 11229,
+      "window_lag_rts_us_min": 10806,
+      "window_lag_rts_us_max": 20096
+    },
+    "E-hb": {
+      "series_stride": 64,
+      "points_in_window": 169,
+      "first_t_us": 81912451931,
+      "first_below_100ms_elapsed_us": 10013,
+      "window_start_elapsed_us": 10958,
+      "window_end_elapsed_us": 210958,
+      "first_window_elapsed_us": 13073,
+      "last_elapsed_us": 210727,
+      "first_lag_rts_us": 13261,
+      "window_lag_rts_us_min": 10834,
+      "window_lag_rts_us_max": 20168
+    },
+    "E": {
+      "series_stride": 64,
+      "points_in_window": 199,
+      "first_t_us": 81916449442,
+      "first_below_100ms_elapsed_us": 2687,
+      "window_start_elapsed_us": 10958,
+      "window_end_elapsed_us": 210958,
+      "first_window_elapsed_us": 13699,
+      "last_elapsed_us": 210715,
+      "first_lag_rts_us": 8266,
+      "window_lag_rts_us_min": 166,
+      "window_lag_rts_us_max": 19580
+    }
+  },
+  "verification_status": "diagnostic values; checker: 0 cycles; upper bound indeterminate; not certified",
+  "throughput": "omitted: instrumented build values are diagnostic, not throughput measurements",
+  "transformations": {
+    "overview": "rep values and median; 95% t CI of rep mean; lag and retention µs / 1000 = ms; live count / 1000000 = million; E success / attempts * 100 = percent",
+    "mechanism": "rep 0; for each arm find first stored sample with lag_rts_us < 100000; common start is maximum of those elapsed times; inclusive 200000 µs window from common start; actual stored t_us minus first stored t_us, divided by 1000 = ms; lag_rts_us / 1000 = ms; series_stride is thinning metadata, not a time multiplier"
+  }
+}

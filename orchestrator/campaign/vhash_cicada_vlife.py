@@ -13,6 +13,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -22,6 +23,7 @@ from . import condition_meaning_gate as condition
 from . import s3_mocc_lock_coverage as compute
 from . import s3_lock_coverage as locks
 from . import site_policy
+from .model import cmake_cache_variable_for_axis
 from .materializer_admission import non_admissible_materializer
 from .p2_2 import _assert_single_tenant
 from .patchharness import applied, checkout
@@ -53,6 +55,62 @@ CONDITIONS = {
     for l in ("none", "wait1ms", "wait10ms", "ops1000")
     for gc in (10, 1000, 100000)
 }
+OLD_CONDITIONS = frozenset(CONDITIONS)
+TUNED_GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
+                "INLINE_VERSION_PROMOTION": 0, "REUSE_VERSION": 1,
+                "WRITE_LATEST_ONLY": 0}
+DEFAULT_GENOME = {"BACK_OFF": 1, "INLINE_VERSION_OPT": 0,
+                  "INLINE_VERSION_PROMOTION": 1, "REUSE_VERSION": 1,
+                  "WRITE_LATEST_ONLY": 0}
+MEASURE_RECORDS = 1000000
+for prefix, rates, delays, intervals, skew, genome in (
+    ("R", (0, 25, 50, 75, 95), ("none", "wait1msU", "wait10msU", "wait10msR"),
+     (10, 1000, 100000), 0.9, "default"),
+    ("S", (0, 50, 95), ("none", "wait10msU"), (10, 100000), 0, "default"),
+    ("T", (0, 50, 95), ("none", "wait10msU"), (10, 100000), 0.9, "tuned"),
+):
+    for rate in rates:
+        for delay in delays:
+            for gc in intervals:
+                CONDITIONS[f"{prefix}{rate}-{delay}-gc{gc}"] = dict(
+                    ycsb_rratio=50, ycsb_zipf_skew=skew, thread_num=48,
+                    batch_th_num=0, batch_max_ope=1000,
+                    worker1_insert_delay_rphase_us=(1000 if delay == "wait1msU"
+                        else 10000 if delay.startswith("wait10ms") else 0),
+                    gc_inter_us=gc, izanagi_ronly_pct=rate,
+                    izanagi_long_kind=(2 if delay == "wait10msR" else
+                                       1 if delay.endswith("U") else 0),
+                    genome=genome)
+
+
+def genome_args(genome: str) -> list[str]:
+    if genome == "default":
+        return []
+    if genome != "tuned":
+        raise ValueError("unknown genome")
+    return [f"-D{cmake_cache_variable_for_axis('cicada', axis)}={value}"
+            for axis, value in TUNED_GENOME.items()]
+
+
+def verify_genome_commands(path: Path, genome: str) -> dict:
+    rows = json.loads(path.read_text())
+    relevant = [row for row in rows if "/cc/cicada/" in str(row.get("file", ""))]
+    if not relevant:
+        raise ValueError("no Cicada compile commands")
+    expected = TUNED_GENOME if genome == "tuned" else DEFAULT_GENOME
+    records = []
+    for row in relevant:
+        args = row.get("arguments") or shlex.split(row["command"])
+        definitions = {}
+        for arg in args:
+            match = re.fullmatch(r"-D([A-Z_]+)=(\d+)", arg)
+            if match:
+                definitions[match.group(1)] = int(match.group(2))
+        if any(definitions.get(axis) != value for axis, value in expected.items()):
+            raise ValueError("Cicada compile definition differs from genome")
+        records.append({"file": row["file"], "definitions": {
+            axis: definitions[axis] for axis in expected}})
+    return {"genome": genome, "commands": records}
 
 
 def select_conditions(value: str) -> tuple[str, ...]:
@@ -97,7 +155,8 @@ def parse_vlife_line(stdout: str) -> dict:
         "position_origin", "sites", "build", "workers",
     }:
         raise ValueError("schema fields")
-    if _nonnegative(payload["schema_version"]) != 1:
+    schema = _nonnegative(payload["schema_version"])
+    if schema not in (1, 2):
         raise ValueError("schema version")
     if not _nonnegative(payload["clocks_per_us"]):
         raise ValueError("zero clock")
@@ -113,12 +172,18 @@ def parse_vlife_line(stdout: str) -> dict:
     if payload["position_origin"] != POSITION_ORIGIN:
         raise ValueError("position origin")
     build = payload["build"]
-    if not isinstance(build, dict) or set(build) != {
-        "reuse_version", "inline_version_opt", "longtx",
-    }:
+    build_fields = {"reuse_version", "inline_version_opt", "longtx"}
+    if schema == 2:
+        build_fields |= {"izanagi_ronly_pct", "izanagi_long_kind"}
+    if not isinstance(build, dict) or set(build) != build_fields:
         raise ValueError("build fields")
-    for val in build.values():
-        _nonnegative(val)
+    for field in ("reuse_version", "inline_version_opt", "longtx"):
+        _nonnegative(build[field])
+    if schema == 2:
+        if type(build["izanagi_ronly_pct"]) is not int or not -1 <= build["izanagi_ronly_pct"] <= 100:
+            raise ValueError("read-only flag")
+        if type(build["izanagi_long_kind"]) is not int or build["izanagi_long_kind"] not in (0, 1, 2):
+            raise ValueError("long kind flag")
     workers = payload["workers"]
     if not isinstance(workers, list) or not workers:
         raise ValueError("workers")
@@ -130,6 +195,20 @@ def parse_vlife_line(stdout: str) -> dict:
                "age_create_us": 42, "age_overwrite_us": 42,
                "attempts": 2, "commits": 2, "aborts": 2,
                "operations": 2, "cycles": 2}
+    if schema == 2:
+        scalars |= {"readonly_reads", "gc_boundary_sum_us", "gc_boundary_count",
+                    "gc_publish_sum_us", "gc_publish_count", "gc_publish_negative",
+                    "gc_boundary_overflow", "gc_publish_overflow",
+                    "ro_snapshot_age_sum_us", "ro_snapshot_age_count",
+                    "ro_snapshot_age_negative", "ro_snapshot_age_overflow", "gc_same",
+                    "dc_cf_wait_sum_us", "dc_ro_gap_sum_us", "dc_leader_wait_sum_us",
+                    "dc_interval_sum_us",
+                    "dc_count", "dc_first", "dc_missing", "dc_generation",
+                    "dc_negative", "dc_epoch_mismatch", "dc_late_epoch",
+                    "dc_leader_count", "holder_count",
+                    "holder_unresolved"}
+        vectors.update(readonly_candidate=5, ro_snapshot_age_us=42,
+                       dc_cf_kind_count=5, dc_cf_kind_sum_us=5, holder_units=5)
     for worker in workers:
         if not isinstance(worker, dict) or set(worker) != {
             "hops", "position", *scalars, *vectors
@@ -156,6 +235,60 @@ def parse_vlife_line(stdout: str) -> dict:
             raise ValueError("deep exceeds update reads")
         if any(x > sum(worker["hops"][1]) for x in worker["readonly_deep"]):
             raise ValueError("read-only deep exceeds reads")
+        if schema == 2:
+            if any(a > b for a, b in zip(worker["readonly_candidate"], worker["readonly_deep"])):
+                raise ValueError("read-only candidate exceeds deep")
+            if any(x > worker["readonly_reads"] for x in worker["readonly_deep"]):
+                raise ValueError("read-only deep exceeds selected reads")
+            for histogram, count in (("gc_boundary_us", "gc_boundary_count"),
+                                     ("gc_publish_us", "gc_publish_count"),
+                                     ("ro_snapshot_age_us", "ro_snapshot_age_count")):
+                if sum(worker[histogram]) != worker[count]:
+                    raise ValueError("histogram count mismatch")
+            for total_field, count_field in (("gc_boundary_sum_us", "gc_boundary_count"),
+                                             ("gc_publish_sum_us", "gc_publish_count"),
+                                             ("ro_snapshot_age_sum_us", "ro_snapshot_age_count")):
+                if worker[count_field] == 0 and worker[total_field] != 0:
+                    raise ValueError("nonzero sum without observations")
+            for histogram, total_field in (("gc_boundary_us", "gc_boundary_sum_us"),
+                                           ("gc_publish_us", "gc_publish_sum_us"),
+                                           ("ro_snapshot_age_us", "ro_snapshot_age_sum_us")):
+                lower = sum(count * (0 if i == 0 else TIME_BOUNDS[i-1] + 1)
+                            for i, count in enumerate(worker[histogram]))
+                upper = sum(count * TIME_BOUNDS[i]
+                            for i, count in enumerate(worker[histogram]))
+                if not lower <= worker[total_field] <= upper:
+                    raise ValueError("time histogram and exact sum disagree")
+            if worker["dc_count"] == 0 and any(worker[field] for field in (
+                "dc_cf_wait_sum_us", "dc_ro_gap_sum_us", "dc_leader_wait_sum_us",
+                "dc_interval_sum_us")):
+                raise ValueError("D-C sum without interval")
+            if sum(worker["dc_cf_kind_count"]) != worker["dc_count"] or (
+                sum(worker["dc_cf_kind_sum_us"]) != worker["dc_cf_wait_sum_us"]):
+                raise ValueError("D-C kind sum mismatch")
+            if sum(worker["holder_units"]) != 1000000 * worker["holder_count"]:
+                raise ValueError("holder weight mismatch")
+            if (worker["dc_cf_wait_sum_us"] + worker["dc_ro_gap_sum_us"] +
+                worker["dc_leader_wait_sum_us"] != worker["dc_interval_sum_us"]):
+                raise ValueError("D-C three terms do not restore interval")
+            if worker["dc_count"] == worker["gc_publish_count"] and (
+                worker["dc_interval_sum_us"] != worker["gc_publish_sum_us"]):
+                raise ValueError("D-C valid intervals differ from all published intervals")
+            if (worker["dc_cf_wait_sum_us"] + worker["dc_ro_gap_sum_us"] +
+                worker["dc_leader_wait_sum_us"] > worker["gc_publish_sum_us"]):
+                raise ValueError("D-C exceeds observed interval")
+            publications = (worker["gc_boundary_count"] + worker["gc_negative"] +
+                            worker["gc_boundary_overflow"])
+            if worker["dc_first"] > 1 or worker["gc_same"] > publications:
+                raise ValueError("publication count mismatch")
+            if worker["dc_late_epoch"] > publications:
+                raise ValueError("late epoch advances exceed publications")
+            if worker["holder_count"] + worker["holder_unresolved"] > publications:
+                raise ValueError("holder outcomes exceed publications")
+            if (worker["dc_count"] + worker["dc_first"] + worker["dc_missing"] +
+                worker["dc_generation"] + worker["dc_negative"] >
+                publications):
+                raise ValueError("D-C outcomes exceed publications")
         if any(c + a > n for c, a, n in zip(
             worker["commits"], worker["aborts"], worker["attempts"]
         )):
@@ -172,13 +305,68 @@ def summarize(payload: dict) -> dict:
     readonly = [sum(w["readonly_deep"][i] for w in workers) for i in range(5)]
     zero = [sum(w["deep_read_zero"][i] for w in workers) for i in range(5)]
     candidate_zero = [sum(w["candidate_read_zero"][i] for w in workers) for i in range(5)]
-    return {
+    result = {
         "deep": deep, "candidate": candidate, "readonly_deep": readonly,
         "deep_read_zero": zero, "candidate_read_zero": candidate_zero,
         "candidate_rate": [candidate[i]/deep[i] if deep[i] else None for i in range(5)],
         "logical_version_delta": sum(w["install"]-w["detach"] for w in workers),
         "readonly_attempts": sum(w["readonly_attempt"] for w in workers),
     }
+    if payload["schema_version"] == 1:
+        return result
+    total = lambda field: sum(w[field] for w in workers)
+    rate = lambda numerator, denominator: numerator / denominator if denominator else None
+    readonly_reads = total("readonly_reads")
+    ro_candidate = [sum(w["readonly_candidate"][i] for w in workers) for i in range(5)]
+    holder_units = [sum(w["holder_units"][i] for w in workers) for i in range(5)]
+    boundary_hist = [sum(w["gc_boundary_us"][i] for w in workers) for i in range(42)]
+    boundary_total = sum(boundary_hist)
+    boundary_p50 = None
+    if boundary_total:
+        cumulative = 0
+        for i, count in enumerate(boundary_hist):
+            cumulative += count
+            if cumulative * 2 >= boundary_total:
+                boundary_p50 = TIME_BOUNDS[i]
+                break
+    attempts = sum(sum(w["attempts"]) for w in workers)
+    commits = sum(sum(w["commits"]) for w in workers)
+    aborts = sum(sum(w["aborts"]) for w in workers)
+    result.update(
+        readonly_reads=readonly_reads,
+        readonly_candidate=ro_candidate,
+        readonly_deep_rate=[rate(value, readonly_reads) for value in readonly],
+        readonly_share_of_deep=[rate(readonly[i], readonly[i] + deep[i]) for i in range(5)],
+        readonly_candidate_rate=[rate(ro_candidate[i], readonly[i]) for i in range(5)],
+        realized_readonly_attempt_rate=rate(total("readonly_attempt"), attempts),
+        realized_readonly_commit_rate=rate(total("readonly_commit"), commits),
+        commit_rate=rate(commits, attempts), abort_rate=rate(aborts, attempts),
+        update_commits=commits-total("readonly_commit"),
+        install=total("install"),
+        gc_boundary_mean_us=rate(total("gc_boundary_sum_us"), total("gc_boundary_count")),
+        gc_boundary_p50_bucket_us=boundary_p50,
+        gc_publications=total("gc_boundary_count") + total("gc_negative") +
+                        total("gc_boundary_overflow"),
+        gc_publish_mean_us=rate(total("gc_publish_sum_us"), total("gc_publish_count")),
+        ro_snapshot_age_mean_us=rate(total("ro_snapshot_age_sum_us"),
+                                     total("ro_snapshot_age_count")),
+        dc_cf_wait_mean_us=rate(total("dc_cf_wait_sum_us"), total("dc_count")),
+        dc_ro_gap_mean_us=rate(total("dc_ro_gap_sum_us"), total("dc_count")),
+        dc_leader_wait_mean_us=rate(total("dc_leader_wait_sum_us"), total("dc_count")),
+        dc_epoch_mismatch=total("dc_epoch_mismatch"),
+        dc_late_epoch=total("dc_late_epoch"),
+        local_flag_opportunity=rate(total("dc_ro_gap_sum_us"), total("gc_publish_sum_us")),
+        holder_fraction=[rate(value, 1000000 * total("holder_count")) for value in holder_units],
+        holder_unresolved=total("holder_unresolved"),
+        same_boundary_publications=total("gc_same"),
+    )
+    return result
+
+
+def df_interaction(lag_r_long: float, lag_r_none: float,
+                   lag_0_long: float, lag_0_none: float) -> float:
+    """Condition total difference interaction, not a causal attribution."""
+    return lag_r_long - lag_r_none - lag_0_long + lag_0_none
 
 
 def depth_at_k(position: int, k: int) -> bool:
@@ -223,18 +411,21 @@ def _gates(source: Path, macros: tuple[str, ...], args: list[str], cxx: str) -> 
 
 
 def _build_variant(source: Path, build: Path, toolchain: dict, dependencies: dict,
-                   macros: tuple[str, ...]) -> tuple[Path, dict]:
+                   macros: tuple[str, ...], genome: str = "default") -> tuple[Path, dict]:
+    started = time.monotonic()
     admission = non_admissible_materializer(MATERIALIZER)
     args = compute._common_configure_args(trace=0, toolchain=toolchain,
                                            dependencies=dependencies)
     args = [arg for arg in args if arg not in compute.STOCK_G.cmake_defines()]
     args += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
+    args += genome_args(genome)
     gates = _gates(source, macros, args, toolchain["cxx_path"]) if macros else []
     if macros:
         args += ["-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in macros)]
     configure = ["cmake", "-S", str(source), "-B", str(build),
                  "-DCMAKE_CXX_COMPILER=" + toolchain["cxx_path"], *args]
     _checked(configure)
+    genome_witness = verify_genome_commands(build / "compile_commands.json", genome)
     _checked(["cmake", "--build", str(build), "--target", "ycsb_cicada.exe"])
     binary = build / "cc/cicada/ycsb_cicada.exe"
     if not binary.is_file():
@@ -243,12 +434,16 @@ def _build_variant(source: Path, build: Path, toolchain: dict, dependencies: dic
         "admission": admission, "gates": gates, "configure": configure,
         "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "macros": list(macros),
+        "genome": genome_witness,
+        "elapsed_s": time.monotonic() - started,
     }
 
 
-def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True) -> dict:
+def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True,
+         genome: str = "default") -> dict:
     _assert_single_tenant()
     argv = [str(binary)] + [f"-{k}={v}" for k, v in flags.items()]
+    started = time.monotonic()
     try:
         result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
                                 timeout=180, check=False)
@@ -256,6 +451,7 @@ def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True) -> 
         def decoded(value):
             return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""
         return {"argv": argv, "rc": None, "timeout_s": 180,
+                "wall_s": time.monotonic() - started,
                 "stdout": decoded(exc.stdout), "stderr": decoded(exc.stderr),
                 "vlife_json_line": None, "parsed": None,
                 "parse_error": "timeout", "summary": None,
@@ -267,12 +463,23 @@ def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True) -> 
             parsed = parse_vlife_line(result.stdout)
             if len(parsed["workers"]) != flags["thread_num"] + flags["batch_th_num"]:
                 raise ValueError("worker count differs from argv")
+            if parsed["schema_version"] != 2:
+                raise ValueError("new instrument requires schema 2")
+            if parsed["build"]["izanagi_ronly_pct"] != flags["izanagi_ronly_pct"] or (
+                parsed["build"]["izanagi_long_kind"] != flags["izanagi_long_kind"]):
+                raise ValueError("instrument flag echo differs from argv")
+            if parsed["build"]["inline_version_opt"] != (1 if genome == "tuned" else 0):
+                raise ValueError("instrument genome echo differs from build")
         except ValueError as exc:
             parse_error = str(exc)
     summary = summarize(parsed) if parsed else None
     if summary:
         summary["logical_live_versions"] = flags["tuple_num"] + summary["logical_version_delta"]
+        if parsed["schema_version"] == 2:
+            summary["update_commits_per_s"] = summary["update_commits"] / flags["extime"]
+            summary["install_per_s"] = summary["install"] / flags["extime"]
     return {"argv": argv, "rc": result.returncode, "stdout": result.stdout,
+            "wall_s": time.monotonic() - started,
             "stderr": result.stderr, "vlife_json_line": next(
                 (line for line in result.stdout.splitlines() if line.startswith(PREFIX)), None),
             "parsed": parsed, "parse_error": parse_error,
@@ -281,6 +488,7 @@ def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True) -> 
 
 
 def _flags(condition_id: str, records: int, clocks_per_us: int) -> dict:
+    condition = CONDITIONS[condition_id]
     return {"tuple_num": records, "ycsb_tuple_num": records,
             "thread_num": CONDITIONS[condition_id]["thread_num"],
             "batch_th_num": CONDITIONS[condition_id]["batch_th_num"],
@@ -292,7 +500,9 @@ def _flags(condition_id: str, records: int, clocks_per_us: int) -> dict:
             "gc_inter_us": CONDITIONS[condition_id]["gc_inter_us"],
             "worker1_insert_delay_rphase_us":
                 CONDITIONS[condition_id]["worker1_insert_delay_rphase_us"],
-            "extime": 3, "clocks_per_us": clocks_per_us}
+            "extime": 3, "clocks_per_us": clocks_per_us,
+            "izanagi_ronly_pct": condition.get("izanagi_ronly_pct", -1),
+            "izanagi_long_kind": condition.get("izanagi_long_kind", 0)}
 
 
 def _normalized_disassembly(binary: Path) -> str:
@@ -329,9 +539,18 @@ def _smoke_records(path: Path) -> int:
         for side in ("stock_absence", "default_absence")
     ) or witness["stock_absence"]["strings"] != witness["default_absence"]["strings"]:
         raise ValueError("smoke binary witness failed")
-    short = raw.get("short_run")
-    if not isinstance(short, dict) or type(short.get("rc")) is not int or short["rc"] != 0 or not isinstance(short.get("parsed"), dict):
-        raise ValueError("smoke short run failed")
+    for name, inline in (("short_run", 0), ("tuned_short_run", 1)):
+        short = raw.get(name)
+        if (not isinstance(short, dict) or type(short.get("rc")) is not int or
+            short["rc"] != 0 or not isinstance(short.get("parsed"), dict) or
+            short["parsed"].get("schema_version") != 2 or
+            short["parsed"].get("build", {}).get("inline_version_opt") != inline):
+            raise ValueError(f"{name} failed")
+    budget = raw.get("time_budget")
+    if (not isinstance(budget, dict) or type(budget.get("estimated_node_s")) not in (int, float)
+        or not math.isfinite(budget["estimated_node_s"]) or
+        budget["estimated_node_s"] >= 7200):
+        raise ValueError("new smoke exceeds two node hours or lacks estimate")
     calibration = raw.get("calibration")
     if not isinstance(calibration, dict):
         raise ValueError("smoke calibration missing")
@@ -344,12 +563,12 @@ def _smoke_records(path: Path) -> int:
     for probe in probes.values():
         if not isinstance(probe, dict) or type(probe.get("rc")) is not int or probe["rc"] != 0 or type(probe.get("maxrss_kb")) is not int or probe["maxrss_kb"] <= 0:
             raise ValueError("failed calibration probe")
-    eligible = [n for n in (1000000, 2000000, 4000000)
-                if probes[str(n)]["maxrss_kb"] * 1024 > 4 * l3_bytes]
-    expected = eligible[0] if eligible else 1000000
+    expected = MEASURE_RECORDS
     records = calibration.get("selected_records")
     if type(records) is not int or records != expected:
-        raise ValueError("calibrated records do not match probes")
+        raise ValueError("measure requires 1M records")
+    if probes[str(MEASURE_RECORDS)]["maxrss_kb"] * 1024 < 4 * l3_bytes:
+        raise ValueError("1M records do not meet four times L3")
     return records
 
 
@@ -410,6 +629,8 @@ def _calibrate(stock_binary: Path, scratch: Path) -> dict:
     for records in (1000000, 2000000, 4000000):
         _assert_single_tenant()
         flags = _flags("A-none-gc10", records, locks.CLK)
+        flags.pop("izanagi_ronly_pct")
+        flags.pop("izanagi_long_kind")
         flags.update(rratio=100, ycsb_rratio=100, extime=1)
         argv = ["/usr/bin/time", "-f", "IZANAGI_MAXRSS_KB %M",
                 str(stock_binary)] + [f"-{k}={v}" for k, v in flags.items()]
@@ -430,14 +651,8 @@ def _calibrate(stock_binary: Path, scratch: Path) -> dict:
         "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3,
     }[match.group(2)]
     result["l3_bytes"] = l3_bytes
-    eligible = [n for n in (1000000, 2000000, 4000000)
-                if result["probes"][str(n)]["maxrss_kb"] is not None
-                and result["probes"][str(n)]["maxrss_kb"] * 1024 > 4 * l3_bytes]
-    result["selected_records"] = eligible[0] if eligible else 1000000
-    result["selection_reason"] = (
-        "smallest N with maxrss > 4x L3" if eligible else
-        "4M below 4x L3; use paper section 7.2 1M fallback"
-    )
+    result["selected_records"] = MEASURE_RECORDS
+    result["selection_reason"] = "D15 second baseline: fixed 1M; require maxrss >= 4x L3"
     return result
 
 
@@ -469,9 +684,9 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
             container[key] = _stage_error(exc)
             return None
 
-    def build(name: str, macros: tuple[str, ...]):
+    def build(name: str, macros: tuple[str, ...], genome: str = "default"):
         value = stage(name, lambda: _build_variant(
-            source, scratch / f"{name}-build", toolchain, dependencies, macros),
+            source, scratch / f"{name}-build", toolchain, dependencies, macros, genome),
             container=builds)
         if value is not None:
             binaries[name], builds[name] = value
@@ -494,8 +709,9 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
             with applied(str(PATCH), PIN, str(source)):
                 build("default", ())
                 build("enabled", MACROS)
+                build("tuned_enabled", MACROS, "tuned")
         except Exception as exc:
-            for name in ("default", "enabled"):
+            for name in ("default", "enabled", "tuned_enabled"):
                 builds.setdefault(name, _stage_error(exc))
 
     def witness():
@@ -527,27 +743,59 @@ def _smoke(scratch: Path, toolchain: dict, dependencies: dict,
         stage("calibration", lambda: _calibrate(binaries["stock"], scratch),
               valid=lambda value: all(
                   probe["rc"] == 0 and probe["maxrss_kb"] is not None
-                  for probe in value["probes"].values()))
+                  for probe in value["probes"].values())
+              and value["probes"][str(MEASURE_RECORDS)]["maxrss_kb"] * 1024
+                  >= 4 * value["l3_bytes"])
     else:
         skipped("calibration", "stock build failed")
     if "enabled" in binaries and "error" not in result["calibration"]:
         def short_run():
-            flags = _flags("A-none-gc10", result["calibration"]["selected_records"], locks.CLK)
-            flags["extime"] = 1
+            flags = _flags("A-none-gc10", MEASURE_RECORDS, locks.CLK)
             return _run(binaries["enabled"], flags, cwd=scratch)
         stage("short_run", short_run,
               valid=lambda value: value["rc"] == 0 and value["parsed"] is not None)
     else:
         skipped("short_run", "enabled build or calibration failed")
+    if "tuned_enabled" in binaries and "error" not in result["calibration"]:
+        def tuned_short_run():
+            flags = _flags("T50-none-gc10", MEASURE_RECORDS, locks.CLK)
+            return _run(binaries["tuned_enabled"], flags, cwd=scratch, genome="tuned")
+        stage("tuned_short_run", tuned_short_run,
+              valid=lambda value: value["rc"] == 0 and value["parsed"] is not None)
+    else:
+        skipped("tuned_short_run", "tuned build or calibration failed")
+    if all(name in builds and "error" not in builds[name] for name in ("enabled", "tuned_enabled")) and all(
+        name in result and "error" not in result[name] for name in ("short_run", "tuned_short_run")
+    ):
+        times = [builds[name].get("elapsed_s") for name in
+                 ("stock", "default", "enabled", "tuned_enabled")]
+        times += [result[name].get("wall_s") for name in ("short_run", "tuned_short_run")]
+        preparation = result.get("dependency_preparation_s")
+        if preparation is None:
+            preparation = dependencies.get("elapsed_s")
+        if all(type(x) in (int, float) and math.isfinite(x) and x > 0 for x in times):
+            # Four jobs each build stock/default/enabled/tuned and prepare dependencies.
+            if type(preparation) not in (int, float) or not math.isfinite(preparation) or preparation < 0:
+                preparation = 0
+            estimate = 258 * max(times[4:]) + 4 * (sum(times[:4]) + preparation)
+            result["time_budget"] = {"estimated_node_s": estimate,
+                                     "limit_node_s": 7200,
+                                     "method": "258*max(3s run wall)+4*(all four build walls+dependency preparation)",
+                                     "dependency_preparation_s": preparation}
+        else:
+            result["time_budget"] = _stage_error(ValueError("smoke timing missing"))
+    else:
+        skipped("time_budget", "instrumented build or short run failed")
     return result
 
 
 def _smoke_success(body: dict) -> bool:
     return (all(name in body.get("builds", {}) and
                 "error" not in body["builds"][name]
-                for name in ("stock", "default", "enabled"))
+                for name in ("stock", "default", "enabled", "tuned_enabled"))
             and all(key in body and "error" not in body[key]
-                    for key in ("delay_compile", "witness", "calibration", "short_run")))
+                    for key in ("delay_compile", "witness", "calibration", "short_run", "tuned_short_run", "time_budget"))
+            and body["time_budget"]["estimated_node_s"] < 7200)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -581,9 +829,11 @@ def main(argv: list[str] | None = None) -> int:
         result["toolchain"] = toolchain
         with tempfile.TemporaryDirectory(prefix="cicada-vlife-") as td:
             scratch = Path(td)
+            preparation_started = time.monotonic()
             dependencies = compute._prepare_dependencies(
                 ROOT, policy, args.third_party_cache.resolve(strict=True), scratch, toolchain)
             if args.command == "smoke":
+                result["dependency_preparation_s"] = time.monotonic() - preparation_started
                 _smoke(scratch, toolchain, dependencies, result)
             else:
                 with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as stock_path:
@@ -594,14 +844,20 @@ def main(argv: list[str] | None = None) -> int:
                 with checkout(PIN, base_dir=str(ROOT / "external/ccbench")) as path:
                     source = Path(path)
                     with applied(str(PATCH), PIN, str(source)):
-                        binary, build = _build_variant(source, scratch/"build", toolchain,
-                                                       dependencies, MACROS)
-                        runs = {id_: [
-                            _run(binary, _flags(id_, records, locks.CLK), cwd=scratch)
-                            for _ in range(3)
-                        ] for id_ in ids}
+                        builds = {}
+                        runs = {}
+                        for genome in sorted({CONDITIONS[id_].get("genome", "default") for id_ in ids}):
+                            binary, builds[genome] = _build_variant(
+                                source, scratch / f"build-{genome}", toolchain,
+                                dependencies, MACROS, genome)
+                            for id_ in ids:
+                                if CONDITIONS[id_].get("genome", "default") == genome:
+                                    runs[id_] = [
+                                        _run(binary, _flags(id_, records, locks.CLK), cwd=scratch,
+                                             genome=genome)
+                                        for _ in range(3)]
                 result.update({"dependency_stock_build": dependency_stock_build,
-                               "build": build, "runs": runs,
+                               "builds": builds, "runs": runs,
                                "conditions": {id_: CONDITIONS[id_] for id_ in ids},
                                "records": records})
     except Exception as exc:

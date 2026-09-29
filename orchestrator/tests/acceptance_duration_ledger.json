@@ -1,5 +1,14 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema": 0.011,
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions": 0.01,
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation": 0.011,
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required": 0.011,
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required": 0.011,
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required": 0.011,
+    "orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids": 0.22,
+    "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest": 0.011,
+    "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error": 0.011,
     "orchestrator/tests/test_a1_non_certifying_marker.py::test_balanced5_interruption_is_terminal_invalid_after_ident_resume[pilot]": 0.003,
     "orchestrator/tests/test_a1_non_certifying_marker.py::test_balanced5_interruption_is_terminal_invalid_after_ident_resume[sized]": 0.004,
     "orchestrator/tests/test_a1_non_certifying_marker.py::test_ident_accepts_each_registered_exact_identity_tuple[balanced5-pilot]": 0.001,
@@ -26606,7 +26615,7 @@
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success": 0.002,
     "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement": 0.002
   },
-  "nodeid_count": 26605,
+  "nodeid_count": 26614,
   "schema_version": 1,
   "unit": "seconds"
 }

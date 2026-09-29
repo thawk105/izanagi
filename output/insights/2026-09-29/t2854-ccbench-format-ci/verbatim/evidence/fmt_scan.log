@@ -1,0 +1,10 @@
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+C2p 40a7f4acb174ca43cb590f40d13847216a1564bc files=213 violating_files=3 violations=84
+    36 cc/mocc/transaction.cc
+    23 cc/silo/transaction.cc
+    25 include/trace.hh
+C 68106660 files=213 violating_files=3 violations=46
+    26 cc/mocc/transaction.cc
+    17 cc/silo/transaction.cc
+     3 include/trace.hh
+master origin/master files=212 violating_files=0 violations=0

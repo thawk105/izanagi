@@ -1,0 +1,53 @@
+date: 2026-09-29 16:24:10 JST
+== git ls-remote https://github.com/thawk105/ccbench.git (izanagi 系の行だけ)
+e9e477ca1b55348ab4530de0b1cf663ce4555290	refs/heads/izanagi-mocc-pin-e9e477ca
+68106660686232781bca3be792a750d3e19d7a8a	refs/heads/izanagi-mocc-xp-instrumentation
+a6f2c7410d58ad140a62b11cc1beab29bfcd191b	refs/heads/izanagi-tpcc-v3-trace
+d706650cdb31e442bef45b9b4216951d4fb40969	refs/heads/izanagi-trace
+511c9538e4e8efa54b45cda62e72389ed3b706ec	refs/heads/izanagi-trace-pin-t816
+511c9538e4e8efa54b45cda62e72389ed3b706ec	refs/heads/izanagi-trace-t816-fn2
+rc_pipeline_end
+== GET https://api.github.com/repos/thawk105/ccbench/branches/izanagi-tpcc-v3-silo-mocc
+{
+  "message": "Branch not found",
+  "documentation_url": "https://docs.github.com/rest/branches/branches#get-a-branch",
+  "status": "404"
+}
+
+http_status=404
+== GET https://api.github.com/repos/thawk105/ccbench/actions/runs?branch=izanagi-tpcc-v3-silo-mocc
+{
+  "total_count": 0,
+  "workflow_runs": [
+
+  ]
+}
+
+http_status=200
+== GET https://api.github.com/repos/thawk105/ccbench/branches/izanagi-tpcc-v3-silo-mocc-fmt
+{
+  "message": "Branch not found",
+  "documentation_url": "https://docs.github.com/rest/branches/branches#get-a-branch",
+  "status": "404"
+}
+
+http_status=404
+== GET https://api.github.com/repos/thawk105/ccbench/actions/runs?branch=izanagi-tpcc-v3-silo-mocc-fmt
+{
+  "total_count": 0,
+  "workflow_runs": [
+
+  ]
+}
+
+http_status=200
+== GET https://api.github.com/repos/thawk105/ccbench/commits/40a7f4acb174ca43cb590f40d13847216a1564bc
+{
+  "message": "No commit found for SHA: 40a7f4acb174ca43cb590f40d13847216a1564bc",
+  "documentation_url": "https://docs.github.com/rest/commits/commits#get-a-commit",
+  "status": "422"
+}
+
+http_status=422
+
+date_end: 2026-09-29 16:24:13 JST
