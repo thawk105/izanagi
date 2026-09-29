@@ -128,6 +128,60 @@ def _child_argv(case):
             '--child-worktree', str(case.child), '--evidence-dir', str(case.evidence)]
 
 
+@pytest.mark.parametrize('mode', ['wave', 'remove-child'])
+@pytest.mark.parametrize('release', ['normal', 'sigkill'])
+def test_repository_removal_lock_is_nonblocking_and_released(tmp_path, monkeypatch, capsys, mode, release):
+    case = _make_child_repo(tmp_path, monkeypatch) if mode == 'remove-child' else _make_repo(tmp_path, monkeypatch)
+    repo = case.repo if mode == 'remove-child' else case
+    target = case.child if mode == 'remove-child' else repo.wave
+    admin = case.admin if mode == 'remove-child' else Path(
+        _git(target, 'rev-parse', '--git-dir').stdout.decode().strip())
+    branch = 'author' if mode == 'remove-child' else repo.branch
+    argv = _child_argv(case) if mode == 'remove-child' else _argv(repo)
+    common = repo.main / '.git'
+    primary_before = _file_snapshot(repo.main)
+    holder = subprocess.Popen(
+        [sys.executable, '-c',
+         'import fcntl, os, sys\n'
+         'fd = os.open(sys.argv[1], os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)\n'
+         'fcntl.flock(fd, fcntl.LOCK_EX)\n'
+         'print("ready", flush=True)\n'
+         'sys.stdin.buffer.read(1)\n', str(common)],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    try:
+        assert holder.stdout.readline() == b'ready\n'
+        assert _file_snapshot(repo.main) == primary_before
+        before = (_file_snapshot(target), _file_snapshot(admin), _sha(repo.main, branch),
+                  _file_snapshot(case.evidence) if mode == 'remove-child' else None)
+        result = subprocess.run([sys.executable, str(_TOOL), *argv],
+                                capture_output=True, timeout=60, check=False)
+        assert result.returncode == cleanup.RC_BUSY
+        assert result.stdout == b''
+        lines = result.stderr.decode().splitlines()
+        assert len(lines) == 1
+        assert lines[0].startswith('dev-wave-cleanup: status=busy phase=removal-lock reason=')
+        assert before == (_file_snapshot(target), _file_snapshot(admin), _sha(repo.main, branch),
+                          _file_snapshot(case.evidence) if mode == 'remove-child' else None)
+        assert _file_snapshot(repo.main) == primary_before
+    finally:
+        if release == 'sigkill':
+            holder.kill()
+        else:
+            holder.stdin.write(b'x')
+            holder.stdin.flush()
+        holder.wait(timeout=60)
+        holder.stdin.close()
+        holder.stdout.close()
+        holder.stderr.close()
+    if mode == 'remove-child':
+        assert cleanup.run(argv).outcome == 'removed'
+    else:
+        _stub_unoccupied(monkeypatch)
+        assert _run(repo, capsys)[0] == 0
+    assert not target.exists() and not admin.exists()
+
+
 def _edit_child_manifest(case, **fields):
     data = json.loads(case.manifest.read_text())
     data['entries'][0].update(fields)
