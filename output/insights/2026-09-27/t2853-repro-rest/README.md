@@ -196,3 +196,8 @@ M1・M2 は closed のまま回帰なし、新規所見なし。レビュー子�
   T-2850 と T-2865 の checkout 内の件数・bytes は親が保存先 `tools/` の読み取り script と `archive_copy.py` の数え上げで実測し直した。本文の数値はすべて親の実測である。
   調査子が「T-2850 の checkout 内の campaign は試走 v2 と無関係かもしれない」と推測した点は、checkout が試走 v2 専用の `trial-v2/trees/` にあり HEAD が試走の固定 commit に揃うこと、
   tree-01 の campaign (18 個) のうち `p3-s4-loop-s4-autonomous-007ad00b` が試走 v2 の系列台帳 `cohort-trial/write-heavy/bo/series-1/` の `series.json` と event から参照されることで退けた。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が写しの元として記録した checkout (T-2850 試走 v2 の 19 本、T-2849 MOCC 疎通の 22 本、T-2865 段階 F の `e2e`) は、2026-09-30 の掃除 wave で回収せずに撤去する。以後、これらの campaign 原本の控えは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260927/` の写しになる。写しを official の入力へ昇格させるものではない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

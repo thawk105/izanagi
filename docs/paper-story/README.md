@@ -276,6 +276,15 @@ provenance は同稿を `caption_source` として SHA-256 で束縛するので
 判定せず、静的右 tail の 2 cohort (fig8 / fig8b) と合成・比較せず、`official_certification` は `false` のままである。** 後継図は作らない
 (D2194 項 7)。
 
+**原本の所在の移動 (2026-09-30、掃除 wave cleanup-originals-migration):** 次の記述は執筆時点の事実であり、稿・版は変えない。
+(1) `results/2026-09-23-k2-manual-loop-four-rounds.md` §5.1 が原本 path として書く `dev-wave-jobs/dev-wave-t2795-k2-pair-resubmit/submit-tree-r4/…` の submit-tree は
+回収せずに撤去する。表の sha256 は変わらず、同じ bytes の写しが `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` (manifest `k2-resubmit-r4-originals`・
+`k2-resubmit-pair2-originals`) と job dir の `originals-copy-20260922/` に残る。写しは控えであって official の入力ではない。
+(2) 版 `2026-09-26.md`・`2026-09-27.md`・`2026-09-29.md` が「B-5 の発効 commit `6fce61d6e` は main の祖先でない本走 wave の branch にある」と書く
+branch `worktree-dev-wave-t2797-b5-main-run` は削除する (tag は作らない)。commit は branch 束 bundle
+`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-originals-migration/backup/branches.bundle` から復元できる。
+判定と木ごとの退避の所在の正本は `output/insights/2026-09-30/cleanup-originals-migration/README.md`。撤去は同 wave の land の後に行う。
+
 ## 運用ルール（check_docs.py との関係）
 
 - 本ディレクトリの文書は追記型の凍結記録なので `tools/check_docs.py` の `LIVING_DOCS`（現況主張 lint）対象外。

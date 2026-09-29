@@ -104,3 +104,8 @@ pair job の終了時の stdout の `stop_reason` は 3 本とも `continue`。d
 - 同じ候補の再測定 (R2、runbook §3.1) をしていないので、比の並び (2.17・1.86・2.64) は候補間の差として読めない。次に系列の値を論文の主張へ使うなら、候補ごとの R2 再測定が要る。
 - critic が 2 回とも「計測側への要望」として挙げた、施錠競合時の方策の発火回数・abort 要因別の件数・llc_miss_rate / ipc は取っていない (v1 に無い、runbook §4)。本 wave では実装していない。
 - LLM 対 非 LLM の対照は [T-2867]、coder の固定文面 (`leakproof_context` が backoff 軸用の旧文書のまま) の改訂は [T-2870]、予算の数え方 (待ち行列を含む) は [T-2881] で、いずれも本 wave の scope 外。本系列では iteration 1 の preview 拒否で予算の時計が最初の pair の前に始まった。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/trees/c` は、2026-09-30 の掃除 wave で回収せずに撤去する。次の一手 (R2 再測定・新系列) は proposal file と新しい checkout を入力に取るので、この木を使わない。候補・値・ログは本文と verbatim に転記済み。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

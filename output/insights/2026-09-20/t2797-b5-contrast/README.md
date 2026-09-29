@@ -262,3 +262,8 @@ D2172 項 4 (γ) で試走後に決めるとされた 2 の残部・4・6 と、
 - LLM arm の逐語: `llm/` (round-<a>/ の prompt・request・proposal、critic-<k>/ の prompt、verbatim/ の planner・coder・critic 出力、leakproof-context-b5.md、MANIFEST.sha256)
 - 変異: `mutation/` (spec 3 本、結果要約 3 本)
 - job dir (repo 外): `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/` (HANDOFF.md、codex artifact、focus、mutation 結果 JSON 全文、submit-tree、ledgers の slots / handshake、evidence の job.stdout、materials/llm の入力 JSON)
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が名指す試走の submit-tree `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-contrast/submit-tree` (統合 commit `11d46a74a`、main の祖先) は、2026-09-30 の掃除 wave で回収せずに撤去する。campaign 53・claim 53 の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` (manifest `b5-pilot-originals`) にあり、job dir の台帳・pilot は撤去しない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

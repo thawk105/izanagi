@@ -360,3 +360,8 @@ prompt と出力は job dir の `review-prompt.md`・`review.md` (read-only、`2
 - 焦点再レビュー 2 回目 (`5c15105a6` 対象、rc=0・出力検査 rc=0、`focus2-prompt.md`・`focus2.md`): **GO**。焦点再レビュー 1 回目の must-fix 2 件と 1 回目の must-fix 3・should 1 はすべて closed、
   改訂 4 全体 (`339d7c188..5c15105a6`) で概要・1・3.1・4.9・5〜7 節の間に新しい食い違いは無く、コメント事故・本文の内部 ID・記録の不一致も無い。
   レビューは 3 巡 (1 回目 + 焦点 2 回、DW-O16 の上限内) で閉じた。費用は Codex (gpt-6-sol、read-only) 3 本。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+B-5 の発効 commit `6fce61d6e` の所在として書いた branch `worktree-dev-wave-t2797-b5-main-run` は、2026-09-30 の掃除 wave で削除する (tag は作らない)。commit は branch 束 bundle `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-originals-migration/backup/branches.bundle` から `git fetch <bundle> refs/heads/worktree-dev-wave-t2797-b5-main-run` で復元できる。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

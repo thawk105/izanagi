@@ -1,0 +1,31 @@
+git grep rc 0 files 510
+ok   output/insights/2026-09-18/t1505-a1-sized-attempt1/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 25
+PIN? output/insights/2026-09-18/t2489-a2-nodes5-probe/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-29/output-pruning/data/classify-v5-counts.json'] doc_path_refs= 22
+ok   output/insights/2026-09-20/t2792-a1-sized-attempt2/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 31
+PIN? output/insights/2026-09-23/t2860-k2-round4-reflux/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-29/output-pruning/data/classify-v5-counts.json'] doc_path_refs= 12
+PIN? output/insights/2026-09-22/t2795-k2-pair-resubmit/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-23/t2860-k2-round4-reflux/layer3_report.json', 'output/insights/2026-09-23/t2860-k2-round4-reflux/materials/critic-input-4.json', 'output/insights/2026-09-29/output-pruning/data/classify-v5-counts.json'] doc_path_refs= 23
+PIN? output/insights/2026-09-20/t2795-k2-pair-attempt/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-23/t2860-k2-round4-reflux/materials/critic-input-4.json', 'output/insights/2026-09-29/output-pruning/data/classify-v5-counts.json'] doc_path_refs= 44
+ok   output/insights/2026-09-20/k2-loop-originals-lost-downstream/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 32
+ok   output/insights/2026-09-20/t2797-b5-contrast/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 39
+ok   output/insights/2026-09-26/t2273-shard0-local-copy-ab/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 10
+ok   output/insights/2026-09-23/t2847-verifier-capacity/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 12
+ok   output/insights/2026-09-26/t2849-mocc-insertion/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 11
+ok   output/insights/2026-09-27/t2849-mocc-conn/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 13
+ok   output/insights/2026-09-26/t2850-trace-concurrent-verify/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 5
+ok   output/insights/2026-09-23/t2850-trial-effect-bundle/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 1
+ok   output/insights/2026-09-27/t2865-silo-policy-iter2/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 14
+ok   output/insights/2026-09-27/t2865-silo-policy-stage-f/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 17
+ok   output/insights/2026-09-29/t2865-silo-policy-series-c/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 5
+ok   output/insights/2026-09-29/t2871-policy-loop-iter/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 10
+ok   output/insights/2026-09-29/gen-opt-evolution-design/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 2
+ok   output/insights/2026-09-27/t2868-mocc-g2-cause/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 8
+PIN? output/insights/2026-09-28/t2853-r2-fig8b/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-28/t2853-r2-fig8b/figures/fig8_r2a_b10_static_tail.provenance.json', 'output/insights/2026-09-28/t2853-r2-fig8b/figures/fig8_r2b_b10_static_tail.provenance.json'] doc_path_refs= 18
+ok   output/insights/2026-09-29/t2853-r2-fig6/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 9
+PIN? output/insights/2026-09-23/t2853-repro-package-archive/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-29/output-pruning/data/classify-v5-counts.json'] doc_path_refs= 24
+ok   output/insights/2026-09-27/t2853-repro-rest/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 15
+ok   output/insights/2026-09-26/carry-triage/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 6
+PIN? output/insights/2026-09-18/t2724-freeze-g1-gen/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-29/output-pruning/data/classify-v5-counts.json'] doc_path_refs= 14
+PIN? output/insights/2026-09-29/vhash-hot-block-microbench/README.md sha_hits= [] code/json_path_refs= ['tools/plotting/README.md'] doc_path_refs= 4
+ok   output/insights/2026-09-22/comsys2026-manuscript/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 13
+PIN? docs/paper-story/README.md sha_hits= [] code/json_path_refs= ['output/insights/2026-09-17/t2647-b10-tail-fig8/verbatim/originals.json'] doc_path_refs= 312
+ok   output/insights/2026-09-26/paper-methods-ja/README.md sha_hits= [] code/json_path_refs= [] doc_path_refs= 0
