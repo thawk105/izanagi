@@ -18,7 +18,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#include <limits>
 +#include <tuple>
 +#endif
-+#line 9
++#line 8
 +
  #if CICADA_FWD_ENABLE
  #include <algorithm>
@@ -455,7 +455,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  GcReport::add(gc_slots[thid_].begin, rdtscp(),
 +                MinRts.load(std::memory_order_acquire));
 +#endif
-+#line 43
++#line 44
  
    /* one-sided synchronization
     * tanabe... disabled.
@@ -466,7 +466,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#if CICADA_GC_COUNT
 +    GC_INSTALL(thid_);
 +#endif
-+#line 537
++#line 531
    }
  
    /**
@@ -480,7 +480,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    gc_report.detached(thid_, rdtscp(), gcq_.front().ver_, delTarget);
 +    GC_DETACH(thid_, detached_count);
 +#endif
-+#line 835
++#line 836
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
      gcAfterThisVersion(tuple, delTarget);
@@ -491,14 +491,14 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#if CICADA_GC_COUNT
 +  bool before = loadAcquire(GCFlag[0].obj_) != 0;
 +#endif
-+#line 961
++#line 963
    cicadaLeaderWork();
 +#if CICADA_GC_COUNT
 +  uint64_t now = rdtscp();
 +  if (before && loadAcquire(GCFlag[0].obj_) == 0) gc_report.published(now);
 +  gc_report.sample(now);
 +#endif
-+#line 962
++#line 964
  #if BACK_OFF
    leaderBackoffWork(backoff_, CCBenchResults);
  #endif
@@ -546,12 +546,12 @@ diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
 +      cicada_gc_hold_end(tx);
 +    }
 +#else
-+#line 126
++#line 119
      if (FLAGS_cicada_long_kind == "wait_after_reads")
        std::this_thread::sleep_for(
            std::chrono::microseconds(FLAGS_cicada_long_wait_us));
 +#endif
-+#line 128
++#line 122
      if (!tx.commit()) {
        tx.abort();
        ++tx.result_->local_abort_counts_;
