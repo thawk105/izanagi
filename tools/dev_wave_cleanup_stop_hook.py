@@ -79,7 +79,10 @@ def decide(payload: object, *, git=_git) -> tuple[bool, str]:
 
 def main() -> int:
     try:
-        block, reason = decide(json.load(sys.stdin))
+        raw = sys.stdin.buffer.read(1024 * 1024 + 1)
+        if len(raw) > 1024 * 1024:
+            return 0
+        block, reason = decide(json.loads(raw.decode("utf-8")))
         if block:
             print(json.dumps({"decision": "block", "reason": reason}, ensure_ascii=False))
     except Exception:  # noqa: BLE001 — Stop must always exit successfully

@@ -5255,6 +5255,7 @@ def _assert_settings_json_wires_all_hooks(cfg):
     assert stop[0]["hooks"] == [{
         "type": "command",
         "command": 'python3 "$CLAUDE_PROJECT_DIR/tools/dev_wave_cleanup_stop_hook.py"',
+        "timeout": 10,
     }]
 
 
@@ -5381,6 +5382,21 @@ def test_cleanup_stop_subprocess_stdin_stdout(tmp_path):
         text=True, timeout=5,
     )
     assert malformed.returncode == 0 and malformed.stdout == "" and malformed.stderr == ""
+
+
+def test_cleanup_stop_subprocess_rejects_oversized_and_non_utf8_stdin(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    script = Path(_REPO) / "tools" / "dev_wave_cleanup_stop_hook.py"
+    oversized = json.dumps({"cwd": os.fspath(wave), "padding": "x" * (1024 * 1024)}).encode()
+    assert len(oversized) > 1024 * 1024
+    for payload in (oversized, b'\xff' + json.dumps({"cwd": os.fspath(wave)}).encode()):
+        result = subprocess.run(
+            [sys.executable, os.fspath(script)], input=payload,
+            capture_output=True, timeout=5,
+        )
+        assert result.returncode == 0 and result.stdout == b"" and result.stderr == b""
 
 
 def test_hook_scripts_run_as_subprocess():

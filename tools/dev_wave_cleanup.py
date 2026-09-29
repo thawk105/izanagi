@@ -1044,7 +1044,8 @@ def _assert_snapshot_subset(current: dict, expected: dict) -> None:
             raise ValueError("admin recovery entry bytes changed")
 
 
-def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
+def _recheck_admin(args: Args, common: Path, admin: AdminBinding,
+                   child_wave: Path | None = None) -> dict:
     _assert_admin_binding(common, admin)
     if os.path.lexists(args.wave_worktree):
         raise ValueError("wave path exists before admin removal")
@@ -1073,7 +1074,7 @@ def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
     if admin.child_proof is None:
         _assert_reflog_commits_reachable(args.main_worktree, shas, "worktree HEAD reflog")
     elif admin.child_archive:
-        _assert_archived_child(args.main_worktree, None,
+        _assert_archived_child(args.main_worktree, child_wave,
                                admin.child_proof, path, common, shas)
     else:
         _assert_child_integration(args.main_worktree, admin.child_proof, shas)
@@ -1116,10 +1117,11 @@ def _rename_journal(fd: int, temporary: str, final: str) -> None:
     os.unlink(temporary, dir_fd=fd)
 
 
-def _remove_admin(args: Args, common: Path, admin: AdminBinding, snapshot: dict) -> None:
+def _remove_admin(args: Args, common: Path, admin: AdminBinding, snapshot: dict,
+                  child_wave: Path | None = None) -> None:
     # Persist the exact deletion set before removing HEAD/gitdir. On reentry only
     # missing entries are allowed; surviving bytes and inodes must still match.
-    if _recheck_admin(args, common, admin) != snapshot:
+    if _recheck_admin(args, common, admin, child_wave) != snapshot:
         raise ValueError("admin changed before removal")
     data = admin.recovery or {
         "wave": os.fspath(args.wave_worktree), "branch": args.wave_branch,
@@ -1983,12 +1985,15 @@ def _run_child(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
         _assert_child_no_conversion(args.child)
         _assert_child_submodules(args.child, common, identity.gitdir)
         admin = replace(admin, snapshot=_admin_snapshot(admin.admin_fd))
+        if admin.child_archive:
+            _assert_archived_child(args.main, wave, proof, identity.gitdir,
+                                   common, history)
         phase = "remove-directory"
         _remove_verified_tree(VerifiedWavePath(args.child, identity), common)
         phase = "admin-recheck"
-        snapshot = _recheck_admin(adapter, common, admin)
+        snapshot = _recheck_admin(adapter, common, admin, wave)
         phase = "admin-remove"
-        _remove_admin(adapter, common, admin, snapshot)
+        _remove_admin(adapter, common, admin, snapshot, wave)
         phase = "registry"
         _verify_record_state(args.main, args.child, absent=True)
         phase = "postcondition"

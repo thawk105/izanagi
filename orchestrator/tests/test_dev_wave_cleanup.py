@@ -373,6 +373,38 @@ def test_remove_child_archive_requires_landed_wave(tmp_path, monkeypatch, wave_s
     _child_rejected(case, monkeypatch, 'integration', reason='wave_worktree')
 
 
+def test_remove_child_archive_stops_when_wave_moves_after_backup(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, owned_paths=[])
+    child_before = _file_snapshot(case.child)
+    original_backup = cleanup._backup_child
+    original_remove = cleanup._remove_verified_tree
+    removals = []
+
+    def advance_wave(*args):
+        result = original_backup(*args)
+        (case.repo.wave / 'wave-only').write_text('not landed\n')
+        _git(case.repo.wave, 'add', 'wave-only')
+        _git(case.repo.wave, 'commit', '-m', 'wave moved after backup')
+        return result
+
+    def record_remove(*args):
+        removals.append(args)
+        return original_remove(*args)
+
+    monkeypatch.setattr(cleanup, '_backup_child', advance_wave)
+    monkeypatch.setattr(cleanup, '_remove_verified_tree', record_remove)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert (caught.value.rc, caught.value.phase) == (30, 'recheck')
+    assert 'wave_worktree HEAD is not a main ancestor' in caught.value.reason
+    assert not removals
+    assert _file_snapshot(case.child) == child_before
+    assert case.admin.is_dir()
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert not (case.evidence / 'removed.json').exists()
+
+
 def test_remove_child_archive_rejects_private_worktree_ref(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     _edit_child_manifest(case, owned_paths=[])
