@@ -1,0 +1,38 @@
+md_19: CCBench の Cicada の不具合 3 件を直す (ビルド不具合 2 件と TPC-C の異常終了)
+
+最初に同じ directory の common.txt を読むこと。ただし common.txt 2 の「external/ccbench の gitlink を動かさない」は本 wave でも守る (commit は submodule 側に作るが、izanagi の pin は動かさない)。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、次の 2 つの item を grep して対象とする (T 番号は固定しない):
+「INLINE_VERSION_PROMOTION (transaction.hh:207) と WORKER1_INSERT_DELAY_RPHASE」を含む item (ユーザー確認待ちだった還元判断) と、
+「`gc_records()` の `if (latest->ldAcqStatus() != VersionStatus::deleted) ERR;`」を含む item。
+
+■ ユーザーの判断 (2026-09-29 21:3x JST)
+「CCBench の不具合は直したい」。ユーザー確認待ちだった還元判断は「直す」で確定した。この判断を decisions fragment に記録する。
+既存の方針: 基盤の欠陥は比較から外さず直して使い続ける。CCBench の変更は上流 CCBench の CI (build.yml の Release 全 protocol build と format.yml の clang-format 14 `--dry-run --Werror`) を通す品質で作る (D2277 項 1・2)。
+
+■ 直す 3 件 (根拠は各一次資料)
+1. INLINE_VERSION_OPT=1 かつ INLINE_VERSION_PROMOTION=1 が compile できない: `cc/cicada/include/transaction.hh` の inlineVersionPromotion (207 行 `write(s, key, TupleBody(ver->body_))` が `cannot convert 'Storage' to 'int'`)。output/insights/2026-09-29/vhash-cicada-baseline-tuning/README.md §8.1。
+2. WORKER1_INSERT_DELAY_RPHASE の分岐が compile できない: `cc/cicada/transaction.cc:923-927` (未宣言の `thid`・`clock_delay`、`WORKER1_INSERT_DELAY_RPHASE_US` の定義が無く、runtime flag `-worker1_insert_delay_rphase_us` が読まれない)。同 §8.2。直した後、読み取りの後に待つ長い tx の型 (W5) が作れることを確かめる。
+3. TPC-C 全 mix × 4 thread が `gc_records()` の `ERR` (transaction.cc:853) で毎回異常終了する: まず原因を特定する (仮説は Delivery 同士の同じ NewOrder 行の削除競合で、abort した側の削除版が aborted のまま最新版に残る形、未実証)。再現条件と根拠は output/insights/2026-09-29/vhash-cicada-verifier-ext/README.md。原因が特定できてから直す。特定できない場合は、再現と切り分けの記録を残して 1・2 だけを先に出す。
+
+■ 進め方
+- 土台: CCBench の branch `izanagi-tpcc-v3-silo-mocc-fmt` の tip F `25898d00` (T-2854 が CI 2 本を手元で通した整形済みの tip、output/insights/2026-09-29/t2854-ccbench-format-ci/README.md)。その上に修正 commit を積む新しい local branch を作る。Codex author。
+- 各修正の確認: (1) 24 genome すべてが build できる、(2) W5 が build でき、待機が実際に入ることを実行で確かめる、(3) TPC-C 全 mix × 4 thread が繰り返し完走する (回数は段 4 で決める)。
+- 正しさ: md_3 / md_17 の trace と判定器 (D2279、patches/instr-cicada-trace.patch) を新しい tip に当てて、YCSB と TPC-C の小走行で巡回が出ないことを確かめる (上限は indeterminate)。patch が当たらなければ当たらないと記録する。
+- CI: 上流 CI と同じ手順で format (clang-format 14、213 file 前後) と build (Release・sanitizer OFF・全 protocol) を通す。手順と image は T-2854 の一次資料 §3 を写す。
+- D297 (TRACE=0 の命令列の同一性) は、修正で意味が変わる TU を除いて取り直す。修正した TU は「意図した変更」として差分の範囲を書く。
+- push は人間の手番 (Pegasus から AI は push しない)。pin の前進 (gitlink・CCBENCH_FULL_SHA・CURRENT_PIN・patch の厳密適用) は push と GitHub の CI が緑になった後の別 wave。本 wave では行わない。
+
+■ 成果物
+- CCBench の新しい local branch と修正 commit (submodule 側)。
+- 一次資料: output/insights/<着手日>/ccbench-cicada-bugfix/README.md (3 件それぞれの原因・修正・確認結果、CI 2 本の結果、D297、push とその後の手順)。
+- decisions fragment (ユーザーの判断と修正の方針)、worklog fragment (対象 item の完了・更新、push 後の pin 前進の item)。
+
+■ 所有
+external/ccbench の新しい local branch (既存の branch は動かさない)、自分の一次資料と fragment。izanagi の gitlink・orchestrator/campaign/pin.py・patches/ は変えない。
+他の VHash wave (md_18 の区間 GC・md_21・md_22) は patch として Cicada を変えるので、本 wave の修正と重ならないかを段 1 で確かめ、重なる箇所は一次資料に書く。
+
+■ 注意
+- 正しさと基盤に関わる wave なので、軽量版でも段 3 の相談と段 6 の review を省かない。
+- 計算ノードは合計 2 node 時間未満。
