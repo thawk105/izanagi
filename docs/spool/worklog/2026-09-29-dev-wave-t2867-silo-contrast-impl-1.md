@@ -16,7 +16,7 @@ title: [T-2867] silo-function-policy 軸の生成器対照を実装し、計算�
 - 生死確認の成立: random×IR (series 2) の評価 1 は certified・品質正常・job Elapse 265 s、LLM×IR (series 3) は原提案 1 が critic → coder → preview → auditor (pass) → finalize で 6 分 2 秒、評価 1 は certified・256 s、LLM×C++ (series 3) は 7 分 27 秒、評価 1 は certified・289 s。job 1 (stock + 初期点 2) は 5 本とも成立し 718〜759 s。値は各 1 観測で、生成器の比較の証拠ではない。
 - 変異: `72810ed01` で 14/14 KILLED (束ね経路 1 job 364 s)、最終実装 commit `4fbe4b26a` で m16 (fix 9 を壊す) を足して 15/15 KILLED (373 s)。fix 8 は新旧両走 (修正前のコードに同じテストを入れると同じ `binding mismatch` で赤、修正後は緑)。
 - 焦点走の非帰属赤: login local 実行で T-2871 の結合テスト 3 件が `IZANAGI_EXPLORATION_OUTPUT_ROOT は repository 外` (login の `/tmp/.git` による既知の偽赤、計算ノードでは緑)。wiring probe の赤は未 commit の新 file を数えたもの (commit 後 65 passed)。
-- セッションの出来事: 手動 worktree 作成が他 session の同時作成と競合して約 27 分、submodule 初期化 tool は `runtime-io-failure update-no-fetch` を 2 回返したので同じ git 命令を直接実行して初期化 (9 秒)。land 調整役の依頼で git 書込みを一時停止 (ユーザーの push、約 20 分)。hook は main の admission registry を読むため、wave で登録した launcher を直接呼ぶと「未登録」で拒否され、job dir の script 越しに呼んだ (hook の説明どおり許可される監査可能な作業物)。40 桁 SHA を手で書き 2 回誤った (rev-parse の出力を貼って回避)。
+- セッションの出来事: 手動 worktree 作成が他 session の同時作成と競合して約 27 分、submodule 初期化 tool は `runtime-io-failure update-no-fetch` を 2 回返し、同じ git 命令 (`submodule update --init --recursive --no-fetch`) を直接実行して初期化した (9 秒、3 段とも正しい SHA で中身ありを実物で確認)。DW-O08 の「同じ引数で 1 度再実行し、なお赤なら止める」からの逸脱で、tool が落ちた原因 (内部の時間上限か) は切り分けていない。land 調整役の依頼で git 書込みを一時停止 (ユーザーの push、約 20 分)。hook は main の admission registry を読むため、wave で登録した launcher を直接呼ぶと「未登録」で拒否され、job dir の script 越しに呼んだ (hook の説明どおり許可される監査可能な作業物)。40 桁 SHA を手で書き 2 回誤った (rev-parse の出力を貼って回避)。
 
 ## 次の一手差分
 
