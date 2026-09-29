@@ -1,0 +1,443 @@
+{
+  "pairs": [
+    {
+      "pair_id": "p1",
+      "runs": {
+        "K": {
+          "record": {
+            "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/acp-meas-K1",
+            "head": "4604b9fe4b23f6b110742c22e99981334f8e8a6b",
+            "git_status": "",
+            "pyc_before": {
+              "tests": 0,
+              "total_excluding_external": 0
+            },
+            "pyc_after": {
+              "tests": 0,
+              "total_excluding_external": 22
+            },
+            "env": {
+              "IZANAGI_ACCEPTANCE_SHARDS": "3",
+              "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+              "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTEST_ADDOPTS": "<unset>",
+              "PYTEST_PLUGINS": "<unset>"
+            },
+            "rc": 0,
+            "start_epoch_s": 1790695547.7851105,
+            "start_jst": "2026-09-30T00:25:47.797605553+0900",
+            "end_epoch_s": 1790696035.6825325,
+            "end_jst": "2026-09-30T00:33:55.692966721+0900",
+            "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/8c7cdeb768fd74a2a34ab96a1a4fc958",
+            "shard_dir_matches": [
+              "/work/1/SFC/tanab/.izanagi-acceptance-shards/8c7cdeb768fd74a2a34ab96a1a4fc958"
+            ],
+            "shard_dir_note": "unique"
+          },
+          "shards": [
+            {
+              "index": 0,
+              "hostname": "bnode033",
+              "confirm_epoch_s": 1790695651.0,
+              "start_epoch_s": 1790695676.287589,
+              "queue_s": 25.287589073181152,
+              "W_s": 341.283,
+              "pre_s": 137.68004941940308,
+              "max_worker_occupancy_s": 190.203021326,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/8c7cdeb768fd74a2a34ab96a1a4fc958/shard-0/dispatch/shard-0/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": "1",
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 1,
+              "hostname": "bnode037",
+              "confirm_epoch_s": 1790695653.0,
+              "start_epoch_s": 1790695676.295077,
+              "queue_s": 23.295077085494995,
+              "W_s": 302.327,
+              "pre_s": 136.77523159980774,
+              "max_worker_occupancy_s": 161.481103948,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/8c7cdeb768fd74a2a34ab96a1a4fc958/shard-1/dispatch/shard-1/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": "1",
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 2,
+              "hostname": "bnode046",
+              "confirm_epoch_s": 1790695654.0,
+              "start_epoch_s": 1790695676.323394,
+              "queue_s": 22.323394060134888,
+              "W_s": 288.69,
+              "pre_s": 137.08590364456177,
+              "max_worker_occupancy_s": 147.460267739,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/8c7cdeb768fd74a2a34ab96a1a4fc958/shard-2/dispatch/shard-2/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": "1",
+              "login_timing": "early",
+              "pytest_rc": 0
+            }
+          ],
+          "issues": [],
+          "login_collection_mtime_epoch_s": 1790695735.0,
+          "outer_s": 384.0,
+          "W_max_s": 341.283,
+          "pytest_rc": [
+            0,
+            0,
+            0
+          ]
+        },
+        "H": {
+          "record": {
+            "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/acp-meas-H1",
+            "head": "4604b9fe4b23f6b110742c22e99981334f8e8a6b",
+            "git_status": "",
+            "pyc_before": {
+              "tests": 0,
+              "total_excluding_external": 0
+            },
+            "pyc_after": {
+              "tests": 440,
+              "total_excluding_external": 871
+            },
+            "env": {
+              "IZANAGI_ACCEPTANCE_SHARDS": "3",
+              "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+              "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+              "PYTHONDONTWRITEBYTECODE": "<unset>",
+              "PYTEST_ADDOPTS": "<unset>",
+              "PYTEST_PLUGINS": "<unset>"
+            },
+            "rc": 0,
+            "start_epoch_s": 1790695547.8032587,
+            "start_jst": "2026-09-30T00:25:47.810951732+0900",
+            "end_epoch_s": 1790696008.8842406,
+            "end_jst": "2026-09-30T00:33:28.893166795+0900",
+            "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/99d2234ae24b8c307d165915e1cb8736",
+            "shard_dir_matches": [
+              "/work/1/SFC/tanab/.izanagi-acceptance-shards/99d2234ae24b8c307d165915e1cb8736"
+            ],
+            "shard_dir_note": "unique"
+          },
+          "shards": [
+            {
+              "index": 0,
+              "hostname": "bnode031",
+              "confirm_epoch_s": 1790695651.0,
+              "start_epoch_s": 1790695676.163611,
+              "queue_s": 25.16361093521118,
+              "W_s": 317.467,
+              "pre_s": 110.32437252998352,
+              "max_worker_occupancy_s": 181.612827877,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/99d2234ae24b8c307d165915e1cb8736/shard-0/dispatch/shard-0/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": null,
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 1,
+              "hostname": "bnode038",
+              "confirm_epoch_s": 1790695654.0,
+              "start_epoch_s": 1790695676.229583,
+              "queue_s": 22.229583024978638,
+              "W_s": 290.036,
+              "pre_s": 110.19625854492188,
+              "max_worker_occupancy_s": 175.916547964,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/99d2234ae24b8c307d165915e1cb8736/shard-1/dispatch/shard-1/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": null,
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 2,
+              "hostname": "bnode035",
+              "confirm_epoch_s": 1790695653.0,
+              "start_epoch_s": 1790695676.230345,
+              "queue_s": 23.230345010757446,
+              "W_s": 262.391,
+              "pre_s": 110.97809624671936,
+              "max_worker_occupancy_s": 147.398296571,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/99d2234ae24b8c307d165915e1cb8736/shard-2/dispatch/shard-2/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": null,
+              "login_timing": "early",
+              "pytest_rc": 0
+            }
+          ],
+          "issues": [],
+          "login_collection_mtime_epoch_s": 1790695743.0,
+          "outer_s": 358.0,
+          "W_max_s": 317.467,
+          "pytest_rc": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "delta_pre_by_shard": [
+        {
+          "shard": 0,
+          "delta_pre_s": 27.355676889419556,
+          "H_login_timing": "early",
+          "excluded_early_H": true,
+          "excluded_uncertain_H": false
+        },
+        {
+          "shard": 1,
+          "delta_pre_s": 26.578973054885864,
+          "H_login_timing": "early",
+          "excluded_early_H": true,
+          "excluded_uncertain_H": false
+        },
+        {
+          "shard": 2,
+          "delta_pre_s": 26.107807397842407,
+          "H_login_timing": "early",
+          "excluded_early_H": true,
+          "excluded_uncertain_H": false
+        }
+      ],
+      "excluded_early_H_shards": [
+        0,
+        1,
+        2
+      ],
+      "delta_W_max_s": 23.81600000000003,
+      "excluded_uncertain_H_shards": [],
+      "verdict": "inconclusive: no eligible H shards",
+      "exclusion_reasons": []
+    },
+    {
+      "pair_id": "p2",
+      "runs": {
+        "K": {
+          "record": {
+            "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/acp-meas-K2",
+            "head": "4604b9fe4b23f6b110742c22e99981334f8e8a6b",
+            "git_status": "",
+            "pyc_before": {
+              "tests": 0,
+              "total_excluding_external": 0
+            },
+            "pyc_after": {
+              "tests": 0,
+              "total_excluding_external": 22
+            },
+            "env": {
+              "IZANAGI_ACCEPTANCE_SHARDS": "3",
+              "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+              "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTEST_ADDOPTS": "<unset>",
+              "PYTEST_PLUGINS": "<unset>"
+            },
+            "rc": 0,
+            "start_epoch_s": 1790696341.6964848,
+            "start_jst": "2026-09-30T00:39:01.703846799+0900",
+            "end_epoch_s": 1790697169.5089915,
+            "end_jst": "2026-09-30T00:52:49.513307229+0900",
+            "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/5e5ea7573f255cca31b61b1486e981fc",
+            "shard_dir_matches": [
+              "/work/1/SFC/tanab/.izanagi-acceptance-shards/5e5ea7573f255cca31b61b1486e981fc"
+            ],
+            "shard_dir_note": "unique"
+          },
+          "shards": [
+            {
+              "index": 0,
+              "hostname": "bnode032",
+              "confirm_epoch_s": 1790696448.0,
+              "start_epoch_s": 1790696470.085047,
+              "queue_s": 22.085047006607056,
+              "W_s": 321.767,
+              "pre_s": 136.83658170700073,
+              "max_worker_occupancy_s": 174.779009191,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/5e5ea7573f255cca31b61b1486e981fc/shard-0/dispatch/shard-0/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": "1",
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 1,
+              "hostname": "bnode011",
+              "confirm_epoch_s": 1790696445.0,
+              "start_epoch_s": 1790696470.096221,
+              "queue_s": 25.09622097015381,
+              "W_s": 341.458,
+              "pre_s": 135.95985317230225,
+              "max_worker_occupancy_s": 201.433737167,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/5e5ea7573f255cca31b61b1486e981fc/shard-1/dispatch/shard-1/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": "1",
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 2,
+              "hostname": "bnode025",
+              "confirm_epoch_s": 1790696446.0,
+              "start_epoch_s": 1790696859.274266,
+              "queue_s": 413.2742660045624,
+              "W_s": 290.976,
+              "pre_s": 137.805166721344,
+              "max_worker_occupancy_s": 149.069799582,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/5e5ea7573f255cca31b61b1486e981fc/shard-2/dispatch/shard-2/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": "1",
+              "login_timing": "eligible",
+              "pytest_rc": 0
+            }
+          ],
+          "issues": [],
+          "login_collection_mtime_epoch_s": 1790696535.0,
+          "outer_s": 725.0,
+          "W_max_s": 341.458,
+          "pytest_rc": [
+            0,
+            0,
+            0
+          ]
+        },
+        "H": {
+          "record": {
+            "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/acp-meas-H2",
+            "head": "4604b9fe4b23f6b110742c22e99981334f8e8a6b",
+            "git_status": "",
+            "pyc_before": {
+              "tests": 0,
+              "total_excluding_external": 0
+            },
+            "pyc_after": {
+              "tests": 440,
+              "total_excluding_external": 871
+            },
+            "env": {
+              "IZANAGI_ACCEPTANCE_SHARDS": "3",
+              "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+              "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+              "PYTHONDONTWRITEBYTECODE": "<unset>",
+              "PYTEST_ADDOPTS": "<unset>",
+              "PYTEST_PLUGINS": "<unset>"
+            },
+            "rc": 0,
+            "start_epoch_s": 1790696341.6997132,
+            "start_jst": "2026-09-30T00:39:01.707884991+0900",
+            "end_epoch_s": 1790696985.8701863,
+            "end_jst": "2026-09-30T00:49:45.878294724+0900",
+            "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/ecf1fe5e9362b82fb8b3a1f001b9eaca",
+            "shard_dir_matches": [
+              "/work/1/SFC/tanab/.izanagi-acceptance-shards/ecf1fe5e9362b82fb8b3a1f001b9eaca"
+            ],
+            "shard_dir_note": "unique"
+          },
+          "shards": [
+            {
+              "index": 0,
+              "hostname": "bnode034",
+              "confirm_epoch_s": 1790696448.0,
+              "start_epoch_s": 1790696476.847525,
+              "queue_s": 28.847524881362915,
+              "W_s": 489.764,
+              "pre_s": 108.26296257972717,
+              "max_worker_occupancy_s": 371.413577106,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/ecf1fe5e9362b82fb8b3a1f001b9eaca/shard-0/dispatch/shard-0/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": null,
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 1,
+              "hostname": "bnode029",
+              "confirm_epoch_s": 1790696447.0,
+              "start_epoch_s": 1790696470.000547,
+              "queue_s": 23.00054693222046,
+              "W_s": 275.957,
+              "pre_s": 111.23893451690674,
+              "max_worker_occupancy_s": 160.54896986,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/ecf1fe5e9362b82fb8b3a1f001b9eaca/shard-1/dispatch/shard-1/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": null,
+              "login_timing": "early",
+              "pytest_rc": 0
+            },
+            {
+              "index": 2,
+              "hostname": "bnode012",
+              "confirm_epoch_s": 1790696445.0,
+              "start_epoch_s": 1790696469.983139,
+              "queue_s": 24.983139038085938,
+              "W_s": 266.108,
+              "pre_s": 110.04271984100342,
+              "max_worker_occupancy_s": 152.145602469,
+              "request_file": "/work/1/SFC/tanab/.izanagi-acceptance-shards/ecf1fe5e9362b82fb8b3a1f001b9eaca/shard-2/dispatch/shard-2/request.json",
+              "request_env_key": "environment.PYTHONDONTWRITEBYTECODE",
+              "request_bytecode": null,
+              "login_timing": "early",
+              "pytest_rc": 0
+            }
+          ],
+          "issues": [],
+          "login_collection_mtime_epoch_s": 1790696552.0,
+          "outer_s": 541.0,
+          "W_max_s": 489.764,
+          "pytest_rc": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "delta_pre_by_shard": [
+        {
+          "shard": 0,
+          "delta_pre_s": 28.57361912727356,
+          "H_login_timing": "early",
+          "excluded_early_H": true,
+          "excluded_uncertain_H": false
+        },
+        {
+          "shard": 1,
+          "delta_pre_s": 24.720918655395508,
+          "H_login_timing": "early",
+          "excluded_early_H": true,
+          "excluded_uncertain_H": false
+        },
+        {
+          "shard": 2,
+          "delta_pre_s": 27.762446880340576,
+          "H_login_timing": "early",
+          "excluded_early_H": true,
+          "excluded_uncertain_H": false
+        }
+      ],
+      "excluded_early_H_shards": [
+        0,
+        1,
+        2
+      ],
+      "delta_W_max_s": -148.30599999999998,
+      "excluded_uncertain_H_shards": [],
+      "verdict": "inconclusive: no eligible H shards",
+      "exclusion_reasons": []
+    }
+  ],
+  "overall_pre_verdict": "inconclusive: no eligible H shards",
+  "selected_pair_ids": [
+    "p1",
+    "p2"
+  ],
+  "W_max_shrink_observed_in_two_pairs": false,
+  "invalid_pairs": 0,
+  "early_H_shards": 6,
+  "uncertain_H_shards": 0
+}
