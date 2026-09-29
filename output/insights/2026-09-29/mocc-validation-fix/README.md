@@ -17,7 +17,7 @@ default_effect: no-state-change
 | 上流 CI 2 本 | format: CI image `:latest` の clang-format 14.0.6 で 213 file・rc=0 (login 14.0.0 も rc=0)。build: CI image `:ci` (GCC 13.3) と CI の手順で configure・build とも rc=0。**CI image による手元通過で、GitHub Actions の緑ではない** | §2 |
 | D297 (F → X) | **D297 不合格 (意図した修理差分)**: GCC 11・12 とも rc=1、理由は `cc/mocc/transaction.cc` の TRACE=0 正規化 preprocess 出力の不一致。差分は 1 path・1 hunk・header 0。修理は TRACE=0 を意図して変えるので構造上の不合格 | §3 |
 | trace 実測 (事前登録 R6) | **成功 (3 条件すべて)**: 判定不能 0、修正後の trace build の G2 **0/112 走** (95% 上限 3.2%)、修正後の commit 側 class A **0 件** (trace 有り 112 走 + trace 無し 28 走)。同時刻の修正前 F: G2 **8/56 走** (14.3%、区間 6.4〜26.2%)、commit 側 class A 1,415 件。0/112 対 8/56 は両側 Fisher p = 1.1×10⁻⁴ | §4 |
-| 修理が弾いた件数 | 修正後の再読で版が違って abort した件数 (recheck_abort) 6,368 件。1 走あたり trace 無し 159.9 件で、修正前 F が割り込みを受けたまま commit した件数 (class A + B) の 1 走あたり 167.1 件と同じ規模 | §4 |
+| 修理の再読による abort | 修正後の再読で版が違って abort した件数 (recheck_abort) 6,368 件。1 走あたり trace 無し 159.9 件で、修正前 F が割り込みを受けたまま commit した件数 (class A + B) の 1 走あたり 167.1 件と同じ規模 | §4 |
 | 性能の観測 (規律 1、主張に使わない) | trace 無し・計器無しの commit 数 (3 秒、各 28 走): 修正前 7,200,449、修正後 7,241,787 (比 1.006、差 41,338、標準誤差 25,913)。修理で commit 数が目立って下がる様子は見えない | §4 |
 | patch 棚卸し | F → X で新たに厳密適用から外れた patch **0 本** (10 本とも F と X で同じ結果)。F で外れる 5 本は修理と無関係 | §5 |
 | push | 人間の手番。branch `izanagi-mocc-validation-fix` (X) を push し、GitHub の CI 緑を確かめてもらう。gitlink は進めていない | §6 |
@@ -47,7 +47,7 @@ default_effect: no-state-change
 - 検査器 `tools/check_trace0_preprocess_identity.py` (main と同一 blob) を GCC 11.4・12.3 で、header 用 4 引数と `--expect-paths cc/mocc/transaction.cc` を付けて実行。両方 rc=1、理由は両方「TRACE=0 正規化 preprocess 出力が不一致: path='cc/mocc/transaction.cc'」(最初の macro context で停止)。`git diff-tree --raw -r F X` は `cc/mocc/transaction.cc` 1 path・header 0、F→X の source diff は 1 path・1 hunk (= §1 の修理 hunk)。request 36298.nqsv (Elapse 9 S)、`verbatim/evidence/judge2-report.json`・`verbatim/F-to-X-diff.md`。
 - 読み方: 修理は TRACE=0 の翻訳単位を意図して変える本物の修正なので、TRACE=0 同一性の検査は構造上不合格になる。これは trace hook の混入ではなく修理そのものの差である (差分は §1 の hunk だけ)。**D297 の合格・include 活性の合格・header 分岐の合格は名乗らない** (検査器は先行する不一致で止まる)。
 - 1 回目の判定 (36270、同じ結果) は判定 script が結果名を条件なしで付けていたので (段 6 S6-2)、直した script で取り直した値を記録に使う。
-- **pin 前進への含意:** C → (F・X を含む tip) の pin 前進で D297 をそのまま掛けると、X の修理差分で必ず不合格になる。扱い (例: C → F の合格 (D2293) と F → X の意図した差分の審査を分けて受け入れる、または pin 前進用の受理手順を裁定する) は gitlink 前進 wave で決める (§8 の起票)。
+- **pin 前進への含意:** 実測したのは F → X で、現時点の X の修理差分は TRACE=0 を変えるので D297 は不合格になる。C → (F・X を含む前進先の tip) でも同じ修理差分を含む限り同じ理由で不合格が見込まれるが、前進先の tip では検査していない。扱い (例: C → F の合格 (D2293) と F → X の意図した差分の審査を分けて受け入れる、または pin 前進用の受理手順を裁定する) は gitlink 前進 wave で決める (§8 の起票)。
 
 ## 4. trace build の実測 (事前登録 R6)
 
@@ -67,10 +67,10 @@ default_effect: no-state-change
 - **判定 (runner の join が機械的に出した値、`verbatim/evidence/main-joined-summary.json`):** `all_expected_runs_present` true、`two_job_batch_schedule_complete` true、`R0_X_indeterminate_runs` 0、`T_X_G2_runs` 0 / `T_X_runs` 112、`T_X_N_X_commit_class_a` 0 → `success` true。
 - **同時刻の対照:** `T_F_G2_runs` 8 (`T_F_G2_control_established` true)、`T_F_N_F_commit_class_a` 1,415 (`F_class_a_control_established` true)、`F_invalid_runs` 0。修正前 F の G2 の witness 9 件 (8 走) はすべて長さ 2・両辺 rw で、片側の辺で割り込みと一致した (class A 3 件、class B だけ 6 件、一致なし 0、判定不能 0)。切り分け (pin C) の witness と同じ形である。
 - **区間と検定 (`verbatim/evidence/stats.log`):** 修正後 0/112 の Clopper–Pearson 95% 上限 3.24% (閉形式 1 − 0.025^(1/112) と一致)。修正前 8/56 = 14.3% (6.4〜26.2%)。両側 Fisher p = 1.07×10⁻⁴。修正前の率は切り分けの 5/112 (pin C) より高いが、同時刻の対照ではなく source (C と F) も違うので比べない。
-- **修理が割り込みを弾いた観測:** recheck_abort は 1 走あたり trace 無し 159.9 件・trace 有り 16.9 件。修正前 F で割り込みを受けたまま commit した件数 (commit 側 class A + B) は 1 走あたり trace 無し 167.1 件・trace 有り 17.4 件で、同じ規模だった (別の走どうしの比較で、1 件ずつの対応は取っていない)。修正後の commit 側 class B 2 件は修理の再読の後に publish された観測で、判定の対象外 (段 4 R6)。
+- **修理の再読による abort の観測:** recheck_abort は 1 走あたり trace 無し 159.9 件・trace 有り 16.9 件。修正前 F で割り込みを受けたまま commit した件数 (commit 側 class A + B) は 1 走あたり trace 無し 167.1 件・trace 有り 17.4 件で、同じ規模だった (別の走どうしの比較で、1 件ずつの対応は取っていない)。修正後の commit 側 class B 2 件は修理の再読の後に publish された観測で、判定の対象外 (段 4 R6)。
 - 修正後の class A = 0 は、版が前進する範囲では修理の再読から構造上導かれる (段 3 相談 A)。修理の効き目の独立の観測は G2 0/112 と recheck_abort であり、class A = 0 は予測どおりの値の確認として扱う。
 - **性能の観測:** P の commit 数は修正前 7,200,449・修正後 7,241,787 (比 1.006、差 41,338 ± 標準誤差 25,913)。修理で commit 数が目立って下がる様子は見えない。headline・性能主張には使わない (規律 1)。N と T の commit 数は計器・trace の観測者効果込み。
-- smoke 2 回: 1 回目 (36271) は runner が arm の `trace` (JSON の真偽値) を `CCBENCH_TRACE=True` として渡し、T arm が `-DTRACE=True` で build された (`#if TRACE` は未定義識別子 `True` を 0 と評価するので trace が出ない)。判定は trace が無い 6 走を判定不能にして `success` false で止まった (fail-closed)。段 6 で直し (S6-1、build 後の compile 命令照合を追加)、2 回目 (36299) で 6 arm が正しく動くことと単価 (固定費 53 秒・1 batch 266 秒) を確かめた。本走の見積り 2.10 node 時間はユーザー確認の上で投入した (回答「投入する」)。
+- smoke 2 回: 1 回目 (36271) は runner が arm の `trace` (JSON の真偽値) を `CCBENCH_TRACE=True` として渡し、T arm が `-DTRACE=True` で build された (`#if TRACE` は未定義識別子 `True` を 0 と評価するので trace が出ない)。判定は trace が無い 6 走を判定不能にして `success` false で止まった (fail-closed)。段 6 で直し (S6-1、build 後の compile 命令照合を追加)、2 回目 (36299) で 6 arm が正しく動くことと単価 (固定費 53.0 秒・1 batch = benchmark 78.2 秒 + verify 187.6 秒 ≈ 266 秒、`verbatim/evidence/smoke2-timing.json`) を確かめた。本走の見積り 2 × 53 + 28 × 266 ≈ 7,554 秒 ≈ 2.10 node 時間はユーザー確認の上で投入した (回答「投入する」)。
 
 ## 5. patch 棚卸し (patches/ のうち `cc/mocc/transaction.cc` を触る 10 本、`git apply --check` の厳密適用)
 
@@ -112,7 +112,7 @@ git push origin izanagi-mocc-validation-fix
 
 ## 7. 解釈の上限
 
-- **言えること:** F の MOCC に修理 X を入れると、この cell で、trace build の事前登録 112 走で G2 は 0 件、修正後の commit した取引に validation の割り込み (class A) は 0 件だった。同時刻・同 job の修正前 F は G2 8/56 走・class A 1,415 件で、修理がこの窓の割り込みを abort に変えている (recheck_abort 6,368 件)。
+- **言えること:** F の MOCC に修理 X を入れると、この cell で、trace build の事前登録 112 走で G2 は 0 件、修正後の commit した取引に validation の割り込み (class A) は 0 件だった。同時刻・同 job の修正前 F は G2 8/56 走・class A 1,415 件だった。修正後では修理の再読の不一致による abort を 6,368 件観測し、その 1 走あたりの件数は修正前 F の割り込み commit (class A + B) の 1 走あたりの件数と同じ規模だった (別の走どうしの比較で、同じ取引が修正前なら commit したという反実仮想は追跡していない)。
 - **言えないこと:**
   - MOCC の G2 全般の排除。論証と実測はこの cell の長さ 2・両辺 rw の窓に限る。read phase の torn read、hot record の read lock、INSERT/DELETE、node set、MQLOCK、他の workload は範囲外。
   - 版の ABA 不在の一般的な保証 (有限幅)。
@@ -135,11 +135,12 @@ git push origin izanagi-mocc-validation-fix
 - 段 6: CI build・D297・smoke を 3 つの checkout から並行投入。レビュー B1 (測定の妥当性) と B2 (過剰・削除)、smoke 1 回目の実走で見つけた `-DTRACE=True` の欠陥 (S6-1) を段 6 裁定 (`verbatim/s6-ruling.md`) にまとめて fix 子へ。焦点再レビュー 1 巡で S6-1・3・4・5 closed、S6-2 の残り (両 compiler rc=0 のときの名前) は親が refuted で閉じた。D297 と smoke を直した道具で取り直した。
 - 親の投入 wrapper の 1 本目 (`run-checks.sh`) は `{ ...; exit $rc; } > log` の `exit` で script ごと抜けて `.done` を書けず、待ち手が rc=70 を返した (結果は log の終端行で確かめた)。2 本目で直した。
 - 計算: CI build 33 S、D297 9 S × 2、smoke 93 S・324 S、本走 3,686 S・3,712 S、計 7,866 S = **2.19 node 時間** (受入を除く、`verbatim/evidence/elapse.tsv`)。Codex 子: plan 1・consult 2・author 3 (A・B・B2、B は不受理)・review 3・fix 1・focus 1。Explore (sonnet) 1 本 (既存 F の検索)。
+- 段 7: 記録 commit の後に読み取り専用の記録レビュー 1 本 (`verbatim/s7-review-record.md`) で全数値を原データと照合させ、must-fix 0・should 3・nit 2 (見積りの入力の所在、因果の言い過ぎ、D297 の前進先への一般化、比較単位、採否の書き方) を追補 commit で直した。
 - 変異: izanagi の実装面の差分は 0 (docs のみ) なので変異 matrix は免除 (DW-S04)。修理を外した版 = 修正前 F の arm を負例として事前登録し、class A > 0・G2 > 0 を観測した。
 
 ## 10. 再現資料
 
-- `verbatim/`: 依頼・brief・plan・相談 2 本・段 4 / 段 6 裁定・実装子 A / B2・fix・レビュー A / B1 / B2・焦点レビュー・開始 gate・commit message と mk-X.log・F→X の差分 (`F-to-X-diff.md`)・job dir の sha256。
+- `verbatim/`: 依頼・brief・plan・相談 2 本・段 4 / 段 6 裁定・実装子 A / B2・fix・レビュー A / B1 / B2・焦点レビュー・記録レビュー・開始 gate・commit message と mk-X.log・F→X の差分 (`F-to-X-diff.md`)・job dir の sha256。
 - `verbatim/NORMALIZATION.md`: 逐語の写し 7 file の行末空白・末尾空行の可逆正規化の記録 (元の sha256・byte 数・復元法、DW-S07)。
 - `verbatim/evidence/`: format の log、CI build の report、D297 の report 2 回分、棚卸し 3 表、smoke 2 回の summary、本走の結合 summary。
 - job dir: 使い捨て道具 v1 (`tools-v1/`) と v2 (`tools/`)、親の投入 script、X.bundle、計算の全出力 (`evidence/`)、Codex receipt (`codex/`)。
