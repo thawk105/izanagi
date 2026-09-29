@@ -16,6 +16,8 @@ title: [T-2902] VHash 比較相手 Cicada の観測最良設定を判定器に�
 - 棄却・訂正: 段 1 brief の「経路が分かれないので inline の件数を数えれば足りる」(P2) は段 2・3 で撤回 (件数は到達の証拠にすぎない)。段 6 の所見のうち B1 (正例 job の対照の再走)・B4 (J2 の投入判断を起動器に持たせる) は不採用、B2 (W4 の第二尺度の欠落) は W4 の commit が最少 19,701 で発動条件に当たらず影響なし。焦点再レビューの C1 (分類に第 5 の「不合格」) は偽の緑を作らないので直さず、結果前に「巡回以外の検査が外れた失格」と扱いを固定した (該当 0)。
 - 親の訂正: 一次資料の初稿で inline の割合を「読み 1〜59%・書き 5〜18%」「書き 4.6〜33.4%」と書いていた (計算前の見込み) のを、原本 JSON から計算し直して 4.7〜36.9% に直した。「32 条件」は重複 2 組を含むので「32 run (異なる条件は 30)」に直した。
 - 計算: 計算ノード 8 job、合計 1,165 s (約 19 node 分)。L0 は fix 前の起動器で 1 度走らせ、fix 後に取り直した。
+- 記録後の検査: `git diff --check` (逐語の行末空白 5 file を可逆正規化、一次資料に原文 hash)・`tools/check_docs.py` rc 0・`spool_fold.py --dry-run` planned・三軸語の走査は rc 1 だが該当は既存の `output/env/pegasus/calibration/s8b-floor-official/` と `docs/paper-story/figures/` の file だけで本 wave の file は 0。
+- 受入: 受入全走はこの記録の tip で行い、受領証は job dir (`/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
 - 異常: worktree の checkout が Lustre の混雑で 1 本あたり 9〜14 分かかり、`システムコール割り込み` の警告が多数出た (作成は成功、clean)。最初の submodule 初期化は `update-no-fetch` で 1 度落ち、再走で通った。
 
 ## 次の一手差分
