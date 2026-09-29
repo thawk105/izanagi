@@ -910,6 +910,14 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
 
 ---
 
+## cicada-vhash-hot-block-variant.patch — Cicada の物理先頭 K 版の hot block (2026-09-29)
+
+pin C `68106660` の `cc/cicada/` にだけ当てる out-of-tree patch。`CICADA_VHASH_K` は 0 (未定義の既定・stock)、1、2、4、8 のみ。`CICADA_VHASH_COUNT` と `CICADA_VHASH_WL` は各 0/1 (未定義は 0)。WL=1 の `--vhash_ronly_pct` は −1 (YCSB 生成のまま) または 0〜100。K>0 は Tuple の latest 直後に atomic な sequence、件数、K 件の wts/ptr を置き、物理列の先頭 K 件 (PENDING・ABORTED を含む) を写す。reader は第 1 段だけで使用し、奇数・世代変化なら stock に戻る。install の 2 CAS と GC の tail 切断は sequence 書き区間内。`TRACE=1` の場合は pin → `instr-cicada-trace.patch` → 本 patch と重ねる。性能用には TRACE=0・COUNT=0 を使う。
+
+COUNT=1 は終了時に stdout へ `CICADA_VHASH_COUNT_JSON` を 1 行出す。schema_version=1、k、sizeof_tuple (byte)、workers (thid 0〜255 の配列)。各 worker の hot は hot snapshot 採用回数、fallback_odd / fallback_changed は sequence による stock fallback 回数、cold は hot 全件が新しく cold 探索へ出た回数。hops は第 1 段で飛ばした物理版数の bucket `[0,1,2,3,4-7,8-15,16+]`、snapshot_lag_ts は ro transaction の begin 時の `max(0,wts_.ts_−rts_)` の bucket `[0,1,2-3,4-7,...,32768-65535,65536+]` (timestamp 単位)。ro_commit / ro_abort / update_commit / update_abort は transaction 件数。install_wait_cycles、install_hold_cycles、gc_hold_cycles は rdtscp cycle の総和、install_count / gc_count は対応する区間の件数。K=0 でも hops、lag、commit/abort を計数する。
+
+壊し patch は本 patch の上にだけ重ねる。`broken-cicada-vhash-stale-hot.patch` は ro の hot 採用で 1 件古い確定版を選ぶ。`broken-cicada-vhash-skip-pending.patch` は hot 採用の PENDING を待たずに後続の確定版へ進む。両方とも stderr に `CICADA_BREAK_EVENT` (reached / changed / committed、tx_wts、key、read_wts) を全件、終了時に `CICADA_BREAK_FIRED` を出す。trace v2 の行は変更しない。
+
 ## instr-cicada-trace.patch / broken-cicada-{skip-read-recheck,no-rts-update,stale-read-ro}.patch — Cicada の trace と正例 (VHash 論文の前提 G0、2026-09-29)
 
 pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 の本来の置き場 (`izanagi-trace` 枝) への移送と pin 前進は
@@ -922,8 +930,10 @@ pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 
 | broken-cicada-skip-read-recheck | なし | validation の read set 再検査で、読んだ版が今の可視版と違っても abort しない |
 | broken-cicada-no-rts-update | なし | `readTimestampUpdateInValidation()` の呼出しを外す |
 | broken-cicada-stale-read-ro | なし | read-only txn の可視版選択で、txn 内の偶数番目の読みに限り可視版の 1 つ古い committed 版を選ぶ |
+| broken-cicada-vhash-stale-hot | なし | hot から選んだ版の 1 件古い確定版を ro 読みの一部に返す (variant の上だけ) |
+| broken-cicada-vhash-skip-pending | なし | hot から選んだ PENDING 版を待たずに次の確定版へ進む (variant の上だけ) |
 
-- **重ね方:** 壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
+- **重ね方:** md_3 の旧壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
   instr が `cc/cicada/` の 4 file)。壊しは裸マクロを持たない無条件 patch なので、既定で重ならず、正例の build にだけ当てる。
   新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない (条件 gate の定義一覧・裸マクロ登録の照合を変えない)。
 - **発火診断 (壊しだけ):** 事象を commit した txn の分だけ stderr の `CICADA_BREAK_EVENT slug= tx_wts= key= a_wts= b_wts=` に全件出し、
@@ -959,6 +969,33 @@ CCBench の C1' `6aa7a58f` (pin C の子、header 2 file だけ) にある。md_
 - **未対応:** Delivery を含む全 mix (F cell) の 4 thread は、stock Cicada 自体が `gc_records()` の `ERR` で落ちる (trace の有無に依らない、11 回中 11 回。機序は未特定)。
   範囲読みの phantom・不在の読み・BOMB / SBOMB の trace・campaign 接続・certified は対象外。記録は `output/insights/2026-09-29/vhash-cicada-verifier-ext/`。
 - **pin 前進時:** C2' 系へ pin が進んだら、重ね順の厳密適用と生死確認を取り直す。
+
+## fix-cicada-gc-records.patch / fix-cicada-gc-records-scan-key.patch — stock Cicada の削除経路の欠陥 2 件の修理 ([T-2908]、2026-09-29〜30)
+
+上の「未対応」の F cell × 4 thread の異常終了を直す**挙動を変える修理** (inert patch ではない)。本来の置き場は CCBench の local branch
+`izanagi-cicada-gc-records-fix` (F `25898d00` の子 2 commit、push と pin の前進は人間の手番、D16・D18・D20) で、pin が C のうちに実験で
+使えるよう同じ差分を out-of-tree patch として置く。`patches/ledger.json` には登録しない (entries 1 件固定)。pin がこの 2 commit を含む tip へ
+進んだら 2 本とも不要になる。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| fix-cicada-gc-records | なし (無条件) | `cc/cicada/transaction.cc` の `gc_records()` だけ。最上段から続く aborted の版を何段でも読み飛ばし、到達した版が deleted なら従来どおり回収、それ以外 (null・pending・committed) は従来どおり `ERR`。最上段の wts による待機判定、validation・commit・abort は変えない |
+| fix-cicada-gc-records-scan-key | なし (無条件) | 同 file の `scan()` だけ。結果の key を最新版の body ではなく作成時に複写される `Tuple::body_` から取り、それが空なら従来どおり最新版から取る |
+
+- **欠陥:** (1) 後発の Delivery の削除版が read set 再検査で abort すると `writeSetClean()` が aborted にしたまま版鎖の最上段に残し、先発の削除を
+  commit した thread の `gc_records()` が `ERR` する (診断で 10/10 実測)。(2) (1) を直すと、最上段に body の無い削除版がある行を `scan()` が
+  空 key で read set に入れる既存欠陥が表に出る (trace の R 行の key が空になり判定器が parse error、read-own-reads の key 照合も誤りうる)。
+- **重ね方:** 2 本は行が離れていて独立に当たる。適用順は gc-records → scan-key。pin C 単独、pin C → `instr-cicada-trace.patch`、C1' →
+  instr → instr-tpcc、F 単独、F → instr → instr-tpcc (→ 壊し patch) のいずれの後にも厳密適用できる (git apply --check と patchharness の適用)。
+  `instr-cicada-version-lifetime.patch`・`cicada-forwarding-variant.patch` (+ `cicada-forwarding-gc.patch`) の後にも `git apply --check` は通った
+  (生死は未確認)。新しい `#if` 条件・`IZANAGI_` の語を含まない。
+- **実証 (F 基点、TRACE=0 は Release・sanitizer OFF):** 修理 2 本の F cell × t4 10/10・t8 10/10 が完走、同じ job の無修理は t4 5/5・t8 4/5 が
+  `gc_records` の ERR。pin C + 修理 2 本 3/3 完走。修理 2 本 + instr + instr-tpcc の F cell × t4 trace 3 本は巡回 0・integrity 数値項目と
+  存在履歴違反 0・C 行 = commit 数 (並行下の削除 890〜3,570 件、4 thread 全部)。M・R2 cell は修理前後とも合格。read 再検査の壊しを重ねると
+  non-serializable (巡回 386)。TRACE=0 は (修理) 対 (計装 + 修理) で tpcc の 3 TU の命令列が一致。上流 CI の format (clang-format 14、213 file)
+  と build (CI image、全 protocol) を CCBench の branch tip で手元通過。
+- **限界:** INLINE_VERSION_OPT=1 の insert 経路では空 key が残りうる (修理前と同じ)。`abort()` が insert した tuple を解放した後に
+  `writeSetClean()` が書く use-after-free (既存、ASan で検出) は直していない。記録は `output/insights/2026-09-29/vhash-cicada-gc-records-fix/`。
 
 ---
 

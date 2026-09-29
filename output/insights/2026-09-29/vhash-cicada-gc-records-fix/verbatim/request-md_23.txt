@@ -1,0 +1,35 @@
+md_23: stock Cicada が TPC-C の Delivery を含む並行走行で gc_records の ERR に落ちる欠陥を、原因を特定してから直す
+
+最初に同じ directory の common.txt を読むこと。ただし本 wave は CCBench の欠陥の修理なので、common.txt の「CCBench の改変は既定で挙動が一致する inert patch」は適用しない (下の「置き場」に従う)。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「`gc_records()` の `if (latest->ldAcqStatus() != VersionStatus::deleted) ERR;`」を含む item を grep して自分の対象とする (T 番号は固定しない)。
+
+■ 背景 (一次資料 output/insights/2026-09-29/vhash-cicada-verifier-ext/README.md §5、D2294)
+pin C の Cicada で TPC-C の全 mix (tpcc_perc_payment/order_status/delivery/stock_level = 43/4/4/4、warehouse 1、extime 1) を 4 thread で走らせると、
+cc/cicada/transaction.cc:853 の ERR で毎回落ちる (11 回中 11 回、TRACE=0 の無 patch build でも 5 回中 5 回)。thread 1 は完走。
+md_17 の仮説 (未実証): Delivery 同士が同じ NewOrder 行を削除し合い、後から install した削除版 D2 が validation で abort して aborted のまま最新版に残り、先に commit した側の gc_records が「最新版が deleted でない」と見て ERR する。
+これが直るまで、delete を含む並行 TPC-C の Cicada は VHash の評価にも正しさの門にも使えない (D2277 項 2: 基盤の欠陥は使いながら直す)。
+
+■ やること
+1. 原因の特定 (直す前に): ERR の直前の状態 (最新版の status・wts、その下の版、tuple の key と表) を stderr に出す診断だけの使い捨て patch で F × thread 4 を走らせ、仮説を実測で確かめるか棄却する。棄却なら本当の経路を特定してから進む。
+2. 修理: 特定した経路を直す最小の変更を Codex author が書く (cc/cicada/ だけ)。直し方の択一 (例: abort 時に install 済みの削除版を外す / gc_records が aborted の最新版を読み飛ばす / delete の install 条件を直す) は段 2・3 で比べ、正しさ (直列化可能性) を緩める直し方を採らない。
+3. 確かめる (完了判定。修理自身が現れない観測量で書く):
+   - 修理版の F × thread 4 (と thread 8) が N 回中 N 回完走し、同時刻の無修理版は落ちる (反復数は段 4 で事前登録)。
+   - 修理版 + md_17 の計装 (patches/instr-cicada-trace.patch → instr-cicada-trace-tpcc.patch、C1' 以降) で F × thread 4 の trace を判定器に掛け、巡回 0・integrity 数値項目 0・存在履歴違反 0・C 行 = commit 数。md_17 が得られなかった「並行下の delete の履歴」をここで初めて判定器に通す。
+   - delete を含まない cell (md_17 の M・R2) で修理前後の判定が変わらないこと。
+4. 余裕があれば (必須ではない): delete の意味を壊した正例を 1 本作り、並行下で判定器が検出・帰属できるか確かめる (md_17 が作れなかった分)。
+
+■ 置き場
+- 修理は CCBench の local branch の commit として作る。基点は次の pin 候補の整形 commit F `25898d00` (branch izanagi-tpcc-v3-silo-mocc-fmt、D2293)。F は cc/cicada/ を変えていないので、修理は pin C の Cicada と同じ bytes に当たる。上流の CI (build・clang-format 14) を手元で通す (D2277 項 1、記憶「CCBench の変更は上流 CI を通す」)。push・PR・gitlink の前進は人間の判断 (D16・D18・D20)。
+- pin が C のうちに実験で使えるよう、同じ差分を out-of-tree patch (patches/fix-cicada-gc-records.patch など) としても置き、pin C → (instr 系) → fix の厳密適用を確かめる。patches/README.md に節を足す。patches/ledger.json には登録しない (entries 1 件固定)。
+
+■ 所有
+CCBench の新しい local branch (1 本)、patches/fix-cicada-gc-records*.patch の新規、patches/README.md の該当節、自分の一次資料 (output/insights/<着手日>/vhash-cicada-gc-records-fix/README.md) と fragment。
+md_17 の patch (instr-cicada-trace*.patch、broken-cicada-*.patch) と起動器は読むだけ・写して使う (起動器は /work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-verifier-ext/launch_cicada_run.py、repo 外)。
+他 wave の cc/cicada を触る patch (cicada-forwarding-*、instr-cicada-version-lifetime ほか) は編集しない。自分の fix patch がそれらと同じ行に当たるかは段 1 で調べ、重なるなら重ね順を README に書く。
+
+■ 注意
+- 正しさの防壁と CCBench 本体に触る wave なので、軽量版でも段 3 の相談と段 6 の review を省かない。
+- 計算ノードは合計 2 node 時間未満。テストは全体 5 分の上限。
+- 修理は性能も変えうる。性能値はこの wave では取らない (取るなら trace を外した build で同時刻の対照を置く別 wave)。

@@ -276,3 +276,8 @@ balanced 10 s の SIGKILL と write-heavy 10 s の timeout、patch と verifier 
   `recheck.sh` (再検算)、`review_checks.sh` (段 6 所見の裏取り)、`inventory.py`・`untracked.py`・`check_excluded.py`・`diff_staging.py`・`k2_crosscheck.py`・`r1_facts.py`・`verifier_blob_check.sh` (読み取りの実測)。
 - 調査子 (Claude Explore、sonnet) 4 本 (cleanup の範囲と保存先の慣行、5 系列の所在と量、系列ごとの手順の一次資料、R1 の入力) の報告は会話内のみ。
   本文に使った値は親が一次資料・実測で照合した。調査子の報告にあった `a70a5acd4` の日時 (2026-07-29 とあった) は誤りで、実測は 2026-08-12 11:01 である。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が写しの元として記録した locked submit-tree (K2 pair・pair2・r4、B-5 試走、A-1 attempt2 ほか) は、2026-09-30 の掃除 wave で回収せずに撤去する。以後、これらの campaign 原本の控えは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` の写しと、各 job dir に残る複製 (K2 の `originals-copy-*` 等) になる。写しを official の入力へ昇格させるものではない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
