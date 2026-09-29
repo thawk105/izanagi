@@ -15,6 +15,7 @@ title: [T-2904] CCBench Cicada の build 不具合 2 件と計器 build 1 件を
 - 段 6 で閉じた親の誤り: (1) 「物理行数が同じなら既存 patch は当たる」という予測 — 実装子が未使用引数を無名にし、計装 patch の hunk の文脈行が変わって当たらなくなる所をレビュー B2 が検出した (引数名を戻して解消)。(2) 段 4 裁定で判定 job の path 照合を「C→G = 5 file」と書いた — T-2854 の判定 job が照合していたのは直親 → 新 tip の path で、実測は C→G = 6 file・F→G = 2 file。判定 job 1 回目は入力照合で 5 秒で止まり、検査器は起動していない (裁定追補 1 で訂正)。(3) G の 1 回目の commit message が「重複要素は scan() で 2 回返されていた」と言い過ぎた — 検証に使う前に branch を消して message だけ直した (tree は同じ)。
 - 検証 script の偽の緑をレビュー SA・SB が 6 件・起動失敗 2 件検出した (空 trace が合格になる、compile 時の -D と走行時の flag を照合しない、CI の合格条件が rc だけ、repo root の推測、Python の版、一時 build の置き場)。すべて投入前に fix して焦点再レビューで closed。
 - 起動器の後処理 (子 worktree の残差の commit) が fix B3・B4 で `add-all` の失敗を 2 回返した (起動器 rc=3)。Codex 子自体は completed で、子の編集は gitignore 下の script だけ、子 worktree は clean だったので実害はない。原因は調べていない。
+- 段 8 の候補は 1 件 (F819 の再発型: 必読射影で「・」の後に file 名だけを続けると子が直前の path 相対に読む。T-2854 と本 wave の独立 2 例)。`docs/dev-wave/operations.md` の DW-O02 に「射影は 1 行 1 絶対 path」の 1 文を足すと `check_docs` が L1.5 の予算超過 (9,809 > 9,696 bytes、追記前の余白 0) を返したので撤回し、再発の記録 (failures fragment) だけに留めた。予算の枠を増やす裁定は求めない (1 文の明確化のため)。
 - W5 の throughput の事前予測 (2 thread・待機なしは 1 thread の約 2 倍、100 ms 待機で 1 thread と同程度) は大きさが外れた (1.14 倍、1 thread より 35,000 件前後少ない)。待機の実在は trace の thread 別 commit 数で直接確かめた。外れた理由は調べていない。
 
 ## 次の一手差分
