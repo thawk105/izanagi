@@ -203,3 +203,8 @@ Codex の出力 2 本は markdown の行末 2 空白を含み `git diff --check`
 |---|---|---|---|---|
 | `verbatim/s6-review-a.md` | `b91b28d0ac788e9d42d3263bde9f5eb4c611ee973b35898ca30111a41b88fa18` | 831 | 829 | 7 |
 | `verbatim/s6-review-b.md` | `2c085e605a70ad43431b3ae2fb0c107a5b1e97cd8c0f5eaf2aaa3d84e383f36c` | 2,470 | 2,468 | 13 |
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+作図の子 worktree `.codex/worktrees/t2853-r2-fig6-author` (branch `codex/t2853-r2-fig6-author`) と fig8b 系の `t2853-r2-plot-author`・`fix1`・`fix2` は、2026-09-30 の掃除 wave で回収せずに撤去する。最終 wrapper と図は `/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/` と `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/` にあり、branch は束 bundle に退避した。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

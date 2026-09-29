@@ -23569,6 +23569,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — [T-2854] pin 前進 (1)(2) の段 6 review の投げ文に、親が必読 path を相対 (`probe/line_macro_probe.log`) で書き足し、子が直前の `review/` からの相対と読んで存在しないため即停止した (rc=1、70 秒、6 call)。全 path を絶対化して再投入した。結末は fail-closed で、型 (親の投げ文の path が子の解決先と食い違う) は同じ。
 
 - **再発: 2026-09-30** — [T-2872] の修理検証 wave で、親が実装子 B の投げ文に先例 job dir の直下にある `run-build.sh`・`run-judge.sh` を `build/`・`judge/` 配下と書き、子が「読めなければ即停止」で 2 call・40 秒で rc=1 (receipt failure_class=f43_fragment) になった。DW-O01 の「参照 path の実在を先に検査」を親が省いた。投げ文の全絶対 path を抜き出して実在を検査する使い捨て script (job dir `scripts/check_prompt_paths.py`) を通してから B2 として再投入し、以降の投げ文 4 本も同じ検査を通した。
+
+- **再発: 2026-09-29 (near miss)** — md_19 (CCBench Cicada の build 不具合の修理) の段 6 レビュー B の投げ文が、必読射影の 1 行に「`<絶対 path>/out/s5-author-A.md・probe_syntax.log`」と 2 file を「・」でつないで書き、子は 2 つ目を直前の path の directory (`out/`) 相対と読んで読めず、「読めなければ即停止」どおり 3 attempt とも停止した (出力 71 byte、model call わずか)。全 path を 1 行 1 絶対 path に直した B2 で受理された。以後の投げ文 (fix 2 本・焦点 2 本・検証 script のレビュー 2 本) は 1 行 1 絶対 path で書き、同型は出なかった。T-2854 の段 6 (2026-09-27) と同じ型で、どちらも fail-closed で安く止まった。
 ### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
 
 - 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
@@ -28754,3 +28756,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 起点の runner は arm 定義の `trace` を整数 (1/0) で持っていたが、改作で JSON の真偽値に変わり、define を作る 1 行が型の変化に追随しなかった。build の成功と benchmark の rc=0 は define の値を検査しない。
 - 恒久対応: 改作後の runner (job dir `/work/1/SFC/tanab/tmp/mocc-validation-fix-2026-09-29/tools/moccfix_probe.py`、sha256 `e70ee41d…`) が build 後・benchmark 前に、対象 TU の実 compile 命令 (compile_commands) の `-DTRACE=` が arm の trace (`1`/`0`) と一致し、計器 define の有無も arm と一致することを確かめ、違えば停止する (fails-closed)。memory `bool-define-stringified-true-disables-if` (trace を有効にした build は compile 命令の `-D` の値を実物で照合してから走らせる)。
 - 再発検知: 上の build 後照合と、trace 有り arm の判定を trace の実在 (trace_*.log の本数) に依存させる既存の R0 (判定不能で止まる)。関連: F707 (要求した define が黙って無視される)、F718 (define の値の符号化の衝突)。
+
+### F1074. 稼働中の wave の依頼 file を、親セッションが同じ名前で別の依頼に上書きした [手順漏れ]
+
+- 事象: 2026-09-29、VHash の親セッションが並行 wave の依頼を `/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_N.txt` に書いて起動している中、21:35 に書いて本 wave (gc_records の修理) が 21:43 に読んだ `md_23.txt` を、21:59 に別の依頼 (VHash 本体の hot 配置) で上書きした。段 3 の相談子が依頼 file を読み直し「依頼と plan が食い違う」と指摘して判明した。本 wave は起動引数と開始時の読みで主題を保持していたので作業は失われず、会話に残った本文を job dir に逐語で保存した。子に依頼 file の path を渡していたため、相談子 1 本が別依頼を正本として読んだ。
+- 根本原因: 依頼の置き場が番号付きの共有 file で、書き手が既存 file の有無を確かめずに書いた。wave 側は依頼 file を wave 開始時に job dir へ逐語で写しておらず (DW-O02 の「必読資料の逐語を job dir へ出す」を依頼 file に適用していなかった)、子に共有 file の path を渡した。
+- 恒久対応: 書き手は置き場へ書く前に存在を確かめる (親セッションが合意、記憶 `parallel-wave-prompts-in-external-files`)。wave 側は DW-O02 に従い依頼 file を開始時に job dir へ逐語で写し、子にはその写しの path を渡す (本 wave の `request-md_23.txt`、md_17 の `request-md_17.txt` が先例)。
+- 再発検知: 子の報告が「依頼と plan・brief が食い違う」と言ったら、依頼 file の mtime と開始時に読んだ内容を照合する。

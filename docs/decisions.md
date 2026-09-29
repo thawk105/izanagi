@@ -74224,3 +74224,80 @@ fig15 (観測の再実施、元の認可は 1 回限り) は今は再認可し�
 - **repo 直下に `pruned/` を新設し wave ごとの JSONL を置く** — 上の決定 2 の 5 項目目。
 
 **位置づけ:** 親セッションの計画修正の記録で、ユーザー依頼 (高速化と削除記録) への回答の一部である。後続の削除・短縮の wave は本決定の決定 2〜4 を前提にする。
+
+## D2308. CCBench の Cicada の不具合は直す (ユーザー判断)。build 不能 2 件と計器 build 1 件を、非既定の #if の内側の行の置換だけで F の子 commit G に直す。promotion 有効の 8 genome は build できるようになったが判定器が直列化違反を検出したので失格とし、D297 検査器が cicada の変更を判定できないことは検査器を変えずに記録する (2026-09-30)
+
+**決定 (ユーザー判断):** 還元判断がユーザー確認待ちだった Cicada の build 不具合 (INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1 の 8 genome と WORKER1_INSERT_DELAY_RPHASE が compile できない) について、ユーザーは 2026-09-29 (21 時台 JST) に「CCBench の不具合は直したい」と判断した。本決定はこれを「直す」で確定し、次の方針で直したことを記録する。
+TPC-C 全 mix × 4 thread の `gc_records()` の ERR は、後から作られた専用の依頼 (md_23) が扱う (同じ判断の対象だが本決定の修理の範囲外)。
+
+1. **置き場:** CCBench の新しい local branch `izanagi-cicada-build-fix` に、F `25898d00` (D2293) の子 commit G `eb93423bbb27a2694d3d75861696c365f0fb8f7c` として置く (Codex author、D95)。izanagi の gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN`・`patches/` は変えない。push・PR は人間 (D16・D18・D20)。pin の前進は push と GitHub の CI が緑になった後の別の作業とする (D2277 項 1 の順序)。
+2. **直し方:** 変更は非既定の `#if` 区間の内側の行の置換だけにし、物理行数を変えない。既定の build の preprocess 出力と `ERR` の `__LINE__` を F と同じに保ち、既存の patch (計装 patch の `#line` の値を含む) がそのまま当たるようにするため。promotion は改名後の `update()` を呼ぶ形にし、`read_internal()` が既に積んだ読み取りを promotion が重ねて積む行を除く。待機の分岐は README と flag 定義どおり runtime flag `-worker1_insert_delay_rphase_us` を読み、既に取り込み済みの `sleepTics()` で待つ。ADD_ANALYSIS=1 で compile できない計上の行 (存在しない計時開始値を使う) も同じ族として直す。
+3. **検証:** G で正準 24 genome・ADD_ANALYSIS=1 の promotion 2 genome・W5 の build が全部通り、上流 CI の 2 本 (clang-format 14 の 213 file と CI image の全 protocol build、本体の warning・error 0) を手元で通した。W5 の待機は trace の thread 別 commit 数で直接確かめた (待機 1 ms で worker 1 の commit が 2 件、待機なしの対照で 47,551 件)。既定 genome の YCSB・TPC-C (Delivery なし) の小走行は判定器で巡回 0。
+4. **promotion の 8 genome は失格 (規律 2):** 計装の `#error` を外した診断用の変種で promotion genome の 1 設定 (BACK_OFF=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0) を走らせると、判定器は YCSB K で巡回 4 件、R で 327 件を検出し、TPC-C は `std::bad_alloc` で異常終了した。promotion の経路はこれまで compile できず一度も走っていなかった。異常は 1 設定で観測したものだが、安全側の判断として 8 設定すべてを VHash の比較・探索から除外する。G で除いた重複登録を戻しても YCSB K・R の巡回は残り、計装なし (TRACE=0) でも TPC-C の異常終了は再現した。重複登録の除去は観測した YCSB の巡回に必須ではなく、計装は TPC-C の異常終了に必須ではない (それ以上の原因の除外はしていない)。G の promotion の修正は取り消さない (compile できないままでは欠陥を観測できない。既定の build の preprocess 出力を変えない見込みで、既存 patch の当たり方も F と同じ)。原因の特定と修理は別の項目とする。build できることと正しく動くことを分けて記録する。
+5. **D297:** D297 検査器は C→G を判定できない (cicada の transaction.cc の条件指令が参照する cicada 固有の macro が検査器の既知の文脈に無く、判定の前に fails-closed で止まる、T-148)。検査器は変えない (規律 2)。選定文脈 (stock・mocc・silo) についての結論は C→F の判定 (D2293、pass) と同じと推論し、cicada の 2 file は意図した変更として差分の範囲を一次資料に書く。この推論を検査器の pass とは呼ばない。pin を G へ進める作業は、cicada の文脈 macro の扱いを決める必要がある。
+6. **直さないもの:** YCSB の再試行で読み取り専用の指定が戻らないこと (workload 共通 header の設計)、`update()` の early abort が `Status` に出ないこと (既存の挙動)、待ち時間の積の桁あふれ (現実の指定では起きない)。一次資料に記録するだけにする。
+
+一次資料: `output/insights/2026-09-29/ccbench-cicada-bugfix/README.md`。
+
+**理由:** ユーザー判断と D2277 項 2 (基盤の欠陥は使いながら直す)。VHash の較正 (build できない 8 genome) と評価の前提 (読み取り後に待つ長い tx の型 W5) を埋める。上流の CCBench の CI を通す品質で作る (D2277 項 1)。行数を変えない形は D2293 と同じく、既定の build と既存の patch を変えないため。promotion の失格は、build できたことを正しさの根拠にしないため (規律 2・3)。
+
+**却下した選択肢:**
+- compile 時定数 `WORKER1_INSERT_DELAY_RPHASE_US` を定義する — README・flag 定義と食い違い、待ち時間を変えるたびに build し直す。
+- `include/delay.hh` を include して `clock_delay()` を使う — 物理行数が変わり、既定 build の `ERR` の行番号と既存 patch の `#line` がずれる。
+- promotion の引数を無名にして未使用の警告を避ける — 計装 patch の hunk がその行を文脈に含み、G に当たらなくなる (段 6 レビューが検出)。
+- promotion の修正を取り消して compile できない状態に戻す — 欠陥の観測ができなくなり、ユーザーの「直したい」にも反する。
+- D297 検査器に cicada の macro を登録して C→G を判定させる — gate の変更で本件の範囲を超える。pin 前進の作業で扱う。
+
+## D2309. 原本を抱えた古い投入木と branch 91 本・11 本は回収せずに撤去し、D2242 決定 1 の「branch は残す」を解く (2026-09-30)
+
+**決定:**
+
+1. 2026-09-30 の棚卸しで、研究記録が原本の所在・固定 checkout・発効版として path を名指すために残していた worktree 91 本 (dev-wave-jobs 等の投入木 80 本と個別の木 11 本) と
+   local branch 11 本を、**回収せずに撤去する**。回収 (repo 外の恒久置き場 `izanagi-repro-archive` への新しい写し) は 0 件。
+   判定基準はユーザー方針 (2026-09-30、依頼 md_1) のとおり、(a) 論文の数値・図がその原本からしか得られない、(b) phase3 の現行タスクか worklog 末尾の次の一手が入力に取る、
+   (c) 有効な事前登録・凍結が入力に取る、のいずれかを一次資料で示せた系列だけを回収する。名指しされているだけ (経緯・所在の記述) は回収理由にしない。
+   調査の結果、(a)〜(c) に当たる系列は 0、コード・テストが木の path を読む箇所も 0 だった。T-2850 追補 3 が入力に取るのは main の祖先の commit `299aa022e` で、木ではない。
+2. 記録の付け替えは集約 insight `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とし、名指していた insight README の末尾に日付付きの追記節を足す。
+   結果稿・版・claim-evidence・receipt・MANIFEST・verbatim・raw (append-only の凍結物) は書き換えず、`docs/paper-story/README.md` の所在注記から訂正先を指す。
+3. B-5 の発効 commit `6fce61d6e` (唯一の ref が branch `worktree-dev-wave-t2797-b5-main-run`) は tag を作らず、branch の bundle で保全する。
+4. D2242 決定 1 の「branch `worktree-t2273-shard0-local-copy` は残す」を解き、bundle に退避してから削除する。
+
+**理由:**
+
+- 論文の主張は「どの仕組みで何が得られたか」と粗い時期で足り、bytes 級 provenance の保全は既定で最小側に倒す (ユーザー明言 2026-08-12)。数値・図はすべて repo 内の派生物 (insight・結果稿) にあり、
+  K2 3 組・B-5 試走・MOCC 疎通 21 本・T-2850 試走 v2 18 本・T-2865 段階 F の campaign 原本は既に `izanagi-repro-archive` に sha256 照合つきで写してある。
+- T-2871 生死確認の WAL 2 本は `output/insights/2026-09-29/gen-opt-evolution-design/README.md` §6.1 の内訳の生データとして名指されるが、同設計は未採用・本走未承認で、内訳値は同 README に転記済みなので (b) に当たらない
+  (攻撃役の指摘を採用)。前日の退避 tar に入っている。
+- tag は管理する ref を増やすだけで、論文稿の「branch にある」という所在の記述はどちらにしても注記で直す必要がある。発効 commit の差分は json 1 file・25 行で bundle から復元できる。
+- D2242 が branch を残した趣旨は決定 3 (中立な整理としての land を別判断に残す) にあり、その判断は D2243 項 2 が候補 (c) として不採用にした。branch を入力に取るタスクは無い。
+- 残し続ける費用は実測で重い: 2026-09-29 に worktree 216 本で `git worktree list` 7.2 秒・rescue gate が時間切れ・全 worktree の status 15 分超。
+
+**却下した選択肢:**
+
+- 名指しがある木を全部残す (前日の Codex 判断) — 経緯の記述を回収理由にすることになり、ユーザー方針に反する。
+- T-2871 の WAL 2 本を恒久置き場へ回収する (決定役の案) — (a)〜(c) を満たさない。
+- B-5 発効 commit に tag `archive/t2797-b5-effect` を作る (決定役の案) — 上記の理由で不要。
+- git の登録だけ外して directory を残す — 施錠・checkout と HEAD の対応・submodule 接続が壊れ、残した directory も再現に使えない (前日の決定役の判断を維持)。
+- 到達不能 object 台帳へ削除 commit を転記する — 人間の喪失受容を要する期限つき台帳で、`/cleanup-branches` §5 も別 wave への引き渡しとしている。bundle の所在を集約 insight に書くに留める。
+
+## D2310. stock Cicada の削除経路の欠陥は、回収側 (gc_records) が aborted の版を読み飛ばす形と、scan の key を Tuple の複写から取る形で直す。受理集合を変える直し方は採らず、CCBench の local branch 2 commit と同じ差分の out-of-tree patch に置く (2026-09-30)
+
+**決定:**
+1. 原因 (診断で 10/10 実測): 後発の Delivery の削除版が read set 再検査で abort し、`writeSetClean()` が aborted にしたまま版鎖の最上段に残るため、先発の削除を commit した thread の `gc_records()` が ERR する。
+2. 修理 1: `gc_records()` が最上段から続く aborted の版を何段でも読み飛ばし、到達した版が deleted なら回収、それ以外 (null・pending・committed) は ERR を残す。最上段の wts による待機判定、validation・commit・abort・版の install は変えない。
+3. 修理 2: 修理 1 で表に出た既存欠陥 (scan が最新版の body から key を取り、body の無い削除版が最上段の行で key が空になる) を、作成時に複写される `Tuple::body_` の key を使い、空なら従来どおり最新版から取る形で直す。上流の「1 課題 1 文脈」に合わせ別 commit・別 patch。
+4. 置き場: CCBench local branch `izanagi-cicada-gc-records-fix` (F `25898d00` の子 2 commit) と、同じ差分の `patches/fix-cicada-gc-records.patch`・`patches/fix-cicada-gc-records-scan-key.patch` (pin C → (計装) → 修理 1 → 修理 2 の順で厳密適用、`patches/ledger.json` には登録しない)。push と pin の前進は人間の手番 (D16・D18・D20)。
+5. 確認は事前登録した観測 (修理自身が出さない量) で判定した: 修理版の完走と同じ job の無修理版の ERR、修理版 trace の判定器の数値 (巡回・integrity・存在履歴・C 行)、削除を含まない cell の判定不変、TRACE=0 の命令列一致、ASan、変異 (1 段だけ読み飛ばす変異は KILLED、read 再検査の壊しは判定器が巡回として検出)。
+
+**理由:**
+- 修理 1 は回収の判定だけを変え、どの tx が commit / abort するかを変えない。安全性は (i) 削除版の上に install された版は read set 再検査か write set 検査で必ず abort する、(ii) 回収可の時点 (最上段の wts < MinRts) で版鎖に実行中の tx の版は無い (thread ごとの wts の単調性と公開 rts の関係、group_commit=0)、(iii) 読み飛ばす aborted 版と削除版はどこからも解放されない、に依る (一次資料 §2)。
+- ERR を残すので、本当に不整合な状態 (committed の版が最上段に来るなど) は従来どおり止まる。
+- 修理 2 がないと修理版の trace が判定器に掛からず、依頼の完了判定 (並行下の削除を含む trace の判定) が取れない。CC 自体でも空 key は read-own-reads の key 照合を誤らせうる。
+
+**却下した選択肢:**
+- abort 時に install 済みの版を版鎖から外す — 並行する CAS・読み手の走査・版の回収と再利用の全部に触れ、小さな修理にならない。
+- install 時に最新版が deleted / pending なら abort する — pending の削除と競合する経路を塞げず単独では足りず、受理集合を縮める。
+- ERR を外す — 本当の不整合を隠す。
+- 1 段だけ読み飛ばす — 診断で 2 段重なる例があり、変異走行で落ちた (KILLED)。
+- 修理 2 を別 wave に回す — 依頼の完了判定に必要。
+- ASan が見つけた `abort()` の use-after-free を同じ wave で直す — 削除経路と無関係の別の欠陥で、依頼の完了判定に要らない。次の一手に置いた。

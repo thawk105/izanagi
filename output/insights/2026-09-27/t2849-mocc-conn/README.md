@@ -152,3 +152,8 @@ balanced の 4 slot (evolution の初期点 10 と探索 2、random の探索 24
 - 訂正 1: §4 の「検査走行の abort 率」列は digest の legacy workload (4 thread・200 record・1 秒) の値だった。性能構成の anomaly 反復では bo 初期点で 6.8%。
 - 訂正 2: 1 slot は legacy 1 回 + 性能構成最大 5 反復 (anomaly で打ち切り) で、「stock slot 7 件は 0」は性能構成の反復で 0/35。
 - read-heavy の block 対照の stock も同じ性質の実装なので、§3 の read-heavy の stock 比と certified の終点は「基準の stock が性能構成の検査に落ちる反復がある cell」(観測 3/109、95% 区間 0.6〜7.8%) での値である。扱いは新しい課題で決める。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入形として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2849-mocc-conn/trees/` の 22 本は、2026-09-30 の掃除 wave で回収せずに撤去する。campaign を持つ 21 本の原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260927/` (manifest `t2849-mocc-conn-originals`) にあり、job dir の台帳・集計は撤去しない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
