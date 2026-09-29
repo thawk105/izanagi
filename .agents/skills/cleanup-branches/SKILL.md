@@ -26,7 +26,7 @@ description: Safely back up and clean up merged or stale local Izanagi branches 
 - 各破壊操作の直前に dispatcher の全 eligibility と canonical path、process residency を再評価する。
   unknown、棚卸し後の change、新しい residency があれば停止する。
 - `git worktree prune --dry-run --verbose` は報告用 preview としてだけ実行する。Codex は real
-  `git worktree prune` とそれを前提にする command §3 の mv を実行せず、preview と残作業を人間へ引き渡す。
+  `git worktree prune` と command §3 の mv を実行せず、preview と残作業を人間へ引き渡す。
 - 未追跡 `output/` (`exploration/`・`env/`) を抱える worktree は、command §2 の原本確認 (insight
   「証拠の所在」節) を経るまで保持して報告する。
 - dirty の撤去や引き渡し script は command §3 の退避検算 (tar の `-C` 順・非 dir entry 数照合) を前提にし、
