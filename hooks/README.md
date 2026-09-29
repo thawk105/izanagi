@@ -5,8 +5,9 @@
 (規律5「盛らない」)。加えて、正しさ規律とは**別系統**の衛生 hook を 2 本持つ:
 コンテキスト衛生 (guard_read = D35 の機械執行、hook 3 節。2026-07-15 ユーザー承認、
 失敗台帳 F18) と、モデル経済衛生 (guard_agent = subagent model 明示の機械執行、hook 4 節。
-2026-07-18 ユーザー承認)。さらに作業場衛生の Stop hook を 1 本持つ (guard_dev_wave_cleanup_stop =
+2026-07-18 ユーザー承認)。さらに作業場衛生の Stop hook を 1 本持つ (`tools/dev_wave_cleanup_stop_hook.py` =
 land 済み wave 木の撤去の再促し、hook 5 節。2026-09-29 ユーザー依頼「land 後に掃除せず終了する wave が多い」への対策)。
+これは防壁ではないので `hooks/` の外に置く (`hooks/` は自己保護された防壁の置き場で、D427 の経路を要する)。
 
 **実装ステータス: 実装済・配線済 (Phase 3 タスク3、方針 A)。** `.claude/settings.json` の PreToolUse に
 4 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash` / `Read` / `Agent`)。方針 A (D30) で hook の責務を
@@ -326,7 +327,10 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
 更新で再び drift しうる — 次に daemon major/minor が上がった新規バックグラウンドセッションで
 同じ probe を再試験する。
 
-## hook 5: guard_dev_wave_cleanup_stop.py (Stop) — 作業場衛生 (正しさ防壁ではない)
+## hook 5: tools/dev_wave_cleanup_stop_hook.py (Stop) — 作業場衛生 (正しさ防壁ではない)
+
+本体は `hooks/` の外 (`tools/`) に置く。何も拒否しない注意喚起であり、AI が自分で書き換えても防壁は
+弱まらないため、`hooks/` の自己保護 (guard_write の hook 実行面) と D427 の別 worktree 経路の対象にしない。
 
 dev-wave が local main へ land した後、`DW-O28` の撤去をせずに終了すると worktree と branch が残る
 (2026-09-29 の実測で、land 後に撤去を呼ばず `result:` で終えた wave が 2 本)。session が終了しようとした時点で
