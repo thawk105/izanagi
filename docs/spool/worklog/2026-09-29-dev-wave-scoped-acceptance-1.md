@@ -20,6 +20,10 @@ title: 知識面だけの wave を縮小受入で land できるようにした 
 - 棄却・訂正: 段 1 brief (P5) の login 完結は refuted。段 2 plan の production reader の AST 全走査は過剰として不採用 (文字列照合 + 点検済み入れ物 reader 一覧)。依頼文の負例「pin された節の改変」は許可集合の外なので、許可 path 内の検査違反に置き換えた。焦点再レビュー 2 の残り (下位の入れ物 path・分割文字列・日付 dir を列挙する reader) は、現行 tree の実例が開発道具 1 本 (test は選択される) だけで実害なしとして限界に記録し、fix は 3 巡のうち 2 巡で閉じた。
 - 取りこぼし: 親の焦点走が新規 test file 用の plain runner meta-test (`test_plain_runner_coverage.py`) を含めておらず (DW-O26 の義務)、独立 clone の受入全走で初めて allowlist 漏れが見つかった。1e97b58e0 で直した。
 - 異常: 背景 job の EnterWorktree(name) が git config の読み取りエラー、path 形は worktree list の 10 秒 timeout で失敗し、手動 add と絶対 path で作業した。子木の gitdir に 0 byte の index.lock 残骸が残り、起動器・待ち手の残差 commit が add-all で失敗した (生存 process なしを確かめて削除し、待ち手を再実行して回復)。独立 clone は user 設定が無く最初の commit で止まった。
+- 受入 attempt 1 の赤の判定 (DW-O18): 記録 commit f72f5deda に local main 6581ef6cd を post-claim merge した木 6f4209fb0 で 28,261 passed / 74 skipped / 赤 1 件 —
+  `orchestrator/tests/test_dev_wave_cleanup.py::test_repository_removal_lock_is_nonblocking_and_released[sigkill-remove-child]`。**非帰属**: 本 wave の変更 module
+  (dev_wave_land・dev_wave_wait・run_tests・scoped_acceptance*) を test も対象 tool も import しない。同じ木で当該 test を計算ノードで単独再走して 4 passed (8.04 s) で非再現。
+  受入を投げ直す。独立 clone の受入全走 2 回でも同じ file の別 node が赤になっていた (clone 環境、同じく本 wave 非帰属)。
 - 受入全走はこの記録 commit の tip で行い、受領証は job dir (`/work/1/SFC/tanab/tmp/scoped-acceptance-2026-09-29/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
 
 ## 次の一手差分
