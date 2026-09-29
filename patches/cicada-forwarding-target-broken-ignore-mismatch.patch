@@ -1,0 +1,54 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -204,5 +204,5 @@
+   uint64_t advance_clock_sum = 0, held_checks = 0, held_changed = 0;
+   uint64_t early_publishes = 0, early_publish_then_fail = 0;
+-  uint64_t no_room = 0, once_skipped = 0, uncapped = 0;
++  uint64_t no_room = 0, once_skipped = 0, uncapped = 0, forced_success = 0;
+ #line 40
+   std::atomic<uint64_t> installs{0}, detaches{0};
+@@ -382,5 +382,6 @@
+         std::cout << ",\"no_room\":" << c.no_room
+                   << ",\"once_skipped\":" << c.once_skipped
+-                  << ",\"uncapped\":" << c.uncapped;
++                  << ",\"uncapped\":" << c.uncapped
++                  << ",\"forced_success\":" << c.forced_success;
+       std::cout << '}';
+ #line 206
+@@ -538,4 +539,6 @@
+   GC_INC(thid, attempts);
+   ForwardCheck check = ForwardCheck::ok;
++  bool forced = false;
++#line 335
+   for (auto& r : tx.read_set_) {
+     bool conflict = false;
+@@ -545,8 +548,6 @@
+       break;
+     }
+-    if (visible != r.ver_) {
+-      check = ForwardCheck::read_mismatch;
+-      break;
+-    }
++    if (visible != r.ver_) forced = true;
++#line 346
+   }
+   if (check == ForwardCheck::ok) {
+@@ -590,8 +591,6 @@
+         break;
+       }
+-      if (visible != r.ver_) {
+-        check = ForwardCheck::read_mismatch;
+-        break;
+-      }
++      if (visible != r.ver_) forced = true;
++#line 391
+     }
+   }
+@@ -609,4 +608,6 @@
+   forward_slots[thid].forwarded = true;
+   GC_INC(thid, success);
++  if (forced) GC_INC(thid, forced_success);
++#line 406
+   GC_ADD(thid, advance_clock_sum, (target - old_wts) >> 8);
+   // Publish only after the local transaction state has been finalized.

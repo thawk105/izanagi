@@ -614,3 +614,132 @@ def test_gc_gate_rejection_evidence_is_saved(monkeypatch, tmp_path):
     assert calls == ["gc-dependency", "gc-stock"]
     assert job["condition_gate_evidence"]["meaning"]["admitted"] is False
     assert job["condition_gate_evidence"]["admission"]["admitted"] is False
+
+
+def _target_counter_text(arm):
+    gc = _gc_payload()
+    gc["mode"] = "e" if arm.startswith("E-") and arm != "E-hb" else "hb" if arm == "E-hb" else "off"
+    lines = []
+    if arm != "stock":
+        fwd = {"schema": 1, "policy": "f" if arm == "F" else "c", "k": 3,
+               "threads": [_fwd_thread()]}
+        if arm.startswith("C-") and arm != "C-min":
+            fwd.update(schema=2, target="max" if arm == "C-max" else "partial",
+                       once=arm == "C-partial-once")
+            fwd["threads"] = [{**fwd["threads"][0], **{k: 0 for k in driver.TARGET_EXTRA},
+                               "short_success": 0}]
+            version = 2
+        else:
+            version = 1
+        lines.append(f"CICADA_FWD_V{version} " + json.dumps(fwd))
+    if arm in ("E-max", "E-max-once"):
+        gc.update(schema=2, target="max", once=arm == "E-max-once")
+        gc["threads"] = [{**row, **{k: 0 for k in driver.TARGET_EXTRA}}
+                         for row in gc["threads"]]
+        version = 2
+    else:
+        version = 1
+    lines.append(f"CICADA_GC_V{version} " + json.dumps(gc))
+    lines.append("CICADA_LONGTX_V1 " + json.dumps({"threads": [
+        {"thid": 1, "long": False, "commits": 1, "aborts": 0}]}))
+    return "\n".join(lines) + "\n"
+
+
+def _target_jobs():
+    jobs = []
+    for workload, wait, skew in sorted(driver.TARGET_JOBS, key=str):
+        records = []
+        for spec in driver.target_plan_runs(workload, wait, skew=skew):
+            counted = spec["build_kind"].endswith("-count")
+            stdout = _target_counter_text(spec["arm"]) if counted else \
+                     "CICADA_LONGTX_V1 " + json.dumps({"threads": [
+                         {"thid": 1, "long": False, "commits": 1, "aborts": 0}]})
+            fwd, gc, longtx = driver.parse_target_lines(stdout, spec["arm"], counted)
+            records.append({**spec, "valid": True, "perf_eligible": not counted,
+                            "argv": driver.target_argv(Path("/tmp/ycsb"), spec),
+                            "stdout": {"text": stdout, "sha256": driver.sha_bytes(stdout.encode())},
+                            "throughput": 100 if not counted else 999,
+                            "gc_counters": gc, "fwd_counters": fwd,
+                            "longtx_counters": longtx})
+        jobs.append({"command": "target-run", "all_pass": True, "smoke": False,
+                     "workload": workload, "wait_us": wait, "skew": skew, "records": records,
+                     "ccbench_pin": driver.pin.CURRENT_PIN, "genome": driver.GC_GENOME,
+                     "patch_sha256": {str(p.relative_to(driver.ROOT)): "0" * 64
+                                      for p in driver.TARGET_STACK}})
+    return jobs
+
+
+def test_target_patch_stack():
+    assert [p.name for p in driver.TARGET_STACK] == [
+        "cicada-forwarding-variant.patch", "cicada-forwarding-gc.patch",
+        "cicada-forwarding-target.patch"]
+    assert driver.TARGET_PATCH == driver.ROOT / "patches/cicada-forwarding-target.patch"
+    assert driver.GC_GENOME["REUSE_VERSION"] == 1
+
+
+def test_target_count_throughput_ineligible():
+    data = driver.target_aggregate_jobs(_target_jobs())
+    cell = data["cells"]["many_ops/wait=None/skew=0.6/gc=10"]
+    assert cell["arms"]["C-min"]["throughput_median_tps"] == 100
+    assert len(cell["arms"]["C-min"]["performance"]) == 3
+    assert all("throughput_tps" not in row for row in cell["arms"]["C-min"]["count"])
+
+
+def test_target_v2_exactly_once():
+    line = _target_counter_text("E-max")
+    assert driver.parse_target_lines(line, "E-max", True)[1]["target"] == "max"
+    doubled = line + next(x for x in line.splitlines() if x.startswith("CICADA_GC_V2 ")) + "\n"
+    with pytest.raises(ValueError, match="expected 1 lines, found 2"):
+        driver.parse_target_lines(doubled, "E-max", True)
+
+
+def test_target_rotation():
+    specs = driver.target_plan_runs("many_ops", None, skew=.9)
+    for rep in range(3):
+        actual = tuple(r["arm"] for r in specs if r["gc_inter_us"] == 10 and
+                       not r["build_kind"].endswith("-count") and r["rep"] == rep)
+        arms = driver.TARGET_ARMS["many_ops"]
+        assert actual == arms[rep:] + arms[:rep]
+
+
+@pytest.mark.parametrize("missing_index", range(7))
+def test_target_aggregate_rejects_each_missing_job(missing_index):
+    jobs = _target_jobs()
+    jobs.pop(missing_index)
+    with pytest.raises(ValueError, match="missing target jobs"):
+        driver.target_aggregate_jobs(jobs)
+
+
+def test_target_v2_schema():
+    line = _target_counter_text("C-partial")
+    assert driver.parse_target_lines(line, "C-partial", True)[0]["target"] == "partial"
+    payload = json.loads(next(x.split(" ", 1)[1] for x in line.splitlines()
+                              if x.startswith("CICADA_FWD_V2 ")))
+    del payload["threads"][0]["no_room"]
+    bad = "CICADA_FWD_V2 " + json.dumps(payload) + "\n" + "\n".join(
+        x for x in line.splitlines() if not x.startswith("CICADA_FWD_V2 "))
+    with pytest.raises(ValueError, match="thread schema"):
+        driver.parse_target_lines(bad, "C-partial", True)
+
+
+def test_target_success_rate_denominator():
+    gc = _gc_payload()
+    gc["threads"][0].update(requests=4, attempts=2, success=1, read_mismatch=1,
+                            overflow=1, no_room=1, once_skipped=0)
+    gc["threads"][1].update({k: 0 for k in driver.TARGET_EXTRA})
+    assert driver.target_success_metrics(gc, "E")["success_rate"] == .25
+    assert driver.target_success_metrics(gc, "E")["attempt_success_rate"] == .5
+
+
+def test_target_arm_flags():
+    assert "--cicada_gc_target=max" in driver.target_arm_flags("E-max")
+    assert "--cicada_gc_target=now" not in driver.target_arm_flags("E-max")
+    assert "--cicada_fwd_policy=f" in driver.target_arm_flags("F")
+    assert "--cicada_fwd_once=true" in driver.target_arm_flags("C-partial-once")
+
+
+def test_target_default_v1_and_nondefault_rejects_v1():
+    assert driver.parse_target_lines(_target_counter_text("C-min"), "C-min", True)[0]["schema"] == 1
+    assert driver.parse_target_lines(_target_counter_text("E-now"), "E-now", True)[1]["schema"] == 1
+    with pytest.raises(ValueError, match="CICADA_GC_V1 expected 0 lines"):
+        driver.parse_target_lines(_target_counter_text("E-now"), "E-max", True)

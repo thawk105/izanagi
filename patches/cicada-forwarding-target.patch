@@ -1,0 +1,367 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -8,8 +8,14 @@
+ 
+ #if CICADA_GC_SAFEPOINT
+ #define GC_MODE_TEXT FLAGS_cicada_gc_mode
++#define GC_TARGET_TEXT FLAGS_cicada_gc_target
++#define GC_ONCE_BOOL FLAGS_cicada_gc_once
++#line 11
+ #else
+ #define GC_MODE_TEXT "none"
++#define GC_TARGET_TEXT "now"
++#define GC_ONCE_BOOL false
++#line 13
+ #endif
+ #line 9
+ 
+@@ -52,16 +58,25 @@
+ #if CICADA_FWD_ENABLE
+ DEFINE_string(cicada_fwd_policy, "c", "Forwarding policy: c or f.");
+ DEFINE_uint64(cicada_fwd_k, 3, "Number of physical hot versions.");
++DEFINE_string(cicada_fwd_target, "min",
++              "Forward target: min, max, or partial.");
++DEFINE_bool(cicada_fwd_once, false, "Try C forwarding once per transaction.");
++#line 32
+ 
+ namespace {
+ struct alignas(CACHE_LINE_SIZE) ForwardSlot {
+   bool forwarded = false;
+   bool scanning = false;
+   bool special = false;
++  bool c_tried = false, e_tried = false;
++#line 38
+ #if CICADA_FWD_COUNT
+   uint64_t triggers = 0, attempts = 0, success = 0;
+   uint64_t read_mismatch = 0, write_constraint = 0, conflict = 0;
+   uint64_t ineligible = 0, no_target = 0;
++  uint64_t no_room = 0, once_skipped = 0, uncapped = 0;
++  uint64_t short_success = 0;
++#line 42
+   uint64_t special_after_forward = 0, f_aborts = 0;
+   uint64_t advance_clock_sum = 0, pos_before_sum = 0, pos_after_sum = 0;
+ #endif
+@@ -73,8 +88,16 @@
+ #if CICADA_FWD_COUNT
+ struct ForwardReport {
+   ~ForwardReport() {
+-    std::cout << "CICADA_FWD_V1 {\"schema\":1,\"policy\":\""
++    const bool v2 = FLAGS_cicada_fwd_target != "min" || FLAGS_cicada_fwd_once;
++    std::cout << (v2 ? "CICADA_FWD_V2 {\"schema\":2,\"policy\":\""
++                     : "CICADA_FWD_V1 {\"schema\":1,\"policy\":\"")
++#line 54
+               << FLAGS_cicada_fwd_policy << "\",\"k\":" << FLAGS_cicada_fwd_k
++              << (v2 ? (std::string(",\"target\":\"") +
++                        FLAGS_cicada_fwd_target + "\",\"once\":" +
++                        (FLAGS_cicada_fwd_once ? "true" : "false"))
++                     : "")
++#line 55
+               << ",\"threads\":[";
+     for (uint64_t i = 0; i < TotalThreadNum; ++i) {
+       const auto& c = forward_slots[i];
+@@ -91,7 +114,14 @@
+                 << ",\"f_aborts\":" << c.f_aborts
+                 << ",\"advance_clock_sum\":" << c.advance_clock_sum
+                 << ",\"pos_before_sum\":" << c.pos_before_sum
+-                << ",\"pos_after_sum\":" << c.pos_after_sum << '}';
++                << ",\"pos_after_sum\":" << c.pos_after_sum;
++      if (v2)
++        std::cout << ",\"no_room\":" << c.no_room
++                  << ",\"once_skipped\":" << c.once_skipped
++                  << ",\"uncapped\":" << c.uncapped
++                  << ",\"short_success\":" << c.short_success;
++      std::cout << '}';
++#line 72
+     }
+     std::cout << "]}" << std::endl;
+   }
+@@ -126,11 +156,40 @@
+   conflict = true;
+   return nullptr;
+ }
++// Find the first non-aborted version immediately above each held version.
++template <typename Reads>
++bool forward_upper(const Reads& reads, uint64_t& upper) {
++  upper = std::numeric_limits<uint64_t>::max();
++  for (const auto& r : reads) {
++    Version* cursor = r.rcdptr_->ldAcqLatest();
++    uint64_t adjacent = std::numeric_limits<uint64_t>::max();
++    const uint64_t held_wts = r.ver_->ldAcqWts();
++    while (cursor && cursor != r.ver_ && cursor->ldAcqWts() > held_wts) {
++      if (cursor->ldAcqStatus() != VersionStatus::aborted)
++        adjacent = cursor->ldAcqWts();
++      cursor = cursor->ldAcqNext();
++    }
++    if (cursor != r.ver_) return false;
++    upper = std::min(upper, adjacent);
++  }
++  return true;
++}
++
++bool forward_below(uint64_t upper, uint8_t thid, uint64_t& result) {
++  if (upper <= 256) return false;
++  result = ((upper - 1) & ~uint64_t{255}) | thid;
++  if (result >= upper) result -= 256;
++  return true;
++}
++#line 106
+ } // namespace
+ #endif
+ 
+ #if CICADA_GC_SAFEPOINT
+ DEFINE_string(cicada_gc_mode, "off", "GC safe point mode: off, hb, or e.");
++DEFINE_string(cicada_gc_target, "now", "E forward target: now or max.");
++DEFINE_bool(cicada_gc_once, false, "Try E forwarding once per transaction.");
++#line 111
+ #endif
+ #line 29
+ 
+@@ -144,6 +203,8 @@
+   uint64_t ineligible = 0, overflow = 0, publishes = 0, flag_raises = 0;
+   uint64_t advance_clock_sum = 0, held_checks = 0, held_changed = 0;
+   uint64_t early_publishes = 0, early_publish_then_fail = 0;
++  uint64_t no_room = 0, once_skipped = 0, uncapped = 0;
++#line 40
+   std::atomic<uint64_t> installs{0}, detaches{0};
+ };
+ struct HeldVersion {
+@@ -282,12 +343,19 @@
+         retention_hist[b] += slot.retention_hist[b];
+       }
+     }
+-    std::cout << "CICADA_GC_V1 {\"schema\":1,\"mode\":\"";
++    const bool v2 = std::string(GC_TARGET_TEXT) != "now" || GC_ONCE_BOOL;
++    std::cout << (v2 ? "CICADA_GC_V2 {\"schema\":2,\"mode\":\""
++                     : "CICADA_GC_V1 {\"schema\":1,\"mode\":\"");
++#line 179
+     std::cout << GC_MODE_TEXT;
+     std::cout << "\",\"sample_us\":" << FLAGS_cicada_gc_sample_us
+               << ",\"clocks_per_us\":" << FLAGS_clocks_per_us
+               << ",\"initial_versions\":" << FLAGS_tuple_num
+               << ",\"version_struct_bytes\":" << sizeof(Version)
++              << (v2 ? (std::string(",\"target\":\"") + GC_TARGET_TEXT +
++                        "\",\"once\":" + (GC_ONCE_BOOL ? "true" : "false"))
++                     : "")
++#line 184
+               << ",\"threads\":[";
+     for (size_t i = 0; i < TotalThreadNum; ++i) {
+       if (i) std::cout << ',';
+@@ -309,7 +377,13 @@
+                 << ",\"early_publishes\":" << c.early_publishes
+                 << ",\"early_publish_then_fail\":" << c.early_publish_then_fail
+                 << ",\"installs\":" << c.installs.load()
+-                << ",\"detaches\":" << c.detaches.load() << '}';
++                << ",\"detaches\":" << c.detaches.load();
++      if (v2)
++        std::cout << ",\"no_room\":" << c.no_room
++                  << ",\"once_skipped\":" << c.once_skipped
++                  << ",\"uncapped\":" << c.uncapped;
++      std::cout << '}';
++#line 206
+     }
+     std::cout << "],\"uniform\":{\"count\":" << uniform_rts.count
+               << ",\"negative\":" << uniform_rts.negative
+@@ -437,6 +511,30 @@
+     GC_INC(thid, overflow);
+     return false;
+   }
++  if (FLAGS_cicada_gc_target == "max") {
++    uint64_t upper;
++    if (!forward_upper(tx.read_set_, upper)) {
++      GC_INC(thid, attempts);
++      GC_INC(thid, read_mismatch);
++      return false;
++    }
++    if (upper == std::numeric_limits<uint64_t>::max()) {
++      GC_INC(thid, uncapped);
++    } else {
++      uint64_t below;
++      if (!forward_below(upper, thid, below)) {
++        GC_INC(thid, no_room);
++        return false;
++      }
++      target = std::min(target, below);
++      clock = target >> 8;
++      if (target <= std::max(old_wts, published)) {
++        GC_INC(thid, no_room);
++        return false;
++      }
++    }
++  }
++#line 333
+   GC_INC(thid, attempts);
+   ForwardCheck check = ForwardCheck::ok;
+   for (auto& r : tx.read_set_) {
+@@ -525,8 +623,10 @@
+ void cicada_gc_safepoint(TxExecutor& tx) {
+   GC_INC(tx.thid_, safepoints);
+   static bool checked = [] {
+-    if (FLAGS_cicada_gc_mode != "off" && FLAGS_cicada_gc_mode != "hb" &&
+-        FLAGS_cicada_gc_mode != "e") {
++    if ((FLAGS_cicada_gc_mode != "off" && FLAGS_cicada_gc_mode != "hb" &&
++         FLAGS_cicada_gc_mode != "e") ||
++        (FLAGS_cicada_gc_target != "now" && FLAGS_cicada_gc_target != "max")) {
++#line 423
+       std::cerr << "Invalid Cicada GC mode" << std::endl;
+       std::exit(2);
+     }
+@@ -544,7 +644,16 @@
+       loadAcquire(GCFlag[tx.thid_].obj_) != 0)
+     return;
+   GC_INC(tx.thid_, requests);
+-  if (FLAGS_cicada_gc_mode == "e") gc_advance(tx);
++  if (FLAGS_cicada_gc_mode == "e") {
++    auto& slot = forward_slots[tx.thid_];
++    if (FLAGS_cicada_gc_once && slot.e_tried)
++      GC_INC(tx.thid_, once_skipped);
++    else {
++      slot.e_tried = true;
++      gc_advance(tx);
++    }
++  }
++#line 441
+   storeRelease(GCFlag[tx.thid_].obj_, 1);
+   GC_INC(tx.thid_, flag_raises);
+   tx.gcstart_ = now;
+@@ -562,6 +671,9 @@
+   static const bool configured = [] {
+     if (FLAGS_cicada_fwd_k == 0 || FLAGS_cicada_fwd_k > 256 ||
+         (FLAGS_cicada_fwd_policy != "c" && FLAGS_cicada_fwd_policy != "f") ||
++        (FLAGS_cicada_fwd_target != "min" && FLAGS_cicada_fwd_target != "max" &&
++         FLAGS_cicada_fwd_target != "partial") ||
++#line 39
+         TotalThreadNum > 256) {
+       std::cerr << "Invalid Cicada forwarding flags" << std::endl;
+       std::exit(2);
+@@ -573,6 +685,8 @@
+   (void) configured;
+   auto& slot = forward_slots[thid_];
+   slot.forwarded = slot.scanning = slot.special = false;
++  slot.c_tried = slot.e_tried = false;
++#line 50
+ #endif
+ #line 35
+   /**
+@@ -673,21 +787,90 @@
+         status_ = TransactionStatus::aborted;
+         return nullptr;
+       }
+-      Version* hot = ver;
+-      Version* oldest = nullptr;
+-      for (uint64_t i = 0; hot && i < forward_k; ++i) {
+-        if (hot->ldAcqStatus() == VersionStatus::committed) oldest = hot;
+-        hot = hot->ldAcqNext();
+-      }
+-      if (!oldest) {
+-        FWD_COUNT(slot, no_target);
++      if (FLAGS_cicada_fwd_once && slot.c_tried) {
++        FWD_COUNT(slot, once_skipped);
++#line 135
+       } else {
+-        uint64_t clock = oldest->ldAcqWts() >> 8;
+-        uint64_t bump = thid_ <= (oldest->ldAcqWts() & 255);
+-        if (clock >= (std::numeric_limits<uint64_t>::max() >> 8) - bump) {
++        slot.c_tried = true;
++        Version* hot = ver;
++        Version* oldest = nullptr;
++        for (uint64_t i = 0; hot && i < forward_k; ++i) {
++          if (hot->ldAcqStatus() == VersionStatus::committed) oldest = hot;
++          hot = hot->ldAcqNext();
++        }
++        if (!oldest) {
++#line 139
+           FWD_COUNT(slot, no_target);
+         } else {
+-          uint64_t target = ((clock + bump) << 8) | thid_;
++          uint64_t clock = oldest->ldAcqWts() >> 8;
++          uint64_t bump = thid_ <= (oldest->ldAcqWts() & 255);
++          if (clock >= (std::numeric_limits<uint64_t>::max() >> 8) - bump) {
++            FWD_COUNT(slot, no_target);
++          } else {
++            uint64_t target = ((clock + bump) << 8) | thid_;
++            bool candidate_ready = true;
++            [[maybe_unused]] bool short_target = false;
++            bool unbounded = false;
++            if (FLAGS_cicada_fwd_target != "min") {
++              uint64_t upper;
++              if (!forward_upper(read_set_, upper)) {
++                FWD_COUNT(slot, attempts);
++                FWD_COUNT(slot, read_mismatch);
++                candidate_ready = false;
++              } else {
++                unbounded = upper == std::numeric_limits<uint64_t>::max();
++                uint64_t below = std::numeric_limits<uint64_t>::max();
++                if (upper != std::numeric_limits<uint64_t>::max() &&
++                    !forward_below(upper, thid_, below)) {
++                  FWD_COUNT(slot, no_room);
++                  candidate_ready = false;
++                }
++                const uint64_t max_clock =
++                    std::numeric_limits<uint64_t>::max() >> 8;
++                if (candidate_ready &&
++                    (wts_.localClock_ > max_clock ||
++                     wts_.clockBoost_ > max_clock - wts_.localClock_)) {
++                  FWD_COUNT(slot, no_target);
++                  candidate_ready = false;
++                }
++                if (candidate_ready) {
++                  uint64_t cap_clock =
++                      std::max(rdtscp(), wts_.localClock_ + wts_.clockBoost_);
++                  cap_clock = std::max(cap_clock, wts_.ts_ >> 8);
++                  if (cap_clock >= max_clock) {
++                    FWD_COUNT(slot, no_target);
++                    candidate_ready = false;
++                  } else {
++                    uint64_t cap = (cap_clock << 8) | thid_;
++                    if (cap <= wts_.ts_) {
++                      if (++cap_clock == max_clock) {
++                        FWD_COUNT(slot, no_target);
++                        candidate_ready = false;
++                      } else {
++                        cap = (cap_clock << 8) | thid_;
++                      }
++                    }
++                    if (candidate_ready) {
++                      const uint64_t t = std::min(cap, below);
++                      if (FLAGS_cicada_fwd_target == "max")
++                        target = std::max(target, t);
++                      else if (t > trts) {
++                        short_target = t < target;
++                        target = t;
++                      }
++                      if (target <= trts &&
++                          !(FLAGS_cicada_fwd_target == "partial" && t <= trts)) {
++                        FWD_COUNT(slot, no_room);
++                        candidate_ready = false;
++                      }
++                    }
++                  }
++                }
++              }
++            }
++            if (candidate_ready) {
++          if (unbounded) FWD_COUNT(slot, uncapped);
++#line 142
+           FWD_COUNT(slot, attempts);
+           ForwardCheck check = ForwardCheck::ok;
+           for (auto& r : read_set_) {
+@@ -740,6 +923,8 @@
+             slot.forwarded = true;
+ #if CICADA_FWD_COUNT
+             ++slot.success;
++            if (short_target) ++slot.short_success;
++#line 194
+             slot.advance_clock_sum += (target - trts) >> 8;
+             slot.pos_before_sum += physical_pos;
+ #endif
+@@ -768,6 +953,9 @@
+                 break;
+               case ForwardCheck::ok:
+                 break;
++            }
++          }
++#line 222
+             }
+           }
+         }
