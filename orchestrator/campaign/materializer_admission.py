@@ -110,6 +110,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "Cicada lifetime measurement builds are diagnostic only",
         ),
+    "orchestrator.campaign.vhash_cicada_hot_block._build_one":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "exploratory Cicada VHash hot-block builds are ineligible for certified selection",
+        ),
     "orchestrator.campaign.vhash_ro_gc_publish._build_variant":
         MaterializerRegistration(
             NON_ADMISSIBLE,

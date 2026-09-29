@@ -129,3 +129,8 @@ submit-tree (job dir 下の detached worktree、`18f379f0d`、ccbench = C) か�
 - MOCC は silo と別の cohort 名・cohort root で走らせる (aggregate は protocol をキーにしていない)。
 - MOCC の比較は stock 比で報告し、既知最良の参照が無いことを明記する (D2220 項 6)。
 - harness mode を直接 qsub するときの作法 (submit-tree は AI の worktree 置き場の外に job ごとに 1 本、third-party は submit-tree 内 staging へ hydrate) は、段 8 で記載先を決める。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元として名指す submit-tree `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2849-mocc/submit-tree` と `submit-tree-b` (detached `18f379f0d`、main の祖先) は、2026-09-30 の掃除 wave で回収せずに撤去する。生死確認の値は本文 §6 にあり、job dir の `liveness/` は撤去しない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

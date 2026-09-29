@@ -1,0 +1,9 @@
+start 2026-09-29 21:49:54 JST
+curl rc=0
+0b18d32a56a6724f3a64a9e544079197b669a27bc1534749e6158307ee042c89  /work/1/SFC/tanab/tmp/silo-intra-txn-fix-2026-09-29/wave/master-probe/cc/silo/transaction.cc
+patch sha256: 2fca96512edab25ed5d097fb201b2d975782a7c8ef607e0adc50fba4f8618c3b
+checking file cc/silo/transaction.cc
+Hunk #1 succeeded at 192 (offset -16 lines).
+Hunk #2 succeeded at 458 (offset -68 lines).
+patch dry-run rc=0
+end 2026-09-29 21:49:55 JST

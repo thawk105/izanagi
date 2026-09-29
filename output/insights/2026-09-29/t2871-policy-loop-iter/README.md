@@ -99,3 +99,8 @@ run_campaign の呼出しは 2 本のまま (test_campaign.py の棚卸し pin)�
 - 研究系列 (LLM の coder・auditor・critic を回す新系列) を複数 iteration 回すことが次の研究前進。単価は pair 741〜793 s。
 - critic digest が 1 本目・2 本目の計測 WAL を弁別できない検査の弱さ (段 6 裁定 5) は、コード経路が無い仮想欠陥として実装していない。
 - 同じ系列への並行投入 (番号予約)・強制終了した番号の再測定契約・系列全体の admitted digest の再構成・生成器対照の系列制御は、段 4 で scope 外とした。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2871-policy-loop-iter/trees/live` は、2026-09-30 の掃除 wave で回収せずに撤去する。未追跡の campaign 3 本は前日の退避 tar (集約 insight の表の該当行) に入っている。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

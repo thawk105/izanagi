@@ -310,3 +310,8 @@ oracle 実走の全条件ではない** — §4 の T-080 receipt live scan の�
 
 両レビューとも G の実体照合 (親・diff・mode・blob・sha256・trailer) と、中心結論 (X1' を含む checkout では production gate が
 refuse し A / X だけでは解消しない) を支持した。fix はすべて docs (README / package / fragment) で、実装面は触っていない。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+再現手順が作業場所として名指す `.codex/worktrees/t2724-g1-gen` (branch `freeze-g1-gen-t2724`) は、2026-09-30 の掃除 wave で撤去する。G `32ba8cae4` は main の祖先なので、同じ blob は main の任意の checkout から `git cat-file` で取り出せる。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

@@ -130,3 +130,8 @@ planner-5 / coder-5 の出力・入力・prompt は生成時の原物 (T-2795 jo
 - `reviews/` — `s1-brief.md`、`s4-ruling.md`、段 6 のレビュー
 - **repo へ複製していないもの:** campaign の WAL・lock・digest・loop_state・受領証・`runs/agent_outputs.jsonl` (guard の防護対象)。写しは job root の `ao-root/`、原本は lock 済み `submit-tree-r4` と byte 複製 `originals-copy-20260922/r4/`
 - job root の glue (repo 外、実装面ではない): `setup-ao-root.sh`、`project_round4_results.py`、`build_critic_input_4.py`、`extract_critic4.py`、`run-ingest-r4.sh`、`run-layer3-r4.sh`、`fix-registered.sh`、`extract_rounds123.py`
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が原本として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair-resubmit/submit-tree-r4` (と pair2) は、2026-09-30 の掃除 wave で回収せずに撤去する。原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` (manifest `k2-resubmit-r4-originals`・`k2-resubmit-pair2-originals`) と job dir の byte 複製 `originals-copy-20260922/` に残り、AO を取り込んだ写し `ao-root/` も job root に残る (job dir の file は撤去しない)。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

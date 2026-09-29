@@ -1,0 +1,165 @@
+{
+ "files": {
+  "evidence/ci/build.log": {
+   "lines": [
+    [
+     34,
+     " "
+    ]
+   ],
+   "normalized_bytes": 24236,
+   "normalized_sha256": "db31a0b76b6cb86dbcbd69a2afd20a8a85e0ff2149e98fc29a02e19801b7ccf2",
+   "original_bytes": 24237,
+   "original_sha256": "c8d72bdd90898ac0acc934af21a55dcfe1c7350cdf745ebcc501d76e83fa2c8e"
+  },
+  "evidence/ci/configure.log": {
+   "lines": [
+    [
+     10,
+     "  "
+    ],
+    [
+     11,
+     "  "
+    ],
+    [
+     12,
+     "  "
+    ],
+    [
+     13,
+     " "
+    ],
+    [
+     20,
+     " "
+    ],
+    [
+     21,
+     " "
+    ],
+    [
+     29,
+     " "
+    ],
+    [
+     38,
+     " "
+    ],
+    [
+     39,
+     " "
+    ]
+   ],
+   "normalized_bytes": 1904,
+   "normalized_sha256": "78c2ef4a255b068f045b4a064d79ea2bdac8d4a8bc9323a72dff1687b3f4224c",
+   "original_bytes": 1916,
+   "original_sha256": "9809d34e01b470f42673a18702dbc26daa73c0b0fe13e78596907de6532de711"
+  },
+  "evidence/cijudge-1.log": {
+   "lines": [
+    [
+     37,
+     " "
+    ]
+   ],
+   "normalized_bytes": 5589,
+   "normalized_sha256": "f2dde61febf44bea40d5f05baebb777f4351c33110f4231d267abc38f00ddabe",
+   "original_bytes": 5590,
+   "original_sha256": "4619eb71894335d2e71d2292a5b308e4541cf7e1117f69086349d3cd4ab1958d"
+  },
+  "evidence/line_probe.log": {
+   "lines": [
+    [
+     5,
+     " "
+    ],
+    [
+     6,
+     " "
+    ]
+   ],
+   "normalized_bytes": 788,
+   "normalized_sha256": "25dcf1f204d383724d149ad519343e1fd07aa6960fa0f37232db42e9d6827358",
+   "original_bytes": 790,
+   "original_sha256": "9b7b946a6b4648047c604db9649f3a698b2bbbb63d4bd56dd9ee05cbd6f405d6"
+  },
+  "evidence/line_probe_b.log": {
+   "lines": [
+    [
+     4,
+     " "
+    ],
+    [
+     5,
+     " "
+    ]
+   ],
+   "normalized_bytes": 636,
+   "normalized_sha256": "705dbd2c34e5fd82316393984b614074f74fb20104f677e4a9cb26ff46907094",
+   "original_bytes": 638,
+   "original_sha256": "17bf9495586dd676c58b24face0037ccfa383e1d2ff1d996184668ad8b00e556"
+  },
+  "evidence/mk-fix.log": {
+   "lines": [
+    [
+     45,
+     " "
+    ],
+    [
+     51,
+     " "
+    ],
+    [
+     57,
+     " "
+    ]
+   ],
+   "normalized_bytes": 7557,
+   "normalized_sha256": "93fabd6a59f71b0e723d466ac8a3527b0bec8c2f7d0ba3f6dce1d655f63f4814",
+   "original_bytes": 7560,
+   "original_sha256": "f17a50e9fcc46e3b1b342aab5eb7c722eff545a937f660b8ccce9d171364af43"
+  },
+  "evidence/trace/trace-1.log": {
+   "lines": [
+    [
+     32,
+     " "
+    ]
+   ],
+   "normalized_bytes": 4998,
+   "normalized_sha256": "eb8e6a880569c0e0a543a14e2d7490149c145226a3f7a59810979d12f9d0a1b5",
+   "original_bytes": 4999,
+   "original_sha256": "eca48044360d276f5cb53038ed9449a7a395fd1b61bf77d30aef73d15e7d03ab"
+  },
+  "verbatim/review-a.md": {
+   "lines": [
+    [
+     3,
+     "  "
+    ],
+    [
+     6,
+     "  "
+    ],
+    [
+     9,
+     "  "
+    ],
+    [
+     12,
+     "  "
+    ],
+    [
+     15,
+     "  "
+    ]
+   ],
+   "normalized_bytes": 3145,
+   "normalized_sha256": "b08a70d06d5581b8626b86002625f665debe408f7704c317d41371a353a35ba1",
+   "original_bytes": 3155,
+   "original_sha256": "40b529c2debc7bbfa518e4c7ca8973b5fd05f83e19160daf32995ed19f2e28a5"
+  }
+ },
+ "rule": "strip trailing [ \\t] per line; restore by appending 'removed' to the listed 1-based lines"
+}
