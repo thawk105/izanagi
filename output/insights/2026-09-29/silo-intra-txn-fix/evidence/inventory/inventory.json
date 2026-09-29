@@ -1,0 +1,6631 @@
+{
+  "count": 44,
+  "bases": {
+    "F": "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+    "TIP": "7e5fa528037805dfc0459c742e4a21d6114c9799",
+    "PIN": "68106660686232781bca3be792a750d3e19d7a8a"
+  },
+  "classes": {
+    "D": 3,
+    "A": 39,
+    "C": 2
+  },
+  "changed_F_to_TIP": [
+    "broken-silo-repeat-update-buffer.patch",
+    "broken-silo-stale-read-own-write.patch"
+  ],
+  "patches": [
+    {
+      "patch": "broken-silo-corrupt-write-payload.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cc/silo/transaction.cc:655\nerror: cc/silo/transaction.cc: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              655,
+              662
+            ],
+            [
+              706,
+              711
+            ]
+          ]
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cc/silo/transaction.cc:655\nerror: cc/silo/transaction.cc: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              655,
+              662
+            ],
+            [
+              706,
+              711
+            ]
+          ]
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "D",
+      "assessment": {
+        "F": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        },
+        "TIP": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-early-unlock-validation.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:775",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              583,
+              588
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              583,
+              588
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-fixed-commit-version.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              576,
+              582
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              576,
+              582
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-highkey-validation.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              385,
+              396
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              385,
+              396
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-lockskip-validation.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              156,
+              161
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              156,
+              161
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-no-read-tid-max.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              8
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              564,
+              570
+            ],
+            [
+              579,
+              584
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              8
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              564,
+              570
+            ],
+            [
+              579,
+              584
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-no-write-tid-max.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              8
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              564,
+              570
+            ],
+            [
+              579,
+              584
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              8
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              564,
+              570
+            ],
+            [
+              579,
+              584
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-norw-validation.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              385,
+              396
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              385,
+              396
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-permutation-erase.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              406,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              406,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-permutation-swap.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              406,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              406,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-lockskip-validation.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:774",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              252,
+              257
+            ]
+          ],
+          "overlap_regions": [
+            [
+              326,
+              354
+            ],
+            [
+              668,
+              676
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              252,
+              257
+            ]
+          ],
+          "overlap_regions": [
+            [
+              326,
+              354
+            ],
+            [
+              668,
+              679
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-abort-hook.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              181,
+              187
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              181,
+              187
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-clamp.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              255,
+              261
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              255,
+              261
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-commit-hook.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              206,
+              212
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              206,
+              212
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-limit.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              391,
+              396
+            ],
+            [
+              404,
+              409
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              391,
+              396
+            ],
+            [
+              404,
+              409
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-lock-hook.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              196,
+              202
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              196,
+              202
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-prefix-unlock-limit.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              409,
+              419
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              409,
+              419
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-prefix-unlock.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              434,
+              445
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              434,
+              445
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-no-reload.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              418,
+              424
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              418,
+              424
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-norw-validation.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:774",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              573,
+              578
+            ],
+            [
+              582,
+              587
+            ]
+          ],
+          "overlap_regions": [
+            [
+              326,
+              354
+            ],
+            [
+              668,
+              676
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              573,
+              578
+            ],
+            [
+              582,
+              587
+            ]
+          ],
+          "overlap_regions": [
+            [
+              326,
+              354
+            ],
+            [
+              668,
+              679
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-policy-wrong-reason.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch",
+        "instr-silo-function-policy-probe.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:778",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              389,
+              394
+            ],
+            [
+              457,
+              462
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              858
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              389,
+              394
+            ],
+            [
+              457,
+              462
+            ]
+          ],
+          "overlap_regions": [
+            [
+              499,
+              527
+            ],
+            [
+              850,
+              861
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-function-policy-probe.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-published-version-mismatch.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cc/silo/transaction.cc:657\nerror: cc/silo/transaction.cc: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              657,
+              663
+            ],
+            [
+              706,
+              711
+            ]
+          ]
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cc/silo/transaction.cc:657\nerror: cc/silo/transaction.cc: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              657,
+              663
+            ],
+            [
+              706,
+              711
+            ]
+          ]
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "D",
+      "assessment": {
+        "F": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        },
+        "TIP": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-read-lock-check.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              464,
+              475
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              464,
+              475
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-repeat-update-buffer.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              526,
+              532
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": true,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cc/silo/transaction.cc:526\nerror: cc/silo/transaction.cc: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              526,
+              532
+            ],
+            [
+              706,
+              711
+            ]
+          ]
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "C",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": true,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-skip-node-validation.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              477,
+              487
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              477,
+              487
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-sort-nonswo.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              405,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SORT_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              405,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SORT_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-stale-read-own-write.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              214,
+              223
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": true,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cc/silo/transaction.cc:214\nerror: cc/silo/transaction.cc: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              214,
+              223
+            ],
+            [
+              706,
+              711
+            ]
+          ]
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "C",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": true,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-stale-read-payload.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              267,
+              277
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              267,
+              277
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-tail-commit-omission.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              705,
+              710
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              2,
+              7
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              705,
+              710
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-trigger-misattr.patch",
+      "prerequisites": [
+        "silo-backoff-trigger-gating-variant.patch",
+        "instr-silo-backoff-trigger-gating-tally.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/orchestrator/campaign/s8a_trigger_coverage.py:161",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-backoff-trigger-gating-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-backoff-trigger-gating-tally.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              237,
+              244
+            ]
+          ],
+          "overlap_regions": [
+            [
+              301,
+              329
+            ],
+            [
+              643,
+              651
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "BACKOFF_TRIGGER_GATING": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-backoff-trigger-gating-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-backoff-trigger-gating-tally.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              237,
+              244
+            ]
+          ],
+          "overlap_regions": [
+            [
+              301,
+              329
+            ],
+            [
+              643,
+              654
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "BACKOFF_TRIGGER_GATING": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-backoff-trigger-gating-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            },
+            {
+              "patch": "instr-silo-backoff-trigger-gating-tally.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-write-intent-erase.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-write-intent-forge.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-write-intent-opswap.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "broken-silo-write-intent-ptrswap.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              485,
+              490
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "control-silo-conservative-abort.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              385,
+              390
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              385,
+              390
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "control-silo-double-abort-backoff.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              45,
+              50
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              45,
+              50
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "control-silo-reverse-write-order.patch",
+      "prerequisites": [],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:800",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              405,
+              411
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              1,
+              6
+            ],
+            [
+              53,
+              58
+            ],
+            [
+              405,
+              411
+            ],
+            [
+              706,
+              711
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "instr-silo-backoff-trigger-gating-tally.patch",
+      "prerequisites": [
+        "silo-backoff-trigger-gating-variant.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:517",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-backoff-trigger-gating-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              59,
+              64
+            ]
+          ],
+          "overlap_regions": [
+            [
+              277,
+              305
+            ],
+            [
+              619,
+              627
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "BACKOFF_TRIGGER_GATING": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-backoff-trigger-gating-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              59,
+              64
+            ]
+          ],
+          "overlap_regions": [
+            [
+              277,
+              305
+            ],
+            [
+              619,
+              630
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "BACKOFF_TRIGGER_GATING": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-backoff-trigger-gating-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "instr-silo-function-policy-probe.patch",
+      "prerequisites": [
+        "silo-function-policy-variant.patch"
+      ],
+      "prereq_source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-silo-intra-txn-fix/patches/README.md:767",
+      "bases": {
+        "F": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              8,
+              13
+            ],
+            [
+              84,
+              95
+            ],
+            [
+              136,
+              142
+            ],
+            [
+              152,
+              158
+            ],
+            [
+              197,
+              202
+            ],
+            [
+              258,
+              263
+            ],
+            [
+              265,
+              271
+            ],
+            [
+              274,
+              286
+            ],
+            [
+              299,
+              304
+            ],
+            [
+              314,
+              319
+            ],
+            [
+              588,
+              593
+            ],
+            [
+              603,
+              608
+            ],
+            [
+              617,
+              622
+            ],
+            [
+              847,
+              852
+            ],
+            [
+              881,
+              886
+            ]
+          ],
+          "overlap_regions": [
+            [
+              326,
+              354
+            ],
+            [
+              668,
+              676
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              8,
+              13
+            ],
+            [
+              84,
+              95
+            ],
+            [
+              136,
+              142
+            ],
+            [
+              152,
+              158
+            ],
+            [
+              197,
+              202
+            ],
+            [
+              258,
+              263
+            ],
+            [
+              265,
+              271
+            ],
+            [
+              274,
+              286
+            ],
+            [
+              299,
+              304
+            ],
+            [
+              314,
+              319
+            ],
+            [
+              588,
+              593
+            ],
+            [
+              603,
+              608
+            ],
+            [
+              617,
+              622
+            ],
+            [
+              847,
+              852
+            ],
+            [
+              881,
+              886
+            ]
+          ],
+          "overlap_regions": [
+            [
+              326,
+              354
+            ],
+            [
+              668,
+              679
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [
+            {
+              "patch": "silo-function-policy-variant.patch",
+              "check_rc": 0,
+              "check_stderr": ""
+            }
+          ],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "silo-backoff-requested-us.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cmake/Options.cmake:25\nerror: cmake/Options.cmake: patch does not apply\nerror: patch failed: include/backoff.hh:106\nerror: include/backoff.hh: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              6,
+              12
+            ],
+            [
+              42,
+              48
+            ]
+          ]
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cmake/Options.cmake:25\nerror: cmake/Options.cmake: patch does not apply\nerror: patch failed: include/backoff.hh:106\nerror: include/backoff.hh: patch does not apply\n",
+          "applicable": false,
+          "hunks": [
+            [
+              6,
+              12
+            ],
+            [
+              42,
+              48
+            ]
+          ]
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 1,
+          "check_stderr": "error: patch failed: cmake/Options.cmake:25\nerror: cmake/Options.cmake: patch does not apply\nerror: patch failed: include/backoff.hh:106\nerror: include/backoff.hh: patch does not apply\n",
+          "applicable": false
+        }
+      },
+      "class": "D",
+      "assessment": {
+        "F": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        },
+        "TIP": {
+          "applicable": false,
+          "overlap": null,
+          "inert": null
+        }
+      }
+    },
+    {
+      "patch": "silo-backoff-trigger-gating-variant.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              12,
+              17
+            ],
+            [
+              44,
+              50
+            ],
+            [
+              54,
+              59
+            ],
+            [
+              96,
+              101
+            ],
+            [
+              160,
+              165
+            ],
+            [
+              185,
+              190
+            ],
+            [
+              456,
+              461
+            ],
+            [
+              468,
+              473
+            ],
+            [
+              479,
+              484
+            ],
+            [
+              724,
+              728
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "BACKOFF_TRIGGER_GATING": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              12,
+              17
+            ],
+            [
+              44,
+              50
+            ],
+            [
+              54,
+              59
+            ],
+            [
+              96,
+              101
+            ],
+            [
+              160,
+              165
+            ],
+            [
+              185,
+              190
+            ],
+            [
+              456,
+              461
+            ],
+            [
+              468,
+              473
+            ],
+            [
+              479,
+              484
+            ],
+            [
+              724,
+              728
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "BACKOFF_TRIGGER_GATING": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "silo-function-policy-variant.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              8,
+              13
+            ],
+            [
+              44,
+              50
+            ],
+            [
+              54,
+              59
+            ],
+            [
+              96,
+              101
+            ],
+            [
+              155,
+              163
+            ],
+            [
+              165,
+              170
+            ],
+            [
+              185,
+              190
+            ],
+            [
+              456,
+              461
+            ],
+            [
+              468,
+              473
+            ],
+            [
+              479,
+              484
+            ],
+            [
+              706,
+              711
+            ],
+            [
+              737,
+              741
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              8,
+              13
+            ],
+            [
+              44,
+              50
+            ],
+            [
+              54,
+              59
+            ],
+            [
+              96,
+              101
+            ],
+            [
+              155,
+              163
+            ],
+            [
+              165,
+              170
+            ],
+            [
+              185,
+              190
+            ],
+            [
+              456,
+              461
+            ],
+            [
+              468,
+              473
+            ],
+            [
+              479,
+              484
+            ],
+            [
+              706,
+              711
+            ],
+            [
+              737,
+              741
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SILO_POLICY_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "silo-sort-variant.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              405,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SORT_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              405,
+              411
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "SORT_VARIANT": "0",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    },
+    {
+      "patch": "silo_ladder_rung1.patch",
+      "prerequisites": [],
+      "prereq_source": "unknown",
+      "bases": {
+        "F": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              8,
+              13
+            ],
+            [
+              169,
+              176
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              536
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "TIP": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true,
+          "hunks": [
+            [
+              8,
+              13
+            ],
+            [
+              169,
+              176
+            ]
+          ],
+          "overlap_regions": [
+            [
+              195,
+              223
+            ],
+            [
+              528,
+              539
+            ]
+          ],
+          "overlap": false,
+          "inert": {
+            "0": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            },
+            "1": {
+              "before_rc": 0,
+              "after_rc": 0,
+              "equal": true,
+              "before_stderr": "",
+              "after_stderr": ""
+            }
+          },
+          "stock_defines": {
+            "ADD_ANALYSIS": "0",
+            "BACK_OFF": "1",
+            "KEY_SIZE": "8",
+            "MASSTREE_USE": "1",
+            "VAL_SIZE": "4",
+            "NO_WAIT_LOCKING_IN_VALIDATION": "1",
+            "NO_WAIT_OF_TICTOC": "0",
+            "PARTITION_TABLE": "0",
+            "SLEEP_READ_PHASE": "0",
+            "PROCEDURE_SORT": "0",
+            "WAL": "0",
+            "Linux": "1"
+          }
+        },
+        "PIN": {
+          "prerequisites": [],
+          "check_rc": 0,
+          "check_stderr": "",
+          "applicable": true
+        }
+      },
+      "class": "A",
+      "assessment": {
+        "F": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        },
+        "TIP": {
+          "applicable": true,
+          "overlap": false,
+          "inert": true
+        }
+      }
+    }
+  ]
+}
