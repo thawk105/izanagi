@@ -134,7 +134,7 @@ index efcf02d75..fd0f8eed2 100644
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -26,12 +40,645 @@ using namespace std;
+@@ -26,12 +40,656 @@ using namespace std;
  
  #define MSK_TID 0b11111111
  
@@ -150,6 +150,7 @@ index efcf02d75..fd0f8eed2 100644
 +  uint64_t mode_calls[4] = {}, mode_intervals[4] = {}, mode_versions[4] = {};
 +  uint64_t gap_keys = 0, empty_gap_keys = 0;
 +  uint64_t attempts = 0, success = 0, cas_fail = 0, lock_fail = 0;
++  uint64_t install_lock_spins = 0, install_lock_wait_tsc = 0;
 +  uint64_t stock_lock_dropped = 0, stock_lock_dropped_pruned = 0;
 +  uint64_t installed = 0, installed_bytes = 0;
 +  uint64_t pruned = 0, pruned_bytes = 0, reuse = 0;
@@ -253,6 +254,8 @@ index efcf02d75..fd0f8eed2 100644
 +                << ",\"success\":" << c.success
 +                << ",\"cas_fail\":" << c.cas_fail
 +                << ",\"lock_fail\":" << c.lock_fail
++                << ",\"install_lock_spins\":" << c.install_lock_spins
++                << ",\"install_lock_wait_tsc\":" << c.install_lock_wait_tsc
 +                << ",\"stock_lock_dropped\":" << c.stock_lock_dropped
 +                << ",\"stock_lock_dropped_pruned\":"
 +                << c.stock_lock_dropped_pruned
@@ -339,7 +342,14 @@ index efcf02d75..fd0f8eed2 100644
 +    ++igc_counts[id].retire_age[igc_bucket(age)];                              \
 +  } while (false)
 +#define IGC_COUNT_MODE_CALL(id, mode) igc_count_mode_call(id, mode)
-+#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) igc_count_mode_candidate(id, mode, n)
++#define IGC_INSTALL_WAIT_START() rdtscp()
++#define IGC_COUNT_INSTALL_WAIT(id, spins, start)                               \
++  do {                                                                         \
++    igc_counts[id].install_lock_spins += spins;                                \
++    if (spins) igc_counts[id].install_lock_wait_tsc += rdtscp() - start;       \
++  } while (false)
++#define IGC_COUNT_MODE_CANDIDATE(id, mode, n)                                  \
++  igc_count_mode_candidate(id, mode, n)
 +#else
 +#define IGC_COUNT(id, expression) ((void) 0)
 +#define IGC_COUNT_PRUNED(id, v) ((void) 0)
@@ -349,6 +359,8 @@ index efcf02d75..fd0f8eed2 100644
 +#define IGC_COUNT_RETIRE(id, v) ((void) 0)
 +#define IGC_COUNT_UNRETIRE(id, v, age) ((void) 0)
 +#define IGC_COUNT_MODE_CALL(id, mode) ((void) 0)
++#define IGC_INSTALL_WAIT_START() 0
++#define IGC_COUNT_INSTALL_WAIT(id, spins, start) ((void) 0)
 +#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) ((void) 0)
 +#endif
 +
@@ -609,9 +621,8 @@ index efcf02d75..fd0f8eed2 100644
 +        return false;
 +      // Keep both anchors: the first node at/below p may be pending, so
 +      // its predecessor need not be the visible committed predecessor.
-+      // A detached node keeps its next links. A blind writer following
-+      // later_ver_ to insert at wts <= p reaches the protected predecessor
-+      // of the first node at/below p before its pre_ver->next_ CAS.
++      // Blind install searches from latest_ under this tuple's gc_lock_.
++      // Keep both anchors for read-side validation as well.
 +      if (vis[j] == i + 1 || first_le[j] == i + 1) return false;
 +    }
 +    return true;
@@ -780,7 +791,7 @@ index efcf02d75..fd0f8eed2 100644
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +688,10 @@ void TxExecutor::begin() {
+@@ -41,6 +699,10 @@ void TxExecutor::begin() {
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -791,7 +802,7 @@ index efcf02d75..fd0f8eed2 100644
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +752,16 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+@@ -101,6 +763,16 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -808,7 +819,7 @@ index efcf02d75..fd0f8eed2 100644
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -123,6 +784,8 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+@@ -123,6 +795,8 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
      return nullptr;
    }
  
@@ -817,7 +828,7 @@ index efcf02d75..fd0f8eed2 100644
    read_set_.emplace_back(s, key, tuple, later_ver, ver);
  
  #if INLINE_VERSION_OPT
-@@ -267,6 +930,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+@@ -267,6 +941,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -828,7 +839,7 @@ index efcf02d75..fd0f8eed2 100644
      }
    }
  
-@@ -298,6 +965,10 @@ FINISH_WRITE:
+@@ -298,6 +976,10 @@ FINISH_WRITE:
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -839,7 +850,7 @@ index efcf02d75..fd0f8eed2 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +1017,10 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -346,6 +1028,10 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -850,7 +861,7 @@ index efcf02d75..fd0f8eed2 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +1092,10 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -417,6 +1103,10 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -861,7 +872,58 @@ index efcf02d75..fd0f8eed2 100644
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -520,6 +1199,8 @@ bool TxExecutor::validation() {
+@@ -485,6 +1175,50 @@ bool TxExecutor::validation() {
+     // prove that across the (op != RMW && op != DELETE && !WRITE_LATEST_ONLY
+     // && ver != expected) condition. Initialize to silence -Wmaybe-uninitialized
+     // without changing runtime behavior.
++#if CICADA_INTERVAL_GC
++    if ((*itr).op_ != OpType::RMW && (*itr).op_ != OpType::DELETE &&
++        !WRITE_LATEST_ONLY) {
++      Tuple* tuple = (*itr).rcdptr_;
++      uint64_t wait_spins = 0;
++      uint64_t wait_start = 0;
++      // Install and pruning each hold only this tuple's gc_lock_. Neither
++      // waits for a second tuple lock, so serialization cannot deadlock.
++      while (!tuple->getGCRight(thid_ + 1)) {
++        if (wait_spins++ == 0) wait_start = IGC_INSTALL_WAIT_START();
++      }
++      IGC_COUNT_INSTALL_WAIT(thid_, wait_spins, wait_start);
++      for (;;) {
++        Version* head = tuple->ldAcqLatest();
++        Version* before = nullptr;
++        Version* at = head;
++        // A failed CAS restarts from latest_; later_ver_ may name a node
++        // detached before this lock was acquired.
++        while (at->ldAcqWts() > this->wts_.ts_) {
++          before = at;
++          at = at->ldAcqNext();
++        }
++        // Write-set validation follows new_ver_->next_, not later_ver_.
++        (*itr).later_ver_ = before;
++        (*itr).new_ver_->strRelNext(at);
++        if (!before) {
++          if (tuple->latest_.compare_exchange_strong(head, (*itr).new_ver_,
++                                                     memory_order_acq_rel,
++                                                     memory_order_acquire))
++            break;
++        } else {
++          IGC_ASSERT_A1(thid_, before, at)
++          if (before->next_.compare_exchange_strong(at, (*itr).new_ver_,
++                                                    memory_order_acq_rel,
++                                                    memory_order_acquire))
++            break;
++        }
++      }
++      tuple->returnGCRight();
++      (*itr).finish_version_install_ = true;
++      continue;
++    }
++#endif
++#line 488
+     Version *expected(nullptr), *ver, *pre_ver = nullptr;
+     for (;;) {
+       if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
+@@ -520,6 +1254,8 @@ bool TxExecutor::validation() {
          }
        } else {
          (*itr).new_ver_->strRelNext(ver);
@@ -870,7 +932,7 @@ index efcf02d75..fd0f8eed2 100644
          if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
                                                     memory_order_acq_rel,
                                                     memory_order_acquire)) {
-@@ -547,17 +1228,34 @@ bool TxExecutor::validation() {
+@@ -547,17 +1283,34 @@ bool TxExecutor::validation() {
      else
        ver = (*itr).rcdptr_->ldAcqLatest();
  
@@ -905,7 +967,7 @@ index efcf02d75..fd0f8eed2 100644
      /**
       * This part is different from the original.
       * Checking that view is not broken.
-@@ -576,13 +1274,27 @@ bool TxExecutor::validation() {
+@@ -576,13 +1329,27 @@ bool TxExecutor::validation() {
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
      Version* ver = (*itr).new_ver_->ldAcqNext();
@@ -933,7 +995,7 @@ index efcf02d75..fd0f8eed2 100644
      }
  
      if (ver->ldAcqRts() > this->wts_.ts_ ||
-@@ -716,6 +1428,22 @@ inline void TxExecutor::cpv() // commit pending versions
+@@ -716,6 +1483,22 @@ inline void TxExecutor::cpv() // commit pending versions
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -956,7 +1018,7 @@ index efcf02d75..fd0f8eed2 100644
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -743,6 +1471,10 @@ void TxExecutor::gcpv() {
+@@ -743,6 +1526,10 @@ void TxExecutor::gcpv() {
   * @return void
   */
  void TxExecutor::abort() {
@@ -967,7 +1029,7 @@ index efcf02d75..fd0f8eed2 100644
    // remove inserted records
    for (auto& we : write_set_) {
      if (we.op_ == OpType::INSERT) {
-@@ -804,6 +1536,25 @@ bool TxExecutor::chkGcpvTimeout() {
+@@ -804,6 +1591,25 @@ bool TxExecutor::chkGcpvTimeout() {
  }
  
  void TxExecutor::gc_versions() {
@@ -993,7 +1055,7 @@ index efcf02d75..fd0f8eed2 100644
    while (!gcq_.empty()) {
      if (gcq_.front().wts_ >= MinRts.load(memory_order_acquire)) break;
  
-@@ -813,12 +1564,51 @@ void TxExecutor::gc_versions() {
+@@ -813,12 +1619,51 @@ void TxExecutor::gc_versions() {
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -1045,7 +1107,7 @@ index efcf02d75..fd0f8eed2 100644
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -832,9 +1622,24 @@ void TxExecutor::gc_versions() {
+@@ -832,9 +1677,24 @@ void TxExecutor::gc_versions() {
          gcq_.front().ver_->next_.load(std::memory_order_acquire);
  
      // the thread detaches the rest of the version list from v
@@ -1070,7 +1132,7 @@ index efcf02d75..fd0f8eed2 100644
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -911,12 +1716,26 @@ void TxExecutor::writePhase() {
+@@ -911,12 +1771,26 @@ void TxExecutor::writePhase() {
    read_set_.clear();
    write_set_.clear();
    node_map_.clear();
@@ -1097,7 +1159,7 @@ index efcf02d75..fd0f8eed2 100644
    /**
     * Tanabe Optimization for analysis
     */
-@@ -961,6 +1780,13 @@ bool TxExecutor::isLeader() { return this->thid_ == 0; }
+@@ -961,6 +1835,13 @@ bool TxExecutor::isLeader() { return this->thid_ == 0; }
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
