@@ -118,6 +118,7 @@ def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel):
                                 marker="s" if delay == "wait10msU" else "o",
                                 capsize=2, label=f"{prefix} {delay} GC {gc} µs")
     ax.set(title=title, xlabel="Specified read-only procedures (%)", ylabel=ylabel)
+    ax.set_xlim(0, 100)
     ax.grid(alpha=.2)
     ax.legend(fontsize=5, ncol=2, loc="upper left")
 
@@ -137,6 +138,7 @@ def _draw(ax, ids, runs, metric, *, index=None, multiplier=1, title, ylabel):
                             marker="o", capsize=2, linewidth=1,
                             label=f"GC {gc} µs; {delay}")
     ax.set(title=title, xlabel="Specified read-only procedures (%)", ylabel=ylabel)
+    ax.set_xlim(0, 100)
     ax.grid(alpha=.2)
 
 
@@ -173,7 +175,8 @@ def _save(fig, out, name, common, numbers, caption):
         ax.title.set_fontsize(9)
         ax.xaxis.label.set_fontsize(8)
         ax.yaxis.label.set_fontsize(8)
-    fig.tight_layout(rect=(0, .095, 1, .99), pad=3.5, h_pad=4, w_pad=4)
+    top = .94 if len(fig.axes) == 2 else .99
+    fig.tight_layout(rect=(0, .095, 1, top), pad=3.5, h_pad=4, w_pad=4)
     _layout(fig)
     for suffix in ("png", "pdf"):
         fig.savefig(out / f"{name}.{suffix}", dpi=180)
@@ -247,6 +250,7 @@ def render(paths: list[Path], out: Path):
                                 label=f"GC {gc} µs")
     axes[0, 0].set(title="D-F: read-only condition difference, no long tx",
                    xlabel="Specified read-only procedures (%)", ylabel="Boundary age difference (µs)")
+    axes[0, 0].set_xlim(0, 100)
     labels, centers, errors = [], [], []
     for gc in COLORS:
         for delay in ("wait1msU", "wait10msU"):
@@ -272,6 +276,7 @@ def render(paths: list[Path], out: Path):
                                 marker="o", capsize=2, label=f"GC {gc} µs; {delay}")
     axes[1, 0].set(title="D-F: condition total-difference interaction",
                    xlabel="Specified read-only procedures (%)", ylabel="Boundary age difference (µs)")
+    axes[1, 0].set_xlim(0, 100)
     for gc, color in COLORS.items():
         for metric, style, label in (
             ("dc_cf_wait_mean_us", "-", "first flag opportunity"),
@@ -288,6 +293,7 @@ def render(paths: list[Path], out: Path):
                                     marker="o", capsize=2, label=f"GC {gc} µs; {label}")
     axes[1, 1].set(title="D-C: observed flag-opportunity split, no long tx",
                    xlabel="Specified read-only procedures (%)", ylabel="Mean per valid interval (µs)")
+    axes[1, 1].set_xlim(0, 100)
     for ax in axes.flat:
         ax.grid(alpha=.2)
     for ax in (axes[0, 0], axes[1, 0], axes[1, 1]):
@@ -315,6 +321,8 @@ def render(paths: list[Path], out: Path):
                 xlabel="Specified read-only procedures (%)", ylabel="Eligible share; first K versions and read interval")
     _draw(axes[1], ids, runs, "local_flag_opportunity", title="(b) Local opportunity relative to publication interval",
           ylabel="Observed read-only gap / publication interval")
+    for ax in axes:
+        ax.set_xlim(0, 100)
     axes[0].legend(fontsize=7, ncol=2)
     _save(fig, out, "opportunities", common,
           {cid: [s["local_flag_opportunity"] for s in rows] for cid, rows in summaries.items()},
