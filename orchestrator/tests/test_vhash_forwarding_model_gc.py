@@ -12,6 +12,7 @@ sys.path.insert(0, str(REPO / "tools"))
 
 from vhash_forwarding_model.gc_connection import effect_snapshot  # noqa: E402
 from vhash_forwarding_model.judge import j3, judge  # noqa: E402
+from vhash_forwarding_model import model  # noqa: E402
 from vhash_forwarding_model.model import (State, Txn, Version, aborted_after_fault,
                                           check_timestamp_uniqueness, changed_step_in_trace,
                                           enabled_steps, explore, floor_lowering_transition,
@@ -200,6 +201,28 @@ def test_floor_lowering_counter_positive_and_representative_zero():
     assert all(reason is None for reason in judge(initial, lowered, step).values())
     _, result = _search("G1")
     assert result["statistics"]["floor_lowering_transitions"] == 0
+
+
+def test_explore_counts_one_added_floor_lowering_edge():
+    initial = State((Version("A10", "A", 10, 10),),
+                    (Txn("T", 20, (), phase="done"),))
+    original = model.enabled_steps
+
+    def with_lowering(state, *args, **kwargs):
+        steps = tuple(original(state, *args, **kwargs))
+        yield from steps
+        if state == initial:
+            assert len(steps) == 1
+            after, step = steps[0]
+            yield replace(after, txns=(replace(after.txns[0], gc_floor=19),)), step
+
+    try:
+        model.enabled_steps = with_lowering
+        result = explore(initial, collect_effects=False)
+    finally:
+        model.enabled_steps = original
+    assert result["statistics"]["complete"]
+    assert result["statistics"]["floor_lowering_transitions"] == 1
 
 
 def test_restricted_judgment_matches_reference_gc():
