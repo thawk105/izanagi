@@ -15,6 +15,8 @@ title: VHash の選択的 forwarding の中核規則 (reader は rts を上げ�
 - 段 3 相談 A (反例を作る側) と段 6 レビュー A (論理・反例) は、主張の範囲の中で定理を破る列を作れなかった。相談の must-fix だった「複数 writer のとき W の検査が v に届くこと」は、違反状態で確定している版のうち wts が最小のものを取り、確定・abort が吸収状態であることを使って帰納法なしに閉じた。
 - 段 6 レビュー B (過剰・削除と事実照合) は、一次資料の数値・場面・反例の step 数・J1⇒J2 の列挙を原表と照らして食い違いなしとした。must-fix 2 件 (仮定 A9 を「既読版が W の検査時に版列に残り走査対象になる」に強めること、段 4 で採用した 2 場合の順序図の未反映) は親が直した。焦点再レビューは 2 巡使った。1 巡目は、親が直すときに補題 2 の主張を確認の前の状態まで広げたことが未証明だと指摘し (範囲を「確認の成功より後」に戻した。補題 3 にはそれで足りる)、2 巡目は強めた A9 の文面が場合 2 と両立しないと指摘した (条件付きに直し、指摘の示した文面どおりの局所修正なので 3 巡目は起動せず親が照合して閉じた)。
 - セッション異常 (実害なし): `EnterWorktree` が名前形では filter driver の読取エラー、path 形では worktree 一覧の 10 秒 timeout で失敗し、手動の `git worktree add` は 1 回目が checkout 中の EINTR で失敗した (2 回目 rc=0)。`tools/dev_wave_submodule_init.py` は git の timeout と update-no-fetch の失敗で 2 回 rc=1 になり、手動の再帰初期化 (file transport 許可つき) を 2 回で googletest まで揃えた。いずれも同時刻に別 session の worktree 作成・撤去が多数走っていた局面。待ち手を同じ条件に 2 本張り、気づいて 1 本を止めた。
+- 受入全走 1 回目 (2026-09-29 15:34〜16:10 JST、段 8 の commit 51a0c0b2a に local main ce124f388 を post-claim merge した木 45d5a50ba): child-green、28065 passed・74 skipped。この結果を書き足した docs だけの commit の後に、land の前提として受入をもう一度通す。
+- セッション異常 (親の手順の誤り、受入 1 回分の損): DW-S04 は実 repo を読むテストを記録の前に走らせ結果を worklog へ書くよう求めるが、docs だけの wave なので記録 (段 7) と段 8 を先に commit し、受入をその後に走らせた。land は受入済み tip の後ろに main の前進 merge しか許さないので、結果を書き足した tip で受入を取り直した。同日の md_8 wave (worklog 1920) と同じ誤り。
 - エージェント工数: Codex plan 1・consult 2・review 2・focus 2 (いずれも gpt-6-sol、read-only)。実装子なし (実装面の差分ゼロのため変異 matrix は免除)。
 
 ## 次の一手差分
