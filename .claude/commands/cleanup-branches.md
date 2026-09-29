@@ -10,7 +10,7 @@ argument-hint: [任意: 対象限定 (branch/worktree 名)。省略時は全量�
 repo 内容や履歴の変更権限を与えない。対象限定の引数: $ARGUMENTS
 
 状態変更の allowlist は、(1) §2 の削除対象 branch の `git branch -d`/`-D`、(2) §2 の撤去対象 worktree の
-§3 の unlock・detach・branch 解放・directory と対応 metadata の撤去・条件付き prune、(3) §2 の退避と
+§3 の unlock・detach・branch 解放・ゴミ置き場への mv と実体削除・条件付き prune、(3) §2 の退避と
 計画表・script・log の repo 外退避 dir への書込、(4) land 調整役 session への連絡だけである。
 Codex はさらに real prune を許さない。§1〜§4 の読み取り検査と final での報告は
 state mutation ではなく許可する。overlay は許可集合を狭めるだけで、本 command は再許可しない。
@@ -43,17 +43,18 @@ final で裁定候補として返し、実装・記録は明示起動された�
 - 残す: main / primary checkout、§3 の占有、HEAD・tip が直近 (目安: 稼働 wave の開始以降か 6h 以内) に
   動いた木・branch、稼働 session (ListAgents・投げ文) の主題の木・branch (棚卸し後に同系列の新 wave が
   起動すればその系列も)、現行 docs (phase doc・worklog 末尾の次の一手・decisions) が残すと名指しした branch
-  (grep は main の tracked docs だけ、`main-worklog-*.md` 等の写しは数えない)、棚卸し後の新規
+  (grep は main の tracked docs だけ、`main-worklog-*.md` 等の写しは数えない)、land 中の wave の branch、棚卸し後の新規
 - 原本の置き場 (insight「証拠の所在」等が計測原本の所在と名指しする木、`dev-wave-jobs/` の投入木を含む) と
-  未追跡 `output/` (`exploration/`・`env/`) の原本は、tar の写しが一致しても残して報告。写しへの移管は
-  insight 更新を伴うので別 dev-wave (F1034)
+  未追跡 `output/` (`exploration/`・`env/`) の原本は、tar の写しが一致しても残して報告。登録だけ外す案も
+  Git の再現手順と submodule を壊すので不可。写しへの移管は insight 更新を伴うので別 dev-wave (F1034)
 - 他は施錠・ahead>0・未着地・dirty・rescue 判定不能でも消す。損失ゼロは要件でない (研究価値のない probe・
-  お試しは失われてよい)。範囲に迷えばユーザーより先に Codex 2 レンズ (決定役・攻撃役の read-only consult) で決める
+  お試しは失われてよい)。範囲は AI が Codex 2 役 (決定役・攻撃役の read-only consult) に掛けて決め、
+  ユーザーへ確認・実行を回さない
 - 消す前に repo 外 `/work/1/SFC/tanab/dev-wave-jobs/cleanup-branches-<日付>/` へ退避: 削除 branch は 1 本の
   bundle (`^main`、`create`+`verify`+`list-heads` 一致)、main に無い detached HEAD と submodule HEAD
   (main 側 module repo に無いもの) は木ごとの bundle、追跡差分は `diff HEAD --binary`、未追跡は
   `ls-files -o --exclude-standard` と `output/` 下の ignored を tar (§3 の件数照合)
-- ahead=0 は `git branch -d`、-d 拒否と ahead>0 は退避後に `-D`
+- ahead=0 は `git branch -d`、-d 拒否と ahead>0 は退避後に `-D`。名前と期待 tip の表で一括削除
 - 高い条件: 削除直前に tip・HEAD が棚卸し時と同じで占有が無いことを再確認し、外れたら残す。
   対象内で作業中は先に main checkout へ退出
 
@@ -65,14 +66,15 @@ rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁�
 1. 施錠木は §2 の退避後に `git worktree unlock`。land 調整役 session がいれば
    CLEANUP-READY → OK を待つ → 撤去後に CLEANUP-DONE
 2. `git -C <worktree> checkout --detach`、`git branch -d <branch>` (§2 の条件で `-D`)
-3. dir 撤去は `python3 tools/cleanup_remove_dirs.py -- <絶対path>` を 1 本ずつ前景 (setsid・nohup・& 禁止)。
-   渡した全 path を同時に rm するので Lustre では 1 回 1 path (1 本 75〜250 秒)。rc0 以外は停止
-4. 全撤去後の `git worktree prune --dry-run --verbose` の全候補＝今回撤去した対象なら `git worktree prune`。
+3. 木を同じ file system のゴミ置き場 `/work/1/SFC/tanab/tmp/cleanup-trash-<日付>/` へ `mv` (rename で数秒/本)
+4. 全 mv 後の `git worktree prune --dry-run --verbose` の全候補＝今回 mv した対象なら `git worktree prune` を 1 回。
    land 調整役がいれば PRUNE OK を待つ。他 wave の撤去途中の登録が混ざれば、持ち主が同意した分を足した
    集合と完全一致した時だけ打ち、それ以外は real prune せず引渡し
+5. prune 後、ゴミ置き場の実体を `python3 tools/cleanup_remove_dirs.py -- <2 path>` で 2 本ずつ背景で消す
+   (渡した全 path を同時に rm する。Lustre では多並列にしない、1 本 75〜250 秒)。rc0 以外は残して報告
 
 撤去・削除 script は対象を本文に名指しする (計画 file から読む script は auto mode の判定が拒否する)。
-拒否されたら迂回せず、script の path を示してユーザーに `! bash <script>` で実行してもらう。
+拒否されてもユーザーへ実行を回さない。名指しの形へ直して再申請し、なお拒否なら迂回せず final で報告する。
 退避の tar は `-C <worktree>` を `-T` の前に置き、`ls-files -o` の list 数を tar の非 dir entry 数が
 下回れば撤去しない (F1034)。
 
