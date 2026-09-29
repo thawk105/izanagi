@@ -768,8 +768,14 @@
    ],
    "judgement": "除外",
    "reason_code": "disk",
-   "basis": "title",
-   "note": "Azure SQL の schema 変更"
+   "basis": "abstract",
+   "note": "要旨: Azure SQL Database の schema 変更",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "disk",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 18,
@@ -1043,8 +1049,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "C5: 複製"
+   "basis": "abstract",
+   "note": "要旨: 非同期複製の primary-backup の backup 側 CC",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 36,
@@ -1074,9 +1086,15 @@
     "Q04"
    ],
    "judgement": "除外",
-   "reason_code": "other",
-   "basis": "title",
-   "note": "graph"
+   "reason_code": "dist",
+   "basis": "abstract",
+   "note": "要旨: RDMA の分散 graph DB",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "other",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 38,
@@ -1105,10 +1123,16 @@
     "Q07",
     "Q09"
    ],
-   "judgement": "除外",
-   "reason_code": "dist",
-   "basis": "title",
-   "note": "Lotus: 分散"
+   "judgement": "近傍",
+   "reason_code": null,
+   "basis": "abstract",
+   "note": "要旨: H-Store/VoltDB 系の partition 前提 (RCST) の改良。分散か単一ノードかは要旨で確定できない。partition 前提で Silo の前提と合わない",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 40,
@@ -1158,8 +1182,14 @@
    ],
    "judgement": "除外",
    "reason_code": "other",
-   "basis": "title",
-   "note": "index"
+   "basis": "abstract",
+   "note": "要旨: NVM 上の learned index",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "other",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 43,
@@ -1190,8 +1220,14 @@
    ],
    "judgement": "除外",
    "reason_code": "other",
-   "basis": "title",
-   "note": "Waffle"
+   "basis": "abstract",
+   "note": "要旨: 移動体の grid index",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "other",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 45,
@@ -1334,8 +1370,14 @@
    ],
    "judgement": "除外",
    "reason_code": "other",
-   "basis": "title",
-   "note": "index"
+   "basis": "abstract",
+   "note": "要旨: 永続メモリ上の B+-tree",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "other",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 54,
@@ -1366,8 +1408,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "geo"
+   "basis": "abstract",
+   "note": "要旨: 地理分散の取引 protocol",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 56,
@@ -1398,8 +1446,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "STAR: 複製"
+   "basis": "abstract",
+   "note": "要旨: 非対称複製の分散 in-memory DB",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 58,
@@ -1431,8 +1485,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "2PL/2PC on thousands of cores (分散)"
+   "basis": "abstract",
+   "note": "要旨: 低遅延 network でつないだ数千 core 上の分散 lock table と 2PC",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 60,
@@ -1446,8 +1506,14 @@
    ],
    "judgement": "除外",
    "reason_code": "other",
-   "basis": "title",
-   "note": "logging"
+   "basis": "abstract",
+   "note": "要旨: recovery と logging の設計",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "other",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 61,
@@ -1513,8 +1579,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "Sundial"
+   "basis": "abstract",
+   "note": "要旨: 分散 OCC",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 65,
@@ -1661,8 +1733,14 @@
    ],
    "judgement": "除外",
    "reason_code": "bench",
-   "basis": "title",
-   "note": "tutorial"
+   "basis": "abstract",
+   "note": "要旨: main-memory DB の tutorial",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "bench",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 74,
@@ -1772,8 +1850,14 @@
    ],
    "judgement": "除外",
    "reason_code": "hw",
-   "basis": "title",
-   "note": "HTM lock elision"
+   "basis": "abstract",
+   "note": "要旨: HTM と lock-free 索引",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "hw",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 81,
@@ -1805,8 +1889,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "MaaT"
+   "basis": "abstract",
+   "note": "要旨: cloud の分散取引",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 83,
@@ -1884,8 +1974,14 @@
    ],
    "judgement": "除外",
    "reason_code": "disk",
-   "basis": "title",
-   "note": "LogBase"
+   "basis": "abstract",
+   "note": "要旨: log-structured storage",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "disk",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 88,
@@ -1931,8 +2027,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "H-Store の partition 予測"
+   "basis": "abstract",
+   "note": "要旨: shared-nothing cluster の partition 予測",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 91,
@@ -1948,8 +2050,14 @@
    ],
    "judgement": "除外",
    "reason_code": "other",
-   "basis": "title",
-   "note": "B+tree"
+   "basis": "abstract",
+   "note": "要旨: in-memory B+tree の並行 query",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "other",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 92,
@@ -1964,8 +2072,14 @@
    ],
    "judgement": "近傍",
    "reason_code": null,
-   "basis": "title",
-   "note": "DORA (Shore-MT、disk-based engine)"
+   "basis": "abstract",
+   "note": "要旨: lock manager の競合を thread の割当てで避ける DORA (Shore-MT、disk-based engine)",
+   "prev": {
+    "judgement": "近傍",
+    "reason_code": null,
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 93,
@@ -1994,8 +2108,14 @@
    ],
    "judgement": "除外",
    "reason_code": "dist",
-   "basis": "title",
-   "note": "cloud storage"
+   "basis": "abstract",
+   "note": "要旨: cloud storage の分割と複製",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 95,
@@ -2024,8 +2144,14 @@
    ],
    "judgement": "近傍",
    "reason_code": null,
-   "basis": "title",
-   "note": "speculative lock inheritance (Shore-MT、disk-based engine)"
+   "basis": "abstract",
+   "note": "要旨: lock の継承で lock manager の競合を減らす (Shore-MT、disk-based engine)",
+   "prev": {
+    "judgement": "近傍",
+    "reason_code": null,
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   },
   {
    "idx": 97,
@@ -2038,12 +2164,58 @@
     "Q02"
    ],
    "judgement": "除外",
-   "reason_code": "dist",
-   "basis": "title",
-   "note": "unbundled"
+   "reason_code": "disk",
+   "basis": "abstract",
+   "note": "要旨: 取引 component と data component (索引・cache・ディスク管理) の分離での key 範囲施錠",
+   "prev": {
+    "judgement": "除外",
+    "reason_code": "dist",
+    "basis": "title"
+   },
+   "rejudged": "段 6 所見 6 (題名だけで決められない行を要旨で判定し直した)"
   }
  ],
  "abstracts_fetched": [
+  {
+   "work_id": "W2052924490",
+   "title": "Towards elastic transactional cloud storage with range query support",
+   "sha256": "2b4d6cb705dd06c02061983d39ff8eadfa98f32b2504043076f17a6b096fe5be"
+  },
+  {
+   "work_id": "W2060818668",
+   "title": "On predictive modeling for optimizing transaction execution in parallel OLTP systems",
+   "sha256": "3296cc235d4924f986be265c2c8f0ef7fe2b202dccf24b683f9da4d9035e3a8f"
+  },
+  {
+   "work_id": "W2101995353",
+   "title": "Data-oriented transaction execution",
+   "sha256": "835bceb554295901cdfb189d4a0fe4434362e0fce4b34ffd9e89f2c741ee0339"
+  },
+  {
+   "work_id": "W2130454859",
+   "title": "MaaT",
+   "sha256": "f2db96a0a958d80970399ab65b07c0f946c9e621086d98b4845ed63efca01eaa"
+  },
+  {
+   "work_id": "W2144430183",
+   "title": "Improving OLTP scalability using speculative lock inheritance",
+   "sha256": "a627f654543a65825d2c44c434f0fd178ddfaba65b33419e5ff63ecd4215612d"
+  },
+  {
+   "work_id": "W2148998558",
+   "title": "Locking key ranges with unbundled transaction services",
+   "sha256": "ebe9de2778712095dd7185b5ecea0f4933e5ff607480d972facc6d6c2ca1b066"
+  },
+  {
+   "work_id": "W2171823993",
+   "title": "LogBase",
+   "sha256": "c62d42b4463fe64af77860f7ab20fed0021daabf34230efdb33aea470f306ce1"
+  },
+  {
+   "work_id": "W2185655604",
+   "title": "PALM",
+   "sha256": "820262a1d862974141bd86507b5c4026dc0d0438ab1628ef1e45aa01e68829f7"
+  },
   {
    "work_id": "W2302689651",
    "title": "BCC",
@@ -2053,6 +2225,21 @@
    "work_id": "W2399839052",
    "title": "A Multicore Database is not a Distributed System.",
    "sha256": "dd2b7023367f597ebe7cd275e842dbafc0f5ae7806524c4e0505009ccc024d4e"
+  },
+  {
+   "work_id": "W2547410375",
+   "title": "Modern main-memory database systems",
+   "sha256": "cdbb3b49f35312e2acbe056d38d0ee66c231e908c4fd2a0500d03ce0d075ac6c"
+  },
+  {
+   "work_id": "W2884299639",
+   "title": "Sundial",
+   "sha256": "4c5405206d94520a26067fe627e0415b62db4172ad28755ec6dce666023cc586"
+  },
+  {
+   "work_id": "W2899672681",
+   "title": "STAR",
+   "sha256": "37a3c61438abdc89784a2f4fc1772f1fd52c953040d74d8db9ffe6a267188263"
   },
   {
    "work_id": "W2902648414",
@@ -2065,14 +2252,64 @@
    "sha256": "a4ac38273b8e13e749be3924f8d97d08c3ab99e2e76a9b307eceeb72d19942b0"
   },
   {
+   "work_id": "W2970956651",
+   "title": "Ocean vista",
+   "sha256": "7eb32c3981cfb9b40056ef6982165e1ccdb305961d06548add0e5982ddcdaa40"
+  },
+  {
    "work_id": "W2982604121",
    "title": "On supporting efficient snapshot isolation for hybrid workloads with multi-versioned indexes",
    "sha256": "c1c7743493ae37f42a22a10e3ea7ad13532d8aebf0fed5e95ddf66a6bb248a20"
   },
   {
+   "work_id": "W2990985518",
+   "title": "Strong consistency is not hard to get",
+   "sha256": "824754e6f8368a5ec93a8a7570e8707da0df734461146e50c1512eda8212cc03"
+  },
+  {
+   "work_id": "W3086582093",
+   "title": "uTree",
+   "sha256": "ac96aec500e20bcd1a0d1ccb87a806231e3874c4ca91846110e6dbdc0134879c"
+  },
+  {
+   "work_id": "W3138153268",
+   "title": "To lock, swap, or elide",
+   "sha256": "99c3cfbebb020b827c5150af0427f33065293366463a3a15c5a8c37a5458286c"
+  },
+  {
+   "work_id": "W4255064706",
+   "title": "FineLine",
+   "sha256": "3e6a90fd392ea14f40a27b7f7fcd33418b23d7ae1861580a5008777150de4132"
+  },
+  {
    "work_id": "W4281786663",
    "title": "Diva: Making MVCC Systems HTAP-Friendly",
    "sha256": "71f2897d86c78f65c347d53f5bc6fe8575e59df3a52bad28eea465bbd25866e3"
+  },
+  {
+   "work_id": "W4312390758",
+   "title": "G-tran",
+   "sha256": "58f9790d53cea2c2563d9abc4552a08e0224b1f26217850cf4b2d2e2c9a989c2"
+  },
+  {
+   "work_id": "W4312642611",
+   "title": "PLIN",
+   "sha256": "55a6d1d7ccbae770d2b02885cf23862f615e0b4e87c3cc55f2a16af99d021720"
+  },
+  {
+   "work_id": "W4312868397",
+   "title": "Waffle",
+   "sha256": "1b30380803bd6eb604dfddf43501411e37d63899ac632e4d3289d552640f5ee5"
+  },
+  {
+   "work_id": "W4312913610",
+   "title": "C5",
+   "sha256": "defd6a0db3eca42ed7de22524f33ce9a6b3815893b660dbee551a8a264a35e28"
+  },
+  {
+   "work_id": "W4312975001",
+   "title": "Lotus",
+   "sha256": "52cc98871bd9071c3eae8065ff658748ca0408d4f70f647acbf14c1372e34614"
   },
   {
    "work_id": "W4380433184",
@@ -2103,6 +2340,11 @@
    "work_id": "W4413755891",
    "title": "A Hybrid Approach to Integrating Deterministic and Non-Deterministic Concurrency Control in Database Systems",
    "sha256": "deaaa6e53982125e4d57683c5f8c1563c0dbbacc62060f9832248580bcceaac9"
+  },
+  {
+   "work_id": "W4414266930",
+   "title": "MD-MVCC: Multi-Version Concurrency Control for Schema Changes in Azure SQL Database",
+   "sha256": "46e69afc892c84fe1dbedc9c953de48e4c2240a47110ba38e07ddf0197b129f5"
   }
  ],
  "abstracts_note": "W4380433184 (vmcache) は One-shot GC の work ID を推測で打ち間違えて取った無関係の論文で、判定にも カードにも使っていない。",

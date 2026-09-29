@@ -3,6 +3,7 @@
 - 生成元: 同じ directory の `cards.json` (正本)。列を絞った閲覧用の表で、全項目は `cards.json` / `cards.csv` にある。
 - 「CCBench」列: あり / 一部 / なし と、最初の所在 1 か所 (pin `68106660686232781bca3be792a750d3e19d7a8a`、行番号は ±数行ずれうる)。
 - 「関数空間」列: `v1` = 今の関数単位の空間で書ける見込み、`extend:` = 足すものが要る、`n/a` = 該当しない。
+- 本集合 = 登録の包含条件を満たす論文のカード (`in_population: true`)。条件の外で読んだ参考カードは末尾の節に分けた。
 - 「検査器」列: 今の検査器 (commit 済み取引の trace から G2 を含む閉路を探す) で正しさを見られるか。
 
 ## CCBench に無いが Silo に入る見込み (33 件)
@@ -11,6 +12,7 @@
 |---|---|---|---|---|---|---|
 | `silo-inline-record-data` | Record data stored in the same cache line as the header | Speedy Transactions in Multicore In-Memory Databases (2013) | CPU cache | なし  | extend:tuple の配置 (値を TID word と同じ cache line に置く) を開く | observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない) |
 | `silo-numa-aware-allocator` | NUMA-aware allocator with 2MB superpages and thread pinning | Speedy Transactions in Multicore In-Memory Databases (2013) | CPU cache | 一部 include/cpu.hh:30 setThreadAffinity | extend:tuple 表と索引のメモリ確保 (初期化) を開く | observable (配置の変更で読み書きの意味は変わらない) |
+| `tictoc-preemptive-abort` | Preemptive abort before locking the write set | TicToc: Time Traveling Optimistic Concurrency Control (2016) | delay on conflict | 一部 cc/tictoc/transaction.cc:46 preemptiveAborts | extend:validation を開く (施錠前の read set 再検査の可否) | observable (abort を早めるだけで commit する取引の読み書きは変わらない) |
 | `ccbench-non-visible-write` | Non-visible write (versions non-visible from the start of their life; … | An Analysis of Concurrency Control Protocols for In-Memory D… | version lifetime | なし  | extend:validation と write phase を開く (blind write の省略判定) | conditional:省いた write は版として現れず、その取引の直列化位置が commit 順と異なるため、省い… |
 | `abyss-wait-die` | 2PL with waiting deadlock prevention (WAIT_DIE) | Staring into the Abyss: An Evaluation of Concurrency Control… | delay on conflict | なし  | extend:共有状態を開く (lock 保持者の開始時刻を施錠衝突 hook の観測に足す) | observable |
 | `abyss-custom-malloc` | Custom per-thread malloc with automatically resizing pools | Staring into the Abyss: An Evaluation of Concurrency Control… | 3 分類外 | 一部 cc/cicada/include/transaction.hh:217 newVersionGeneration + :186 (w… | extend:メモリ確保を開く (write set と insert の確保先) | observable |
@@ -28,7 +30,6 @@
 | `healing-access-cache` | Transaction Healing: thread-local access cache による index lookup の省略 | Transaction Healing: Scaling Optimistic Concurrency Control … | 3 分類外 | なし  | extend:validation を開く (healing と同じ) | conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値… |
 | `healing-false-invalidation-elimination` | Transaction Healing: 偽の invalidation の除去 (read した列の局所コピーとの比較) | Transaction Healing: Scaling Optimistic Concurrency Control … | 3 分類外 | なし  | extend:validation を開く | conditional:値が一致して通した read の版 ID を新しい版の TID に付け替えて trace に記録… |
 | `healing-independent-txn-merged-validate-write` | Transaction Healing: independent transaction の validation と write phas… | Transaction Healing: Scaling Optimistic Concurrency Control … | delay on conflict | なし  | extend:validation と write phase を開く | conditional:commit TID が修復後の全 read 版より大きいことと、書込み途中の値を lock 保… |
-| `tcm-block-instead-of-abort` | TCM: abort になる場合に限って block する (blocking instead of abort) | Multi-Version Concurrency via Timestamp Range Conflict Manag… | delay on conflict | 一部 cc/ss2pl/transaction.cc:172 #ifdef DLR0 (lock 待ち) と 179 (no-wait で … | v1 | observable |
 | `bcc-essential-pattern-validation` | Essential dependency pattern による validation (BCC の中核) | BCC: Reducing False Aborts in Optimistic Concurrency Control… | 3 分類外 | 一部 cc/oze/transaction.cc:684 write_validation (has_cycle は :726) | extend:validation を開く + 共有状態 (global TID vector と read set 履… | conditional:read set が変わっても commit する取引は後から commit しても前に直列化さ… |
 | `bcc-global-tid-vector-clock` | Global TID vector (thread ごとの最新 TID を並べた global clock) | BCC: Reducing False Aborts in Optimistic Concurrency Control… | 3 分類外 | 一部 cc/cicada/transaction.cc:34 begin (ThreadWtsArray[thid_] に thread ご… | extend:tuple メタデータ (書いた thread の識別) + 共有状態 (thread ごとの最新 TID… | conditional:単独では判定を変えない。TID の配置を変えても trace の版 ID が writer の … |
 | `bcc-readset-history-hashtable` | txn ごとの read set hash table の履歴と latch なし検索 (verify-after-insert) | BCC: Reducing False Aborts in Optimistic Concurrency Control… | 3 分類外 | なし  | extend:validation を開く + 共有状態 (他 thread の read set 履歴) を開く | conditional:BCC の validation と同じく commit 順と直列化順が違う取引が出るため、依存… |
@@ -43,7 +44,7 @@
 | `drp-nullify-intentions` | Pipelined certification with nullifiable intentions (cascading abort の… | Deferred Runtime Pipelining for contentious multicore softwa… | delay on conflict | なし  | extend:write phase を開く + validation を開く + tuple メタデータ (inten… | conditional:skip された intention の値を後続が読まないことは trace に現れない (ab… |
 | `drp-rank-tuning` | Rank tuning (開発者指定の custom_rank) | Deferred Runtime Pipelining for contentious multicore softwa… | 3 分類外 | なし  | extend:write set の施錠順 (sort の比較) を開く | conditional:Silo の施錠順を変えるだけなら observable。DRP の上で使う場合は drp-co… |
 
-## CCBench にある (81 件)
+## CCBench にある (80 件)
 
 | card_id | 最適化 | 論文 (年) | 効果の 3 分類 | CCBench | 関数空間 | 検査器 |
 |---|---|---|---|---|---|---|
@@ -57,7 +58,6 @@
 | `tictoc-data-driven-timestamp` | Data-driven (lazy) timestamp management with wts/rts | TicToc: Time Traveling Optimistic Concurrency Control (2016) | CPU cache | あり cc/tictoc/transaction.cc:334 validationPhase (commit_ts_ 算出 :367, r… | n/a | conditional:TicToc は直列化順が (commit_ts, 物理 commit 時刻) で commit… |
 | `tictoc-ts-word-packing` | 64-bit TS_word packing (lock bit + delta + wts) with lock-free read an… | TicToc: Time Traveling Optimistic Concurrency Control (2016) | CPU cache | あり cc/tictoc/include/tuple.hh:13 TsWord (lock 1 + absent 1 + delta 15 … | n/a | conditional:TicToc は直列化順が (commit_ts, 物理 commit 時刻) で commit… |
 | `tictoc-nowait-validation` | No-wait locking in the validation phase | TicToc: Time Traveling Optimistic Concurrency Control (2016) | delay on conflict | あり cc/tictoc/transaction.cc:340,564 (#if NO_WAIT_LOCKING_IN_VALIDATION… | n/a | observable |
-| `tictoc-preemptive-abort` | Preemptive abort before locking the write set | TicToc: Time Traveling Optimistic Concurrency Control (2016) | delay on conflict | 一部 cc/tictoc/transaction.cc:46 preemptiveAborts | n/a | observable (abort を早めるだけで commit する取引の読み書きは変わらない) |
 | `tictoc-timestamp-history` | Timestamp history (per-tuple buffer of past wts) | TicToc: Time Traveling Optimistic Concurrency Control (2016) | 3 分類外 | 一部 cc/tictoc/include/tuple.hh:44 pre_tsw_ | n/a | conditional:TicToc は直列化順が (commit_ts, 物理 commit 時刻) で commit… |
 | `mocc-temperature-selective-read-locks` | Temperature-guided selective pessimistic read locks on top of OCC | Mostly-Optimistic Concurrency Control for Highly Contended D… | delay on conflict | あり cc/mocc/transaction.cc:255 read_internal (RLL 該当 :281 / temp >= thr… | n/a | observable (read は commit 時に全検証され、版 ID は TID word のまま) |
 | `mocc-approximate-counter-page-temperature` | Per-page temperature with probabilistic (approximate) counters | Mostly-Optimistic Concurrency Control for Highly Contended D… | CPU cache | あり cc/mocc/transaction.cc:944 construct_RLL (rnd_.next() % (1 << temp)… | n/a | observable |
@@ -129,7 +129,7 @@
 | `orthrus-planned-deadlock-free-locking` | advance planning による deadlock 回避 (Deadlock-free locking) と OLLP | Design Principles for Scaling Multi-core OLTP Under High Con… | delay on conflict | 一部 cc/d2pl/transaction.cc:314 lockList (std::sort した順に lock) | n/a | observable |
 | `essn-read-time-shortcut` | SSN 型の read 時ショートカット (overwriter が既に commit していれば π を写して read set から外す… | Extended Serial Safety Net: A Refined Serializability Criter… | CPU cache | あり cc/ermia/transaction.cc:160-168 read_internal (overwriter が commit … | n/a | observable |
 
-## 前提が合わず Silo に入らない (185 件)
+## 前提が合わず Silo に入らない (182 件)
 
 | card_id | 最適化 | 論文 (年) | 効果の 3 分類 | CCBench | 関数空間 | 検査器 |
 |---|---|---|---|---|---|---|
@@ -187,10 +187,6 @@
 | `leanstore-graveyard-index` | Graveyard Index: OLTP に不要になった tombstone を補助 index へ移す | Scalable and Robust Snapshot Isolation for High-Performance … | version lifetime | なし  | n/a | not-observable:OLAP の範囲読み (Graveyard との merge) は述語 phantom を… |
 | `leanstore-adaptive-version-storage-fattuple` | Adaptive version storage (Delta Index と FatTuple の切替) と OPGC | Scalable and Robust Snapshot Isolation for High-Performance … | version lifetime | なし  | n/a | conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を… |
 | `leanstore-separate-oltp-olap-watermarks` | OLTP と OLAP の別 high watermark (oldest_oltp と oldest_tx) と vDriver の de… | Scalable and Robust Snapshot Isolation for High-Performance … | version lifetime | 一部 cc/cicada/util.cc:315 MinWts/MinRts の 2 本の全体最小 | n/a | conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を… |
-| `freitag-local-mapping-tables` | Page ごとの local mapping table (tuple id → 版 chain) と版情報の非永続化 | Memory-Optimized Multi-Version Concurrency Control for Disk-… | CPU cache | なし  | n/a | conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を… |
-| `freitag-mapping-table-pruning-on-page-access` | Page access 時の mapping table 刈り込み (空 chain の割合が閾値超で実行) と buffer manage… | Memory-Optimized Multi-Version Concurrency Control for Disk-… | version lifetime | なし  | n/a | conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を… |
-| `freitag-bulk-op-virtual-versions` | Bulk operation の virtual version (page の reference epoch と create/dele… | Memory-Optimized Multi-Version Concurrency Control for Disk-… | version lifetime | なし  | n/a | conditional:page の flag から決まる仮想版を版 ID として trace に出す差し込み点を合わせ… |
-| `freitag-inplace-vs-append-only-versions` | 版の置き場の次元: in-place + before-image (別置き) と append-only (同一 storage に全版)… | Memory-Optimized Multi-Version Concurrency Control for Disk-… | version lifetime | 一部 cc/silo/transaction.cc:658 in-place memcpy (単一版) | n/a | conditional:多版の版 ID (版の timestamp) と直列化順 (timestamp 順、commit… |
 | `bamboo-lock-retire` | Lock retire (early lock release, violating 2PL) | Releasing Locks As Early As You Can: Reducing Contention of … | delay on conflict | なし  | n/a | not-observable:未 commit 版の読み (dirty read) と連鎖 abort の漏れ (G1a… |
 | `bamboo-commit-semaphore-cascading-abort` | commit_semaphore による commit 順序保証と cascading abort | Releasing Locks As Early As You Can: Reducing Contention of … | 3 分類外 | なし  | n/a | not-observable:未 commit 版の読み (dirty read) と連鎖 abort の漏れ (G1a… |
 | `bamboo-retire-point-synthesis` | 最後の write の後で retire する点を program analysis で合成する (retire 条件の合成、loop fi… | Releasing Locks As Early As You Can: Reducing Contention of … | 3 分類外 | なし  | n/a | not-observable:未 commit 版の読み (dirty read) と連鎖 abort の漏れ (G1a… |
@@ -240,6 +236,7 @@
 | `bohm-read-set-version-annotation` | BOHM: read set の先行知識による可視版の参照付与 (連結リストの走査の省略) | Rethinking serializable multiversion concurrency control (20… | version lifetime | なし  | n/a | conditional:多版 (log 位置の timestamp) の版 ID と直列化順を trace に差し込めば |
 | `bohm-batch-low-watermark-gc` | BOHM: batch 単位の低水位標による版の回収 (RCU 型) | Rethinking serializable multiversion concurrency control (20… | version lifetime | 一部 cc/cicada/util.cc:285 全 thread の値から MinRts/MinWts を leader が更新 | n/a | conditional:多版の版 ID の差し込み点を合わせれば (回収済み版の読みは版 ID の不一致として出る) |
 | `tcm-timestamp-range` | TCM: transaction ごとの timestamp 範囲の管理 (timestamping conflict manager) | Multi-Version Concurrency via Timestamp Range Conflict Manag… | delay on conflict | 一部 cc/tictoc/transaction.cc:334 validationPhase (commit timestamp を re… | n/a | conditional:範囲から選んだ commit timestamp を直列化順として trace に差し込めば (… |
+| `tcm-block-instead-of-abort` | TCM: abort になる場合に限って block する (blocking instead of abort) | Multi-Version Concurrency via Timestamp Range Conflict Manag… | delay on conflict | 一部 cc/ss2pl/transaction.cc:172 #ifdef DLR0 (lock 待ち) と 179 (no-wait で … | n/a | observable |
 | `tcm-range-deadlock-detection` | TCM: timestamp 範囲による deadlock の保守的検出 (待ち有向グラフを使わない) | Multi-Version Concurrency via Timestamp Range Conflict Manag… | 3 分類外 | なし  | n/a | conditional:範囲から選んだ commit timestamp を直列化順として trace に差し込めば (… |
 | `pwv-early-write-visibility` | PWV: early write visibility (commit point 以後の書き込みを完了直後に可視化) と piece 単位… | High Performance Transactions via Early Write Visibility (20… | delay on conflict | なし  | n/a | conditional:決定的な直列化順 (batch 内の順) と早期可視の書込みの版 ID を trace に差し込… |
 | `pwv-rvp-commit-protocol` | PWV: rendezvous point (RVP) による piece 間の依存調整と軽量な commit protocol | High Performance Transactions via Early Write Visibility (20… | 3 分類外 | なし  | n/a | conditional:決定的な直列化順 (batch 内の順) と早期可視の書込みの版 ID を trace に差し込… |
@@ -318,3 +315,12 @@
 | `essn-read-from-policy` | 読みの version 選択方針 (as_of_read_commit と snapshot_at_begin) の比較 | Extended Serial Safety Net: A Refined Serializability Criter… | 3 分類外 | 一部 cc/ermia/transaction.cc:155 read_internal (txid_ < ver->cstamp_ の版を… | n/a | conditional:snapshot_at_begin では読みの版が begin 時点の版になるため、その版 ID… |
 | `drp-tame-rp` | Tame-RP (rank 順 lock 取得と relax による pipelining) | Deferred Runtime Pipelining for contentious multicore softwa… | delay on conflict | なし  | n/a | conditional:relax した lock 越しに predecessor の値を読むため、読みの版 ID を … |
 | `oneshotgc-temporal-version-clustering` | OneShotGC: temporality-aware version storage (時間的に近い版を連続したメモリ block にま… | One-shot Garbage Collection for In-memory OLTP through Tempo… | version lifetime | 一部 cc/cicada/transaction.cc:806 gc_versions (chain の尾を 1 か所切って尾全体を回収) | n/a | conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を… |
+
+## 包含条件外の参考カード (4 件、本集合の件数に数えない)
+
+| card_id | 最適化 | 論文 (年) | 効果の 3 分類 | 分類 | 本集合の外とした理由 |
+|---|---|---|---|---|---|
+| `freitag-local-mapping-tables` | Page ごとの local mapping table (tuple id → 版 chain) と版情報の非永続化 | Memory-Optimized Multi-Version Concurrency Control for Disk-… | CPU cache | absent-prereq-mismatch | 登録の包含条件 (1) (単一ノードの多コア・インメモリ) の外。ディスク主体の論文で、VHash 調査の読書対象として R2 に含めて読んだ参考カード。本集合… |
+| `freitag-mapping-table-pruning-on-page-access` | Page access 時の mapping table 刈り込み (空 chain の割合が閾値超で実行) と buffer manage… | Memory-Optimized Multi-Version Concurrency Control for Disk-… | version lifetime | absent-prereq-mismatch | 登録の包含条件 (1) (単一ノードの多コア・インメモリ) の外。ディスク主体の論文で、VHash 調査の読書対象として R2 に含めて読んだ参考カード。本集合… |
+| `freitag-bulk-op-virtual-versions` | Bulk operation の virtual version (page の reference epoch と create/dele… | Memory-Optimized Multi-Version Concurrency Control for Disk-… | version lifetime | absent-prereq-mismatch | 登録の包含条件 (1) (単一ノードの多コア・インメモリ) の外。ディスク主体の論文で、VHash 調査の読書対象として R2 に含めて読んだ参考カード。本集合… |
+| `freitag-inplace-vs-append-only-versions` | 版の置き場の次元: in-place + before-image (別置き) と append-only (同一 storage に全版)… | Memory-Optimized Multi-Version Concurrency Control for Disk-… | version lifetime | absent-prereq-mismatch | 登録の包含条件 (1) (単一ノードの多コア・インメモリ) の外。ディスク主体の論文で、VHash 調査の読書対象として R2 に含めて読んだ参考カード。本集合… |
