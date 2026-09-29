@@ -59,7 +59,8 @@ INTEGRITY_NUMERIC = ('orphan_reads', 'version_dups', 'dup_txids', 'genesis_commi
                      'missing_txids', 'write_version_mismatch', 'malformed_keys',
                      'framing_violations', 'lock_coverage_violations',
                      'write_intent_violations', 'permutation_violations')
-MACRO_NAMES = ('CICADA_INTERVAL_GC', 'CICADA_INTERVAL_COUNT', 'CICADA_INTERVAL_LONGTX')
+MACRO_NAMES = ('CICADA_INTERVAL_GC', 'CICADA_INTERVAL_GC_GENERAL',
+               'CICADA_INTERVAL_COUNT', 'CICADA_INTERVAL_LONGTX')
 
 
 def now():
@@ -107,7 +108,9 @@ def arm_macros(arm, kind):
         raise ValueError('invalid arm/build kind')
     result = {'CICADA_INTERVAL_LONGTX': 1}
     if arm != 'stock':
-        result['CICADA_INTERVAL_GC'] = 1 if arm == 'min' else 2
+        result['CICADA_INTERVAL_GC'] = 1
+    if arm == 'gen':
+        result['CICADA_INTERVAL_GC_GENERAL'] = 1
     if kind == 'count':
         result['CICADA_INTERVAL_COUNT'] = 1
     return result
@@ -144,6 +147,12 @@ def assert_gate_receipts(macros, receipts):
         raise RuntimeError('condition gate receipt missing')
     if any(r.get('admission', {}).get('admitted') is not True for r in receipts):
         raise RuntimeError('condition gate rejected')
+
+
+def assert_gate_companion(macro, request):
+    if (macro == 'CICADA_INTERVAL_GC_GENERAL' and
+            ('CICADA_INTERVAL_GC', '1') not in request.companion_defines):
+        raise RuntimeError('GC_GENERAL gate requires CICADA_INTERVAL_GC=1 companion')
 
 
 def assert_solo():
@@ -198,6 +207,7 @@ def gate(source, macros, args, cxx):
         captured = condition.capture_define_inputs(source, configure_args=tuple(args))
         request = condition.make_define_request(driver_id=DRIVER_ID, macro=macro,
                                                 requested_value=value, default_value=0)
+        assert_gate_companion(macro, request)
         with condition._configured_define_compile_commands(captured, request=request,
                  cxx=cxx, cmake='cmake') as commands:
             supply = condition.evaluate_define_supply_effectuation(captured, request=request,

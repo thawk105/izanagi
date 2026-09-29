@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from types import SimpleNamespace
 
 from orchestrator.campaign import vhash_interval_gc as d
 
@@ -30,11 +31,20 @@ def test_condition_table_and_group_partition():
 
 
 def test_arm_macro_sets():
-    assert d.arm_macros('stock', 'perf') == {'CICADA_INTERVAL_LONGTX': 1}
-    assert d.arm_macros('min', 'perf')['CICADA_INTERVAL_GC'] == 1
-    assert d.arm_macros('gen', 'perf')['CICADA_INTERVAL_GC'] == 2
-    assert d.arm_macros('stock', 'count')['CICADA_INTERVAL_COUNT'] == 1
-    assert 'CICADA_INTERVAL_COUNT' not in d.arm_macros('gen', 'perf')
+    expected = {
+        'stock': {'CICADA_INTERVAL_LONGTX': 1},
+        'min': {'CICADA_INTERVAL_LONGTX': 1, 'CICADA_INTERVAL_GC': 1},
+        'gen': {'CICADA_INTERVAL_LONGTX': 1, 'CICADA_INTERVAL_GC': 1,
+                'CICADA_INTERVAL_GC_GENERAL': 1},
+    }
+    assert set(d.MACRO_NAMES) == {'CICADA_INTERVAL_LONGTX', 'CICADA_INTERVAL_GC',
+                                  'CICADA_INTERVAL_GC_GENERAL', 'CICADA_INTERVAL_COUNT'}
+    for arm, perf in expected.items():
+        assert d.arm_macros(arm, 'perf') == perf
+        assert d.arm_macros(arm, 'trace') == perf
+        assert d.arm_macros(arm, 'count') == {**perf, 'CICADA_INTERVAL_COUNT': 1}
+        assert all(value == 1 for kind in ('perf', 'trace', 'count')
+                   for value in d.arm_macros(arm, kind).values())
 
 
 def test_order_rotation():
@@ -63,6 +73,14 @@ def test_gate_receipt_missing_rejected():
     raises(RuntimeError, d.assert_gate_receipts, macros, bad)
 
 
+def test_general_gate_requires_gc_companion():
+    companion = SimpleNamespace(companion_defines=(('CICADA_INTERVAL_GC', '1'),))
+    d.assert_gate_companion('CICADA_INTERVAL_GC_GENERAL', companion)
+    for missing in ((), (('CICADA_INTERVAL_GC', '0'),)):
+        raises(RuntimeError, d.assert_gate_companion, 'CICADA_INTERVAL_GC_GENERAL',
+               SimpleNamespace(companion_defines=missing))
+
+
 def test_competing_pid_rejected():
     original = d.competing_bench_pids
     try:
@@ -77,21 +95,58 @@ def test_competing_pid_rejected():
 def test_compile_binding_positive_negative():
     with tempfile.TemporaryDirectory() as tmp:
         build = Path(tmp)
-        defs = {'TRACE': 0, 'ADD_ANALYSIS': 0, 'SINGLE_EXEC': 0,
-                **d.BASE, **d.arm_macros('min', 'perf')}
-        argv = ['c++', *(f'-D{k}={v}' for k, v in defs.items())]
+        path = build / 'compile_commands.json'
+        for arm in d.ARMS:
+            for kind in ('perf', 'count', 'trace'):
+                expected = d.arm_macros(arm, kind)
+                defs = {'TRACE': int(kind == 'trace'), 'ADD_ANALYSIS': 0, 'SINGLE_EXEC': 0,
+                        **d.BASE, **expected}
+                argv = ['c++', *(f'-D{k}={v}' for k, v in defs.items())]
+                entries = [{'file': str(build / f'cc/cicada/{name}'),
+                            'arguments': [*argv, '-o', f'CMakeFiles/ycsb_cicada.exe.dir/{name}.o']}
+                           for name in ('transaction.cc', 'util.cc', 'ycsb_cicada.cc')]
+                # A sibling target with different defines must not affect binding.
+                entries.append({'file': entries[0]['file'], 'arguments': ['c++', '-DTRACE=1',
+                               '-o', 'CMakeFiles/tpcc_cicada.exe.dir/transaction.cc.o']})
+                path.write_text(json.dumps(entries))
+                assert len(d.check_compile_commands(build, expected, int(kind == 'trace'))) == 3
+                for unexpected in ({'CICADA_INTERVAL_GC_GENERAL': 1},
+                                   {'CICADA_INTERVAL_GC': 2}):
+                    if any(key in expected for key in unexpected):
+                        continue
+                    bad = json.loads(json.dumps(entries))
+                    key, value = next(iter(unexpected.items()))
+                    bad[0]['arguments'].insert(1, f'-D{key}={value}')
+                    path.write_text(json.dumps(bad))
+                    raises(RuntimeError, d.check_compile_commands, build, expected,
+                           int(kind == 'trace'))
+                if 'CICADA_INTERVAL_GC' in expected:
+                    bad = json.loads(json.dumps(entries))
+                    for index, token in enumerate(bad[0]['arguments']):
+                        if token == '-DCICADA_INTERVAL_GC=1':
+                            bad[0]['arguments'][index] = '-DCICADA_INTERVAL_GC=2'
+                            break
+                    path.write_text(json.dumps(bad))
+                    raises(RuntimeError, d.check_compile_commands, build, expected,
+                           int(kind == 'trace'))
+                if arm == 'gen':
+                    bad = json.loads(json.dumps(entries))
+                    bad[0]['arguments'].remove('-DCICADA_INTERVAL_GC_GENERAL=1')
+                    path.write_text(json.dumps(bad))
+                    raises(RuntimeError, d.check_compile_commands, build, expected,
+                           int(kind == 'trace'))
+        inert = {'TRACE': 0, 'ADD_ANALYSIS': 0, 'SINGLE_EXEC': 0, **d.BASE}
+        argv = ['c++', *(f'-D{k}={v}' for k, v in inert.items())]
         entries = [{'file': str(build / f'cc/cicada/{name}'),
                     'arguments': [*argv, '-o', f'CMakeFiles/ycsb_cicada.exe.dir/{name}.o']}
                    for name in ('transaction.cc', 'util.cc', 'ycsb_cicada.cc')]
-        # A sibling target with different defines must not affect binding.
-        entries.append({'file': entries[0]['file'], 'arguments': ['c++', '-DTRACE=1',
-                       '-o', 'CMakeFiles/tpcc_cicada.exe.dir/transaction.cc.o']})
-        path = build / 'compile_commands.json'
         path.write_text(json.dumps(entries))
-        assert len(d.check_compile_commands(build, d.arm_macros('min', 'perf'), 0)) == 3
-        entries[0]['arguments'][1] = '-DTRACE=1'
-        path.write_text(json.dumps(entries))
-        raises(RuntimeError, d.check_compile_commands, build, d.arm_macros('min', 'perf'), 0)
+        assert len(d.check_compile_commands(build, {}, 0)) == 3
+        for macro in d.MACRO_NAMES:
+            bad = json.loads(json.dumps(entries))
+            bad[0]['arguments'].insert(1, f'-D{macro}=1')
+            path.write_text(json.dumps(bad))
+            raises(RuntimeError, d.check_compile_commands, build, {}, 0)
 
 
 def test_counter_lines_positive_negative():
