@@ -3217,6 +3217,8 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/run_probe.py": "dispatch-required",
     "tools/pegasus/run_ss2pl_lock_study.py": "dispatch-required",
     "tools/pegasus/run_t139_a12_stress_check.py": "dispatch-required",
+    "tools/pegasus/silo_policy_contrast_launch.py": "local-ok",
+    "tools/pegasus/silo_policy_contrast_parent.py": "local-ok",
     "tools/pegasus/silo_ladder_rung1.sh": "dispatch-required",
     "tools/pegasus/smoke_probe.sh": "dispatch-required",
     "tools/pegasus/ss2pl_lock_study.sh": "dispatch-required",
@@ -3286,6 +3288,18 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "login-side v2 launcher parent that starts and resumes claude -p; compute work stays in independent job bodies",
         "primary_gate": "v2 launcher invocation; compute work stays in independent job bodies",
         "evidence": "static login-side submitter classification"
+    },
+    "tools/pegasus/silo_policy_contrast_launch.py": {
+        "class": "local-ok",
+        "reason": "login-side proposal and PBS submitter; measurement stays in the job body",
+        "primary_gate": "driver preview and qsub submission",
+        "evidence": "static login-side classification"
+    },
+    "tools/pegasus/silo_policy_contrast_parent.py": {
+        "class": "local-ok",
+        "reason": "login-side role parent; measurement stays in the job body",
+        "primary_gate": "role invocation and round tool CLI",
+        "evidence": "static login-side classification"
     },
     "tools/pegasus/certify_calibration.sh": {
         "class": "dispatch-required",
@@ -4132,6 +4146,10 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
             "static login-side submitter classification",
         "tools/pegasus/b5_llm_parent.py":
             "static login-side submitter classification",
+        "tools/pegasus/silo_policy_contrast_launch.py":
+            "static login-side classification",
+        "tools/pegasus/silo_policy_contrast_parent.py":
+            "static login-side classification",
         "tools/pegasus/dispatch_compute.py": "legacy-admitted (未実測)",
         "tools/pegasus/fetch_third_party.py": "runbook §7.0 実測",
         "tools/pegasus/submit_a5_second_boot_backoff_sweep.sh":

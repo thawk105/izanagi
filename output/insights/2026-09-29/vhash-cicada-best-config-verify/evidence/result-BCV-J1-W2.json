@@ -1,0 +1,1238 @@
+{
+  "job": "BCV-J1-W2",
+  "repo_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cbv-m-j1a",
+  "repo_head": "8fe87f852ec41e0a07a9be10bcb10e5d867117b4",
+  "build_source_oids": {
+    "BEST": "68106660686232781bca3be792a750d3e19d7a8a",
+    "CTRL": "68106660686232781bca3be792a750d3e19d7a8a"
+  },
+  "hostname": "bnode023",
+  "started_at": "2026-09-29T14:09:43.185158+00:00",
+  "ended_at": "2026-09-29T14:11:09.179700+00:00",
+  "policy": {
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cbv-m-j1a/tools/pegasus/mocc_trace_v1_policy.json",
+    "sha256": "66ea7135c6d84cfd09013f33da23d8ca8015dcb547e34db7c802644f4986acd6"
+  },
+  "toolchain": {
+    "version_body_sha256": {
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11"
+  },
+  "patches": {
+    "patches/instr-cicada-trace.patch": {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cbv-m-j1a/patches/instr-cicada-trace.patch",
+      "sha256": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5",
+      "touch_set": [
+        "cc/cicada/include/cicada_op_element.hh",
+        "cc/cicada/include/transaction.hh",
+        "cc/cicada/transaction.cc",
+        "cc/cicada/ycsb_cicada.cc"
+      ]
+    },
+    "@diag": {
+      "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/launcher/diag-cicada-inline-fidelity.patch",
+      "sha256": "d08966ad3f4e556ab92911052a4330d399b3eee1dfbe5b3924dbfd50bca2cae9",
+      "touch_set": [
+        "cc/cicada/include/cicada_op_element.hh",
+        "cc/cicada/include/transaction.hh",
+        "cc/cicada/transaction.cc"
+      ]
+    }
+  },
+  "builds": {
+    "BEST": {
+      "source_oid": "68106660686232781bca3be792a750d3e19d7a8a",
+      "target": "ycsb_cicada",
+      "schema": "v2",
+      "trace": 1,
+      "patches": [
+        "patches/instr-cicada-trace.patch",
+        "@diag"
+      ],
+      "patch_sha256": {
+        "patches/instr-cicada-trace.patch": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5",
+        "@diag": "d08966ad3f4e556ab92911052a4330d399b3eee1dfbe5b3924dbfd50bca2cae9"
+      },
+      "macro": null,
+      "gate": null,
+      "status": "completed",
+      "exception": null,
+      "configure_argv": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/gflags-install;/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/thirdparty-src/googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "cmake_requested": {
+        "CCBENCH_TRACE": "1",
+        "CCBENCH_ADD_ANALYSIS": "0",
+        "CCBENCH_SINGLE_EXEC": "0",
+        "CCBENCH_BACK_OFF": "0",
+        "CCBENCH_INLINE_VERSION_OPT_CICADA": "1",
+        "CCBENCH_INLINE_VERSION_PROMOTION": "0",
+        "CCBENCH_REUSE_VERSION": "1",
+        "CCBENCH_WRITE_LATEST_ONLY": "0"
+      },
+      "cmake_cache": {
+        "CCBENCH_ADD_ANALYSIS": "0",
+        "CCBENCH_BACK_OFF": "0",
+        "CCBENCH_INLINE_VERSION_OPT_CICADA": "1",
+        "CCBENCH_INLINE_VERSION_PROMOTION": "0",
+        "CCBENCH_REUSE_VERSION": "1",
+        "CCBENCH_SINGLE_EXEC": "0",
+        "CCBENCH_TRACE": "1",
+        "CCBENCH_WRITE_LATEST_ONLY": "0"
+      },
+      "compile_binding": {
+        "checked_tus": [
+          "/tmp/izanagi_wt_in05u0_r/wt/cc/cicada/ycsb_cicada.cc",
+          "/tmp/izanagi_wt_in05u0_r/wt/cc/cicada/transaction.cc",
+          "/tmp/izanagi_wt_in05u0_r/wt/cc/cicada/util.cc"
+        ],
+        "expected_defines": {
+          "TRACE": "1",
+          "ADD_ANALYSIS": "0",
+          "SINGLE_EXEC": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "valid": true
+      },
+      "binary_sha256": "8684aebc44838b0fbd2ec3dbb031986d4883761ae77db20a55c8e7db06b01646",
+      "binding_valid": true
+    },
+    "CTRL": {
+      "source_oid": "68106660686232781bca3be792a750d3e19d7a8a",
+      "target": "ycsb_cicada",
+      "schema": "v2",
+      "trace": 1,
+      "patches": [
+        "patches/instr-cicada-trace.patch",
+        "@diag"
+      ],
+      "patch_sha256": {
+        "patches/instr-cicada-trace.patch": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5",
+        "@diag": "d08966ad3f4e556ab92911052a4330d399b3eee1dfbe5b3924dbfd50bca2cae9"
+      },
+      "macro": null,
+      "gate": null,
+      "status": "completed",
+      "exception": null,
+      "configure_argv": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/gflags-install;/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/thirdparty-src/googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "cmake_requested": {
+        "CCBENCH_TRACE": "1",
+        "CCBENCH_ADD_ANALYSIS": "0",
+        "CCBENCH_SINGLE_EXEC": "0",
+        "CCBENCH_BACK_OFF": "1",
+        "CCBENCH_INLINE_VERSION_OPT_CICADA": "0",
+        "CCBENCH_INLINE_VERSION_PROMOTION": "0",
+        "CCBENCH_REUSE_VERSION": "1",
+        "CCBENCH_WRITE_LATEST_ONLY": "0"
+      },
+      "cmake_cache": {
+        "CCBENCH_ADD_ANALYSIS": "0",
+        "CCBENCH_BACK_OFF": "1",
+        "CCBENCH_INLINE_VERSION_OPT_CICADA": "0",
+        "CCBENCH_INLINE_VERSION_PROMOTION": "0",
+        "CCBENCH_REUSE_VERSION": "1",
+        "CCBENCH_SINGLE_EXEC": "0",
+        "CCBENCH_TRACE": "1",
+        "CCBENCH_WRITE_LATEST_ONLY": "0"
+      },
+      "compile_binding": {
+        "checked_tus": [
+          "/tmp/izanagi_wt_pcv2n_sp/wt/cc/cicada/ycsb_cicada.cc",
+          "/tmp/izanagi_wt_pcv2n_sp/wt/cc/cicada/transaction.cc",
+          "/tmp/izanagi_wt_pcv2n_sp/wt/cc/cicada/util.cc"
+        ],
+        "expected_defines": {
+          "TRACE": "1",
+          "ADD_ANALYSIS": "0",
+          "SINGLE_EXEC": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "valid": true
+      },
+      "binary_sha256": "c059e3ba130f70abb799887619280d16c8d02bf2b7154c7860c8eca9bd1b0890",
+      "binding_valid": true
+    }
+  },
+  "runs": {
+    "BEST-BCV_W2_n200_g100-t4": {
+      "build": "BEST",
+      "cell": "BCV_W2_n200_g100",
+      "thread": 4,
+      "repeat": null,
+      "flags": {
+        "ycsb_tuple_num": "200",
+        "ycsb_rratio": "50",
+        "ycsb_max_ope": "10",
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rmw": "0",
+        "extime": "1",
+        "gc_inter_us": "100",
+        "thread_num": "4",
+        "group_commit": "0",
+        "clocks_per_us": "2100"
+      },
+      "trace": 1,
+      "schema": "v2",
+      "argv": [
+        "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/BEST-trace1/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_rratio=50",
+        "-ycsb_max_ope=10",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rmw=0",
+        "-extime=1",
+        "-gc_inter_us=100",
+        "-thread_num=4",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "terminated": true,
+      "timed_out": false,
+      "wall_seconds": 1.0168152480036952,
+      "error": null,
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-m",
+          "verifier",
+          "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t4.trace",
+          "--json",
+          "--quiet",
+          "--protocol",
+          "cicada",
+          "--ccbench-root",
+          "/tmp/izanagi_wt_in05u0_r/wt",
+          "--expected-commits",
+          "394421"
+        ],
+        "returncode": 3,
+        "timed_out": false,
+        "record": {
+          "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t4.trace",
+          "verdict": "indeterminate",
+          "certified": false,
+          "serializable": true,
+          "stats": {
+            "txns": 394421,
+            "reads": 1733496,
+            "writes": 1837558,
+            "keys": 200,
+            "edges": 4435919,
+            "abort_reasons": {}
+          },
+          "integrity": {
+            "clean": false,
+            "orphan_reads": 0,
+            "version_dups": 0,
+            "dup_txids": 0,
+            "genesis_commits": 0,
+            "missing_txids": 0,
+            "write_version_mismatch": 0,
+            "malformed_keys": 0,
+            "framing_violations": 0,
+            "framing_violation_details": [],
+            "lock_coverage_violations": 0,
+            "write_intent_violations": 0,
+            "permutation_violations": 0,
+            "permutation_violation_details": {
+              "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0
+              },
+              "sample": [],
+              "unknown_reason_sample": []
+            },
+            "notes": []
+          },
+          "anomaly_count": 0,
+          "total_cycles": 0,
+          "anomalies": []
+        },
+        "error": null,
+        "wall_seconds": 10.863082267009304,
+        "json_path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t4.trace.verifier.json",
+        "json_sha256": "8b7078858bee64efe026f941ba2918af285bdaf6207488ee5fae556c9bebcd64",
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "signal": null,
+      "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t4.trace",
+      "summary": {
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": false,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": [],
+          "existence_violations": null,
+          "existence_violation_details": null
+        },
+        "framing_violation_kinds": {},
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "trace_counts": {
+        "rows": {
+          "C": 394421,
+          "R": 1733496,
+          "W": 1837558,
+          "E": 394421
+        },
+        "reasons": {
+          "X": {},
+          "P": {},
+          "I": {}
+        },
+        "lines": 4359896,
+        "bytes": 183047761,
+        "malformed_commits": 0
+      },
+      "build_binding": true,
+      "stdout": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t4.stdout",
+        "sha256": "2b712542ea7748f2f4057dc1b9320574181c85bb1fe373f0c6a5cdfe9ab3fc68"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t4.stderr",
+        "sha256": "5622a1046bc64a25e609d1247c99748e12e4ee4296cf284589a86e88f5307941"
+      },
+      "stdout_commits": 394421,
+      "flag_binding": {
+        "matched": true,
+        "lines": [
+          "#FLAGS_clocks_per_us:\t\t\t2100",
+          "#FLAGS_extime:\t\t\t\t1",
+          "#FLAGS_gc_inter_us:\t\t\t100",
+          "#FLAGS_group_commit:\t\t\t0",
+          "#FLAGS_group_commit_timeout_us:\t\t2",
+          "#FLAGS_io_time_ns:\t\t\t5",
+          "#FLAGS_pre_reserve_version:\t\t10000",
+          "#FLAGS_p_wal:\t\t\t\t0",
+          "#FLAGS_s_wal:\t\t\t\t0",
+          "#FLAGS_thread_num:\t\t\t4",
+          "#FLAGS_ycsb:\t\t\t\t1",
+          "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+          "#FLAGS_ycsb_max_ope:\t10",
+          "#FLAGS_ycsb_rmw:\t0",
+          "#FLAGS_ycsb_rratio:\t50",
+          "#FLAGS_ycsb_tuple_num:\t200",
+          "#FLAGS_ycsb_zipf_skew:\t0.9"
+        ],
+        "expected": {
+          "ycsb_tuple_num": "200",
+          "ycsb_rratio": "50",
+          "ycsb_max_ope": "10",
+          "ycsb_zipf_skew": "0.9",
+          "ycsb_rmw": "0",
+          "extime": "1",
+          "gc_inter_us": "100",
+          "thread_num": "4",
+          "group_commit": "0",
+          "clocks_per_us": "2100"
+        }
+      },
+      "stderr_err_lines": [],
+      "diag_fidelity": {
+        "R": 1733496,
+        "R_INLINE": 261205,
+        "W": 1837558,
+        "W_INLINE": 263105,
+        "SEL_REG": 0,
+        "SEL_COMMIT": 0,
+        "REG_FUTURE": 0
+      },
+      "expected_commits": 394421,
+      "initial_wts": 53032620814445312,
+      "read_wts_mismatch": 0,
+      "write_versions": {
+        "count": 1837558,
+        "all_after_initial": true,
+        "failures": []
+      },
+      "version_order_checks": {
+        "all_w_after_initial": true,
+        "version_dups_zero": true,
+        "genesis_commits_zero": true,
+        "orphan_reads_zero": true
+      },
+      "bcv_stock_checks": {
+        "rc_zero": true,
+        "run_error_free": true,
+        "verifier_error_free": true,
+        "verifier_returncode_allowed": true,
+        "no_timeout": true,
+        "flag_binding": true,
+        "build_binding": true,
+        "cycles_zero": true,
+        "verdict_indeterminate": true,
+        "integrity_zero": true,
+        "commits_match": true,
+        "all_w_after_initial": true,
+        "read_wts_mismatch_zero": true,
+        "sel_reg_zero": true,
+        "sel_commit_zero": true,
+        "reg_future_zero": true,
+        "version_order_checks": true,
+        "passed": true
+      },
+      "stock_pass": true,
+      "classification": "その条件で巡回なし (上限 indeterminate)"
+    },
+    "BEST-BCV_W2_n200_g100-t48": {
+      "build": "BEST",
+      "cell": "BCV_W2_n200_g100",
+      "thread": 48,
+      "repeat": null,
+      "flags": {
+        "ycsb_tuple_num": "200",
+        "ycsb_rratio": "50",
+        "ycsb_max_ope": "10",
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rmw": "0",
+        "extime": "1",
+        "gc_inter_us": "100",
+        "thread_num": "48",
+        "group_commit": "0",
+        "clocks_per_us": "2100"
+      },
+      "trace": 1,
+      "schema": "v2",
+      "argv": [
+        "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/BEST-trace1/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_rratio=50",
+        "-ycsb_max_ope=10",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rmw=0",
+        "-extime=1",
+        "-gc_inter_us=100",
+        "-thread_num=48",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "terminated": true,
+      "timed_out": false,
+      "wall_seconds": 1.1368434320029337,
+      "error": null,
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-m",
+          "verifier",
+          "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t48.trace",
+          "--json",
+          "--quiet",
+          "--protocol",
+          "cicada",
+          "--ccbench-root",
+          "/tmp/izanagi_wt_in05u0_r/wt",
+          "--expected-commits",
+          "313084"
+        ],
+        "returncode": 3,
+        "timed_out": false,
+        "record": {
+          "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t48.trace",
+          "verdict": "indeterminate",
+          "certified": false,
+          "serializable": true,
+          "stats": {
+            "txns": 313084,
+            "reads": 1374385,
+            "writes": 1459905,
+            "keys": 200,
+            "edges": 3555016,
+            "abort_reasons": {}
+          },
+          "integrity": {
+            "clean": false,
+            "orphan_reads": 0,
+            "version_dups": 0,
+            "dup_txids": 0,
+            "genesis_commits": 0,
+            "missing_txids": 0,
+            "write_version_mismatch": 0,
+            "malformed_keys": 0,
+            "framing_violations": 0,
+            "framing_violation_details": [],
+            "lock_coverage_violations": 0,
+            "write_intent_violations": 0,
+            "permutation_violations": 0,
+            "permutation_violation_details": {
+              "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0
+              },
+              "sample": [],
+              "unknown_reason_sample": []
+            },
+            "notes": []
+          },
+          "anomaly_count": 0,
+          "total_cycles": 0,
+          "anomalies": []
+        },
+        "error": null,
+        "wall_seconds": 5.852916982999886,
+        "json_path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t48.trace.verifier.json",
+        "json_sha256": "f2c96586601349fcbf7b78d33e5e4673776d9d14ff3e4486e37270334e70cf92",
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "signal": null,
+      "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t48.trace",
+      "summary": {
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": false,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": [],
+          "existence_violations": null,
+          "existence_violation_details": null
+        },
+        "framing_violation_kinds": {},
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "trace_counts": {
+        "rows": {
+          "C": 313084,
+          "R": 1374385,
+          "W": 1459905,
+          "E": 313084
+        },
+        "reasons": {
+          "X": {},
+          "P": {},
+          "I": {}
+        },
+        "lines": 3460458,
+        "bytes": 145270001,
+        "malformed_commits": 0
+      },
+      "build_binding": true,
+      "stdout": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t48.stdout",
+        "sha256": "d51dffd083512d218cb692ff831e4abb6139d35e668401588fda132e6f568fb1"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g100-t48.stderr",
+        "sha256": "6dbe6ae5b6c31fdb43aa4863f679d4555ed58fbd5e6258b4c6205312625d8973"
+      },
+      "stdout_commits": 313084,
+      "flag_binding": {
+        "matched": true,
+        "lines": [
+          "#FLAGS_clocks_per_us:\t\t\t2100",
+          "#FLAGS_extime:\t\t\t\t1",
+          "#FLAGS_gc_inter_us:\t\t\t100",
+          "#FLAGS_group_commit:\t\t\t0",
+          "#FLAGS_group_commit_timeout_us:\t\t2",
+          "#FLAGS_io_time_ns:\t\t\t5",
+          "#FLAGS_pre_reserve_version:\t\t10000",
+          "#FLAGS_p_wal:\t\t\t\t0",
+          "#FLAGS_s_wal:\t\t\t\t0",
+          "#FLAGS_thread_num:\t\t\t48",
+          "#FLAGS_ycsb:\t\t\t\t1",
+          "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+          "#FLAGS_ycsb_max_ope:\t10",
+          "#FLAGS_ycsb_rmw:\t0",
+          "#FLAGS_ycsb_rratio:\t50",
+          "#FLAGS_ycsb_tuple_num:\t200",
+          "#FLAGS_ycsb_zipf_skew:\t0.9"
+        ],
+        "expected": {
+          "ycsb_tuple_num": "200",
+          "ycsb_rratio": "50",
+          "ycsb_max_ope": "10",
+          "ycsb_zipf_skew": "0.9",
+          "ycsb_rmw": "0",
+          "extime": "1",
+          "gc_inter_us": "100",
+          "thread_num": "48",
+          "group_commit": "0",
+          "clocks_per_us": "2100"
+        }
+      },
+      "stderr_err_lines": [],
+      "diag_fidelity": {
+        "R": 1374385,
+        "R_INLINE": 118167,
+        "W": 1459905,
+        "W_INLINE": 105875,
+        "SEL_REG": 0,
+        "SEL_COMMIT": 0,
+        "REG_FUTURE": 0
+      },
+      "expected_commits": 313084,
+      "initial_wts": 53040678524617984,
+      "read_wts_mismatch": 0,
+      "write_versions": {
+        "count": 1459905,
+        "all_after_initial": true,
+        "failures": []
+      },
+      "version_order_checks": {
+        "all_w_after_initial": true,
+        "version_dups_zero": true,
+        "genesis_commits_zero": true,
+        "orphan_reads_zero": true
+      },
+      "bcv_stock_checks": {
+        "rc_zero": true,
+        "run_error_free": true,
+        "verifier_error_free": true,
+        "verifier_returncode_allowed": true,
+        "no_timeout": true,
+        "flag_binding": true,
+        "build_binding": true,
+        "cycles_zero": true,
+        "verdict_indeterminate": true,
+        "integrity_zero": true,
+        "commits_match": true,
+        "all_w_after_initial": true,
+        "read_wts_mismatch_zero": true,
+        "sel_reg_zero": true,
+        "sel_commit_zero": true,
+        "reg_future_zero": true,
+        "version_order_checks": true,
+        "passed": true
+      },
+      "stock_pass": true,
+      "classification": "その条件で巡回なし (上限 indeterminate)"
+    },
+    "BEST-BCV_W2_n200_g10-t48": {
+      "build": "BEST",
+      "cell": "BCV_W2_n200_g10",
+      "thread": 48,
+      "repeat": null,
+      "flags": {
+        "ycsb_tuple_num": "200",
+        "ycsb_rratio": "50",
+        "ycsb_max_ope": "10",
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rmw": "0",
+        "extime": "1",
+        "gc_inter_us": "10",
+        "thread_num": "48",
+        "group_commit": "0",
+        "clocks_per_us": "2100"
+      },
+      "trace": 1,
+      "schema": "v2",
+      "argv": [
+        "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/BEST-trace1/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_rratio=50",
+        "-ycsb_max_ope=10",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rmw=0",
+        "-extime=1",
+        "-gc_inter_us=10",
+        "-thread_num=48",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "terminated": true,
+      "timed_out": false,
+      "wall_seconds": 1.152808950006147,
+      "error": null,
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-m",
+          "verifier",
+          "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g10-t48.trace",
+          "--json",
+          "--quiet",
+          "--protocol",
+          "cicada",
+          "--ccbench-root",
+          "/tmp/izanagi_wt_in05u0_r/wt",
+          "--expected-commits",
+          "313035"
+        ],
+        "returncode": 3,
+        "timed_out": false,
+        "record": {
+          "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g10-t48.trace",
+          "verdict": "indeterminate",
+          "certified": false,
+          "serializable": true,
+          "stats": {
+            "txns": 313035,
+            "reads": 1376962,
+            "writes": 1457536,
+            "keys": 200,
+            "edges": 3555765,
+            "abort_reasons": {}
+          },
+          "integrity": {
+            "clean": false,
+            "orphan_reads": 0,
+            "version_dups": 0,
+            "dup_txids": 0,
+            "genesis_commits": 0,
+            "missing_txids": 0,
+            "write_version_mismatch": 0,
+            "malformed_keys": 0,
+            "framing_violations": 0,
+            "framing_violation_details": [],
+            "lock_coverage_violations": 0,
+            "write_intent_violations": 0,
+            "permutation_violations": 0,
+            "permutation_violation_details": {
+              "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0
+              },
+              "sample": [],
+              "unknown_reason_sample": []
+            },
+            "notes": []
+          },
+          "anomaly_count": 0,
+          "total_cycles": 0,
+          "anomalies": []
+        },
+        "error": null,
+        "wall_seconds": 5.865683323994745,
+        "json_path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g10-t48.trace.verifier.json",
+        "json_sha256": "fd3563a707742b035951256cc965bfe4f2e9cac06af1e8e2925b98afa6bba64b",
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "signal": null,
+      "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g10-t48.trace",
+      "summary": {
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": false,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": [],
+          "existence_violations": null,
+          "existence_violation_details": null
+        },
+        "framing_violation_kinds": {},
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "trace_counts": {
+        "rows": {
+          "C": 313035,
+          "R": 1376962,
+          "W": 1457536,
+          "E": 313035
+        },
+        "reasons": {
+          "X": {},
+          "P": {},
+          "I": {}
+        },
+        "lines": 3460568,
+        "bytes": 145282646,
+        "malformed_commits": 0
+      },
+      "build_binding": true,
+      "stdout": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g10-t48.stdout",
+        "sha256": "e89f201a1879812cb39d2e0c46d66c605508445e25478ee6118e993a3e27260f"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/BEST-BCV_W2_n200_g10-t48.stderr",
+        "sha256": "45e8c2f932af50ecb50acad33aba1120e5fa526cc0c281d06df74ed0fc995669"
+      },
+      "stdout_commits": 313035,
+      "flag_binding": {
+        "matched": true,
+        "lines": [
+          "#FLAGS_clocks_per_us:\t\t\t2100",
+          "#FLAGS_extime:\t\t\t\t1",
+          "#FLAGS_gc_inter_us:\t\t\t10",
+          "#FLAGS_group_commit:\t\t\t0",
+          "#FLAGS_group_commit_timeout_us:\t\t2",
+          "#FLAGS_io_time_ns:\t\t\t5",
+          "#FLAGS_pre_reserve_version:\t\t10000",
+          "#FLAGS_p_wal:\t\t\t\t0",
+          "#FLAGS_s_wal:\t\t\t\t0",
+          "#FLAGS_thread_num:\t\t\t48",
+          "#FLAGS_ycsb:\t\t\t\t1",
+          "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+          "#FLAGS_ycsb_max_ope:\t10",
+          "#FLAGS_ycsb_rmw:\t0",
+          "#FLAGS_ycsb_rratio:\t50",
+          "#FLAGS_ycsb_tuple_num:\t200",
+          "#FLAGS_ycsb_zipf_skew:\t0.9"
+        ],
+        "expected": {
+          "ycsb_tuple_num": "200",
+          "ycsb_rratio": "50",
+          "ycsb_max_ope": "10",
+          "ycsb_zipf_skew": "0.9",
+          "ycsb_rmw": "0",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "thread_num": "48",
+          "group_commit": "0",
+          "clocks_per_us": "2100"
+        }
+      },
+      "stderr_err_lines": [],
+      "diag_fidelity": {
+        "R": 1376962,
+        "R_INLINE": 160017,
+        "W": 1457536,
+        "W_INLINE": 143393,
+        "SEL_REG": 0,
+        "SEL_COMMIT": 0,
+        "REG_FUTURE": 0
+      },
+      "expected_commits": 313035,
+      "initial_wts": 53045700761070848,
+      "read_wts_mismatch": 0,
+      "write_versions": {
+        "count": 1457536,
+        "all_after_initial": true,
+        "failures": []
+      },
+      "version_order_checks": {
+        "all_w_after_initial": true,
+        "version_dups_zero": true,
+        "genesis_commits_zero": true,
+        "orphan_reads_zero": true
+      },
+      "bcv_stock_checks": {
+        "rc_zero": true,
+        "run_error_free": true,
+        "verifier_error_free": true,
+        "verifier_returncode_allowed": true,
+        "no_timeout": true,
+        "flag_binding": true,
+        "build_binding": true,
+        "cycles_zero": true,
+        "verdict_indeterminate": true,
+        "integrity_zero": true,
+        "commits_match": true,
+        "all_w_after_initial": true,
+        "read_wts_mismatch_zero": true,
+        "sel_reg_zero": true,
+        "sel_commit_zero": true,
+        "reg_future_zero": true,
+        "version_order_checks": true,
+        "passed": true
+      },
+      "stock_pass": true,
+      "classification": "その条件で巡回なし (上限 indeterminate)"
+    },
+    "CTRL-BCV_W2_n200_g10-t48": {
+      "build": "CTRL",
+      "cell": "BCV_W2_n200_g10",
+      "thread": 48,
+      "repeat": null,
+      "flags": {
+        "ycsb_tuple_num": "200",
+        "ycsb_rratio": "50",
+        "ycsb_max_ope": "10",
+        "ycsb_zipf_skew": "0.9",
+        "ycsb_rmw": "0",
+        "extime": "1",
+        "gc_inter_us": "10",
+        "thread_num": "48",
+        "group_commit": "0",
+        "clocks_per_us": "2100"
+      },
+      "trace": 1,
+      "schema": "v2",
+      "argv": [
+        "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/izanagi_cicada_run_w1vy7glx/CTRL-trace1/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_rratio=50",
+        "-ycsb_max_ope=10",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rmw=0",
+        "-extime=1",
+        "-gc_inter_us=10",
+        "-thread_num=48",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "terminated": true,
+      "timed_out": false,
+      "wall_seconds": 1.1373031419934705,
+      "error": null,
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-m",
+          "verifier",
+          "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/CTRL-BCV_W2_n200_g10-t48.trace",
+          "--json",
+          "--quiet",
+          "--protocol",
+          "cicada",
+          "--ccbench-root",
+          "/tmp/izanagi_wt_pcv2n_sp/wt",
+          "--expected-commits",
+          "325651"
+        ],
+        "returncode": 3,
+        "timed_out": false,
+        "record": {
+          "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/CTRL-BCV_W2_n200_g10-t48.trace",
+          "verdict": "indeterminate",
+          "certified": false,
+          "serializable": true,
+          "stats": {
+            "txns": 325651,
+            "reads": 1430142,
+            "writes": 1517262,
+            "keys": 200,
+            "edges": 3673220,
+            "abort_reasons": {}
+          },
+          "integrity": {
+            "clean": false,
+            "orphan_reads": 0,
+            "version_dups": 0,
+            "dup_txids": 0,
+            "genesis_commits": 0,
+            "missing_txids": 0,
+            "write_version_mismatch": 0,
+            "malformed_keys": 0,
+            "framing_violations": 0,
+            "framing_violation_details": [],
+            "lock_coverage_violations": 0,
+            "write_intent_violations": 0,
+            "permutation_violations": 0,
+            "permutation_violation_details": {
+              "counts": {
+                "size-changed": 0,
+                "rcdptr-set-changed": 0,
+                "unknown": 0
+              },
+              "sample": [],
+              "unknown_reason_sample": []
+            },
+            "notes": []
+          },
+          "anomaly_count": 0,
+          "total_cycles": 0,
+          "anomalies": []
+        },
+        "error": null,
+        "wall_seconds": 6.076767357997596,
+        "json_path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/CTRL-BCV_W2_n200_g10-t48.trace.verifier.json",
+        "json_sha256": "b7cb0af576b91026802bcdd6c5c604fec8ff7edb763849b46fb76a7687c23c40",
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "signal": null,
+      "trace_dir": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/CTRL-BCV_W2_n200_g10-t48.trace",
+      "summary": {
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": false,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": [],
+          "existence_violations": null,
+          "existence_violation_details": null
+        },
+        "framing_violation_kinds": {},
+        "proof_surfaces": {
+          "protocol": "cicada",
+          "X": "unavailable",
+          "P": "unavailable",
+          "I": "unavailable"
+        }
+      },
+      "trace_counts": {
+        "rows": {
+          "C": 325651,
+          "R": 1430142,
+          "W": 1517262,
+          "E": 325651
+        },
+        "reasons": {
+          "X": {},
+          "P": {},
+          "I": {}
+        },
+        "lines": 3598706,
+        "bytes": 151139361,
+        "malformed_commits": 0
+      },
+      "build_binding": true,
+      "stdout": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/CTRL-BCV_W2_n200_g10-t48.stdout",
+        "sha256": "3cf0dfbd45826160772e3d0f8709012b56805ddd0fb9beda7b05d2738baff735"
+      },
+      "stderr": {
+        "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/runs/j1-w2/raw/BCV-J1-W2/CTRL-BCV_W2_n200_g10-t48.stderr",
+        "sha256": "62c2d36f887d9476a0b8e709e23eef78ae11e8cb654cc158ba07bddc99181a0b"
+      },
+      "stdout_commits": 325651,
+      "flag_binding": {
+        "matched": true,
+        "lines": [
+          "#FLAGS_clocks_per_us:\t\t\t2100",
+          "#FLAGS_extime:\t\t\t\t1",
+          "#FLAGS_gc_inter_us:\t\t\t10",
+          "#FLAGS_group_commit:\t\t\t0",
+          "#FLAGS_group_commit_timeout_us:\t\t2",
+          "#FLAGS_io_time_ns:\t\t\t5",
+          "#FLAGS_pre_reserve_version:\t\t10000",
+          "#FLAGS_p_wal:\t\t\t\t0",
+          "#FLAGS_s_wal:\t\t\t\t0",
+          "#FLAGS_thread_num:\t\t\t48",
+          "#FLAGS_ycsb:\t\t\t\t1",
+          "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+          "#FLAGS_ycsb_max_ope:\t10",
+          "#FLAGS_ycsb_rmw:\t0",
+          "#FLAGS_ycsb_rratio:\t50",
+          "#FLAGS_ycsb_tuple_num:\t200",
+          "#FLAGS_ycsb_zipf_skew:\t0.9"
+        ],
+        "expected": {
+          "ycsb_tuple_num": "200",
+          "ycsb_rratio": "50",
+          "ycsb_max_ope": "10",
+          "ycsb_zipf_skew": "0.9",
+          "ycsb_rmw": "0",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "thread_num": "48",
+          "group_commit": "0",
+          "clocks_per_us": "2100"
+        }
+      },
+      "stderr_err_lines": [],
+      "diag_fidelity": {
+        "R": 1430142,
+        "R_INLINE": null,
+        "W": 1517262,
+        "W_INLINE": null,
+        "SEL_REG": 0,
+        "SEL_COMMIT": 0,
+        "REG_FUTURE": 0
+      },
+      "expected_commits": 325651,
+      "initial_wts": 53053925299058432,
+      "read_wts_mismatch": 0,
+      "write_versions": {
+        "count": 1517262,
+        "all_after_initial": true,
+        "failures": []
+      },
+      "version_order_checks": {
+        "all_w_after_initial": true,
+        "version_dups_zero": true,
+        "genesis_commits_zero": true,
+        "orphan_reads_zero": true
+      },
+      "bcv_stock_checks": {
+        "rc_zero": true,
+        "run_error_free": true,
+        "verifier_error_free": true,
+        "verifier_returncode_allowed": true,
+        "no_timeout": true,
+        "flag_binding": true,
+        "build_binding": true,
+        "cycles_zero": true,
+        "verdict_indeterminate": true,
+        "integrity_zero": true,
+        "commits_match": true,
+        "all_w_after_initial": true,
+        "read_wts_mismatch_zero": true,
+        "sel_reg_zero": true,
+        "sel_commit_zero": true,
+        "reg_future_zero": true,
+        "version_order_checks": true,
+        "passed": true
+      },
+      "stock_pass": true,
+      "classification": "その条件で巡回なし (上限 indeterminate)"
+    }
+  },
+  "exceptions": [],
+  "launcher_sha256": "895c1fa3dc6241a549c062144ad09bffe7e521d14c8290571132f34faa48fde5",
+  "diag_patch": {
+    "path": "/work/1/SFC/tanab/tmp/vhash-cicada-best-config-verify-2026-09-29/launcher/diag-cicada-inline-fidelity.patch",
+    "sha256": "d08966ad3f4e556ab92911052a4330d399b3eee1dfbe5b3924dbfd50bca2cae9"
+  },
+  "site": "PEGASUS_COMPUTE"
+}

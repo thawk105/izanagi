@@ -383,7 +383,26 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 ## 11. 費用の見積り (投入しない)
 
 出所の区別: **実測** = 記録の値、**換算** = 実測を本書の構成へ当てた値、**試算** = 仮定を置いた値、**契約上限** = walltime × job 数。
-計算は起草 insight §4。
+計算は起草 insight §4。§11.0 は §10 の生死確認 (2026-09-29、[T-2867]) の job Elapse で取り直した値で、§11.1〜§11.2 の起草時の換算より優先する。
+
+### 11.0 生死確認の実測で取り直した値 (2026-09-29)
+
+実測は `output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md` §4・§5 (write-heavy 較正動作点、同時検査あり、本書の実装で計算ノードの job body から投入)。
+
+| 項目 | 値 | 出所 |
+|---|---:|---|
+| job 1 (stock + 初期点 2) | 718〜759 s | 実測 (5 本) |
+| 評価 job | 256〜300 s | 実測 256・265・289 s。候補の throughput で verify の trace 量が変わるので上側を 300 s に置いた (換算) |
+| score job (5 session) | 1,163〜1,360 s | 換算 (評価 slot 226〜265 s × 5 + job の準備) |
+| 1 系列 (B を使い切る場合) | 1.23〜1.42 h | 換算 |
+| 参照 job 3 本 | 1.74〜2.00 h | 換算 (静的 10 µs の slot は初期点の slot と同じと置いた。未実測) |
+| **4 arm × n = 12** | **約 61〜70 node 時間** | 換算 |
+| **4 arm × n = 10** | **約 51〜59 node 時間** | 換算 |
+| 1 原提案の LLM 時間 | 5.7〜8.0 分 | 実測 (4 観測、critic・coder・[auditor]、各 1 回の `claude -p`) |
+| 直列の LLM 時間 (n = 12) | 23〜96 h | 換算 (240〜720 機会)。同時 4 親の理想で 6〜24 h。週上限に当たるまでの機会数は測っていない |
+
+- walltime の案 (実測の最大所要への倍率): job 1 = 30 分、評価 job = 15 分、score job = 45 分、参照 job = 60 分。契約上限は n = 12 で 183 node 時間、n = 10 で 153 node 時間。
+- 同時に進める系列ごとに submit checkout を 1 本ずつ使う (1 系列の台帳は作成時の checkout の HEAD を束縛する)。
 
 ### 11.1 node 時間 (推奨規模 = 4 arm × n = 12)
 
@@ -423,10 +442,10 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
 
 | 案 | arm | 系列 | node 時間 (換算) | LLM の機会 | 失うもの |
 |---|---|---:|---:|---:|---|
-| **推奨** | 4 (LLM×C++・LLM×IR・random・進化) | 48 | 約 59〜69 | 240〜720 | — |
-| 進化を外す | 3 | 36 | 約 44〜52 | 240〜720 | 非 LLM が random だけになり、「巨大な文法上の乱択は藁人形」の査読に答えられない |
-| LLM×IR を外す | 3 | 36 | 約 44〜52 | 120〜360 | 族 A (同じ IR での探索法の比較) が消え、族 B だけになる |
-| n = 10 | 4 | 40 | 約 49〜58 | 200〜600 | 最小 p が 1/1024。等しい大きさの差なら 9/10 勝ちで p ≈ 0.011 (初段 0.025 を通る)、8/10 は p ≈ 0.055 で通らない。report の系列数 (流用候補の `pair_differences` は系列 1..12 固定) も変える |
+| **推奨** | 4 (LLM×C++・LLM×IR・random・進化) | 48 | 約 61〜70 | 240〜720 | — |
+| 進化を外す | 3 | 36 | 約 46〜53 | 240〜720 | 非 LLM が random だけになり、「巨大な文法上の乱択は藁人形」の査読に答えられない |
+| LLM×IR を外す | 3 | 36 | 約 46〜53 | 120〜360 | 族 A (同じ IR での探索法の比較) が消え、族 B だけになる |
+| n = 10 | 4 | 40 | 約 51〜59 | 200〜600 | 最小 p が 1/1024。等しい大きさの差なら 9/10 勝ちで p ≈ 0.011 (初段 0.025 を通る)、8/10 は p ≈ 0.055 で通らない。report の系列数 (流用候補の `pair_differences` は系列 1..12 固定) も変える |
 
 - 推奨の理由: 「なぜ LLM か」に効くのは、フィードバックを使う非 LLM の探索 (進化) との差である (random との差だけでは LLM の事前知識と
   フィードバックの利用を分けられない)。差分分析 P2 は比べる手法に進化探索を挙げる。n = 12 は B-5 v2 でユーザーが選んだ規模である (D2249 項 1)。
@@ -446,6 +465,21 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   §6 の「12 中」、§7.4 の「12 系列」「12 中」「全 4 arm・全 4 比較」と p 値の例、§11 の系列数、schedule の組の数とラテン方格の大きさ) と、
   report の系列数・比較の集合を選んだ案の値へ書き換えた版を、本書の起草版として発効の前に着地させる。
 - 既知結果台帳の差分。
+
+### 12.1 発効束の実値の案 (2026-09-29、生死確認の時点。発効の決定で確定する)
+
+| 項目 | 値 (案) | 出所 |
+|---|---|---|
+| 実装 | driver `orchestrator/campaign/p3_s4_loop_policy.py`、台帳 `silo_policy_contrast.py`、生成器 `silo_policy_contrast_generators.py`、起動器 `tools/pegasus/silo_policy_contrast_launch.py`、round `tools/silo_policy_contrast_round.py`、親 `tools/pegasus/silo_policy_contrast_parent.py` と指示文 `.md`、report `silo_policy_contrast_report.py`、job body の `contrast` mode ([T-2867] の着地 commit) | 実装の insight §2 |
+| 生成器の file の SHA-256 | `6060f13767700c5d57cc55c31ee3d0832d2c3e284fd352e4fdb79972d5d5b0a3` (§4.4・§4.5 の確率・重みは本文の値どおりで、実装の定数は同じ file にある) | 実物 |
+| CCBench の PIN | `68106660686232781bca3be792a750d3e19d7a8a` (`axis_silo_function_policy.PIN`) | 実物 |
+| 版文字列 | 本走 = 登録版の文字列 `silo-policy-generator-contrast-v1` (§0)。試験と生死確認は `silo-policy-contrast-test-2026-09-29` を使い、v1 の preimage は引いていない | 実装の insight §4 |
+| LLM の親 | `claude -p --model claude-opus-5-5 --output-format json`、settings は空の JSON、1 原提案ごとに新しい session (resume しない)、許可 tool は round tool の Bash・Agent・Read・Write | 生死確認の実物 |
+| 役割 | `coder-v4-autonomous-policy` (C++ 形)・`coder-v4-autonomous-policy-ir` (IR 形)・`auditor`・`critic` (各 role 定義の model `opus`・effort `high`) | `.claude/agents/` |
+| 親の指示文の SHA-256 | `3a9674088518b18e8e3497b53e8aabd609323068434e1b8d21f5186350f54015` | 実物 |
+| walltime | job 1 = 30 分、評価 job = 15 分、score job = 45 分、参照 job = 60 分 | §11.0 |
+| 同時に進める系列数 | 系列ごとに submit checkout を 1 本 (推奨の 16 系列なら 16 本)、LLM 親 4 | §7.1 の推奨と §11.0 |
+| 規模 | ユーザーが選ぶ (§11.3) | — |
 
 発効の確認で、ユーザーへ示す事項:
 
@@ -488,3 +522,5 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   推奨以外の規模を選んだときの書き換え範囲、生成不成立の根拠の数の報告、B を上限とする表現の統一。
 - 2026-09-27: 同じ wave の焦点再レビュー 2 を受けて改めた (着地前): LLM の役割の異常終了を再試行し尽くした後は分類不能欠測、
   規模を変えるときの書き換え範囲に §6・§7.4 の固定数を足した。
+- 2026-09-29: [T-2867] の実装と §10 の生死確認 (LLM×C++・LLM×IR の 1 iteration、機械生成 IR の 1 評価、計算ノード) を受けて、§11.0 に実測で取り直した値、
+  §11.3 の表の値、§12.1 に発効束の実値の案を足した。規則 (§1〜§9) は変えていない。記録は `output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md`。
