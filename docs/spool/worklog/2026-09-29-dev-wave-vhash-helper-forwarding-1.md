@@ -20,6 +20,7 @@ title: [T-2901] 止まった tx を別の thread が前進・失効させる形 
 - 回帰: md_4 の 63 構成と md_10 の 60 構成は、統合・fix2・fix 統合・fix4 の各時点で diffs=0 (照合器は変更前の木でも diffs=0)。
 - 変異: MH1〜MH8 を login 自走で 8/8 KILLED (baseline 緑)、計算ノード本走 (束ね経路 1 job) も 8/8 事前登録どおり KILLED (MISMATCH 0。1 回目は待ち行列 900 秒で子を起動せず、`--queue-wait-timeout 10800` で再投入)。
 - 受入: 焦点走 (計算ノード、新旧 vhash test 3 file と在庫・収集・campaign 系 6 file) は fix4 後で 698 passed・3 skipped。受入全走はこの記録 commit の tip で行い、受領証は job dir (`/work/1/SFC/tanab/tmp/vhash-helper-forwarding-2026-09-29/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
+- 受入 attempt 1 の赤の判定 (DW-O18): 記録 commit 21651e275 に local main 908cc719d を post-claim merge した木 4a3f1b02e で赤 1 件 — `orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate` (`Failed: first evaluation did not finish`、5000 tick の待ちループが時間内に評価の完了を観測しなかった)。**非帰属**: この wave の変更は `tools/vhash_forwarding_model/`・新 test・docs だけで、この test と `orchestrator/campaign/` は記録 commit から当該の木まで変わっていない。同じ木で当該 file を計算ノードで単独再走して 65 passed (5.40 秒) で非再現。受入を投げ直す。
 - 異常と救出: 背景 job の最初の `EnterWorktree(name)` が「Could not read the repository git config」で失敗 → 手動 `git worktree add -b` が checkout 完了後に `Could not reset index file to revision 'HEAD'` rc=128 で失敗し、dir は消えて branch だけが残った → 既存 branch を指定して add し直して回復 (同時刻に 16 本の撤去で Lustre が詰まっていた)。16:2x〜16:3x に land 調整役からユーザーの push のための git 書き込み一時停止を受け、再開まで commit・branch 作成を止めた。
 
 ## 次の一手差分
