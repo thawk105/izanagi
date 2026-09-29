@@ -40,7 +40,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
        // later_ver_ to insert at wts <= p reaches the protected predecessor
        // of the first node at/below p before its pre_ver->next_ CAS.
        if (vis[j] == i + 1 || first_le[j] == i + 1) return false;
-@@ -414,6 +432,14 @@
+@@ -414,4 +432,12 @@
        for (size_t k = first; k < i; ++k) {
          // gc_lock_ serializes this mark with gcq_ pop for this tuple.
          chain[k]->igc_pruned_.store(1, std::memory_order_release);
@@ -53,5 +53,3 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +              static_cast<unsigned long long>(chain[k]->ldAcqWts()));
 +        }
          IGC_COUNT_PRUNED(thid, chain[k]);
-       }
-       IGC_COUNT(thid, success);
