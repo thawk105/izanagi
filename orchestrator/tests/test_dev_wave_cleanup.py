@@ -268,7 +268,7 @@ def test_remove_child_archives_dirty_integrated_author_and_deletes_branch(tmp_pa
     assert not case.child.exists() and not case.admin.exists()
     assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
     assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
-    assert any(call[3:] == ('branch', '-D', '--', 'author') for call in calls)
+    assert any(call[3:] == ('update-ref', '-d', 'refs/heads/author', case.head) for call in calls)
     assert not any(call[3:5] == ('branch', '-d') for call in calls)
     assert (_sha(case.repo.main), _sha(case.repo.wave)) == (main_head, wave_head)
     assert _file_snapshot(case.repo.wave) == wave_before
@@ -2519,7 +2519,7 @@ def test_remove_child_branch_delete_failure_is_partial(tmp_path, monkeypatch):
     fired = []
 
     def lock_branch(command, *args, **kwargs):
-        if command[3:] == ['branch', '-D', '--', 'author']:
+        if command[3:] == ['update-ref', '-d', 'refs/heads/author', case.head]:
             fired.append(True)
             assert not case.child.exists() and not case.admin.exists()
             lock = case.repo.main / '.git/refs/heads/author.lock'
@@ -2559,7 +2559,7 @@ def test_remove_child_deletes_branch_after_admin_removal(tmp_path, monkeypatch):
     observed = []
 
     def observe(command, *args, **kwargs):
-        if command[3:] == ['branch', '-D', '--', 'author']:
+        if command[3:] == ['update-ref', '-d', 'refs/heads/author', case.head]:
             assert not case.child.exists() and not case.admin.exists()
             assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
             observed.append(True)
