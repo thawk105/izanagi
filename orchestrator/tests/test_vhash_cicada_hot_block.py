@@ -1,10 +1,27 @@
 """Contracts for Cicada hot block driver and preregistered mutations."""
 from copy import deepcopy
 import hashlib
+import json
 
 import pytest
 
 from orchestrator.campaign import vhash_cicada_hot_block as h
+
+
+def count_json(k, *, commits=0):
+    """The fields and bucket lengths emitted by the variant patch's fprintf stream."""
+    workers = []
+    for thid in range(256):
+        worker = {name: 0 for name in h.COUNT_SCALARS}
+        worker.update(thid=thid, hops=[0] * 7, snapshot_lag_ts=[0] * 18)
+        if thid == 0:
+            worker.update(hot=3, update_commit=commits, install_hold_cycles=42,
+                          install_wait_cycles=14, install_count=2, ro_commit=1)
+            worker["hops"][4] = 3
+            worker["snapshot_lag_ts"][2] = 1
+        workers.append(worker)
+    return {"schema_version": 1, "k": k, "sizeof_tuple": 64 + 16 * k,
+            "workers": workers}
 
 
 def row(job, round_, cell, k, kind="perf", throughput=100.0):
@@ -39,7 +56,8 @@ def jobs():
                              "witness_count": 0}}}
               for cell in ("T1", "T2") for broken in h.BROKEN]
     result.append({"records": trace})
-    result.append({"records": [{**row(0, 0, cell, k, "count"), "count": {"test": 1}}
+    result.append({"records": [{**row(0, 0, cell, k, "count"),
+                                 "count": count_json(k, commits=2)}
                                for cell in h.COUNT_CELLS for k in (0, 1)]})
     return result
 
@@ -153,6 +171,47 @@ def test_count_coverage_fails_closed():
     raw[-1]["records"].pop()
     with pytest.raises(ValueError, match="COUNT coverage"):
         aggregate(raw)
+
+
+def test_patch_count_json_parse_and_worker_aggregation():
+    value = count_json(1, commits=2)
+    stdout = "throughput[tps]: 1\nCICADA_VHASH_COUNT_JSON " + json.dumps(value) + "\n"
+    assert h.parse_count(stdout) == value
+    totals = aggregate(jobs())["count"][1]["count"]
+    assert totals["hot"] == 3
+    assert totals["hops"] == [0, 0, 0, 0, 3, 0, 0]
+    assert totals["snapshot_lag_ts"][2] == 1
+    assert totals["install_hold_cycles_per_update_commit"] == 21
+    assert totals["install_wait_cycles_per_update_commit"] == 7
+    assert totals["realized_ro_commit_fraction"] == pytest.approx(1 / 3)
+    assert "install_hold_cycles / update_commit" in h.COUNT_DERIVED[
+        "install_hold_cycles_per_update_commit"]
+    value["workers"][0]["hops"].pop()
+    with pytest.raises(ValueError, match="COUNT bucket"):
+        h.aggregate_count(value, 1)
+
+
+def test_patch_break_event_stages_and_witness_attribution():
+    stderr = "\n".join([
+        "CICADA_BREAK_EVENT slug=stale-hot stage=reached tx_wts=4294967298 key=0a01 read_wts=4294967299",
+        "CICADA_BREAK_EVENT slug=stale-hot stage=changed tx_wts=4294967298 key=0a01 read_wts=4294967297",
+        "CICADA_BREAK_EVENT slug=stale-hot stage=committed tx_wts=4294967298 key=0a01 read_wts=4294967297",
+        "CICADA_BREAK_FIRED slug=stale-hot reached=1 changed=1 committed=1",
+    ])
+    diagnostics = h._break_events(stderr, "broken-B1")
+    assert diagnostics["event_stages"] == {"reached": 1, "changed": 1, "committed": 1}
+    record = {"anomalies": [{"cycle": [7, 8], "edges": [{"from": 7, "to": 8,
+        "reasons": [{"type": "rw", "key": "0a01", "u_ver": [1, 1],
+                     "v_ver": [1, 3]}]}]}]}
+    assert h._attribute(record, {4294967298: 7}, diagnostics["events"], 1)["witness_count"] == 1
+    record["anomalies"][0]["edges"][0]["reasons"][0]["u_ver"] = [1, 3]
+    assert h._attribute(record, {4294967298: 7}, diagnostics["events"], 1)["witness_count"] == 0
+    with pytest.raises(ValueError, match="event/summary mismatch"):
+        h._break_events(stderr.replace("committed=1", "committed=2"), "broken-B1")
+    with pytest.raises(ValueError, match="malformed break event"):
+        h._break_events(stderr.replace("stage=changed ", "stage=unknown "), "broken-B1")
+    skip = stderr.replace("stale-hot", "skip-pending")
+    assert h._break_events(skip, "broken-B2")["fired"]["committed"] == 1
 
 
 def test_m6_estimate_threshold_and_ladder():

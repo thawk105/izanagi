@@ -51,7 +51,7 @@ GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
           "INLINE_VERSION_PROMOTION": 0, "REUSE_VERSION": 1,
           "WRITE_LATEST_ONLY": 0}
 COUNT_PREFIX = "CICADA_VHASH_COUNT_JSON "
-EVENT_RE = re.compile(r"CICADA_BREAK_EVENT slug=([a-z-]+) tx_wts=(\d+) key=([0-9a-f]+) a_wts=(\d+) b_wts=(\d+)")
+EVENT_RE = re.compile(r"CICADA_BREAK_EVENT slug=([a-z-]+) stage=(reached|changed|committed) tx_wts=(\d+) key=((?:[0-9a-f]{2})+) read_wts=(\d+)")
 FIRED_RE = re.compile(r"CICADA_BREAK_FIRED slug=([a-z-]+) reached=(\d+) changed=(\d+) committed=(\d+)")
 INTEGRITY_ZERO = ("orphan_reads", "version_dups", "dup_txids", "genesis_commits",
                   "missing_txids", "write_version_mismatch", "malformed_keys",
@@ -393,6 +393,54 @@ def parse_count(stdout):
     return value
 
 
+COUNT_SCALARS = ("hot", "fallback_odd", "fallback_changed", "cold",
+                 "ro_commit", "ro_abort", "update_commit", "update_abort",
+                 "install_wait_cycles", "install_hold_cycles", "install_count",
+                 "gc_hold_cycles", "gc_count")
+COUNT_BUCKETS = {"hops": 7, "snapshot_lag_ts": 18}
+COUNT_DERIVED = {
+    "install_hold_cycles_per_update_commit": "install_hold_cycles / update_commit (null when update_commit is zero)",
+    "install_wait_cycles_per_update_commit": "install_wait_cycles / update_commit (null when update_commit is zero)",
+    "gc_hold_cycles_per_update_commit": "gc_hold_cycles / update_commit (null when update_commit is zero)",
+    "realized_ro_commit_fraction": "ro_commit / (ro_commit + update_commit) (null when denominator is zero)",
+}
+
+
+def aggregate_count(value, k):
+    """Sum the patch's per-thread counters and expose defined diagnostic ratios."""
+    if (not isinstance(value, dict) or value.get("schema_version") != 1 or
+            value.get("k") != k or type(value.get("sizeof_tuple")) is not int or
+            value["sizeof_tuple"] <= 0 or not isinstance(value.get("workers"), list) or
+            len(value["workers"]) != 256):
+        raise ValueError("invalid COUNT root")
+    totals = {name: 0 for name in COUNT_SCALARS}
+    totals.update({name: [0] * length for name, length in COUNT_BUCKETS.items()})
+    for thid, worker in enumerate(value["workers"]):
+        if not isinstance(worker, dict) or worker.get("thid") != thid:
+            raise ValueError("invalid COUNT worker id")
+        for name in COUNT_SCALARS:
+            n = worker.get(name)
+            if type(n) is not int or n < 0:
+                raise ValueError(f"invalid COUNT counter: {name}")
+            totals[name] += n
+        for name, length in COUNT_BUCKETS.items():
+            bucket = worker.get(name)
+            if (not isinstance(bucket, list) or len(bucket) != length or
+                    any(type(n) is not int or n < 0 for n in bucket)):
+                raise ValueError(f"invalid COUNT bucket: {name}")
+            totals[name] = [a + b for a, b in zip(totals[name], bucket)]
+    updates = totals["update_commit"]
+    commits = totals["ro_commit"] + updates
+    totals.update({
+        "install_hold_cycles_per_update_commit": totals["install_hold_cycles"] / updates if updates else None,
+        "install_wait_cycles_per_update_commit": totals["install_wait_cycles"] / updates if updates else None,
+        "gc_hold_cycles_per_update_commit": totals["gc_hold_cycles"] / updates if updates else None,
+        "realized_ro_commit_fraction": totals["ro_commit"] / commits if commits else None,
+    })
+    return {"schema_version": 1, "k": k, "sizeof_tuple": value["sizeof_tuple"],
+            "worker_count": len(value["workers"]), **totals}
+
+
 def _trace_rows(directory):
     counts = {k: 0 for k in ("C", "R", "W", "E")}
     versions = {}
@@ -414,38 +462,52 @@ def _trace_rows(directory):
 def _break_events(stderr, build):
     slug = "stale-hot" if build == "broken-B1" else "skip-pending"
     events, fired = [], []
+    stages = {stage: 0 for stage in ("reached", "changed", "committed")}
     for line in stderr.splitlines():
-        if match := EVENT_RE.fullmatch(line):
+        if line.startswith("CICADA_BREAK_EVENT "):
+            match = EVENT_RE.fullmatch(line)
+            if not match:
+                raise ValueError(f"malformed break event: {line}")
             if match[1] != slug:
                 raise ValueError("wrong break event slug")
-            events.append({"tx_wts": int(match[2]), "key": match[3],
-                           "a_wts": int(match[4]), "b_wts": int(match[5])})
-        if match := FIRED_RE.fullmatch(line):
+            stages[match[2]] += 1
+            events.append({"stage": match[2], "tx_wts": int(match[3]),
+                           "key": match[4], "read_wts": int(match[5])})
+        if line.startswith("CICADA_BREAK_FIRED "):
+            match = FIRED_RE.fullmatch(line)
+            if not match:
+                raise ValueError(f"malformed break summary: {line}")
             if match[1] != slug:
                 raise ValueError("wrong break summary slug")
             fired.append({"reached": int(match[2]), "changed": int(match[3]),
                           "committed": int(match[4])})
     if len(fired) != 1:
         raise ValueError(f"expected one break summary: {build}")
-    if len(events) < fired[0]["committed"]:
-        raise ValueError("committed break events not recorded")
-    return {"events": events, "fired": fired[0]}
+    if stages != fired[0]:
+        raise ValueError(f"break event/summary mismatch: {stages} != {fired[0]}")
+    return {"events": events, "event_stages": stages, "fired": fired[0]}
 
 
 def _attribute(record, versions, events, initial_wts):
     tx_wts = {tx: wts for wts, tx in versions.items()}
     matching = []
     for anomaly in record.get("anomalies", []):
+        matches = []
         for edge in anomaly.get("edges", []):
             for reason in edge.get("reasons", []):
                 if str(reason.get("type", "")).lower() != "rw":
                     continue
                 for event in events:
+                    if event["stage"] != "committed":
+                        continue
                     if tx_wts.get(edge.get("from")) != event["tx_wts"] or reason.get("key") != event["key"]:
                         continue
-                    version = [1, 0] if event["a_wts"] == initial_wts else [event["a_wts"] >> 32, event["a_wts"] & 0xffffffff]
+                    read_wts = event["read_wts"]
+                    version = [1, 0] if read_wts == initial_wts else [read_wts >> 32, read_wts & 0xffffffff]
                     if reason.get("u_ver") == version:
-                        matching.append({"edge": edge, "event": event})
+                        matches.append({"edge": edge, "event": event})
+        if matches:
+            matching.append({"cycle": anomaly.get("cycle"), "matches": matches[:3]})
     return {"witness_count": len(matching), "examples": matching[:3]}
 
 
@@ -658,9 +720,12 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
        for cell, data in ratios.items()}
     breaks = {r["build"] + ":" + r["cell"]: broken_verdict(r)
               for r in traces if r["build_kind"] == "broken"}
+    count_rows = [{**r, "count_raw": r["count"],
+                   "count": aggregate_count(r["count"], r["k"])} for r in counts]
     return {"schema": "vhash-hot-aggregate/v1", "pin": PIN, "cells": result_cells,
             "disqualified_ks": sorted(failed), "broken": breaks,
-            "count": counts, "trace": traces, "conditions": {"threads": 48,
+            "count": count_rows, "count_derived_definitions": COUNT_DERIVED,
+            "trace": traces, "conditions": {"threads": 48,
             "tuples": 1000000, "zipf": 0.9, "max_ope": 10, "extime": 3},
             "interpretation": "exploratory same-time comparison of short YCSB transactions"}
 

@@ -15,8 +15,15 @@ def _layout(fig):
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     boxes = []
+    off_view_ticks = set()
+    for axis in fig.axes:
+        for coordinate in (axis.xaxis, axis.yaxis):
+            lo, hi = sorted(coordinate.get_view_interval())
+            for tick in coordinate.get_major_ticks() + coordinate.get_minor_ticks():
+                if not lo <= tick.get_loc() <= hi:
+                    off_view_ticks.update((tick.label1, tick.label2))
     for label in fig.findobj(Text):
-        if not label.get_visible() or not label.get_text().strip():
+        if label in off_view_ticks or not label.get_visible() or not label.get_text().strip():
             continue
         box = label.get_window_extent(renderer)
         if box.width == 0 or box.height == 0:
@@ -126,17 +133,17 @@ def make_figures(data, source, output):
     bars = []
     for row in data.get("count", []):
         value = row.get("count") or {}
-        cycles = value.get("install_hot_hold_cycles_per_commit")
+        cycles = value.get("install_hold_cycles_per_update_commit")
         if cycles is not None and row.get("cell") in write_cells:
             bars.append((row["cell"], row["k"], float(cycles)))
     if bars:
         counter_ax.bar(range(len(bars)), [v for _, _, v in bars])
         counter_ax.set(xticks=range(len(bars)),
                        xticklabels=[f"{c} K{k}" for c, k, _ in bars],
-                       ylabel="Hot interval cycles / commit")
+                       ylabel="Hot interval cycles / update commit")
         counter_ax.tick_params(axis="x", rotation=50)
     else:
-        counter_ax.text(.5, .5, "COUNT hot interval cycles / commit unavailable",
+        counter_ax.text(.5, .5, "COUNT hot interval cycles / update commit unavailable",
                         ha="center", va="center", transform=counter_ax.transAxes)
         counter_ax.set(xticks=[], yticks=[])
     _save(fig, output / "fig-write", data, source)
