@@ -21,6 +21,7 @@ from tools.vhash_cicada_tuning.driver import read_runs
 
 NOTES = {"j1": "J1 探索値・正しさ未検証の診断値",
          "j2": "J2 確認値・正しさ未検証の診断値"}
+TPS_PER_MTPS = 1_000_000
 
 
 class FigureLayoutError(ValueError):
@@ -145,7 +146,8 @@ def make_j1_figure(rows, summary):
                          for _, _, samples in points]
             offset = {10: -0.22, 100: 0, 1000: 0.22}.get(gc, 0)
             width = 0.22 if len(gcs) > 1 else 0.65
-            axis.bar([v + offset for v in x], estimates, width, label=f"GC {gc} µs")
+            axis.bar([v + offset for v in x], [v / TPS_PER_MTPS for v in estimates],
+                     width, label=f"GC {gc} µs")
             ratios = []
             ratio_x = []
             for i, genome, samples in points:
@@ -163,7 +165,7 @@ def make_j1_figure(rows, summary):
         control = order.index(model.canonical(model.CONTROL))
         axis.axvline(control, linestyle="--", color="black", linewidth=0.8)
         axis.set_title(f"{w}: 48 threads, N={next(iter(records)):,}, skew 0.9", fontsize=10)
-        axis.set_ylabel("median throughput [tps]")
+        axis.set_ylabel("median throughput [Mtps]")
         ratio_axis.set_ylabel("median job control ratio", fontsize=8)
         axis.set_xlim(-0.8, 23.8)
         axis.set_xticks(list(range(0, 24, 2)), [str(i) for i in range(0, 24, 2)])
@@ -196,10 +198,10 @@ def make_j2_figure(rows, summary):
             values = [_estimate([r["throughput_tps"] for r in
                                  groups[(w, genome, gc, next(iter(records)))]]) for gc in gcs]
             label = "control" if genome == model.canonical(model.CONTROL) else f"candidate {i + 1}"
-            axis.plot(gcs, values, marker="o", label=label)
+            axis.plot(gcs, [v / TPS_PER_MTPS for v in values], marker="o", label=label)
         axis.set_xscale("log")
         axis.set_title(f"{w}: 48 threads, N={next(iter(records)):,}, skew 0.9", fontsize=10)
-        axis.set_ylabel("median throughput [tps]")
+        axis.set_ylabel("median throughput [Mtps]")
         axis.set_xticks(sorted({gc for _, gc in keys}))
         axis.set_xticklabels([str(gc) for gc in sorted({gc for _, gc in keys})])
         axis.legend(loc="upper left", bbox_to_anchor=(1.22, 1), fontsize=8)
@@ -235,6 +237,9 @@ def publish(fig, axes, prefix: Path, rows_path: list[Path], summary_path: Path,
             "median_maxrss_kb": st.median(r["maxrss_kb"] for r in group),
             "n_reps": len(selected)}
     provenance = {"figure": figure, "diagnostic_only": True, "correctness_verified": False,
+                  "throughput_axis": {"unit": "Mtps", "source_unit": "tps",
+                                      "tps_per_Mtps": TPS_PER_MTPS,
+                                      "conversion": "plotted_Mtps = median_tps / tps_per_Mtps"},
                   "inputs": {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
                              for p in [*rows_path, summary_path]},
                   "conditions": {"threads": 48, "skew": "0.9", "workloads": measured},

@@ -85,6 +85,54 @@ def test_real_size_figures_and_overlap_rejection():
             plt.close(fig)
 
 
+def test_measured_throughput_scale_layout():
+    """Exercise the measured 16-genome and 3-genome x 4-GC shapes without raw files."""
+    genomes = [m.canonical(g) for g in m.genomes()]
+    buildable = {g for g in genomes if not (
+        "INLINE_VERSION_OPT=1" in g and "INLINE_VERSION_PROMOTION=1" in g)}
+    selected = set(genomes[:2]) | {m.canonical(m.CONTROL)}
+    assert len(buildable) == 16
+    assert len(selected) == 3
+    scale = {"W1": 70_000, "W2": 500_000, "W3": 2_000_000, "W4": 4_700_000}
+    rows = [r for r in _rows() if (
+        r["stage"] == "j1" and r["genome"] in buildable or
+        r["stage"] == "j2" and r["genome"] in selected and
+        r["gc_inter_us"] in (10, 100, 1000, 10000))]
+    for row in rows:
+        row["throughput_tps"] = scale[row["workload"]] + (
+            genomes.index(row["genome"]) * 100 + row["gc_inter_us"] % 100 +
+            int(row["run_id"]) % 3 * 10)
+    summary_data = _summary(rows)
+    for stage, builder in (("j1", p.make_j1_figure), ("j2", p.make_j2_figure)):
+        groups, _ = p._plot_data(rows, summary_data, stage)
+        assert len(groups) == (16 * 6 if stage == "j1" else 4 * 3 * 4)
+        fig, axes = builder(rows, summary_data)
+        try:
+            p.check_figure_layout(fig, axes)
+            for axis, workload in zip(axes, scale):
+                plotted = ([patch.get_height() for patch in axis.patches] if stage == "j1"
+                           else [value for line in axis.lines for value in line.get_ydata()
+                                 if line.get_marker() == "o"])
+                assert plotted
+                assert min(plotted) >= scale[workload] / p.TPS_PER_MTPS
+                assert max(plotted) < (scale[workload] + 10_000) / p.TPS_PER_MTPS
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                raw, summary = root / "runs.jsonl", root / "summary.json"
+                raw.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+                summary.write_text(json.dumps(summary_data))
+                prefix = root / stage
+                p.publish(fig, axes, prefix, [raw], summary, stage, rows, summary_data)
+                provenance = json.loads(Path(str(prefix) + ".provenance.json").read_text())
+                assert provenance["throughput_axis"]["unit"] == "Mtps"
+                assert provenance["throughput_axis"]["tps_per_Mtps"] == 1_000_000
+                assert all(provenance["raw_aggregates"][key]["median_tps"] ==
+                           summary_data["condition_medians"][stage][key]["throughput_tps"]
+                           for key in provenance["raw_aggregates"])
+        finally:
+            plt.close(fig)
+
+
 def test_partial_workloads_and_input_binding():
     assert p._estimate([10, 30, 100]) == 30
     rows = [r for r in _rows() if r["workload"] in {"W1", "W2"}]
