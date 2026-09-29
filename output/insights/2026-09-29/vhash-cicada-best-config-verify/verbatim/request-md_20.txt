@@ -1,0 +1,28 @@
+md_20: 比較相手 Cicada の最良設定を正しさ検査器に通す
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「VHash 比較相手 Cicada の観測最良設定」を含む item を grep して対象とする (T 番号は固定しない)。
+
+■ 目的
+md_11 (output/insights/2026-09-29/vhash-cicada-baseline-tuning/README.md) が決めた観測最良設定は、既定の Cicada より 2〜4.5 倍速いが正しさ未検証の診断値である。
+主比較の相手を正しさ未検証のまま使えないので、先に検査器へ通す。最良設定の中心は BACK_OFF=0 で、abort 率が上がる (rr50 で 0.14 → 0.42)。
+
+■ やること
+1. 対象: rr5・rr50・rr95 の最良 (BACK_OFF=0・INLINE_VERSION_OPT=1・INLINE_VERSION_PROMOTION=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0) と、100 操作型の最良 (BACK_OFF=0・OPT=0・PROM=0・REUSE=0・WLO=0)。比較のため既定 (control) も同じ条件で通す。
+2. md_3 / md_17 の trace (patches/instr-cicada-trace.patch、D2279) をこれらの設定に当て、YCSB の同じ workload の小走行で判定器に掛ける。INLINE_VERSION_OPT=1 の経路で trace が正しく出るか (inline 版の読み書きが記録されるか) を先に確かめる。記録されない経路があれば、検査できない範囲として書き、trace の拡張が要るなら patches/instr-cicada-trace.patch を最小限に直す (Codex author)。
+3. 巡回が出たら、その設定は主比較に使えない。witness を構造化して残し、どの最適化が原因かを 1 軸ずつ切り分ける。
+4. 巡回が出なければ「その条件で巡回なし (上限は indeterminate)」と書く。certified とは書かない。
+
+■ 成果物
+- 一次資料: output/insights/<着手日>/vhash-cicada-best-config-verify/README.md (設定と条件、trace の網羅の確認、判定結果、限界)。
+- trace patch を直した場合はその patch と ledger の entry。
+- spool fragment (対象 item の完了または更新)。
+
+■ 所有
+自分の一次資料と fragment。trace patch を直す場合だけ patches/instr-cicada-trace.patch と ledger・README の該当 entry。
+external/ccbench の修正 (md_19)、patches/cicada-forwarding-* (md_21)、patches/cicada-interval-gc-* (md_18) は触らない。
+
+■ 注意
+- 正しさの主張に関わる wave なので、段 3 の相談と段 6 の review を省かない。計算ノードは合計 2 node 時間未満。

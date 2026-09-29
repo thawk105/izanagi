@@ -73873,3 +73873,277 @@ spool fragment に置き、次の版の wave がそれらから全面再導出�
 - 前進の公開に成功した同じ世代の間は代行 thread が止まった thread の静止を代わりに宣言してよい、とする規則 (段 1 の候補) — 宣言と再開・leader の消費の間の競合を解く規則が別に要り、前進の公開成功は十分条件でない (段 3 の両レンズ)。
 
 **判断を変える条件:** 評価に本当に走らない停止を含む長い tx を入れる必要が出たとき、止まった thread の代理静止宣言 (または版ごとの保護による置き換え) を Cicada の実際の順序で検査できたとき、SP の C++ 試作で要求確認を入れた待機でも回収境界が止まる場面が残ると実測したとき。
+
+## D2299. silo-function-policy 軸の生成器対照は、系列ごとの台帳が A・B と次の単位を持ち、全ての計測 slot を slot ごとの計測 campaign と slot ごとの authorization session で測り、auditor を省けるのは機械生成の候補と初期点だけにする (2026-09-29)
+
+**決定:** 事前登録の草稿 (D2263) の実行経路を次の形で実装した。記録は `output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md`。
+
+1. **系列の identity と計測の identity を分ける。** 系列 cfg = 既定 cfg + `contrast_cohort`・`contrast_arm`・`contrast_series` と同時検査の key (D2251)。対照を指定しない cfg の bytes と campaign ID は不変。計測 cfg = 系列 cfg + `contrast_slot` (`<slot>-<index>-a<attempt>`、slot は stock・seed・eval・score・ref-stock・ref-fixed10)。機械故障の retry は attempt を変えて新しい claim を取る (D2281 の iteration ごとの計測 campaign の拡張)。系列 dir は `policy_history.jsonl` の唯一の置き場。
+2. **1 job の slot は slot ごとに新しい authorization session で測る。** session は最初に認可した計測 campaign の identity に束縛される (`loop.py` の `_authorize_with_session`) ので、identity の違う slot で共有すると `binding mismatch` になる (生死確認で実測)。`loop.py`・claim・session の実装は変えない。
+3. **系列台帳 (header + 連番の create-only event) が A・B・次の単位・系列の終了を持つ。** 通常 loop の `check_stop`・`loop_state.json` は使わない (通常 loop の予算の数え方は別の裁定)。job は起動時に、台帳から導いた次の単位・proposal の sha256・submit checkout と HEAD を最初の slot 開始より前に照合し、違えば rc=2。未終端の slot があれば自動で投げ直さない。台帳は作成時の checkout の HEAD を束縛し、系列は 1 つの HEAD で通す。
+4. **auditor を省けるのは機械生成 (random・evo) の候補と初期点だけ。** 機械 proposal は `{generator, ir}` の別形で、arm と生成器名の閉じた対応で照合し、LLM arm の系列では拒否する。初期点は proposal file を経由させず driver が `enumerate_recon()` の `0000`・`0001` から組む。書込後の digest 再照合は全由来で行う。生成器の再計算による provenance の照合は足さない。
+5. **A の計上は機会の開始と確定を分ける。** 429 と役割の異常終了は A を消費しない。schema 不合格・preview の拒否・auditor の veto と digest 不一致は A を 1 消費する却下で、driver の構造化 JSON の拒否 (`proposal-schema`・`auditor-gate`・`auditor-digest`) か round 自身の読込の失敗 (`coder-schema`・`auditor-schema`) だけを却下にし、構造化 JSON の無い driver の異常終了は却下にしない。B は評価 slot の attempt 0 の開始で 1 回だけ確定する。
+6. **LLM の原提案は 1 機会ごとに新しい `claude -p` (resume しない)** で、round tool の prepare (critic) → coder → check (preview) → auditor → finalize を進め、429 は `claude -p` の JSON の構造化 field だけで判定して 900 秒後に同じ機会番号で起こし直す。coder role の `{"proposal": ...}` は round tool が展開する。
+7. **静的 10 µs は D2240 と同じ適用方法** (stock 木に `patches/silo-backoff-fixed.patch`、`BACK_OFF=1, BACKOFF_FIXED=10`、骨格 patch なし) で、既存の stock 評価関数に載せる (driver の `run_campaign` の呼出し箇所は 2 のまま、閉じた inventory の期待値は変えない)。
+
+**理由:**
+- Pegasus の one-shot claim と同じ campaign の terminal skip は identity ごとに効く (D2281)。系列の全 slot (stock・初期点・評価・score の 5 session・参照の 10 session) が fresh な測定であるには、slot ごとの identity が要る。
+- 草稿 §3・§5.5・§5.6 の A・B と保留と途中死の規則は、driver の反復予算でなく系列の台帳でしか表せない。
+- D2214 項 8 が機械生成の IR 候補の auditor 段を省く。LLM 由来の候補が機械の口を通ると規律 2 の防壁 (auditor の veto) が外れるので、arm で閉じる。
+- 生死確認で、差し替えたテストでは見えなかった session の束縛と role の出力形の食い違いが見つかった。実物の経路 (計算ノードの job body と実 LLM) で 1 評価ずつ通すことが、本走の前に要る確認だった。
+
+**却下した選択肢:**
+- 1 job の全 slot で 1 つの session を共有する — session の束縛と合わない (実測)。
+- 生成器を job 内で再計算して機械 proposal の provenance を照合する — launcher も自前のコードで、仮想リスク向けの検査になる (DW-G05)。
+- 通常 loop の予算 (反復 10 回・3,600 秒) を対照でも使う — 系列が複数の job にまたがり A ≤ 30 の却下を含むので噛み合わない (草稿 §3)。
+- 静的 10 µs に新しい `run_campaign` の呼出しを足す — 閉じた inventory の期待値を変えることになる。
+
+## D2300. Cicada を certified まで上げる記録は B (読み束縛)・U (公開の双方向照合)・P (置換保存) の 3 面とし、可視区間・設置順・rts の順序・read-only 境界は帰属の診断とする。実装するかはユーザーの判断に返し、推奨は判定器を変えない中間案 M とする (2026-09-29)
+
+**決定:** (一次資料 `output/insights/2026-09-29/cicada-certified-evidence-design/README.md`)
+1. Silo / MOCC の certified は「観測した実行の依存グラフが非巡回」に「trace が実行を忠実に写す」証拠を足したものと整理する。Cicada で同水準に要る忠実性の証拠は B・U・P の 3 面である。B = 読んだ版 object が read 登録から tx の終わりまで回収・再利用されない。主案は、退役・再利用・返却を版 object ごとの消えない事象として TRACE 専用の台帳 (版の外) に積み、tx の終わりに台帳だけで照合する (版 object を再参照しない)。代替案は版の中の TRACE 専用の世代番号で、項 4 の範囲でだけ成り立つ見込みである (項 4 の条件付き)。どちらを採るかは実装 wave の段 4 で決める。どちらでも版の wts を読み直す現行方式は置き換える。U = 設置・公開した版の集合と W 行の集合の双方向照合 (公開直前の status が pending であること、wts = C 行の版を含む)。P = write set の `partial_sort` の置換保存 (Silo の P を移す)。これに加えて API との双方向照合 (read 側 = 公開 `read()` の成功を read set 登録と独立に捉え、件数でなく呼び出し単位で、返した分岐 (再読 / read-own-write / 外部) ごとに key・返した body・対応する read set / write set 要素を照合し、どの外部 read にも対応しない余分な read set 要素も拒否する。scan は返した要素単位の別設計、write 側 = I) を置き、中間案 M では read 側を入れ、certified 化では両側を必須にする。母集団を `read_internal` を通った呼び出しで決めない (迂回した読みが漏れるため)。
+2. 各 read の可視区間・書き込みの設置順・rts の更新と検証の順序・read-only snapshot の境界は、記録した履歴の 1SR には不要で、帰属 (規律 3) の診断とする。主張は観測した読みについての 1SR に限り、終状態と、Cicada が自分の規則どおりの版を選んだこと (版選択規則への適合) は主張しない。規則に反する選び方は巡回を生んだときだけ検出される。
+3. 照合回数の自己申告と R 行数の突き合わせは発火の証拠と呼ばない (恒真)。発火の証拠は各分岐の壊し patch だけとする。
+4. 対象は YCSB の point read / update、`REUSE_VERSION=1`、`INLINE_VERSION_OPT=0`、`group_commit=0` に限る。この範囲では走行中に版 object を解放する経路が読解と検索で見つからず、B の代替案 (版の中の世代番号を tx の終わりに読む) でも解放済み memory を読まない見込みである。代替案を採るなら、実装 wave で解放経路が無いことを確かめ直すことを採用の条件にする。
+5. 3 案 (今のまま / 中間案 M / certified 化) を並べ、中間案 M (B・U・read 側の照合を out-of-tree 計装に足し、repo 外起動器の合否に入れる。判定器の production と campaign は変えない) を推奨する。実装に進むか、M の証拠を満たした variant の性能値を論文で格上げしてよいか、certified 化の着手条件は、ユーザーの判断に返す。
+
+**理由:**
+- VHash の U0 (前進を回収境界へ反映) の典型的な失敗 = 既読版の早すぎる回収・再利用は、今の検査器の盲点で、構成 E の仮裁定 P5 で実物が起きた (D2295)。M はこの盲点を直接閉じる。
+- 多版の履歴は、ある 1 つの版順で直列化グラフが非巡回なら 1SR である (MVSG 定理)。判定器は wts の数値順を版順に使うので、reads-from が忠実で W 行が公開版をちょうど表せば、記録した履歴の 1SR を言うのに各 read の選び方を個別に再証明しなくてよい (ただし版選択規則への適合は言えない)。
+- 論文に書ける文は certified 化と M でほとんど変わらない。どの案でも「実装は一般に serializable を保つ」は書けない (D2292 は小モデル仕様 v1 が対象)。certified 化は判定器の 7 file が campaign lock の 96 path closure に入っているので lock の再批准・fixture・変異・受入を伴い、今それを要する campaign の登録が無い (DW-G04)。
+- 段 3 の 2 レンズ (実装する側 / しない側) が独立に中間案を推した。
+
+**却下した選択肢:**
+- 親 brief の仮置き「B・U・P + 判定器の protocol 別の門を今実装する (certified 化)」 — 論文の文の増分が小さく、隠れた費用が大きい。
+- 照合回数の自己申告を発火の証拠にする — 両方が同じ read set から作られるので恒真。
+- U を W 行 → 公開の片方向照合にする — 公開後 emit 前に write set から要素を落とす variant で巡回が消える。
+- `.cc` に薄い wrapper の emitter を置いて文面検査を満たす — 検査の実体が header にあるなら証拠は飾りになる。header を含む source snapshot か site ごとの評価を先に設計する。
+- 可視区間などの診断の行を必須にする — 1SR に不要で、未知の行種別は判定器が ParseError にするので判定器の変更を先に要する。
+
+**ユーザー不在時の決め方:** 背景 job でユーザーが応答しない間に、設計の整理 (項 1〜4) は段 3 相談 2 本の所見を材料に親が決めた。実装の可否 (項 5) は決めず、推奨として返す。
+
+## D2301. VHash の評価計画の草稿を v1 に改め、探索段の結果の読み方を結果の着地前に書く。判定語を探索と確認の 2 層に分け、H3 の処置を C_now、H4 を E_sp 対 E_hb にし、主要な族を m = 19 にする (2026-09-30)
+
+**決定:** `docs/vhash-evaluation-preregistration-draft.md` を同じ path で草稿 v1 (`vhash-evaluation-v1-draft`) に改める。発効 (凍結) ではなく、実装・本走・計算投入の認可でもない。
+
+1. **判定語の 2 層:** 確認段 (n = 14、順序統計量の区間 [d_(2), d_(13)]、Bonferroni) だけが「支持」「不支持」を出す。md_21・md_23 などの探索段は「予備的に支持 / 予備的に不支持 (差なし・悪化) / 判定不能 / 失格 / 欠測」だけを出し、論文の主張の根拠にしない。
+2. **探索段の読み方を着地前に書く (草稿 §5.5):** 閾値 δ_ex = ln(1.10) を throughput と GC の指標に共通の設計値とし、全 round の対数比が δ_ex を超えることを「予備的に支持」の条件にする。同じ round に A/A 腕が無ければ支持を出さない。A を対照にした比較は md_20 が A に巡回なしを出すまで「判定不能 (比較相手未検証)」。主 cell (待機 10 ms・zipf 0.9・GC 100 µs、ro 95%・GC 100 µs)、同点の定義 (最良との対数比が δ_ex 以内、連鎖させない)、p* と K* の選び方を固定した。md_21・md_23 の一次資料の着地後にこれらを変えたときは「結果を見た後の変更」として理由と変更前の読みを併記する。
+3. **構成の改訂:** H3 の「最新まで進む方式」を未実装の G_ℓ から md_21 が実装する C_now (方策「今の時刻」) へ替え、K = 1 の A/A 対照を同じ round の A/A 腕へ替える (D2286 項 2 の改訂)。E を md_14 の実装に合わせ、E_hb(p) と E_sp(p) (同じ方策 p の C_p の上で安全点の動作だけが違う) に分け、H4 の主比較を E_sp(p*) 対 E_hb(p*) にする。H1 の主指標を LLC miss から throughput へ替え、cell を read-only の比率 (R0・R50・R95) にして用量の述語 (差の差かつ R95 自身の改善) を足す。
+4. **族と統計:** H5・H6 は D・E の実装後の追補に回し、主要な族を m = 19 にする (n = 14 の区間の被覆 0.99817 ≥ 1 − 0.05/19)。確認段に A/A 腕と job 間の停止条件を足す。throughput の閾値の f_T は D145 の意味の between-run floor に限り、1 回の投入束の session-median CV を代入しない。取れないまま発効を検討するときは、D19 の下限 0.030 だけで進めるか待つかをユーザーに諮る。
+5. **段:** TPC-C と CCBench 自身の読み取り後に待つ型 (W5) は md_19 の修正の後の段 S4 に分け、走行の前に追補で登録する。md_6 の `CICADA_LONGTX` の待機型とは別の生成器として合算しない。見積りは md_11・md_14 の Elapse ÷ 走行数の参考単価 (4.6〜6.2 s) で出し、投入前に 1 タスクの job 合計で再積算する。
+
+6. **判定語の順序:** 確認段・探索段とも、失格 → 判定不能 (比較相手・門未完了・比較相手未検証) → 欠測 → 判定不能 (A/A・job 不一致) → 差の語、の順で最初に当てはまった語を取る。複数の成分を要求する判定は、全成分が改善なら支持、どれかが悪化なら不支持 (悪化)、全成分が同等なら不支持 (同等)、他は判定不能とする。対が作れないときは、良い向きにそろえた対数で処置と対照の全反復を比べる。
+
+**理由:**
+- 草稿 v0 の後に、比較相手の観測最良設定 (md_11)、「今」への前進が zipf 0.9 でほぼ失敗すること (md_14)、深い版探索の大半が read-only であること (md_15)、stock の TPC-C の異常終了 (md_17) などが着地し、v0 の構成・指標・workload の前提が変わった。
+- md_21 と md_23 の結果が出る前に読み方を決めておかないと、結果を見てから主 cell・閾値・選び方を選ぶ誤りを防げない。
+- 探索段の n (3 程度) では、効果が無くても全 round が同じ向きになる確率が 1/8 あり、検定と呼べない。そこで語を分け、確認段の新しい走行だけで判定する。
+- 同じ実行コードの腕どうしでも throughput の比が 0.911〜1.053 だった (md_14 §4.5)。A/A 腕が無いと、揺れの大きい cell で偽の支持を出しうる。
+- D145 は 1 回の投入束から得た量を floor と呼んで閾値へ配線することを禁じており、Cicada の floor は D1373 の関門でまだ作れない (D2291)。
+- 段 3 の相談 2 本 (must-fix 計 13 件) が、A/A 無しの支持、主 cell の切り替え、同点の未定義、門を通していない方策の候補入り、A の正しさ未確認の扱い、A_best の選び方、H5・H6 の予算未算定、CV の閾値への代入を指摘し、すべて反映した。
+
+**却下した選択肢:**
+- 探索段の結果にも確認段と同じ「支持」を付ける — n が小さく族の補正も無い。
+- A/A 腕の最大差に合わせて δ_ex を広げる — 閾値を結果に合わせて動かすことになる。A/A が δ_ex を超えた cell は判定不能にする。
+- 主 cell が測られていなければ近い cell に切り替えて判定する — 切り替えの余地が結果に依存しうる。判定語は各 cell に付け、選択に使う cell の順序だけを cell の有無で決める。
+- A_best を確認段のデータで選ぶ — 選択後の区間の被覆が登録されていない。A の GC 10 µs と 100 µs の両方に対する改善か同等を要求する。
+- H5・H6 を未実装のまま主要な族に残す — 予算も行列も決められず、判定は必ず欠測になる。
+- session-median CV を f_T に使う — D145 に反する。
+
+## D2302. VHash 論文の比較相手 Cicada の観測最良設定は、実走した範囲で判定器の巡回なし (上限 indeterminate) として主比較の相手に使い、inline slot の記録の忠実性は repo 外の診断 patch の 3 点比較で確かめる (2026-09-30)
+
+**決定:**
+1. md_11 の観測最良設定 (rr5・rr50・rr95 用 BACK_OFF=0・INLINE_VERSION_OPT=1・INLINE_VERSION_PROMOTION=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0、100 操作型用 BACK_OFF=0・OPT=0・PROM=0・REUSE=0・WLO=0) を、md_3 の trace (`patches/instr-cicada-trace.patch`、D2279) で判定器に掛けた。YCSB (skew 0.9) の 30 条件 (tuple 200 の thread 4・48 と tuple 1M の thread 48、走行 1 秒) の 32 run で、stock の最良設定と既定は巡回 0・integrity の数値項目 0・C 行 = commit 数だった。論文の「正しさ未検証」の注記は「この範囲で巡回なし (上限 indeterminate、certified ではない)」に置き換えてよい。md_11 の主比較条件 (走行 3 秒以上) そのものは検査していないことを併記する。
+2. INLINE_VERSION_OPT=1 の inline slot は再利用されるので、版を選んだ瞬間・read set への登録・commit の 3 時点の wts を比べる診断を、trace の行を変えない repo 外の使い捨て patch として全ての検査 build に重ねる。3 点の食い違いと、基準時刻より新しい版の登録が 0 でない run は、巡回 0 でも検査通過と数えない (診断異常)。今回は全 run で 0。
+3. 検出力は、同じ設定に既存の壊し `broken-cicada-skip-read-recheck.patch` を重ねた正例で設定ごとに示す (BEST の rr50 thread 4・48、BEST100 の 100 操作型 thread 4 で検出・帰属)。既定に近い設定での正例 (md_3) を最良設定の検出力の代わりにしない。
+4. `patches/instr-cicada-trace.patch` の bytes は変えない (D2294。記録されない読み書きの経路は見つからなかった)。起動器と診断 patch は repo 外 (Codex author) に置き、`patches/` に足さない。
+
+**理由:**
+- 正しさ未検証の相手を主比較に使うことは絶対規律 2 に反する。md_11 の最良設定は既定より 2〜4.5 倍速く、弱い既定を相手にすると baseline が弱くなる (D2291)。
+- md_3 の記録は登録時の wts を使い、`READ_WTS_MISMATCH` は登録時と commit 時しか比べないので、版を選んでから登録するまでに inline slot が再利用される窓を見逃す (段 2 plan・段 3 相談 A)。wts は書き手ごとに一意で再利用は wts を上書きするので、選んだ瞬間と commit の瞬間の一致は、その間に版 object が別の版へ再利用されなかったことを示す。
+- 診断を `patches/` に置くと patch を全件走査する test と、instr patch の上に試作を重ねている並走 wave に波及する。repo 外なら判定に必要な観測だけを足せる。
+- 実測 (一次資料 `output/insights/2026-09-29/vhash-cicada-best-config-verify/README.md`): stock 32 run 合格、inline slot の版は読みの 5.2〜59.4%・書きの 4.7〜36.9%、診断 3 値と `READ_WTS_MISMATCH` は全 35 run で 0、正例 3 本は non-serializable で (辺, 事象) の帰属が成立。計算は合計 1,165 s。
+
+**却下した選択肢:**
+- inline slot の件数だけを数える — 経路に到達した証拠にはなるが、記録された版が選んだ版と同じことを示さない (段 3 相談 A1・B3)。
+- instr patch に選択時の wts を足して bytes を変える — 並走 wave の重ね patch と D2294 に波及し、判定に要る観測は repo 外の診断で足りる。
+- md_11 の主比較条件 (1M・48 thread・3 秒) を全条件の必須 cell にする — trace build では trace 量と判定器所要が予測できなかったので、実測単価から投入可否を決める段階制にした (段 2 plan §4)。実走した J2 (1M・48 thread・1 秒) は判定器 1 run 最長 41.6 秒だった。
+- TRACE=0 の命令列の同一性を最良設定の CMake 値で取り直す — 本検査は性能値を出さず instr patch の bytes も変えないので、判定の必要条件ではない (段 3 相談 B6)。
+
+## D2303. t810 coordinator の登録走査は、gitdir も locked も無い管理 dir を飛ばす (2026-09-30)
+
+**決定 (ユーザー裁定):** `tools/pegasus/t810_coordinator.py` の `repository_roots_from_git_identity` は、
+共有 git dir の `worktrees/<名前>/gitdir` が不在 (open が FileNotFoundError) で、かつ同じ管理 dir の
+`locked` が lstat で不在のときだけ、その管理 dir を飛ばす。`locked` が在れば (種類不問) 従来どおり
+`cannot read worktree registration: file is absent` で拒否し、lstat の他の失敗は
+`cannot inspect worktree registration lock` で拒否する。symlink・非 regular・読み中変化・非 UTF-8・
+解決不能・管理 dir が file の場合の拒否は変えない。D1101 のうち「production の登録 scan は変更しない」
+「`missing_ok` 相当は roots を減らす方向なので採らない」の 2 点を、ユーザー指示 (2026-09-29、md_4 の
+「本番の関数も直す案も実施する」) で改める。D1101 の「production へ再試行を置かない」「live authority の
+3 node は hermetic にしない」と D1102 は有効のまま。
+
+**理由:**
+- 他 wave の撤去途中に `modules` だけが残り `gitdir` が無い管理 dir が数分続き、受入全走の live 3 node と
+  本番の `prepare_group` / `coordinate` を止めていた (F633)。ユーザーは「無関係な worktree の出現・消失を
+  受入が気にする理由はない」と判断した。
+- 実測 (git 2.34.1、job dir 配下の一時 repo、strace 各 1 回): `worktree add` は管理 dir → `locked` →
+  作業木 → `gitdir` の順に作り、`worktree remove` は作業木 → `gitdir` の順に消す。`tools/dev_wave_cleanup.py` は
+  unlock → 作業木削除と不在確認 → 管理 dir 削除の順。観測したこの 3 経路では「gitdir 不在かつ locked 不在」は
+  作業木が未作成か削除済みの状態で、add 途中の「locked あり・gitdir 無し」は作業木が在りうるので拒否に残す。
+- 列挙の後に add が始まった登録を飛ばした結果は、その管理 dir が列挙の直後に作られた場合と同じ roots で、
+  並行 session が現行で取れる timing を超えない。
+
+**受理集合の変化 (検査の意味は変わる):** gitdir も locked も無い登録の作業木だった path の中の
+work_root / output_root を外部として受理する。手で gitdir だけを消した生きた作業木は roots から落ちる
+(git 自身もそれを prunable と扱う)。submodule 付きの木・Lustre 上の中断・move / repair / prune は実測していない。
+
+**却下した選択肢:**
+- md_4 の逐語案 (gitdir 不在なら locked を見ずに一律に飛ばす) — add 途中で作業木が在る登録まで飛ばす。
+- locked の判定に `os.path.lexists` を使う — 確認時の失敗を「不在」に畳み、確認不能で飛ばしうる。
+- live 3 node を hermetic fixture へ寄せる — 設置先から anchor を導く検査の意味が消える (D1101 と同じ理由)。
+
+## D2304. MOCC の validation の修理は lock 状態の読みの後に版を読み直す形 (案 A) で F の子の 1 commit にし、D297 は「意図した修理差分による不合格」として記録して pin 前進での扱いを別に裁定する (2026-09-30)
+
+対象: T-2872。資料: D2277 項 1・2、D2293、D297 / D2255 / D2275、insight `output/insights/2026-09-29/mocc-validation-fix/README.md` (§1・§3・§4)、段 4 裁定 `verbatim/s4-ruling.md`、段 6 裁定 `verbatim/s6-ruling.md`、一次資料 `output/insights/2026-09-29/t2872-mocc-g2-split/README.md` §7。
+
+**決定:**
+
+1. **修理の形:** CCBench の F `25898d00` の直接の子 X `f4a5169e` (branch `izanagi-mocc-validation-fix`) で、`cc/mocc/transaction.cc` の validation の read set 走査だけを変える。既存の版比較と writer lock の検査は残し、その後ろで版を acquire で読み直し、(epoch, tid) が検査した版と違えば既存の版不一致と同じ状態・計数で abort する。`max_rset_` は 3 回目の load でなく検査した版から取る。既存の `#line` の値は据え置き、新たな `#line` は足さない。作成は Codex author、commit は親 (trailer = Codex author・reviewer・Claude manager)。
+2. **検証の型:** 同じ job の中で修正前 F と修正後 X を交互に走らせ、事前登録の判定 (判定不能 0・修正後の trace build の G2 0/112・修正後の commit 側 class A 0) を runner の集計が機械的に出す。修正前 F の G2 と class A は同時刻の対照として報告し、完了判定に入れない。修正後の class A = 0 は修理から構造上導かれるので、修理の効き目の独立の観測として再読の不一致による abort 件数を数える。結果は成功 (G2 0/112、class A 0、対照は G2 8/56・class A 1,415、再読 abort 6,368)。
+3. **D297:** F → X の検査は GCC 11.4・12.3 とも TRACE=0 正規化 preprocess 出力の不一致で rc=1 になり、差分は `cc/mocc/transaction.cc` の 1 hunk・header 0 だった。これを「D297 不合格 (意図した修理差分)」と記録し、合格・include 活性の合格は名乗らない。gitlink を X を含む tip へ進めるときの D297 の扱い (C → F の合格と F → X の意図した差分の審査を分けて受け入れる等) は、gitlink 前進 wave で裁定する。
+4. **push と gitlink:** X の branch の push は人間の手番 (D16)。gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN`・patches は本決定では変えない。
+
+**理由:**
+- 案 A は既存条件への条件追加なので、同じ観測列で元のコードが拒否した取引を新たに受理しない (依頼の「受理集合を縮める方向だけ」を字義で満たす)。版が前進する範囲では、通過した取引は lock を読んだ瞬間に「読んだ版のまま・他者の writer lock なし」を満たし、Silo の 1 word 検査 (`cc/silo/transaction.cc` の read set 検査) に対応する。
+- `#line` を据え置くと差分が修理の hunk に閉じ、`ERR` の `__LINE__` (後段の `#line 1187` の後) も patch の context も動かない。修理の行は実際に有効な C++ 文なので、論理行番号が進むのは実態どおりである。
+- D297 は trace hook の変更が TRACE=0 を変えないことを検査する最後の防壁で、本物の修正はそれを構造上通らない。検査器を変えずに「意図した差分による不合格」と名付け、差分が修理の hunk だけであることを併記すれば、規律 1 の防壁を緩めずに事実を残せる。
+
+**却下した選択肢:**
+- 案 B (lock を先に読み、版は 1 回だけ読む) — Silo の考え方には対応するが、lock を読んだ後に他者が施錠してまだ公開していない実行を受理しうるので、元のコードに対して受理集合を縮める方向だけとは言えない。
+- 修理より後ろの既存 `#line` の値を +15 する — trace 区間を除いた行番号の意味は保てるが、修理と無関係な `ERR` の `__LINE__` と D297 の差分と patch の context を広げる。
+- D297 の検査器に「意図した差分」を受理する例外を足す — 正しさ防壁の緩和になり、依頼の scope 外 (gate・検査の追加をしない)。
+
+## D2305. 全 13 項の裁定 — 関数方策の軸の生成器対照を 4 arm × n = 12 で発効させ、探索の独立反復の本比較は引き続き投入せず、Cicada の記録は中間案 M にし、Silo 修正は push 前に `#line` を +3 し、方策ループの予算は計算ノード上の実行時間で数える (2026-09-30)
+
+**決定 (ユーザー裁定):** 索引 13 項の説明と推奨に対し、ユーザーは 2026-09-30 (1 時台 JST) に「推奨通りで」と回答した (逐語)。13 項すべて推奨どおり。下の番号は会話の索引番号と一致する。
+本決定は裁定記録であり、実装・記帳・送信・投入が完了したことを意味しない。各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。規律 1・2 は不変。
+
+**窓と収集:** 窓は entry 1906〜1952 (第 39 回 D2277 が見た entry 1905 の次) と D2278〜D2301、稼働中 wave の未 land fragment。収集は main `2fbc667e1` (entry 1952) で行い、提示の直前に `9edbf1543` (entry 1953) で読み直して索引の変更なし。
+次の一手 131 項を carry 鎖の実体まで解決した (未解決 0)。裁定済み未実装 (見出しが裁定済み・既裁定・承認済み・了承の型) は 45 (前回 1905 時点も同法で 45)。GitHub の状態は HTTPS の ls-remote と公開 API の check-runs で読んだ。
+材料・相談の出力は repo 外 `/work/1/SFC/tanab/dev-wave-jobs/rulings-all-20260930/` (`materials.md`・`materials-addendum.md`・`artifacts/`)、控えは `rulings-inbox/2026-09-30-rulings-full40-verdicts.md`。
+
+**相談の採否:** 別系統モデル (read-only、`--lane sol`、medium) を 3 本、すべて受理。A (推奨の当否) は 11 件中 10 件に同意し、「収載維持 7 件を索引から外す」起草推奨に反対した (D1836・D1911・D1936 項 50 の明示の収載命令を覆す根拠が足りない) → 採用して収載維持に戻した。
+A の補足 2 点 (項 2 の次の提示は既裁定の再提示条件でなく新しい提案として示す、項 5 の D297 一致は取り直し前の予測) も採用した。B (索引漏れ) は T-2852 の条件 (i) の成立と T-2853 の図ごとの計算確認を指摘 → 採用して索引へ足した。C (足した 2 項の当否) は同意。
+
+### 項 1 — T-2867: 関数方策の軸の生成器対照を 4 arm × n = 12 で発効させる
+
+対象: T-2867。資料: D2263、D2299、`docs/silo-policy-generator-contrast-preregistration.md` §1・§11.0・§11.3・§12、`output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md`。
+
+**決定:** 規模は草稿 §11.3 の推奨 = 4 arm (LLM×C++・LLM×IR・random×IR・進化×IR) × n = 12 (48 系列、換算で約 61〜70 node 時間、LLM 機会 240〜720、暦時間は LLM の週上限次第で不明) とし、この計算をユーザー確認済みとする。
+CCBench の pin は登録どおり C `68106660` に固定し、本走の途中で変えない。Silo の取引内の値の修正 (T-2885) は待たない。修正後の Silo の測定とは別の版として区別する。発効の wave (AI) が草稿 §12 の発効束の実値を日付付きの決定に書いて投入する。score job・参照 job・進化×IR の未実走部品は本走の最初の単位で確かめる。
+
+**理由:** 「なぜ LLM か」に効くのはフィードバックを使う非 LLM の探索 (進化) との差であり、主経路 (CC 自動合成) に直結する。全 arm が同じ stock・判定器を共有し、この Silo の不具合は直列化可能性の判定を変えないので、待っても比較の妥当性は変わらない (D2277 項 2、規律 7)。n = 12 は草稿の推奨で、D2249 項 1 は別比較の先例であって拘束ではない (相談 A)。
+
+**却下した選択肢:** n = 10 (8/10 勝ちで p ≈ 0.055 と検出力が落ちる)。進化を外す (「乱択は藁人形」に答えられない)。LLM×IR を外す (族 A が消える)。Silo 修正の pin 前進まで待つ (数日以上遅れ、比較の妥当性は変わらない)。
+
+### 項 2 — T-2850 (と T-2851 の YCSB 側): 探索の独立反復の本比較は引き続き投入しない
+
+対象: T-2850・T-2851。資料: D2272 項 2、D2273、D2277 項 3、entry 1950。
+
+**決定:** D2277 項 3 の再提示条件は entry 1950 で成立し、T-2867 と並べて示したうえで、本比較は引き続き今は投入しない。T-2867 の本走の目処が立った時点 (または LLM の週枠の実測が取れた時点) で、AI が新しい提案として改めて示す (既裁定の再提示条件とは呼ばない)。T-2869 は D2273 どおり択 A。T-2851 の YCSB 側の発効もこれに従って待つ。
+
+**理由:** 見送りの理由 (D2272 項 2: S1 の空間で n = 10 の分類が弱い、LLM の待ちが node 上に残る) は変わらず、T-2867 と LLM の週枠を取り合う (B-5 は 22 機会で週上限に達した、F1050)。
+
+**却下した選択肢:** 今 n = 10 (C(10) = 110.5 node 時間) で投入する — 理由が残り、両方の実験が欠測になりうる。
+
+### 項 3 — T-2852: P5 の再提示条件 (i) が成立したので、AI が S3 版の案と費用を起草する
+
+対象: T-2852。資料: D2278、D2283、entry 1950。
+
+**決定:** D2283 の条件 (i) (T-2867 の段階 F の生死確認と実測単価が揃う) は成立した。AI が S3 で別登録する P5 の案と費用 (node 時間・LLM の直列時間) を docs のみ・計算なしで起草し、次の /rulings で示す。起草は T-2867 の発効を待たない。S3 での実施は生成器対照の後とし、別登録の発効・実装・投入には改めて判断と計算確認を要する。2026-11-02 の再提示 (ii) は別に残る。
+
+**却下した選択肢:** 11-02 まで何もしない — D2283 の条件 (i) を無視する。
+
+### 項 4 — T-2874: Cicada の忠実性の記録は中間案 M にする
+
+対象: T-2874。資料: D2279、D2300、`output/insights/2026-09-29/cicada-certified-evidence-design/README.md` §1・§7・§8。
+
+**決定:** (1) 中間案 M — 既存の out-of-tree 計装に B (読み束縛)・U (公開の双方向照合)・read 側の API 照合を足し、repo 外起動器の合否に入れる。判定器の production と campaign は変えない (見積り 1 wave・0.22〜0.36 node 時間、完了条件は同 insight §8)。
+(2) M の証拠 (巡回 0 と B・U・read 側 API 照合の違反 0) を満たした variant の性能値は、論文では照合の中身を明記した測定値として扱ってよい。izanagi 内部では certified と呼ばず (判定器上は indeterminate のまま)、実装と壊しの発火確認の前は格上げしない。
+(3) 案 A (certified 化) は Cicada を門に通す campaign を登録するときに §6 の設計から着手する。(4) Cicada の trace hook は `izanagi-trace` 枝へ移さず patch のまま置く (D2279 の保留への答え、D2277 項 1 の si と同じ扱い)。
+
+**理由:** VHash の芯の典型的な失敗 (既読版の早すぎる回収・再利用) は実物で起き、今の検査の盲点に入る。論文に書ける文は M と A でほとんど変わらず、A は判定器の production 変更の費用が掛かる。
+
+**却下した選択肢:** 案 B (今のまま) — 盲点が残り性能値は未検証の診断値のまま。案 A を今 — 費用に対し文の増分が小さい。
+
+### 項 5 — T-2905: Silo の修正は push の前に `#line` 4 本を +3 する 1 commit を足す (択 B)
+
+対象: T-2905・T-2885。資料: 稼働中 wave `worktree-dev-wave-silo-intra-txn-fix` の一次資料 `output/insights/2026-09-29/silo-intra-txn-fix/README.md` §3・§6 (land 前)。
+
+**決定:** 択 B。修正 commit `7e5fa528` の上に、update より後の `#line` 4 本 (635/658/679/700) をそれぞれ +3 する 1 commit を足し (CCBench 側は Codex author、上流 CI の build・clang-format 14 を通す)、D297 の補助比較 (b) (pin + 修正 → 修正 tip) を取り直してから push を依頼する。一致は取り直し前の予測であり、結果で確かめる。
+
+**理由:** trace の `#line` が TRACE=0 の定数 (`ERR` の `__LINE__`) を変えない状態に戻り、以後の pin 前進で D297 を使える。性能と正しさには影響しない。
+
+**却下した選択肢:** 択 A (そのまま push) — `ERR` の行番号定数が pin + 修正と食い違ったままで、D297 の比較が以後も同じ理由で拒否する。
+
+### 項 6 — Git: izanagi main の push と CCBench の修正 branch の push の扱い
+
+**決定:** izanagi main の未 push (提示時点 32 commit、GitHub は `8fe87f852`) の push をユーザーに依頼した。CCBench の F (`izanagi-tpcc-v3-silo-mocc-fmt`、`25898d00`) は GitHub にあり、check-runs は build・format-check とも success (2026-09-29 13:39Z・13:42Z) で、T-2854 の人間の手番は済んだ。
+修正 branch 3 本 (Silo は項 5 の commit の後、`izanagi-cicada-build-fix`、`izanagi-cicada-gc-records-fix`) は、各 wave の land 後に主 checkout の submodule へ取り込まれたら AI が push を依頼する。Cicada の 2 本は 1 本にまとめず別々に push する (行は重ならず、上流へ出す単位と揃う)。pin 前進用に束ねた tip は AI が pin 前進 wave で作り、改めて push を依頼する。AI は push しない。
+
+### 項 7 — T-2881: 方策ループの walltime 予算は計算ノード上の実行時間で数える
+
+対象: T-2881。資料: D2256 項 3、`output/insights/2026-09-29/t2871-policy-loop-iter/README.md` §5、T-2865 (系列 C は budget-walltime で停止)。
+
+**決定:** 予算 `MAX_WALLTIME_S = 3600` は、系列の各 job の Elapse の和 (計算ノード上の実行時間) で数え、待ち行列の時間を含めない。値 3,600 秒は変えない。変更は driver の予算判定の局所修正 (AI)。生成器対照 (T-2867) の予算は評価数 B であり、本変更の影響を受けない。
+
+**理由:** 待ち行列の時間は方法の性質でなく環境の混雑で、混雑次第で系列の長さが変わると系列間で比べにくい。D2256 項 3 は待ちの数え方までは決めていない (相談 A)。
+
+**却下した選択肢:** 現行のまま運用 (`qsub --after`・`qalter -p`) で詰める — 保証にならず、系列 C で既に止まった。
+
+### 項 8 — D2289 の優先度についての親の解釈を追認する
+
+対象: D2289 (決定 5 と「親の解釈」)。関連: T-2896・T-2897・T-2892、2026-09-29 の対話型 dev-wave の裁定 (P0〜P6・TPC-C を優先)。
+
+**決定:** D2289 の「親の解釈」を追認する。計算を使わない手順 (文献カード・設計・関門の実装) は並行で進め、計算を使う段 A の試し (T-2896) と母集団型の探索の本走 (T-2897) は見積りを添えて都度ユーザーに確認する。P0〜P6・TPC-C の計算より前には割り込ませない。D2289 の決定 5 の順序と roadmap の着手時期の文は変えない。
+
+**却下した選択肢:** 段 A・段 B を ComSys・P0〜P6 の後ろへ全部送る — 並行中の設計と関門の実装を止める理由が無い。
+
+### 項 9 — T-2853: 再現パッケージの R2 は fig2c と fig10 を承認し、他は条件を整えてから示す
+
+対象: T-2853。資料: `output/insights/2026-09-27/t2853-repro-rest/README.md` §3.2・§3.3、D2212 項 4・項 6。
+
+**決定 (図ごとに別の確認):** fig2c (2.98 node 時間、(a) 実績) と fig10 (3.40) を承認し、計算の空きで 1 図 1 タスクとして投げる (T-2867 と node を取り合わない順で)。fig13 (18.33) は T-2867 の本走の目処が立ってから改めて示す。fig4 (8.88〜9.83、試算) は Pegasus で走らせる経路を既存 driver で組めるかを AI が先に確かめ、経路と見積りを添えて示す。
+fig15 (観測の再実施、元の認可は 1 回限り) は今は再認可しない (値は逐語写しから差 0 で再現済み)。投入の見積りが 2 node 時間の線を大きく超えることが分かったら、投入前に示し直す。
+
+**却下した選択肢:** 全図の一括承認 — D2212 項 4 の単位 (1 タスク) に反する。全部を投稿直前まで保留 — 小さい 2 図を計算の空いている今に進められない。
+
+### 項 10 — CCBench の不具合修正は、pin に入り CI が緑のものから 1 修正 1 PR で上流へ出す
+
+対象: T-2885 (Silo の取引内の値)、T-2904 (Cicada の build 不能 2 件)、T-2908 (Cicada の gc_records)、T-2872 (MOCC の validation の隙間、修理中、T-2791 の報告は送信済みで機序の追加報告は未定)、Cicada の abort 時の use-after-free (未修正)。
+
+**決定:** 修正が izanagi の pin に入り、GitHub の CI (build・format) が緑になったものから、1 修正 1 PR で上流 (thawk105/ccbench の master) へ出す。説明文は AI が起草する (Silo 分は同 insight §6 に下書き済み)。PR の作成と merge は人間 (D16・D18・D20)。未修正のものは修正と検証を終えてから対象にする。急がない。
+
+**却下した選択肢:** 論文投稿まで上流に出さない — 他の CCBench 利用者に既知の不具合を残す。
+
+### 項 11 — T-2912 (2): output/ の次段候補 7,549 file は外さない
+
+対象: T-2912。資料: D2297、`output/insights/2026-09-29/output-pruning/README.md` §4.2・§5。
+
+**決定:** 自 root manifest の sha256 束縛 2,996・事前登録が dir ごと引く生ログ 3,179・別 insight の probe-ledger が列挙する生出力 1,374 の計 7,549 file は HEAD から外さない。この部分は確定して閉じ、T-2912 の残りは (1) 走査器の穴だけ。
+
+**理由:** 束縛された証拠で、全部外しても worktree add は 0.85 倍、git status の短縮は言えない。
+
+### 項 12 — T-2895: 図書館の取り寄せは 1・2・5 を優先する (人間の手番)
+
+**決定:** vWeaver (SIGMOD 2021)・Diva (SIGMOD 2022)・OCC-TI (IPL 1997) を先に取り寄せる。Bayer ら 1982・Boksenbaum ら 1987 は任意。届いたら AI が `output/insights/2026-09-29/vhash-novelty-repositioning/README.md` §3.1 の 7 項目で読み、U0・U1 の判定を追記の新しい一次資料で更新する。
+
+### 項 13 — 収載維持 7 件 (T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708) は変更なし
+
+**決定:** D1936 項 50 のとおり収載と T-1234 の留保を維持する。起草推奨の「索引から外す」は相談 A の反対を採って取り下げた。
+
+### 覆う ID の状態
+
+- 更新: T-2854 (人間の push は済み・CI 緑 → pin 前進 wave (AI))、T-2867 (発効承認 → 発効の決定と本走 (AI))、T-2850 (引き続き見送り)、T-2852 (起草 (AI))、T-2874 (M の実装 (AI))、T-2881 (局所修正 (AI))、T-2853 (fig2c・fig10 の投入 (AI))、T-2912 ((2) を閉じる)、T-2895 (取り寄せの優先順)。
+- 稼働中 wave 所有のため本決定では次の一手を書かず、repo 外の控えに記した: T-2905・T-2885 (`worktree-dev-wave-silo-intra-txn-fix`)、T-2904 (`worktree-dev-wave-ccbench-cicada-bugfix`)、T-2908 (`worktree-dev-wave-vhash-cicada-gc-records-fix`)、T-2872 (`worktree-dev-wave-mocc-validation-fix`)。
+- 索引外で状態を確かめた項: T-2288 の採用裁定は D1641 決定 2 で AI に委任済み。T-2838 の取り直しは時点 (9/26 から約 5.5 日) が未到来。T-2859 は 2026-12-11。T-2893・T-2915 は発効の前提が未充足。T-2870 は実装 wave が差分を示す段。repo 内 handoff `docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md` は T-2674 で T-1998 の対が回収済みで生きていない。

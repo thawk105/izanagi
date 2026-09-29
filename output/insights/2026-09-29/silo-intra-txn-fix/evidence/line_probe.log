@@ -1,0 +1,28 @@
+start 2026-09-29 21:54:29 JST
+patching file cc/silo/transaction.cc
+Hunk #2 succeeded at 530 (offset 4 lines).
+patch rc=0
+F cpp rc=0 ERR lines: IZ_ERR_AT(106) IZ_ERR_AT(690)
+Ffix cpp rc=0 ERR lines: IZ_ERR_AT(106) IZ_ERR_AT(690)
+presumed line of each TRACE=0 code line differs (g++ -E with markers, diff of line markers):
+diff -P output rc=1 lines=19
+103,107d102
+<   re = searchReadSet(s, key);
+<   if (re) {
+<     *body = &(re->body_);
+<     goto FINISH_READ;
+<   }
+112a108,112
+>   re = searchReadSet(s, key);
+>   if (re) {
+>     *body = &(re->body_);
+>     goto FINISH_READ;
+>   }
+264c264,267
+<   if (searchWriteSet(s, key)) goto FINISH_WRITE;
+---
+>   if (auto* we = searchWriteSet(s, key)) {
+>     we->body_ = std::move(body);
+>     goto FINISH_WRITE;
+>   }
+end 2026-09-29 21:54:30 JST

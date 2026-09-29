@@ -1,0 +1,18 @@
+start 2026-09-29 22:29:34 JST host=pegasus02 X=f4a5169ede52630d9357444e3412ffe9aed7c78f
+1f9b26821a6aaee9a192b22a4302d8ec91c67e03809a1537f00bfede22d9d911  /work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/scripts/check_format_ci.sh
+64132a2f3006ce8981c3181d6cc1e393a69067faee5b550ed4d7203484ff167e  /work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/images/ccbench-devcontainer-latest.sif
+15802e3e6eb49cd46cd38c2adafdc18e717ab176e3210267bac77e8ddb74533d  /work/1/SFC/tanab/tmp/mocc-validation-fix-2026-09-29/X.bundle
+warning: remote HEAD refers to nonexistent ref, unable to checkout.
+
+checkout HEAD=f4a5169ede52630d9357444e3412ffe9aed7c78f porcelain=0
+== image :latest clang-format (本判定)
+Ubuntu clang-format version 14.0.6
+format files=213
+format rc=0
+rc_image=0
+== login clang-format (補助)
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+rc_login=0
+end 2026-09-29 22:30:14 JST
