@@ -1,0 +1,254 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m1-llm-arm-accepts-machine",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "    if arm not in MACHINE_NAMES or form != 'ir':\n",
+     "new": "    if form != 'ir':\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_contrast_initial_points_and_machine_arm_provenance"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-slot-without-attempt",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "'contrast_slot': f'{slot}-{index}-a{attempt}'",
+     "new": "'contrast_slot': f'{slot}-{index}'"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_contrast_cfg_keeps_default_identity_and_separates_attempts"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-default-cfg-gets-contrast-key",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "                          if contrast is not None else {})},\n",
+     "new": "                          if contrast is not None else {'verify_performance_concurrent': True})},\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_contrast_cfg_keeps_default_identity_and_separates_attempts",
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_contrast_none_preserves_base_commit_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-machine-write-refused",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        if auditor is None and origin not in ('machine', 'initial'):\n",
+     "new": "        if auditor is None:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_machine_origin_can_write_only_after_shared_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-no-proposal-digest-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_policy.py",
+     "old": "        if actual != unit['proposal_sha256']:\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_policy.py::test_contrast_unit_rejects_changed_proposal_before_slot_start"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-jobbody-unit-path-optional",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+     "old": "      || refuse \"S4 policy contrast requires absolute unit path\"\n",
+     "new": "      || true\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_contrast_requires_exclusive_absolute_unit[extra0]",
+    "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_policy_contrast_requires_exclusive_absolute_unit[extra1]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-zero-weight-one-seventh",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast_generators.py",
+     "old": "        if draw.below(8) == 0:\n",
+     "new": "        if draw.below(7) == 0:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast_generators.py::test_zero_mixture_and_retry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-evo-tie-later-slot",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast_generators.py",
+     "old": "    parent = min(points, key=lambda p: (-p['fitness_tps'], p['slot_order']))\n",
+     "new": "    parent = min(points, key=lambda p: (-p['fitness_tps'], -p['slot_order']))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast_generators.py::test_evolution_tie_parent_and_field_extension"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-b-not-counted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast.py",
+     "old": "e.get('logical_slot', '').startswith('eval-') and e.get('attempt', 0) == 0}",
+     "new": "e.get('logical_slot', '').startswith('never-') and e.get('attempt', 0) == 0}"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast.py::test_a_b_outage_and_retry",
+    "orchestrator/tests/test_silo_policy_contrast.py::test_close_series_after_score_and_reference_once",
+    "orchestrator/tests/test_silo_policy_contrast_launch.py::test_submit_score_fixes_flat_endpoint_only_on_submit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-dead-job-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast.py",
+     "old": "    if state['unfinished_slots']:\n        return {'kind': 'dead-job'",
+     "new": "    if False:\n        return {'kind': 'dead-job'"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast.py::test_a_b_outage_and_retry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-outage-consumes-a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast.py",
+     "old": "                 ('proposed', 'rejected', 'empty') for e in events)",
+     "new": "                 ('proposed', 'rejected', 'empty', 'outage') for e in events)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast.py::test_a_b_outage_and_retry",
+    "orchestrator/tests/test_silo_policy_contrast.py::test_open_and_next_opportunity_after_outage",
+    "orchestrator/tests/test_silo_policy_contrast_parent.py::test_fresh_sessions_and_429_retry_same_a"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m12-seed-counts-as-generation",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast_report.py",
+     "old": "\"search_point\": bool(search),",
+     "new": "\"search_point\": bool(search or seed),"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast_report.py::test_seed_only_does_not_count_as_generation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m13-families-merged",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_policy_contrast_report.py",
+     "old": "for key, value in preliminary.items()}, members)",
+     "new": "for key, value in preliminary.items()}, members + tuple(k for fam in FAMILIES.values() for k in fam if k not in members))"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast_report.py::test_holm_is_adjusted_within_each_two_comparison_family"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m14-parent-continues-session",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/silo_policy_contrast_parent.py",
+     "old": "\"--model\", model, \"--allowedTools\", *ALLOWED]",
+     "new": "\"--model\", model, \"--continue\", \"--allowedTools\", *ALLOWED]"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast_parent.py::test_fresh_sessions_and_429_retry_same_a"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m16-proposal-not-unwrapped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/silo_policy_contrast_round.py",
+     "old": "    return {\"coder\": value[\"proposal\"] if set(value) == {\"proposal\"} else value}\n",
+     "new": "    return {\"coder\": value}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_policy_contrast_round.py::test_role_proposal_is_unwrapped_for_check_and_finalize"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
