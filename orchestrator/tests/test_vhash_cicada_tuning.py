@@ -48,6 +48,7 @@ def _commands(genome=None, wait=False):
     if wait:
         definitions["WORKER1_INSERT_DELAY_RPHASE_US"] = 1000
     return [{"file": f"/tmp/cc/cicada/{name}.cc",
+             "output": f"/tmp/CMakeFiles/ycsb_cicada.exe.dir/cc/cicada/{name}.cc.o",
              "arguments": ["c++", *(f"-D{k}={v}" for k, v in definitions.items())]}
             for name in ("transaction", "util", "ycsb_cicada")]
 
@@ -66,6 +67,16 @@ def test_compile_binding_positive_and_negative():
     bad[1]["arguments"] = [v for v in bad[1]["arguments"]
                            if not v.startswith("-DWORKER1_INSERT_DELAY_RPHASE_US=")]
     _raises(lambda: d.check_compile_commands(bad, m.CONTROL, True))
+    other = _commands()
+    for entry in other:
+        entry["output"] = entry["output"].replace("ycsb_cicada.exe.dir", "other.exe.dir")
+        entry["arguments"][1] = "-DTRACE=1"
+    assert d.check_compile_commands(_commands() + other, m.CONTROL, False)["valid"]
+    _raises(lambda: d.check_compile_commands(_commands()[:-1] + other, m.CONTROL, False))
+    _raises(lambda: d.check_compile_commands(_commands() + _commands()[:1], m.CONTROL, False))
+    command_only = _commands()
+    command_only[0]["command"] = " ".join(command_only[0].pop("arguments") + ["-o", command_only[0].pop("output")])
+    assert d.check_compile_commands(command_only, m.CONTROL, False)["valid"]
 
 
 def test_runtime_flags_binding():
@@ -128,9 +139,11 @@ def test_perf_csv_suffix_and_missing_counter(tmp_path=None):
         row = d._run_one(run, tmp_path / "binary", "binary-sha", tmp_path,
                          "job", None, "host")
         assert row["miss_rate"] == 0.2
+        assert (row["llc_loads"], row["llc_load_misses"]) == (100, 20)
         row = d._run_one(run, tmp_path / "binary", "binary-sha", tmp_path,
                          "job", None, "host")
         assert row["miss_rate"] is None
+        assert row["llc_loads"] is None and row["llc_load_misses"] is None
 
 
 def test_rss_boundary_and_saturation():
@@ -140,10 +153,18 @@ def test_rss_boundary_and_saturation():
     assert a.choose_records([{"records": 1, "maxrss_kb": 3, "miss_rate": None},
                              {"records": 2, "maxrss_kb": 4, "miss_rate": None}], l3) == {
                                  "records": 2, "reason": "D15_RSS_lower_bound_perf_unavailable"}
-    points = [{"records": 1_000_000, "miss_rate": 0.30, "maxrss_kb": 1000},
-              {"records": 2_000_000, "miss_rate": 0.50, "maxrss_kb": 1000},
-              {"records": 4_000_000, "miss_rate": 0.505, "maxrss_kb": 1000}]
+    points = [{"records": 1_000_000, "llc_loads": 1000, "llc_load_misses": 300, "maxrss_kb": 1000},
+              {"records": 2_000_000, "llc_loads": 1000, "llc_load_misses": 500, "maxrss_kb": 1000},
+              {"records": 4_000_000, "llc_loads": 1000, "llc_load_misses": 505, "maxrss_kb": 1000}]
     assert a.choose_records(points, l3)["reason"] == "observed_saturation_candidate"
+    reps = [{"llc_loads": n, "llc_load_misses": misses, "maxrss_kb": 1000}
+            for n, misses in ((1001, 510), (1000, 500), (1000, 490))]
+    assert d._calibration_point(reps, 1_000_000)["llc_loads"] == 1000
+    precise = [{"records": 1, "llc_loads": 1_000_000_000, "llc_load_misses": 500_000_000,
+                "maxrss_kb": 1},
+               {"records": 2, "llc_loads": 1_000_000_000, "llc_load_misses": 509_999_600,
+                "maxrss_kb": 1}]
+    assert a.choose_records(precise, 1024)["reason"] == "observed_saturation_candidate"
 
 
 def test_wait_alive_boundary():
@@ -163,8 +184,14 @@ def test_cv_and_j2_boundary():
                                                (m.canonical(m.CONTROL), 10)], 3,
                              expected_reps=1)
     assert control_best["best"] == (m.canonical(m.CONTROL), 10)
-    assert a.j2_best(rows, "W1", None, [("a", 10)], 3)["status"] == "undetermined"
-    assert a.j2_best(rows, "W1", 0.1, [("a", 10)], 2)["status"] == "undetermined"
+    missing_cv = a.j2_best(rows, "W1", None, [("a", 10)], 3, expected_reps=1)
+    short_sessions = a.j2_best(rows, "W1", 0.1, [("a", 10)], 2, expected_reps=1)
+    for result in (missing_cv, short_sessions):
+        assert result["best"] == ("a", 10)
+        assert result["scores"] == {"a|10": 1.0}
+        assert result["candidate_status"] == "undetermined"
+        assert result["candidate_reason"] == "control_cv_or_sessions_missing"
+        assert result["observed_control_cv_width_candidates"] is None
     assert a.j2_best(rows, "W1", 0.1, [("missing", 10)], 3)["status"] == "undetermined"
 
 
@@ -450,6 +477,19 @@ def test_control_session_cv_metadata():
     assert math.isclose(result["cv"], 0.1)
 
 
+def test_condition_absolute_medians_ignore_invalid_runs():
+    base = {"stage": "j2", "perf": False, "exit_code": 0,
+            "workload": "W2", "genome": m.canonical(m.CONTROL),
+            "gc_inter_us": 10, "records": 1_000_000}
+    rows = [{**base, "throughput_tps": tps, "maxrss_kb": rss}
+            for tps, rss in ((10, 100), (30, 300), (100, 500))]
+    rows.extend(({**rows[0], "throughput_tps": 9999, "perf": True},
+                 {**rows[0], "throughput_tps": 9999, "exit_code": 1}))
+    result = a.condition_medians(rows, "j2")
+    cell = result[f"W2|{base['genome']}|10|1000000"]
+    assert cell == {"throughput_tps": 30, "maxrss_kb": 300, "n_reps": 3}
+
+
 def test_select_j1_tie_and_spec_determinism():
     control = m.canonical(m.CONTROL)
     candidates = [m.canonical(g) for g in m.genomes() if g != m.CONTROL][:2]
@@ -466,12 +506,17 @@ def test_select_j1_tie_and_spec_determinism():
     selected = {w: [m.canonical(g) for g in m.genomes()[:3]] for w in m.WORKLOADS}
     j2 = d.make_spec("j2", records, selected=selected)
     assert j2 == d.make_spec("j2", records, selected=selected)
-    assert len(j2) == 5 and all(s["stage"] == "j2" for s in j2)
+    assert len(j2) == 4 and all(s["stage"] == "j2" for s in j2)
+    assert {r["workload"] for r in j2[1]["runs"]} == {"W2", "W5"}
+    assert any(b["wait"] for b in j2[1]["builds"])
     without_w5 = d.make_spec("j2", records, selected=selected,
                              workloads=("W1", "W2", "W3", "W4"))
     assert len(without_w5) == 4
     assert all(run["workload"] != "W5" for spec in without_w5 for run in spec["runs"])
     assert all(not build["wait"] for spec in without_w5 for build in spec["builds"])
+    only_w5 = d.make_spec("j2", {"W5": 1_000_000}, selected=selected, workloads=("W5",))
+    assert len(only_w5) == 1
+    assert all(run["workload"] == "W5" for run in only_w5[0]["runs"])
 
 
 def test_estimate_walltime():

@@ -57,7 +57,7 @@ def _check_solo() -> None:
 
 
 def check_compile_commands(commands: list[dict], genome: dict, wait: bool) -> dict:
-    """Check every Cicada TU command in the exported ycsb_cicada build."""
+    """Check each Cicada TU exactly once in the ycsb_cicada executable target."""
     expected = {"TRACE": 0, "ADD_ANALYSIS": 0, **genome,
                 "WORKER1_INSERT_DELAY_RPHASE": int(wait)}
     if wait:
@@ -65,9 +65,14 @@ def check_compile_commands(commands: list[dict], genome: dict, wait: bool) -> di
     checked = []
     for entry in commands:
         path = Path(entry.get("file", "")).as_posix()
+        argv = entry.get("arguments") or shlex.split(entry.get("command", ""))
+        output = entry.get("output")
+        if output is None:
+            output = next((argv[i + 1] for i, token in enumerate(argv[:-1]) if token == "-o"), "")
+        if not re.search(r"(?:^|/)CMakeFiles/ycsb_cicada\.exe\.dir/", str(output)):
+            continue
         if not re.search(r"/cc/cicada/(transaction|util|ycsb_cicada)\.cc$", path):
             continue
-        argv = entry.get("arguments") or shlex.split(entry.get("command", ""))
         defines = {}
         for token in argv:
             if token.startswith("-D"):
@@ -81,8 +86,9 @@ def check_compile_commands(commands: list[dict], genome: dict, wait: bool) -> di
         if not wait and defines.get("WORKER1_INSERT_DELAY_RPHASE_US") not in (None, "0"):
             raise ValueError("normal build contains wait duration")
         checked.append(path)
-    if {Path(path).name for path in checked} != {"transaction.cc", "util.cc", "ycsb_cicada.cc"}:
-        raise ValueError("Cicada translation units missing from compile_commands")
+    counts = Counter(Path(path).name for path in checked)
+    if counts != Counter({"transaction.cc": 1, "util.cc": 1, "ycsb_cicada.cc": 1}):
+        raise ValueError("Cicada translation units missing or duplicated in ycsb_cicada target")
     return {"checked_tus": checked, "expected_defines": expected, "valid": True}
 
 
@@ -136,21 +142,26 @@ def make_spec(stage: str, records: dict[str, int], *, seed: int = 20260929,
     else:
         if selected is None:
             raise ValueError("J2 needs J1-selected genomes")
-        for index, w in enumerate(workloads):
-            source = "W2" if w == "W5" else w
-            candidates = selected.get(source)
+        job_workloads = [w for w in workloads if w != "W5"]
+        if "W5" in workloads and "W2" not in job_workloads:
+            job_workloads.append("W2")
+        for index, w in enumerate(job_workloads):
+            candidates = selected.get(w)
             if candidates is None:
-                raise ValueError(f"missing selected genomes for {source}")
+                raise ValueError(f"missing selected genomes for {w}")
             candidates = [model.parse_canonical(g) if isinstance(g, str) else g for g in candidates]
             for g in candidates:
                 model.validate_genome(g)
             genomes = list({model.canonical(g): g for g in [*candidates[:k], model.CONTROL]}.values())
-            grid = (10, 100, 1000) if w == "W5" else gc_grid
-            conditions = [{"genome": g, "workload": w, "records": records[w], "gc_inter_us": gc}
-                          for g in genomes for gc in grid]
-            if w == "W2" and records[w] != 1_000_000:
+            conditions = ([{"genome": g, "workload": w, "records": records[w], "gc_inter_us": gc}
+                           for g in genomes for gc in gc_grid] if w in workloads else [])
+            if w == "W2" and w in workloads and records[w] != 1_000_000:
                 conditions += [{"genome": g, "workload": w, "records": 1_000_000, "gc_inter_us": gc}
                                for g in genomes for gc in (10, 100, 1000)]
+            if w == "W2" and "W5" in workloads:
+                wait_conditions = [{"genome": g, "workload": "W5", "records": records["W5"],
+                                    "gc_inter_us": gc} for g in genomes for gc in (10, 100, 1000)]
+                conditions.extend(wait_conditions)
             jobs.append(_assemble_job(f"{job_prefix}-j2-{index}", "j2", conditions, reps,
                                       seed + index, build_parallelism))
     return jobs
@@ -324,10 +335,13 @@ def _run_one(run: dict, binary: Path, binary_sha: str, output_dir: Path,
     if rss is None:
         raise ValueError("maxrss missing")
     miss_rate = None
+    llc_loads = llc_load_misses = None
     perf_raw = None
     if run["perf"]:
         perf_raw = perf_path.read_text()
-        miss_rate = perfparse.parse_perf_stat(perf_raw).llc_miss_rate
+        counters = perfparse.parse_perf_stat(perf_raw)
+        miss_rate = counters.llc_miss_rate
+        llc_loads, llc_load_misses = counters.llc_loads, counters.llc_load_misses
     return {"schema": SCHEMA, "job_id": job_id, "run_id": run_id,
             "stage": run["stage"], "rep": run["rep"],
             "genome": model.canonical(run["genome"]), "genome_flags": run["genome"],
@@ -339,6 +353,7 @@ def _run_one(run: dict, binary: Path, binary_sha: str, output_dir: Path,
                 "wait": workload.wait},
             "records": run["records"], "gc_inter_us": run["gc_inter_us"],
             "perf": run["perf"], "perf_raw": perf_raw, "miss_rate": miss_rate,
+            "llc_loads": llc_loads, "llc_load_misses": llc_load_misses,
             "throughput_tps": tps, "abort_rate": aborts / (aborts + commits),
             "commit_count": commits, "abort_count": aborts, "maxrss_kb": int(float(rss.split()[0])),
             "host": host, "started_utc": started, "elapsed_seconds": elapsed,
@@ -399,6 +414,15 @@ def _j0_runs() -> list[dict]:
              "workload": "W5" if wait else "W2", "records": 1_000_000,
              "gc_inter_us": 10, "threads": 2, "perf": False}
             for rep in range(3) for wait in (False, True)]
+
+
+def _calibration_point(reps: list[dict], records: int) -> dict:
+    """Keep both counters from the rep at the median observed miss rate."""
+    valid = [r for r in reps if r.get("llc_loads") and r.get("llc_load_misses") is not None]
+    representative = sorted(valid, key=lambda r: r["llc_load_misses"] / r["llc_loads"])[len(valid) // 2] if len(valid) == 3 else None
+    return {"records": records, "maxrss_kb": max(r["maxrss_kb"] for r in reps),
+            "llc_loads": representative["llc_loads"] if representative else None,
+            "llc_load_misses": representative["llc_load_misses"] if representative else None}
 
 
 def execute(spec_path: Path, cache_root: Path, scratch_root: Path) -> Path:
@@ -521,9 +545,7 @@ def _execute_j0(take, manifest: dict) -> None:
                           "genome": model.CONTROL, "workload": workload,
                           "records": records, "gc_inter_us": 10, "perf": perf})
                     for rep in range(3)]
-            miss = [r["miss_rate"] for r in reps if r["miss_rate"] is not None]
-            points.append({"records": records, "maxrss_kb": max(r["maxrss_kb"] for r in reps),
-                           "miss_rate": (sorted(miss)[len(miss)//2] if len(miss) == 3 else None)})
+            points.append(_calibration_point(reps, records))
             if len(points) >= 3:
                 choice = analysis.choose_records(points, l3)
                 if choice["reason"] == "observed_saturation_candidate" and choice["records"] < records:
@@ -599,15 +621,15 @@ def analyze(paths: list[Path], k: int = 3, costs_path: Path | None = None,
                "l3_bytes": l3,
                "input_runs": [str(p) for p in paths], "calibration": {},
                "selected_j1": analysis.select_j1(rows, k), "control_cv": {},
-               "within_run_cv": {}, "j2": {}}
+               "within_run_cv": {}, "j2": {},
+               "condition_medians": {stage: analysis.condition_medians(rows, stage)
+                                     for stage in ("j1", "j2")}}
     for workload in model.WORKLOADS:
         points = []
         for n in sorted({r["records"] for r in j0 if r["stage"] == "j0_calibration" and r["workload"] == workload}):
             reps = [r for r in j0 if r["stage"] == "j0_calibration" and
                     r["workload"] == workload and r["records"] == n]
-            miss = [r["miss_rate"] for r in reps if r["miss_rate"] is not None]
-            points.append({"records": n, "maxrss_kb": max(r["maxrss_kb"] for r in reps),
-                           "miss_rate": sorted(miss)[len(miss)//2] if len(miss) == 3 else None})
+            points.append(_calibration_point(reps, n))
         if workload == "W5":
             summary["calibration"][workload] = summary["calibration"].get("W2", {})
         else:

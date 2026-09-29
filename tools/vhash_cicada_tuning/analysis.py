@@ -23,11 +23,11 @@ def rss_lower_bound(points: Sequence[Mapping], l3_bytes: int) -> int | None:
 def choose_records(points: Sequence[Mapping], l3_bytes: int) -> dict:
     if not points:
         return {"records": None, "reason": "undetermined"}
-    if all(p.get("miss_rate") is not None for p in points):
+    if all(p.get("llc_loads") and p.get("llc_load_misses") is not None for p in points):
         scales = []
         for p in points:
-            counters = PerfCounters(llc_loads=1_000_000,
-                                    llc_load_misses=round(float(p["miss_rate"]) * 1_000_000))
+            counters = PerfCounters(llc_loads=int(p["llc_loads"]),
+                                    llc_load_misses=int(p["llc_load_misses"]))
             scales.append(ScalePoint(records=int(p["records"]), threads=48,
                                      counters=counters, maxrss_kb=p.get("maxrss_kb")))
         result = find_saturation(scales, l3_bytes=l3_bytes)
@@ -65,6 +65,18 @@ def _median(rows: Sequence[Mapping]) -> float:
     if not rows:
         raise ValueError("missing runs")
     return st.median(float(r["throughput_tps"]) for r in rows)
+
+
+def condition_medians(rows: Sequence[Mapping], stage: str) -> dict:
+    """Absolute rep medians for measured genome, GC, and record conditions."""
+    groups = defaultdict(list)
+    for row in _valid(rows, {stage}):
+        groups[(row["workload"], row["genome"], row["gc_inter_us"], row["records"])].append(row)
+    return {f"{w}|{g}|{gc}|{n}": {
+                "throughput_tps": st.median(float(r["throughput_tps"]) for r in group),
+                "maxrss_kb": st.median(float(r["maxrss_kb"]) for r in group),
+                "n_reps": len(group)}
+            for (w, g, gc, n), group in sorted(groups.items())}
 
 
 def select_j1(rows: Sequence[Mapping], k: int = 3) -> dict[str, list[str]]:
