@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 66 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-eight
+Claim boundary: the supply domain contains the 70 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Fifty-two
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -270,6 +270,23 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
         "patches/cicada-forwarding-variant.patch",
     ),
+    "CICADA_INTERVAL_GC": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-interval-gc-variant.patch",
+    ),
+    "CICADA_INTERVAL_GC_GENERAL": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-interval-gc-variant.patch",
+        companion_defines=(("CICADA_INTERVAL_GC", "1"),),
+    ),
+    "CICADA_INTERVAL_COUNT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-interval-gc-variant.patch",
+    ),
+    "CICADA_INTERVAL_LONGTX": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-interval-gc-longtx.patch",
+    ),
     "IZANAGI_BREAK_NOREAD_VALIDATION": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-norw-validation.patch",
@@ -440,6 +457,18 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "CICADA_LONGTX": (
         "cc/cicada/ycsb_cicada.cc", "#if CICADA_LONGTX",
     ),
+    "CICADA_INTERVAL_GC": (
+        "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_GC",
+    ),
+    "CICADA_INTERVAL_GC_GENERAL": (
+        "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_GC_GENERAL",
+    ),
+    "CICADA_INTERVAL_COUNT": (
+        "cc/cicada/transaction.cc", "#if CICADA_INTERVAL_COUNT",
+    ),
+    "CICADA_INTERVAL_LONGTX": (
+        "cc/cicada/ycsb_cicada.cc", "#if CICADA_INTERVAL_LONGTX",
+    ),
     "IZANAGI_BREAK_WRITE_INTENT_ERASE": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_WRITE_INTENT_ERASE",
     ),
@@ -552,12 +581,23 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "CICADA_FWD_ENABLE": 11,
     "CICADA_FWD_COUNT": 4,
     "CICADA_LONGTX": 4,
+    "CICADA_INTERVAL_GC": 11,
+    "CICADA_INTERVAL_GC_GENERAL": 1,
+    "CICADA_INTERVAL_COUNT": 8,
+    "CICADA_INTERVAL_LONGTX": 2,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "IZANAGI_CICADA_VLIFE": (
         ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 9),
     ),
     "IZANAGI_CICADA_LONGTX": (),
+    "CICADA_INTERVAL_GC": (
+        ("cc/cicada/include/version.hh", "#if CICADA_INTERVAL_GC", 3),
+    ),
+    "CICADA_INTERVAL_COUNT": (
+        ("cc/cicada/include/transaction.hh", "#if CICADA_INTERVAL_COUNT", 2),
+        ("cc/cicada/include/version.hh", "#if CICADA_INTERVAL_COUNT", 3),
+    ),
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),
 }
 
@@ -1164,14 +1204,14 @@ def make_define_request(
     stock_comparison: bool = False,
     protocol: str = "silo",
 ) -> DefineRequest:
-    """Construct a request from the independently declared 66-macro supply domain."""
+    """Construct a request from the independently declared 70-macro supply domain."""
     try:
         if protocol not in ("silo", "mocc") or (protocol == "mocc" and macro != "BACKOFF_FIXED"):
             raise KeyError(protocol)
         spec = _MOCC_BACKOFF_SPEC if protocol == "mocc" else DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", f"macro is outside the 66-macro domain: {macro!r}",
+            "request-contract-invalid", f"macro is outside the 70-macro domain: {macro!r}",
         ) from exc
     if len(spec.owner_tus) != 1:
         raise ConditionMeaningGateError(
@@ -1241,7 +1281,7 @@ def _validate_define_request(request: DefineRequest) -> tuple[DefineSpec, str, s
         spec = _request_spec(request)
     except KeyError as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", "macro is outside the 66-macro domain",
+            "request-contract-invalid", "macro is outside the 70-macro domain",
         ) from exc
     if request.route != spec.route:
         raise ConditionMeaningGateError(

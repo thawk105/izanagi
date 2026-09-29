@@ -78,6 +78,10 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    # Diagnostic interval GC perf and trace binaries use bounded wait4 launches.
+    ("campaign/vhash_interval_gc.py", "<module>.run_measured"): 1,
+    # Verify delegates its trace binary argv to run_measured.
+    ("campaign/vhash_interval_gc.py", "<module>.verify_binary"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._checked"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._delay_compile"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._calibrate"): 1,
@@ -153,6 +157,8 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # This helper runs CMake configure/build, a preprocessing compiler, and a
     # read-only Git HEAD query; the YCSB binary runs at _run_binary instead.
     ("campaign/vhash_forwarding_prototype.py", "<module>.checked"): 1,
+    # Configure/build, preprocess, patch, and read-only Git commands only.
+    ("campaign/vhash_interval_gc.py", "<module>.checked"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     # Pre-existing fork, now visible with T-1994's fork API coverage: runs
@@ -3585,10 +3591,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 62,
+        "proven-unreachable": 66,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 66})
+    assert classifications[s8b_sink] == Counter({"covered": 70})
     assert failures == []
 
 
@@ -3612,7 +3618,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 52})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 56})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3621,7 +3627,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 52,
+        "failure-reachable": 14, "proven-unreachable": 56,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target
