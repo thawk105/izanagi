@@ -1122,6 +1122,8 @@
   `git worktree add <path> <branch>` で作り直した (実害なし)。kill・背景化に続く第 3 の中断形。判別は
   `git branch --list` と admin dir の有無を 1 command ずつ見て、残っている物だけ畳む。
 - **supersede: 2026-09-18** — 削除側の運用則「1 worktree ずつ削除し、必要なら timeout を延ばす」は D2104 項 32 / D2113 の固定 launcher `tools/cleanup_remove_dirs.py` (`/cleanup-branches` §3 手順 3、全対象を前景 1 回で渡す) で置換済み。2026-09-17 の実走では 17 本並列 101 秒・10 本 161 秒で全件 removed (数値は同実走の final 報告を依頼文が引用したもの、job dir は消失)。作成側の運用則 (`git worktree add` は 1 件ずつ、必要なら timeout を延ばし、背景化されたら pid 終了を待つ) は残る。現行実体は §3 の同 launcher と `DW-O28` の `tools/dev_wave_cleanup.py`。
+
+- **再発: 2026-09-29** — `dev-wave-vhash-readonly-share` の wave 用 worktree の作成で、login の高負荷 (load 50〜170、他 wave の `git worktree add` が 10 本前後並走) の下、`git worktree add` が checkout の途中で EINTR (「システムコール割り込み」) により 2 回 rc=128 で終了した (1 回目 14:42「Could not reset index file to revision 'HEAD'」、2 回目 15:01「cannot create directory ...: システムコール割り込み」、各 20 分弱)。どちらも作りかけの directory と admin dir は消え、branch だけが残った。3 回目は `git worktree add --no-checkout` で登録だけを先に作り、`git worktree lock` の後に `git -C <path> reset -q --hard HEAD` を成功するまで反復する形にして、1 回目の reset で完成した (15:07)。この形なら reset が中断されても登録と作りかけが残り再実行できる見込みだが、今回 reset の中断は起きておらず確かめていない。同じ wave の子木・計測木 7 本もこの形で作り、全件 1 回目で成功した。変異 harness (`tools/mutation_worktree.py`) の login での plan-only は harness 内部の `git worktree add --detach` が同じ EINTR で失敗し (rc=125)、計算ノードでの実行に切り替えた。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -20746,6 +20748,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   1 件直すたびに queue 待ちを含む round-trip を 1 往復消費した。
   個別対処ではなく、**鎖の全項目を列挙して各々の成立根拠を実行側基準で書き出す**ことで
   残りを一括で潰した。
+
+- **再発: 2026-09-29** — VHash 構成 E の計算ノード smoke が、gate 前の dependency build 抜け (1 回目)、`#line` のずれ (2 回目)、計器なし build の未使用引数 (3 回目) と 1 回に 1 件ずつ止まった。3 回目の後に「build 行列の全 macro の組で -Werror の構文検査を実 header で通す」を fix 子に課し、4 回目で通った。検査起動器も dependency build 抜けで 1 回空振りし、2 回目は driver の成功経路と 1 段ずつ突き合わせさせて通した (その突き合わせで genome が旧定義だったのも見つかった)。
 ### F684. 生きた台帳の一部を exact pin で凍結し、全体更新をできなくした [恒真ゲート] [自己整合]
 
 - 事象: 受入全走が 17700 件中 1 件だけ赤で戻った。落ちたのは
@@ -28690,3 +28694,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 親が段 5 の prompt に「実 bytes の sha256 を計算して expected_hashes として渡す」と書き、固定表を迂回する口が照合そのものを無効にすることを設計時に見なかった。先例の wrapper の形をそのまま下敷きにした。
 - 恒久対応: memory `repo-external-wrapper-must-pin-input-hashes` — 固定 hash 表を迂回する wrapper は、期待値を結果記録に書いた定数として持ち、入力 file から計算した値を期待値にしない。段 6 のレンズ A (一次資料照合・正しさ境界) が検出した。
 - 再発検知: 段 6 の正しさ境界レビュー。wrapper の負例 1 本 (別 attempt の入力を渡すと生成器が拒否し図が作られない) を実走して確かめる。
+
+### F1068. 小モデルで安全な公開手順を C++ へ写すとき、モデルの版ごとの参照集合に当たる保護が実装では「tx 開始時の下限を変えない」暗黙の不変条件だったことを見落とし、待機中に既読版を回収させた [誤前提] [手順漏れ]
+
+- 事象: VHash 構成 E の段 4 で、親の仮裁定 P5 が「安全点で ThreadRtsArray を最新の MinWts−1 へ上げる (stock と同じ意味の値で、下げないので安全)」とした。段 3 の相談 2 本と段 6 のレビュー 2 本・焦点再レビューはこの点を反例にしなかった。計算ノードの smoke 4 で、待機の前後の既読版の照合 (保持版検査) が E-hb 159 / 3,938、E 174 / 3,882 の変化を出した。
+- 根本原因: md_10 の小モデルは既読版を版ごとの refs で守り、回収境界 (gc_floor) は cand_ts そのものだった。Cicada には refs が無く、既読版を守っているのは「ThreadRtsArray = tx 開始時の MinWts−1 を tx の間変えない」ことである。親は「下限を下げない」(tx 境界の単調性) だけを検討し、「tx の途中で上げる」ことが暗黙の保護を外すと考えなかった。モデルの規則の対応表 (G1〜G7) に、実装側で何がその規則の前提 (refs) を担うかの列が無かった。
+- 恒久対応: 下限は前進に成功したときだけ t′−1 へ公開し、それ以外は変えない (D2295)。保持版検査を計器 build に常設し、smoke・本計測・検査の全 run で 0 を確かめる形にした (`patches/cicada-forwarding-gc.patch` の `CICADA_GC_COUNT`、driver の `held_changed`、検査起動器の終了コード)。一次資料 §3.3 に経緯。
+- 再発検知: 保持版検査 (待機中の既読版の wts・status の変化) が 0 でない run を、検査起動器が非 0 で終える。モデルの規則を実装へ写す wave では、規則ごとに「モデルでその前提を担う状態」と「実装でそれを担うもの」を対にして段 1 の brief に書く (本 F を段 1 の攻撃面に含める)。
+
+### F1069. 公開ごとの記録の世代を tx の開始時点で固定し、公開をまたぐ事象の大半を「世代不一致」で除外していた [計測汚染] [テスト代表性]
+
+- 事象: md_15 の Cicada 診断計器 (`patches/instr-cicada-version-lifetime.patch`) の段 5 実装は、GC flag を上げた時刻・ro commit の観測・境界保持用の rts を、tx の `begin()` で決めた公開世代の slot に書いていた。公開の直後に各 worker は走行中の tx の終わりで flag を上げるので、その記録は旧世代に入り、次の公開で leader が読む世代から欠ける。親のコード読みと段 6 レビュー A が指摘し、fix1 で事象時点の世代に改めた後も、原典の `cicadaLeaderWork()` が flag を下ろしてから計器が世代を進める隙間が残った (焦点再レビュー 1 巡目)。fix3 前の patch の smoke の短い走では、公開間隔の 60% (既定 Cicada) と 84% (調整済み) が除外されていた。fix3 (全 flag を見たら公開前に世代を進める)・fix4 (遅れて揃った公開も検出時に進める) の後は 1.0〜1.7%、本計測 258 走で最大 3.5%。本計測は fix 後の patch だけで取ったので、偏った値は結果に入っていない (near miss)。
+- 根本原因: 「どの公開間隔の事象か」を事象の時点ではなく tx の開始時点で決めた。原典の公開手順 (flag を下ろす処理が公開の中にある) と計器の世代更新の順序を実行順で追わなかった。純関数 test は計器の C++ の実行時挙動を見ないので、除外の偏りは smoke の実測まで見えなかった。
+- 恒久対応: patch の構造 test (`orchestrator/tests/test_vhash_cicada_vlife.py` の `test_mut11_event_generation_and_current_holder`・`test_mut16_epoch_advances_before_cicada_publication`・`test_mut18_late_publication_advances_epoch`、変異 MUT-11・16・18 で kill を確認) と、計器が除外件数 (`dc_generation`・`dc_late_epoch`・`dc_epoch_mismatch`) を出し driver が集計する形 (D2296)。
+- 再発検知: smoke の短い走で D-C の除外率を読む (一次資料 §4・§9)。除外率が数 % を超えたら記録の世代の取り方を疑う。

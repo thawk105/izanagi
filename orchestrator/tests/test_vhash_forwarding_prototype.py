@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+import copy
 import importlib.util
 import json
 from pathlib import Path
@@ -347,3 +348,269 @@ def test_aggregate_k_sweep_requires_extra_cells():
     job["records"] = [r for r in job["records"] if r["k"] != 8]
     with pytest.raises(ValueError, match=r"missing planned cell: .*100, 8"):
         driver.aggregate_jobs([job])
+
+
+def _gc_payload():
+    return {"schema": 1, "mode": "e", "sample_us": 10, "clocks_per_us": 2100,
+        "initial_versions": 100, "version_struct_bytes": 64,
+        "threads": [{key: (i if key == "thid" else 0) for key in driver.GC_THREAD}
+                    for i in (0, 1)],
+        "uniform": {"count": 1, "negative": 0, "lag_rts_hist": [1]+[0]*41,
+                    "lag_rts_sum_us": 1, "lag_rts_max_us": 1,
+                    "lag_wts_hist": [1]+[0]*41, "live_sum": 100, "live_max": 100,
+                    "argmin_rts_thid": [0, 1], "series": [], "series_stride": 1,
+                    "max_gap_intervals": 1},
+        "publish": {"count": 0, "lag_rts_hist": [0]*42, "interval_hist": [0]*42},
+        "begin": {"count": 0, "lag_rts_hist": [0]*42},
+        "retention": {"count": 0, "sum_us": 0, "hist": [0]*42}, "live_end": 100}
+
+
+def test_gc_rotation_md4():
+    assert [driver.gc_order_rotation(rep) for rep in range(4)] == [
+        ("stock", "C", "E-hb", "E"), ("C", "E-hb", "E", "stock"),
+        ("E-hb", "E", "stock", "C"), ("E", "stock", "C", "E-hb")]
+
+
+def test_gc_line_exactly_once_and_schema_md2_md3():
+    payload = _gc_payload()
+    line = "CICADA_GC_V1 " + json.dumps(payload) + "\n"
+    assert driver.parse_gc_line(line, True) == payload
+    with pytest.raises(ValueError, match="expected 1 lines, found 2"):
+        driver.parse_gc_line(line * 2, True)
+    with pytest.raises(ValueError, match="expected 1 lines, found 0"):
+        driver.parse_gc_line("", True)
+    payload["unknown"] = 0
+    with pytest.raises(ValueError, match="top schema"):
+        driver.parse_gc_line("CICADA_GC_V1 " + json.dumps(payload), True)
+    del payload["unknown"]
+    payload["uniform"]["series"] = [[i, i, 100] for i in range(10000)]
+    assert driver.parse_gc_line("CICADA_GC_V1 " + json.dumps(payload), True)["uniform"]["series"][-1][0] == 9999
+    del payload["uniform"]["max_gap_intervals"]
+    with pytest.raises(ValueError, match="uniform schema"):
+        driver.parse_gc_line("CICADA_GC_V1 " + json.dumps(payload), True)
+
+
+def test_gc_argv_and_count_perf_md1(tmp_path):
+    specs = driver.gc_plan_runs("wait_after_reads", 10000)
+    for arm in driver.GC_ARMS:
+        spec = next(s for s in specs if s["arm"] == arm and s["build_kind"].endswith("-count"))
+        argv = driver._argv(tmp_path / "binary", spec)
+        assert "--cicada_gc_sample_us=10" in argv
+        assert "--cicada_long_wait_us=10000" in argv
+        assert ("--cicada_gc_slice_us=100" in argv) is arm.startswith("E")
+        assert ("--cicada_gc_mode=hb" in argv) is (arm == "E-hb")
+        assert ("--cicada_gc_mode=e" in argv) is (arm == "E")
+        assert argv[0] != "numactl"
+    assert len(specs) == 72
+    zero = driver.gc_plan_runs("wait_after_reads", 10000, skew=0)
+    assert all(s["skew"] == 0 for s in zero)
+    assert "-ycsb_zipf_skew=0" in driver._argv(tmp_path / "binary", zero[0])
+    assert "-ycsb_zipf_skew=0.9" in driver._argv(tmp_path / "binary", specs[0])
+
+
+@pytest.mark.parametrize("workload", ("normal", "many_ops"))
+def test_gc_skew_zero_rejected_for_controls(workload, tmp_path):
+    with pytest.raises(SystemExit) as exc:
+        driver.main(["gc-run", "--workload", workload, "--skew", "0",
+                     "--third-party-cache", str(tmp_path)])
+    assert exc.value.code == 2
+
+
+def _gc_job(workload="normal", wait_us=None, skew=0.9):
+    records = []
+    for spec in driver.gc_plan_runs(workload, wait_us, skew=skew):
+        records.append({**spec, "valid": True,
+            "perf_eligible": not spec["build_kind"].endswith("-count"),
+            "throughput": 100, "gc_counters": _gc_payload() if spec["build_kind"].endswith("-count") else None,
+            "longtx_counters": {"threads": [{"thid": 1, "long": False}]}})
+    return {"command": "gc-run", "all_pass": True, "workload": workload,
+            "wait_us": wait_us, "skew": skew,
+            "records": records}
+
+
+def _gc_jobs():
+    return [_gc_job("wait_after_reads", wait, skew)
+            for wait in (1000, 10000) for skew in (0.9, 0)] + [
+            _gc_job("normal"), _gc_job("many_ops")]
+
+
+@pytest.mark.parametrize("missing_index", range(6))
+def test_gc_aggregate_rejects_each_missing_job(missing_index):
+    jobs = _gc_jobs()
+    jobs.pop(missing_index)
+    with pytest.raises(ValueError, match="missing GC jobs"):
+        driver.gc_aggregate_jobs(jobs)
+
+
+def test_gc_aggregate_complete_and_missing_md1_md5():
+    jobs = _gc_jobs()
+    aggregate = driver.gc_aggregate_jobs(jobs)
+    assert len(aggregate["cells"]) == 18
+    cell = aggregate["cells"]["normal/wait=None/skew=0.9/gc=10"]
+    assert len(cell["arms"]["E"]["performance"]) == 3
+    assert len(cell["arms"]["E"]["gc"]) == 1
+    assert cell["arms"]["E"]["throughput_median_tps"] == 100
+    jobs[4]["records"].pop()
+    with pytest.raises(ValueError, match="missing or extra cell"):
+        driver.gc_aggregate_jobs(jobs)
+    jobs = _gc_jobs()
+    next(r for r in jobs[4]["records"] if r["build_kind"].endswith("-count"))["perf_eligible"] = True
+    with pytest.raises(ValueError, match="mislabeled"):
+        driver.gc_aggregate_jobs(jobs)
+    with pytest.raises(ValueError, match="duplicate GC job"):
+        driver.gc_aggregate_jobs([*_gc_jobs(), _gc_job("wait_after_reads", 1000, 0)])
+    extra = _gc_job("normal")
+    extra["wait_us"] = 1000
+    with pytest.raises(ValueError, match="unexpected GC job"):
+        driver.gc_aggregate_jobs([*_gc_jobs(), extra])
+    jobs = _gc_jobs()
+    jobs[0]["records"][0]["skew"] = 0
+    with pytest.raises(ValueError, match="record condition differs"):
+        driver.gc_aggregate_jobs(jobs)
+    jobs = _gc_jobs()
+    del jobs[0]["records"][0]["skew"]
+    with pytest.raises(KeyError, match="skew"):
+        driver.gc_aggregate_jobs(jobs)
+
+
+def test_md6_plan_and_argv_remain_unchanged():
+    assert driver.order_rotation(0) == ("stock", "c", "f")
+    assert len(driver.plan_runs("run", "normal")) == 33
+    spec = driver.plan_runs("run", "normal")[0]
+    assert driver._argv(Path("binary"), spec)[0:3] == ["numactl", "--interleave=all", "binary"]
+
+
+@pytest.mark.parametrize("kind", ("gc-stock", "gc-c", "gc-e", "gc-stock-count", "gc-c-count", "gc-e-count"))
+def test_gc_build_gates_every_macro_and_uses_tuned_genome(monkeypatch, tmp_path, kind):
+    monkeypatch.setattr(driver.compute, "_common_configure_args", lambda **kwargs: [])
+    seen, commands = [], []
+    monkeypatch.setattr(driver, "_condition_gate", lambda source, macro, args, cxx:
+                        seen.append((macro, tuple(args))) or {"admission": {"admitted": True}})
+    monkeypatch.setattr(driver, "checked", lambda argv, **kwargs: commands.append(argv))
+    binary = tmp_path / "cc/cicada/ycsb_cicada.exe"
+    binary.parent.mkdir(parents=True)
+    binary.touch()
+    driver._build_variant(tmp_path, tmp_path, kind, {}, {"cxx_path": "/fake/c++"})
+    assert [macro for macro, _ in seen] == list(driver.MACROS[kind])
+    for key, value in driver.GC_GENOME.items():
+        from orchestrator.campaign.model import cmake_cache_variable_for_axis
+        arg = f"-D{cmake_cache_variable_for_axis('cicada', key)}={value}"
+        assert arg in commands[0]
+        assert all(arg in args for _, args in seen)
+
+
+def test_gc_count_build_and_run_parse_fwd(monkeypatch, tmp_path):
+    assert "CICADA_FWD_COUNT" not in driver.MACROS["gc-stock-count"]
+    assert "CICADA_FWD_COUNT" in driver.MACROS["gc-c-count"]
+    assert "CICADA_FWD_COUNT" in driver.MACROS["gc-e-count"]
+    binary = tmp_path / "ycsb_cicada.exe"
+    binary.write_bytes(b"fixture")
+    monkeypatch.setattr(driver, "_probe", lambda: {})
+    payload = json.dumps(_gc_payload())
+    stdout = ("throughput[tps]:\t99\nCICADA_GC_V1 " + payload +
+              '\nCICADA_FWD_V1 {"threads": []}\nCICADA_LONGTX_V1 {"threads": []}\n').encode()
+    monkeypatch.setattr(driver.subprocess, "run", lambda *a, **k:
+                        SimpleNamespace(returncode=0, stdout=stdout, stderr=b""))
+    spec = next(s for s in driver.gc_plan_runs("wait_after_reads", 10000, smoke=True)
+                if s["build_kind"] == "gc-e-count")
+    record = driver._run_binary(binary, spec, {}, [])
+    assert record["valid"] and record["fwd_counters"] == {"threads": []}
+    assert record["perf_eligible"] is False
+
+
+def test_gc_summary_retains_diagnostics_and_rep_differences():
+    jobs = _gc_jobs()
+    for job in jobs[:4]:
+        for record in job["records"]:
+            if not record["build_kind"].endswith("-count"):
+                continue
+            payload = copy.deepcopy(record["gc_counters"])
+            arm_offset = {"stock": 0, "C": 1, "E-hb": 2, "E": 4}[record["arm"]]
+            if record["arm"] == "E" and record["rep"] == 2:
+                arm_offset += 9  # median differs from mean across paired reps
+            payload["uniform"].update(lag_rts_sum_us=arm_offset + record["rep"] + 1,
+                live_sum=100 + arm_offset + record["rep"],
+                lag_wts_hist=[0, 1] + [0]*40,
+                series=[[record["rep"], arm_offset, 100]], max_gap_intervals=3)
+            payload["publish"].update(count=1, lag_rts_hist=[0, 1] + [0]*40)
+            payload["begin"].update(count=1, lag_rts_hist=[0, 1] + [0]*40)
+            payload["retention"].update(count=1, sum_us=8, hist=[0, 0, 0, 1] + [0]*38)
+            record["gc_counters"] = payload
+    cell = driver.gc_aggregate_jobs(jobs)["cells"]["wait_after_reads/wait=1000/skew=0.9/gc=10"]
+    e = cell["arms"]["E"]["gc"][0]
+    assert e["lag_wts_p50_upper_us"] == 2
+    assert e["publish_count"] == e["begin_count"] == e["retention_count"] == 1
+    assert e["publish_lag_rts_p50_upper_us"] == e["begin_lag_rts_p50_upper_us"] == 2
+    assert e["retention_sum_us"] == e["retention_p50_upper_us"] == 8
+    assert e["series"] == [[0, 4, 100]] and e["max_gap_intervals"] == 3
+    comparisons = cell["gc_comparisons"]
+    assert cell["skew"] == comparisons["primary_E_minus_E-hb"]["skew"] == 0.9
+    assert cell["skew"] == comparisons["auxiliary_E-hb_minus_stock"]["skew"]
+    assert comparisons["primary_E_minus_E-hb"]["lag_rts_mean_us"] == 2
+    assert comparisons["auxiliary_E-hb_minus_stock"]["live_mean"] == 2
+    assert comparisons["auxiliary_E-hb_minus_C"]["live_mean"] == 1
+    assert comparisons["primary_E_minus_E-hb"]["retention_p50_upper_us"] == 0
+
+
+def _gc_main_fixture(monkeypatch, tmp_path, *, gate_failure=False, success=0):
+    monkeypatch.setattr(driver, "checked", lambda *a, **k: SimpleNamespace(stdout=b"head\n"))
+    monkeypatch.setattr(driver, "_probe", lambda: {})
+    for name in ("_load_policy", "_resolve_toolchain", "_prepare_dependencies"):
+        monkeypatch.setattr(driver.compute, name, lambda *a, **k: {})
+    monkeypatch.setattr(driver.patchharness, "checkout", lambda *a: nullcontext(tmp_path))
+    monkeypatch.setattr(driver.patchharness, "applied", lambda *a: nullcontext())
+    monkeypatch.setattr(driver.patchharness, "patch_files", lambda *a: ["cc/cicada/transaction.cc"])
+    monkeypatch.setattr(driver.patchharness, "apply_patch", lambda *a: None)
+    monkeypatch.setattr(driver, "_gc_inert_receipt", lambda *a: {"matched": True})
+    calls = []
+    def build(source, directory, kind, dependencies, toolchain):
+        calls.append(kind)
+        if gate_failure and kind == "gc-stock":
+            exc = RuntimeError("condition gate rejected CICADA_LONGTX")
+            exc.condition_gate_evidence = {"macro": "CICADA_LONGTX",
+                "supply": {"admitted": True}, "meaning": {"admitted": False},
+                "admission": {"admitted": False}}
+            raise exc
+        return driver.PATCH, [], 1.0
+    monkeypatch.setattr(driver, "_build_variant", build)
+    def run(binary, spec, common, gates):
+        payload = _gc_payload() if spec["build_kind"].endswith("-count") else None
+        if payload and spec["arm"] == "E":
+            payload["threads"][0]["success"] = success
+        return {**spec, "valid": True, "gc_counters": payload}
+    monkeypatch.setattr(driver, "_run_binary", run)
+    return calls
+
+
+def test_gc_smoke_requires_e_success_and_dependency_first(monkeypatch, tmp_path):
+    calls = _gc_main_fixture(monkeypatch, tmp_path)
+    argv = ["gc-smoke", "--third-party-cache", str(tmp_path), "--output", str(tmp_path)]
+    assert driver.main(argv) == 1
+    job = json.loads(next(tmp_path.glob("raw-gc-smoke-*.json")).read_text())
+    assert calls[:2] == ["gc-dependency", "gc-stock"]
+    assert job["skew"] == 0.9 and all(record["skew"] == 0.9 for record in job["records"])
+    assert job["e_success_total"] == 0 and "success total is zero" in job["error"]
+    assert job["all_pass"] is False
+    calls = _gc_main_fixture(monkeypatch, tmp_path, success=1)
+    assert driver.main(argv) == 0
+    assert calls[:2] == ["gc-dependency", "gc-stock"]
+
+
+def test_gc_run_raw_skew_zero(monkeypatch, tmp_path):
+    _gc_main_fixture(monkeypatch, tmp_path)
+    assert driver.main(["gc-run", "--workload", "wait_after_reads", "--wait-us", "1000",
+                        "--skew", "0", "--third-party-cache", str(tmp_path),
+                        "--output", str(tmp_path)]) == 0
+    job = json.loads(next(tmp_path.glob("raw-gc-run-*.json")).read_text())
+    assert job["skew"] == 0 and job["all_pass"]
+    assert job["records"] and all(record["skew"] == 0 for record in job["records"])
+
+
+def test_gc_gate_rejection_evidence_is_saved(monkeypatch, tmp_path):
+    calls = _gc_main_fixture(monkeypatch, tmp_path, gate_failure=True)
+    assert driver.main(["gc-run", "--workload", "normal", "--third-party-cache",
+                        str(tmp_path), "--output", str(tmp_path)]) == 1
+    job = json.loads(next(tmp_path.glob("raw-gc-run-*.json")).read_text())
+    assert calls == ["gc-dependency", "gc-stock"]
+    assert job["condition_gate_evidence"]["meaning"]["admitted"] is False
+    assert job["condition_gate_evidence"]["admission"]["admitted"] is False

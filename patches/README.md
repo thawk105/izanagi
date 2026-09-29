@@ -11,7 +11,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | 合成 variant (例: 静的 backoff `BACKOFF_FIXED`) | Izanagi がフラグ空間外に合成した**評価中の正当な variant** (D18) | **out-of-tree patch** (価値確定まで。昇格は人間判断) |
 | SS2PL ロック規律スタディ (`ss2pl-lock-protocol-study.patch`) | 合成 variant (D790。既定 `IMPL=0, KIND=1, DLR=1` は stock 逐語)。既定 OFF の待ちグラフ計器 (D791。閉路の立った tick ごとに標準出力へ `ss2pl-wfg/v2` の 1 行 JSON、同じ文字列を durable file にも書く。runner の検証器と 2026-09-17 に接続、一次資料 `output/insights/2026-09-17/t2644-ss2pl-wfg-connect/`) と YCSB target・計数・テスト接続の修正を同梱する。使い方と既知の不足は `docs/cc-diagnostics.md` | **out-of-tree patch** (昇格・上流還元は人間判断) |
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
-| Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
+| Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2・md_15) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数、md_15 で ro 比率の実行時 flag・公開間隔の分割・境界保持種別を追加) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型、md_15 で種別固定 flag を追加)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
 | Cicada 計装 (`instr-cicada-trace.patch`、Cicada の `#if TRACE` trace v2、TPC-C 用の重ね `instr-cicada-trace-tpcc.patch` は v3) と broken-cicada 4 本 | verifier 入力 (C / R / W / E) と、その positive control | **out-of-tree patch** (計装は試作・実走用で、`izanagi-trace` 枝への移送と pin 前進は人間判断。壊しは永久) |
 | broken-mocc (わざと壊した mocc。[T-2294] の 3 本と後続の hot-update-unlock・skip-canonical-restore) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
@@ -417,6 +417,35 @@ VHash 論文 (`docs/paper-story-vhash/`) の「cold 境界 (論理的な K 版) 
 - **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` (`smoke` / `run --workload normal|many_ops|wait_after_reads` / `aggregate --raw ...`)。
   build ごとに条件 gate の supply / meaning を通してから build する。stock 腕は `CICADA_LONGTX=1` だけの build (forwarding のコードは前処理で消える)。
 - **一次資料:** `output/insights/2026-09-29/vhash-forwarding-prototype/README.md`。
+
+## cicada-forwarding-gc.patch / cicada-forwarding-gc-broken-early-publish.patch — forwarding を Cicada の GC 回収境界へつなぐ構成 E と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_14)
+
+VHash 論文 (`docs/paper-story-vhash/`) の新規性の芯 U0 (abort せず既読を保った前進を、版の回収境界へ反映して保持期間を縮める) を確かめる試作。
+`cicada-forwarding-variant.patch` (md_6、構成 C) の**上に重ねる** patch で、読み取りの後に待つ transaction が待機の安全点で自分の timestamp を前進させ、
+確定してから GC 用の公開値 (ThreadWtsArray) を上げて GC flag を立てる (構成 E、小モデル md_10 の SP の形、D2290)。
+回収そのもの (gc_versions、後続の確定版で回収 = R10) は変えない。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない。この patch を使った値は「未検証の診断値」として扱う** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` に `patches/cicada-forwarding-variant.patch` を当てた `cc/cicada/transaction.cc` と
+  `cc/cicada/ycsb_cicada.cc`。trace patch (`instr-cicada-trace.patch`) → md_6 → 本 patch の順でも当たる。`include/*.hh` は変えない。md_6 の patch は変えない。
+- **macro (未定義 = 0 = md_6 適用後と同じ前処理結果):**
+  - `CICADA_GC_SAFEPOINT` (owner `cc/cicada/transaction.cc`、companion `CICADA_FWD_ENABLE=1`): 待機の安全点関数。実行時 flag `--cicada_gc_mode=off|hb|e` (既定 off)。
+    hb = GC flag を立てるだけ (ThreadWtsArray・ThreadRtsArray は tx 開始時の値のまま)。e = それに加えて前進 (事前確認 → 既読版 rts を t′ へ CAS-max → seq_cst fence →
+    版列を観測し直して可視を確認 → 確定) を試し、**成功したときだけ**別 step で ThreadWtsArray := t′、ThreadRtsArray := max(旧, t′−1) を公開する。失敗したら hb と同じ。
+    tx の途中で読み取り下限を最新の MinWts−1 へ上げる形は、待機中に既読版を回収させるので採らない (一次資料 §S7)。安全点では gc_versions を呼ばない。read-only・abort 済み・scan・特殊操作の後は何もしない。
+  - `CICADA_GC_WAIT` (owner `cc/cicada/ycsb_cicada.cc`、companion `CICADA_GC_SAFEPOINT=1`・`CICADA_FWD_ENABLE=1`・`CICADA_LONGTX=1`): md_6 の wait_after_reads の待機を
+    `--cicada_gc_slice_us` (既定 0 = md_6 と同じ単一 sleep) ずつに分け、各 slice 末で安全点関数を呼ぶ。待機の前後で保持版検査を行う。
+  - `CICADA_GC_COUNT` (owner `cc/cicada/transaction.cc`、companion なし = stock の build でも使える): GC の診断と E の計数。`--cicada_gc_sample_us` (既定 10)。
+    正常終了時に `CICADA_GC_V1 {json}` を 1 行出す (等間隔標本の回収境界の遅れ・論理生存版数・MinRts を決めた thread、公開 event、begin 標本、保持時間、thread 別の E の計数と保持版検査)。
+    **計数入り build の throughput は性能値に使わない。**
+- **壊し正例 `cicada-forwarding-gc-broken-early-publish.patch`:** 本 patch の上に重ねる無マクロの無条件 patch (新しい `#if` を足さない)。E の試行の最初に
+  ThreadWtsArray := t′・ThreadRtsArray := t′−1・GC flag を立て、確認に失敗しても戻さない (小モデルの UG1 + UF1 相当)。検査専用で、計測には使わない。
+- **登録:** 3 macro を `orchestrator/campaign/condition_meaning_gate.py` の許可ドメインへ登録 (DEFINE_SPECS・witness・site 数 3 / 2 / 7)、
+  `orchestrator/campaign/screening_driver.py` の既定値表と登録簿テストの件数を 3 macro 分だけ追随 (先例 md_6 と同じ足跡、判定・受理述語と既存 entry は不変)。
+  **`patches/ledger.json` には登録しない** (D2288 と同じ理由: 同 ledger は `silo_ladder_rung1` 専用で entry 1 件を契約が要求する)。
+- **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `gc-smoke` / `gc-run --workload normal|many_ops|wait_after_reads [--wait-us 1000|10000] [--skew 0.9|0]` / `gc-aggregate --raw ...`。
+  md_6 の `smoke` / `run` / `aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良 `BACK_OFF=0, INLINE_VERSION_OPT=1, INLINE_VERSION_PROMOTION=0, REUSE_VERSION=1, WRITE_LATEST_ONLY=0`。
+- **一次資料:** `output/insights/2026-09-29/vhash-gc-connection-prototype/README.md`。
 
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
@@ -867,6 +896,17 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
 - **駆動の正本 = `orchestrator/campaign/vhash_cicada_vlife.py`** (sub-command `smoke` / `measure`、materializer は NON_ADMISSIBLE、
   2 macro は condition gate の supply・meaning を通す)。measure は smoke JSON の witness と較正 (N の選定) を再計算して束縛する。
   作図 `tools/plotting/plot_vhash_cicada_vlife.py` (複数 raw を併合、図 3 枚)。
+- **md_15 の拡張 (計器行 schema 2、2026-09-29、VHash md_15)** — 新しい macro は足さず既存 2 macro の下だけで、
+  (a) 実行時 flag `-izanagi_ronly_pct` (既定 −1 = YCSB の生成のまま。0〜100 なら新しい手続きの初回 `begin()` だけで確率 r% で全 op を READ に、
+  それ以外は少なくとも 1 op を write にする。retry では変えない) と `-izanagi_long_kind` (0 = 生成のまま、1 = 長い tx の worker を update、2 = ro に固定) を足し、
+  (b) ro read の観測鎖・先頭 K 版・既読区間に限定した楽観的適格数 (`readonly_candidate`) と同じ母集団の `readonly_reads`、
+  (c) 公開間隔の flag 機会の時刻分割 (各 worker の実際の GC flag 上げ時刻と「ro commit も同じ timer 条件で上げたら」の時刻を、事象の時点の公開世代の slot に記録。
+  leader は全 flag を見たら公開の前に世代を進め、遅れて揃った公開は検出時に進めて `dc_late_epoch` に数える。ro commit の経路は flag と `gcstart_` を読むだけで書かない)、
+  (d) 境界年齢・公開間隔・ro snapshot 年齢の厳密和、境界保持 tx の種別、同値再公開の件数を出す。driver は旧 24 条件と schema 1 の読取りを残し、
+  主格子 60・skew 0 対照 12・調整済み genome の 12 条件を足した (調整済み genome は `cmake_cache_variable_for_axis` の CMake 変数で build し、
+  compile_commands の -D を照合する)。measure のレコード数は 1M 固定 (smoke の較正は参考記録)。作図 `tools/plotting/plot_vhash_readonly_share.py` (図 4 枚)。
+  既定 inert は拡張後の patch でも smoke (35800.nqsv、patch sha256 `fafdd862…`) で成立。condition gate の VLIFE 分岐 witness は owner TU 37 / header 9。
+  一次資料 `output/insights/2026-09-29/vhash-readonly-share/README.md`。
 
 ---
 
