@@ -19,6 +19,7 @@ title: VHash 論文の動機づけ — 長い tx が版の回収を止める問�
 - 規律 6: MongoDB の manual の頁に AI 向けの誘導文 ("For AI agents: a documentation index is available at …") があった。調査子は従わず記録し、一次資料 §7 に書いた。
 - 取得の異常: dev.mysql.com は curl に HTTP 403 (bot 判定) を返し、Internet Archive の保存物を読んだ (原本との一致は未確認)。SAP HANA の公式頁は本文の無い SPA 殻で取得できなかった。Sirin ほか ICDE 2021・Diva・HTAPBench・Psaroudakis ほか・CH-benCHmark の論文本文も取得できなかった。
 - 異常と救出: 背景 job の `EnterWorktree(name)` が「Could not read the repository git config」で失敗 → 手動 `git worktree add -b` (Lustre で約 30 分、「システムコール割り込み」の警告が出たが rc=0) → `EnterWorktree(path)` で入った。`dev_wave_submodule_init.py` は 1 回目 `update-no-fetch` で rc=1、再走で OK。汎用子の起動は model 未指定だと `guard_agent` が拒否する (sonnet を明示して通った)。
+- 受入 attempt 1 の赤の判定 (DW-O18): 記録 commit c2d576b41 に local main d26ee8605 を post-claim merge した木 6a0b16d3b で赤 3 件 — `orchestrator/tests/test_t810_coordinator.py` の `test_prepare_group_accepts_external_root_with_anchor_union`・`…_rejects_forged_git_identity_before_any_mkdir`・`…_rejects_self_consistent_foreign_git_identity_before_any_mkdir` (本文はいずれも `cannot read worktree registration: file is absent`)。**非帰属**: この wave の変更は insight と spool fragment だけで、`tools/pegasus/t810_coordinator.py` とこの test に到達しない。共有 `.git/worktrees/` を走査する test が、他 wave の worktree 撤去の途中 (管理 dir に gitdir が無い状態) と重なった型。判定直後に gitdir の無い管理 dir は 0 件で、同じ木で当該 file を計算ノードで単独再走して 45 passed (4.84 秒) の非再現。受入を投げ直す。
 - 受入: 受入全走はこの記録 commit の tip で行い、受領証は job dir (`/home/SFC/tanab/.claude/jobs/cb3a78aa/tmp/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
 
 ## 次の一手差分
