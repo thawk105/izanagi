@@ -10910,7 +10910,7 @@
    "base_protocol": "自前 Java prototype (storage/validator 分離型の loosely coupled OCC)。Cicada への統合 (§5.5)、商用 DBMS-X への統合 (§5.6)",
    "correctness": "serializable は維持 (reordering の選択のみ変更)",
    "requires_predeclared_sets": false,
-   "workloads_effective": "rdeg は throughput・平均 latency にほぼ影響なく tail latency を最大 86% 減 (§5.3、Fig.16-18)。要旨・貢献欄には別の最大値が書かれ、数値が食い違う",
+   "workloads_effective": "rdeg は throughput・平均 latency にほぼ影響なく tail latency を最大 86% 減らす (§5.3 の rdeg の実験、Fig.16-18)。要旨の最大 71% は他システムとの比較の値で、比較対象が違うので直接は比べられない (焦点再レビューの所見 3 で直した)",
    "workloads_ineffective": null,
    "quotes": [
     {
@@ -10932,7 +10932,7 @@
    "silo_prereq": "feedback vertex set に入れる取引を restart 回数で選ぶ rank 関数で、batch の依存グラフから abort 対象を選ぶ構造が前提。Silo では abort する取引を選ぶ余地が無い (restart 回数自体は v1 の試行番号で見えるが、使い道が違う)。",
    "function_space": "n/a",
    "verifier": "conditional:IBVR と同じく validator が決めた commit 順と版 ID を trace に合わせることが要る",
-   "stage_a_notes": "rdeg で tail latency 最大 86% 減、throughput・平均 latency はほぼ不変 (§5.3、Fig.16-18)。要旨に書かれた最大値と数値が食い違う。",
+   "stage_a_notes": "rdeg で tail latency 最大 86% 減、throughput・平均 latency はほぼ不変 (§5.3 の rdeg の実験、Fig.16-18)。要旨の最大 71% は他システムとの比較の値で、比較対象が違う。",
    "parent_override": [
     "stage_a_notes",
     "workloads_effective"
