@@ -2596,6 +2596,8 @@
 - **再発: 2026-09-27 (同じ wave の 2 件目)** — 同じ wave で新設した `orchestrator/tests/test_check_trace0_header_rule.py` (pytest の `tmp_path` fixture に依存) が自走入口も pytest 専用 allowlist の記載も持たず、最終受入 1 回目 (27,954 collected、27,879 passed / 74 skipped) を `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件赤にした。親は `DW-O26` の「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」を段 9 前に読んでいたが、焦点走の集合に入れなかった (2026-09-07・09-20・09-26 と同じ位置)。`orchestrator/tests/README.md` の allowlist に 1 行足し、同メタテストの自走 3 件緑を確かめて閉じた。費用は受入 1 回分 (3 shard の Elapse 計 848 秒)。
 
 - **再発: 2026-09-29** — [T-2879] wave で新規 `orchestrator/tests/test_vhash_forwarding_prototype.py` (pytest 専用) を `orchestrator/tests/README.md` の pytest 専用 allowlist に載せずに統合した。受入前の DW-O26 焦点走で `test_plain_runner_coverage.py` を含める段で気づき、allowlist に足した (受入全走の前、実害なし)。恒久対応は F42 のまま。
+
+- **再発: 2026-09-30** — 縮小受入 wave で新設した `orchestrator/tests/test_scoped_acceptance.py`・`test_scoped_acceptance_land.py` (どちらも `tmp_path` 等の fixture に依存) を pytest 専用 allowlist に載せず、親の焦点走 3 回の file 集合にも `test_plain_runner_coverage.py` を入れていなかった (DW-O26 の義務の取りこぼし、2026-09-26・09-27 と同じ位置)。独立 clone で行った効果測定の受入全走 1 回目で赤 1 件として現れ、allowlist に 2 行足して閉じた (1e97b58e0)。本 wave の実受入は空振りしていない。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -28796,3 +28798,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 正例の設計で「壊す判定」を選ぶとき、その判定が検査対象の方策で実際に偽になる入力が生じるかを確かめなかった。目標の選び方が確認の前提を満たすように作られている方策では、確認を壊しても到達しない。
 - 恒久対応: 親の永続 memory へ `positive-control-must-reach-on-target-path` を登録した (段 4 で正例を置くとき、その壊れ方が発火する経路と到達計数を先に書く)。検査起動器は正例ごとに到達 (`reached`) と検出 (`detected`) を別々に記録する (job dir `verify/launch_cicada_run_target.py`)。
 - 再発検知: 正例の結果が「到達なし」のとき。到達 0 を「検出されなかった」と読まず、正例の置き場所を疑う。
+
+### F1078. 実装子の終了後、子木の gitdir に 0 byte の index.lock が残り、残差 commit が add-all で落ちた [手順漏れ]
+
+- 事象: 縮小受入 wave の段 5 で、Codex 実装子の作業が終わった直後 (2026-09-29 23:56 JST) に子木の
+  `.git/worktrees/scoped-acc-author/index.lock` が 0 byte で残り、起動器の終端 commit と待ち手の `--commit-worktree` が
+  どちらも `worktree-commit: failed reason=add-all` で落ちた (起動器 rc=3、待ち手 rc=70)。子の成果物 (7 file) は作業木に残っていた。
+- 根本原因: 未特定。lock を作った process は、確認した時点では子木を cwd・argv に持つ process が親の shell 以外に無く、残っていなかった。
+  F359 (子の sandbox は Git 管理領域に書けず lock を作れない) とは逆に、lock が作られて残っている。
+- 恒久対応: なし (1 例)。回復は、子木を cmdline・cwd の両方で走査して生存 process が無いことを確かめてから lock を削除し、
+  同じ done file で待ち手を `--commit-worktree` 付きで再実行する (Codex author の trailer 付きで commit された)。
+- 再発検知: 起動器の `.done` が 3、待ち手の log に `worktree-commit: failed reason=add-all` が出たら、子木の gitdir の `index.lock` を見る。
