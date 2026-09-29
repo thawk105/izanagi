@@ -447,6 +447,29 @@ VHash 論文 (`docs/paper-story-vhash/`) の新規性の芯 U0 (abort せず既�
   md_6 の `smoke` / `run` / `aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良 `BACK_OFF=0, INLINE_VERSION_OPT=1, INLINE_VERSION_PROMOTION=0, REUSE_VERSION=1, WRITE_LATEST_ONLY=0`。
 - **一次資料:** `output/insights/2026-09-29/vhash-gc-connection-prototype/README.md`。
 
+## cicada-forwarding-target.patch / cicada-forwarding-target-broken-ignore-mismatch.patch — 構成 C・E の前進先の選び方の knob と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_21)
+
+構成 C (md_6) と構成 E (md_14) の前進先 (目標時刻) の選び方を実行時 flag で切り替える試作。`cicada-forwarding-variant.patch` → `cicada-forwarding-gc.patch` の**上に重ねる** patch で、
+**確認・確定・公開の行は変えず**、目標時刻の計算・1 tx 1 回の抑止・計数だけを足す。**既定 flag では md_6・md_14 と同じ目標と同じ計数行 (V1) になる。**
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない。この patch を使った値は「未検証の診断値」として扱う** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` に variant → gc を当てた `cc/cicada/transaction.cc`。trace patch (`instr-cicada-trace.patch`) → variant → gc → 本 patch の順でも当たる。
+  変更は `cc/cicada/transaction.cc` だけで、`include/*.hh` と md_6・md_14 の patch は変えない。
+- **macro:** 新設なし。既存の `CICADA_FWD_ENABLE`・`CICADA_FWD_COUNT`・`CICADA_GC_SAFEPOINT`・`CICADA_GC_COUNT` の内側だけに足した (新しい `#if` 系 directive は 0、
+  全 macro 未定義の前処理は gc 適用後と一致)。条件 gate の登録簿 (`condition_meaning_gate.py`) は変えていない。
+- **実行時 flag (既定 = 現行):** `--cicada_fwd_target=min|max|partial` と `--cicada_fwd_once` (`CICADA_FWD_ENABLE` の内側)、`--cicada_gc_target=now|max` と `--cicada_gc_once` (`CICADA_GC_SAFEPOINT` の内側)。
+  `max` は既読の可視区間に収まる最大の自 thread 形式の時刻 (各既読版の直上の非 aborted 版の wts の最小より小さい最大、「今」で打ち切る)、`partial` は C で目標に届かなくても可視区間の上端まで進む、`once` は 1 tx で目標計算に入るのは 1 回。
+  既定以外の flag では計数行を `CICADA_FWD_V2` / `CICADA_GC_V2` (V1 の全 field + `target`・`once`、thread 別 `no_room`・`once_skipped`・`uncapped`、C は `short_success`) で出す。
+  **計数入り build の throughput は性能値に使わない。**
+- **壊し正例 `cicada-forwarding-target-broken-ignore-mismatch.patch`:** 本 patch の上に重ねる無マクロの無条件 patch (新しい `#if` を足さない)。E の事前確認と再観測の既読不一致の判定を ok とみなし、
+  その試行が成功したら `forced_success` を数え、GC 行を常に V2 で出す。検査は E-now (`--cicada_gc_target=now`) で走らせる (E-max は可視区間の内側に目標を取るので到達しない)。検査専用で、計測には使わない。
+- **登録:** 条件 gate の登録簿は不変。`orchestrator/tests/test_ccbench_spawn_sites.py` の重ね patch 用の表 `_OVERLAY_BASE_DEFINE_INTERFACES` に
+  `cicada-forwarding-gc.patch` の `CICADA_GC_SAFEPOINT` と `cicada-forwarding-variant.patch` の `CICADA_FWD_COUNT` を足した (本 patch の文脈行に両 macro の `#if` が入るため。
+  期待件数は不変)。**`patches/ledger.json` には登録しない** (D2288 と同じ理由)。
+- **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `target-run --workload normal|many_ops|wait_after_reads [--wait-us 1000|10000] [--skew 0|0.6|0.9] [--smoke]` / `target-aggregate --raw ...`。
+  既存の `run` / `gc-run` / `aggregate` / `gc-aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良。
+- **一次資料:** `output/insights/2026-09-29/vhash-forwarding-target-policy/README.md`。
+
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
 段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の

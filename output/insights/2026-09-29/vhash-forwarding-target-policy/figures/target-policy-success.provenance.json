@@ -1,0 +1,240 @@
+{
+  "campaign_id": "vhash-forwarding-target-policy-2026-09-29",
+  "inputs": {
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/aggregate/target-aggregate.json": "6f86cb41d8e5564f1c6a1a6bc3895e1d722623ac1e90a3aac61a7c6fe39295d6",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-w10k-s0/raw-target-wait_after_reads-2026-09-29T15-03-44.568601+00-00.json": "be1c43fb7ac5b8cf19b729abb8bece8e15f252d8784a77f9952d07d75affb4b3",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-w10k-s06/raw-target-wait_after_reads-2026-09-29T15-04-08.751635+00-00.json": "20daf27b095606f64f1f5bf94ddd5879d1cdc6b9dd94670515f62e4530e942f3",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-w10k-s09/raw-target-wait_after_reads-2026-09-29T14-58-09.040588+00-00.json": "3320cdc4045583225fe18f692a06a824787218e5af2a441b39eace8a097ffdb6",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-w1k-s09/raw-target-wait_after_reads-2026-09-29T15-05-00.548249+00-00.json": "f1d59e926d59f61b0396ed006d9ff4bc651811f37ce8ba505a4a0febe362342b",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-manyops-s06/raw-target-many_ops-2026-09-29T15-05-57.205938+00-00.json": "69dec62d80c398d0f5aeb5281046137be077dae2dede2718b49cd35eae788732",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-manyops-s09/raw-target-many_ops-2026-09-29T14-57-44.213560+00-00.json": "38ae89ef5507569a45063951e6deab5047af6386adf478d2ec1b246d1ea5b528",
+    "/work/1/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/jobs/meas-normal-s09/raw-target-normal-2026-09-29T14-53-53.438263+00-00.json": "a14ced7d7448963f525b9ff6a804139f5d8c53e695f000f5739457ffbdd98498"
+  },
+  "conditions": {
+    "threads": 48,
+    "tuples": 1000000,
+    "rratio": 50,
+    "ccbench_pin": "6810666",
+    "environment": [
+      "bnode126",
+      "bnode127",
+      "bnode079",
+      "bnode124",
+      "bnode138",
+      "bnode075",
+      "bnode079"
+    ]
+  },
+  "major_values": {
+    "wait_after_reads/wait=1000/skew=0.9/gc=10": {
+      "E-now": {
+        "success_per_request": [
+          0.00041678925174070807,
+          0.0011095420617308856,
+          0.002051702913418137
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.009189602092544154,
+          0.002206007127099949,
+          0.004313665074718842
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.007895467043362006,
+          0.012950890916992612,
+          0.00728646606395898
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=1000/skew=0.9/gc=1000": {
+      "E-now": {
+        "success_per_request": [
+          0.002522657198916192,
+          0.003396867333459143,
+          0.0044444444444444444
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.01715802445729453,
+          0.03493652117505328,
+          0.02521950308238371
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.014300498635807696,
+          0.02863580884423998,
+          0.02982406623388842
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=10000/skew=0.6/gc=10": {
+      "E-now": {
+        "success_per_request": [
+          0.1447916088573173,
+          0.12152817794168491,
+          0.14795891767895314
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.17493810488408734,
+          0.1673659027079505,
+          0.1618627517004512
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.04112918302486446,
+          0.035741229724632215,
+          0.03823812526969164
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=10000/skew=0.6/gc=1000": {
+      "E-now": {
+        "success_per_request": [
+          0.15440309816467418,
+          0.15399900645802286,
+          0.1589787234042553
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.3022025171624714,
+          0.2613559322033898,
+          0.3106841611996251
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.16136363636363638,
+          0.15887719298245614,
+          0.15825491873396064
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=10000/skew=0.9/gc=10": {
+      "E-now": {
+        "success_per_request": [
+          0.0026678329324294776,
+          0.0015462239583333333,
+          0.0023879578696004433
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.023664174497564992,
+          0.02380287198971895,
+          0.019751928288513656
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.007410679230467216,
+          0.012028301886792454,
+          0.00711712884607039
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=10000/skew=0.9/gc=1000": {
+      "E-now": {
+        "success_per_request": [
+          0.0029505220154334997,
+          0.001487584391806843,
+          0.0026797677534613666
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.009470100021281123,
+          0.009381898454746136,
+          0.0452028477794101
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.03372333103922918,
+          0.025804211987965748,
+          0.021044679473343406
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=10000/skew=0/gc=10": {
+      "E-now": {
+        "success_per_request": [
+          0.43381333635103403,
+          0.4278332650682126,
+          0.44061819015942194
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.4551355479190531,
+          0.4554911323328786,
+          0.46982485241742694
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.027777777777777776,
+          0.03777690578960511,
+          0.02828172492401216
+        ],
+        "policy_exercised": true
+      }
+    },
+    "wait_after_reads/wait=10000/skew=0/gc=1000": {
+      "E-now": {
+        "success_per_request": [
+          0.48923201950426654,
+          0.4994484280198566,
+          0.46957375210319685
+        ],
+        "policy_exercised": true
+      },
+      "E-max": {
+        "success_per_request": [
+          0.591796875,
+          0.6184008200922604,
+          0.5895398481973435
+        ],
+        "policy_exercised": true
+      },
+      "E-max-once": {
+        "success_per_request": [
+          0.15618448637316562,
+          0.14337349397590363,
+          0.14927427427427428
+        ],
+        "policy_exercised": true
+      }
+    }
+  },
+  "verification_status": "未検証の診断値",
+  "transformations": "raw repetition values; median and 95% t CI of mean; throughput stock ratio is descriptive"
+}
