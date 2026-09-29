@@ -1,0 +1,527 @@
+{
+  "build": {
+    "argv": [
+      "/usr/bin/g++-12",
+      "-O3",
+      "-DNDEBUG",
+      "-std=c++20",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fno-tree-vectorize",
+      "-mavx2",
+      "-mbmi",
+      "-mbmi2",
+      "-mpopcnt",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-hot-block-microbench/tools/vhash_microbench/hot_block_bench.cc",
+      "-o",
+      "/tmp/vhash-hot-block-_h2atln2/hot_block_bench"
+    ],
+    "binary_sha256": "1ba528036a544347db173114cef914cb98ffefe1518b7279e442381080592c29",
+    "compiler_path": "/usr/bin/g++-12",
+    "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+    "objdump_check": {
+      "passed": true,
+      "scalar_vector_ops": 0,
+      "simd_cmp_ops": 1,
+      "simd_mask_ops": 1
+    }
+  },
+  "cells": [
+    {
+      "K": 4,
+      "arms": [
+        {
+          "arm": "linked_scattered",
+          "footprint_bytes": 74547200,
+          "footprint_per_key_bytes": 520,
+          "perf": {
+            "events": {
+              "branch-misses:u": {
+                "count": 1861994.0,
+                "run_time_ns": 157406256,
+                "running_pct": 100.0
+              },
+              "cache-misses:u": {
+                "count": 33512.0,
+                "run_time_ns": 159632389,
+                "running_pct": 100.0
+              },
+              "cache-references:u": {
+                "count": 5217844.0,
+                "run_time_ns": 159632389,
+                "running_pct": 100.0
+              },
+              "cycles:u": {
+                "count": 494340820.0,
+                "run_time_ns": 159632389,
+                "running_pct": 100.0
+              },
+              "instructions:u": {
+                "count": 208117916.0,
+                "run_time_ns": 159632389,
+                "running_pct": 100.0
+              }
+            },
+            "ops": 2120383,
+            "raw_stderr_paths": [
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-0.5-linked_scattered-group0.perf.txt",
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-0.5-linked_scattered-group1.perf.txt"
+            ]
+          },
+          "reps": [
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 156915853,
+              "ns_per_op": 74.00354228457783,
+              "order_pos": 0,
+              "rep": 0
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 152027789,
+              "ns_per_op": 71.69826819022789,
+              "order_pos": 1,
+              "rep": 1
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 151746902,
+              "ns_per_op": 71.56579825437197,
+              "order_pos": 0,
+              "rep": 2
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 152434065,
+              "ns_per_op": 71.8898731974365,
+              "order_pos": 1,
+              "rep": 3
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 151943612,
+              "ns_per_op": 71.65856923018153,
+              "order_pos": 0,
+              "rep": 4
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 152101809,
+              "ns_per_op": 71.73317697793276,
+              "order_pos": 1,
+              "rep": 5
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 151726111,
+              "ns_per_op": 71.5559929503302,
+              "order_pos": 0,
+              "rep": 6
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 152131559,
+              "ns_per_op": 71.74720746204812,
+              "order_pos": 1,
+              "rep": 7
+            }
+          ]
+        },
+        {
+          "arm": "contig_scalar",
+          "footprint_bytes": 55050240,
+          "footprint_per_key_bytes": 384,
+          "perf": {
+            "events": {
+              "branch-misses:u": {
+                "count": 1862219.0,
+                "run_time_ns": 107355196,
+                "running_pct": 100.0
+              },
+              "cache-misses:u": {
+                "count": 17178.0,
+                "run_time_ns": 105492867,
+                "running_pct": 100.0
+              },
+              "cache-references:u": {
+                "count": 4243025.0,
+                "run_time_ns": 105492867,
+                "running_pct": 100.0
+              },
+              "cycles:u": {
+                "count": 326718945.0,
+                "run_time_ns": 105492867,
+                "running_pct": 100.0
+              },
+              "instructions:u": {
+                "count": 282331453.0,
+                "run_time_ns": 105492867,
+                "running_pct": 100.0
+              }
+            },
+            "ops": 2120383,
+            "raw_stderr_paths": [
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-0.5-contig_scalar-group0.perf.txt",
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-0.5-contig_scalar-group1.perf.txt"
+            ]
+          },
+          "reps": [
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 101896584,
+              "ns_per_op": 48.055744646132325,
+              "order_pos": 1,
+              "rep": 0
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 100242071,
+              "ns_per_op": 47.275454953185346,
+              "order_pos": 0,
+              "rep": 1
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 102117210,
+              "ns_per_op": 48.15979471633191,
+              "order_pos": 1,
+              "rep": 2
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 101693429,
+              "ns_per_op": 47.95993412510853,
+              "order_pos": 0,
+              "rep": 3
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 102728236,
+              "ns_per_op": 48.44796246715806,
+              "order_pos": 1,
+              "rep": 4
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 100522179,
+              "ns_per_op": 47.40755750258326,
+              "order_pos": 0,
+              "rep": 5
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 101363170,
+              "ns_per_op": 47.80417971658893,
+              "order_pos": 1,
+              "rep": 6
+            },
+            {
+              "checksum": 16967304766,
+              "elapsed_ns": 101005896,
+              "ns_per_op": 47.63568468526677,
+              "order_pos": 0,
+              "rep": 7
+            }
+          ]
+        }
+      ],
+      "capped": false,
+      "cell_id": "pilot-0.5",
+      "depth": 0,
+      "expected_checksum": 16967304766,
+      "group": "pilot",
+      "keyset": "out",
+      "n_keys": 143360,
+      "ops": 2120383,
+      "pilot_multiple": 0.5,
+      "shared_value_pool_bytes": 0,
+      "side": "read",
+      "state_pattern": null,
+      "value_bytes": 0,
+      "value_mode": "none",
+      "wall_s": 4.147271657995589
+    },
+    {
+      "K": 4,
+      "arms": [
+        {
+          "arm": "linked_scattered",
+          "footprint_bytes": 149094400,
+          "footprint_per_key_bytes": 520,
+          "perf": {
+            "events": {
+              "branch-misses:u": {
+                "count": 1825531.0,
+                "run_time_ns": 197568124,
+                "running_pct": 100.0
+              },
+              "cache-misses:u": {
+                "count": 451339.0,
+                "run_time_ns": 197229548,
+                "running_pct": 100.0
+              },
+              "cache-references:u": {
+                "count": 5752119.0,
+                "run_time_ns": 197229548,
+                "running_pct": 100.0
+              },
+              "cycles:u": {
+                "count": 610801437.0,
+                "run_time_ns": 197229548,
+                "running_pct": 100.0
+              },
+              "instructions:u": {
+                "count": 202964940.0,
+                "run_time_ns": 197229548,
+                "running_pct": 100.0
+              }
+            },
+            "ops": 2067894,
+            "raw_stderr_paths": [
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-1-linked_scattered-group0.perf.txt",
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-1-linked_scattered-group1.perf.txt"
+            ]
+          },
+          "reps": [
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 180386068,
+              "ns_per_op": 87.2317768705746,
+              "order_pos": 0,
+              "rep": 0
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 177991081,
+              "ns_per_op": 86.07360000077374,
+              "order_pos": 1,
+              "rep": 1
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 174730815,
+              "ns_per_op": 84.4969882402096,
+              "order_pos": 0,
+              "rep": 2
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 176649975,
+              "ns_per_op": 85.42506289007076,
+              "order_pos": 1,
+              "rep": 3
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 174802183,
+              "ns_per_op": 84.53150064751868,
+              "order_pos": 0,
+              "rep": 4
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 176694510,
+              "ns_per_op": 85.44659929377424,
+              "order_pos": 1,
+              "rep": 5
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 175092684,
+              "ns_per_op": 84.67198221959153,
+              "order_pos": 0,
+              "rep": 6
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 176696715,
+              "ns_per_op": 85.44766559601217,
+              "order_pos": 1,
+              "rep": 7
+            }
+          ]
+        },
+        {
+          "arm": "contig_scalar",
+          "footprint_bytes": 110100480,
+          "footprint_per_key_bytes": 384,
+          "perf": {
+            "events": {
+              "branch-misses:u": {
+                "count": 1819860.0,
+                "run_time_ns": 116438453,
+                "running_pct": 100.0
+              },
+              "cache-misses:u": {
+                "count": 302989.0,
+                "run_time_ns": 116879550,
+                "running_pct": 100.0
+              },
+              "cache-references:u": {
+                "count": 4139101.0,
+                "run_time_ns": 116879550,
+                "running_pct": 100.0
+              },
+              "cycles:u": {
+                "count": 361906341.0,
+                "run_time_ns": 116879550,
+                "running_pct": 100.0
+              },
+              "instructions:u": {
+                "count": 275341354.0,
+                "run_time_ns": 116879550,
+                "running_pct": 100.0
+              }
+            },
+            "ops": 2067894,
+            "raw_stderr_paths": [
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-1-contig_scalar-group0.perf.txt",
+              "/work/SFC/tanab/tmp/vhash-hot-block-2026-09-29/raw2/20260928T230406Z-31b4c316-pilot-1-contig_scalar-group1.perf.txt"
+            ]
+          },
+          "reps": [
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 104043507,
+              "ns_per_op": 50.31375254244173,
+              "order_pos": 1,
+              "rep": 0
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 102658304,
+              "ns_per_op": 49.643890837731526,
+              "order_pos": 0,
+              "rep": 1
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 104756684,
+              "ns_per_op": 50.658633372890485,
+              "order_pos": 1,
+              "rep": 2
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 102643409,
+              "ns_per_op": 49.63668785730797,
+              "order_pos": 0,
+              "rep": 3
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 105213020,
+              "ns_per_op": 50.87931006134744,
+              "order_pos": 1,
+              "rep": 4
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 103410044,
+              "ns_per_op": 50.0074201095414,
+              "order_pos": 0,
+              "rep": 5
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 105516649,
+              "ns_per_op": 51.026140121302156,
+              "order_pos": 1,
+              "rep": 6
+            },
+            {
+              "checksum": 16547287788,
+              "elapsed_ns": 102254493,
+              "ns_per_op": 49.44861438739123,
+              "order_pos": 0,
+              "rep": 7
+            }
+          ]
+        }
+      ],
+      "capped": false,
+      "cell_id": "pilot-1",
+      "depth": 0,
+      "expected_checksum": 16547287788,
+      "group": "pilot",
+      "keyset": "out",
+      "n_keys": 286720,
+      "ops": 2067894,
+      "pilot_multiple": 1,
+      "shared_value_pool_bytes": 0,
+      "side": "read",
+      "state_pattern": null,
+      "value_bytes": 0,
+      "value_mode": "none",
+      "wall_s": 4.985631550000107
+    }
+  ],
+  "env": {
+    "avx2": true,
+    "avx512f": true,
+    "core": 0,
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8468",
+    "l2_bytes": 2097152,
+    "llc_bytes": 110100480,
+    "mem_available_bytes": 129121710080,
+    "path": "/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+    "perf_candidates_tried": [
+      "/usr/lib/linux-tools/5.15.0-135-generic/perf: passed"
+    ],
+    "perf_control_ok": true,
+    "perf_event_paranoid": 0,
+    "perf_known_work_ratio": 1.9993283196487321,
+    "perf_path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+    "python_path": "/usr/bin/python3",
+    "single_tenant": {
+      "competitors": [],
+      "ok": true
+    }
+  },
+  "failure": "cell failed: read batch below 0.1 s\n",
+  "finished_utc": "2026-09-28T23:04:23.866007+00:00",
+  "host": "bnode041",
+  "keyset_multiple": null,
+  "pilot_ref": null,
+  "run_id": "20260928T230406Z-31b4c316",
+  "schema": "izanagi-vhash-hot-block-microbench/v2",
+  "selfcheck": {
+    "failures": [],
+    "passed": true,
+    "random_cases": 256,
+    "vectors": [
+      "newest_committed",
+      "hot_tail_committed",
+      "first_cold_committed",
+      "deep_cold_committed",
+      "all_newer_than_ts",
+      "candidate_pending",
+      "pending_newer_than_ts_skipped",
+      "pending_between_committed",
+      "aborted_then_committed",
+      "hot_all_aborted_then_cold_committed",
+      "aborted_then_cold_pending",
+      "aborted_then_cold_deleted",
+      "candidate_deleted",
+      "equal_ts",
+      "hot_does_not_read_cold_slot",
+      "k_boundary_each_K",
+      "write_version_ids",
+      "write_value_bytes",
+      "state_cell_candidate_pending",
+      "state_cell_pending_newer_than_ts",
+      "state_cell_aborted_then_committed",
+      "state_cell_candidate_deleted"
+    ]
+  },
+  "shard": "pilot",
+  "source": {
+    "bench_cc_sha256": "ed5a87231e2ac48ea1c0d2607f54aa29f35d34a40ddbb05eede9a0bb637784bd",
+    "driver_sha256": "e411d2ae63f8ec7a8f8aed1bcc4dbd6af86126dc35012bd4471fb496b79955d2",
+    "repo_head": "375e15a4264350fb628a340b7685ba478218168a"
+  },
+  "started_utc": "2026-09-28T23:04:06.307110+00:00",
+  "wall_s": 17.58994410000014
+}
