@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import copy
+from contextlib import nullcontext
+import json
 import math
 import sys
 from pathlib import Path
@@ -162,6 +164,119 @@ def test_cv_and_j2_boundary():
     assert a.j2_best(rows, "W1", None, [("a", 10)], 3)["status"] == "undetermined"
     assert a.j2_best(rows, "W1", 0.1, [("a", 10)], 2)["status"] == "undetermined"
     assert a.j2_best(rows, "W1", 0.1, [("missing", 10)], 3)["status"] == "undetermined"
+
+
+def test_j2_best_with_two_sessions_keeps_scores():
+    control = m.canonical(m.CONTROL)
+    rows = [{"stage": "j2", "perf": False, "exit_code": 0,
+             "throughput_tps": tps, "workload": "W5", "job_id": "job",
+             "genome": genome, "gc_inter_us": 10}
+            for genome, tps in ((control, 100.0), ("candidate", 110.0))]
+    result = a.j2_best(rows, "W5", 0.05, [(control, 10), ("candidate", 10)],
+                       2, expected_reps=1)
+    assert result["best"] == ("candidate", 10)
+    assert result["best_score"] == 1.1
+    assert result["scores"] == {f"{control}|10": 1.0, "candidate|10": 1.1}
+    assert result["observed_control_cv_width_candidates"] is None
+    assert result["candidate_status"] == "undetermined"
+    assert result["candidate_reason"] == "control_cv_or_sessions_missing"
+    missing_cv = a.j2_best(rows, "W5", None, [(control, 10), ("candidate", 10)],
+                           3, expected_reps=1)
+    assert missing_cv["best"] == result["best"]
+    assert missing_cv["observed_control_cv_width_candidates"] is None
+
+
+def test_build_isolates_masstree_and_preserves_failure_logs(tmp_path=None):
+    if tmp_path is None:
+        with TemporaryDirectory() as tmp:
+            return test_build_isolates_masstree_and_preserves_failure_logs(Path(tmp))
+    source = tmp_path / "source"
+    source.mkdir()
+    shared = tmp_path / "shared-masstree"
+    shared.mkdir()
+    (shared / "source.txt").write_text("original")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    output = tmp_path / "output"
+    output.mkdir()
+    deps = {"masstree": shared, "mimalloc": tmp_path / "mimalloc",
+            "googletest": tmp_path / "googletest", "gflags": tmp_path / "gflags",
+            "glog": tmp_path / "glog"}
+    toolchain = {"cc_path": "/usr/bin/gcc", "cxx_path": "/usr/bin/g++"}
+    seen = []
+
+    def cmake(argv, **kwargs):
+        log = kwargs["stdout"]
+        log.write("command output\n")
+        if "-S" in argv:
+            masstree = Path(next(arg.split("=", 1)[1] for arg in argv
+                                 if arg.startswith("-DFETCHCONTENT_SOURCE_DIR_MASSTREE=")))
+            seen.append(masstree)
+            assert (masstree / "source.txt").read_text() == "original"
+            assert next(arg for arg in argv if arg.startswith("-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=")) == \
+                f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={deps['mimalloc']}"
+            return SimpleNamespace(returncode=0)
+        if Path(argv[2]).name == f"build-{d.digest((m.canonical(m.CONTROL) + 'True').encode())[:12]}":
+            binary = Path(argv[2]) / "cc/cicada/ycsb_cicada.exe"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"binary")
+            (Path(argv[2]) / "compile_commands.json").write_text("[]")
+            return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=2)
+
+    with patch.object(d.subprocess, "run", side_effect=cmake), \
+         patch.object(d, "check_compile_commands", return_value={"valid": True}):
+        for wait in (False, True):
+            try:
+                result = d._build(source, scratch, deps, toolchain,
+                                  {"genome": m.CONTROL, "wait": wait}, 2, output)
+            except d.BuildFailure as exc:
+                assert not wait
+                record = exc.record
+            else:
+                assert wait
+                record, binary = result
+                assert binary.read_bytes() == b"binary"
+                assert record["binary_sha256"] == d.digest(b"binary")
+            assert record["build_rc"] == (0 if wait else 2)
+            if not wait:
+                assert record["failure_stage"] == "build" and record["failure_rc"] == 2
+                assert Path(record["failure_log"]).read_text() == "command output\n"
+            assert record["configure_log_sha256"] == d.digest(b"command output\n")
+            assert record["build_log_sha256"] == d.digest(b"command output\n")
+    assert len(set(seen)) == 2
+    assert all(path.parent == scratch and ":" not in str(path) for path in seen)
+    assert (shared / "source.txt").read_text() == "original"
+
+
+def test_failed_build_is_recorded_in_manifest(tmp_path=None):
+    if tmp_path is None:
+        with TemporaryDirectory() as tmp:
+            return test_failed_build_is_recorded_in_manifest(Path(tmp))
+    spec = {"schema": d.SCHEMA, "job_id": "build-failure", "stage": "j0",
+            "build_parallelism": 1, "builds": [], "runs": []}
+    spec_path = tmp_path / "spec.json"
+    spec_path.write_text(json.dumps(spec))
+    output = tmp_path / "output"
+    output.mkdir()
+    record = {"label": "test", "failure_stage": "configure", "failure_rc": 2,
+              "failure_log": str(output / "build-test.configure.log")}
+
+    def fake_run(argv, **kwargs):
+        assert argv[:2] == ["git", "-C"]
+        return SimpleNamespace(stdout="pin\n")
+
+    with patch.object(d, "OUTPUT", output), patch.object(d, "_check_site"), \
+         patch.object(d, "_check_solo"), \
+         patch.object(d, "_prepare_toolchain", return_value=({}, {})), \
+         patch.object(d.patchharness, "checkout", return_value=nullcontext(tmp_path)), \
+         patch.object(d.subprocess, "run", side_effect=fake_run), \
+         patch.object(d, "_build", side_effect=d.BuildFailure(record)):
+        _raises(lambda: d.execute(spec_path, tmp_path, tmp_path), d.BuildFailure)
+    manifest = json.loads((output / "build-failure/job-manifest.json").read_text())
+    assert len(manifest["builds"]) == 2
+    assert all(entry == record for entry in manifest["builds"])
+    assert manifest["status"] == "failed"
 
 
 def test_control_session_cv_metadata():

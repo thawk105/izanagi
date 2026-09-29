@@ -16,6 +16,7 @@ import os
 import random
 import re
 import shlex
+import shutil
 import socket
 import subprocess
 import sys
@@ -192,13 +193,38 @@ def _prepare_toolchain(cache_root: Path, scratch: Path) -> tuple[dict, dict]:
     return toolchain, sources
 
 
+class BuildFailure(RuntimeError):
+    def __init__(self, record: dict):
+        self.record = record
+        super().__init__(f"build {record['label']} failed at {record['failure_stage']} "
+                         f"(rc={record['failure_rc']}, log={record.get('failure_log')})")
+
+
 def _build(source: Path, scratch: Path, dependency: dict, toolchain: dict,
-           build_spec: dict, jobs: int) -> tuple[dict, Path]:
+           build_spec: dict, jobs: int, output_dir: Path) -> tuple[dict, Path]:
     genome = build_spec["genome"]
     model.validate_genome(genome)
     wait = build_spec["wait"]
     label = digest((model.canonical(genome) + str(wait)).encode())[:12]
     build_dir = scratch / f"build-{label}"
+    masstree_dir = scratch / f"masstree-{label}"
+    configure_log = output_dir / f"build-{label}.configure.log"
+    build_log = output_dir / f"build-{label}.build.log"
+    record = {"label": label, "genome": model.canonical(genome), "wait": wait,
+              "build_jobs": jobs, "masstree_source": str(masstree_dir),
+              "configure_log": str(configure_log), "build_log": str(build_log)}
+    start = time.monotonic()
+    if ":" in str(masstree_dir):
+        record.update(failure_stage="masstree_path", failure_rc=None,
+                      failure_log=None, failure_detail="masstree source path contains ':'")
+        raise BuildFailure(record)
+    try:
+        shutil.copytree(dependency["masstree"], masstree_dir)
+    except Exception as exc:
+        record.update(failure_stage="masstree_copy", failure_rc=None,
+                      failure_log=None, failure_detail=str(exc))
+        raise BuildFailure(record) from exc
+    build_dependencies = {**dependency, "masstree": masstree_dir}
     args = ["cmake", "-S", str(source), "-B", str(build_dir),
             "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
             "-DCCBENCH_CCACHE=OFF", "-DCCBENCH_TRACE=0", "-DCCBENCH_ADD_ANALYSIS=0",
@@ -208,32 +234,54 @@ def _build(source: Path, scratch: Path, dependency: dict, toolchain: dict,
             "-DCMAKE_C_COMPILER_LAUNCHER=", "-DCMAKE_CXX_COMPILER_LAUNCHER=",
             "-DCMAKE_TOOLCHAIN_FILE=",
             f"-DCMAKE_PREFIX_PATH={dependency['gflags']};{dependency['glog']}",
-            *(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={dependency[name]}"
+            *(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={build_dependencies[name]}"
               for name in ("masstree", "mimalloc", "googletest")),
             *(f"-D{cmake_cache_variable_for_axis('cicada', key)}={value}"
               for key, value in sorted(genome.items())),
             f"-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE={int(wait)}",
             "-DCMAKE_CXX_FLAGS=-DWORKER1_INSERT_DELAY_RPHASE_US=1000" if wait
             else "-DCMAKE_CXX_FLAGS="]
-    start = time.monotonic()
-    subprocess.run(args, check=True, capture_output=True, text=True, timeout=600)
-    subprocess.run(["cmake", "--build", str(build_dir), "--target", "ycsb_cicada.exe",
-                    "-j", str(jobs)], check=True, capture_output=True, text=True,
-                   timeout=900)
-    seconds = time.monotonic() - start
-    commands = json.loads((build_dir / "compile_commands.json").read_text())
-    binding = check_compile_commands(commands, genome, wait)
-    binary = build_dir / "cc/cicada/ycsb_cicada.exe"
-    if not binary.is_file():
-        found = list(build_dir.rglob("ycsb_cicada.exe"))
-        if len(found) != 1:
-            raise RuntimeError("built binary missing or ambiguous")
-        binary = found[0]
-    record = {"genome": model.canonical(genome), "wait": wait,
-              "binary_sha256": digest(binary.read_bytes()), "build_seconds": seconds,
-              "compile_command_binding": binding, "configure_argv": args,
-              "build_jobs": jobs}
-    return record, binary
+    record["configure_argv"] = args
+    stages = (("configure", args, configure_log, 600),
+              ("build", ["cmake", "--build", str(build_dir), "--target",
+                         "ycsb_cicada.exe", "-j", str(jobs)], build_log, 900))
+    for stage, argv, log_path, timeout in stages:
+        try:
+            with log_path.open("x", encoding="utf-8") as log:
+                completed = subprocess.run(argv, stdout=log, stderr=subprocess.STDOUT,
+                                           text=True, timeout=timeout, check=False)
+            rc = completed.returncode
+        except subprocess.TimeoutExpired as exc:
+            rc = None
+            record["failure_detail"] = f"timeout after {timeout}s"
+        except Exception as exc:
+            rc = None
+            record["failure_detail"] = str(exc)
+        if log_path.exists():
+            record[f"{stage}_log_sha256"] = digest(log_path.read_bytes())
+        record[f"{stage}_rc"] = rc
+        if rc != 0:
+            record.update(failure_stage=stage, failure_rc=rc,
+                          failure_log=str(log_path), build_seconds=time.monotonic() - start)
+            raise BuildFailure(record)
+    try:
+        commands = json.loads((build_dir / "compile_commands.json").read_text())
+        binding = check_compile_commands(commands, genome, wait)
+        binary = build_dir / "cc/cicada/ycsb_cicada.exe"
+        if not binary.is_file():
+            found = list(build_dir.rglob("ycsb_cicada.exe"))
+            if len(found) != 1:
+                raise RuntimeError("built binary missing or ambiguous")
+            binary = found[0]
+        record.update(binary_sha256=digest(binary.read_bytes()),
+                      build_seconds=time.monotonic() - start,
+                      compile_command_binding=binding)
+        return record, binary
+    except Exception as exc:
+        record.update(failure_stage="binding", failure_rc=None,
+                      failure_log=str(build_log), failure_detail=str(exc),
+                      build_seconds=time.monotonic() - start)
+        raise BuildFailure(record) from exc
 
 
 def _run_one(run: dict, binary: Path, binary_sha: str, output_dir: Path,
@@ -388,12 +436,23 @@ def execute(spec_path: Path, cache_root: Path, scratch_root: Path) -> Path:
                     builds = [{"genome": model.CONTROL, "wait": False},
                               {"genome": model.CONTROL, "wait": True}]
                 build_jobs = max(1, (os.cpu_count() or 1) // spec["build_parallelism"])
+                results = [None] * len(builds)
+                failures = []
                 with concurrent.futures.ThreadPoolExecutor(max_workers=spec["build_parallelism"]) as pool:
-                    results = list(pool.map(lambda b: _build(source, scratch, dependencies, toolchain,
-                                                              b, build_jobs), builds))
+                    futures = {pool.submit(_build, source, scratch, dependencies, toolchain,
+                                           b, build_jobs, output_dir): i for i, b in enumerate(builds)}
+                    for future in concurrent.futures.as_completed(futures):
+                        i = futures[future]
+                        try:
+                            results[i] = future.result()
+                            manifest["builds"].append(results[i][0])
+                        except BuildFailure as exc:
+                            manifest["builds"].append(exc.record)
+                            failures.append(exc)
+                if failures:
+                    raise failures[0]
                 binaries = {}
                 for build, (record, binary) in zip(builds, results):
-                    manifest["builds"].append(record)
                     binaries[(model.canonical(build["genome"]), build["wait"])] = (binary, record["binary_sha256"])
                 settled = runner.settle(timeout_s=180.0)
                 manifest["settle"] = settled

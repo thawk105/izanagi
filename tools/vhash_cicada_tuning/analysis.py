@@ -109,8 +109,6 @@ def control_cv(rows: Sequence[Mapping], workload: str, records: int) -> dict:
 def j2_best(rows: Sequence[Mapping], workload: str, cv: float | None,
             expected: Sequence[tuple[str, int]], session_count: int,
             records: int | None = None, expected_reps: int = 3) -> dict:
-    if cv is None or session_count < 3:
-        return {"status": "undetermined", "reason": "control_cv_or_sessions_missing"}
     valid = [r for r in _valid(rows, {"j2"}) if r["workload"] == workload
              and (records is None or r["records"] == records)]
     scores = {}
@@ -127,11 +125,15 @@ def j2_best(rows: Sequence[Mapping], workload: str, cv: float | None,
             ratios.append(float(r["throughput_tps"]) / _median(control))
         scores[(genome, gc)] = st.median(ratios)
     best = min(scores, key=lambda key: (-scores[key], key))
+    result = {"status": "descriptive_only", "best": best, "best_score": scores[best],
+              "scores": {f"{g}|{gc}": score for (g, gc), score in scores.items()}}
+    if cv is None or session_count < 3:
+        return {**result, "observed_control_cv_width_candidates": None,
+                "candidate_status": "undetermined",
+                "candidate_reason": "control_cv_or_sessions_missing"}
     members = sorted(key for key, value in scores.items()
                      if value >= scores[best] * (1 - cv))
-    return {"status": "descriptive_only", "best": best, "best_score": scores[best],
-            "observed_control_cv_width_candidates": members,
-            "scores": {f"{g}|{gc}": score for (g, gc), score in scores.items()}}
+    return {**result, "observed_control_cv_width_candidates": members}
 
 
 def estimate_walltime(spec: Mapping, costs: Mapping) -> int:
