@@ -5586,3 +5586,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:vhash-eval-prereg-activate":"[T-2893]"},"authored":"2026-09-29","base":"d4db28a94f5fab12e8327ab25bb045930ff6c33a","content_sha256":"ac91411a4adf559434a4ca2d42cd7258c8b64aa94ebab01a6c2580dae98bf41f","seq":1,"tested_tip":"7c4b1f681e4068b3ebe6b65e7f50bba58d523865","wave":"dev-wave-vhash-eval-prereg","wave_ref":"refs/heads/dev-wave-vhash-eval-prereg"}
 - {"allocations":{"D:vhash-eval-prereg-draft":"D2286"},"authored":"2026-09-29","base":"d4db28a94f5fab12e8327ab25bb045930ff6c33a","content_sha256":"258e6d552647740924b4c0543ab6131c427bef45b899928c147c47c06d4ec74e","seq":1,"tested_tip":"7c4b1f681e4068b3ebe6b65e7f50bba58d523865","wave":"dev-wave-vhash-eval-prereg","wave_ref":"refs/heads/dev-wave-vhash-eval-prereg"}
+
+- {"allocations":{},"authored":"2026-09-29","base":"226b47173dbe5f5e994495d13019f4ca07191d61","content_sha256":"eeac0df7099e97a46f67ea6658be141cddc6d27b8ef475ca177fb046046b87d7","seq":1,"tested_tip":"86c83d31c51f364b4bb77a6f8da6b8834d4047fa","wave":"dev-wave-t2865-series-c","wave_ref":"refs/heads/dev-wave-t2865-series-c"}
