@@ -17,6 +17,7 @@ title: VHash の forwarding 試作を Cicada の GC 回収境界へつないだ 
 - base 035fc11fa にあったテストの期待で変えたのは、条件 gate の 3 macro 登録に伴う件数・集合の追随だけ (D2288 と同じ足跡)。
 - 変異: 10 件 (MG1・MG2・MD1〜MD5・MF3・MF6・MS1) を束ね経路 (D842) で。probe 35659、final 35801 (KILLED 9・MISMATCH 1)、MF6 の erratum 再走 35814 (KILLED)。MF6 の期待 node は probe が skew 軸を足す前の commit だったため古く、新設の parametrize テスト 6 件が殺していた。段 6 の real 所見の変異 (MF3・MF6・MS1) は fix の後に登録した (DW-M01 は fix の前を求める、記録のみ)。
 - セッション異常 (実害なし): EnterWorktree は name 形が filter driver の読取エラー、path 形が worktree list の 10 秒上限で失敗し、手作りの worktree を絶対 path で使った。最初の worktree add は Lustre の EINTR で最後の index reset が失敗し、残骸を撤去して --no-checkout → reset --hard に分けて作り直した。16:2x〜16:3x はユーザーの git push のため land 調整役の依頼で git 書き込みを止めた。焦点走 1 回は待ち行列の上限 900 s に当たり子が起動せず (上限を延ばして再走)。親の報告 2 回が英語になった。
+- 段 8 (自己改善) の候補 4 件: モデルの保護の取り違えは failures へ新規で送った。変異の事前登録の遅れは DW-M01 が既に求める内容の見落としで文書は変えない。「同 wave の新設テストの期待に従属する fix は変えてよい期待を裁定に列挙する」(DW-S06-B) と「子の成果物を repo のテストから参照させない」(DW-C01) の 2 文は、足すと L1.5 の予算 (9,801 > 9,696 byte) と DW-C01 の単節予算・exact 契約を超えるので見送り、次の dev-wave 文書の整理で扱う。
 - エージェント工数: Codex plan 1・consult 3 (うち 1 本は未作成の成果物 path を必読と誤読して停止し再投入)・author 2 (うち単位 A は model 呼び出し上限 100 で最終報告の前に停止)・review 2・focus 1・fix 11 (いずれも gpt-6-sol / medium)。子の worktree `.claude/worktrees/vhash-gcp-author-a` / `-b` (branch codex-vhash-gcp-a・-b・fix1〜fix7) と dispatch 用の detached 木 7 本。計算ノード: smoke 5・検査 2・本計測 6 (6 台同時)・焦点走 6・変異 3、Elapse 合計 4,564 s (約 1.27 node 時間、受入の全走を除く)。
 
 ## 次の一手差分
