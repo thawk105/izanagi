@@ -84,10 +84,13 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 
 ## 5. ユーザー引き渡し (AI は push しない)
 
-remote branch 削除と main の push は行わず、対象をユーザーへ列挙。
-削除しなかった branch は理由 (ahead>0/dirty 等)・閉包・判定・救出期限、worktree は理由を報告する。
-`-D` した branch は bundle の path・sha256・verify 結果と rescue JSON の path を示し、損失 commit の
-台帳転記を別 dev-wave へ引き渡す。
+remote branch 削除・main の push はせず対象を列挙。未削除 branch は理由 (ahead>0/dirty 等)・閉包・判定・
+救出期限、worktree は理由を報告。`-D` した branch は bundle の path・sha256・verify 結果と rescue JSON の
+path を示し、損失 commit の台帳転記を別 dev-wave へ引き渡す。
+push が毎回別 object の `loose object <sha> ... is corrupt` で落ちたら実物は正常 (混雑 Lustre の読込失敗)。
+修復・fsck の前に main checkout で送る範囲だけ pack 化してから再 push:
+`printf 'main\n^origin/main\n' | git pack-objects --revs -q .git/objects/pack/pack`。
+pack を足すだけで object は消さない (D1115 と非衝突)。全体 repack は 10 分超で勧めない。
 
 ## 6. 自己改善候補の終端
 
