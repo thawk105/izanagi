@@ -73588,3 +73588,68 @@ spool fragment に置き、次の版の wave がそれらから全面再導出�
 - CCBench の `microbench/` へ inert patch で足す — 上記のとおり負担だけが増える。
 - `orchestrator/campaign/` に置く — 本番 campaign の台帳に研究用の微小計測が混ざる。
 - 受入所要台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) へ新 test を登録する — 被覆率 gate (0.90) は未登録でも割らず、land の競合循環を避けるため登録しない。
+
+## D2286. VHash 論文の評価計画を `docs/` 直下の事前登録の草稿として置き、主比較を「1 因子だけ違う組」にして F と G を論理 K 境界の上と hot の上の 2 通りに定義する (2026-09-29)
+
+**決定:** 草稿 `docs/vhash-evaluation-preregistration-draft.md` (未発効) を置く。本決定は発効でも、実装・予備の観察・本走・計算投入の承認でもない。
+発効は、比較相手 A の較正 (md_11) などの前提が揃い、段ごとの node 時間をユーザーへ示して確認を得た後に、別の wave が日付付きの決定で行う。
+
+1. **置き場:** `docs/paper-story-vhash/` の中ではなく `docs/` 直下に置き、`docs/README.md` の地図に 1 行足す。既存の事前登録 (D2278 の P5 草稿など) と同じ置き方にする。
+2. **構成:** 構成を「版の配置 (hot の有無)・発火したときの行動 (何もしない / 最小の前進 / 最新の確定版への前進 / abort と再実行)・GC への反映」の 3 因子で書く。
+   F (abort と再実行) と G (最新の確定版への前進) は、論理 K 境界の上 (F_ℓ・G_ℓ、C と比べる) と hot の上 (F_h・G_h、D と比べる) の 2 通りに定義し、主比較は発火条件が同じで行動だけが違う組にする。
+   G は「発火したときだけ、先頭 K 版の中の wts 最大の確定版へ進む」と定義し、TicToc に近い「すべての読み取りで最新を読む」型は構成に入れない。K = 1 では C と G が同じ規則になるので、H3 の A/A 対照にする。
+3. **統計:** 同じ job の中で比べる全構成を巡回順に交互に測る round を 14 取り、2 node へ半分ずつ同時に投入する。対の対数比の中央値と順序統計量の区間 (2 番目と 13 番目) を使い、
+   主要な判定 20 個を Bonferroni で束ねる。差の閾値は D19 の `BETWEEN_RUN_CV = 0.030` を下限にした between-run の floor から作る。時間帯の block 分けは入れない。
+   探索段で選ぶ自由度 (K など) は確認段の新しい走行だけで判定する。
+4. **正しさの門:** 各構成 × workload 型に Cicada 用 trace の門の cell を置き、巡回が出たら構成ごと即失格にする。論文には「巡回は検出されなかった (判定の上限は indeterminate)」の形でだけ書く。
+   前進・hot・GC 公開の新しい経路ごとに壊した variant の検出を、その構成の性能値を主張に使う前提にする。GC 安全は判定器の対象外とし、判定器の結果で代用しない。
+
+**理由:**
+- `docs/paper-story-vhash/` は README と版を並行 wave が編集しない契約 (D2280) で、事前登録は版ではなく実験の契約である。既存の事前登録はどれも `docs/` 直下にある。
+- 最初の版 §9 の図のように F と G を A から伸ばして D と比べると、配置と行動の 2 因子が同時に違い、効いたものを分けられない。論理 K 境界の上の組は hot 配置の実装を待たずに測れ、試作中の C と F_ℓ がそのまま使える。
+- G の前進先の選び方だけを C と変えれば、H3 は「hot の中の非最新版を選ぶ価値」だけを測る。すべての読み取りで最新を読む型は CC の規則そのものを変え、比較の因子が増える。
+- 順序統計量の区間は分布の形を仮定しない。round の対数比が独立に同じ連続分布に従うとき、14 round なら被覆は 0.99817 で、主要な判定 27 個までの Bonferroni に足りる。統計の前提 (round の独立・同じ分布、node の状態の効き方) は仮定として登録し、防壁とは主張しない。
+- 判定器 (D2279) は依存グラフの巡回を見るだけで、回収してはいけない版の回収は見ない。
+
+**却下した選択肢:**
+- 草稿を `docs/paper-story-vhash/` の中に置く — 並行 wave が同じ directory を編集しない契約に反し、版の凍結契約とも混ざる。
+- F と G を A から直接伸ばして D と比べる (最初の版 §9 の図のまま) — 2 因子が同時に違う。
+- 平均と t 区間を使う — throughput の対数比の分布を仮定することになり、round 数が少ないと外れ値に弱い。
+- 時間帯の block を離して各 block での再現を条件にする — ユーザー裁定 (2026-09-26) で入れないと決まっている。再現の連言は共通の偶然の防壁にもならない (草稿 §8.8 の反例)。
+- K を事前に 3 と決め打ちする — 出典メモ §28.3 が K は実験で決めるとしている。探索段で選び、確認段で新しく測る。
+
+## D2287. Cicada の選択的 forwarding は read 相だけで前進し、最終保証を stock の validation に置く (2026-09-29)
+
+**決定:** VHash 論文の試作 (`patches/cicada-forwarding-variant.patch`) の forwarding は次の仕様とする (一次資料 `output/insights/2026-09-29/vhash-forwarding-prototype/README.md` §2)。
+1. 発火は `read()` 経由の read だけで、T.ts で見える版の物理位置 (pending / aborted を含む) が先頭から K 版より奥のとき。scan・read-only・特殊操作後は発火しない。
+2. 前進先は先頭 K 版の最古の committed 版の wts より大きい、自 thread 形式の最小の ts'。
+3. 前進前の確認 (既読版が ts' でも見えるか、write set の制約、pending に当たらないか) は早期判定であり最終保証ではない。rts は書かない。
+4. 成功時は T.ts・localClock_・未設置の書き込み版の wts を ts' にし、read / write set の探索開始位置 (`later_ver_`) をすべて捨てる。失敗時は何も変えない。
+5. validation 以降は変えず、stock の validation を最終 ts で走らせることを最終保証とする。GC の保護 (ThreadWtsArray / ThreadRtsArray) は旧 ts のまま据え置く。
+6. 比較対照 F は同じ発火条件で abort して新しい ts で再実行する。
+
+**理由:**
+- Cicada の validation は wts_ だけをパラメタにし、既読版が最終 ts で見える版と一致しない限り commit しない。前進を validation の前に限れば、reader と writer の順序付け (rts を先に上げる / pending を先に置く) を stock のまま使える。
+- 旧 ts で得た探索開始位置を残すと、検証が最終 ts より古い位置から辿り、その間に commit された版を見落とす (段 3 の反例)。未設置版の wts を書き換えないと、設置版の時刻と tx の時刻が食い違う。
+- GC 保護を動かさないので、旧 ts で読んだ版も前進先で読む版も回収されない (保守的)。GC の前進はメモの段階 5 に分ける。
+
+**却下した選択肢:**
+- 前進時に既読版の rts を先に書く — 共有書き込みが増え、validation の順序付けで足りる。
+- 最新版を読み max(wts) を採る — 既読の可視区間の上限を確かめられない (メモ §10)。
+- pending 版を待ってから確認する — 前進の判断で待つと、失敗時に戻る先の費用が読めない。待たずに「競合」として元の ts へ戻す。
+
+## D2288. forwarding patch は条件 gate に登録し、patches/ledger.json には載せない (2026-09-29)
+
+**決定:** `patches/cicada-forwarding-variant.patch` の 3 macro (`CICADA_FWD_ENABLE`・`CICADA_FWD_COUNT`・`CICADA_LONGTX`) は `orchestrator/campaign/condition_meaning_gate.py` の許可ドメインへ登録し
+(先例 3867e6ec5 と同じ足跡、判定・受理述語と既存 entry は不変)、`patches/ledger.json` には entry を足さず `patches/README.md` の節で登録する。macro 名に `IZANAGI_` 接頭辞を使わない。
+
+**理由:**
+- patch が新しい `#if` を持ち込むと、patch の define 一覧と許可ドメインの完全一致を求めるテストが接頭辞に関係なく赤になり、build する driver は gate の supply / meaning を通す必要がある。登録しないと patch を置けない。
+- `patches/ledger.json` は `silo_ladder_rung1` 専用で、契約 (`silo_ladder_rung1_contract.py` の ledger 検査) が entry 1 件を要求する。依頼文の「ledger の entry」とはこの点で食い違い、契約を優先した。
+- 接頭辞なしは合成 variant の命名慣行 (`BACKOFF_FIXED`、`MOCC_TEMP_PREDICATE`) に合わせたもので、gate 登録が必須なので検査を逃れる効果は無い。
+- gate 登録は依頼の所有範囲の外だったが、段 3 の 2 レンズとも「必要最小の登録に限れば賛成」で一致し、自分の 3 entry と連動する件数・起動一覧の登録だけに限った。
+
+**却下した選択肢:**
+- ledger の entry 数契約を緩めて追加する — 別件の契約変更で、本試作の研究前進に不要。
+- 専用 manifest を新設する — 成果物の値・受理集合を変えない新しい検査で、DW-G05 に反する。
+- patch を patches/ 以外に置いて検査を避ける — 検査逃れであり D18 の inert patch 方針から外れる。

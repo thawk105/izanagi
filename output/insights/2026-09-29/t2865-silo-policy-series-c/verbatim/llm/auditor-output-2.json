@@ -1,0 +1,36 @@
+{
+  "verdict": "pass",
+  "diff_digest": "cf34b7ab045a2f373e746745c3eaa0476b699e01fa43c801cac1444f3f432c62",
+  "violations": [],
+  "nits": [
+    {"finding": "cc/silo/transaction.cc の hole 内 policy_on_lock_conflict: ctx.attempt は既に uint32_t なので static_cast<uint32_t>(ctx.attempt) は不要。正しさへの影響は無い。"},
+    {"finding": "kGiveUpAttempt=28u は骨格の上限 (1 tuple あたり 32 回、CAS 失敗を含む) より手前で abort する。attempt 28..31 の枠は使われない。意図した余裕なのか、単なる調整値なのかをコードからは判別できない。性能軸の指摘に留まる。"},
+    {"finding": "policy_after_abort の待ち時間は r & mask で最大 15 us。骨格の上限 1000 us には遠く、clamp は一度も効かない。lock_conflict のときは level を 1 段上げるだけなので、要因別の効き方は小さい。性能軸の指摘。"},
+    {"note": "照合した結果、差分は 1 hunk (-40,15 +40,68) で、EVOLVE-BLOCK-BEGIN/END silo-function-policy と #if SILO_POLICY_VARIANT 枝の中身だけに収まっている。削除 9 行 (stock 相当の hole 本体) と追加 62 行の行数は hunk header と一致する。適用済み骨格 (patches/silo-function-policy-variant.patch) では BEGIN 行が transaction.cc の 41 行目にあり、context 行 '#endif' (40 行目) と整合する。hole の外にある要因記録 (7 代入点)、begin() での reset と seed、wait_us 待機器、1000/50 us の clamp、32 回の attempt 上限、retry 後の tidword 再読込、prefix unlock、4 つの呼出し点 (after_abort / on_lock_conflict / on_commit / lockWriteSet) はいずれも差分に現れない。"},
+    {"note": "policy-C++ v1 の契約を行単位で確認した。namespace scope に置かれているのは constexpr 定数 4 つ (u 接尾辞付き) だけ。PolicyState は uint32_t 1 field で、literal による初期化子を持つ。helper は window_mask(uint32_t) と make_response(bool, uint32_t) の 2 つで、どちらも noexcept で、使用より前に定義され、再帰しない。戻り型はそれぞれ uint32_t と LockResponse。loop、pointer、array、static / thread_local / mutable の記憶域、例外、template、macro、static_cast 以外の cast、++/--、comma 式は、どれも無い。識別子の参照先は局所宣言、固定 API、std::min、hole 内の定数・helper だけで、FLAGS_*、getenv、thid_、result_、read_set_/write_set_/node_map_、時刻、TRACE、組込関数への参照は無い (型 3/12/15/16/18/22/23/24 は該当なし)。除算、剰余、shift は無く、非 void 関数はすべての経路が return で終わる (型 25 は該当なし)。乱数には骨格が渡す ctx.rand だけを使う。thread / key / storage に恒常的な優先順位を与える構造は無い (型 15 は該当なし)。hole 内の識別子 (wait, next, level, mask, state, r ほか) と同名の #define は、external/ccbench 内の grep では見つからなかった。"},
+    {"note": "lock 方策 (retry、待ち 0..2 us) は no-wait を待機に変える。これはこの軸の API が PolicyAction::retry として明示的に開いている探索空間であり、型 10 の違反とは扱わない。retry でも骨格は tidword を再読込してから CAS で lock を取るので、lock の被覆と validation の条件は変わらない。write_set の順序を揃えない (KEY_SORT=0) まま保持しながら待つので、相互待ちは起こりうる。ただし方策側の 28 回、骨格側の 32 回という上限で abort し、prefix が解放されるため、デッドロックにはならない。起こりうるのは有限の liveness 劣化だけで、serializability は破れない。"}
+  ],
+  "proposed_tests": [
+    {
+      "mutation": "骨格側の変異: lockWriteSet の SILO_POLICY_VARIANT 枝で、retry 応答の後の 'expected.obj_ = loadAcquire(...); continue;' を、lock を取らずに次の write_set 要素へ進む処理 (break で CAS を飛ばす) に置き換える。この変異の下で、この候補の hole (attempt < 28 で retry を返す) を build する。",
+      "expected_gate": "write_set の lock 被覆 assert (非 INSERT write の tidword.lock が validation 開始時点で自分により立っていること) が赤になる。trace verify の判定は indeterminate または reject。変異を入れない場合は緑であることを対で確かめる。",
+      "machine_judgment": "driver の mutation_red_gate が、変異あり build で被覆 assert の発火 (非 0 終了または assert レコード) を、変異なし build でその不発火を、それぞれ記録する。両方が揃ったときだけ、retry 経路でも被覆が保たれることの担保として数える。lock 競合を実際に踏む hot key の workload で走らせないと空振りになるので (型 4/26)、retry 回数が 0 より大きいこと (次の test の計数) を同じ走で必須とする。"
+    },
+    {
+      "mutation": "hole を stock 相当 (policy_on_lock_conflict が常に abort を返す) に差し替えた負例と、この候補の正例を、同じ verify workload で走らせる。",
+      "expected_gate": "#if TRACE 内だけに置く on_lock_conflict の retry 採択カウンタ (trace build 専用で、perf build からはコンパイル時に除去される) が、正例では 0 より大きく、負例では 0 になる。",
+      "machine_judgment": "driver が verify の構造化結果から retry 採択数を読み、正例で 0 なら『lock 方策は verify 中に発火した証拠なし』(型 26) として certify の根拠から外す。負例で 0 より大きい値が出たら、カウンタの配線が壊れているとして赤。現状 v1 には hook 別の計数が無いので、これは新規の提案である。"
+    },
+    {
+      "mutation": "骨格側の変異: lockWriteSet から 'if (attempt >= 32u) { ... abort ... }' の上限を削除し、hole を常に retry (wait 0) を返す方策に差し替える。write set の順序を逆にした 2 thread の単体 harness (tuple A→B と B→A) で実行する。",
+      "expected_gate": "liveness の harness が制限時間内に終わらず赤になる (相互待ちによる無限 spin)。変異を入れない骨格では 32 回で abort し、両 thread とも有限時間で commit または abort まで進むので緑。",
+      "machine_judgment": "harness の wall-clock timeout (例: 数秒) を超えたら赤、超えなければ緑。driver は変異あり・変異なしの対を mutation_red_gate に記録する。この test が守るのは、骨格の上限が方策側の上限 (この候補の 28) に依存せずに効くことである。"
+    },
+    {
+      "mutation": "骨格側の変異: lockWriteSet の 'wait_us(std::min(r.wait_us, 50u))' と、abort() の 'wait_us(std::min(ret, 1000u))' から std::min の clamp を外す。hole を、wait_us=0xFFFFFFFFu (lock 側) と after_abort=0xFFFFFFFFu を返す方策に差し替える。",
+      "expected_gate": "fake な方策を linkし、on_lock_conflict / after_abort を経由した実際の待機長を計測する単独 TU の harness で、上限 50 / 1000 us を超えたことを検出して赤。変異なしでは緑。",
+      "machine_judgment": "driver が harness の終了コードと、計測した待機 cycle が FLAGS_clocks_per_us × 上限 × 許容係数を超えたかを見て判定する。変異あり・変異なしの対を記録する。"
+    }
+  ],
+  "uncertainty": "(1) abort_digest が空 ({}) なので、この候補の hole (特に lock 方策の retry 経路と、要因別の待機) が verify 中に実行された証拠は無い。型 4/26 の既定に従い『verify 中の発火証拠なし』と扱い、pass は発火に依存しない静的監査だけに基づく。(2) diff_digest は入力の値をそのまま echo した。自分には Bash が無いので、working_diff の SHA-256 を再計算して照合していない。照合は driver の機械 gate に委ねる。(3) 構文検査と単独 TU の compile (C++17 -Wall -Wextra -Werror -fsyntax-only) に通ったという driver の検疫受領は、入力に含まれていないので確認できていない。静的に読んだ限りでは、-Werror に触れる箇所は見当たらない。(4) 静的に確認できたのは、hole の外の骨格が、designated_sources の patch と working_diff の context 行の範囲で無改変だということだけである。適用後の transaction.cc 全体や、build マクロ (Options.cmake の SILO_POLICY_VARIANT 以外) が改変されていないことは、この入力からは確認できない。(5) fitness、WAL、output/ 配下の計測結果は開いていない。"
+}

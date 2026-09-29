@@ -1,0 +1,20 @@
+series_id p3-silo-policy-loop-silo-policy-autonomous-877344a7
+loop_state.iteration 4 start_wall 1790644165.0811975
+history {'iteration': 1, 'outcome': 'rejected', 'variant_id': 'diffq-98edf626b87d', 'verdict': None, 'measurement_campaign_id': None, 'subtype': None, 'rule_id': None, 'stop_reason': None}
+history {'iteration': 2, 'outcome': 'certified', 'variant_id': '3e0b518a3b4e', 'verdict': None, 'measurement_campaign_id': 'p3-silo-policy-loop-silo-policy-autonomous-4e8009c5', 'subtype': None, 'rule_id': None, 'stop_reason': None}
+history {'iteration': 3, 'outcome': 'certified', 'variant_id': 'c107a40f0486', 'verdict': None, 'measurement_campaign_id': 'p3-silo-policy-loop-silo-policy-autonomous-f6ac2c7c', 'subtype': None, 'rule_id': None, 'stop_reason': None}
+history {'iteration': 4, 'outcome': 'certified', 'variant_id': '7e475c2c6607', 'verdict': None, 'measurement_campaign_id': 'p3-silo-policy-loop-silo-policy-autonomous-8a9c885c', 'subtype': None, 'rule_id': None, 'stop_reason': None}
+claim p3-silo-policy-loop-silo-policy-autonomous-4e8009c5 0:34246.nqsv bnode050 219566
+claim p3-silo-policy-loop-silo-policy-autonomous-8a9c885c 0:34356.nqsv bnode019 103935
+claim p3-silo-policy-loop-silo-policy-autonomous-a84dd632 0:34230.nqsv bnode027 206725
+claim p3-silo-policy-loop-silo-policy-autonomous-f6ac2c7c 0:34247.nqsv bnode025 198482
+STOCK token stock
+== measurement 2 p3-silo-policy-loop-silo-policy-autonomous-4e8009c5 exists True
+  BENCH_DONE 3e0b518a3b4e median 2988984.0 fitness None reps [3054179.0, 2911232.0, 3025398.0, 2988984.0, 2963971.0] abort_rate 0.3772
+  BENCH_DONE db4764543546 median 1376465.0 fitness None reps [1341828.0, 1376465.0, 1327499.0, 1378426.0, 1390370.0] abort_rate 0.1244
+== measurement 3 p3-silo-policy-loop-silo-policy-autonomous-f6ac2c7c exists True
+  BENCH_DONE c107a40f0486 median 2556839.0 fitness None reps [2556839.0, 2486447.0, 2593303.0, 2610591.0, 2513484.0] abort_rate 0.4162
+  BENCH_DONE db4764543546 median 1371220.0 fitness None reps [1371220.0, 1379178.0, 1357005.0, 1362911.0, 1381786.0] abort_rate 0.1265
+== measurement 4 p3-silo-policy-loop-silo-policy-autonomous-8a9c885c exists True
+  BENCH_DONE 7e475c2c6607 median 3614547.0 fitness None reps [3686626.0, 3555573.0, 3649007.0, 3614547.0, 3455402.0] abort_rate 0.6026
+  BENCH_DONE db4764543546 median 1368428.0 fitness None reps [1368428.0, 1378974.0, 1346381.0, 1372031.0, 1338597.0] abort_rate 0.1255

@@ -1,0 +1,51 @@
+{
+ "coder": {
+  "axis": "silo-function-policy",
+  "implementation": "constexpr uint32_t kStreakCap = 4u;\nconstexpr uint32_t kSpinAttempts = 12u;\nconstexpr uint32_t kGiveUpAttempt = 28u;\nconstexpr uint32_t kLockWaitUs = 1u;\n\nstruct PolicyState {\n  uint32_t streak = 0u;\n};\n\nuint32_t window_mask(uint32_t level) noexcept {\n  if (level <= 1u) {\n    return 0u;\n  }\n  if (level == 2u) {\n    return 1u;\n  }\n  if (level == 3u) {\n    return 3u;\n  }\n  if (level == 4u) {\n    return 7u;\n  }\n  return 15u;\n}\n\nizanagi_silo_api::LockResponse make_response(bool give_up, uint32_t wait) noexcept {\n  if (give_up) {\n    izanagi_silo_api::LockResponse stop = izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n    return stop;\n  }\n  izanagi_silo_api::LockResponse keep = izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::retry, wait};\n  return keep;\n}\n\nuint32_t policy_after_abort(PolicyState& state, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  uint32_t next = std::min(state.streak + 1u, kStreakCap);\n  state.streak = next;\n  uint32_t level = next;\n  if (ctx.reason == izanagi_silo_api::AbortReason::lock_conflict) {\n    level = std::min(next + 1u, kStreakCap);\n  }\n  uint32_t mask = window_mask(level);\n  uint32_t r = static_cast<uint32_t>(ctx.rand);\n  return r & mask;\n}\n\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& ctx) noexcept {\n  uint32_t attempt = static_cast<uint32_t>(ctx.attempt);\n  if (attempt >= kGiveUpAttempt) {\n    return make_response(true, 0u);\n  }\n  uint32_t wait_time = 0u;\n  if (attempt >= kSpinAttempts) {\n    wait_time = kLockWaitUs + (static_cast<uint32_t>(ctx.rand) & 1u);\n  }\n  return make_response(false, wait_time);\n}\n\nvoid policy_on_commit(PolicyState& state, const izanagi_silo_api::CommitContext&) noexcept {\n  state.streak = 0u;\n}\n",
+  "justification": "iteration 2 の certified 版から 1 要素だけ変えた版である。変えたのは abort 後の待機窓の上限で、kStreakCap を 5 から 4 に下げ、mask の最大値を 15 から 7 に縮めた。施錠競合時の方策、lock_conflict による abort で 1 段上げる処理、commit 時のリセットは同じ bytes のまま残す。狙いは二つある。一つは、帰属を分けるため 1 回に 1 要素だけ動かすこと。もう一つは、『短い待機ですぐ再試行するほうが単位時間あたりの commit が多い』という仮説の勾配を、短い側へ一歩だけ測ること。短い窓で throughput が上がれば仮説が強まり、下がれば現行の窓が短い側の限界に近いと読める。書き方は、iteration 1 が decl.local で拒否された点を踏まえ、iteration 2 で文法を通った形に合わせた。具体的には、ローカル変数を `T x = T{...};` のように初期化子付きで宣言している。window_mask の 15 を返す枝には、上限 4 では到達しない。それでも関数の返り値の閉じ方を保つため、そのまま残した。正しさについては、施錠と検証の機構にまったく触れておらず、方策が決めるのは待機時間と retry か abort かの選択だけである。",
+  "confidence": "medium"
+ },
+ "auditor": {
+  "verdict": "pass",
+  "diff_digest": "46ec8fdc25946a9bdd1b607c886da84ad7e01df44e5f251930a478b022445cf8",
+  "violations": [],
+  "nits": [
+   {
+    "finding": "Hunk confinement (types 7/13/16): the hunk @@ -40,15 +40,68 @@ keeps only 3 unchanged context lines on each side: '#endif' (the end of the API/namespace prologue), 'EVOLVE-BLOCK-BEGIN / #if SILO_POLICY_VARIANT', and '#else / #endif / EVOLVE-BLOCK-END'. The 9 removed lines are exactly the stock policy body. The line counts (15 old -> 68 new = 6 context + 62 added) match the applied patch. Nothing outside the hole is touched: not the API declarations, the thread_local state/reason/random, seed_random/next_random, wait_us, the after_abort/on_lock_conflict/on_commit wrappers, the 1000/50/32 clamps, the reason stores at the abort sites, begin()'s reason reset, the prefix unlock, or the reload of expected on retry."
+   },
+   {
+    "finding": "Language contract (types 17-25): the added declarations are 4 constexpr uint32_t constants, a PolicyState with one uint32_t field and a literal initializer, 2 noexcept helpers (window_mask, make_response) defined before they are used and not recursive, and the 3 hooks. None of the following appear: loops, pointers, arrays, static/thread_local/mutable namespace variables, exceptions, templates, macros, casts other than static_cast, ++/--, commas, shifts, division, strings, comments, or identifiers containing '__'. Every non-void function ends in return. All literals carry the u suffix. The only std names are std::min, with uint32_t on both sides. A grep of external/ccbench found no #define for any identifier used in the hole (type 23)."
+   },
+   {
+    "finding": "Read contract (types 3/12/15/16): the hooks read only ctx.reason, ctx.attempt, ctx.rand, their own PolicyState.streak, and constexpr constants. There is no reference to FLAGS_*, getenv, thid_, result_, read_set_/write_set_/node_map_, time, or TRACE. The per-thread random value is seeded from thid_ by the skeleton, but the policy uses only its low 1-4 bits as jitter, so it creates no lasting priority by thread, key, or storage (no type 15)."
+   },
+   {
+    "finding": "Name resolution (type 22): the new names window_mask, make_response, kStreakCap, kSpinAttempts, kGiveUpAttempt and kLockWaitUs sit in namespace izanagi_silo_policy. The skeleton calls the hooks fully qualified (::izanagi_silo_policy::...), and its other calls (wait_us, std::min, rdtscp) resolve in izanagi_silo_skel/std, which these names do not shadow. No operator or conversion overloads are added. The parameter name 'wait' shadows POSIX ::wait inside make_response only; this breaks nothing, but renaming it would be more readable."
+   },
+   {
+    "note": "Liveness and performance (not correctness): for attempts 0-11 the policy retries with 0 us while still holding the prefix write locks (a busy spin), for attempts 12-27 it waits 1-2 us, and at attempt 28 it gives up. The skeleton cap of 32 bounds this, so it cannot deadlock. Two transactions may still wait on each other for up to about 28 attempts while each holds prefix locks, and during that time other transactions reading those tuples tend to abort in validation with read_locked. This is not a serializability issue, but the no-wait premise is weakened within the range the API permits (type 10 is not applied, because retry is an action this axis's API contract allows)."
+   },
+   {
+    "note": "Abort waiting: streak is capped at 4 and lock_conflict adds one more level, giving window_mask <= 15, so the return value is at most 15 us, well below the skeleton clamp of 1000 us. policy_on_commit resets streak to 0. There are no wrap-around or uninitialized paths."
+   }
+  ],
+  "proposed_tests": [
+   {
+    "mutation": "In the skeleton retry branch of lockWriteSet (the applied transaction.cc, #if SILO_POLICY_VARIANT inside the expected.lock branch), replace 'continue;' after wait_us with 'break;' so that a retry decision skips the CAS and moves on to the next write_set element without holding the lock. Run it with this candidate, which actually returns retry for attempts 0-27.",
+    "expected_gate": "The write_set lock-coverage assert in the trace build (every non-INSERT write element holds the lock at validation) turns red. The verify verdict is indeterminate for the lock-coverage violation. If the workload does not reach the conflict, the G2 verifier may stay green.",
+    "machine_judgment": "mutation_red_gate registers the mutation and checks that the trace build aborts on the coverage assert (rc != 0 plus the assert message). If the run completes green, treat it as a vacuous pass (no firing evidence) and do not certify."
+   },
+   {
+    "mutation": "Force the policy to never be called: make the skeleton on_lock_conflict wrapper unreachable, for example by changing 'if (expected.lock)' in the variant branch to 'if (false && expected.lock)'. Alternatively, run a workload with no conflicts on the same tuple.",
+    "expected_gate": "Firing evidence for each hook must be 0 so the gate classifies the run as having no firing evidence during verify (type 26/4). Because v1 has no per-hook counters, the precondition is a trace-build-only counter under #if TRACE (on_lock_conflict call count, retry count, after_abort call count) that must be absent from the perf build.",
+    "machine_judgment": "The driver checks that the counters appear in the verify digest. If on_lock_conflict count == 0, the lock policy is labelled 'no firing evidence' and the candidate is not treated as having passed lock-policy verification. A red control is this mutation, where the count becomes 0 and the gate must return indeterminate. The nm/symbol diff of the perf build confirms the counters are gone (discipline 1)."
+   },
+   {
+    "mutation": "Remove the clamp in the skeleton abort(), replacing 'wait_us(std::min(ret, 1000u))' with 'wait_us(ret)', and inject a stub policy whose policy_after_abort returns 0xffffffffu.",
+    "expected_gate": "The liveness gate (commit count / trace-empty over a short extime) turns red. This shows the clamp has teeth; with the current candidate (<= 15 us) the gate stays green.",
+    "machine_judgment": "The mutation run is classified by trace emptiness or the commit-count threshold of the verify digest as a liveness failure. If it is green, the clamp control has no teeth and is flagged as a failure of the mutation_red_gate record."
+   }
+  ],
+  "uncertainty": "(1) abort_digest is empty ({}), so I have no evidence that the after_abort or lock-policy branches ran during verify. By default this means 'no firing evidence during verify' (types 26/4). The pass is a static judgment: this candidate cannot directly break serializability, because the skeleton owns the CAS locking, unlocking, reload on retry, and the attempt/wait clamps, and the candidate only chooses wait times and abort/retry. The pass does not assume the hooks fired. (2) I did not re-derive the skeleton's CAS branch and validation from the full text of the applied transaction.cc. I only checked the variant patch and the hunk boundaries. (3) Only the driver's quarantine receipt can confirm that the candidate passes the syntax check and the standalone -fsyntax-only compile (-Wall -Wextra -Werror), for example whether std::min is visible and whether enum equality comparison is admitted. I have not seen that receipt. (4) Of output/, WAL, and fitness files I opened none, and I did not use performance figures in this judgment."
+ }
+}

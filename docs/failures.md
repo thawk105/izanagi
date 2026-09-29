@@ -2378,6 +2378,8 @@
   fix 1 巡分を計画に入れる (memory `closure-and-search-discipline` に追記)。
 
 - **再発: 2026-09-26** — [T-2853] (1') wave で、`orchestrator/campaign/pipeline.py` の保全口に git の `subprocess.run` を 2 か所足したのに、段 1 brief の変更面の表と段 5 の実装子の所有 path に、production を静的走査して起動箇所を台帳に持つ `orchestrator/tests/test_ccbench_spawn_sites.py` (review 済み起動箇所の 2 つの登録簿) を入れなかった。親が統合 commit の後に起動箇所の登録を静的に確かめて焦点走に加え、焦点走 1 回目で 2 赤 (`('campaign/pipeline.py', '<module>._preserve_trace_directory'): 2` 未登録) として検出した (land 前、実害なし)。fix で git の起動を 1 helper (`_archive_git`) に寄せて登録した。同じ型は [T-2851] (受入 1 回目の赤 3 件、worklog のみに記録) に続く独立 2 例目。恒久対応は F39 の運用 (production の行・起動箇所を変える wave は、production を静的走査して位置を台帳に持つ test を閉包と焦点走に入れる) から変えない。
+
+- **再発: 2026-09-29** — [T-2879] (VHash md_6) wave で、新 patch の 3 macro を条件 gate の許可ドメインへ登録した段 5 の単位 B2 に、先例 3867e6ec5 の足跡のうち `orchestrator/campaign/screening_driver.py` の `_CONDITION_DEFAULTS` (鍵集合が DEFINE_SPECS と完全一致) と `orchestrator/tests/test_screening_driver.py` を渡さなかった。親の登録関連の焦点走にも test_screening_driver.py を入れていなかった。並行 wave (md_2) の受入実測をマネージャーが共有して判明し、受入前に fix で足した (land 前、実害なし)。恒久対応は F39 の運用 (位置・鍵を台帳に持つ test を閉包と焦点走に入れる) から変えない。先例 commit の変更 file 一覧を閉包の起点にすれば防げた。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -2578,6 +2580,8 @@
 
 - **再発: 2026-09-27** — [T-2854] (1) の段 5 実装子は DW-S05-C の「制約 meta-test を自ら洗い出して走らせる」を受けていたが、`check()` を `report = {...}; return report` に変え、`orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract` (辞書 literal の return がちょうど 1 つであることを AST で固定) を赤にした。親の焦点走 (計算ノード、31845.nqsv) で検出し、既存 test を変えず fix 3 で実装を戻した。型は 2026-07-27 (26) で広げた「変更が meta-test (横断検査) の契約を落とす」で、production の変更が既存の検査 test を破った 2026-08-28・2026-09-10 の再発と同じ位置にある。今回は焦点走の集合に consumer test を入れていたので受入の前に出た。
 - **再発: 2026-09-27 (同じ wave の 2 件目)** — 同じ wave で新設した `orchestrator/tests/test_check_trace0_header_rule.py` (pytest の `tmp_path` fixture に依存) が自走入口も pytest 専用 allowlist の記載も持たず、最終受入 1 回目 (27,954 collected、27,879 passed / 74 skipped) を `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件赤にした。親は `DW-O26` の「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」を段 9 前に読んでいたが、焦点走の集合に入れなかった (2026-09-07・09-20・09-26 と同じ位置)。`orchestrator/tests/README.md` の allowlist に 1 行足し、同メタテストの自走 3 件緑を確かめて閉じた。費用は受入 1 回分 (3 shard の Elapse 計 848 秒)。
+
+- **再発: 2026-09-29** — [T-2879] wave で新規 `orchestrator/tests/test_vhash_forwarding_prototype.py` (pytest 専用) を `orchestrator/tests/README.md` の pytest 専用 allowlist に載せずに統合した。受入前の DW-O26 焦点走で `test_plain_runner_coverage.py` を含める段で気づき、allowlist に足した (受入全走の前、実害なし)。恒久対応は F42 のまま。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -6573,6 +6577,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-22** — silo-function-policy 軸の診断 driver (`orchestrator/campaign/silo_policy_coverage.py`) を計算ノードで走らせると、実走のたびに実機の前提の欠陥が 1 件ずつ出た。(1) 依存物を一度も build しないまま condition gate を掛け、masstree の `config.h` (build 時生成) が無く owner TU の前処理が失敗、(2) silo の `transaction.cc` が WORKLOADS 4 実行体へ compile されて `compile_commands.json` の行が 4 本あり、owner 行の 1 本前提で停止。いずれも既存 driver (`s3_lock_coverage.py`・`s3_mocc_lock_coverage.py`) は踏まない形で、机上レビュー 2 本も見落とした。4 巡目の fix で「全 case の外部との交点を既存 driver と CCBench に照合した表」を実装子に作らせてから、残る実行時の欠陥が出なくなった。記録 = `output/insights/2026-09-22/t2857-silo-policy-stage-c/README.md` §4。
 
 - **再発: 2026-09-29** — [T-2875] の Cicada 診断 driver (`orchestrator/campaign/vhash_cicada_vlife.py`) を計算ノードで走らせると、実機の前提の欠陥が 1 回に 1 件ずつ出た。(1) smoke1 (33792.nqsv): Cicada の `transaction.cc` も WORKLOADS 4 実行体へ compile されるので `compile_commands.json` の行が 4 本あり、1 本前提の行選択で停止 (2026-09-22 の再発 (2) と同じ形)。(2) smoke2 (33926.nqsv): condition gate の meaning 検査は owner TU (`transaction.cc`) の前処理だけで分岐の目印を数えるので、別 TU (`util.cc`・`ycsb_cicada.cc`) に置いた計器分岐と `#if SINGLE_EXEC` (既定 0) の内側の分岐を観測できず、宣言 44 に対し観測 38 で拒否。login の在庫 test (宣言件数と patch の `#if` 件数の一致) は緑のままだった。机上の plan・相談・レビュー 4 本はどちらも挙げなかった。2026-09-22 の再発で効いた「全 case の外部との交点を既存 driver と CCBench に照合した表を実装子に作らせる」を段 5 の prompt に入れていなかった。分岐を owner TU と、それが include する header だけに集めて smoke3 以降は通った。記録 = `output/insights/2026-09-29/vhash-cicada-version-measure/README.md` §5・§9、裁定 = 同 `verbatim/s6-fix3-ruling.md`・`s6-fix4-ruling.md`。
+
+- **再発: 2026-09-29** — [T-2879] wave で、静的レビューと login の pytest を通った計測 driver が計算ノードの smoke で 6 回止まった: Cicada は 4 target で同じ TU を compile し compile entry が 4 件、masstree の config.h は build 時にしか生成されず configure だけの木と gate の前処理で 2 回、gate へ渡す configure 引数に検査対象 macro の CXX_FLAGS が入り重複 define、patch の行挿入で `__LINE__` がずれ inert 比較が不一致、検査木に gate 登録が無い。どれも先例 (silo_policy_coverage の `_prepare_build_dependencies` と gate 呼び出し、instr-mocc-lock-coverage の `#line`) に既に答えがあった。smoke は 1 回 20〜100 秒と安く、実害は時間だけ。恒久対応は F139 のまま (実機の書式・生成物は先例の実装か最安の生死確認で確かめてから driver に書く)。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
