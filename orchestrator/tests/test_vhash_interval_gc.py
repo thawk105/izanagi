@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import json
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 import sys
 import tempfile
+import traceback
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from orchestrator.campaign import vhash_interval_gc as d
 
@@ -211,6 +215,89 @@ def test_aggregate_missing_cells_rejected():
     raises(ValueError, d.aggregate, [r for r in records if r['cell'] != next(iter(d.CELLS))])
 
 
+def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / 'scratch').mkdir()
+        (root / 'output').mkdir()
+        source = root / 'source'
+        source.mkdir()
+        attempted = []
+
+        @contextmanager
+        def checkout(_pin):
+            yield source
+
+        def fake_build(_source, build, _deps, _toolchain, arm, kind,
+                       *, dependency=False, build_log=None):
+            name = build.name
+            attempted.append(name)
+            if name == 'min-perf':
+                stdout = b'begin-' + b'A' * 3000 + b'-end'
+                stderr = b'error-' + b'B' * 3000 + b'-end'
+                with patch.object(d.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                        ['fake-compiler', name], 2, stdout, stderr)):
+                    d.checked(['fake-compiler', name], build_log=build_log)
+            binary = build / 'cc/cicada/ycsb_cicada.exe'
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b'binary')
+            return binary, [{'macro': key, 'admission': {'admitted': True}}
+                            for key in ({} if dependency else d.arm_macros(arm, kind))]
+
+        def fake_run(_binary, spec, _receipts, _hashes, _raw_dir):
+            return {**spec, 'interval_counter': {'prune_success': 1}, 'valid': True}
+
+        args = SimpleNamespace(command='smoke', group=None, job=None,
+                               output=root / 'output', scratch_root=root / 'scratch',
+                               third_party_cache=root, no_gen_perf=False,
+                               with_trace_builds=True)
+        with patch.object(d.socket, 'gethostname', return_value='compute'), \
+             patch.object(d, 'assert_solo'), \
+             patch.object(d.compute, '_load_policy', return_value={}), \
+             patch.object(d.compute, '_resolve_toolchain', return_value={}), \
+             patch.object(d.compute, '_prepare_dependencies', return_value={}), \
+             patch.object(d.patchharness, 'checkout', checkout), \
+             patch.object(d, '_build_variant', fake_build), \
+             patch.object(d, 'inert_receipt', return_value={'matched': True}), \
+             patch.object(d, 'apply_patches'), \
+             patch.object(d, 'sha_file', side_effect=lambda path: d.digest(Path(path).read_bytes())
+                          if Path(path).exists() else 'missing-test-patch'), \
+             patch.object(d, 'run_binary', fake_run):
+            raises(RuntimeError, d.run_job, args)
+        assert attempted == ['dependency', 'stock-perf', 'min-perf', 'gen-perf',
+                             'stock-count', 'min-count', 'gen-count',
+                             'stock-trace', 'min-trace', 'gen-trace', 'broken-trace']
+        out = next((root / 'output').iterdir())
+        manifest = json.loads((out / 'manifest.json').read_text())
+        assert manifest['status'] == 'failed'
+        assert set(manifest['builds']) == set(attempted)
+        assert len(manifest['records']) == 5
+        failed = manifest['builds']['min-perf']
+        assert failed['ok'] is False and failed['rc'] == 2
+        log = Path(failed['log']['path'])
+        assert b'begin-' + b'A' * 3000 + b'-end' in log.read_bytes()
+        assert b'error-' + b'B' * 3000 + b'-end' in log.read_bytes()
+        assert d.sha_file(log) == failed['log']['sha256']
+        assert all(manifest['builds'][name]['ok'] for name in attempted if name != 'min-perf')
+
+
+def test_failed_nonbuild_command_keeps_complete_output():
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp)
+        token = d.FAILURE_LOG_DIR.set(directory)
+        try:
+            stdout = b'first-' + b'X' * 3000 + b'-last'
+            stderr = b'first-' + b'Y' * 3000 + b'-last'
+            completed = subprocess.CompletedProcess(['fake-command'], 7, stdout, stderr)
+            with patch.object(d.subprocess, 'run', return_value=completed):
+                raises(RuntimeError, d.checked, ['fake-command'])
+        finally:
+            d.FAILURE_LOG_DIR.reset(token)
+        log = next(directory.glob('failed-command-*.log')).read_bytes()
+        assert stdout in log and stderr in log
+        assert b'rc=7' in log
+
+
 def _run():
     tests = [(name, value) for name, value in sorted(globals().items())
              if name.startswith('test_') and callable(value)]
@@ -222,6 +309,7 @@ def _run():
         except Exception as exc:
             failures += 1
             print('FAIL', name, type(exc).__name__, exc)
+            traceback.print_exc()
     print(f'{len(tests) - failures} passed, {failures} failed')
     return int(bool(failures))
 

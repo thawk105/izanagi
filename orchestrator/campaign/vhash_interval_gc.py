@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -61,6 +63,7 @@ INTEGRITY_NUMERIC = ('orphan_reads', 'version_dups', 'dup_txids', 'genesis_commi
                      'write_intent_violations', 'permutation_violations')
 MACRO_NAMES = ('CICADA_INTERVAL_GC', 'CICADA_INTERVAL_GC_GENERAL',
                'CICADA_INTERVAL_COUNT', 'CICADA_INTERVAL_LONGTX')
+FAILURE_LOG_DIR = ContextVar('vhash_igc_failure_log_dir', default=None)
 
 
 def now():
@@ -75,11 +78,84 @@ def sha_file(path):
     return digest(Path(path).read_bytes())
 
 
-def checked(argv, *, cwd=None, timeout=900):
-    result = subprocess.run(argv, cwd=cwd, capture_output=True, timeout=timeout)
+def checked(argv, *, cwd=None, timeout=900, build_log=None):
+    try:
+        result = subprocess.run(argv, cwd=cwd, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        if build_log is not None:
+            build_log.record(argv, exc.stdout or b'', exc.stderr or b'', None,
+                             label='timeout')
+        else:
+            log_failed_command(argv, exc.stdout or b'', exc.stderr or b'', None)
+        raise
+    if build_log is not None:
+        build_log.record(argv, result.stdout, result.stderr, result.returncode)
     if result.returncode:
+        if build_log is None:
+            log_failed_command(argv, result.stdout, result.stderr, result.returncode)
         raise RuntimeError(f'command failed {result.returncode}: {argv!r}; {result.stderr[-2000:]!r}')
     return result
+
+
+def log_failed_command(argv, stdout, stderr, rc):
+    directory = FAILURE_LOG_DIR.get()
+    if directory is None:
+        return None
+    path = directory / f'failed-command-{len(list(directory.iterdir())) + 1:04d}.log'
+    log = BuildLog(path)
+    try:
+        log.record(argv, stdout, stderr, rc, label='failed command')
+    finally:
+        log.close()
+    return path
+
+
+class BuildLog:
+    """Create-only, complete command output for one attempted build."""
+
+    def __init__(self, path):
+        self.path = path
+        self.handle = path.open('xb')
+        self.rc = None
+
+    def record(self, argv, stdout, stderr, rc, *, label='command'):
+        if isinstance(stdout, str):
+            stdout = stdout.encode()
+        if isinstance(stderr, str):
+            stderr = stderr.encode()
+        if rc is not None and rc != 0:
+            self.rc = rc
+        self.handle.write((f'[{label}] argv={argv!r} rc={rc}\n'
+                           f'[stdout bytes={len(stdout)}]\n').encode())
+        self.handle.write(stdout)
+        self.handle.write(f'\n[stderr bytes={len(stderr)}]\n'.encode())
+        self.handle.write(stderr)
+        self.handle.write(b'\n[end command]\n')
+        self.handle.flush()
+
+    def close(self):
+        self.handle.close()
+
+
+def attempt_build(manifest, out, name, source, build, deps, toolchain, arm, kind,
+                  *, dependency=False):
+    log = BuildLog(out / 'build-logs' / (name + '.log'))
+    try:
+        binary, receipts = _build_variant(source, build, deps, toolchain, arm, kind,
+                                          dependency=dependency, build_log=log)
+        entry = {'ok': True, 'rc': 0, 'sha256': sha_file(binary),
+                 'gate_receipts': receipts}
+        return binary, receipts
+    except Exception as exc:
+        log.handle.write(f'\n[build error] {type(exc).__name__}: {exc}\n'.encode())
+        entry = {'ok': False, 'rc': log.rc if log.rc is not None else 1,
+                 'command_rc': log.rc,
+                 'error': {'type': type(exc).__name__, 'message': str(exc)}}
+        return None
+    finally:
+        log.close()
+        entry['log'] = {'path': str(log.path), 'sha256': sha_file(log.path)}
+        manifest['builds'][name] = entry
 
 
 def run_measured(argv, *, cwd=None, env=None, timeout=180):
@@ -95,6 +171,9 @@ def run_measured(argv, *, cwd=None, env=None, timeout=180):
             if time.monotonic() >= deadline:
                 child.kill()
                 os.wait4(child.pid, 0)
+                stdout.seek(0)
+                stderr.seek(0)
+                log_failed_command(argv, stdout.read(), stderr.read(), None)
                 raise subprocess.TimeoutExpired(argv, timeout)
             time.sleep(0.01)
         stdout.seek(0)
@@ -201,26 +280,52 @@ def check_compile_commands(build, expected, trace):
     return checked_names
 
 
-def gate(source, macros, args, cxx):
+@contextmanager
+def capture_gate_commands(build_log):
+    if build_log is None:
+        yield
+        return
+    original = condition.subprocess.run
+
+    def recorded(argv, *args, **kwargs):
+        try:
+            result = original(argv, *args, **kwargs)
+        except subprocess.TimeoutExpired as exc:
+            build_log.record(argv, exc.stdout or b'', exc.stderr or b'', None,
+                             label='gate timeout')
+            raise
+        build_log.record(argv, result.stdout or b'', result.stderr or b'',
+                         result.returncode, label='gate')
+        return result
+
+    condition.subprocess.run = recorded
+    try:
+        yield
+    finally:
+        condition.subprocess.run = original
+
+
+def gate(source, macros, args, cxx, *, build_log=None):
     receipts = []
-    for macro, value in macros.items():
-        captured = condition.capture_define_inputs(source, configure_args=tuple(args))
-        request = condition.make_define_request(driver_id=DRIVER_ID, macro=macro,
-                                                requested_value=value, default_value=0)
-        assert_gate_companion(macro, request)
-        with condition._configured_define_compile_commands(captured, request=request,
-                 cxx=cxx, cmake='cmake') as commands:
-            supply = condition.evaluate_define_supply_effectuation(captured, request=request,
-                     cxx=cxx, cmake='cmake', configured_commands=commands)
-            meaning = condition.evaluate_define_runtime_meaning(captured, request=request,
-                     declaration=condition.declare_define_runtime_meaning(request),
-                     cxx=cxx, cmake='cmake', configured_commands=commands)
-        admission = condition.require_condition_gate_family([supply], [meaning],
-                                                              use_class='raw-measurement')
-        receipts.append({'macro': macro, 'value': value,
-                         'supply': json.loads(supply.canonical_json()),
-                         'meaning': json.loads(meaning.canonical_json()),
-                         'admission': json.loads(admission.canonical_json())})
+    with capture_gate_commands(build_log):
+        for macro, value in macros.items():
+            captured = condition.capture_define_inputs(source, configure_args=tuple(args))
+            request = condition.make_define_request(driver_id=DRIVER_ID, macro=macro,
+                                                    requested_value=value, default_value=0)
+            assert_gate_companion(macro, request)
+            with condition._configured_define_compile_commands(captured, request=request,
+                     cxx=cxx, cmake='cmake') as commands:
+                supply = condition.evaluate_define_supply_effectuation(captured, request=request,
+                         cxx=cxx, cmake='cmake', configured_commands=commands)
+                meaning = condition.evaluate_define_runtime_meaning(captured, request=request,
+                         declaration=condition.declare_define_runtime_meaning(request),
+                         cxx=cxx, cmake='cmake', configured_commands=commands)
+            admission = condition.require_condition_gate_family([supply], [meaning],
+                                                                  use_class='raw-measurement')
+            receipts.append({'macro': macro, 'value': value,
+                             'supply': json.loads(supply.canonical_json()),
+                             'meaning': json.loads(meaning.canonical_json()),
+                             'admission': json.loads(admission.canonical_json())})
     assert_gate_receipts(macros, receipts)
     return receipts
 
@@ -238,17 +343,21 @@ def configure_args(deps, toolchain, trace):
         '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON']
 
 
-def _build_variant(source, build, deps, toolchain, arm, kind, *, dependency=False):
+def _build_variant(source, build, deps, toolchain, arm, kind, *, dependency=False,
+                   build_log=None):
     non_admissible_materializer(MATERIALIZER)
     trace = int(kind == 'trace')
     args = configure_args(deps, toolchain, trace)
     macros = {} if dependency else arm_macros(arm, kind)
-    receipts = [] if dependency else gate(source, macros, args, toolchain['cxx_path'])
+    receipts = [] if dependency else gate(source, macros, args, toolchain['cxx_path'],
+                                          build_log=build_log)
     if macros:
         args.append('-DCMAKE_CXX_FLAGS=' + ' '.join(f'-D{k}={v}' for k, v in macros.items()))
     checked(['cmake', '-S', str(source), '-B', str(build),
-             '-DCMAKE_CXX_COMPILER=' + toolchain['cxx_path'], *args], timeout=600)
-    checked(['cmake', '--build', str(build), '--target', 'ycsb_cicada.exe', '-j', '48'])
+             '-DCMAKE_CXX_COMPILER=' + toolchain['cxx_path'], *args], timeout=600,
+            build_log=build_log)
+    checked(['cmake', '--build', str(build), '--target', 'ycsb_cicada.exe', '-j', '48'],
+            build_log=build_log)
     binary = build / 'cc/cicada/ycsb_cicada.exe'
     if not binary.is_file():
         raise RuntimeError(f'missing binary {binary}')
@@ -456,6 +565,7 @@ def run_binary(binary, spec, receipts, hashes, raw_dir):
     stdout_path.write_bytes(completed.stdout)
     stderr_path.write_bytes(completed.stderr)
     if completed.returncode:
+        log_failed_command(argv, completed.stdout, completed.stderr, completed.returncode)
         raise RuntimeError(f'benchmark rc={completed.returncode}: {stderr_path}')
     out = completed.stdout.decode('utf-8', 'replace')
     interval, longtx = parse_counters(out, spec['build_kind'])
@@ -506,6 +616,7 @@ def verify_binary(binary, source, spec, receipts, hashes, raw_dir):
     stdout_path.write_bytes(completed.stdout)
     stderr_path.write_bytes(completed.stderr)
     if completed.returncode:
+        log_failed_command(argv, completed.stdout, completed.stderr, completed.returncode)
         raise RuntimeError(f'verify benchmark rc={completed.returncode}: {stderr_path}')
     commit = re.findall(r'^commit_counts_:\s*(\d+)\s*$', out, re.M)
     mismatch = re.findall(r'^CICADA_TRACE_READ_WTS_MISMATCH n=(\d+)$', err, re.M)
@@ -518,9 +629,15 @@ def verify_binary(binary, source, spec, receipts, hashes, raw_dir):
     verifier_argv = [sys.executable, '-m', 'verifier', str(trace_dir), '--json', '--quiet',
                      '--protocol', 'cicada', '--ccbench-root', str(source),
                      '--expected-commits', commit[0]]
-    verification = subprocess.run(verifier_argv, cwd=ROOT / 'orchestrator',
-                                  capture_output=True, timeout=900)
+    try:
+        verification = subprocess.run(verifier_argv, cwd=ROOT / 'orchestrator',
+                                      capture_output=True, timeout=900)
+    except subprocess.TimeoutExpired as exc:
+        log_failed_command(verifier_argv, exc.stdout or b'', exc.stderr or b'', None)
+        raise
     if verification.returncode not in (0, 1, 3):
+        log_failed_command(verifier_argv, verification.stdout, verification.stderr,
+                           verification.returncode)
         raise RuntimeError(f'verifier rc={verification.returncode}: {verification.stderr[-500:]!r}')
     result = json.loads(verification.stdout)['results'][0]
     integrity = result.get('integrity') or {}
@@ -595,6 +712,10 @@ def run_job(args):
     out.mkdir(parents=True, exist_ok=False)
     raw_dir = out / 'raw'
     raw_dir.mkdir()
+    (out / 'build-logs').mkdir()
+    logs_dir = out / 'logs'
+    logs_dir.mkdir()
+    log_token = FAILURE_LOG_DIR.set(logs_dir)
     manifest = {'schema': 'vhash-interval-gc-job/v1', 'command': args.command,
                 'group': args.group, 'job': args.job, 'host': host, 'started_utc': started,
                 'pin': pin.CURRENT_PIN, 'patches': {}, 'builds': {}, 'records': [],
@@ -608,11 +729,27 @@ def run_job(args):
                                                   scratch, toolchain)
             with patchharness.checkout(pin.CURRENT_PIN) as checkout:
                 source = Path(checkout)
-                dependency, _ = _build_variant(source, scratch / 'dependency', deps, toolchain,
-                                              'stock', 'perf', dependency=True)
-                manifest['builds']['dependency'] = {'sha256': sha_file(dependency)}
-                if args.command == 'smoke':
-                    manifest['inert'] = inert_receipt(source, scratch / 'dependency')
+                failures = []
+
+                def build_one(name, tree, arm, kind, *, dependency=False):
+                    result = attempt_build(manifest, out, name, tree, scratch / name,
+                                           deps, toolchain, arm, kind,
+                                           dependency=dependency)
+                    if result is None:
+                        failures.append(name)
+                        if args.command != 'smoke':
+                            raise RuntimeError(f'build failed: {name}; '
+                                               f'{manifest["builds"][name]["log"]["path"]}')
+                    return result
+
+                dependency = build_one('dependency', source, 'stock', 'perf',
+                                       dependency=True)
+                if args.command == 'smoke' and dependency is not None:
+                    try:
+                        manifest['inert'] = inert_receipt(source, scratch / 'dependency')
+                    except Exception as exc:
+                        manifest['inert'] = {'matched': False, 'error': str(exc)}
+                        failures.append('inert')
                 names = ([TRACE_PATCH, *PATCHES] if args.command == 'verify' else list(PATCHES))
                 apply_patches(source, names)
                 for name in names:
@@ -621,19 +758,23 @@ def run_job(args):
                 kinds = ('trace',) if args.command == 'verify' else ('perf', 'count')
                 for kind in kinds:
                     for arm in ARMS:
-                        binary, receipts = _build_variant(source, scratch / f'{arm}-{kind}',
-                                                         deps, toolchain, arm, kind)
-                        binaries[arm, kind] = binary, receipts
-                        manifest['builds'][f'{arm}-{kind}'] = {
-                            'sha256': sha_file(binary), 'gate_receipts': receipts}
+                        result = build_one(f'{arm}-{kind}', source, arm, kind)
+                        if result is not None:
+                            binaries[arm, kind] = result
                 if args.command == 'verify':
                     apply_patches(source, [BROKEN_PATCH])
                     manifest['patches'][BROKEN_PATCH] = sha_file(ROOT / BROKEN_PATCH)
-                    binary, receipts = _build_variant(source, scratch / 'broken-trace',
-                                                     deps, toolchain, 'min', 'trace')
-                    binaries['broken', 'trace'] = binary, receipts
-                    manifest['builds']['broken-trace'] = {
-                        'sha256': sha_file(binary), 'gate_receipts': receipts}
+                    binaries['broken', 'trace'] = build_one('broken-trace', source, 'min', 'trace')
+                elif args.command == 'smoke' and args.with_trace_builds:
+                    with patchharness.checkout(pin.CURRENT_PIN) as trace_checkout:
+                        trace_source = Path(trace_checkout)
+                        apply_patches(trace_source, [TRACE_PATCH, *PATCHES])
+                        manifest['patches'][TRACE_PATCH] = sha_file(ROOT / TRACE_PATCH)
+                        for arm in ARMS:
+                            build_one(f'{arm}-trace', trace_source, arm, 'trace')
+                        apply_patches(trace_source, [BROKEN_PATCH])
+                        manifest['patches'][BROKEN_PATCH] = sha_file(ROOT / BROKEN_PATCH)
+                        build_one('broken-trace', trace_source, 'min', 'trace')
                 records = []
                 if args.command == 'verify':
                     for cell in VERIFY_CELLS:
@@ -660,16 +801,31 @@ def run_job(args):
                 else:
                     for spec in plan_runs(args.group or 'rr50_wait', args.no_gen_perf,
                                           smoke=args.command == 'smoke'):
-                        binary, receipts = binaries[spec['arm'], spec['build_kind']]
-                        records.append(run_binary(binary, spec, receipts,
-                                                  manifest['patches'], raw_dir))
+                        built = binaries.get((spec['arm'], spec['build_kind']))
+                        if built is None:
+                            continue
+                        binary, receipts = built
+                        if args.command == 'smoke':
+                            try:
+                                records.append(run_binary(binary, spec, receipts,
+                                                          manifest['patches'], raw_dir))
+                            except Exception as exc:
+                                name = f'{spec["arm"]}-{spec["build_kind"]}-run'
+                                failures.append(name)
+                                manifest.setdefault('run_failures', {})[name] = str(exc)
+                        else:
+                            records.append(run_binary(binary, spec, receipts,
+                                                      manifest['patches'], raw_dir))
                     if args.command == 'smoke':
                         manifest['smoke_counters'] = {r['arm']: r['interval_counter'] for r in records
                                                       if r['build_kind'] == 'count'}
-                        manifest['smoke_candidates'] = smoke_candidate_delta(
-                            manifest['smoke_counters'])
+                        if {'min', 'gen'} <= manifest['smoke_counters'].keys():
+                            manifest['smoke_candidates'] = smoke_candidate_delta(
+                                manifest['smoke_counters'])
                 manifest['records'] = records
                 append_x(out / 'raw.jsonl', records)
+                if failures:
+                    raise RuntimeError(f'builds failed: {", ".join(failures)}')
                 manifest['status'] = 'completed'
                 manifest['verification_status'] = ('indeterminate' if args.command == 'verify'
                                                    else '未検証の診断値')
@@ -680,6 +836,7 @@ def run_job(args):
     finally:
         manifest['ended_utc'] = now()
         write_x(out / 'manifest.json', manifest)
+        FAILURE_LOG_DIR.reset(log_token)
     return out
 
 
@@ -689,6 +846,7 @@ def main(argv=None):
     parser.add_argument('--group', choices=GROUPS)
     parser.add_argument('--job')
     parser.add_argument('--no-gen-perf', action='store_true')
+    parser.add_argument('--with-trace-builds', action='store_true')
     parser.add_argument('--third-party-cache', type=Path)
     parser.add_argument('--scratch-root', type=Path)
     parser.add_argument('--output', type=Path)
@@ -706,6 +864,8 @@ def main(argv=None):
         parser.error('run requires --group')
     if args.no_gen_perf and args.command not in ('run', 'aggregate'):
         parser.error('--no-gen-perf applies to run and aggregate only')
+    if args.with_trace_builds and args.command != 'smoke':
+        parser.error('--with-trace-builds applies to smoke only')
     if args.command == 'verify' and not args.job:
         parser.error('verify requires --job')
     if args.job and not re.fullmatch(r'[A-Za-z0-9_-]+', args.job):
