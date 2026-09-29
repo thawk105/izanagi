@@ -3,6 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -245,6 +246,28 @@ def test_gate_failure_leaves_no_receipt(tmp_path):
         finally:
             for fd in (read_outcome, write_outcome, read_completion, write_completion):
                 os.close(fd)
+
+
+def test_direct_gate_rejects_nonzero_exit(tmp_path):
+    from tools import scoped_acceptance_launcher as LAUNCHER
+
+    argv = [sys.executable, "-c", "raise SystemExit(1)"]
+    with pytest.raises(ValueError, match=r"direct gate 0 failed with rc=1"):
+        LAUNCHER._gate(tmp_path, argv, 0)
+
+
+def test_direct_gate_records_success_and_log_digest(tmp_path):
+    from tools import scoped_acceptance_launcher as LAUNCHER
+
+    argv = [sys.executable, "-c", "import sys; sys.stdout.write('gate ok\\n')"]
+    result = LAUNCHER._gate(tmp_path, argv, 1)
+    assert result == {
+        "argv": argv,
+        "rc": 0,
+        "log_sha256": hashlib.sha256(b"gate ok\n").hexdigest(),
+    }
+    assert len(result["log_sha256"]) == 64
+    int(result["log_sha256"], 16)
 
 
 def test_runner_scoped_shape_keeps_full_suite_shape_closed():
