@@ -168,7 +168,7 @@ collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/
 - `verbatim/precheck-patch.log` — 投入前の patch の厳密 check。`verbatim/hydrate.log` — third-party の hydrate。
 - `verbatim/submit.log` — 投入。`verbatim/elapse.log` — NQSV 会計。`verbatim/finish-group.log`・`verbatim/collect.log` — 完走後の receipt と collect。
 - `verbatim/s5-author.md` — wrapper の実装子の報告。`verbatim/draw-r2.log` — 陽性対照・R2 描画・表の親の初回実行 (fix 前)。
-- `verbatim/s6-review-a.md`・`verbatim/s6-review-b.md` — 段 6 の敵対レビュー 2 本 (Codex、read-only)。`verbatim/s6-fix1.md` — fix 子の報告。`verbatim/draw-r2-fix1.log` — fix 後の親の実行 (最終の図と表)。
+- `verbatim/s6-review-a.md`・`verbatim/s6-review-b.md` — 段 6 の敵対レビュー 2 本 (Codex、read-only)。`verbatim/s6-fix1.md` — fix 子の報告。`verbatim/draw-r2-fix1.log` — fix 後の親の実行 (最終の図と表)。`verbatim/s6-focus.md` — 焦点再レビュー。
 - repo 外: attempt root `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-r2-20260929a/`、出力親 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/` (collect-root・figure・tools・thirdparty-src)。
   submit-tree は一時置き場 `/work/1/SFC/tanab/tmp/t2853-r2-fig11-20260929/submit-tree` (wave の終わりに撤去)。
 
@@ -183,9 +183,13 @@ commit `b97a27e90` を対象に、Codex の read-only レビューを 2 本並�
 
 | ID | 所見 | 判定 | 処置 |
 |---|---|---|---|
-| A-F1 | wrapper が R2 入力 file 自身から計算した sha256 を期待値として渡し、hash 照合が自己照合になっている | real (must-fix) | fix 子 1 回目が R2 の 2 つの sha256 を wrapper の定数に固定した。元 attempt の入力を R2 として渡すと生成器が拒否し図を作らないことを確かめた。親が R2 実データで描き直した (PNG は bytes 不変、provenance の `authority_scope` と再現コマンドが変わった) |
+| A-F1 | wrapper が R2 入力 file 自身から計算した sha256 を期待値として渡し、hash 照合が自己照合になっている | real (must-fix) | fix 子 1 回目が R2 の 2 つの sha256 を wrapper の定数に固定した。元 attempt の入力を R2 として渡すと生成器が拒否し図を作らないことを確かめた。親が R2 実データで描き直した (PNG は bytes 不変。provenance で変わったのは tracked 入力の `authority_scope`・生成時刻・出力 hash の欄で、caption・`artist_series`・`reproduction` は同一。PDF の hash は変わった) |
 | A-F2 / B-F1 | 表の R2 の node 欄が「receipt unknown」 | real (should-fix) | 同じ fix で、Execution Hosts の同じ行に並ぶ複数 host を数えるようにした。表は「policy 5; receipt 5」、元 attempt は「policy 1; receipt 1」のまま |
 | B-F2 | 費用の 1.72 に受入の見積りが混ざり、全 job の実測合計と読める | real (should-fix) | 受入の実測後に §6 へ実測値を書き、見積りと分ける |
 | B-F3 | 地位・非合成・限定の記述が重なり本題が埋もれる | real (nit) | §0 は投入前に固定した節なので変えない。冒頭の「結論」から主要結果へ直接たどれるので、このまま受け入れる |
 
 変異 matrix は、repo の実装面の差分が 0 (wrapper は repo 外、repo の変更は insight・phase 行・worklog fragment だけ) のため段 4 裁定どおり免除した。
+
+焦点再レビュー (Codex、read-only、commit `12cd17a2b` が対象、受理検査 rc 0、`verbatim/s6-focus.md`) は **GO**。A-F1・A-F2・B-F1 は closed、B-F2 は受入の実測待ちで partial、B-F3 は受容の判断で partial、回帰は無し。
+レビュー子は wrapper の定数と collect 原本の sha256 の一致、allocation 記録の host 数 (R2 5・元 attempt 1)、fix 前後の PNG の bytes 一致を確かめた。
+新規所見 1 件 (上の表の A-F1 の処置文が「再現コマンドが変わった」と書いていた) は real で、fix 前後の provenance を親が照合し (差は `generated_utc`・`outputs`・`tracked_inputs` の 3 key だけ)、処置文を訂正した。
