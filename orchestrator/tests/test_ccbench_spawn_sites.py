@@ -669,8 +669,9 @@ _OVERLAY_BASE_DEFINE_INTERFACES = {
         "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
     }),
     "patches/cicada-forwarding-variant.patch": frozenset({
-        "CICADA_FWD_ENABLE", "CICADA_LONGTX",
+        "CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT",
     }),
+    "patches/cicada-forwarding-gc.patch": frozenset({"CICADA_GC_SAFEPOINT"}),
     "patches/instr-silo-function-policy-probe.patch": frozenset({
         "IZANAGI_SILO_POLICY_PROBE",
     }),

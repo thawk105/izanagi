@@ -1,0 +1,888 @@
+{
+ "broken_observation": {
+  "BROKEN_E-A10-t8": {
+   "detected": true,
+   "diagnostics": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 5449,
+    "held_changed": 1484,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "reached": true
+  },
+  "BROKEN_E-A100-t8": {
+   "detected": true,
+   "diagnostics": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 5993,
+    "held_changed": 1649,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "reached": true
+  }
+ },
+ "builds": {
+  "BROKEN_E": "completed",
+  "C_MAX": "completed",
+  "C_PARTIAL": "completed",
+  "E": "completed"
+ },
+ "cell_observation": {
+  "BROKEN_E-A10-t8": {
+   "build": "BROKEN_E",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 2931,
+   "cell": "A10",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": 0.5122627998567848,
+    "ineligible": 0.0,
+    "no_room": 0.0,
+    "once_skipped": 0.0,
+    "overflow": 0.0,
+    "read_mismatch": 0.0,
+    "write_constraint": 0.0
+   },
+   "e_success": 5449,
+   "forced_success": 5449,
+   "held_changed": 1484,
+   "read_wts_mismatch": 0,
+   "requests": 11172,
+   "triggers": 109673
+  },
+  "BROKEN_E-A100-t8": {
+   "build": "BROKEN_E",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 3073,
+   "cell": "A100",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": 0.4706090026478376,
+    "ineligible": 0.0,
+    "no_room": 0.0,
+    "once_skipped": 0.0,
+    "overflow": 0.0,
+    "read_mismatch": 0.0,
+    "write_constraint": 0.000441306266548985
+   },
+   "e_success": 5993,
+   "forced_success": 5993,
+   "held_changed": 1649,
+   "read_wts_mismatch": 0,
+   "requests": 11330,
+   "triggers": 108876
+  },
+  "C_MAX-C10-t8": {
+   "build": "C_MAX",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 3675,
+   "cell": "C10",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": null,
+    "ineligible": null,
+    "no_room": null,
+    "once_skipped": null,
+    "overflow": null,
+    "read_mismatch": null,
+    "write_constraint": null
+   },
+   "e_success": 0,
+   "forced_success": 0,
+   "held_changed": 0,
+   "read_wts_mismatch": 0,
+   "requests": 0,
+   "triggers": 272481
+  },
+  "C_PARTIAL-C10-t8": {
+   "build": "C_PARTIAL",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 5887,
+   "cell": "C10",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": null,
+    "ineligible": null,
+    "no_room": null,
+    "once_skipped": null,
+    "overflow": null,
+    "read_mismatch": null,
+    "write_constraint": null
+   },
+   "e_success": 0,
+   "forced_success": 0,
+   "held_changed": 0,
+   "read_wts_mismatch": 0,
+   "requests": 0,
+   "triggers": 275641
+  },
+  "E-A10-t8": {
+   "build": "E",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 2637,
+   "cell": "A10",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": 0.06101083032490975,
+    "ineligible": 0.0,
+    "no_room": 0.6895306859205776,
+    "once_skipped": 0.0,
+    "overflow": 0.0,
+    "read_mismatch": 0.0,
+    "write_constraint": 0.24855595667870037
+   },
+   "e_success": 5,
+   "forced_success": 0,
+   "held_changed": 0,
+   "read_wts_mismatch": 0,
+   "requests": 5540,
+   "triggers": 84612
+  },
+  "E-A100-t8": {
+   "build": "E",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 2612,
+   "cell": "A100",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": 0.025065469509913955,
+    "ineligible": 0.0,
+    "no_room": 0.7392442947998503,
+    "once_skipped": 0.0,
+    "overflow": 0.0,
+    "read_mismatch": 0.0,
+    "write_constraint": 0.2328843995510662
+   },
+   "e_success": 15,
+   "forced_success": 0,
+   "held_changed": 0,
+   "read_wts_mismatch": 0,
+   "requests": 5346,
+   "triggers": 79877
+  },
+  "E-B10-t8": {
+   "build": "E",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 0,
+   "cell": "B10",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": 0.0,
+    "ineligible": 0.0,
+    "no_room": 0.911643694713022,
+    "once_skipped": 0.0,
+    "overflow": 0.0,
+    "read_mismatch": 0.0,
+    "write_constraint": 0.03558938490022629
+   },
+   "e_success": 513,
+   "forced_success": 0,
+   "held_changed": 0,
+   "read_wts_mismatch": 0,
+   "requests": 9722,
+   "triggers": 1
+  },
+  "E-B100-t8": {
+   "build": "E",
+   "c_failures": null,
+   "c_lines_equal_commits": true,
+   "c_success": 0,
+   "cell": "B100",
+   "checker": {
+    "certified": false,
+    "framing_violation_kinds": {},
+    "integrity": {
+     "clean": false,
+     "dup_txids": 0,
+     "existence_violation_details": null,
+     "existence_violations": null,
+     "framing_violation_details": [],
+     "framing_violations": 0,
+     "genesis_commits": 0,
+     "lock_coverage_violations": 0,
+     "malformed_keys": 0,
+     "missing_txids": 0,
+     "notes": [],
+     "orphan_reads": 0,
+     "permutation_violation_details": {
+      "counts": {
+       "rcdptr-set-changed": 0,
+       "size-changed": 0,
+       "unknown": 0
+      },
+      "sample": [],
+      "unknown_reason_sample": []
+     },
+     "permutation_violations": 0,
+     "version_dups": 0,
+     "write_intent_violations": 0,
+     "write_version_mismatch": 0
+    },
+    "proof_surfaces": {
+     "I": "unavailable",
+     "P": "unavailable",
+     "X": "unavailable",
+     "protocol": "cicada"
+    },
+    "total_cycles": 0,
+    "verdict": "indeterminate"
+   },
+   "e_failures": {
+    "conflict": 0.0,
+    "ineligible": 0.0,
+    "no_room": 0.9100314889788574,
+    "once_skipped": 0.0,
+    "overflow": 0.0,
+    "read_mismatch": 0.0,
+    "write_constraint": 0.03913630229419703
+   },
+   "e_success": 452,
+   "forced_success": 0,
+   "held_changed": 0,
+   "read_wts_mismatch": 0,
+   "requests": 8892,
+   "triggers": 0
+  }
+ },
+ "compaction": {
+  "source_bytes": 6926627,
+  "source_sha256": "b04f3194d234922c0a9d844b110ebf71da90bb61184baa507c4d764189e1de39"
+ },
+ "ended_at": "2026-09-29T15:09:04.368614+00:00",
+ "exceptions": [],
+ "hostname": "bnode070",
+ "launcher_sha256": "b72ff1003e6e5ce696be3e83de3adaa60c9755ab5fd6bc204fba3429fd5cd3a1",
+ "patches": {
+  "patches/cicada-forwarding-gc.patch": {
+   "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-ftp-verify/patches/cicada-forwarding-gc.patch",
+   "sha256": "366c623afe560faf8f71ce6abde1bff43b7ac2d1918418b51cb8bd76cc593017",
+   "touch_set": [
+    "cc/cicada/transaction.cc",
+    "cc/cicada/ycsb_cicada.cc"
+   ]
+  },
+  "patches/cicada-forwarding-target-broken-ignore-mismatch.patch": {
+   "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-ftp-verify/patches/cicada-forwarding-target-broken-ignore-mismatch.patch",
+   "sha256": "560dd93bb74e3fc9d49fd39a4d7b7338c19b7b9ccef47f6b92d17e437b333c89",
+   "touch_set": [
+    "cc/cicada/transaction.cc"
+   ]
+  },
+  "patches/cicada-forwarding-target.patch": {
+   "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-ftp-verify/patches/cicada-forwarding-target.patch",
+   "sha256": "275474516054c9182e2f985f56389e52f05a9c483481333b8b7323293b8cd3b0",
+   "touch_set": [
+    "cc/cicada/transaction.cc"
+   ]
+  },
+  "patches/cicada-forwarding-variant.patch": {
+   "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-ftp-verify/patches/cicada-forwarding-variant.patch",
+   "sha256": "90ac9128fdc52b0495259f06483cbe6eefeb3c5f6374cc0dcc5f01b247840ae5",
+   "touch_set": [
+    "cc/cicada/transaction.cc",
+    "cc/cicada/ycsb_cicada.cc"
+   ]
+  },
+  "patches/instr-cicada-trace.patch": {
+   "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-ftp-verify/patches/instr-cicada-trace.patch",
+   "sha256": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5",
+   "touch_set": [
+    "cc/cicada/include/cicada_op_element.hh",
+    "cc/cicada/include/transaction.hh",
+    "cc/cicada/transaction.cc",
+    "cc/cicada/ycsb_cicada.cc"
+   ]
+  }
+ },
+ "repo_head": "69d5d53100d40fd648c12b7591898e5a1ec660a0",
+ "runs": {
+  "BROKEN_E-A10-t8": {
+   "build": "BROKEN_E",
+   "cell": "A10",
+   "error": null,
+   "expected_commits": 424225,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_gc_mode": "e",
+    "cicada_gc_sample_us": "10",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_target": "now",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 5449,
+    "held_changed": 1484,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0280311480019009
+  },
+  "BROKEN_E-A100-t8": {
+   "build": "BROKEN_E",
+   "cell": "A100",
+   "error": null,
+   "expected_commits": 442878,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_gc_mode": "e",
+    "cicada_gc_sample_us": "10",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_target": "now",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 5993,
+    "held_changed": 1649,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0233671800087905
+  },
+  "C_MAX-C10-t8": {
+   "build": "C_MAX",
+   "cell": "C10",
+   "error": null,
+   "expected_commits": 418345,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_fwd_target": "max",
+    "cicada_long_kind": "many_ops",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "1000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 0,
+    "held_changed": 0,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0191504459944554
+  },
+  "C_PARTIAL-C10-t8": {
+   "build": "C_PARTIAL",
+   "cell": "C10",
+   "error": null,
+   "expected_commits": 414523,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_fwd_target": "partial",
+    "cicada_long_kind": "many_ops",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "1000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 0,
+    "held_changed": 0,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0190384919987991
+  },
+  "E-A10-t8": {
+   "build": "E",
+   "cell": "A10",
+   "error": null,
+   "expected_commits": 403509,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_gc_mode": "e",
+    "cicada_gc_sample_us": "10",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_target": "max",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 0,
+    "held_changed": 0,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0292296190018533
+  },
+  "E-A100-t8": {
+   "build": "E",
+   "cell": "A100",
+   "error": null,
+   "expected_commits": 400816,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_gc_mode": "e",
+    "cicada_gc_sample_us": "10",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_target": "max",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 0,
+    "held_changed": 0,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0281451379996724
+  },
+  "E-B10-t8": {
+   "build": "E",
+   "cell": "B10",
+   "error": null,
+   "expected_commits": 575273,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_gc_mode": "e",
+    "cicada_gc_sample_us": "10",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_target": "max",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "10000",
+    "ycsb_zipf_skew": "0"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 0,
+    "held_changed": 0,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.041282031001174
+  },
+  "E-B100-t8": {
+   "build": "E",
+   "cell": "B100",
+   "error": null,
+   "expected_commits": 565196,
+   "flags": {
+    "cicada_fwd_policy": "c",
+    "cicada_gc_mode": "e",
+    "cicada_gc_sample_us": "10",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_target": "max",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_threads": "2",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "group_commit": "0",
+    "thread_num": "8",
+    "ycsb_max_ope": "10",
+    "ycsb_rmw": "false",
+    "ycsb_rratio": "50",
+    "ycsb_tuple_num": "10000",
+    "ycsb_zipf_skew": "0"
+   },
+   "gc_detection": {
+    "c_lines_equal_commits": true,
+    "cycle": false,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "forced_success": 0,
+    "held_changed": 0,
+    "read_wts_mismatch": 0,
+    "version_dups": 0
+   },
+   "rc": 0,
+   "thread": 8,
+   "wall_seconds": 1.0439048670086777
+  }
+ },
+ "started_at": "2026-09-29T15:05:27.858917+00:00"
+}

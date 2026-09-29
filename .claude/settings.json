@@ -43,6 +43,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/dev_wave_cleanup_stop_hook.py\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

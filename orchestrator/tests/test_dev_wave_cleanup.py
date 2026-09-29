@@ -268,7 +268,7 @@ def test_remove_child_archives_dirty_integrated_author_and_deletes_branch(tmp_pa
     assert not case.child.exists() and not case.admin.exists()
     assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
     assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
-    assert any(call[3:] == ('branch', '-D', '--', 'author') for call in calls)
+    assert any(call[3:] == ('update-ref', '-d', 'refs/heads/author', case.head) for call in calls)
     assert not any(call[3:5] == ('branch', '-d') for call in calls)
     assert (_sha(case.repo.main), _sha(case.repo.wave)) == (main_head, wave_head)
     assert _file_snapshot(case.repo.wave) == wave_before
@@ -336,13 +336,109 @@ def test_remove_child_rejects_unintegrated_author_commit(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     (case.child / 'tracked.txt').write_text('not integrated\n')
     _git(case.child, 'commit', '-am', 'unintegrated')
-    _child_rejected(case, monkeypatch, 'integration', reason='tracked.txt')
+    tip = _sha(case.child)
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert receipt['integration_basis'] == 'archived-unintegrated'
+    assert not case.child.exists() and not case.admin.exists()
+    assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
+    recovery = tmp_path / 'recovery'
+    _git(case.repo.main, 'init', str(recovery))
+    _git(recovery, 'fetch', str(case.repo.main), 'main')
+    _git(recovery, 'bundle', 'unbundle', str(case.evidence / 'history.bundle'))
+    assert _git(recovery, 'show', tip + ':tracked.txt').stdout == b'not integrated\n'
 
 
 def test_remove_child_empty_owned_paths_requires_ancestry(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     _edit_child_manifest(case, owned_paths=[])
-    _child_rejected(case, monkeypatch, 'integration', reason='empty owned_paths')
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    receipt = json.loads((case.evidence / 'removed.json').read_text())
+    assert receipt['integration_basis'] == 'archived-unintegrated'
+    assert (case.evidence / 'history.bundle').is_file()
+
+
+@pytest.mark.parametrize('wave_state', ['nonancestor', 'absent'])
+def test_remove_child_archive_requires_landed_wave(tmp_path, monkeypatch, wave_state):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, owned_paths=[])
+    if wave_state == 'nonancestor':
+        (case.repo.wave / 'wave-only').write_text('new wave commit\n')
+        _git(case.repo.wave, 'add', 'wave-only')
+        _git(case.repo.wave, 'commit', '-m', 'not landed')
+    else:
+        data = json.loads(case.manifest.read_text())
+        data['wave_worktree'] = str(tmp_path / 'missing-wave')
+        case.manifest.write_text(json.dumps(data))
+    _child_rejected(case, monkeypatch, 'integration', reason='wave_worktree')
+
+
+def test_remove_child_archive_stops_when_wave_moves_after_backup(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, owned_paths=[])
+    child_before = _file_snapshot(case.child)
+    original_backup = cleanup._backup_child
+    original_remove = cleanup._remove_verified_tree
+    removals = []
+
+    def advance_wave(*args):
+        result = original_backup(*args)
+        (case.repo.wave / 'wave-only').write_text('not landed\n')
+        _git(case.repo.wave, 'add', 'wave-only')
+        _git(case.repo.wave, 'commit', '-m', 'wave moved after backup')
+        return result
+
+    def record_remove(*args):
+        removals.append(args)
+        return original_remove(*args)
+
+    monkeypatch.setattr(cleanup, '_backup_child', advance_wave)
+    monkeypatch.setattr(cleanup, '_remove_verified_tree', record_remove)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert (caught.value.rc, caught.value.phase) == (30, 'recheck')
+    assert 'wave_worktree HEAD is not a main ancestor' in caught.value.reason
+    assert not removals
+    assert _file_snapshot(case.child) == child_before
+    assert case.admin.is_dir()
+    assert _sha(case.repo.main, 'refs/heads/author') == case.head
+    assert not (case.evidence / 'removed.json').exists()
+
+
+def test_remove_child_archive_rejects_private_worktree_ref(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _edit_child_manifest(case, owned_paths=[])
+    tree = _sha(case.child, 'HEAD^{tree}')
+    private = _git(case.child, 'commit-tree', tree, '-p', case.head,
+                   '-m', 'private ref target').stdout.decode().strip()
+    _git(case.child, 'update-ref', 'refs/worktree/keep', private)
+    _child_rejected(case, monkeypatch, 'integration', reason='per-worktree ref')
+
+
+def test_remove_child_archive_rejects_detached_nonancestor(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    _git(case.child, 'checkout', '--detach')
+    _edit_child_manifest(case, branch=None, owned_paths=[])
+    _child_rejected(case, monkeypatch, 'integration', reason='detached child HEAD')
+
+
+def test_remove_child_branch_compare_delete_preserves_moved_ref(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    original = cleanup.subprocess.run
+    moved = []
+
+    def move_before_delete(command, *args, **kwargs):
+        if command[3:5] == ['update-ref', '-d'] and not moved:
+            new_tip = _sha(case.repo.main)
+            _git(case.repo.main, 'update-ref', 'refs/heads/author', new_tip)
+            moved.append(new_tip)
+        return original(command, *args, **kwargs)
+
+    monkeypatch.setattr(cleanup.subprocess, 'run', move_before_delete)
+    with pytest.raises(cleanup.CleanupFailure) as caught:
+        cleanup.run(_child_argv(case))
+    assert moved and (caught.value.rc, caught.value.phase) == (30, 'branch-delete')
+    assert _sha(case.repo.main, 'refs/heads/author') == moved[0]
 
 
 def test_remove_child_rejects_nonempty_evidence_dir(tmp_path, monkeypatch):
@@ -410,6 +506,27 @@ def test_remove_child_rejects_unreachable_reflog_history(tmp_path, monkeypatch):
     _child_rejected(case, monkeypatch, 'integration', reason='unreachable')
 
 
+def test_remove_child_archive_rejects_reflog_only_commit(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / 'tracked.txt').write_text('not integrated\n')
+    _git(case.child, 'commit', '-am', 'unintegrated owned file')
+    archive_tip = _sha(case.child)
+    (case.child / 'lost.txt').write_text('reflog only\n')
+    _git(case.child, 'add', 'lost.txt')
+    _git(case.child, 'commit', '-m', 'lost after reset')
+    lost = _sha(case.child)
+    _git(case.child, 'reset', '--hard', archive_tip)
+    assert lost in _git(case.child, 'reflog', '--format=%H', 'HEAD').stdout.decode().splitlines()
+    assert _git(case.repo.main, 'branch', '--contains', lost,
+                '--format=%(refname)').stdout == b''
+    assert _git(case.repo.main, 'merge-base', '--is-ancestor', _sha(case.repo.wave),
+                'main', check=False).returncode == 0
+    assert _git(case.repo.main, 'merge-base', '--is-ancestor', archive_tip,
+                'main', check=False).returncode == 1
+    assert _git(case.repo.main, 'show', 'main:tracked.txt').stdout != (case.child / 'tracked.txt').read_bytes()
+    _child_rejected(case, monkeypatch, 'integration', reason='unreachable')
+
+
 def test_remove_child_rejects_skip_worktree_flag(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     _git(case.child, 'update-index', '--skip-worktree', 'tracked.txt')
@@ -473,7 +590,7 @@ def test_remove_child_admin_binding_change_is_partial(tmp_path, monkeypatch):
     assert not (case.evidence / 'removed.json').exists()
 
 
-def test_remove_child_main_advance_during_removal_is_partial(tmp_path, monkeypatch):
+def test_remove_child_main_advance_during_removal_completes(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     original = cleanup._remove_verified_tree
 
@@ -482,17 +599,31 @@ def test_remove_child_main_advance_during_removal_is_partial(tmp_path, monkeypat
         _git(case.repo.main, 'commit', '--allow-empty', '-m', 'main advanced')
 
     monkeypatch.setattr(cleanup, '_remove_verified_tree', advance_main)
+    assert cleanup.run(_child_argv(case)).outcome == 'removed'
+    assert not case.child.exists()
+    assert not case.admin.exists()
+    assert _git(case.repo.main, 'rev-parse', '--verify', 'refs/heads/author^{commit}', check=False).returncode == 128
+    for name in ('committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch',
+                 'status.txt', 'head-sha.txt', 'branch.txt'):
+        assert (case.evidence / name).exists()
+    assert (case.evidence / 'removed.json').exists()
+
+
+def test_remove_child_main_rewind_during_removal_is_partial(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    original = cleanup._remove_verified_tree
+
+    def rewind_main(verified, common):
+        original(verified, common)
+        _git(case.repo.main, 'reset', '--hard', case.repo.base)
+
+    monkeypatch.setattr(cleanup, '_remove_verified_tree', rewind_main)
     with pytest.raises(cleanup.CleanupFailure) as caught:
         cleanup.run(_child_argv(case))
     assert (caught.value.rc, caught.value.phase) == (30, 'admin-recheck')
     assert 'main changed since integration proof' in caught.value.reason
-    assert not case.child.exists()
     assert case.admin.exists()
     assert _sha(case.repo.main, 'refs/heads/author') == case.head
-    for name in ('committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch',
-                 'status.txt', 'head-sha.txt', 'branch.txt'):
-        assert (case.evidence / name).exists()
-    assert not (case.evidence / 'removed.json').exists()
 
 
 def test_remove_child_already_clean_with_receipt(tmp_path, monkeypatch):
@@ -2441,7 +2572,7 @@ def test_remove_child_branch_delete_failure_is_partial(tmp_path, monkeypatch):
     fired = []
 
     def lock_branch(command, *args, **kwargs):
-        if command[3:] == ['branch', '-D', '--', 'author']:
+        if command[3:] == ['update-ref', '-d', 'refs/heads/author', case.head]:
             fired.append(True)
             assert not case.child.exists() and not case.admin.exists()
             lock = case.repo.main / '.git/refs/heads/author.lock'
@@ -2481,7 +2612,7 @@ def test_remove_child_deletes_branch_after_admin_removal(tmp_path, monkeypatch):
     observed = []
 
     def observe(command, *args, **kwargs):
-        if command[3:] == ['branch', '-D', '--', 'author']:
+        if command[3:] == ['update-ref', '-d', 'refs/heads/author', case.head]:
             assert not case.child.exists() and not case.admin.exists()
             assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None
             observed.append(True)

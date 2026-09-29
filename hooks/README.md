@@ -5,7 +5,10 @@
 (規律5「盛らない」)。加えて、正しさ規律とは**別系統**の衛生 hook を 2 本持つ:
 コンテキスト衛生 (guard_read = D35 の機械執行、hook 3 節。2026-07-15 ユーザー承認、
 失敗台帳 F18) と、モデル経済衛生 (guard_agent = subagent model 明示の機械執行、hook 4 節。
-2026-07-18 ユーザー承認)。
+2026-07-18 ユーザー承認)。さらに作業場衛生の Stop hook を 1 本持つ (`tools/dev_wave_cleanup_stop_hook.py` =
+land 済み wave 木の撤去の再促し、hook 5 節。2026-09-29 ユーザー依頼「land 後に掃除せず終了する wave が多い」への対策)。
+これは書込みや操作を防護しない注意喚起で、AI が書き換えても防壁は弱まらないので `hooks/` の外に置く
+(`hooks/` は guard_write が自己保護する防壁の置き場で、変更には D427 の別 worktree 経路を要する)。
 
 **実装ステータス: 実装済・配線済 (Phase 3 タスク3、方針 A)。** `.claude/settings.json` の PreToolUse に
 4 hook を配線 (matcher = `Write|Edit|MultiEdit|NotebookEdit` / `Bash` / `Read` / `Agent`)。方針 A (D30) で hook の責務を
@@ -325,6 +328,29 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
 更新で再び drift しうる — 次に daemon major/minor が上がった新規バックグラウンドセッションで
 同じ probe を再試験する。
 
+## hook 5: tools/dev_wave_cleanup_stop_hook.py (Stop) — 作業場衛生 (正しさ防壁ではない)
+
+本体の置き場は冒頭のとおり `tools/`。終了を 1 回止めて促すだけで、書込みや操作は防護しない。
+
+dev-wave が local main へ land した後、`DW-O28` の撤去をせずに終了すると worktree と branch が残る
+(2026-09-29 の実測で、land 後に撤去を呼ばず `result:` で終えた wave が 2 本)。session が終了しようとした時点で
+自分の wave 木が land 済みに見えれば、終了を 1 回だけ止めて撤去を促す。
+
+- **管轄:** Claude Code の `Stop` event のみ。入力の `cwd` (EnterWorktree 後は worktree の path) と
+  `stop_hook_active` を使う (2026-09-29 に `claude -p` の probe で両 field の実在と、2 回目の Stop が
+  `stop_hook_active=true` で届くことを実測)
+- **判定:** cwd が linked worktree で branch を checkout しており、その branch の reflog 最古 entry
+  (作成点) から HEAD が前進し、かつ HEAD が `refs/heads/main` の祖先のときだけ block する。作成直後で
+  commit 0 件の wave、未 land の wave、primary checkout、detached、bare、submodule、git 外は通す
+- **1 回だけ:** `stop_hook_active=true` の Stop は必ず通す。block の reason は「land 済みの可能性」と書き、
+  撤去できない・未 land・撤去中ならその旨を 1 行書いて終えてよいと明記する
+- **fail-open:** payload 不正、git の失敗・timeout、reflog 不在・曖昧はすべて通す (被害は残骸であって
+  正しさではないため可用性を優先)
+- 既知の限界: **ExitWorktree で main checkout に戻ってから終了した session は見えない** (2026-09-29 の 2 本のうち
+  1 本がこの形)。branch 作成後に main を fast-forward で取り込んだだけの未 land wave は誤って促しうる
+  (理由文で「可能性」と書くのはこのため)。reflog が期限切れ・`branch -f` 済みなら作成点を誤りうる。
+  調整役の撤去許可を待つ session では、終了のたびに 1 回の追加応答が生じる。回収率は主張しない
+
 ## 既知の限界 (正直に)
 
 これは**テキスト検査の第二防壁であり sandbox ではない**。次は原理的に見えず、一次防壁
@@ -466,7 +492,7 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
 
 ## テスト
 
-`orchestrator/tests/test_hooks.py` が 4 hook の判定核 (`decide()`) を直叩きし、3 巡の敵対レビューで確定した
+`orchestrator/tests/test_hooks.py` が 5 hook の判定核 (`decide()`) を直叩きし、3 巡の敵対レビューで確定した
 全 finding を回帰固定する (`test_bash_finding_bypasses_all_denied` / `test_bash_round2_bypasses_denied` /
 `test_bash_false_positive_fixes_allowed` / `test_symlinked_output_tree_still_protects` /
 `test_notebookedit_decoy_file_path_denied` 等)。settings.json の配線 (全 matcher) と、subprocess として

@@ -1,0 +1,277 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 180,
+ "timeout_seconds": 4500,
+ "hang_timeout_seconds": 4500,
+ "mutations": [
+  {
+   "id": "P0",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup_stop_hook.py",
+     "old": "this advisory hook must fail open",
+     "new": "this advisory hook has to fail open"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    if wave is not None:\n        if not wave.is_dir():",
+     "new": "    if False:\n        if not wave.is_dir():"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_requires_landed_wave[absent]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_requires_landed_wave[nonancestor]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_stops_when_wave_moves_after_backup"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    _assert_child_history(repo, proof, history)\n    for root in",
+     "new": "    for root in"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_rejects_reflog_only_commit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "for root in (admin / \"refs\", admin / \"logs\" / \"refs\"):",
+     "new": "for root in ():"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_rejects_private_worktree_ref"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "if proof.branch is None and not _ancestor(repo, proof.head, main_head):",
+     "new": "if False:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_rejects_detached_nonancestor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "elif _ancestor(args.main, proof.head, proof.main_tip):",
+     "new": "elif True:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_deletes_branch",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_bundle_verify_failure_is_partial[create]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_bundle_verify_failure_is_partial[verify]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "if current_main is None or not _ancestor(repo, proof.main_tip, current_main):",
+     "new": "if current_main is None:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_rewind_during_removal_is_partial"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6B",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "if current_main is None or not _ancestor(repo, proof.main_tip, current_main):",
+     "new": "if current_main is None:"
+    },
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "if current_main is None or not _ancestor(args.main, proof.main_tip, current_main):",
+     "new": "if current_main is None:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_rewind_during_removal_is_partial"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "if current_main is None or not _ancestor(repo, proof.main_tip, current_main):",
+     "new": "if current_main != proof.main_tip:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_completes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "argv = (\"update-ref\", \"-d\", proof.branch, proof.head)",
+     "new": "argv = (\"branch\", \"-D\", \"--\", proof.branch[11:])"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_deletes_branch",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_branch_compare_delete_preserves_moved_ref",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_branch_delete_failure_is_partial",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_deletes_branch_after_admin_removal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup_stop_hook.py",
+     "old": "if not isinstance(payload, dict) or payload.get(\"stop_hook_active\") is True:",
+     "new": "if not isinstance(payload, dict):"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_cleanup_stop_active_allows_landed_wave",
+    "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_stdin_stdout"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup_stop_hook.py",
+     "old": " or oids[-1] == head:",
+     "new": ":"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_wave_with_zero_commits"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup_stop_hook.py",
+     "old": "return (True, REASON) if code == 0 else (False, \"\")",
+     "new": "return (True, REASON)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_unlanded_wave"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": ".claude/settings.json",
+     "old": "tools/dev_wave_cleanup_stop_hook.py",
+     "new": "tools/dev_wave_cleanup_stop_hookx.py"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_settings_json_wires_all_hooks"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        if admin.child_archive:\n            _assert_archived_child(args.main, wave, proof, identity.gitdir,\n                                   common, history)\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archive_stops_when_wave_moves_after_backup"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup_stop_hook.py",
+     "old": "if len(raw) > 1024 * 1024:",
+     "new": "if False:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_size_limit_prevents_block"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

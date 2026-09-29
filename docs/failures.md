@@ -21562,6 +21562,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実 producer が同一経路を通るかを段 6 のレビュー観点に明示的に入れる。**
   「テストが緑」を配線の証拠に使わず、実 producer を通す正例が 1 本あるかを見る。
 
+
+- **再発: 2026-09-29** — VHash md_21 で、C++ の計数行を新しく読む driver の解析を、実装子が推測で組んだ fixture だけで検査した。実物との食い違いが smoke 1 (`CICADA_LONGTX_V1` の top-level key に `schema` があった) と fix 後の焦点再レビュー (SAFEPOINT の無い build の GC 行の mode は `"none"`、driver は `"off"` を要求) で 1 巡に 1 件ずつ出て、fix を 2 巡追加した。どちらも login のテストと段 6 のレビュー 2 本では捕まらなかった。直した後は実 stdout の行を写した回帰テストと、build の macro 集合から期待を導く形にした。
 ### F723. 親が「逐語」と称した射影資料を省略記号で切り、子の fixture に同じ穴が空いた [テスト代表性] [手順漏れ]
 
 - 事象: 実 build の逐語を job dir へ射影する際、`.o.d` の中身を `...` で省略した。実装子は
@@ -28424,6 +28426,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (未統合 rc=20 で不変 / wave 本体 `-d` のみ / 共通 runner の `-D` 拒否 / bundle verify 失敗と削除失敗は partial)、`tools/check_docs.py` の
   command・skill・`DW-O28` の exact pin、本 wave 段 9 での自分の子木に対する実走。
 
+
+- **再発: 2026-09-29** — 段 9 の自己撤去 (D2163・D2197) の導入後も、9/29 に land した wave 約 35 本のうち約 10 本で子木の `remove-child` が rc=20 で拒否され、子木と子 branch が残った。fix 巡ごとに新しい子木を作る運用 (1 wave で `git worktree add` 25〜31 回) の途中版の木は所有 path が main と一致せず、repo に入れない probe・作図の木は所有 path が空で、統合証明が構造的に成り立たない。撤去中に他 wave の land で main が進んで rc=30 になった wave が 4 本、撤去を呼ばずに終了した wave が 2 本あった。恒久対応: D2314 (退避してから撤去する経路、main 前進の許容、compare-and-delete、終了時 hook、`DW-S05-A` の同木・同 branch 再利用と補助木登録)。再発検知: `orchestrator/tests/test_dev_wave_cleanup.py` の退避撤去の正例・負例 (`test_remove_child_archive_requires_landed_wave`・`test_remove_child_archive_stops_when_wave_moves_after_backup`・`test_remove_child_main_advance_during_removal_completes` ほか) と `orchestrator/tests/test_hooks.py` の `test_cleanup_stop_*`。
 ### F1037. contract loader closure の file への変異を、等価変異で実測した drift 集合の外だけで数えようとしたが、入口停止を外す変異はその外の test からも drift へ到達した [変異帰属] [誤前提]
 
 - 事象: [T-2632] は `orchestrator/campaign/p3_s4_loop.py` (contract loader closure の member) に変異を注入した。等価変異 E1 の注入で drift する 150 node を実測し、
@@ -28774,3 +28778,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 雛形の作成時に、写し元の行ごとに「計測の条件をそろえるための設定か、受入一般の設定か」を仕分けなかった。雛形のコメントは門番の閾値の変更だけを裁定事項として守り、環境変数の行は無審査で持ち越された。受入 report の pre は記録されていたが、日別推移を見る検査は無かった。
 - 恒久対応: 雛形から export を外した (D2312、一次資料 `output/insights/2026-09-29/acceptance-critical-path/README.md`)。雛形に理由のコメントを 1 行置いた。memory `shared-template-must-not-carry-measurement-env` (共有雛形を作る・写すときは、写し元の環境変数の行を計測条件か受入一般かで仕分け、計測条件は持ち越さない)。
 - 再発検知: 受入 shard の pre の二峰 (温 65〜80 / 冷 125〜140 秒) と、dispatch の `request.json` の env の `PYTHONDONTWRITEBYTECODE` の対応表 (一次資料 §2 の手順)。機械化は未実装。
+
+### F1076. cleanup Codex skill を予算余白 18 bytes まで伸ばし、25 bytes の H2 を足す負例テストが予算超過と SHA 不一致の 2 件で赤になった [手順漏れ] [テスト代表性]
+
+- 事象: 2026-09-30、`/cleanup-branches` 改訂 wave の段 6 fix で `.agents/skills/cleanup-branches/SKILL.md` を 3,082 bytes (予算 3,100) にした。
+  変異 probe の baseline で `orchestrator/tests/test_check_docs.py::test_cleanup_skill_additional_h2_is_rejected` が赤
+  (`"\n## destructive override\n"` 25 bytes を足すと 3,107 > 3,100 になり、期待 1 件の SHA 不一致に予算超過が重なった)。受入前に捕まり、fix を 1 巡余分に要した。
+- 根本原因: whole-file pin の「完成本文 + 余白 3」は command 側の 1 byte 追加の負例に合わせた値で、SKILL.md には 25 bytes を足す負例がある。
+  親は SKILL.md の余白を負例の追加 bytes と照合しなかった。login では pytest が guard に拒否され、check_docs 緑だけでは気づけない。
+- 恒久対応: memory `exact-pinned-leaf-sections-need-codex-and-fixture-placeholder` に「SKILL.md は予算 − 25 以下 (余白 26 以上)」を追記。
+  本 wave は上限を変えず SKILL.md を 3,058 bytes に縮めた (D2313 の wave、commit 4bdda232e・6f4062b37)。
+- 再発検知: 変異 harness の baseline 緑要件 (DW-C01) が同 test の赤で起動を止める。
+
+### F1077. 壊し正例を、検査したい方策の構造上その壊れ方が起きない経路に置き、到達 0 の検査を 1 巡走らせた [テスト代表性]
+
+- 事象: VHash md_21 で、前進先の方策 E-max の壊し正例 (確認での既読不一致を ok とみなす) を E-max で走らせるよう段 4 で設計した。E-max は既読の可視区間の内側に目標を取るので確認で既読不一致が構造上ほぼ起きず、検査 1 回目 (request 36358) で壊しの到達は 0 (forced_success 0)、同じ run の E-max の確認での既読不一致も 0.0 だった。壊しを E-now で走らせ直して (fix 4)、2 回目で到達 5,449・5,993 と保持版検査の検出を得た。段 3 の相談 2 本・段 6 のレビュー 2 本は指摘しなかった。
+- 根本原因: 正例の設計で「壊す判定」を選ぶとき、その判定が検査対象の方策で実際に偽になる入力が生じるかを確かめなかった。目標の選び方が確認の前提を満たすように作られている方策では、確認を壊しても到達しない。
+- 恒久対応: 親の永続 memory へ `positive-control-must-reach-on-target-path` を登録した (段 4 で正例を置くとき、その壊れ方が発火する経路と到達計数を先に書く)。検査起動器は正例ごとに到達 (`reached`) と検出 (`detected`) を別々に記録する (job dir `verify/launch_cicada_run_target.py`)。
+- 再発検知: 正例の結果が「到達なし」のとき。到達 0 を「検出されなかった」と読まず、正例の置き場所を疑う。

@@ -496,6 +496,8 @@ def _probe() -> dict:
 
 
 def _argv(binary: Path, spec: dict) -> list[str]:
+    if spec.get("target_job"):
+        return target_argv(binary, spec)
     if spec.get("gc_job"):
         flags = ["-thread_num=48", "-ycsb_tuple_num=1000000",
                  f"-ycsb_zipf_skew={spec['skew']:g}",
@@ -548,7 +550,7 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
     record = {**common, **spec, "schema_version": "vhash-forwarding-record/v1",
               "thread_num": 48, "long_threads": 0 if spec["workload"] == "normal" else 4,
               "perf_eligible": (not spec["build_kind"].endswith("-count")
-                                if spec.get("gc_job") else perf_eligible(spec["build_kind"])),
+                                if spec.get("gc_job") or spec.get("target_job") else perf_eligible(spec["build_kind"])),
               "verification_status": "未検証の診断値", "argv": argv,
               "hostname": socket.gethostname(), "started": start, "ended": now(),
               "seconds": time.monotonic() - tick, "returncode": code,
@@ -558,10 +560,24 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
               "fwd_counters": None, "longtx_counters": None, "valid": False}
     if spec.get("gc_job"):
         record.update(build_macros=list(MACROS[spec["build_kind"]]), gc_counters=None)
+    if spec.get("target_job"):
+        record.update(schema_version="vhash-target-record/v1",
+                      stdout={"sha256": sha_bytes(stdout), "text": stdout.decode("utf-8", "replace")},
+                      stderr={"sha256": sha_bytes(stderr), "text": stderr.decode("utf-8", "replace")},
+                      gc_counters=None)
     try:
         if code:
             raise ValueError(f"binary rc={code}")
         text = stdout.decode("utf-8", "replace")
+        if spec.get("target_job"):
+            fwd, gc, longtx = parse_target_lines(text, spec["arm"],
+                                                  spec["build_kind"].endswith("-count"))
+            metric = parse_bench_stdout(text).get("throughput[tps]")
+            if metric is None or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", metric):
+                raise ValueError("missing throughput[tps] result line")
+            record.update(throughput=float(metric), gc_counters=gc, fwd_counters=fwd,
+                          longtx_counters=longtx, valid=True)
+            return record
         if spec.get("gc_job"):
             gc = parse_gc_line(text, spec["build_kind"].endswith("-count"))
             fwd, longtx = parse_counter_lines(text,
@@ -725,15 +741,20 @@ def _write(path: Path, data: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("smoke", "run", "aggregate", "gc-smoke", "gc-run", "gc-aggregate"))
+    parser.add_argument("command", choices=("smoke", "run", "aggregate", "gc-smoke", "gc-run", "gc-aggregate", "target-run", "target-aggregate"))
     parser.add_argument("--third-party-cache", type=Path)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--workload", choices=WORKLOADS)
     parser.add_argument("--wait-us", type=int, choices=(1000, 10000))
-    parser.add_argument("--skew", type=float, choices=(0.9, 0))
+    parser.add_argument("--skew", type=float, choices=(0, 0.6, 0.9))
+    parser.add_argument("--smoke", action="store_true", help="target-run: GC 10, one rep per build, 1 s")
     parser.add_argument("--k-sweep", action="store_true")
     parser.add_argument("--raw", type=Path, action="append", help="explicit aggregate input JSON; repeat for each job")
     args = parser.parse_args(argv)
+    if args.command.startswith("target-"):
+        return target_main(args, parser)
+    if args.smoke or args.skew == 0.6:
+        parser.error("--smoke and skew 0.6 only apply to target-run")
     if args.command.startswith("gc-"):
         return gc_main(args, parser)
     if args.skew is not None:
@@ -952,6 +973,400 @@ def gc_main(args, parser) -> int:
         for attr in ("inert_receipt", "condition_gate_evidence"):
             if hasattr(exc, attr):
                 job[attr] = getattr(exc, attr)
+    job["ended"] = now()
+    _write(output, job)
+    print(output)
+    return 0 if job["all_pass"] else 1
+
+
+TARGET_PATCH = ROOT / "patches/cicada-forwarding-target.patch"
+TARGET_STACK = (PATCH, GC_PATCH, TARGET_PATCH)
+TARGET_ARMS = {
+    "wait_after_reads": ("stock", "C-min", "E-hb", "E-now", "E-max", "E-max-once"),
+    "many_ops": ("stock", "C-min", "C-max", "C-partial", "C-partial-once", "F"),
+    "normal": ("stock", "C-min", "C-partial", "F"),
+}
+TARGET_DEFAULT_ARMS = frozenset(("stock", "C-min", "F", "E-hb", "E-now"))
+TARGET_JOBS = frozenset({("wait_after_reads", 10000, skew) for skew in (0, .6, .9)} |
+                        {("wait_after_reads", 1000, .9),
+                         ("many_ops", None, .6), ("many_ops", None, .9),
+                         ("normal", None, .9)})
+TARGET_EXTRA = frozenset(("no_room", "once_skipped", "uncapped"))
+
+
+def target_arm_flags(arm: str) -> list[str]:
+    """Only policy flags; workload and instrumentation flags belong to the plan."""
+    if arm not in {a for arms in TARGET_ARMS.values() for a in arms}:
+        raise ValueError(f"unknown target arm: {arm}")
+    flags = [] if arm == "stock" else ["--cicada_fwd_policy=" + ("f" if arm == "F" else "c"),
+                                         "--cicada_fwd_k=3"]
+    flags += {"C-max": ["--cicada_fwd_target=max"],
+              "C-partial": ["--cicada_fwd_target=partial"],
+              "C-partial-once": ["--cicada_fwd_target=partial", "--cicada_fwd_once=true"],
+              "E-hb": ["--cicada_gc_mode=hb"],
+              "E-now": ["--cicada_gc_mode=e"],
+              "E-max": ["--cicada_gc_mode=e", "--cicada_gc_target=max"],
+              "E-max-once": ["--cicada_gc_mode=e", "--cicada_gc_target=max",
+                             "--cicada_gc_once=true"]}.get(arm, [])
+    if arm.startswith("E-"):
+        flags.append("--cicada_gc_slice_us=100")
+    return flags
+
+
+def target_build_kind(arm: str, counted: bool) -> str:
+    base = "gc-stock" if arm == "stock" else "gc-e" if arm.startswith("E-") else "gc-c"
+    return base + ("-count" if counted else "")
+
+
+def target_plan_runs(workload: str, wait_us: int | None, *, skew=.9, smoke=False) -> list[dict]:
+    if (workload, wait_us, skew) not in TARGET_JOBS:
+        raise ValueError("unexpected target job condition")
+    arms = TARGET_ARMS[workload]
+    specs = []
+    for gc in ((10,) if smoke else (10, 1000)):
+        for counted in (False, True):
+            reps = 1 if smoke or counted and workload == "normal" else 3
+            for rep in range(reps):
+                for order_index, arm in enumerate(arms[rep % len(arms):] + arms[:rep % len(arms)]):
+                    specs.append({"target_job": True, "workload": workload, "wait_us": wait_us,
+                                  "skew": skew, "gc_inter_us": gc, "arm": arm,
+                                  "build_kind": target_build_kind(arm, counted), "rep": rep,
+                                  "order_index": order_index, "extime": 1 if smoke else 3})
+    return specs
+
+
+def target_argv(binary: Path, spec: dict) -> list[str]:
+    base = _argv(binary, {**spec, "target_job": False, "gc_job": True, "arm": "stock"})
+    flags = target_arm_flags(spec["arm"])
+    return base + flags
+
+
+def _target_json_line(stdout: str, prefix: str, expected: bool) -> dict | None:
+    matching = [line[len(prefix):] for line in stdout.splitlines() if line.startswith(prefix)]
+    if len(matching) != int(expected):
+        raise ValueError(f"{prefix.strip()} expected {int(expected)} lines, found {len(matching)}")
+    if not expected:
+        return None
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key}")
+            result[key] = value
+        return result
+    return json.loads(matching[0], object_pairs_hook=unique_pairs)
+
+
+def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) -> tuple[dict | None, dict | None, dict]:
+    """Reject every extra, missing or duplicate counter line and key."""
+    fwd_default = not arm.startswith("C-") or arm == "C-min"
+    gc_default = (not arm.startswith("E-") or arm in ("E-hb", "E-now")) and not broken
+    fwd_expected = counted and arm != "stock"
+    gc_expected = counted
+    fwd_v1 = _target_json_line(stdout, "CICADA_FWD_V1 ", fwd_expected and fwd_default)
+    fwd_v2 = _target_json_line(stdout, "CICADA_FWD_V2 ", fwd_expected and not fwd_default)
+    gc_v1 = _target_json_line(stdout, "CICADA_GC_V1 ", gc_expected and gc_default)
+    gc_v2 = _target_json_line(stdout, "CICADA_GC_V2 ", gc_expected and not gc_default)
+    longtx = _target_json_line(stdout, "CICADA_LONGTX_V1 ", True)
+    if type(longtx) is not dict or longtx.keys() != {"schema", "threads"} or \
+            type(longtx["schema"]) is not int or longtx["schema"] != 1 or \
+            type(longtx["threads"]) is not list:
+        raise ValueError("longtx schema invalid")
+    for row in longtx["threads"]:
+        if type(row) is not dict or row.keys() != LONGTX_FIELDS or any(
+                type(v) is not bool if k == "long" else type(v) is not int or v < 0
+                for k, v in row.items()):
+            raise ValueError("longtx thread schema invalid")
+    if len({row["thid"] for row in longtx["threads"]}) != len(longtx["threads"]):
+        raise ValueError("duplicate longtx thid")
+    fwd = fwd_v1 if fwd_default else fwd_v2
+    if fwd is not None:
+        required = FWD_FIELDS if fwd_default else FWD_FIELDS | TARGET_EXTRA | {"short_success"}
+        top = {"schema", "policy", "k", "threads"} | (set() if fwd_default else {"target", "once"})
+        if type(fwd) is not dict or fwd.keys() != top or type(fwd["threads"]) is not list:
+            raise ValueError("FWD top schema invalid")
+        if fwd["schema"] != (1 if fwd_default else 2) or \
+                fwd["policy"] != ("f" if arm == "F" else "c") or \
+                type(fwd["k"]) is not int or fwd["k"] != 3:
+            raise ValueError("FWD policy schema invalid")
+        if not fwd_default and (fwd["target"] != ("max" if arm == "C-max" else "partial") or
+                            type(fwd["once"]) is not bool or
+                            fwd["once"] != (arm == "C-partial-once")):
+            raise ValueError("FWD target policy mismatch")
+        for row in fwd["threads"]:
+            if type(row) is not dict or row.keys() != required or any(
+                    type(v) is not int or v < 0 for v in row.values()):
+                raise ValueError("FWD thread schema invalid")
+        if len({row["thid"] for row in fwd["threads"]}) != len(fwd["threads"]):
+            raise ValueError("duplicate FWD thid")
+    gc = gc_v1 if gc_default else gc_v2
+    if gc is not None:
+        if gc_default:
+            parse_gc_line("CICADA_GC_V1 " + json.dumps(gc), True)
+        else:
+            top = GC_TOP | {"target", "once"}
+            if type(gc) is not dict or gc.keys() != top or gc["schema"] != 2 or \
+                    gc["target"] != ("now" if broken and arm == "E-now" else "max") or \
+                    type(gc["once"]) is not bool or gc["once"] != (arm == "E-max-once"):
+                raise ValueError("GC V2 top schema invalid")
+            reduced = {k: v for k, v in gc.items() if k in GC_TOP}
+            reduced["schema"] = 1
+            fields = GC_THREAD | TARGET_EXTRA | ({"forced_success"} if broken else set())
+            for row in reduced["threads"]:
+                if type(row) is not dict or row.keys() != fields or any(
+                        type(v) is not int or v < 0 for v in row.values()):
+                    raise ValueError("GC V2 thread schema invalid")
+            reduced["threads"] = [{k: v for k, v in row.items() if k in GC_THREAD}
+                                  for row in reduced["threads"]]
+            parse_gc_line("CICADA_GC_V1 " + json.dumps(reduced), True)
+        build_macros = MACROS[target_build_kind(arm, counted)]
+        mode_flag = next((flag for flag in target_arm_flags(arm)
+                          if flag.startswith("--cicada_gc_mode=")), "--cicada_gc_mode=off")
+        expected_mode = mode_flag.split("=", 1)[1] if "CICADA_GC_SAFEPOINT" in build_macros else "none"
+        if gc["mode"] != expected_mode:
+            raise ValueError("GC mode does not match target arm")
+    return fwd, gc, longtx
+
+
+def target_success_metrics(counter: dict, family: str) -> dict:
+    rows = counter["threads"]
+    keys = ("success", "attempts", "read_mismatch", "write_constraint", "conflict",
+            "ineligible", "no_room", "once_skipped", "uncapped", "advance_clock_sum")
+    totals = {key: sum(row.get(key, 0) for row in rows) for key in keys}
+    if family == "E":
+        for key in ("requests", "overflow", "flag_raises"):
+            totals[key] = sum(row[key] for row in rows)
+        denominator = totals["requests"]
+        if counter["mode"] == "e" and denominator != (totals["attempts"] + totals["overflow"] +
+                                                     totals["no_room"] + totals["once_skipped"]):
+            raise ValueError("E request accounting mismatch")
+    else:
+        for key in ("triggers", "f_aborts", "no_target", "short_success", "advance_clock_sum"):
+            totals[key] = sum(row.get(key, 0) for row in rows)
+        denominator = totals["triggers"]
+        if denominator != sum(totals[k] for k in ("f_aborts", "no_target", "no_room", "once_skipped", "attempts")):
+            raise ValueError("C trigger accounting mismatch")
+    attempt_failures = {k: totals[k] for k in ("read_mismatch", "write_constraint", "conflict", "ineligible")}
+    if sum(attempt_failures.values()) + totals["success"] != totals["attempts"]:
+        raise ValueError("attempt outcome accounting mismatch")
+    failures = {**attempt_failures, "no_room": totals["no_room"],
+                "once_skipped": totals["once_skipped"]}
+    if family == "E":
+        failures["overflow"] = totals["overflow"]
+    else:
+        failures.update(no_target=totals["no_target"], f_aborts=totals["f_aborts"])
+    reason_key = "failure_reasons_per_request" if family == "E" else "failure_reasons_per_trigger"
+    return {**totals, "denominator": denominator,
+            "success_rate": (totals["success"] / denominator if denominator else None)
+            if family != "E" or counter["mode"] == "e" else None,
+            "attempt_success_rate": totals["success"] / totals["attempts"] if totals["attempts"] else None,
+            reason_key: {k: v / denominator if denominator and
+                         (family != "E" or counter["mode"] == "e") else None
+                         for k, v in failures.items()},
+            "advance_clock_mean_success": totals["advance_clock_sum"] / totals["success"]
+            if totals["success"] else None}
+
+
+def target_aggregate_jobs(jobs: list[dict]) -> dict:
+    cells = {}
+    seen = set()
+    for job in jobs:
+        if job.get("command") != "target-run" or not job.get("all_pass") or job.get("smoke"):
+            raise ValueError("target-aggregate requires complete non-smoke target-run jobs")
+        if job.get("ccbench_pin") != pin.CURRENT_PIN or job.get("genome") != GC_GENOME or \
+                set(job.get("patch_sha256", {})) != {str(p.relative_to(ROOT)) for p in TARGET_STACK} or \
+                any(not re.fullmatch(r"[0-9a-f]{64}", value)
+                    for value in job["patch_sha256"].values()):
+            raise ValueError("target job provenance invalid")
+        condition = (job["workload"], job.get("wait_us"), job["skew"])
+        if condition not in TARGET_JOBS or condition in seen:
+            raise ValueError("unexpected or duplicate target job")
+        seen.add(condition)
+        expected = target_plan_runs(*condition[:2], skew=condition[2])
+        expected_keys = {(s["gc_inter_us"], s["arm"], s["build_kind"], s["rep"], s["order_index"])
+                         for s in expected}
+        actual = set()
+        for record in job["records"]:
+            if (record["workload"], record.get("wait_us"), record["skew"]) != condition:
+                raise ValueError("record condition differs from job")
+            key = tuple(record[k] for k in ("gc_inter_us", "arm", "build_kind", "rep", "order_index"))
+            if key in actual or key not in expected_keys:
+                raise ValueError("duplicate or unexpected target record")
+            actual.add(key)
+            counted = record["build_kind"].endswith("-count")
+            if not record.get("valid") or record.get("perf_eligible") is counted:
+                raise ValueError("invalid or mislabeled record")
+            if record.get("argv") != target_argv(Path(record["argv"][0]), record):
+                raise ValueError("target arm flags mismatch")
+            if record["stdout"].get("sha256") != sha_bytes(record["stdout"]["text"].encode("utf-8")):
+                raise ValueError("raw stdout hash mismatch")
+            if counted:
+                fwd, gc, longtx = parse_target_lines(record["stdout"]["text"], record["arm"], True)
+                if record.get("fwd_counters") != fwd or record.get("gc_counters") != gc or \
+                        record.get("longtx_counters") != longtx:
+                    raise ValueError("parsed counter differs from raw")
+                if sum(t["held_changed"] for t in gc["threads"]):
+                    raise ValueError("held version changed")
+            else:
+                fwd = gc = None
+                _, _, parsed_longtx = parse_target_lines(record["stdout"]["text"], record["arm"], False)
+                if record.get("longtx_counters") != parsed_longtx:
+                    raise ValueError("longtx counter differs from raw")
+                if record.get("gc_counters") is not None or record.get("fwd_counters") is not None:
+                    raise ValueError("performance run contains counters")
+                longtx = record["longtx_counters"]
+            cell_key = f"{condition[0]}/wait={condition[1]}/skew={condition[2]:g}/gc={record['gc_inter_us']}"
+            cell = cells.setdefault(cell_key, {"workload": condition[0], "wait_us": condition[1],
+                "skew": condition[2], "gc_inter_us": record["gc_inter_us"],
+                "arms": {arm: {"performance": [], "count": []} for arm in TARGET_ARMS[condition[0]]}})
+            arm_data = cell["arms"][record["arm"]]
+            if counted:
+                gc_summary = _gc_summary(gc, longtx)
+                gc_summary.pop("series")
+                gc_summary.update({k: sum(t.get(k, 0) for t in gc["threads"]) for k in TARGET_EXTRA})
+                split = None
+                if fwd is not None:
+                    split_input = {**fwd, "threads": [{**{k: 0 for k in TARGET_EXTRA}, **row}
+                                                       for row in fwd["threads"]]}
+                    split = _split_threads(split_input, ("triggers", "attempts", "success", "f_aborts", "no_target",
+                                                  "no_room", "once_skipped", "advance_clock_sum"),
+                                           {"thread_num": record.get("thread_num", 48),
+                                            "long_threads": record.get("long_threads", 0 if condition[0] == "normal" else 4)})
+                    split = {group: {**values, "success_rate": values["success"] / values["triggers"]
+                        if values["triggers"] else None} for group, values in split.items()}
+                completion = {}
+                for group, is_long in (("long", True), ("normal", False)):
+                    subset = [row for row in longtx["threads"] if row["long"] is is_long]
+                    commits = sum(row["commits"] for row in subset)
+                    aborts = sum(row["aborts"] for row in subset)
+                    completion[group] = {"commits": commits, "aborts": aborts,
+                        "rate": commits / (commits + aborts) if commits + aborts else None}
+                arm_data["count"].append({"rep": record["rep"], "gc": gc_summary,
+                    "e": target_success_metrics(gc, "E"),
+                    "c": target_success_metrics(fwd, "C") if fwd else None,
+                    "c_by_thread": split, "completion_by_thread": completion, "longtx": longtx})
+            else:
+                arm_data["performance"].append({"rep": record["rep"],
+                    "throughput_tps": record["throughput"], "longtx": longtx})
+        if actual != expected_keys:
+            raise ValueError("missing or extra target record")
+    if seen != TARGET_JOBS:
+        raise ValueError("missing target jobs")
+    for cell in cells.values():
+        stock = statistics.median(r["throughput_tps"] for r in cell["arms"]["stock"]["performance"])
+        for arm, data in cell["arms"].items():
+            median = statistics.median(r["throughput_tps"] for r in data["performance"])
+            data["throughput_median_tps"] = median
+            data["throughput_stock_ratio"] = median / stock if stock else None
+            if arm != "stock":
+                family = "e" if arm.startswith("E-") else "c"
+                data["policy_exercised"] = sum(r[family]["success"] for r in data["count"]) > 0
+        pairs = (("E-max", "E-hb"), ("E-max", "E-now")) if cell["workload"] == "wait_after_reads" else \
+                tuple((arm, "C-min") for arm in cell["arms"] if arm.startswith("C-") and arm != "C-min")
+        cell["comparisons"] = {}
+        for left, right in pairs:
+            left_reps = {r["rep"]: r for r in cell["arms"][left]["count"]}
+            right_reps = {r["rep"]: r for r in cell["arms"][right]["count"]}
+            if left_reps.keys() != right_reps.keys():
+                raise ValueError("unpaired count reps")
+            family = "e" if left.startswith("E-") else "c"
+            metrics = ("success_rate", "advance_clock_mean_success")
+            differences = {metric: [left_reps[i][family][metric] - right_reps[i][family][metric]
+                for i in left_reps if left_reps[i][family] and right_reps[i][family]
+                and left_reps[i][family][metric] is not None and right_reps[i][family][metric] is not None]
+                for metric in metrics}
+            cell["comparisons"][left + "_minus_" + right] = {
+                metric: statistics.median(values) if values else None
+                for metric, values in differences.items()}
+            if family == "e":
+                for metric in ("lag_rts_mean_us", "live_mean", "estimated_live_bytes_mean",
+                               "retention_p50_upper_us", "long_argmin_fraction"):
+                    values = [left_reps[i]["gc"][metric] - right_reps[i]["gc"][metric]
+                              for i in left_reps if left_reps[i]["gc"][metric] is not None
+                              and right_reps[i]["gc"][metric] is not None]
+                    cell["comparisons"][left + "_minus_" + right][metric] = \
+                        statistics.median(values) if values else None
+            else:
+                for group in ("long", "normal"):
+                    for source, metric in (("c_by_thread", "success_rate"),
+                                           ("completion_by_thread", "rate")):
+                        values = [left_reps[i][source][group][metric] -
+                                  right_reps[i][source][group][metric]
+                                  for i in left_reps if left_reps[i][source][group][metric] is not None
+                                  and right_reps[i][source][group][metric] is not None]
+                        cell["comparisons"][left + "_minus_" + right][
+                            group + "_" + source + "_" + metric] = \
+                            statistics.median(values) if values else None
+    return {"schema_version": "vhash-target-aggregate/v1", "verification_status": "未検証の診断値",
+            "cells": cells}
+
+
+def target_run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> dict:
+    return _run_binary(binary, spec, common, gates)
+
+
+def target_main(args, parser) -> int:
+    if args.k_sweep:
+        parser.error("--k-sweep does not apply to target commands")
+    if args.command == "target-aggregate":
+        if not args.raw or args.smoke or args.skew is not None:
+            parser.error("target-aggregate requires --raw and no run options")
+        _write(args.output / "target-aggregate.json", target_aggregate_jobs(
+            [json.loads(path.read_text()) for path in args.raw]))
+        return 0
+    if not args.third_party_cache or not args.third_party_cache.is_absolute() or args.workload is None:
+        parser.error("target-run requires --workload and absolute --third-party-cache")
+    wait_us = args.wait_us if args.wait_us is not None else (10000 if args.workload == "wait_after_reads" else None)
+    skew = args.skew if args.skew is not None else .9
+    try:
+        specs = target_plan_runs(args.workload, wait_us, skew=skew, smoke=args.smoke)
+    except ValueError as exc:
+        parser.error(str(exc))
+    started = now()
+    job = {"schema_version": "vhash-target-job/v1", "command": "target-run", "smoke": args.smoke,
+        "workload": args.workload, "wait_us": wait_us, "skew": skew,
+        "ccbench_pin": pin.CURRENT_PIN, "patch_sha256": {}, "genome": GC_GENOME,
+        "value_bytes": GC_VALUE_BYTES, "verification_status": "未検証の診断値",
+        "job_id": socket.gethostname() + "-" + started, "hostname": socket.gethostname(),
+        "started": started, "records": [], "builds": {}, "all_pass": False}
+    output = args.output / ("raw-target-" + args.workload + "-" + started.replace(":", "-") + ".json")
+    try:
+        if re.fullmatch(r"pegasus0[0-9]", socket.gethostname()):
+            raise RuntimeError("measurement job must run on a compute node")
+        job["patch_sha256"] = {str(p.relative_to(ROOT)): sha_file(p) for p in TARGET_STACK}
+        job["git_head"] = checked(["git", "rev-parse", "HEAD"], cwd=ROOT).stdout.decode().strip()
+        job["competing_probe"] = _probe()
+        policy = compute._load_policy(ROOT / "tools/pegasus/mocc_trace_v1_policy.json")
+        toolchain = compute._resolve_toolchain(policy)
+        with tempfile.TemporaryDirectory(prefix="vhash-target-") as temporary:
+            scratch = Path(temporary)
+            deps = compute._prepare_dependencies(ROOT, policy, args.third_party_cache, scratch, toolchain)
+            with patchharness.checkout(pin.CURRENT_PIN) as worktree:
+                source = Path(worktree)
+                for patch in TARGET_STACK:
+                    patchharness.apply_patch(str(patch), str(source))
+                binaries = {}
+                for kind in ("gc-dependency", "gc-stock", "gc-c", "gc-e",
+                             "gc-stock-count", "gc-c-count", "gc-e-count"):
+                    binary, gates, seconds = _build_variant(source, scratch / ("build-target-" + kind),
+                                                             kind, deps, toolchain)
+                    binaries[kind] = (binary, gates)
+                    job["builds"][kind] = {"binary_sha256": sha_file(binary), "seconds": seconds,
+                                           "gate_receipts": gates}
+                common = {"job_id": job["job_id"], "ccbench_pin": pin.CURRENT_PIN,
+                          "patch_sha256": job["patch_sha256"], "genome": GC_GENOME}
+                for spec in specs:
+                    binary, gates = binaries[spec["build_kind"]]
+                    record = target_run_binary(binary, spec, common, gates)
+                    job["records"].append(record)
+                    _write(output, job)
+                    if not record["valid"]:
+                        raise RuntimeError("invalid target run: " + record.get("invalid_reason", "unknown"))
+                job["all_pass"] = True
+    except Exception as exc:
+        job["error"] = type(exc).__name__ + ": " + str(exc)
+        if hasattr(exc, "condition_gate_evidence"):
+            job["condition_gate_evidence"] = exc.condition_gate_evidence
     job["ended"] = now()
     _write(output, job)
     print(output)
