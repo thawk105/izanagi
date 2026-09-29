@@ -6,7 +6,20 @@ wave: dev-wave-ro-gc-publish
 seq: 2
 ---
 
+## 新規
+
+### {{F:same-value-pin-automerge}}. 2 つの wave が同じ件数 pin を同じ値へ書き換え、git の 3-way 合成が衝突なしで 1 回分の加算だけを残した [手順漏れ] [near miss]
+
+- 事象: 2026-09-30、[T-2911] VHash md_22 wave の受入前に local main 17995a4fe (VHash hot block wave が着地) を取り込むと、登録簿 7 file が衝突した。衝突は「同じ位置へ別の項目を足した」型で和集合にすれば解けるが、衝突の外で、両 wave がそれぞれ新 macro 3 件を足したことに伴う件数 pin (`_COMPILE_TIME_BRANCH_MACROS` 51→54、`MEANING_SUPPORTED_MACROS` 52→55、交差表の `proven-unreachable` 55→58・65→68、s8b sink の `covered` 69→72 など) を**同じ新値へ**書き換えていた。git は両側が同一の変更をしたと見て衝突なしで 1 回分だけを残すので、合成結果の pin は両 wave の追加の合算 (+6) でなく +3 のままになる。登録項目の衝突だけを解いて commit すると受入で赤になり、合算がたまたま別の変更と打ち消し合えば誤った件数で緑になりうる。
+- 根本原因: 件数 pin は「集合の要素数」という派生値で、両側の追加が独立でも書き換え後の literal は一致しうる。3-way 合成は literal の一致を「同じ変更」と扱うので、派生値の合算が要る箇所を衝突として表に出さない。
+- 恒久対応: 両側が同じ登録簿へ追加した取り込みでは、衝突の有無にかかわらず、両側差分の数値 literal の変更を突き合わせ、同じ行を両側が同値へ書き換えた箇所を合成の対象として列挙し、合成後のコードから値を導出する (本 wave の段 6 追補裁定 FM-2、`output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`)。memory `acceptance-discipline` に手順を置く。
+- 再発検知: 取り込みの前に、merge-base から両側への差分で `-`/`+` の対になった数値 literal の変更を両側で比べ、同じ行が同じ新値へ変わっていれば赤として扱う。
+
 ## 再発
+
+### F815
+
+- **再発: 2026-09-30** (実害: Codex 子 1 本が prompt を読む前に停止、数分) — [T-2911] VHash md_22 wave の親が、main 取り込みの競合解消を Codex author に書かせるため、子の worktree で `git merge --no-ff --no-commit` した衝突状態を作ってそのまま子を投入した。子は `NG: Codex hook 配線の exact 検証に失敗: tools/pegasus/admission_registry.json: working bytes が HEAD blob から drift` で起動時に停止した (F815 の本文と同一の文言)。段取りの文面には「clean な木に書かせる」とあったが、衝突箇所を子に実物で見せたい意図で merge 状態の木を用意した。子の木を clean な wave HEAD に戻し、3 版と両側差分を job dir に射影し、main 側の file は `git show <main SHA>:<path>` で読ませる形で再投入した。
 
 ### F100
 
