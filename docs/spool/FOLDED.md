@@ -5616,3 +5616,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-29","base":"b18f87b5dbdf500dacd70d5cac0151daae7fc8c5","content_sha256":"09908a4200266b3506bf9c40d20d57e46043418019f608b9efe7a5f8e33dd644","seq":1,"tested_tip":"a6c32004ffcf92e95fd182f8c576ef0b0f93a896","wave":"dev-wave-gen-opt-phase3-readme-sync","wave_ref":"refs/heads/dev-wave-gen-opt-phase3-readme-sync"}
 
 - {"allocations":{},"authored":"2026-09-29","base":"ea875d374260836c0a95138d0a4344b8ac704f28","content_sha256":"b9b1d03b9e574b7b0f18b1ef574ea27fbd29a3e5cfb4cef895a7ee6dc94886e4","seq":1,"tested_tip":"4c843f966aba333e70eefe4738c9f89c5d303ed3","wave":"worktree-dev-wave-t2853-r2-fig6","wave_ref":"refs/heads/worktree-dev-wave-t2853-r2-fig6"}
+
+- {"allocations":{"T:gen-opt-silo-intra-txn-fix-import":"[T-2905]"},"authored":"2026-09-29","base":"8cd0ef4a37611288d5988e6c17efa832957c5c08","content_sha256":"866547ce6c3d80d889c5c5cf5cd82656ebfeeaf3aef9b5e423f647c62e17807c","seq":1,"tested_tip":"c6ae65d3f2bc294b3fec57eb483f07013b7e7982","wave":"dev-wave-gen-opt-gate-liveness","wave_ref":"refs/heads/dev-wave-gen-opt-gate-liveness"}
