@@ -1,0 +1,313 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "mc0-comment-only",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "    # A deque keeps the first recorded violation at minimum transition depth.\n",
+     "new": "    # The queue determines traversal order. MC0\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc1-first-edge-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "        for next_state, step in transitions(state):\n",
+     "new": "        for next_state, step in list(transitions(state))[:1]:  # MC1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc2-skip-judgment-on-visited",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "                if item.applies(state, next_state, step):\n",
+     "new": "                if next_state not in parent and item.applies(state, next_state, step):  # MC2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc3-stop-at-first-violation",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "                            first_violation = violation\n",
+     "new": "                            return SearchResult(SearchStats(len(parent), checked, terminal, monotonic() - began, True, \"exhausted\"), first, violation, witness_steps)  # MC3\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc4-lifo-queue",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "        state = queue.popleft()\n",
+     "new": "        state = queue.pop()  # MC4\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc5-skip-new-state-invariant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "                check_state(next_state, state, step, steps)\n",
+     "new": "                pass  # MC5\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc6-complete-on-limit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "                                    monotonic() - began, stop_reason == \"exhausted\",\n",
+     "new": "                                    monotonic() - began, True,  # MC6\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc7-drop-ww",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/cycles.py",
+     "old": "        for earlier, later in zip(versions, versions[1:]):\n",
+     "new": "        for earlier, later in ():  # MC7\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc8-drop-wr",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/cycles.py",
+     "old": "            add(version.writer, reader, \"wr\", read.key, version.id, version.id)\n",
+     "new": "            pass  # MC8\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc9-drop-rw",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/cycles.py",
+     "old": "            for later in versions[index + 1:]:\n",
+     "new": "            for later in ():  # MC9\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions",
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required",
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required",
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc10-rw-next-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/cycles.py",
+     "old": "            for later in versions[index + 1:]:\n",
+     "new": "            for later in versions[index + 1:index + 2]:  # MC10\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc11-no-duplicate-id-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/cycles.py",
+     "old": "            if version.id in by_id:\n",
+     "new": "            if False:  # MC11\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc12-allow-unknown-field",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/schema.py",
+     "old": "    if set(value) != expected:\n",
+     "new": "    if not expected <= set(value):  # MC12\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc13-no-atom-charset",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/schema.py",
+     "old": "    if type(value) is str and (_ID.fullmatch(value) or _DIGEST.fullmatch(value)):\n",
+     "new": "    if type(value) is str and (len(value) <= 64 or _DIGEST.fullmatch(value)):  # MC13\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc14-drop-length-two-ops",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/scenarios.py",
+     "old": "    operations = tuple((op,) for op in alphabet) + tuple(product(alphabet, repeat=2))\n",
+     "new": "    operations = tuple((op,) for op in alphabet)  # MC14\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc15-no-duplicate-writer-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/cycles.py",
+     "old": "                if version.writer in writers:\n",
+     "new": "                if False:  # MC15\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc16-no-finite-seconds-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/search.py",
+     "old": "    if type(max_seconds) is float and not isfinite(max_seconds):\n",
+     "new": "    if False:  # MC16\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc17-no-step-count-cap",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/schema.py",
+     "old": "    if len(raw_steps) > 1024:\n",
+     "new": "    if False:  # MC17\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mc18-no-vocabulary-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cc_model_checker/schema.py",
+     "old": "        if allowed is not None and item not in allowed:\n",
+     "new": "        if False:  # MC18\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

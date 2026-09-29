@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 66 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Forty-eight
+Claim boundary: the supply domain contains the 69 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Fifty-one
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -270,6 +270,21 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
         "patches/cicada-forwarding-variant.patch",
     ),
+    "CICADA_GC_SAFEPOINT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-forwarding-gc.patch",
+        companion_defines=(("CICADA_FWD_ENABLE", "1"),),
+    ),
+    "CICADA_GC_WAIT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-forwarding-gc.patch",
+        companion_defines=(("CICADA_GC_SAFEPOINT", "1"),
+                           ("CICADA_FWD_ENABLE", "1"), ("CICADA_LONGTX", "1")),
+    ),
+    "CICADA_GC_COUNT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-forwarding-gc.patch",
+    ),
     "IZANAGI_BREAK_NOREAD_VALIDATION": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-norw-validation.patch",
@@ -440,6 +455,15 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "CICADA_LONGTX": (
         "cc/cicada/ycsb_cicada.cc", "#if CICADA_LONGTX",
     ),
+    "CICADA_GC_SAFEPOINT": (
+        "cc/cicada/transaction.cc", "#if CICADA_GC_SAFEPOINT",
+    ),
+    "CICADA_GC_WAIT": (
+        "cc/cicada/ycsb_cicada.cc", "#if CICADA_GC_WAIT",
+    ),
+    "CICADA_GC_COUNT": (
+        "cc/cicada/transaction.cc", "#if CICADA_GC_COUNT",
+    ),
     "IZANAGI_BREAK_WRITE_INTENT_ERASE": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_WRITE_INTENT_ERASE",
     ),
@@ -552,6 +576,9 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "CICADA_FWD_ENABLE": 11,
     "CICADA_FWD_COUNT": 4,
     "CICADA_LONGTX": 4,
+    "CICADA_GC_SAFEPOINT": 3,
+    "CICADA_GC_WAIT": 2,
+    "CICADA_GC_COUNT": 7,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "IZANAGI_CICADA_VLIFE": (

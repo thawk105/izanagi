@@ -379,6 +379,14 @@
 - **再発: 2026-09-27 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-27 版の wave で発見)** — 2026-09-26 版 §6・§7 は認定較正 record の現物を「計 8 record」「現物は 8 record」と現在形で書いたが、MOCC の動作点を pin C で較正した 3 件 (`f72ad2c52`、2026-09-26 14:12 JST、D2248) は同版の起点 `6d198ca8a` の祖先で、起点の `output/env/pegasus/calibration/registered/` は 11 file だった (2026-09-23 版の起点 `65fd1422f` では 8 file で真)。前版から運んだ件数の文を、起点の現物の件数と照合せずに運んだのが原因。2026-09-27 版の §7 担当の子が起点の tree を数えて見つけ、同版の冒頭・§6・§7・§10 と README で訂正した。版の再導出では、運ぶ件数の文を起点の現物 (tree の file 数) で数え直す。
 
 - **再発: 2026-09-29** — gen-opt md_2 wave の親が、検索の事前登録 file の改訂 1・2 と handoff に書いた時刻 (09:52・10:40・10:45) を `date` で測らず推定で書き、実時刻 (改訂 1 は 09:49〜09:50、改訂 2 は 10:06、handoff の該当時点は 10:01) と最大 39 分ずれた。file の mtime で気づき、登録 file は本文を書き換えず末尾へ訂正を追記した。恒久対応は既存どおり、時刻を書く 1 回ごとに `date` か mtime を取る。事前登録の改訂のように後から書き換えない記録には、`date` の出力を同じ command で埋め込むのが安い。
+
+- **再発: 2026-09-29 (near-miss)** — cleanup-branches command の予算引き上げで、親の段 4 裁定と check_docs のコメント
+  (commit 6524efd42) が「D782 手順による引き上げ」と書いた。D782 と `docs/skill-self-improvement.md` の要約
+  (「意味等価にできなければ D782 に従う…上限引き上げ時だけ報告」) だけを根拠にし、D782 が委任する D730 本文の条件
+  (上限引き上げは「同型の実害が独立に 3 例以上」の例外の収容先を作れない場合に限る) を読まずに落とした。事象は 1 件で、
+  条件を満たさない。段 6 の read-only review が must-fix R3 として検出し、「本 wave の個別裁定、D730 の 3 例例外ではない」と
+  書き直した (a9a96fd2a、実害なし)。転写対象が**委任先の裁定の発動条件**へ広がった顕在化である。恒久対応は memory から変更なし
+  — 裁定を根拠に引くときは、委任の連鎖 (D782 → D730) の末端の本文まで読む。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -6581,6 +6589,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — [T-2875] の Cicada 診断 driver (`orchestrator/campaign/vhash_cicada_vlife.py`) を計算ノードで走らせると、実機の前提の欠陥が 1 回に 1 件ずつ出た。(1) smoke1 (33792.nqsv): Cicada の `transaction.cc` も WORKLOADS 4 実行体へ compile されるので `compile_commands.json` の行が 4 本あり、1 本前提の行選択で停止 (2026-09-22 の再発 (2) と同じ形)。(2) smoke2 (33926.nqsv): condition gate の meaning 検査は owner TU (`transaction.cc`) の前処理だけで分岐の目印を数えるので、別 TU (`util.cc`・`ycsb_cicada.cc`) に置いた計器分岐と `#if SINGLE_EXEC` (既定 0) の内側の分岐を観測できず、宣言 44 に対し観測 38 で拒否。login の在庫 test (宣言件数と patch の `#if` 件数の一致) は緑のままだった。机上の plan・相談・レビュー 4 本はどちらも挙げなかった。2026-09-22 の再発で効いた「全 case の外部との交点を既存 driver と CCBench に照合した表を実装子に作らせる」を段 5 の prompt に入れていなかった。分岐を owner TU と、それが include する header だけに集めて smoke3 以降は通った。記録 = `output/insights/2026-09-29/vhash-cicada-version-measure/README.md` §5・§9、裁定 = 同 `verbatim/s6-fix3-ruling.md`・`s6-fix4-ruling.md`。
 
 - **再発: 2026-09-29** — [T-2879] wave で、静的レビューと login の pytest を通った計測 driver が計算ノードの smoke で 6 回止まった: Cicada は 4 target で同じ TU を compile し compile entry が 4 件、masstree の config.h は build 時にしか生成されず configure だけの木と gate の前処理で 2 回、gate へ渡す configure 引数に検査対象 macro の CXX_FLAGS が入り重複 define、patch の行挿入で `__LINE__` がずれ inert 比較が不一致、検査木に gate 登録が無い。どれも先例 (silo_policy_coverage の `_prepare_build_dependencies` と gate 呼び出し、instr-mocc-lock-coverage の `#line`) に既に答えがあった。smoke は 1 回 20〜100 秒と安く、実害は時間だけ。恒久対応は F139 のまま (実機の書式・生成物は先例の実装か最安の生死確認で確かめてから driver に書く)。
+
+- **再発: 2026-09-29** — md_17 wave (Cicada の TPC-C trace) で、Codex author が重ね patch の `tpcc_cicada.cc` の `#else` 側に `#line 31` を書いた (正しくは 30。`#line N` は次の行を N にするので、元の 31 行目の文の前は 30)。同じ repo の既存計装 (`patches/instr-cicada-trace.patch` の ycsb hunk、元の 30 行目の前に `#line 29`) に答えがあった。`ERR` → `NNN` の `__LINE__` が `fprintf` の即値になるので、TRACE=0 の命令列比較を赤にする形だった。親が計算ノードへ投げる前の静的レビューで見つけ、fix 1 回で直した (実害なし、直した後の比較は 12 TU で一致)。恒久対応は F139 のまま (実機の書式は先例の実装で確かめてから書く)。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
@@ -8630,6 +8640,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   の `command_startup_routing_blockquoted` と、本 wave が追加した
   `stage6-relocated` / `decoy-blockquoted` が、同種の行境界変更を positive control として固定する。
 
+
+- **再発: 2026-09-29** — docs-only の land 調整の知見の反映 wave で、節予算 1000 bytes の原資を作るため `docs/dev-wave/operations.md` の DW-O20 の「`DW-C01`に従い初期化して」を「`DW-C01`で初期化して」に詰めたところ、受入全走 1 回目 (1 failed / 28064 passed) で `orchestrator/tests/test_check_docs.py::test_dw_o20_points_to_dw_c01_and_drops_legacy_submodule_command` が赤になった。追加事実は、**この pin は `tools/check_docs.py` ではなく test 側の逐語 assert にあり、`check_docs.py` 緑でも捕まらない**こと。親は詰める語句を `tools/check_docs.py` だけで grep していた。語句を戻して受入を取り直した (受入 1 回分、約 14 分の損)。予防は、詰める前に wave 前の本文にあって新しい本文に無い文字列 literal を tools・orchestrator・hooks の Python から走査すること (本 wave は AST で全数走査し、他に文書へ掛かる pin が無いことを確かめた)。
 ### F220. 失敗 node が多い変異は期待 node の完全集合を記録できない [手順漏れ] [テスト代表性]
 
 - 事象: 変異事前登録のため `git diff-tree --raw` から `-r` を落とす変異の期待 node を実測で
@@ -8839,6 +8851,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   test 群にも同じ形で効く**ことで、docs-only wave が「子ゼロだから commit 前に焦点走してよい」と読むと踏む。
   回避は変わらず、docs/dev-wave の編集を commit してから焦点走・子投入を行うこと (commit 後の再走 5437.nqsv は
   855 passed / 3 skipped / rc=0)。
+
+- **再発: 2026-09-29** — docs-only の land 調整の知見の反映 wave で、親が `docs/dev-wave/operations.md` を編集した未 commit 状態のまま段 6 の read-only review 子を投げ、`NG: docs/dev-wave/operations.md: working tree が authority commit と異なる` の rc=2 で起動前に終わった (起動から約 3 秒)。2026-08-27・2026-09-18 の再発と同型で、「実装子がいない docs-only wave でも、review 子の前に docs/dev-wave の編集を commit する」が追加の確認点。commit してから新しい job-id・新しい `.done` で投げ直して通った。失ったのは数分で、計算資源の浪費は無い。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
@@ -20732,6 +20746,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   1 件直すたびに queue 待ちを含む round-trip を 1 往復消費した。
   個別対処ではなく、**鎖の全項目を列挙して各々の成立根拠を実行側基準で書き出す**ことで
   残りを一括で潰した。
+
+- **再発: 2026-09-29** — VHash 構成 E の計算ノード smoke が、gate 前の dependency build 抜け (1 回目)、`#line` のずれ (2 回目)、計器なし build の未使用引数 (3 回目) と 1 回に 1 件ずつ止まった。3 回目の後に「build 行列の全 macro の組で -Werror の構文検査を実 header で通す」を fix 子に課し、4 回目で通った。検査起動器も dependency build 抜けで 1 回空振りし、2 回目は driver の成功経路と 1 段ずつ突き合わせさせて通した (その突き合わせで genome が旧定義だったのも見つかった)。
 ### F684. 生きた台帳の一部を exact pin で凍結し、全体更新をできなくした [恒真ゲート] [自己整合]
 
 - 事象: 受入全走が 17700 件中 1 件だけ赤で戻った。落ちたのは
@@ -28667,3 +28683,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 親は「行番号がずれないこと」を確かめる手段として、手元にあった行番号マーカーの byte 比較をそのまま完了条件にした。依頼する変更 (`#line` の追加) がその観測量を必ず変えることを確かめなかった。
 - 恒久対応: 完了条件を書く前に、依頼する変更自身がその観測量に現れないかを確かめ、守るべき性質そのもの (ここでは推定行番号の列、`__LINE__` の展開値) を観測量にする。性質の定義は参照実装つきで渡す (本 wave の `probe/presumed_lines.py`、insight `output/insights/2026-09-29/t2854-ccbench-format-ci/README.md` §5.2)。memory `completion-criterion-must-not-observe-own-change`。
 - 再発検知: 実装子が「完了条件が成立しない」と実測して停止する (fail-closed)。
+
+### F1067. 再現パッケージの repo 外 wrapper が入力 file 自身の sha256 を期待値にして生成器へ渡し、hash 照合が自己照合になった [恒真ゲート]
+
+- 事象: [T-2853] R2 fig11 wave で、固定 hash 表を持つ生成器 `tools/plotting/plot_a2_certification.py` に R2 の入力を描かせる repo 外 wrapper が、certification / raw-manifest の sha256 を入力 file 自身から計算して `expected_hashes` に渡していた。
+  生成器の hash 照合は必ず一致し、入力が後から整合的に差し替わっても再描画が受理される形だった。段 6 レビュー A が must-fix として検出し、fix で collect 後に記録した 2 つの sha256 を wrapper の定数に固定した (`output/insights/2026-09-29/t2853-r2-fig11/README.md` §5.1・§9)。
+  先例の R2 fig8b の wrapper (`/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/tools/t2853_r2_fig8b_plot.py`) も入力の sha256 を実行時に file から計算して差し替えており (同 insight §5.2)、同じ型である (fig8b 側は直していない)。
+- 根本原因: 親が段 5 の prompt に「実 bytes の sha256 を計算して expected_hashes として渡す」と書き、固定表を迂回する口が照合そのものを無効にすることを設計時に見なかった。先例の wrapper の形をそのまま下敷きにした。
+- 恒久対応: memory `repo-external-wrapper-must-pin-input-hashes` — 固定 hash 表を迂回する wrapper は、期待値を結果記録に書いた定数として持ち、入力 file から計算した値を期待値にしない。段 6 のレンズ A (一次資料照合・正しさ境界) が検出した。
+- 再発検知: 段 6 の正しさ境界レビュー。wrapper の負例 1 本 (別 attempt の入力を渡すと生成器が拒否し図が作られない) を実走して確かめる。
+
+### F1068. 小モデルで安全な公開手順を C++ へ写すとき、モデルの版ごとの参照集合に当たる保護が実装では「tx 開始時の下限を変えない」暗黙の不変条件だったことを見落とし、待機中に既読版を回収させた [誤前提] [手順漏れ]
+
+- 事象: VHash 構成 E の段 4 で、親の仮裁定 P5 が「安全点で ThreadRtsArray を最新の MinWts−1 へ上げる (stock と同じ意味の値で、下げないので安全)」とした。段 3 の相談 2 本と段 6 のレビュー 2 本・焦点再レビューはこの点を反例にしなかった。計算ノードの smoke 4 で、待機の前後の既読版の照合 (保持版検査) が E-hb 159 / 3,938、E 174 / 3,882 の変化を出した。
+- 根本原因: md_10 の小モデルは既読版を版ごとの refs で守り、回収境界 (gc_floor) は cand_ts そのものだった。Cicada には refs が無く、既読版を守っているのは「ThreadRtsArray = tx 開始時の MinWts−1 を tx の間変えない」ことである。親は「下限を下げない」(tx 境界の単調性) だけを検討し、「tx の途中で上げる」ことが暗黙の保護を外すと考えなかった。モデルの規則の対応表 (G1〜G7) に、実装側で何がその規則の前提 (refs) を担うかの列が無かった。
+- 恒久対応: 下限は前進に成功したときだけ t′−1 へ公開し、それ以外は変えない (D2295)。保持版検査を計器 build に常設し、smoke・本計測・検査の全 run で 0 を確かめる形にした (`patches/cicada-forwarding-gc.patch` の `CICADA_GC_COUNT`、driver の `held_changed`、検査起動器の終了コード)。一次資料 §3.3 に経緯。
+- 再発検知: 保持版検査 (待機中の既読版の wts・status の変化) が 0 でない run を、検査起動器が非 0 で終える。モデルの規則を実装へ写す wave では、規則ごとに「モデルでその前提を担う状態」と「実装でそれを担うもの」を対にして段 1 の brief に書く (本 F を段 1 の攻撃面に含める)。

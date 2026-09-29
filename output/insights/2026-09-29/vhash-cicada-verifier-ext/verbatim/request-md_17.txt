@@ -1,0 +1,30 @@
+md_17: Cicada の正しさ検査を、挿入・削除と TPC-C へ広げる
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「Cicada の trace (`patches/instr-cicada-trace.patch`、D2279) は YCSB point read / update の巡回検出まで働く」を含む item を grep して自分の対象とする (T 番号は固定しない)。この wave はその (4) の一部を扱う。
+
+■ 目的
+md_3 の Cicada の trace と判定器 (output/insights/2026-09-29/vhash-cicada-verifier/README.md、D2279) は YCSB の点読み・点更新だけを扱い、
+挿入・削除・範囲読み取り・YCSB 以外 (TPC-C) は未対応で、TRACE=0 の命令列比較も tpcc / bomb / sbomb の TU は未実施である。
+VHash の評価で TPC-C や挿入のある負荷を使うと、正しさの門 (絶対規律 2) を通せない。評価計画の草稿 (docs/vhash-evaluation-preregistration-draft.md) の前提を埋める。
+
+■ やること
+1. 優先順: (a) 挿入・削除の trace (op I / D は trace v2 の書式に既にある。版と不在の表し方を判定器の既存の扱いに合わせる)、(b) TPC-C の Cicada TU で trace を出す、(c) TRACE=0 のとき tpcc の命令列が pin と一致すること (絶対規律 1)。範囲読み取りの phantom は、判定器側の対応が要るなら設計だけ書いて未対応として残す。
+2. 正例・負例: stock Cicada の TPC-C 小走行が巡回 0 (上限は indeterminate)。挿入・削除を壊した patch を 1 本以上 (patches/broken-cicada-*.patch) 作り、判定器が巡回として検出して壊した経路に帰属できることを確かめる。
+3. trace の書式 (trace v2) は変えない。判定器 (orchestrator/verifier/) を変える必要が出たら、既存 protocol の判定が変わらないことをテストで確かめる。
+
+■ 成果物
+- patches/instr-cicada-trace.patch の更新、patches/broken-cicada-*.patch の追加、patches/ledger.json と patches/README.md の該当 entry、必要なら orchestrator/verifier/ とテスト (Codex author)。
+- 一次資料: output/insights/<着手日>/vhash-cicada-verifier-ext/README.md (対応範囲の表、正例・負例、TRACE=0 の比較、未対応の残り)。
+- spool fragment (対象 item を更新)。
+
+■ 所有
+patches/instr-cicada-trace.patch、patches/broken-cicada-*.patch の新規、patches/ledger.json と patches/README.md の該当 entry、orchestrator/verifier/ とそのテスト、自分の一次資料と fragment。
+patches/cicada-forwarding-* と orchestrator/campaign/vhash_forwarding_prototype.py (md_14)、patches/instr-cicada-version-lifetime.patch (md_15)、tools/vhash_forwarding_model/ (md_16) は編集しない。
+md_14 がこの trace patch を読んで試作を検査している。書式を変えないことで互換を保つ。
+
+■ 注意
+- 正しさの防壁に触る wave なので、軽量版でも段 3 の相談と段 6 の review を省かない。
+- テストは全体 5 分の上限を守る。計算ノードは合計 2 node 時間未満。
