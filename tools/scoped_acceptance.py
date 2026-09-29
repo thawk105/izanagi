@@ -23,7 +23,7 @@ FIXED_FILES = (
 )
 FIXED_NODES = ("test_campaign.py::test_certified_writer_authorization_caller_inventory_is_closed",)
 GENERIC = {"docs", "output", "insights", "spool", "worklog", "decisions",
-           "failures", "archive", "README.md"}
+           "failures", "archive", "README.md", "index.md"}
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
 SHA = re.compile(rb"[0-9a-f]{40}(?:[0-9a-f]{24})?\Z")
 
@@ -107,36 +107,22 @@ def _allowed_path(path: str, status: str) -> bool:
 
 def _keys(path: str) -> set[bytes]:
     parts = path.split("/")
-    keys = {path, parts[-1]}
-    for i in range(1, len(parts)):
-        ancestor = "/".join(parts[:i])
-        if ancestor.startswith("docs/") or ancestor.startswith("output/insights/"):
-            keys.add(ancestor)
-            name = parts[i - 1]
-            if name not in GENERIC and not DATE.fullmatch(name):
-                keys.add(name)
+    keys = {path}
+    if parts[-1] not in {"README.md", "index.md"} and not DATE.fullmatch(parts[-1]):
+        keys.add(parts[-1])
+    if path.startswith("docs/spool/"):
+        return {key.encode("utf-8") for key in keys}
+    minimum_depth = 4 if path.startswith("output/insights/") else 2
+    for depth in range(minimum_depth, len(parts)):
+        keys.add("/".join(parts[:depth]))
+        name = parts[depth - 1]
+        if name not in GENERIC and not DATE.fullmatch(name):
+            keys.add(name)
     return {key.encode("utf-8") for key in keys}
 
 
-def _quoted_strings(data: bytes):
-    quote = None
-    start = 0
-    escaped = False
-    for i, byte in enumerate(data):
-        if quote is None:
-            if byte in (34, 39):
-                quote, start = byte, i + 1
-        elif escaped:
-            escaped = False
-        elif byte == 92:
-            escaped = True
-        elif byte == quote:
-            yield data[start:i]
-            quote = None
-
-
 def _references(data: bytes, keys: set[bytes]) -> bool:
-    return any(key in literal for literal in _quoted_strings(data) for key in keys)
+    return any(key in data for key in keys)
 
 
 def _blob(repo: Path, oid: str) -> bytes:
@@ -273,15 +259,11 @@ def select_tests(repo: Path, tested_tip: str, classification: dict) -> dict:
     insight = any(entry["path"].startswith("output/insights/") for entry in classification["entries"])
     for path, oid in tests.items():
         body = test_blobs[oid]
-        if _references(body, keys) or insight and b"insights" in _quoted_strings_list(body):
+        if _references(body, keys) or insight and (b'"insights"' in body or b"'insights'" in body):
             files.add(path)
     files = sorted(files)
     return {"nodes": nodes, "files": files, "selection_digest": _digest({"nodes": nodes, "files": files}),
             "direct_gates": GATES, "eligible": not missing, "reasons": sorted(missing)}
-
-
-def _quoted_strings_list(data: bytes) -> list[bytes]:
-    return list(_quoted_strings(data))
 
 
 def plan(repo: Path, tested_main: str, tested_tip: str) -> dict:

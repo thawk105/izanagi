@@ -905,20 +905,10 @@ def _verify_forward_main_runner_blob(
     repository: _Repository,
     tested_main: str,
     forward_main_merges: Sequence[_ForwardMainMerge],
-    scoped: bool = False,
 ) -> None:
     """D987: final incorporated main must retain the tested-main runner blob."""
 
     if not forward_main_merges:
-        return
-    if scoped:
-        for path in _SCOPED_FORWARD_BLOBS:
-            before = _acceptance_tree_entry(repository, tested_main, path)
-            after = _acceptance_tree_entry(
-                repository, forward_main_merges[-1].incorporated_main_sha, path,
-            )
-            if not _regular_blob_entry(before) or before != after:
-                raise _acceptance_rejected()
         return
     final_main_entry = _runner_tree_entry(
         repository,
@@ -935,6 +925,22 @@ def _verify_forward_main_runner_blob(
         or final_main_entry[1] != tested_main_entry[1]
     ):
         raise _acceptance_rejected()
+
+
+def _verify_forward_main_scoped_blobs(
+    repository: _Repository,
+    tested_main: str,
+    forward_main_merges: Sequence[_ForwardMainMerge],
+) -> None:
+    if not forward_main_merges:
+        return
+    for path in _SCOPED_FORWARD_BLOBS:
+        before = _acceptance_tree_entry(repository, tested_main, path)
+        after = _acceptance_tree_entry(
+            repository, forward_main_merges[-1].incorporated_main_sha, path,
+        )
+        if not _regular_blob_entry(before) or before != after:
+            raise _acceptance_rejected()
 
 
 def _acceptance_tree_entry(
@@ -5825,11 +5831,12 @@ def land(request: LandRequest) -> LandResult:
             main_before = preflight.locked_main
             quiescent_rejection = preflight.active_plan is None
             if preflight.forward_main_merges:
-                _verify_forward_main_runner_blob(
+                verifier = (_verify_forward_main_scoped_blobs if registered_verification.scoped
+                            else _verify_forward_main_runner_blob)
+                verifier(
                     repository,
                     tested_main,
                     preflight.forward_main_merges,
-                    scoped=registered_verification.scoped,
                 )
             if preflight.locked_main != landing_tip and preflight.active_plan is None:
                 initial_fingerprint = preflight.fingerprint
@@ -5917,11 +5924,12 @@ def land(request: LandRequest) -> LandResult:
                 quiescent_rejection = preflight.active_plan is None
                 _verify_provenance_receipt(repository, receipt, landing_tip)
                 if preflight.forward_main_merges:
-                    _verify_forward_main_runner_blob(
+                    verifier = (_verify_forward_main_scoped_blobs if registered_verification.scoped
+                                else _verify_forward_main_runner_blob)
+                    verifier(
                         repository,
                         tested_main,
                         preflight.forward_main_merges,
-                        scoped=registered_verification.scoped,
                     )
                 main_before = preflight.locked_main
             quiescent_rejection = preflight.active_plan is None

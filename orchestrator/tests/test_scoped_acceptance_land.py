@@ -114,6 +114,38 @@ def test_implementation_tip_rejected_independent_of_receipt_claim():
             SCOPED.plan = original
 
 
+def test_scoped_receipt_rederived_on_eligible_tip():
+    with BASE._repo() as repo:
+        request = _request(repo)
+        payload = _scoped_payload(request)
+        assert payload["classification"]["eligible"] is True
+        assert payload["selection"]["eligible"] is True
+        assert payload["selection"]["files"]
+        payload["selection"]["files"] = []
+        payload["selection"]["selection_digest"] = SCOPED._digest({
+            "nodes": payload["selection"]["nodes"], "files": [],
+        })
+        BASE._write_receipt(request.acceptance_receipt, payload)
+        assert BASE._land(request).reason == "acceptance-receipt-rejected"
+
+
+def test_v5_rejects_only_extra_scoped_field():
+    with BASE._repo() as repo:
+        request = _request(repo)
+        payload = BASE._receipt_payload(request.acceptance_receipt)
+        assert payload["schema_version"] == LAND._ACCEPTANCE_RECEIPT_SCHEMA
+        assert payload["authority_kind"] == LAND._ACCEPTANCE_AUTHORITY_KINDS[
+            payload["launcher_source_revision"]
+        ]
+        assert set(payload) == LAND._ACCEPTANCE_RECEIPT_FIELDS
+        payload["classification"] = SCOPED.plan(
+            request.wave_worktree, request.tested_main_sha,
+            request.tested_wave_tip_sha,
+        )["classification"]
+        BASE._write_receipt(request.acceptance_receipt, payload)
+        assert BASE._land(request).reason == "acceptance-receipt-rejected"
+
+
 @pytest.mark.parametrize("mutation", [
     "schema", "wave", "main", "tip", "selection", "classification",
     "gate", "selector", "launcher",
@@ -166,9 +198,9 @@ def test_scoped_forward_main_blob_drift_rejected(path):
         incorporated = BASE._git(main, "rev-parse", "HEAD")
         merge = type("Forward", (), {"incorporated_main_sha": incorporated})()
         with pytest.raises(LAND._Reject):
-            LAND._verify_forward_main_runner_blob(
+            LAND._verify_forward_main_scoped_blobs(
                 SimpleNamespace(wave=request.wave_worktree),
-                request.tested_main_sha, (merge,), scoped=True,
+                request.tested_main_sha, (merge,),
             )
 
 

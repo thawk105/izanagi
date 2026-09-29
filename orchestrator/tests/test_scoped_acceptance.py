@@ -142,6 +142,76 @@ def test_each_selection_key_selects_consumer(tree, literal):
     assert "orchestrator/tests/test_consumer.py" in got["selection"]["files"]
 
 
+def test_directory_key_alone_selects_consumer(tree):
+    repo, _ = tree
+    put(repo, "orchestrator/tests/test_consumer.py", 'DIRECTORY = "docs/notes"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "consumer")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "docs/notes/story.md", "# story\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "doc")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert "orchestrator/tests/test_consumer.py" in got["selection"]["files"]
+
+
+def test_comment_apostrophe_does_not_hide_reference(tree):
+    repo, _ = tree
+    put(repo, "tools/x.py", '# don\'t\nPATH = "docs/notes/story.md"\n')
+    put(repo, "orchestrator/tests/test_consumer.py",
+        '# don\'t\nPATH = "docs/notes/story.md"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "readers")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "docs/notes/story.md", "# story\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "doc")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert any(x.startswith("production-reference:") for x in got["classification"]["reasons"])
+    assert "orchestrator/tests/test_consumer.py" in got["selection"]["files"]
+
+
+def test_comment_apostrophe_does_not_hide_test_selection(tree):
+    repo, _ = tree
+    put(repo, "orchestrator/tests/test_consumer.py",
+        '# don\'t\nPATH = "docs/notes/story.md"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "consumer")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "docs/notes/story.md", "# story\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "doc")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["eligible"] is True
+    assert "orchestrator/tests/test_consumer.py" in got["selection"]["files"]
+
+
+def test_insight_readme_basename_is_generic(tree):
+    repo, _ = tree
+    put(repo, "tools/x.py", 'NAME = "README.md"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "reader")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "output/insights/2026-09-29/topic/README.md", "# insight\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "insight")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["eligible"] is True
+
+
+def test_spool_container_reference_does_not_reject_fragment(tree):
+    repo, _ = tree
+    put(repo, "tools/x.py", 'DIRECTORY = "docs/spool/worklog"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "reader")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "docs/spool/worklog/unique-fragment.md", "# log\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "fragment")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["eligible"] is True
+
+
 def test_insights_literal_selects_test(tree):
     repo, _ = tree
     put(repo, "orchestrator/tests/test_consumer.py", 'KIND = "insights"\n')
@@ -209,6 +279,21 @@ def test_symlink_and_gitlink_reject(tree):
     git(repo, "update-index", "--add", "--cacheinfo", f"160000,{base},docs/link.md")
     git(repo, "commit", "-qm", "gitlink")
     assert SCOPED.plan(repo, base, git(repo, "rev-parse", "HEAD"))["classification"]["eligible"] is False
+
+
+def test_blob_to_symlink_type_change_rejected(tree):
+    repo, _ = tree
+    put(repo, "docs/link.md", "# original\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "blob")
+    main = git(repo, "rev-parse", "HEAD")
+    (repo / "docs/link.md").unlink()
+    (repo / "docs/link.md").symlink_to("target.md")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "type change")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["eligible"] is False
+    assert any(x.startswith("metadata:") for x in got["classification"]["reasons"])
 
 
 def test_non_utf8_path_fails_closed(tree):
