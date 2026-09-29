@@ -106,20 +106,64 @@ def test_throughput_rejects_instrumentation(forbidden):
 
 
 def test_verify_acceptance_requires_real_flag_and_no_cycle():
+    integrity = {key: 0 for key in (
+        "orphan_reads", "version_dups", "dup_txids", "genesis_commits",
+        "missing_txids", "write_version_mismatch", "malformed_keys",
+        "framing_violations", "lock_coverage_violations",
+        "write_intent_violations", "permutation_violations",
+        "existence_violations",
+    )}
+    integrity["clean"] = False  # Cicada lacks the proof surfaces for certification.
     report = {"runs": 1, "non_serializable": 0, "indeterminate": 1,
-              "results": [{"total_cycles": 0, "integrity": {"clean": True}}]}
+              "results": [{"total_cycles": 0, "integrity": integrity,
+                           "stats": {"txns": 20}}]}
     count = {"ro_commits": 10, "flag_raises": 2}
-    assert P.verify_acceptance(3, report, 0, count)
+    assert P.verify_acceptance(3, report, 0, count, 20)
     assert P.verdict_label(0) == "certified"
     assert P.verdict_label(3) == "no-cycle (upper bound indeterminate)"
     assert P.verdict_label(1) == "rejected"
-    assert not P.verify_acceptance(1, report, 0, count)
-    assert not P.verify_acceptance(3, {**report, "non_serializable": 1}, 0, count)
-    assert not P.verify_acceptance(3, report, 1, count)
-    assert not P.verify_acceptance(3, report, 0, {**count, "flag_raises": 0})
-    assert not P.verify_acceptance(3, {**report, "indeterminate": 2}, 0, count)
+    assert not P.verify_acceptance(1, report, 0, count, 20)
+    assert not P.verify_acceptance(3, {**report, "non_serializable": 1}, 0, count, 20)
+    assert not P.verify_acceptance(3, report, 1, count, 20)
+    assert not P.verify_acceptance(3, report, 0, {**count, "flag_raises": 0}, 20)
+    assert not P.verify_acceptance(3, {**report, "indeterminate": 2}, 0, count, 20)
     assert not P.verify_acceptance(3, {**report, "results": [
-        {"total_cycles": 1, "integrity": {"clean": True}}]}, 0, count)
+        {**report["results"][0], "total_cycles": 1}]}, 0, count, 20)
+
+
+@pytest.mark.parametrize("field", (
+    "orphan_reads", "version_dups", "dup_txids", "genesis_commits",
+    "missing_txids", "write_version_mismatch", "malformed_keys",
+    "framing_violations", "lock_coverage_violations",
+    "write_intent_violations", "permutation_violations", "existence_violations",
+))
+def test_verify_acceptance_rejects_each_integrity_violation(field):
+    integrity = {key: 0 for key in (
+        "orphan_reads", "version_dups", "dup_txids", "genesis_commits",
+        "missing_txids", "write_version_mismatch", "malformed_keys",
+        "framing_violations", "lock_coverage_violations",
+        "write_intent_violations", "permutation_violations", "existence_violations",
+    )}
+    integrity[field] = 1
+    report = {"runs": 1, "non_serializable": 0, "indeterminate": 1,
+              "results": [{"total_cycles": 0, "integrity": integrity,
+                           "stats": {"txns": 20}}]}
+    assert not P.verify_acceptance(3, report, 0,
+                                   {"ro_commits": 10, "flag_raises": 2}, 20)
+
+
+def test_verify_acceptance_rejects_txn_mismatch():
+    integrity = {key: 0 for key in (
+        "orphan_reads", "version_dups", "dup_txids", "genesis_commits",
+        "missing_txids", "write_version_mismatch", "malformed_keys",
+        "framing_violations", "lock_coverage_violations",
+        "write_intent_violations", "permutation_violations",
+    )}
+    report = {"runs": 1, "non_serializable": 0, "indeterminate": 1,
+              "results": [{"total_cycles": 0, "integrity": integrity,
+                           "stats": {"txns": 19}}]}
+    assert not P.verify_acceptance(3, report, 0,
+                                   {"ro_commits": 10, "flag_raises": 2}, 20)
 
 
 def test_counter_parsers_reject_missing_duplicate_and_inconsistent():

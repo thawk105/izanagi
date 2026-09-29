@@ -45,6 +45,12 @@ CONDITIONS = {
 COUNT_PREFIX = "IZANAGI_CICADA_RO_GCFLAG_COUNT_V1 "
 WORKLOAD_PREFIX = "IZANAGI_CICADA_ROGC_WORKLOAD_V1 "
 MISMATCH = re.compile(r"(?m)^CICADA_TRACE_READ_WTS_MISMATCH n=(\d+)$")
+INTEGRITY_NUMERIC = (
+    "orphan_reads", "version_dups", "dup_txids", "genesis_commits",
+    "missing_txids", "write_version_mismatch", "malformed_keys",
+    "framing_violations", "lock_coverage_violations",
+    "write_intent_violations", "permutation_violations",
+)
 
 
 def now() -> str:
@@ -117,13 +123,26 @@ def check_throughput_macros(macros: tuple[str, ...]) -> None:
 
 
 def verify_acceptance(verifier_rc: int, report: dict, mismatch: int,
-                      count: dict, *, max_indeterminate: int = 1) -> bool:
+                      count: dict, expected_commits: int,
+                      *, max_indeterminate: int = 1) -> bool:
+    results = report.get("results", [])
+    if len(results) != 1:
+        return False
+    result = results[0]
+    integrity = result.get("integrity", {})
+    # Cicada's legacy report omits the v3-only existence check; its model
+    # counter remains 0. Reject nonzero values when a report includes it.
+    numeric_clean = (all(type(integrity.get(key)) is int and integrity[key] == 0
+                         for key in INTEGRITY_NUMERIC)
+                     and type(integrity.get("existence_violations", 0)) is int
+                     and integrity.get("existence_violations", 0) == 0)
     return (verifier_rc in (0, 3) and report.get("runs") == 1
             and report.get("non_serializable") == 0
             and report.get("indeterminate", 0) <= max_indeterminate
-            and len(report.get("results", [])) == 1
-            and report["results"][0].get("total_cycles") == 0
-            and report["results"][0].get("integrity", {}).get("clean") is True
+            and result.get("total_cycles") == 0
+            and numeric_clean
+            and type(result.get("stats", {}).get("txns")) is int
+            and result["stats"]["txns"] == expected_commits
             and mismatch == 0 and count["ro_commits"] > 0
             and count["flag_raises"] > 0)
 
@@ -309,7 +328,8 @@ def _verify(source: Path, binary: Path, cell: dict, *, scratch: Path,
         for path in sorted(trace_dir.glob("trace_*.log"))]
     record["verdict_label"] = verdict_label(verdict.returncode)
     record["no_cycle_upper_bound_indeterminate"] = verify_acceptance(
-        verdict.returncode, report, record["read_wts_mismatch"], record["count"])
+        verdict.returncode, report, record["read_wts_mismatch"], record["count"],
+        record["workload"]["commits"])
     return record
 
 
