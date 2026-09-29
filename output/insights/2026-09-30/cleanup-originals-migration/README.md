@@ -3,7 +3,7 @@
 - 作成: 2026-09-30 JST。wave `dev-wave-cleanup-originals-migration` (背景 job、軽量版)、起点 local main `f0869d953`。
   依頼 (ユーザー、2026-09-30 01:0x JST) の逐語は `verbatim/request.md`、段 1 brief は `verbatim/s1-brief.md`、段 4 裁定は `verbatim/s4-ruling.md`。
 - repo 外の作業 dir (job dir): `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-originals-migration/`。退避は同 dir の `backup/`。
-- **本 insight が、撤去した木・branch の判定と所在の正本である。** 名指し元の insight README には末尾に「所在の移動・撤去 (2026-09-30 追記)」節を足し、ここを指した (§5)。
+- **本 insight が、撤去対象の木・branch の判定と所在の正本である。** 名指し元の insight README には末尾に「所在の移動・撤去 (2026-09-30 追記)」節を足し、ここを指した (§5)。
 
 ## 0. 結論
 
@@ -65,7 +65,8 @@
     (未追跡 file のあった 29 本は list を `tar -C <木> --null -T <list>` で固め、list 件数と tar の非 directory entry 数が 29 本とも一致、新規 tar の計 631,004 B。
     残る 5 本は未追跡 file が 0 件)。不良 0。
   - `t2853-r2-plot-fix1`・`fix2` の 2 本は対象表への補い (段 4) が退避の後だったので木の退避は無い。中身は旧版の wrapper と途中の図で、branch は束 bundle に入っている。
-  - HEAD が main の祖先でない木 22 本は、いずれも束 bundle の branch 先端から辿れる (B-5 本走の 16 本と発効木は発効 commit `6fce61d6e`)。
+  - 退避で検査した 89 本のうち HEAD が main の祖先でない木 22 本は、いずれも束 bundle の branch 先端から辿れる (B-5 本走の 16 本と発効木は発効 commit `6fce61d6e`)。
+    対象 91 本全体では、退避の外の `t2853-r2-plot-fix1`・`fix2` (HEAD = 同名 branch の先端、bundle に収録) を足して 24 本である。
 - 木ごとの path・HEAD・main 祖先か・未追跡件数・退避の所在は `materials/trees.tsv`。T-2871 の WAL 2 本は
   `/work/1/SFC/tanab/dev-wave-jobs/cleanup-branches-20260929c/trees/dev-wave-jobs_dev-wave-t2871-policy-loop-iter_trees_live/untracked.tar.gz` (12 file、tar の entry 数 12) に入っている。
 
@@ -111,6 +112,8 @@
 - 両者とも「残す」系列は 0。割れた点: T-2871 の WAL 回収 (決定役は回収、攻撃役は不要) → 攻撃役を採用。B-5 発効 commit (決定役は tag + bundle、攻撃役は bundle のみ) → 攻撃役を採用。
 - 両者が指摘した brief の誤り (前日退避の本数「56 本」は誤りで木ごとの表を正とする、対象集合に fix1/fix2 が漏れていた、prune の照合を管理名だけで行うのは不足、
   「archive の写しが唯一の控え」は job dir の複製を落とした過大な表現) はすべて real として直した。
+- 段 6 の read-only レビュー 1 本 (Codex、review、read-only) は GO、must-fix 0。should-fix 1 件 (main 非祖先の木 22 本は退避で検査した 89 本の内数で、91 本では 24 本) と
+  nit 1 件 (冒頭の時制) を real として直した。逐語は `verbatim/s6-review.md`。
 
 ## 8. 名指しの逆引き
 
