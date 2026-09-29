@@ -61,7 +61,7 @@ def _payload2():
                      "dc_cf_wait_sum_us", "dc_ro_gap_sum_us", "dc_leader_wait_sum_us",
                      "dc_interval_sum_us",
                      "dc_count", "dc_first", "dc_missing", "dc_generation",
-                     "dc_negative", "dc_leader_count", "holder_count", "holder_unresolved")
+                     "dc_negative", "dc_epoch_mismatch", "dc_leader_count", "holder_count", "holder_unresolved")
     for worker in payload["workers"]:
         worker.update({field: 0 for field in scalar_fields})
         worker.update(readonly_candidate=[0] * 5, ro_snapshot_age_us=[0] * 42,
@@ -244,63 +244,69 @@ def test_default_compile_commands_match_cmake_defaults():
             raise AssertionError("wrong default promotion accepted")
 
 
-def test_readonly_figure_full_campaign_layout():
+def _render_figure_campaign(td):
     script = ROOT / "tools/plotting/plot_vhash_readonly_share.py"
     spec = importlib.util.spec_from_file_location("plot_vhash_readonly_share", script)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
+    raw_path = Path(td) / "raw.json"
+    out = Path(td) / "figures"
+    ids = sorted(module.REQUIRED)
+    assert len(ids) == 86
+    runs = {}
+    for cid in ids:
+        reps = []
+        for rep in range(3):
+            payload = _payload2()
+            payload["workers"] = [_payload2()["workers"][0] for _ in range(48)]
+            payload["build"].update(
+                inline_version_opt=int(cid.startswith("T")),
+                izanagi_ronly_pct=V.CONDITIONS[cid].get("izanagi_ronly_pct", -1),
+                izanagi_long_kind=V.CONDITIONS[cid].get("izanagi_long_kind", 0))
+            w = payload["workers"][0]
+            w["readonly_reads"] = 10
+            w["hops"][1][0] = 10
+            w["hops"][0][0] = 10
+            for i in range(5):
+                w["readonly_deep"][i] = 1
+                w["readonly_candidate"][i] = 1
+                w["deep"][i] = 1
+            w["gc_boundary_count"] = 2
+            w["gc_boundary_us"][6] = 2
+            w["gc_boundary_sum_us"] = 128
+            w["gc_publish_count"] = 1
+            w["gc_publish_us"][7] = 1
+            w["gc_publish_sum_us"] = 100 + rep
+            w["ro_snapshot_age_count"] = 1
+            w["ro_snapshot_age_us"][5] = 1
+            w["ro_snapshot_age_sum_us"] = 32
+            w["dc_first"] = 1
+            w["dc_count"] = 1
+            w["dc_cf_wait_sum_us"] = 30
+            w["dc_ro_gap_sum_us"] = 40 + rep
+            w["dc_leader_wait_sum_us"] = 30
+            w["dc_interval_sum_us"] = 100 + rep
+            w["dc_cf_kind_count"][3] = 1
+            w["dc_cf_kind_sum_us"][3] = 30
+            w["holder_count"] = 1
+            w["holder_units"][3] = 1000000
+            reps.append({"rc": 0, "stdout": _line(payload), "parsed": payload,
+                         "argv": ["-extime=3"]})
+        runs[cid] = reps
+    raw_path.write_text(json.dumps({
+        "schema_version": 1, "command": "measure", "ccbench_commit": V.PIN,
+        "patch_sha256": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),
+        "records": 1000000,
+        "conditions": {cid: V.CONDITIONS[cid] for cid in ids},
+        "runs": runs}))
+    module.render([raw_path], out)
+    return module, raw_path, out
+
+
+def test_readonly_figure_full_campaign_layout():
     with tempfile.TemporaryDirectory(prefix="cvl-figure-grid-") as td:
-        raw_path = Path(td) / "raw.json"
-        out = Path(td) / "figures"
-        ids = sorted(module.REQUIRED)
-        assert len(ids) == 86
-        runs = {}
-        for cid in ids:
-            reps = []
-            for rep in range(3):
-                payload = _payload2()
-                payload["workers"] = [_payload2()["workers"][0] for _ in range(48)]
-                payload["build"].update(
-                    inline_version_opt=int(cid.startswith("T")),
-                    izanagi_ronly_pct=V.CONDITIONS[cid].get("izanagi_ronly_pct", -1),
-                    izanagi_long_kind=V.CONDITIONS[cid].get("izanagi_long_kind", 0))
-                w = payload["workers"][0]
-                w["readonly_reads"] = 10
-                w["hops"][1][0] = 10
-                w["hops"][0][0] = 10
-                for i in range(5):
-                    w["readonly_deep"][i] = 1
-                    w["readonly_candidate"][i] = 1
-                    w["deep"][i] = 1
-                w["gc_boundary_count"] = 2
-                w["gc_boundary_us"][6] = 2
-                w["gc_boundary_sum_us"] = 128
-                w["gc_publish_count"] = 1
-                w["gc_publish_us"][7] = 1
-                w["gc_publish_sum_us"] = 100 + rep
-                w["ro_snapshot_age_count"] = 1
-                w["ro_snapshot_age_us"][5] = 1
-                w["ro_snapshot_age_sum_us"] = 32
-                w["dc_first"] = 1
-                w["dc_count"] = 1
-                w["dc_cf_wait_sum_us"] = 30
-                w["dc_ro_gap_sum_us"] = 40 + rep
-                w["dc_leader_wait_sum_us"] = 30
-                w["dc_interval_sum_us"] = 100 + rep
-                w["dc_cf_kind_count"][3] = 1
-                w["dc_cf_kind_sum_us"][3] = 30
-                w["holder_count"] = 1
-                w["holder_units"][3] = 1000000
-                reps.append({"rc": 0, "stdout": _line(payload), "parsed": payload})
-            runs[cid] = reps
-        raw_path.write_text(json.dumps({
-            "schema_version": 1, "command": "measure", "ccbench_commit": V.PIN,
-            "patch_sha256": hashlib.sha256(V.PATCH.read_bytes()).hexdigest(),
-            "records": 1000000,
-            "conditions": {cid: V.CONDITIONS[cid] for cid in ids},
-            "runs": runs}))
-        module.render([raw_path], out)
+        _, _, out = _render_figure_campaign(td)
         for stem in ("depth_share", "boundary_age", "decompositions", "opportunities"):
             assert all((out / f"{stem}.{suffix}").is_file()
                        for suffix in ("png", "pdf", "provenance.json"))
@@ -364,9 +370,57 @@ def test_mut13_readonly_depth_and_reads_follow_deleted_guard():
 
 
 def test_mut15_tuned_comparison_panels_exist():
-    script = (ROOT / "tools/plotting/plot_vhash_readonly_share.py").read_text()
-    assert script.count('_draw_tuned(axes[2,') >= 2
-    assert '"T (tuned) vs R (default)"' in script or 'T (tuned) vs R (default):' in script
+    with tempfile.TemporaryDirectory(prefix="cvl-tuned-panels-") as td:
+        _, _, out = _render_figure_campaign(td)
+        for stem in ("depth_share", "boundary_age"):
+            provenance = json.loads((out / f"{stem}.provenance.json").read_text())
+            panels = provenance["numbers"]["tuned_panels"]
+            assert len(panels) == 3
+            for panel in panels:
+                expected = {
+                    f"{prefix}-{delay}-gc{gc}": [
+                        f"{prefix}{rate}-{delay}-gc{gc}" for rate in (0, 50, 95)]
+                    for gc in (10, 100000)
+                    for delay in ("none", "wait10msU")
+                    for prefix in ("R", "T")
+                }
+                actual = {series["series"]: series["condition_ids"]
+                          for series in panel["series"]}
+                assert len(panel["series"]) == len(expected) == 8
+                assert actual == expected
+
+
+def test_mut16_epoch_advances_before_cicada_publication():
+    leader = V.PATCH.read_text().split(" void TxExecutor::leaderWork() {", 1)[1]
+    before, after = leader.split("   cicadaLeaderWork();", 1)
+    advance = "if (all_ready) vlife_epoch_.fetch_add(1, std::memory_order_acq_rel);"
+    assert advance in before
+    assert "vlife_epoch_.fetch_add" not in after
+    assert "dc_epoch_mismatch" in after
+
+
+def test_mut17_run_duration_controls_provenance_rates():
+    script = ROOT / "tools/plotting/plot_vhash_readonly_share.py"
+    spec = importlib.util.spec_from_file_location("plot_vhash_readonly_share", script)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    assert module._duration(["-extime=1"]) == 1
+    assert module._duration(["-extime=5"]) == 5
+    for argv in (None, [], ["-extime=0"], ["-extime=1", "-extime=3"]):
+        try:
+            module._duration(argv)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid duration accepted")
+    payload = _payload2()
+    payload["workers"][0]["commits"][0] = 9
+    payload["workers"][0]["install"] = 12
+    payload["_duration_s"] = module._duration(["-extime=1"])
+    row = module._summarize_reps([payload])[0]
+    assert row["update_commits_per_s"] == 9
+    assert row["install_per_s"] == 12
 
 
 def test_k_boundary_and_condition_subset():
@@ -704,6 +758,8 @@ def _run():
              test_mut12_measure_fixed_one_million,
              test_mut13_readonly_depth_and_reads_follow_deleted_guard,
              test_mut15_tuned_comparison_panels_exist,
+             test_mut16_epoch_advances_before_cicada_publication,
+             test_mut17_run_duration_controls_provenance_rates,
              test_k_boundary_and_condition_subset,
              test_real_patch_define_registry_and_rejection,
              test_patch_default_preprocess_matches_stock,

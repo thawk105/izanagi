@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import textwrap
 
@@ -24,6 +25,15 @@ REQUIRED |= {"B-none-gc10", "B-wait10ms-gc10"}
 T95_3 = 4.30265273
 COLORS = {10: "tab:blue", 1000: "tab:orange", 100000: "tab:green"}
 STYLES = {"none": "-", "wait1msU": "--", "wait10msU": ":", "wait10msR": "-."}
+
+
+def _duration(argv):
+    if not isinstance(argv, list) or not all(isinstance(x, str) for x in argv):
+        raise ValueError("raw run argv required")
+    values = [x for x in argv if x.startswith("-extime=")]
+    if len(values) != 1 or re.fullmatch(r"-extime=[1-9][0-9]*", values[0]) is None:
+        raise ValueError("one positive -extime= is required")
+    return int(values[0].split("=", 1)[1])
 
 
 def _load(paths: list[Path]):
@@ -60,10 +70,7 @@ def _load(paths: list[Path]):
                     raise ValueError("schema 2 raw/parsed mismatch")
                 if len(parsed["workers"]) != 48:
                     raise ValueError("worker count mismatch")
-                argv = run.get("argv")
-                if argv is not None and (not isinstance(argv, list) or
-                    "-extime=3" not in argv):
-                    raise ValueError("raw run duration differs from 3 s")
+                parsed["_duration_s"] = _duration(run.get("argv"))
                 parsed_reps.append(parsed)
             runs[cid] = parsed_reps
         provenance.append({"path": str(path.resolve()),
@@ -82,6 +89,9 @@ def _ci(values):
 
 def _metric(reps, name, index=None):
     summaries = [V.summarize(p) for p in reps]
+    if name == "gc_publications_per_s":
+        return _ci([s["gc_publications"] / p["_duration_s"]
+                    for p, s in zip(reps, summaries)])
     return _ci([s[name] if index is None else s[name][index] for s in summaries])
 
 
@@ -104,23 +114,30 @@ def _independent_difference(summaries, terms, metric="gc_boundary_mean_us"):
 
 
 def _draw_tuned(ax, runs, metric, *, index=None, title, ylabel):
+    drawn = []
     for gc, color in ((10, "tab:blue"), (100000, "tab:green")):
         for delay in ("none", "wait10msU"):
             for prefix, style in (("R", "--"), ("T", "-")):
                 points = []
+                condition_ids = []
                 for rate in (0, 50, 95):
-                    value = _metric(runs[f"{prefix}{rate}-{delay}-gc{gc}"], metric, index)
+                    cid = f"{prefix}{rate}-{delay}-gc{gc}"
+                    value = _metric(runs[cid], metric, index)
                     if value is not None:
                         points.append((rate, *value))
+                        condition_ids.append(cid)
                 if points:
                     x, y, e = zip(*points)
                     ax.errorbar(x, y, yerr=e, color=color, linestyle=style,
                                 marker="s" if delay == "wait10msU" else "o",
                                 capsize=2, label=f"{prefix} {delay} GC {gc} µs")
+                    drawn.append({"series": f"{prefix}-{delay}-gc{gc}",
+                                  "condition_ids": condition_ids})
     ax.set(title=title, xlabel="Specified read-only procedures (%)", ylabel=ylabel)
     ax.set_xlim(0, 100)
     ax.grid(alpha=.2)
     ax.legend(fontsize=5, ncol=2, loc="upper left")
+    return drawn
 
 
 def _draw(ax, ids, runs, metric, *, index=None, multiplier=1, title, ylabel):
@@ -186,22 +203,33 @@ def _save(fig, out, name, common, numbers, caption):
     plt.close(fig)
 
 
+def _summarize_reps(reps):
+    rows = []
+    for payload in reps:
+        summary = V.summarize(payload)
+        duration = payload["_duration_s"]
+        rows.append({**summary, "duration_s": duration,
+                     "update_commits_per_s": summary["update_commits"] / duration,
+                     "install_per_s": summary["install"] / duration})
+    return rows
+
+
 def render(paths: list[Path], out: Path):
     runs, inputs, identity = _load(paths)
     out.mkdir(parents=True, exist_ok=True)
-    summaries = {cid: [{**V.summarize(p),
-                        "update_commits_per_s": V.summarize(p)["update_commits"] / 3,
-                        "install_per_s": V.summarize(p)["install"] / 3}
-                       for p in reps] for cid, reps in runs.items()}
+    summaries = {cid: _summarize_reps(reps) for cid, reps in runs.items()}
+    durations = sorted({p["_duration_s"] for reps in runs.values() for p in reps})
     common = {"campaign_id": "vhash-readonly-share", "inputs": inputs,
               "ccbench_commit": identity[0], "patch_sha256": identity[1],
               "records": identity[2], "n_reps": 3,
               "conditions": {cid: V.CONDITIONS[cid] for cid in sorted(runs)},
-              "measurement": "YCSB, 10 operations, 4 B, 48 workers, 3 s; diagnostic build",
+              "measurement": "YCSB, 10 operations, 4 B, 48 workers; diagnostic build",
+              "duration_s": durations,
               "replicate_summaries": summaries}
     ids = sorted(runs)
 
     fig, axes = plt.subplots(3, 3, figsize=(24, 15))
+    tuned_panels = []
     for col, k in enumerate((1, 4, 8)):
         index = V.K.index(k)
         _draw(axes[0, col], ids, runs, "readonly_deep_rate", index=index,
@@ -210,11 +238,13 @@ def render(paths: list[Path], out: Path):
               title=f"Read-only share of depth ≥ {k}", ylabel="Share of deep reads")
     axes[0, 0].legend(fontsize=5, ncol=2, loc="upper left")
     for col, k in enumerate((1, 4, 8)):
-        _draw_tuned(axes[2, col], runs, "readonly_deep_rate", index=V.K.index(k),
+        drawn = _draw_tuned(axes[2, col], runs, "readonly_deep_rate", index=V.K.index(k),
                     title=f"T (tuned) vs R (default): depth ≥ {k}",
                     ylabel="Share of selected read-only reads")
+        tuned_panels.append({"metric": "readonly_deep_rate", "k": k, "series": drawn})
     _save(fig, out, "depth_share", common,
-          {cid: [s["readonly_deep_rate"] for s in rows] for cid, rows in summaries.items()},
+          {"values": {cid: [s["readonly_deep_rate"] for s in rows] for cid, rows in summaries.items()},
+           "tuned_panels": tuned_panels},
           "Observed chain positions. T (tuned) vs R (default) panels use matched conditions. Error bars: 95% t CI across three runs; specified and realized rates differ.")
 
     fig, axes = plt.subplots(3, 3, figsize=(24, 15))
@@ -223,17 +253,20 @@ def render(paths: list[Path], out: Path):
         (axes[0, 1], "gc_boundary_p50_bucket_us", "Published boundary age p50", "Bucket upper bound (µs)"),
         (axes[0, 2], "gc_publish_mean_us", "Publication interval", "Mean µs"),
         (axes[1, 0], "ro_snapshot_age_mean_us", "Read-only snapshot age", "Mean µs"),
-        (axes[1, 1], "gc_publications", "Publication frequency", "Publications / s"),
-        (axes[1, 2], "same_boundary_publications", "Same-value republications", "Count / 3 s")):
-        _draw(ax, ids, runs, metric, multiplier=1/3 if metric == "gc_publications" else 1,
+        (axes[1, 1], "gc_publications_per_s", "Publication frequency", "Publications / s"),
+        (axes[1, 2], "same_boundary_publications", "Same-value republications", "Count / run")):
+        _draw(ax, ids, runs, metric,
               title=title, ylabel=ylabel)
+    tuned_panels = []
     for col, (metric, title) in enumerate((("gc_boundary_mean_us", "Boundary age"),
                                             ("gc_publish_mean_us", "Publication interval"),
                                             ("ro_snapshot_age_mean_us", "Read-only snapshot age"))):
-        _draw_tuned(axes[2, col], runs, metric,
+        drawn = _draw_tuned(axes[2, col], runs, metric,
                     title=f"T (tuned) vs R (default): {title}", ylabel="Mean µs")
+        tuned_panels.append({"metric": metric, "series": drawn})
     _save(fig, out, "boundary_age", common,
-          {cid: [s["gc_boundary_mean_us"] for s in rows] for cid, rows in summaries.items()},
+          {"values": {cid: [s["gc_boundary_mean_us"] for s in rows] for cid, rows in summaries.items()},
+           "tuned_panels": tuned_panels},
           "Boundary and snapshot ages are distinct; T (tuned) vs R (default) panels use matched conditions. Timestamp ages include clock boost. Error bars: 95% t CI.")
 
     fig, axes = plt.subplots(2, 2, figsize=(24, 15))

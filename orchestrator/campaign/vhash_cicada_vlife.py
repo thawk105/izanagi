@@ -204,7 +204,7 @@ def parse_vlife_line(stdout: str) -> dict:
                     "dc_cf_wait_sum_us", "dc_ro_gap_sum_us", "dc_leader_wait_sum_us",
                     "dc_interval_sum_us",
                     "dc_count", "dc_first", "dc_missing", "dc_generation",
-                    "dc_negative", "dc_leader_count", "holder_count",
+                    "dc_negative", "dc_epoch_mismatch", "dc_leader_count", "holder_count",
                     "holder_unresolved"}
         vectors.update(readonly_candidate=5, ro_snapshot_age_us=42,
                        dc_cf_kind_count=5, dc_cf_kind_sum_us=5, holder_units=5)
@@ -350,6 +350,7 @@ def summarize(payload: dict) -> dict:
         dc_cf_wait_mean_us=rate(total("dc_cf_wait_sum_us"), total("dc_count")),
         dc_ro_gap_mean_us=rate(total("dc_ro_gap_sum_us"), total("dc_count")),
         dc_leader_wait_mean_us=rate(total("dc_leader_wait_sum_us"), total("dc_count")),
+        dc_epoch_mismatch=total("dc_epoch_mismatch"),
         local_flag_opportunity=rate(total("dc_ro_gap_sum_us"), total("gc_publish_sum_us")),
         holder_fraction=[rate(value, 1000000 * total("holder_count")) for value in holder_units],
         holder_unresolved=total("holder_unresolved"),
