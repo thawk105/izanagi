@@ -408,7 +408,7 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
         if t.expired:
             status = "ABORTED"
         ns = replace(s, versions=tuple(replace(v, status=status) if v.id in t.pending else v for v in s.versions))
-        return _put_txn(ns, replace(t, phase="release")), Step(t.id, "decide_" + status.lower())
+        return _put_txn(ns, replace(t, phase="release", failed=t.failed or t.expired)), Step(t.id, "decide_" + status.lower())
     if t.phase == "release":
         return _put_txn(s, replace(t, phase="done", refs=())), Step(t.id, "release_refs", fault="U3b" if "U3b" in faults else "")
     raise AssertionError(t.phase)
@@ -420,7 +420,7 @@ def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
     if s.gc_seen != b:
         return [(replace(s, gc_seen=b), Step("GC", "read_floor"))]
     out = []
-    refs = {vid for t in s.txns for vid in t.refs}
+    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)
     for v in s.versions:
         if v.reclaimed or v.status == "PENDING" or v.id in refs:
             continue
@@ -555,6 +555,8 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
         effects = {"waiting_states": 0, "max_B": None, "max_freed": None,
                    "simultaneous": None, "attributable": None,
                    "g2": {"T_only": None, "both": None}}
+        if pressure == "helper":
+            effects["attributable_by_op"] = {"h_publish": None, "h_expire": None}
     terminals = deadlocks = floor_lowering_transitions = 0
     timed_out = False
     fault_step_seen = False
@@ -655,6 +657,10 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                 best = effects["attributable"]
                 if best is None or (row["delta_B"], row["delta_freed"]) > (best["delta_B"], best["delta_freed"]):
                     effects["attributable"] = row
+                by_op = effects["attributable_by_op"]
+                best = by_op[step.operation]
+                if best is None or (row["delta_B"], row["delta_freed"]) > (best["delta_B"], best["delta_freed"]):
+                    by_op[step.operation] = row
             if ns in parent:
                 continue
             parent[ns] = (s, step)

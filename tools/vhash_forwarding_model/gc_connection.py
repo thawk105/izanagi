@@ -12,7 +12,7 @@ def reclaimable_versions(state):
     active = [t for t in state.txns if t.phase != "done" and not t.expired]
     boundary = min((t.gc_floor for t in active),
                    default=max((v.wts for v in state.versions), default=0) + 1)
-    refs = {vid for t in state.txns for vid in t.refs}
+    refs = {vid for t in state.txns for vid in t.refs} | set(state.helper.refs)
     return tuple(v.id for v in state.versions
                  if not v.reclaimed and v.status != "PENDING" and v.id not in refs
                  and (v.status == "ABORTED" or any(

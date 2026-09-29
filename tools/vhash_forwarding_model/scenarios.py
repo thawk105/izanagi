@@ -1,4 +1,4 @@
-"""Small fixed histories and reachability predicates for S1--S10."""
+"""Small fixed histories and reachability predicates for S1--S10, G1--G6, H1--H6."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -41,6 +41,24 @@ def scenario(name):
         state = State(tuple(_v(k, ts) for k, ts in versions),
                       tuple(_t(tid, ts, *ops) for tid, ts, ops in txns))
         def predicate(b, a, x, trace):
+            if name == "H3":
+                if x.operation != "read_floor":
+                    return False
+                t = next(t for t in a.txns if t.id == "T")
+                return (a.helper.txn == "T"
+                        and a.helper.phase in ("check", "commit")
+                        and t.phase == "ops" and t.pc == 1 and t.cand_ts == 45
+                        and a.helper.failed and (v := visible(a, "A", a.helper.target)) is not None
+                        and v.id == "W:A")
+            if name in ("H1", "H6") and x.operation != "read_floor":
+                return False
+            if name == "H2" and x.operation not in ("h_commit", "h_commit_fail",
+                                                        "end_wait", "end_wait_revert"):
+                return False
+            if name == "H4" and x.operation != "end_wait":
+                return False
+            if name == "H5" and (x.operation != "install" or x.version != "W:A"):
+                return False
             steps = trace()
             ops = [z.operation for z in steps]
             t = next(t for t in a.txns if t.id == "T")
@@ -51,10 +69,6 @@ def scenario(name):
                         and ops.index("h_snapshot") < ops.index("end_wait")) or (
                             x.operation in ("end_wait", "end_wait_revert") and "h_commit" in ops
                             and "h_publish" not in ops)
-            if name == "H3":
-                return (x.operation == "read_floor" and "h_snapshot" in ops
-                        and any(z.operation == "install" and z.version == "W:A" for z in steps)
-                        and t.cand_ts == t.start and a.helper.failed)
             if name == "H4":
                 return x.operation == "end_wait" and "h_expire" in ops and "reclaim" in ops
             if name == "H5":
@@ -196,18 +210,47 @@ def danger_witness(name):
     if name in ("H1", "H6", "G1", "G2"):
         return None
     if name == "H2":
-        from .judge import j3
-        return lambda b, a, x: (bool(j3(b, a, x)) and any(
-            t.id == "T" and t.cand_ts < t.gc_floor for t in a.txns))
+        def danger(b, a, x):
+            t = next(t for t in b.txns if t.id == "T")
+            if t.phase in ("done", "release") or t.expired or t.gc_floor <= t.cand_ts:
+                return False
+            if x.thread in ("T", "H") and x.operation == "touch_reclaimed":
+                return any(v.id == x.version and v.key == "B" for v in b.versions)
+            if x.operation != "reclaim":
+                return False
+            v = next(v for v in b.versions if v.id == x.version)
+            if v.key != "B" or any(op == "W" and key == "B" for op, key in t.ops[:t.pc]):
+                return False
+            if not any(op == "R" and key == "B" for op, key in t.ops[t.pc:]) and v.id not in t.refs:
+                return False
+            return v.status == "COMMITTED" and v.wts <= t.cand_ts and not any(
+                later.key == "B" and later.status == "COMMITTED"
+                and v.wts < later.wts <= t.cand_ts for later in b.versions)
+        return danger
     if name == "H3":
         return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(
-            t.id == "T" and t.cand_ts == 45 for t in b.txns)
+            t.id == "T" and t.phase not in ("done", "release") and not t.expired
+            and t.cand_ts == 45 and t.pc <= 2 for t in b.txns)
     if name == "H4":
         return lambda b, a, x: x.thread == "T" and x.operation == "touch_reclaimed" and any(
             t.id == "T" and t.expired for t in b.txns)
     if name == "H5":
-        from .judge import j1
-        return lambda b, a, x: x.operation == "decide_committed" and bool(j1(a))
+        def danger(b, a, x):
+            if x.operation != "decide_committed":
+                return False
+            t, w = (next(t for t in a.txns if t.id == name) for name in ("T", "W"))
+            if any(tx.phase not in ("release", "done") or tx.failed for tx in (t, w)):
+                return False
+            ta = next((v for key, vid in t.read_log if key == "A"
+                       for v in a.versions if v.id == vid), None)
+            wb = next((v for key, vid in w.read_log if key == "B"
+                       for v in a.versions if v.id == vid), None)
+            return bool(ta and wb and any(
+                v.key == "A" and v.owner == "W" and v.status == "COMMITTED"
+                and ta.wts < v.wts <= t.cand_ts for v in a.versions) and any(
+                v.key == "B" and v.owner == "T" and v.status == "COMMITTED"
+                and wb.wts < v.wts <= w.cand_ts for v in a.versions))
+        return danger
     if name == "G3":
         return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(
             t.id == "T" and t.cand_ts == 45 and t.pc == 1 and t.phase in

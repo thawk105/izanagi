@@ -25,7 +25,7 @@ def main(argv=None):
     p.add_argument("--protocol", choices=("v0", "v1"), default="v1")
     p.add_argument("--fault", choices=("U1v", "U1f", "U2", "U3a", "U3b", "U4", "U5", "U6",
                                        "UG1", "UG2", "UG2r", "UG3", "UF1",
-                                       "UH1", "UH1g", "UH1p", "UH2", "UH3F", "UH3X", "UH4", "UH5"),
+                                       "UH1", "UH1g", "UH1p", "UH2", "UH3F", "UH3X", "UH4", "UH5", "UH6"),
                    default="")
     p.add_argument("--o1", action="store_true")
     p.add_argument("--pressure", choices=("off", "self", "helper"), default="off")

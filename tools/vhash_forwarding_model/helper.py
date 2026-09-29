@@ -10,10 +10,10 @@ class HelperState:
     txn: str = ""
     gen: int = 0
     target: int = 0
-    base: int = 0
     reads: tuple[tuple[str, str], ...] = ()
     index: int = 0
     failed: bool = False
+    refs: tuple[str, ...] = ()
 
 
 def waiting(t):
@@ -33,7 +33,7 @@ def helper_steps(s, faults, resume="accept"):
                                           held_refs=candidate.refs if "UH3X" in faults else candidate.held_refs,
                                           refs=() if "UH3X" in faults else candidate.refs)), Step(
                                               "H", "h_expire", candidate.id,
-                                              "UH3X" if "UH3X" in faults else "")
+                                              "UH3X" if "UH3X" in faults and candidate.refs else "")
     if h.phase == "idle":
         for t in s.txns:
             if not waiting(t):
@@ -41,13 +41,17 @@ def helper_steps(s, faults, resume="accept"):
             for target in pressure_targets(s, t):
                 if target in t.tried_targets:
                     continue
-                nh = HelperState("rts", t.id, t.gen, target, t.cand_ts, t.read_log)
+                nh = HelperState("rts", t.id, t.gen, target, t.read_log,
+                                 refs=() if "UH6" in faults else tuple(dict.fromkeys(
+                                     vid for _, vid in t.read_log)))
                 ns = _put_txn(s, replace(t, tried_targets=t.tried_targets + (target,)))
                 ns = replace(ns, helper=nh)
-                if "UH2" in faults:
+                if "UH2" in faults and target > t.gc_floor:
                     ns = _put_txn(ns, replace(next(x for x in ns.txns if x.id == t.id),
-                                              gc_floor=max(t.gc_floor, target)))
-                yield ns, Step("H", "h_snapshot", f"{t.id}:{target}", "UH2" if "UH2" in faults else "")
+                                              gc_floor=target))
+                yield ns, Step("H", "h_snapshot", f"{t.id}:{target}",
+                               "UH2" if "UH2" in faults and target > t.gc_floor else
+                               "UH6" if "UH6" in faults and t.read_log else "")
         return
     t = next(x for x in s.txns if x.id == h.txn)
     if h.phase in ("rts", "check"):
@@ -57,11 +61,17 @@ def helper_steps(s, faults, resume="accept"):
             return
         vid = h.reads[h.index][1]
         v = _version(s, vid)
+        if v.reclaimed:
+            yield s, Step("H", "touch_reclaimed", vid)
+            return
         if h.phase == "rts":
             ns = _put_version(s, replace(v, rts=max(v.rts, h.target)))
             yield replace(ns, helper=replace(h, index=h.index + 1)), Step("H", "h_rts", vid)
         else:
             selected = visible(s, v.key, h.target)
+            if selected and selected.reclaimed:
+                yield s, Step("H", "touch_reclaimed", selected.id)
+                return
             ok = bool(selected and selected.id == vid and not selected.reclaimed and not v.reclaimed)
             yield replace(s, helper=replace(h, index=h.index + 1, failed=h.failed or not ok)), Step(
                 "H", "h_check", vid)
@@ -69,24 +79,28 @@ def helper_steps(s, faults, resume="accept"):
     if h.phase == "commit":
         cas = ("UH1" in faults or (waiting(t) and ("UH1g" in faults or t.gen == h.gen)))
         if h.failed or not cas:
-            yield replace(s, helper=HelperState()), Step("H", "h_commit_fail", t.id,
-                                                         "UH1g" if "UH1g" in faults else "")
+            yield replace(s, helper=HelperState()), Step("H", "h_commit_fail", t.id)
             return
         nt = replace(t, cand_ts=h.target, gen=t.gen + 1, helper_base=t.cand_ts,
                      confirmed=t.confirmed + tuple((vid, h.target) for _, vid in h.reads))
         ns = _put_txn(s, nt)
+        changed = "UH1" in faults and not (waiting(t) and t.gen == h.gen)
         yield replace(ns, helper=replace(h, phase="publish", gen=nt.gen)), Step(
-            "H", "h_commit", t.id, "UH1" if "UH1" in faults else "")
+            "H", "h_commit", t.id, "UH1" if changed else "")
         return
     if h.phase == "publish":
-        cas = ("UH1" in faults or "UH1p" in faults or (waiting(t) and t.gen == h.gen))
+        sound_cas = waiting(t) and t.gen == h.gen
+        cas = ("UH1" in faults or "UH1p" in faults or
+               (waiting(t) and ("UH1g" in faults or t.gen == h.gen)))
         if cas:
             published = h.target if "UH1p" in faults or "UH1" in faults else t.cand_ts
             nt = replace(t, gc_floor=max(t.gc_floor, published),
                          held_refs=t.refs if "UH3F" in faults else t.held_refs,
                          refs=() if "UH3F" in faults else t.refs)
             ns = _put_txn(s, nt)
-            fault = next((f for f in ("UH1", "UH1p", "UH3F") if f in faults), "")
+            fault = (next((f for f in ("UH1", "UH1p") if f in faults), "")
+                     if not sound_cas or published != t.cand_ts else
+                     "UH3F" if "UH3F" in faults and t.refs else "")
             yield replace(ns, helper=HelperState()), Step("H", "h_publish", t.id, fault)
         else:
             yield replace(s, helper=HelperState()), Step("H", "h_publish_fail", t.id)

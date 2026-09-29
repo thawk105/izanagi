@@ -93,6 +93,8 @@ def j3(before, after, step):
     if step.operation != "reclaim":
         return None
     v = next(x for x in before.versions if x.id == step.version)
+    if v.id in before.helper.refs:
+        return {"version": v.id, "txn": "H", "reason": "reference", "gc_step": step.operation}
     for t in before.txns:
         if t.phase == "done":
             continue
