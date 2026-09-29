@@ -1,0 +1,22 @@
+# 段 1 brief — [T-2854] pin 前進 (1)(2): C2' の上に整形だけの commit、CCBench CI 手順の手元通過、新 tip で D297 v2 を C 基点で判定
+
+- 研究前進: TPC-C 段 1 の trace 認定 (T-2855 段 2・T-2866 の探索 loop・T-2851 の TPC-C 側) の前提である pin 前進を、D2277 項 1 の条件「CCBench の CI (build・format) が緑の tip に限る」を満たす tip を作って進める。完了判定 = 新 tip F について (a) format.yml と同じ clang-format 14 `--dry-run --Werror` が 0 件、(b) build.yml と同じ top-level Release・sanitizer OFF の全 protocol build が成功、(c) D297 規則 v2 で C → F が GCC 11.4 / 12.3 とも pass、(d) push の依頼を人間へ返す。
+- 確定済みユーザー裁定: D2277 項 1 (1)〜(4) (整形は意味を変えない整形だけ、Codex author、D297 は新 tip で取り直し、push は人間・別名 branch・force なし、gitlink・CCBENCH_FULL_SHA・CURRENT_PIN と patch 54 本は CI 緑の後の別 wave)、D2275 (検査器と判定手順)、D95 (CCBench の変更は Codex author)、D16・D18・D20、D2212 項 4 (2 node 時間以上はユーザー確認)。
+- 不変条件: 規律 1・2。gitlink・CCBENCH_FULL_SHA・CURRENT_PIN・patches/ は変えない。既存 branch (izanagi-tpcc-v3-silo-mocc = C2' ほか) を動かさない。push・remote 操作をしない。検査器 (tools/check_trace0_preprocess_identity.py) を変えない。D297 の合格は F の結果に限って言い、TPC-C の certified と trace 完全除去は名乗らない。仮想リスク向けの gate・検査・台帳・一般化は足さない。
+- 前提の実測 (親、job dir probe/):
+  - clang-format 14.0.0 (login /usr/bin)。C2' で CI 対象 213 file 中の違反は 3 file 84 件 (cc/mocc/transaction.cc 36・cc/silo/transaction.cc 23・include/trace.hh 25)、C は 46 件、上流 origin/master (50c7946d1) は 0 件 (fmt_scan.log)。
+  - 整形後の 3 file は #include 除去の `g++ -E -P -dD` 出力が TRACE=0 で整形前と一致、TRACE=1 で不一致 (2 文脈、pp_probe.log)。差は全部 `#if TRACE` 領域内という予測。模擬 (include 除去・-nostdinc) であり D297 本判定ではない。
+  - CCBench は `-Wall -Wextra -Werror` (cmake/CompileOptions.cmake)。字下げ依存の警告 (-Wmisleading-indentation) で build が割れうるので build 実走が要る。CI image は ubuntu:24.04 (GCC 13)、手元は GCC 11.4 / 12.3。apptainer 1.4.5 が login にある。CI image :ci・:latest を job dir へ取得中。
+  - FetchContent の 3 依存 (masstree b3c5d054・mimalloc v2.3.2=02a2f5df・googletest f8d7d77c) は手元 cache /work/1/SFC/tanab/izanagi-thirdparty-cache の HEAD と一致。
+  - GitHub: izanagi-tpcc-v3-silo-mocc は ls-remote・API とも無い (D2277 項 1・4 の「push 済み」と食い違う新事実)。F の branch を push すれば C2' も上がるので本題は止まらない。報告に明記する。
+- provisional 裁定 (攻撃対象):
+  - (P1) 整形対象は違反のある 3 file だけ。子は login の clang-format 14.0.0 で `-i` し、親が CI image :latest の clang-format でも CI と同じ `git ls-files … | xargs clang-format --dry-run --Werror` を回す。
+  - (P2) 意味不変の照合は 3 段: (i) 親が C2'..F の raw diff = 3 file・mode 不変、各 file の空白 (space・tab・LF) を全部除いた bytes が C2' と一致、(ii) D297 本判定 (C → F、TRACE=0 の完全展開・include 活性)、(iii) CI 相当 build。
+  - (P3) build は計算ノードで CI image :ci を apptainer exec し、CI と同じ configure argv (`-DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_{C,CXX}_COMPILER_LAUNCHER=ccache`) と `cmake --build build -j $(nproc)`。CI との差は offline のため `-DFETCHCONTENT_SOURCE_DIR_{MASSTREE,MIMALLOC,GOOGLETEST}=<cache の複製>` と `-DFETCHCONTENT_FULLY_DISCONNECTED=ON` を足すことだけで、report に記録する。F が赤なら同じ job で C2' も build して帰属を分ける。
+  - (P4) D297 判定は前回の job script (job dir の旧 run_judge.sh) を Codex author が改修: new OID を引数に、new の親 = C2' と C2'..new = 3 file を job 内で照合、負例対照 (tpcc.hh の `#line 56` 削除) は F の上で、errexit 欠陥 (負例 rc=1 で script が末尾検査前に落ちる) を直す。検査器・起動引数・cache・prefix・walltime は前回と同じ。
+  - (P5) F の branch は新しい local branch `izanagi-tpcc-v3-silo-mocc-fmt` (wave 木の submodule に作る)。bundle を job dir に作り、land 後に主 checkout の submodule へ非 force で取り込む (先例 T-2844・単位 11)。
+  - (P6) 見積り: 判定 1 job ≈ 1,944 s (前回実測) + build 1 job (未実測、48 core で 10〜20 分と推定) を 2 node 同時。合計 ≈ 0.6〜0.9 node 時間で 2 node 時間の線の下 (ユーザー確認不要)。
+  - (P7) izanagi repo の実装面の差分は 0 (記録だけ)。DW-S04 により変異 matrix は免除、受入全走は行う。
+- 成果物: CCBench の local commit F と branch・bundle、CI 手順の実走 log、D297 判定 report 2 本 + 負例、insight `output/insights/2026-09-29/t2854-ccbench-format-ci/README.md`、worklog / decisions の spool fragment、push 依頼。
+- 分割: 段 2 は省略 (軽量版、変更面が確定)。段 3 相談 1 本 (正しさ境界と実効性・過剰を 1 本で)。段 5 author 1 本 (所有 = 子木の output/runs/t2854-fmt-ci/ 配下: ccbench clone の 3 file と job script 2 本)。段 6 review 1 本。
+- 変更面 (実アンカー): CCBench C2' 40a7f4acb174ca43cb590f40d13847216a1564bc の cc/mocc/transaction.cc・cc/silo/transaction.cc・include/trace.hh (整形のみ)。旧判定 script = /work/1/SFC/tanab/tmp/t2854-d297-header-v2-20260927/judge/run_judge.sh (sha256 66af63ab…)、投入 = 同 dir run-judge.sh。CI 定義 = C2' の .github/workflows/build.yml・format.yml。
