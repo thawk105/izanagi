@@ -1,0 +1,594 @@
+{
+  "binary_sha256": "7b1b54e36977b4f433a05f157513c3dad37047845af3f6f1f27f4af89f09daed",
+  "build": {
+    "build": {
+      "argv": [
+        "cmake",
+        "--build",
+        "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-build",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "48"
+      ],
+      "rc": 0,
+      "seconds": 4.316
+    },
+    "build_log_tail": [
+      "[  0%] Built target masstree_build",
+      "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+      "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+      "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+      "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+      "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+      "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+      "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+      "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+      "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+      "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+      "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+      "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+      "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+      "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+      "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+      "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+      "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+      "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+      "[ 85%] Linking C static library libmimalloc.a",
+      "[ 85%] Built target mimalloc-static",
+      "[ 85%] Linking CXX static library libccbench_common.a",
+      "[ 85%] Built target ccbench_common",
+      "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+      "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+      "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+      "[100%] Linking CXX executable ycsb_silo.exe",
+      "[100%] Built target ycsb_silo.exe"
+    ],
+    "configure": {
+      "argv": [
+        "cmake",
+        "-S",
+        "/tmp/izanagi_wt_24ryw5j7/wt",
+        "-B",
+        "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+        "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+        "-DCCBENCH_WAL=0",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/dependencies/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/dependencies/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/dependencies/thirdparty-src/googletest"
+      ],
+      "rc": 0,
+      "seconds": 1.714
+    },
+    "configure_log_tail": [
+      "-- The CXX compiler identification is GNU 11.4.0",
+      "-- Detecting CXX compiler ABI info",
+      "-- Detecting CXX compiler ABI info - done",
+      "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+      "-- Detecting CXX compile features",
+      "-- Detecting CXX compile features - done",
+      "-- Looking for C++ include pthread.h",
+      "-- Looking for C++ include pthread.h - found",
+      "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+      "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+      "-- Found Threads: TRUE  ",
+      "-- Found gflags: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/dependencies/gflags-install/lib/libgflags.a  ",
+      "-- Found glog: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/dependencies/glog-install/lib/libglog.a  ",
+      "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+      "-- The C compiler identification is GNU 11.4.0",
+      "-- Detecting C compiler ABI info",
+      "-- Detecting C compiler ABI info - done",
+      "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+      "-- Detecting C compile features",
+      "-- Detecting C compile features - done",
+      "-- ",
+      "-- Architecture: x64",
+      "-- Performing Test mi_has_libpthread",
+      "-- Performing Test mi_has_libpthread - Success",
+      "-- Performing Test mi_has_librt",
+      "-- Performing Test mi_has_librt - Success",
+      "-- Performing Test mi_has_libatomic",
+      "-- Performing Test mi_has_libatomic - Success",
+      "-- ",
+      "-- Library name     : mimalloc",
+      "-- Version          : 2.3.2",
+      "-- Build type       : release",
+      "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+      "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+      "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+      "-- Link libraries   : pthread;rt;atomic",
+      "-- Build targets    : static",
+      "-- ",
+      "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+      "-- Wrote protocol×workload matrix to /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-build/PROTOCOL_MATRIX.md",
+      "-- Configuring done",
+      "-- Generating done",
+      "-- Build files have been written to: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-build"
+    ]
+  },
+  "ci_builds": {},
+  "ci_equivalence_notes": {},
+  "errors": [],
+  "finished": "2026-09-29T06:52:37.891979+00:00",
+  "host": "bnode001",
+  "job": "b1",
+  "patches": {
+    "broken-silo-b1-unregistered-first-read.patch": "afebe882d609dc819b9248357af865e17679c6d9ef1a0989e89975b62bdff628",
+    "instr-silo-gate-witness.patch": "dcd7341e25cb27b0e893b4d525d1401aed94cd299966ff230fa874eb96e8d390"
+  },
+  "pin": "68106660686232781bca3be792a750d3e19d7a8a",
+  "prereg": {
+    "W-blind": {
+      "expected": {
+        "D1_b1": "violation",
+        "b1_committed": ">=1",
+        "reachability": "pass"
+      },
+      "match": true,
+      "observed": {
+        "D1": {
+          "a": "pass",
+          "b1": "violation",
+          "b2": "pass"
+        },
+        "D1_b1_count": 183035,
+        "D2b": {
+          "i": "violation",
+          "ii": "violation"
+        },
+        "b1_committed": 183035,
+        "b1_count_matches_firing": true,
+        "reachability": "pass",
+        "verifier_certified": true,
+        "verifier_verdict": "serializable"
+      }
+    },
+    "W-rmw": {
+      "expected": {
+        "D1_b1": "violation",
+        "b1_committed": ">=1",
+        "reachability": "pass"
+      },
+      "match": true,
+      "observed": {
+        "D1": {
+          "a": "pass",
+          "b1": "violation",
+          "b2": "pass"
+        },
+        "D1_b1_count": 212921,
+        "D2b": {
+          "i": "violation",
+          "ii": "violation"
+        },
+        "b1_committed": 212921,
+        "b1_count_matches_firing": true,
+        "reachability": "pass",
+        "verifier_certified": true,
+        "verifier_verdict": "serializable"
+      }
+    }
+  },
+  "runs": {
+    "W-blind": {
+      "aborts": 11597,
+      "b1_fired": [
+        "GATE_B1_FIRED reached=320315 committed=183035"
+      ],
+      "commits": 236120,
+      "gate": {
+        "D1": {
+          "a": {
+            "count": 0,
+            "sample": [],
+            "status": "pass"
+          },
+          "b1": {
+            "count": 183035,
+            "sample": [
+              0,
+              1,
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21
+            ],
+            "status": "violation"
+          },
+          "b2": {
+            "count": 0,
+            "sample": [],
+            "status": "pass"
+          }
+        },
+        "D2b": {
+          "i": {
+            "count": 916,
+            "sample": [
+              366,
+              762,
+              827,
+              1363,
+              1399,
+              1543,
+              2029,
+              2631,
+              2682,
+              2756,
+              2882,
+              3088,
+              3139,
+              3243,
+              3805,
+              3950,
+              4158,
+              4316,
+              4840,
+              5194
+            ],
+            "status": "violation"
+          },
+          "ii": {
+            "count": 18134,
+            "sample": [
+              23,
+              35,
+              49,
+              51,
+              58,
+              96,
+              97,
+              100,
+              115,
+              131,
+              142,
+              161,
+              170,
+              177,
+              206,
+              213,
+              243,
+              259,
+              261,
+              265
+            ],
+            "status": "violation"
+          }
+        },
+        "occurrence": {
+          "M_M_occurrences": 0,
+          "R_R_occurrences": 18437,
+          "R_R_transactions": 17480,
+          "R_W_R_occurrences": 759,
+          "R_W_R_transactions": 759,
+          "W_R_occurrences": 18239,
+          "W_R_transactions": 18037,
+          "W_W_occurrences": 18424,
+          "W_W_transactions": 17413,
+          "own_write_read_transactions": 18037,
+          "read_only_transactions": 7309,
+          "repeated_key_transactions": 64584,
+          "transactions": 236120,
+          "write_write_occurrences": 19191,
+          "write_write_transactions": 18134,
+          "written_transactions": 228811
+        },
+        "reachability": "pass",
+        "reasons": []
+      },
+      "gate_rc": 0,
+      "run": {
+        "argv": [
+          "numactl",
+          "--interleave=all",
+          "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-build/cc/silo/ycsb_silo.exe",
+          "-thread_num=4",
+          "-ycsb_tuple_num=200",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=false",
+          "-ycsb_max_ope=5",
+          "-extime=1",
+          "-clocks_per_us=1800"
+        ],
+        "rc": 0,
+        "seconds": 1.006
+      },
+      "trace_archive": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/W-blind.trace.tar.gz",
+      "trace_archive_sha256": "61cc5731d3a24d97a89e78d9d0c890efd40e5cd771cbfdc0221ee804c242cabc",
+      "trace_files_bytes": {
+        "gate_0.log": 17786814,
+        "gate_1.log": 17168271,
+        "gate_2.log": 17339728,
+        "gate_3.log": 18447983,
+        "trace_0.log": 9011194,
+        "trace_1.log": 8700023,
+        "trace_2.log": 8786185,
+        "trace_3.log": 9173259
+      },
+      "verifier": {
+        "rc": 0,
+        "record": {
+          "certified_serializable": 1,
+          "indeterminate": 0,
+          "non_serializable": 0,
+          "results": [
+            {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1048675,
+                "keys": 200,
+                "reads": 256736,
+                "txns": 236120,
+                "writes": 569612
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-W-blind",
+              "verdict": "serializable"
+            }
+          ],
+          "runs": 1
+        }
+      }
+    },
+    "W-rmw": {
+      "aborts": 7865,
+      "b1_fired": [
+        "GATE_B1_FIRED reached=588237 committed=212921"
+      ],
+      "commits": 217062,
+      "gate": {
+        "D1": {
+          "a": {
+            "count": 0,
+            "sample": [],
+            "status": "pass"
+          },
+          "b1": {
+            "count": 212921,
+            "sample": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19
+            ],
+            "status": "violation"
+          },
+          "b2": {
+            "count": 0,
+            "sample": [],
+            "status": "pass"
+          }
+        },
+        "D2b": {
+          "i": {
+            "count": 10884,
+            "sample": [
+              11,
+              29,
+              36,
+              56,
+              57,
+              79,
+              83,
+              102,
+              113,
+              123,
+              124,
+              138,
+              143,
+              157,
+              179,
+              192,
+              207,
+              270,
+              295,
+              300
+            ],
+            "status": "violation"
+          },
+          "ii": {
+            "count": 16732,
+            "sample": [
+              7,
+              11,
+              25,
+              36,
+              47,
+              56,
+              66,
+              79,
+              88,
+              102,
+              120,
+              123,
+              124,
+              143,
+              154,
+              173,
+              179,
+              192,
+              219,
+              220
+            ],
+            "status": "violation"
+          }
+        },
+        "occurrence": {
+          "M_M_occurrences": 16912,
+          "M_M_transactions": 16009,
+          "R_R_occurrences": 16808,
+          "R_R_transactions": 15935,
+          "R_W_R_occurrences": 17271,
+          "R_W_R_transactions": 16352,
+          "W_R_occurrences": 0,
+          "W_W_occurrences": 0,
+          "own_write_read_transactions": 31339,
+          "read_only_transactions": 6822,
+          "repeated_key_transactions": 58749,
+          "transactions": 217062,
+          "write_write_occurrences": 17690,
+          "write_write_transactions": 16732,
+          "written_transactions": 210240
+        },
+        "reachability": "pass",
+        "reasons": []
+      },
+      "gate_rc": 0,
+      "run": {
+        "argv": [
+          "numactl",
+          "--interleave=all",
+          "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-build/cc/silo/ycsb_silo.exe",
+          "-thread_num=4",
+          "-ycsb_tuple_num=200",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=true",
+          "-ycsb_max_ope=5",
+          "-extime=1",
+          "-clocks_per_us=1800"
+        ],
+        "rc": 0,
+        "seconds": 1.009
+      },
+      "trace_archive": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/W-rmw.trace.tar.gz",
+      "trace_archive_sha256": "9c4d9274853c941370e1a38714aa06e1a0e4da8f466d2b5452425f6103ee91d1",
+      "trace_files_bytes": {
+        "gate_0.log": 18405910,
+        "gate_1.log": 18457217,
+        "gate_2.log": 17688736,
+        "gate_3.log": 18201520,
+        "trace_0.log": 10320696,
+        "trace_1.log": 10320255,
+        "trace_2.log": 9903250,
+        "trace_3.log": 9995027
+      },
+      "verifier": {
+        "rc": 0,
+        "record": {
+          "certified_serializable": 1,
+          "indeterminate": 0,
+          "non_serializable": 0,
+          "results": [
+            {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 966011,
+                "keys": 200,
+                "reads": 472345,
+                "txns": 217062,
+                "writes": 524681
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_5-gate-liveness/runs/s2b-b1/trace-W-rmw",
+              "verdict": "serializable"
+            }
+          ],
+          "runs": 1
+        }
+      }
+    }
+  },
+  "source_sha256": {
+    "cc/silo/transaction.cc": "295f4a858f27df2e443140a2a7c3ea53e8f81fe95a57c6734d2b1d1a5d6fc274",
+    "include/trace.hh": "d6550973340f9114e0076ecd4a832679bc62871e0d96fb98d6f7ceb664bdda3f",
+    "include/ycsb.hh": "e66bbf591e9feaabf5ba4605ec36db5e2c9b6a3a6a5477be19f6778e69af9c17"
+  },
+  "started": "2026-09-29T06:50:50.477228+00:00"
+}
