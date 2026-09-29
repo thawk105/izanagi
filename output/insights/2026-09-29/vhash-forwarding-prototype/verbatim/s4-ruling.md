@@ -101,3 +101,7 @@
 - fix4〜fix9: closed (静的照合 + 計算ノード smoke7 all_pass + 登録関連テスト 401 passed)。
 - 新所見「aggregate が workload の欠落を受理する」: real。ただし親が aggregate を完走した run job 3 本 (normal / many_ops / wait_after_reads) の raw を明示して呼び、
   入力 file と sha256 を一次資料に記録する手順で防ぐ。コードは直さない (研究優先・防御的堅牢化は既定で見送り、DW-O16 の fix 巡を重ねない)。
+
+## erratum 2 (2026-09-29 09:0x JST、段 6、マネージャー経由の md_2 実測)
+- P8 の登録簿に orchestrator/campaign/screening_driver.py の `_CONDITION_DEFAULTS` (鍵集合が DEFINE_SPECS と完全一致、test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs) を加える。
+  先例 3867e6ec5 も同 file と test_screening_driver.py を追随していた (段 2 の指示で見落とした)。3 macro とも既定 0 を足し、先例と同形の assertion を test に足す。判定と既存 entry は変えない。
