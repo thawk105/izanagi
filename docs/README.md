@@ -141,7 +141,7 @@
   正典は decisions / worklog / insights。本体論文との境界は同 README
 - `paper-story-vhash/` — VHash (少数版の hot 配置) と選択的 timestamp forwarding による MVCC の版探索・GC 論文 (3 本目) の
   ストーリー。`paper-story/` と同じ凍結契約。出発点のユーザー提供メモと、並行 wave の成果物の置き場は同 README
-- `vhash-evaluation-preregistration-draft.md` — VHash 論文の評価計画の事前登録 (**草稿で未発効**、H1〜H6 の比較・判定・正しさの門・統計・node 時間の試算の正本。計測・計算投入の認可ではない)
+- `vhash-evaluation-preregistration-draft.md` — VHash 論文の評価計画の事前登録 (**草稿 v1 で未発効**、H1〜H6 の比較・判定・正しさの門・統計・node 時間の試算と、md_21・md_23 の探索結果の読み方の正本。計測・計算投入の認可ではない)
 - `roadmap-history/` — roadmap の版凍結置き場 (改訂セレモニーの正本 = 同 README)
 - `phase3-t189-model-routing-preregistration.md` — model 経路 (sol / luna) 比較実験の事前登録。
   未解決点の処遇は D674 で確定済み。素材の到達状況 (task catalog・price snapshot) は同書 §13 と総括が正本
