@@ -283,7 +283,8 @@ class TextLimit:
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
-    ".claude/commands/cleanup-branches.md": TextLimit(7_058, 110),
+    # D782 手順による 2026-09-29 の最小幅引き上げ (§5 の push 失敗時 1 行)。
+    ".claude/commands/cleanup-branches.md": TextLimit(7_440, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
     ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
@@ -786,7 +787,7 @@ CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "3d675f09e6eea7eb6647e0be78f4843fecd6407662cbbe4e849844f559955c2b"
+    "1d3bdff0364ec943f7628f0a7adbf1785fd40f9079e81aef8f5baa53d79f49b1"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (
