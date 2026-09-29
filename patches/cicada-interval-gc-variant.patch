@@ -1,4 +1,5 @@
 diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+index dbaeb1b3c..1ff8d11bd 100644
 --- a/cc/cicada/include/transaction.hh
 +++ b/cc/cicada/include/transaction.hh
 @@ -24,6 +24,10 @@
@@ -12,7 +13,23 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
  #define CONTINUING_COMMIT_THRESHOLD 5
  
  enum class TransactionStatus : uint8_t {
-@@ -95,6 +99,10 @@
+@@ -45,6 +49,15 @@ public:
+   std::deque<Tuple*> gc_records_;    // for records
+   std::deque<GCElement<Tuple>> gcq_; // for versions
+   std::deque<Version*> reuse_version_from_gc_;
++#if CICADA_INTERVAL_GC
++  struct IGCRetiredVersion {
++    Version* version;
++    uint64_t epoch;
++    uint64_t retired_tsc;
++  };
++  std::deque<IGCRetiredVersion> igc_retired_versions_;
++#endif
++#line 48
+   std::vector<Procedure> pro_set_;
+   Result* result_ = nullptr;
+   const bool& quit_; // for thread termination control
+@@ -95,6 +108,10 @@ public:
    }
  
    ~TxExecutor() {
@@ -24,15 +41,15 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
           itr != reuse_version_from_gc_.end(); ++itr) {
        if ((*itr)->status_ == VersionStatus::unused) delete (*itr);
 diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
+index 12de93b80..4678155a3 100644
 --- a/cc/cicada/include/version.hh
 +++ b/cc/cicada/include/version.hh
-@@ -30,6 +30,14 @@
+@@ -30,6 +30,13 @@ public:
    atomic<VersionStatus> status_; // commit record
  
    TupleBody body_;
 +#if CICADA_INTERVAL_GC
 +  std::atomic<uint8_t> igc_pruned_{0};
-+  static bool igc_assert_pool_reuse(uint64_t old_wts, Version* version);
 +#endif
 +#if CICADA_INTERVAL_COUNT
 +  std::atomic<uint64_t> igc_install_tsc_{0};
@@ -41,14 +58,13 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
  
    Version() {
      status_.store(VersionStatus::pending, memory_order_release);
-@@ -83,11 +91,22 @@
+@@ -83,11 +90,21 @@ public:
    uint64_t ldAcqWts() { return wts_.load(std::memory_order_acquire); }
  
    void set(const uint64_t rts, const uint64_t wts, TupleBody&& body) {
 +#if CICADA_INTERVAL_GC
-+    // A pooled version becomes new only after the gcq_ pop.
-+    if (igc_pruned_.load(std::memory_order_acquire))
-+      igc_assert_pool_reuse(wts_.load(std::memory_order_acquire), this);
++    // The retirement queue checks quiescence before a pruned version enters
++    // the pool. A pool consumer only resets the mark.
 +    igc_pruned_.store(0, std::memory_order_relaxed);
 +#endif
 +#line 89
@@ -64,7 +80,7 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
    }
  
    void set(const uint64_t rts, const uint64_t wts, Version* next,
-@@ -136,3 +155,28 @@
+@@ -136,3 +153,28 @@ public:
      next_.store(next, std::memory_order_release);
    }
  };
@@ -94,6 +110,7 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
 +#endif
 +#line 139
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index efcf02d75..fd0f8eed2 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -5,6 +5,20 @@
@@ -117,11 +134,10 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -25,6 +39,603 @@
- using namespace std;
+@@ -26,12 +40,645 @@ using namespace std;
  
  #define MSK_TID 0b11111111
-+
+ 
 +#if CICADA_INTERVAL_COUNT
 +DEFINE_uint64(cicada_igc_count_long_threads, 0,
 +              "Number of long workers at the end, excluding leader.");
@@ -138,6 +154,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  uint64_t installed = 0, installed_bytes = 0;
 +  uint64_t pruned = 0, pruned_bytes = 0, reuse = 0;
 +  uint64_t reuse_bytes = 0, reuse_pool = 0;
++  uint64_t retired_current = 0, retired_bytes = 0;
++  uint64_t retire_age[64] = {};
 +  uint64_t stock_removed = 0, stock_removed_bytes = 0;
 +  uint64_t boundary_samples = 0, boundary_age_sum = 0;
 +  uint64_t retention_unknown = 0;
@@ -181,7 +199,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  ~IGCReport() {
 +    uint64_t installed = 0, removed = 0, installed_bytes = 0;
 +    uint64_t removed_bytes = 0, pending = 0, pending_bytes = 0;
-+    uint64_t pooled = 0;
++    uint64_t pooled = 0, retired = 0, retired_bytes = 0;
 +    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
 +      const auto& c = igc_counts[i];
 +      installed += c.installed;
@@ -191,6 +209,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      pending += c.pruned - c.reuse;
 +      pending_bytes += c.pruned_bytes - c.reuse_bytes;
 +      pooled += c.reuse_pool;
++      retired += c.retired_current;
++      retired_bytes += c.retired_bytes;
 +    }
 +    uint64_t initial = FLAGS_ycsb_tuple_num;
 +    uint64_t initial_bytes =
@@ -203,7 +223,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +              << initial_bytes + installed_bytes - removed_bytes
 +              << ",\"pruned_pending\":" << pending
 +              << ",\"pruned_pending_bytes\":" << pending_bytes
-+              << ",\"reuse_pool\":" << pooled << ",\"threads\":[";
++              << ",\"reuse_pool\":" << pooled
++              << ",\"retired_versions\":" << retired
++              << ",\"retired_bytes\":" << retired_bytes
++              << ",\"retire_age_unit\":\"tsc_ticks\""
++              << ",\"threads\":[";
 +    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
 +      if (i) std::cout << ',';
 +      const auto& c = igc_counts[i];
@@ -238,6 +262,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +                << ",\"pruned_bytes\":" << c.pruned_bytes
 +                << ",\"reuse\":" << c.reuse
 +                << ",\"reuse_bytes\":" << c.reuse_bytes
++                << ",\"retired_current\":" << c.retired_current
++                << ",\"retired_bytes\":" << c.retired_bytes
 +                << ",\"reuse_pool\":" << c.reuse_pool
 +                << ",\"stock_removed\":" << c.stock_removed
 +                << ",\"stock_removed_bytes\":" << c.stock_removed_bytes
@@ -255,6 +281,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      for (size_t b = 0; b < 64; ++b) {
 +        if (b) std::cout << ',';
 +        std::cout << c.stock_age[b];
++      }
++      std::cout << "],\"retire_age_log2\":[";
++      for (size_t b = 0; b < 64; ++b) {
++        if (b) std::cout << ',';
++        std::cout << c.retire_age[b];
 +      }
 +      std::cout << "]}";
 +    }
@@ -295,6 +326,18 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#define IGC_COUNT_PRUNED(id, v) igc_count_pruned(id, v)
 +#define IGC_COUNT_PRUNED_DROP(id, v) igc_count_pruned_drop(id, v)
 +#define IGC_COUNT_REUSE(id, v) igc_count_reuse(id, v)
++#define IGC_RETIRE_TSC() rdtscp()
++#define IGC_COUNT_RETIRE(id, v)                                                \
++  do {                                                                         \
++    ++igc_counts[id].retired_current;                                          \
++    igc_counts[id].retired_bytes += igc_bytes(v);                              \
++  } while (false)
++#define IGC_COUNT_UNRETIRE(id, v, age)                                         \
++  do {                                                                         \
++    --igc_counts[id].retired_current;                                          \
++    igc_counts[id].retired_bytes -= igc_bytes(v);                              \
++    ++igc_counts[id].retire_age[igc_bucket(age)];                              \
++  } while (false)
 +#define IGC_COUNT_MODE_CALL(id, mode) igc_count_mode_call(id, mode)
 +#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) igc_count_mode_candidate(id, mode, n)
 +#else
@@ -302,6 +345,9 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#define IGC_COUNT_PRUNED(id, v) ((void) 0)
 +#define IGC_COUNT_PRUNED_DROP(id, pruned) ((void) 0)
 +#define IGC_COUNT_REUSE(id, v) ((void) 0)
++#define IGC_RETIRE_TSC() 0
++#define IGC_COUNT_RETIRE(id, v) ((void) 0)
++#define IGC_COUNT_UNRETIRE(id, v, age) ((void) 0)
 +#define IGC_COUNT_MODE_CALL(id, mode) ((void) 0)
 +#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) ((void) 0)
 +#endif
@@ -310,19 +356,6 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +DEFINE_uint64(cicada_igc_debug_mode, 0,
 +              "0 normal, 1 leak detached versions, 2 count without unlink, 3 "
 +              "skip pruning.");
-+bool Version::igc_assert_pool_reuse([[maybe_unused]] uint64_t old_wts,
-+                                    Version* version) {
-+  [[maybe_unused]] uint64_t minr = MinRts.load(std::memory_order_acquire);
-+  (void) version;
-+  assert((old_wts < minr) ||
-+         (std::fprintf(stderr,
-+                       "A6 version=%p old_wts=%lu minr=%lu "
-+                       "mark=%u\n",
-+                       static_cast<void*>(version), old_wts, minr,
-+                       version->igc_pruned_.load(std::memory_order_acquire)),
-+          false));
-+  return true;
-+}
 +namespace {
 +// assert() erases all read-path bookkeeping from performance builds.
 +thread_local std::unordered_map<Version*, uint64_t> igc_read_wts;
@@ -380,6 +413,17 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +}
 +constexpr size_t kIgcThreads = 256;
 +std::array<std::atomic<bool>, kIgcThreads> igc_beginning{};
++// Zero means idle. Epoch one is live before the first snapshot.
++std::atomic<uint64_t> igc_epoch{1};
++std::array<std::atomic<uint64_t>, kIgcThreads> igc_tx_start_epoch{};
++uint64_t igc_oldest_active_epoch() {
++  uint64_t oldest = UINT64_MAX;
++  for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++    uint64_t start = igc_tx_start_epoch[i].load(std::memory_order_seq_cst);
++    if (start && start < oldest) oldest = start;
++  }
++  return oldest;
++}
 +constexpr size_t kIgcMaxPoints = kIgcThreads * 3 + 2;
 +struct IGCPointSet {
 +  std::array<uint64_t, kIgcMaxPoints> points{};
@@ -465,6 +509,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      next.points.begin();
 +  next.generation = ++igc_generation;
 +  igc_publish(next);
++  igc_epoch.store(next.generation + 1, std::memory_order_seq_cst);
 +  IGC_COUNT(thid, snapshots);
 +}
 +
@@ -718,22 +763,24 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#define IGC_ASSERT_A4(id, tuple, version)
 +#endif
 +#line 29
- 
++
  /**
   * @brief Initialize function of transaction.
-@@ -32,6 +643,11 @@
+  * Allocate timestamp.
   * @return void
   */
  void TxExecutor::begin() {
 +  IGC_ASSERT_A7_RESET()
 +#if CICADA_INTERVAL_GC
 +  igc_beginning[thid_].store(true, std::memory_order_seq_cst);
++  igc_tx_start_epoch[thid_].store(igc_epoch.load(std::memory_order_seq_cst),
++                                  std::memory_order_seq_cst);
 +#endif
 +#line 35
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +657,10 @@
+@@ -41,6 +688,10 @@ void TxExecutor::begin() {
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -744,7 +791,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +721,16 @@
+@@ -101,6 +752,16 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -761,7 +808,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -123,6 +753,8 @@
+@@ -123,6 +784,8 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
      return nullptr;
    }
  
@@ -770,7 +817,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    read_set_.emplace_back(s, key, tuple, later_ver, ver);
  
  #if INLINE_VERSION_OPT
-@@ -267,6 +899,10 @@
+@@ -267,6 +930,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -781,7 +828,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
    }
  
-@@ -298,6 +934,10 @@
+@@ -298,6 +965,10 @@ FINISH_WRITE:
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -792,7 +839,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +986,10 @@
+@@ -346,6 +1017,10 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -803,7 +850,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +1061,10 @@
+@@ -417,6 +1092,10 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -814,7 +861,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -520,6 +1168,8 @@
+@@ -520,6 +1199,8 @@ bool TxExecutor::validation() {
          }
        } else {
          (*itr).new_ver_->strRelNext(ver);
@@ -823,14 +870,18 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
          if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
                                                     memory_order_acq_rel,
                                                     memory_order_acquire)) {
-@@ -547,17 +1197,25 @@
+@@ -547,17 +1228,34 @@ bool TxExecutor::validation() {
      else
        ver = (*itr).rcdptr_->ldAcqLatest();
  
--    while (ver->ldAcqWts() >= this->wts_.ts_) ver = ver->ldAcqNext();
 +    IGC_ASSERT_A7_CHECK(thid_, ver)
 +#line 550
++#if CICADA_INTERVAL_GC
 +    while (ver->ldAcqWts() >= this->wts_.ts_) ver = IGC_A7_NEXT(thid_, ver);
++#else
+     while (ver->ldAcqWts() >= this->wts_.ts_) ver = ver->ldAcqNext();
++#endif
++#line 551
      // if write after read occured, it may happen "==".
  
 +    IGC_ASSERT_A7_CHECK(thid_, ver)
@@ -839,8 +890,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
        ;
      while (ver->ldAcqStatus() != VersionStatus::committed &&
             ver->ldAcqStatus() != VersionStatus::deleted) {
--      ver = ver->ldAcqNext();
++#if CICADA_INTERVAL_GC
 +      ver = IGC_A7_NEXT(thid_, ver);
++#else
+       ver = ver->ldAcqNext();
++#endif
 +      IGC_ASSERT_A7_CHECK(thid_, ver)
 +#line 558
        while (ver->ldAcqStatus() == VersionStatus::pending)
@@ -851,29 +905,35 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      /**
       * This part is different from the original.
       * Checking that view is not broken.
-@@ -576,13 +1234,17 @@
+@@ -576,13 +1274,27 @@ bool TxExecutor::validation() {
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
      Version* ver = (*itr).new_ver_->ldAcqNext();
--    while (ver->ldAcqStatus() == VersionStatus::pending)
--      ;
 +    IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
 +#line 579
++#if CICADA_INTERVAL_GC
 +    IGC_WAIT_PENDING(thid_, ver, (*itr).new_ver_)
++#else
+     while (ver->ldAcqStatus() == VersionStatus::pending)
+       ;
++#endif
 +#line 581
      while (ver->ldAcqStatus() != VersionStatus::committed &&
             ver->ldAcqStatus() != VersionStatus::deleted) {
        ver = ver->ldAcqNext();
--      while (ver->ldAcqStatus() == VersionStatus::pending)
--        ;
 +      IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
 +#line 584
++#if CICADA_INTERVAL_GC
 +      IGC_WAIT_PENDING(thid_, ver, (*itr).new_ver_)
++#else
+       while (ver->ldAcqStatus() == VersionStatus::pending)
+         ;
++#endif
 +#line 586
      }
  
      if (ver->ldAcqRts() > this->wts_.ts_ ||
-@@ -716,6 +1378,22 @@
+@@ -716,6 +1428,22 @@ inline void TxExecutor::cpv() // commit pending versions
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -896,7 +956,44 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -813,12 +1491,49 @@
+@@ -743,6 +1471,10 @@ void TxExecutor::gcpv() {
+  * @return void
+  */
+ void TxExecutor::abort() {
++#if CICADA_INTERVAL_GC
++  igc_tx_start_epoch[thid_].store(0, std::memory_order_seq_cst);
++#endif
++#line 746
+   // remove inserted records
+   for (auto& we : write_set_) {
+     if (we.op_ == OpType::INSERT) {
+@@ -804,6 +1536,25 @@ bool TxExecutor::chkGcpvTimeout() {
+ }
+ 
+ void TxExecutor::gc_versions() {
++#if CICADA_INTERVAL_GC
++  // A tx that could hold a detached pointer began before this version's pop.
++  // Wait for every such tx to finish; newer begins cannot acquire that pointer.
++  // Each thread owns its queue. Scan all start epochs once per GC call.
++  const uint64_t oldest = igc_oldest_active_epoch();
++  while (!igc_retired_versions_.empty() &&
++         igc_retired_versions_.front().epoch < oldest) {
++    const auto retired = igc_retired_versions_.front();
++    assert((oldest > retired.epoch) ||
++           (std::fprintf(stderr, "A6 thid=%u epoch=%lu oldest=%lu\n", thid_,
++                         retired.epoch, oldest),
++            false));
++    IGC_COUNT_UNRETIRE(thid_, retired.version, rdtscp() - retired.retired_tsc);
++    IGC_COUNT_REUSE(thid_, retired.version);
++    reuse_version_from_gc_.emplace_back(retired.version);
++    igc_retired_versions_.pop_front();
++  }
++#endif
++#line 807
+   while (!gcq_.empty()) {
+     if (gcq_.front().wts_ >= MinRts.load(memory_order_acquire)) break;
+ 
+@@ -813,12 +1564,51 @@ void TxExecutor::gc_versions() {
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -918,7 +1015,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +        gcq_.front().ver_->igc_pruned_.load(std::memory_order_acquire) != 0;
 +    if (was_pruned) {
 +      Version* pruned = gcq_.front().ver_;
-+      // A3: a detached version is reusable only after all older readers end.
++      // A3: stock pop only handles an old, detached version.
 +      assert(
 +          (pruned->ldAcqWts() < MinRts.load(std::memory_order_acquire) &&
 +           !igc_on_chain(tuple, pruned)) ||
@@ -933,9 +1030,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +           false));
 +      // Mode 1 intentionally leaks the detached version to isolate reuse.
 +      if (FLAGS_cicada_igc_debug_mode != 1) {
-+        IGC_COUNT_REUSE(thid_, pruned);
-+        // Keep next intact for traversals already in the detached run.
-+        reuse_version_from_gc_.emplace_back(pruned);
++        // Keep next intact until every tx active at pop has ended.
++        igc_retired_versions_.push_back(
++            {pruned, igc_epoch.load(std::memory_order_seq_cst),
++             IGC_RETIRE_TSC()});
++        IGC_COUNT_RETIRE(thid_, pruned);
 +      }
 +      tuple->returnGCRight();
 +      gcq_.pop_front();
@@ -946,7 +1045,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -832,9 +1547,24 @@
+@@ -832,9 +1622,24 @@ void TxExecutor::gc_versions() {
          gcq_.front().ver_->next_.load(std::memory_order_acquire);
  
      // the thread detaches the rest of the version list from v
@@ -971,7 +1070,34 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -961,6 +1691,13 @@
+@@ -911,12 +1716,26 @@ void TxExecutor::writePhase() {
+   read_set_.clear();
+   write_set_.clear();
+   node_map_.clear();
++#if CICADA_INTERVAL_GC
++  igc_tx_start_epoch[thid_].store(0, std::memory_order_seq_cst);
++#endif
++#line 914
+ #if ADD_ANALYSIS
+   result_->local_commit_latency_ += rdtscp() - start;
+ #endif
+ }
+ 
+ bool TxExecutor::commit() {
++#if CICADA_INTERVAL_GC
++  struct IGCReadOnlyEpochEnd {
++    TxExecutor* tx;
++    ~IGCReadOnlyEpochEnd() {
++      if (tx->is_ronly_)
++        igc_tx_start_epoch[tx->thid_].store(0, std::memory_order_seq_cst);
++    }
++  } igc_read_only_epoch_end{this};
++#endif
++#line 920
+   /**
+    * Tanabe Optimization for analysis
+    */
+@@ -961,6 +1780,13 @@ bool TxExecutor::isLeader() { return this->thid_ == 0; }
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
