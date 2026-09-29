@@ -1,0 +1,344 @@
+output/insights/layout-index	79	940777	1789052256	output-other-insights=3	filecats=,output-other-insights
+output/insights/2026-08-29/t1933-wall-unit	26	170669	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-18/t2447-lens-p2-p6	21	150207	1789709383	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-16_t2640-unreachable-ledger	19	490657	1789554725	docs/worklog=1,output-same-root=3	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-17/t2675-nqsv-run-membership	18	389066	1789659302	output-same-root=3	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-26/t1239-branch-landing-check	17	152183	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-16/b7-three-run-materials	16	131005	1789535131	docs/worklog=1,output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-09_t2265-cohort2-figures	15	154364	1788939612	output-other-insights=2,output-same-root=3	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-21/t2826-shard-plugin-modify-timing	15	113913	1789976974	docs/worklog=1,output-other-insights=2,output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-13/t907-recovery	14	99098	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-13_t1062-acceptance-scheduler	14	124617	1787165892	output-other-insights=2,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-28/t2008-d1163-closure-mismatch	14	99298	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t2102-b4-reference-tps-domain	14	109857	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t2327-s1-sort-contract-binding	14	650469	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-03/t189-reasoning-effort-allowlist-verbatim	13	125239	1789052256	output-other-insights=1,output-same-root=13	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-16/t2635-high-band-control-feasibility	13	388272	1789569685	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-17/paper-story-20260917	13	146936	1789586037	docs/worklog=1,output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-08-28/avoid-overengineering-rules	12	49303	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1946-t2107-registry-wiring-design	12	187336	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-15/t2583-backoff-high-band-sign	12	131485	1789466191	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-17/t2750-component-granularity	12	127802	1789659302	output-other-insights=1,output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-10/t657-permanent-bundle-design	11	175075	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-11/t810-node-variance-protocol	11	137752	1789052256	output-other-insights=1,output-same-root=11	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12/t925-l15-budget-inventory	11	107149	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-27/runner-tip-equality-dispatch	11	124173	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-14/paper-story-20260914	11	109543	1789361427	docs/worklog=1,output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-08-16/t419-generation-migration	10	105258	1789052256	output-other-insights=1,output-same-root=7	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-18/t338-submission-gate-sizing	10	89112	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-23/growth-hold-inventory	10	121226	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-26_t1814-shard-time-balance	10	93595	1787740810	docs/worklog=1,output-other-insights=2,output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-27/t1910-b4-analysis-contract	10	109979	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-16/t1642-trace0-scope-wording	10	75352	1789535131	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-20/t2501-exploration-terms	10	75430	1789931724	output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-03/t328-devwave-docs-externalize	9	107845	1789052256	output-other-insights=1,output-same-root=7	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-04_t452-clock-tolerance-authority	9	96375	1787165892	docs/worklog=2,output-other-insights=2,output-same-root=5	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-07/t419-iii-withdrawn-ruling	9	80886	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-07/t598-ledger-consumer	9	82269	1789052256	output-other-insights=1,output-same-root=8	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-08/t642-dw-s04-acceptance-scope	9	73628	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-09_t316-semantic-gate	9	77734	1787165892	docs/worklog=1,output-other-insights=5,output-same-root=2	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-09_t671-source-binding	9	110715	1786225241	docs/worklog=1,output-other-insights=2,output-same-root=2	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-11/t8b-restart-residue	9	92849	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-13/t139-q1-canonical-decision	9	103780	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-05/t2293-8c-wiring-v8-identity	9	122072	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-09/t2288-b4-floor-cellset	9	132316	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-11/t2397-a1-source-contract	9	54573	1789078813	output-same-root=2	filecats=,output-same-root
+output/insights/2026-09-14/t1643-has-include-real-pair	9	92643	1789449076	output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-16/t2637-offrepo-scan-yield	9	91619	1789511322	docs/worklog=1,output-same-root=7	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-17/b2-delta-min-connection	9	97736	1789614018	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-08-05_t478-calibration-contract-generation	8	110979	1785909713	docs/worklog=1,output-other-insights=2,output-same-root=8	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-08/t665-t662-launch-binding	8	111852	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-09/t553-s8c-git-timeout	8	106898	1789052256	output-other-insights=1,output-same-root=7	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-11/t798-t799-fold-window	8	115941	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-13_t1014-t1001-guards	8	57045	1787165892	output-other-insights=2,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t338-rf-validator-trigger-audit	8	68954	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17/t987-floor-rebind	8	72375	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17_t1310-formal-workload-profile	8	75769	1786979768	output-other-insights=2,output-same-root=5	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-29/acceptance-speedup-tmpdir	8	92018	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t2097-residual-breakdown	8	186526	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t2159-c05-schedule-authority	8	95586	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-16/t2647-b10-tail-results	8	49832	1789567754	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-08-06/t401-racct-permanent	7	86077	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-07/t244-8c-wiring-design	7	113601	1789052256	output-other-insights=1,output-same-root=7	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-10/t675-pin-semantic-gap	7	64035	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-11/t809-8c-workload-fanout	7	85473	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12/t499-approval-turns	7	44272	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12_t139-land2-s4	7	78039	1786514695	output-other-insights=2,output-same-root=2	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-13/t139-land2-q4	7	110066	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t1140-claim-identity	7	71581	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t330-scr-single-process	7	63081	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17/t1049-replay-cache-isolation	7	52024	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17/t338-rf-producer	7	62749	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-26/b2-descriptor-causal-evidence	7	59047	1789052256	output-other-insights=1,output-same-root=7	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-26/merge-audit-necessity	7	55834	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-27/ccbench-pin-precheck	7	93028	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-29/t1777-interleaved-pairing	7	89215	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1769-b4-reviewer-role	7	51101	1789052256	output-other-insights=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1871-review-verbatim	7	109133	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1942-floor-official-transport-conflict	7	88781	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1994-readonly-snapshot-design	7	89203	1789052256	docs/worklog=1,output-other-insights=2,output-same-root=3	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-02/t2140-b4-floor-procedure	7	64829	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t434-two-stage-binding-adjudication	7	78191	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-03/t2261-v8-cost-breakdown	7	109890	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t1281-compute-waiter	7	218542	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-14_t575-silo-promotion-consumer	7	60841	1789331547	docs/worklog=1,output-other-insights=1,output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-15/t2515-record-recovery	7	59860	1789466191	docs/worklog=1,output-same-root=4	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-07-28_t142-review-verbatim	6	75265	1785281512	output-other-insights=3,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-07-29/t126-qualification-first-wave	6	32727	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-07-29/t126-sequential-stopping-verbatim	6	68866	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-07-29_t142-output-promotion-verbatim	6	71242	1785310109	docs/worklog=1,output-other-insights=3,output-same-root=5	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-07-30/t126-fr3-closure-wave	6	32300	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-03/t313-read-budget	6	76198	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-05_t244-p3-producer-wiring	6	106471	1785900643	docs/worklog=1,output-other-insights=2,output-same-root=6	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-06/t244-p3-8c-wiring	6	86632	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-06/t495-branch-deletion-path	6	54288	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-07/t529-activation-impl	6	67435	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-07/t624-activation-noop	6	68258	1789052256	output-other-insights=1,output-same-root=6	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-10/s1-design-choice	6	69632	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12/t816-step4-blockers	6	69700	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12/testops-observation	6	73566	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t1157-fetchcontent-reuse	6	222097	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t851-fanout-exact-n	6	73410	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17/known-reds-evidence-grace-origin	6	73506	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17/t338-rf-trigger-realign	6	48723	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17_t1283-waiter-runner-main-blob	6	73201	1786979768	output-other-insights=2,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-19/t1316-acceptance-recovery-ruling	6	50418	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-21_t1472-h1h2-readiness-audit	6	67799	1787304269	output-other-insights=2,output-same-root=3	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-28/t1934-acceptance-residual	6	47888	1789052256	output-other-insights=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/stranded4-branch-recovery	6	56325	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1946-registry-proof-chain	6	83484	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t2090-axis1-continuation-blocked	6	145480	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t2199-s4-loop-pegasus-build	6	86008	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-03/t941-p6-second-ordering-dependency	6	87818	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-04/t2120-layer3-empty-run-acceptance	6	56736	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-04/tuned-adaptive-control-paper-reference	6	86066	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-04_t1851-a2beta-blocked-on-rulings	6	55463	1788558684	docs/worklog=1,output-other-insights=1,output-same-root=2	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-08/f747-recurrence-repo-external-record-space	6	63370	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t2067-bcd-population	6	75522	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08_dev-wave-research-gate	6	56173	1788839384	output-other-insights=2,output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-14/t2267-exec-site-classification	6	63387	1789330352	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-15/t1338-floor-residual	6	56636	1789466191	output-same-root=3	filecats=,docs/worklog,output-same-root
+output/insights/2026-09-16/t2559-acceptance-floor-t080	6	64891	1789554725	docs/worklog=1,output-other-insights=3,output-same-root=4	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-16/t2642-cleanup-cd-guard	6	56589	1789517673	docs/worklog=1,output-same-root=4	filecats=,docs/worklog,output-same-root
+output/insights/2026-08-01/t248-dispatch-shim	5	60205	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-04/t088-between-run-floor-cohort	5	80225	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-06/t503-restore-durability-implementation-ruling	5	86325	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-06/t529-activation-authority	5	117205	1789052256	output-other-insights=1,output-same-root=5	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-13/t1005-acceptance-flake-attribution	5	54965	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-15/t396-hole-allowlist-refuted	5	96897	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t1132-model-routing-luna	5	55241	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t1140-t330-claim-authority	5	67174	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t1167-8c-reservation-wiring	5	50810	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-16/t1174-numactl-contract-gate	5	47428	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-21/t1461-lease-window-design	5	56803	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-22/t1484-floor-restart-registry	5	49549	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-26/t1721-a1-submit-blocker	5	52803	1789052256	output-other-insights=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-26/t782-spec-issuance-ruling	5	69277	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-27/t1851-floor-retry-ordinal-axis	5	93822	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-28/t1874-s8c-section5-consumer	5	49246	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t2067-d1325-g1-only	5	44477	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t2097-acceptance-floor-decomposition	5	67944	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/b10-missing-iterations-scope	5	99268	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t2169-measurement-surface-closure	5	83774	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-03/t2076-already-landed-closure	5	24599	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-07/t2254-old-grammar-cause	5	50471	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-09/t2213-probe-condition-gate	5	61125	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-14/t1912-pair-completeness	5	56249	1789330352	docs/worklog=2,output-same-root=1	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-20/b10-waiting-grid-results-doc	5	39339	1789888455	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-07-28_t140-review-verbatim	4	61820	1785174407	output-other-insights=3,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-05/t520-measurement-turn	4	26524	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-06/t244-p3-reservation-fsm	4	35913	1789052256	output-other-insights=1,output-same-root=4	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-07/t244-p3-u3-ever-issued-cell	4	21935	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-15/t1094-fetchcontent-floor	4	58584	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-15/t1116-known-red-registry	4	49769	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-20/t338-unit5-d574-conflict	4	31488	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-20/t870-congestion-nproc	4	38386	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/acceptance-collection-internals	4	53097	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/b10-denominator-270	4	60683	1789709383	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02/t1905-b10-multinode-design	4	58397	1789709383	output-other-insights=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-02_t2182-k2-arm-liveness	4	22802	1788333155	output-other-insights=2,output-same-root=2	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-09-10/rulings-all-verdicts	4	27243	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-18/t2290-o23-o27-docs	4	93999	1789709383	output-same-root=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-07-27/t137-t138-review-verbatim	3	30060	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-07-28/t148-review-verbatim	3	26792	1789052256	output-other-insights=2,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-07-30/t200-suite-floor	3	43042	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-03/t296-layer-c-calibration	3	33643	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-03_task-inventory	3	99040	1785773170	output-other-insights=2,output-same-root=3	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-08-05/t420-wall1-precondition	3	24724	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-09/t337-t339-rf-status	3	15188	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-11/t139-pubcore-approve	3	23038	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-11/t809-fanout-conditions	3	18734	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-28/t1908-pegasus-floor-scoping	3	7596	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-29/t2074-rescue-triage	3	49278	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t1777-implementation-landed	3	32136	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-01/t434-topology-ruling	3	12854	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-07/t2266-tail-measurement	3	25848	1789052256	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-07/t2313-13pt-audit	3	23311	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t2410-d1653-scope-narrow	3	20253	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t2441-shard-wall-decomposition	3	237336	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-16_t2545-b4-publication-root	3	20866	1789517673	output-other-insights=1,output-same-root=3	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-18/dev-wave-docs-three-recovery	3	6628	1789767310	docs/worklog=1	filecats=,docs/worklog,output-same-root
+output/insights/2026-08-01/network-split-wave	2	30821	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-07/red-test-audit	2	21730	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12/t139-land2-s3	2	11906	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-12_t139-a12-stress-check	2	9884	1786546698	output-other-insights=2,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-17/t782-approval-sha-binding	2	23626	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-23/acceptance-shard-cost-structure	2	17786	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-25/t1607-mid-merge-codex-author	2	25406	1789052256	output-other-insights=1,output-same-root=2	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-29/rescue-unlanded-fragments	2	20340	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-08-29/stranded-branch-worktree-cleanup	2	11635	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t2399-abort-powerlaw-mechanism	2	135661	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-08/t2443-acceptance-duration-postfix	2	21686	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights,output-same-root
+output/insights/2026-09-14	2	13151	1789364960	output-other-insights=1,output-same-root=2	filecats=,docs/worklog,output-other-insights,output-same-root
+output/insights/2026-06-22_orphan-livelock-contaminated-measurement.md	1	5001	1782678501		filecats=,docs/worklog,output-other-insights
+output/insights/2026-06-22_silo-both-no-wait-zero-livelock.md	1	5533	1782112388		filecats=,docs/worklog,output-other-insights
+output/insights/2026-06-30_git-log-divergence-causes-and-recovery.md	1	12040	1782863332		filecats=,output-other-insights
+output/insights/2026-07-03_phase3-kickoff-blocking-adversarial-review.md	1	9383	1783161373		filecats=,output-other-insights
+output/insights/2026-07-03_phase3-task3-h3-hooks-round2-handoff.md	1	22840	1783059637		filecats=,output-other-insights
+output/insights/2026-07-06_s2-design-adversarial-review.json.gz	1	45483	1787165892		filecats=,output-other-insights
+output/insights/2026-07-06_s4-consumer-design-adversarial.json.gz	1	70082	1787165892		filecats=,output-other-insights
+output/insights/2026-07-07_s4-loop-inherited-audit.json.gz	1	5535	1787165892		filecats=,output-other-insights
+output/insights/2026-07-09_s2-pipeline-wiring-adversarial-review.json.gz	1	3394	1787165892		filecats=,output-other-insights
+output/insights/2026-07-10_s8a-axis-proposer-embodiment-review.json.gz	1	8561	1787165892		filecats=,output-other-insights
+output/insights/2026-07-10_s8a-n1-proposal-and-scoring.json.gz	1	8997	1787165892		filecats=,output-other-insights
+output/insights/2026-07-11_docs-compression-verify.json.gz	1	9068	1787165892		filecats=,output-other-insights
+output/insights/2026-07-11_docs-token-audit.json.gz	1	39516	1787165892		filecats=,output-other-insights
+output/insights/2026-07-11_post-d-genjo-audit.json.gz	1	24189	1787165892		filecats=,output-other-insights
+output/insights/2026-07-11_roadmap-consistency-audit.md	1	6952	1783721363		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-13_s6-n-determination-review.json.gz	1	12146	1787165892		filecats=,output-other-insights
+output/insights/2026-07-13_s6-round-execution-design-review.json.gz	1	58932	1787165892		filecats=,output-other-insights
+output/insights/2026-07-13_s6-scoring-prompt-check.json.gz	1	8213	1787165892		filecats=,output-other-insights
+output/insights/2026-07-14_codex-agent-adapter-reaudit.json.gz	1	4436	1787165892		filecats=,output-other-insights
+output/insights/2026-07-14_codex-agent-adapter-remediation.json.gz	1	3685	1787165892		filecats=,output-other-insights
+output/insights/2026-07-14_codex-role-adapter-completion.json.gz	1	7297	1787165892		filecats=,output-other-insights
+output/insights/2026-07-14_strategy-review-overall-direction.md	1	14641	1783979346		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-15_codex-role-adapter-commit-review.json.gz	1	4461	1787165892		filecats=,output-other-insights
+output/insights/2026-07-15_sequential-stopping-design.md	1	24416	1785314328		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-15_sequential-stopping-review.md	1	25222	1785112591		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-17_clarity-blind-regression.json.gz	1	10267	1787165892		filecats=,output-other-insights
+output/insights/2026-07-17_clarity-proposals-unadjudicated.md	1	23985	1784258960		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-17_clarity-survey-findings.json.gz	1	25942	1787165892		filecats=,output-other-insights
+output/insights/2026-07-17_repo-refinement-consultations.md	1	60054	1784227548		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-17_roadmap-claudemd-clarity-consultations.md	1	106661	1784254352		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-17_s8b-v2-prereqs-consultations.md	1	72490	1784280476		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-17_test-fsync-speedup-adversarial-review.md	1	32349	1784296464		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-18_guard-agent-adversarial-review.md	1	15939	1784350588		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-18_s8b-floor-v2-wave3-consultations.md	1	89158	1784310890		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-18_s8b-v2-prereqs-wave2-consultations.md	1	71880	1784303244		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-19_approved-waves-consultations.md	1	116159	1784469420		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-19_backlog-triage-consultations.md	1	51749	1784458860		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-19_test-hygiene-consultations.md	1	82573	1784446518		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-20_backlog-guard-loop.md	1	90038	1784563358		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-20_pc2-pc1b-loop.md	1	89639	1784536910		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-22_direction-audit-direction-verbatim.md	1	21177	1784694429		filecats=,output-other-insights
+output/insights/2026-07-22_direction-audit-quant-verbatim.md	1	13689	1784694429		filecats=,output-other-insights
+output/insights/2026-07-22_waste-inventory-verbatim.md	1	23123	1784696215		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-24_t080-postr-audit-verbatim.md	1	14692	1784854523		filecats=,output-other-insights
+output/insights/2026-07-24_t080-postr-test-debt-fix.md	1	10942	1784854523		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-24_t080-prediction-seal-verbatim.md	1	56127	1784861626		filecats=,output-other-insights
+output/insights/2026-07-24_t080-prediction-seal.md	1	7509	1784861626		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-24_t086-keyset-verbatim.md	1	29588	1784896595		filecats=,output-other-insights
+output/insights/2026-07-25_t067-exact-residual-verbatim.md	1	62386	1784907470		filecats=,output-other-insights
+output/insights/2026-07-25_t088-floor-wrapper-verbatim.md	1	152742	1784944947		filecats=,output-other-insights
+output/insights/2026-07-25_t088-official-unlock-verbatim.md	1	65068	1784919203		filecats=,output-other-insights
+output/insights/2026-07-25_t094-placeholder-gate-verbatim.md	1	137162	1784957788		filecats=,output-other-insights
+output/insights/2026-07-26_s1-cross-protocol-consultations.md	1	63197	1785022053		filecats=,output-other-insights
+output/insights/2026-07-26_t057-test-suite-speed.md	1	15829	1785074150		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-26_t091-t093-hardening-verbatim.md	1	71866	1784995392		filecats=,output-other-insights
+output/insights/2026-07-26_t098-selector-lp-reject-verbatim.md	1	73318	1785015680		filecats=,output-other-insights
+output/insights/2026-07-26_t103-never-issued-vector-verbatim.md	1	54474	1785059541		filecats=,output-other-insights
+output/insights/2026-07-26_t103-never-issued-vector.md	1	14859	1785059541		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-26_t106-t107-parser-authoritative-verbatim.md	1	55199	1785042590		filecats=,output-other-insights
+output/insights/2026-07-27_suite-cost-structure-and-contention.md	1	7871	1785128625		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-27_t117-loadgroup-and-stopcont-race.md	1	11232	1785097967		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-27_t119-t105-stopcont-and-vanished-artifact.md	1	10507	1785106214		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-27_t137-t138-socket-guards.md	1	7990	1785160958		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-28_t136-timing-flake-generalized-limits.md	1	7431	1785238709		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-28_t140-datastructure-axis-package.md	1	14415	1785174407		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-28_t140-setsize-distribution.json	1	2621	1785196491		filecats=,output-other-insights
+output/insights/2026-07-28_t142-tiering-ruling-package.md	1	9112	1785281512		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-28_t147-budget-restructure-package.md	1	6980	1785193834		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-28_t147-budget-restructure-plan.md	1	3934	1785190399		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-28_t155-crossover-microbench.json.gz	1	4267	1787165892		filecats=,output-other-insights
+output/insights/2026-07-28_t155-crossover-microbench.md	1	8417	1785202398		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-29_t141-region-distribution-calibration.md	1	6506	1785310109		filecats=,output-other-insights
+output/insights/2026-07-29_t142-implementation-preflight.md	1	3279	1785310109		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-29_t146-probe-cleanup.md	1	6353	1785390149		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-29_t149-edit-surface-drift.md	1	7688	1785257129		filecats=,docs/worklog,output-other-insights
+output/insights/2026-07-29_t152-write-intent-shadow.md	1	8318	1785310109		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-01/t291-devwave-mechanization	1	9284	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-01_8c-one-allocation-budget-design.md	1	16153	1785557454		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-01_t229-devshm-removal.md	1	10729	1785545960		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-04/t412-l2-pruning	1	20970	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-05_t213-redefinition-design.md	1	16311	1785942162		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-05_t213-shared-scratch-blockers.md	1	6654	1785920788		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-05_t472-canonical-predicate-consumers.md	1	17574	1785900643		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-11/t657-stage0	1	13327	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-12/t184-followup	1	16845	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-12/t184-stage-measurements	1	26077	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-13/t945-startup-resume-mode	1	4719	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-14/acceptance-bottleneck-decomposition	1	8295	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-18/acceptance-wall-cost-structure	1	9164	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-18/t1162-flock-premise	1	12642	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-18/t816-negtxid-refute	1	9335	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-19/test-bottleneck-real-repo-group	1	5578	1789052256	output-other-insights=1	filecats=,output-other-insights
+output/insights/2026-08-19_t338-submission-gate-unit12	1	3433	1787141857	output-other-insights=2,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-20/t1148-verifier-framing-details	1	6927	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20/t1431-floor-pilot-measurement	1	13485	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20/t1441-unit3-d574-audit	1	8091	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20/t338-submission-gate-unit34	1	6802	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20/t425-dependency-reaudit	1	15009	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20/t870-acceptance-lease-timing	1	10852	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20/t989-worker-span-diagnostic	1	6899	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-20_worktree-agent-ab4539-stranded-branch-audit.md	1	4396	1787251424		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-21/t1431-floor-pilot-resubmit	1	11958	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-21/t1461-masstree-staging-scope-finding	1	14285	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-21/t1469-acceptance-lease-timing	1	19864	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-21/t338-unit5-vector-authority-design	1	6089	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-23/t1431-floor-pilot-rerun	1	15906	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-24/codex-skill-parity	1	9741	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-24/t1539-insights-retention-precheck	1	8292	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-24/t986-budget-approval-package	1	15230	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-24_t1480-stage5-author-replayer.md	1	8238	1787594363		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-24_t1593-s8c-gate-report.md	1	2786	1787523297		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-24_t1611-terminal-reason-match.md	1	12010	1787582163		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-24_t1621-suite-order-dependence.md	1	13422	1787578545		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-25/t1431-floor-pilot-submit	1	9407	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-25_t1536-semantic-subsumption-retirement.md	1	13134	1787614406		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-25_t1584-trace0-identity-holes.md	1	14031	1787594363		filecats=,output-other-insights
+output/insights/2026-08-25_t1641-report-binding.md	1	11942	1787650258		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-25_t1677-trace0-remeasure.md	1	8074	1787657351		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-26_mocc-trace-pair.md	1	15511	1787740810		filecats=,output-other-insights
+output/insights/2026-08-26_t1668-classify-collector.md	1	11528	1787724972		filecats=,output-other-insights
+output/insights/2026-08-26_t1858-chain-shared-setup.md	1	10910	1787760262		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-26_worklog-rotation-entry-1001-mmdd-collision.md	1	11080	1787758270		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-27_t1873-generation-outcome-unit.md	1	7918	1787769302		filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-28/t2044-holdout-selection-audit	1	8944	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-28/t2068-a2-partial-raw	1	3914	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-28_t1943-mocc-g2-discriminator	1	3859	1787963986	output-other-insights=2,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-08-29/t1942-floor-gate-compiler-input	1	11037	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-08-29/t2073-legacy-admission-wall-clock	1	8645	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-01/t1814-c10-completion-proof	1	6602	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-01/t1981-t088-consumed-cell-remeasure	1	15716	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-01/t2043-floor-receipt	1	9282	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-01_t1875-pair-pilot-prereg-ruling	1	11115	1788300878	output-other-insights=3,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-09-02/t2205-a5-second-boot-measurement-job	1	12805	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-02/t2211-a5-second-boot-measurement-attempt	1	7850	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-02/t2229-t2230-verify-cost-erratum	1	9858	1789709383	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-05/t1942-between-run-floor-write-balanced	1	8525	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-05/t2074-a1-pilot-run	1	10199	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-07/a1-pilot-attempt-0002	1	13271	1789052256	output-other-insights=1,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-09-08/t2429-verify-fanout	1	19702	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-09/t2266-b10-mechanism	1	15000	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-09/t2397-a1-pilot-attempt-0003	1	18238	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-09/t2457-a6-fanout-live	1	20313	1789052256	output-other-insights=1,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-09-09/t2486-ssh-cgroup-equivalence	1	12819	1789052256	output-other-insights=1,output-same-root=1	filecats=,output-other-insights
+output/insights/2026-09-10_dev-wave-astra-medium-land-review.md	1	2657	1789039311		filecats=,docs/worklog,output-other-insights
+output/insights/2026-09-14_t1875-delta-min-gate	1	9378	1789324988	docs/worklog=2,output-other-insights=1,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-09-14_t2067-efg-residual	1	11648	1789343855	docs/worklog=1,output-other-insights=1,output-same-root=1	filecats=,docs/worklog,output-other-insights
+output/insights/2026-09-16/t2237-sort-cache-twin-close	1	5725	1789571189	output-same-root=1	filecats=,docs/worklog
+output/insights/2026-09-16/t2386-floor-evac-order	1	8819	1789569685	output-same-root=1	filecats=,docs/worklog
+output/insights/2026-09-16/t2600-anatomy-space-recount	1	7552	1789555820	output-same-root=1	filecats=,docs/worklog
+output/insights/2026-09-17/t1912-prereg-erratum	1	6291	1789651730	output-same-root=1	filecats=,docs/worklog
+output/insights/2026-09-20/p24-static-backoff-sweep-results-doc	1	15023	1789893615	output-same-root=1	filecats=,docs/worklog
+output/insights/README.md	1	3583	1789052256		filecats=,output-non-insights,output-other-insights

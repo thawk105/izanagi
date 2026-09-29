@@ -1,0 +1,91 @@
+scenario	pressure	resume	revert	fault	J1	J2	J3	J3_reason	visited	complete	witness	danger	fault_step_seen	floor_above_cand	floor_lowering	ce_judge	ce_len	attr_dB	attr_dfreed	attr_dreclaimed	attr_dreclaimable	max_B	max_freed	rc	wall_s
+H1	off	accept	False		0	0	0		330	True	False		False	0	0		0					45	0	0	0.2
+H1	self	accept	False		0	0	0		1444	True	False		False	0	0		0	16	2			61	2	0	0.2
+H1	helper	accept	False		0	0	0		13282	True	True		False	0	0		0	16	2	0	2	61	2	0	1.1
+H1	helper	accept	True		0	0	0		15226	True	True		False	0	0		0	16	2	0	2	61	2	0	1.2
+H1	helper	expire	False		0	0	0		19186	True	True		False	0	0		0	16	2	0	2	61	2	0	1.6
+H2	off	accept	False		0	0	0		102	True	False	False	False	0	0		0					45	0	0	0.1
+H2	self	accept	False		0	0	0		524	True	False	False	False	0	0		0	36	2			81	2	0	0.1
+H2	helper	accept	False		0	0	0		6290	True	True	False	False	0	0		0	36	2	0	2	81	2	0	0.5
+H2	helper	accept	True		0	0	0		8162	True	True	False	False	0	0		0	36	2	0	2	81	2	0	0.6
+H2	helper	expire	False		0	0	0		7982	True	True	False	False	0	0		0	36	2	0	2	81	2	0	0.6
+H3	off	accept	False		0	0	0		2502	True	False	False	False	0	0		0					51	1	0	0.3
+H3	self	accept	False		0	0	0		5060	True	False	False	False	0	0		0	16	1			61	2	0	0.4
+H3	helper	accept	False		0	0	0		54666	True	True	False	False	0	0		0	16	1	0	1	61	2	0	4.4
+H3	helper	accept	True		0	0	0		67498	True	True	False	False	0	0		0	16	1	0	1	61	2	0	5.3
+H3	helper	expire	False		0	0	0		62320	True	True	False	False	0	0		0	16	1	0	1	61	2	0	5.0
+H4	off	accept	False		0	0	0		865	True	False	False	False	0	0		0					51	2	0	0.1
+H4	self	accept	False		0	0	0		1031	True	False	False	False	0	0		0					51	2	0	0.1
+H4	helper	accept	False		0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.3
+H4	helper	accept	True		0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.3
+H4	helper	expire	False		0	0	0		4155	True	True	False	False	0	0		0	6	1	0	1	51	2	0	0.4
+H5	off	accept	False		0	0	0		1360	True	False	False	False	0	0		0					27	2	0	0.2
+H5	self	accept	False		0	0	0		10116	True	False	False	False	0	0		0	12	1			27	2	0	0.8
+H5	helper	accept	False		0	0	0		85189	True	True	False	False	0	0		0	12	1	0	1	27	2	0	6.9
+H5	helper	accept	True		0	0	0		95489	True	True	False	False	0	0		0	12	1	0	1	27	2	0	7.6
+H5	helper	expire	False		0	0	0		105487	True	True	False	False	0	0		0	13	1	0	1	28	2	0	8.8
+H6	off	accept	False		0	0	0		460	True	False		False	0	0		0					45	0	0	0.1
+H6	self	accept	False		0	0	0		15586	True	False		False	0	0		0	17	1			62	1	0	1.3
+H6	helper	accept	False		0	0	0		630917	True	True		False	0	0		0	17	1	0	1	62	1	0	51.7
+H6	helper	accept	True		0	0	0		834327	True	True		False	0	0		0	17	1	0	1	62	1	0	66.2
+H6	helper	expire	False		0	0	0		1109519	True	True		False	0	0		0	17	1	0	1	62	1	0	89.7
+H1	helper	accept	False	UH1	0	0	0		13242	True	True		True	0	0		0	16	2	0	2	61	2	0	1.3
+H2	helper	accept	False	UH1	0	1	1	future_read	10262	True	True	True	True	2064	0	J3	18	36	2	0	2	81	2	0	1.0
+H3	helper	accept	False	UH1	0	1	0		79886	True	True	False	True	7904	0		0	16	1	0	1	61	2	0	7.3
+H4	helper	accept	False	UH1	0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.4
+H5	helper	accept	False	UH1	0	0	0		102729	True	True	False	True	0	0		0	12	2	0	2	27	2	0	10.1
+H6	helper	accept	False	UH1	0	0	0		422955	True	True		True	0	0		0	17	1	0	1	62	1	0	39.0
+H1	helper	accept	False	UH1g	0	0	0		13282	True	True		False	0	0		0	16	2	0	2	61	2	0	1.1
+H2	helper	accept	False	UH1g	0	0	0		6290	True	True	False	False	0	0		0	36	2	0	2	81	2	0	0.5
+H3	helper	accept	False	UH1g	0	0	0		54666	True	True	False	False	0	0		0	16	1	0	1	61	2	0	4.3
+H4	helper	accept	False	UH1g	0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.4
+H5	helper	accept	False	UH1g	0	0	0		85189	True	True	False	False	0	0		0	12	1	0	1	27	2	0	6.9
+H6	helper	accept	False	UH1g	0	0	0		630917	True	True		False	0	0		0	17	1	0	1	62	1	0	50.5
+H1	helper	accept	False	UH1p	0	0	0		12310	True	True		True	0	0		0	16	2	0	2	61	2	0	1.2
+H2	helper	accept	False	UH1p	0	0	0		6062	True	True	False	True	0	0		0	36	2	0	2	81	2	0	0.6
+H3	helper	accept	False	UH1p	0	0	0		53322	True	True	False	True	0	0		0	16	1	0	1	61	2	0	4.4
+H4	helper	accept	False	UH1p	0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.3
+H5	helper	accept	False	UH1p	0	0	0		78647	True	True	False	True	0	0		0	12	2	0	2	27	2	0	6.8
+H6	helper	accept	False	UH1p	0	0	0		442923	True	True		True	0	0		0	17	1	0	1	62	1	0	37.1
+H1	helper	accept	False	UH2	0	0	0		18518	True	True		True	14542	0		0	0	0	0	0	61	2	0	1.6
+H2	helper	accept	False	UH2	0	0	1	future_read	9074	True	True	True	True	1742	0	J3	4	0	0	0	0	81	2	0	0.8
+H3	helper	accept	False	UH2	0	0	1	future_read	69854	True	True	True	True	38106	0	J3	15	0	0	0	0	61	2	0	5.8
+H4	helper	accept	False	UH2	0	0	1	future_read	4194	True	False	False	True	2480	0	J3	17					51	2	0	0.4
+H5	helper	accept	False	UH2	0	0	1	use_after_free	139423	True	True	False	True	108097	0	J3	21	0	0	0	0	28	2	0	12.3
+H6	helper	accept	False	UH2	0	0	0		656295	True	True		True	575790	0		0	0	0	0	0	62	1	0	55.2
+H1	helper	accept	False	UH3F	0	0	0		13282	True	True		True	0	0		0	16	2	0	2	61	2	0	1.1
+H2	helper	accept	False	UH3F	0	0	0		6458	True	True	False	True	0	0		0	36	2	0	2	81	2	0	0.5
+H3	helper	accept	False	UH3F	0	0	0		54666	True	True	False	True	0	0		0	16	1	0	1	61	2	0	4.3
+H4	helper	accept	False	UH3F	0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.3
+H5	helper	accept	False	UH3F	0	0	0		85189	True	True	False	True	0	0		0	12	1	0	1	27	2	0	6.9
+H6	helper	accept	False	UH3F	0	0	0		630917	True	True		True	0	0		0	17	1	0	1	62	1	0	51.4
+H1	helper	accept	False	UH4	0	0	0		13282	True	True		True	3820	0		0	16	2	0	2	61	2	0	1.1
+H2	helper	accept	False	UH4	0	0	1	future_read	7174	True	True	True	True	628	0	J3	11	36	2	0	2	81	2	0	0.6
+H3	helper	accept	False	UH4	0	0	1	future_read	65666	True	True	True	True	2864	0	J3	22	16	1	0	1	61	2	0	5.2
+H4	helper	accept	False	UH4	0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.4
+H5	helper	accept	False	UH4	0	0	1	use_after_free	79799	True	True	False	True	15692	0	J3	27	12	1	0	1	27	2	0	6.6
+H6	helper	accept	False	UH4	0	0	0		615729	True	True		True	378418	0		0	17	1	0	1	62	1	0	49.3
+H1	helper	accept	False	UH6	0	0	0		13282	True	True		True	0	0		0	16	2	0	2	61	2	0	1.1
+H2	helper	accept	False	UH6	0	0	0		6290	True	True	False	True	0	0		0	36	2	0	2	81	2	0	0.5
+H3	helper	accept	False	UH6	0	0	1	use_after_free	54866	True	True	False	True	0	0	J3	36	16	1	0	1	61	2	0	4.4
+H4	helper	accept	False	UH6	0	0	1	use_after_free	3066	True	False	False	True	0	0	J3	39					51	2	0	0.3
+H5	helper	accept	False	UH6	0	0	1	use_after_free	86365	True	True	False	True	0	0	J3	38	12	1	0	1	27	2	0	7.2
+H6	helper	accept	False	UH6	0	0	0		630917	True	True		True	0	0		0	17	1	0	1	62	1	0	50.3
+H1	helper	accept	True	UH1p	0	0	0		14874	True	True		True	1592	0		0	16	2	0	2	61	2	0	1.3
+H2	helper	accept	True	UH1p	0	0	1	future_read	8454	True	True	True	True	392	0	J3	11	36	2	0	2	81	2	0	0.7
+H3	helper	accept	True	UH1p	0	0	1	future_read	68626	True	True	True	True	5644	0	J3	22	16	1	0	1	61	2	0	5.8
+H4	helper	accept	True	UH1p	0	0	0		3006	True	False	False	False	0	0		0					51	2	0	0.3
+H5	helper	accept	True	UH1p	0	0	1	use_after_free	95747	True	True	False	True	12972	0	J3	27	12	2	0	2	27	2	0	8.4
+H6	helper	accept	True	UH1p	0	0	0		659717	True	True		True	175054	0		0	17	1	0	1	62	1	0	57.2
+H1	helper	expire	False	UH3X	0	0	0		19186	True	True		True	0	0		0	16	2	0	2	61	2	0	1.5
+H2	helper	expire	False	UH3X	0	0	0		7982	True	True	False	True	0	0		0	36	2	0	2	81	2	0	0.6
+H3	helper	expire	False	UH3X	0	0	1	use_after_free	62460	True	True	False	True	0	0	J3	16	16	2	0	2	61	2	0	5.0
+H4	helper	expire	False	UH3X	0	0	1	use_after_free	4239	True	True	True	True	0	0	J3	19	6	2	0	2	51	2	0	0.5
+H5	helper	expire	False	UH3X	0	0	1	use_after_free	105781	True	True	False	True	0	0	J3	24	13	1	0	1	28	2	0	8.8
+H6	helper	expire	False	UH3X	0	0	0		1109519	True	True		True	0	0		0	17	1	0	1	62	1	0	89.5
+H1	helper	expire	False	UH5	0	0	0		34442	True	True		True	0	0		0	16	2	0	2	61	2	0	2.8
+H2	helper	expire	False	UH5	0	0	1	use_after_free	14554	True	True	False	True	0	0	J3	7	36	2	0	2	81	2	0	1.0
+H3	helper	expire	False	UH5	0	0	1	use_after_free	124488	True	True	False	True	0	0	J3	18	16	1	0	1	61	2	0	10.0
+H4	helper	expire	False	UH5	0	0	1	use_after_free	7761	True	True	True	True	0	0	J3	20	6	1	0	1	51	2	0	0.7
+H5	helper	expire	False	UH5	0	0	1	use_after_free	236267	True	True	False	True	0	0	J3	21	13	1	0	1	28	2	0	20.1
+H6	helper	expire	False	UH5	0	0	0		3434041	True	True		True	0	0		0	17	1	0	1	62	1	0	283.3

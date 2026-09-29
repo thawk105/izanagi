@@ -1,0 +1,321 @@
+{
+  "args": {
+    "commit": "035fc11fa601547f5d68e54f5661c5daa70b93a5",
+    "glob_max_matches": 50,
+    "gz_max_bytes": 50000000,
+    "limit": null,
+    "out": "/work/1/SFC/tanab/tmp/output-pruning-2026-09-29/scan",
+    "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-output-pruning",
+    "sample_cap": 200,
+    "trivial_max_bytes": 64
+  },
+  "binary_skipped": 87,
+  "broad_globs": [
+    {
+      "matches": 27176,
+      "pattern": "output/insights/*",
+      "sources": [
+        "docs/decisions.md",
+        "orchestrator/tests/s1_expected_goldens.py",
+        "output/insights/2026-07-02_phase3-task3-h3-hooks-adversarial-review.md",
+        "output/insights/2026-07-03_phase3-task3-h3-hooks-round2-handoff.md",
+        "output/insights/2026-07-10_s8a-n1-provenance.json",
+        "output/insights/2026-07-19_approved-waves-consultations.md",
+        "output/insights/2026-07-23_t066-golden-continuation-verbatim.md",
+        "output/insights/2026-07-28_t148-macro-context.md",
+        "output/insights/2026-08-07/t529-impl-reraise/s1-brief.md"
+      ]
+    },
+    {
+      "matches": 27176,
+      "pattern": "output/insights/**",
+      "sources": [
+        "docs/archive/worklog-phase3-0806-272.md",
+        "docs/archive/worklog-phase3-0811-394.md",
+        "docs/archive/worklog-phase3-0811-400.md",
+        "docs/archive/worklog-phase3-0820-723.md",
+        "docs/archive/worklog-phase3-0823-849.md",
+        "docs/archive/worklog-phase3-0823-860.md",
+        "docs/archive/worklog-phase3-0827-1019-1020.md",
+        "docs/archive/worklog-phase3-0914-1475.md",
+        "docs/archive/worklog-phase3-0915-1510.md",
+        "docs/archive/worklog-phase3-0916-1523-1524.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md",
+        "output/insights/2026-07-29/t143-ruleops-wave/s2-plan.md",
+        "output/insights/2026-07-29/t143-ruleops-wave/s4-adjudication-plan-v2.md",
+        "output/insights/2026-07-29_t143-ruleops-mutation-ledger.json.gz",
+        "output/insights/2026-07-29_t179-worker-ledger-verbatim/adjudication.md",
+        "output/insights/2026-08-04/t407-ruleops-inventory/stage2b-plan.md",
+        "output/insights/2026-08-04/t407-ruleops-inventory/stage6-rev1.md",
+        "output/insights/2026-08-05_t478-calibration-contract-generation/s2-plan.md",
+        "output/insights/2026-08-06/t244-p3-u4-candidate-count/s4-adjudication.md",
+        "output/insights/2026-08-06/t454-testification/s2-plan.md",
+        "output/insights/2026-08-08/t664-docs-budget/verbatim/s2-plan.md",
+        "output/insights/2026-08-08/t664-docs-budget/verbatim/s2-prompt.txt.gz",
+        "output/insights/2026-08-08/t664-docs-budget/verbatim/s3-lensA-prompt.txt.gz",
+        "output/insights/2026-08-11/t657-stage0-fold/verbatim/s2-plan.md",
+        "output/insights/2026-08-11/t812-lease-self-renew/verbatim/s2-plan.md",
+        "output/insights/2026-08-12/t816-step4-impl/verbatim/s6-review-b.md",
+        "output/insights/2026-08-13/t139-q1-canonical-decision/verbatim/s1-brief-appendix-pins.md",
+        "output/insights/2026-08-16/t403-orphan-hold/verbatim/s6-review-b.md",
+        "output/insights/2026-08-16_t1132-t1134-prereg-contract/brief.md",
+        "output/insights/2026-08-16_t1132-t1134-prereg-contract/parent-measurements.md",
+        "output/insights/2026-08-20/t202-receipt-memo/brief.md",
+        "output/insights/2026-08-24/t1505-attempt-registry-core/verbatim/stage6-review-luna.md",
+        "output/insights/2026-08-24/t1539-insights-retention-precheck/README.md",
+        "output/insights/2026-08-26_t1814-shard-time-balance/verbatim/s9-situation.md",
+        "output/insights/2026-08-27/ccbench-pin-precheck/README.md",
+        "output/insights/2026-08-27/ccbench-pin-precheck/measurements-1.md",
+        "output/insights/2026-08-27/ccbench-pin-precheck/measurements-3.md",
+        "output/insights/2026-09-01/t1909-b4-probe-closure/verbatim/consult-red-luna.md",
+        "output/insights/2026-09-02/t2091-openalex-cond1-order/stage6-review-coherence.md",
+        "output/insights/2026-09-02/t2091-openalex-cond1-order/stage6-review-correctness.md",
+        "output/insights/2026-09-07/t2198-trace0-fetchcontent/verbatim/s2-plan.md",
+        "output/insights/2026-09-07/t2324-official-approval-binding/verbatim/s2-plan.md",
+        "output/insights/2026-09-10_t2533-t1998-prereg-digest/verbatim/s2-plan.md",
+        "output/insights/2026-09-14_t575-silo-promotion-consumer/README.md",
+        "output/insights/2026-09-14_t575-silo-promotion-consumer/verbatim/s1-brief.md",
+        "output/insights/2026-09-14_t575-silo-promotion-consumer/verbatim/s2-plan.md",
+        "output/insights/2026-09-14_t575-silo-promotion-consumer/verbatim/s3-lensA.md",
+        "output/insights/2026-09-14_t575-silo-promotion-consumer/verbatim/s4-ruling.md",
+        "output/insights/2026-09-14_t575-silo-promotion-consumer/verbatim/s6-review.md",
+        "output/insights/2026-09-15/t2515-record-recovery/README.md",
+        "output/insights/2026-09-15/t2515-record-recovery/verbatim/s4-ruling.md",
+        "output/insights/2026-09-15_t2595-floor-query-legacy-symmetry/verbatim/parent-brief.md",
+        "output/insights/2026-09-16/t304-throughput-rename/s4-adjudication.md",
+        "output/insights/2026-09-16_t2640-unreachable-ledger/verbatim/s4-adjudication.md",
+        "output/insights/2026-09-20/t2632-b4-evidence-provenance/README.md",
+        "output/insights/2026-09-20/t2790-t1259-scan-timeout/verbatim/prompt-author-u1.md",
+        "output/insights/2026-09-21/t2632-b4-evidence-carrier/verbatim/insight-t2632-s2.2-2.3.md",
+        "tools/ruleops.py"
+      ]
+    },
+    {
+      "matches": 10884,
+      "pattern": "output/insights/**/*.md",
+      "sources": [
+        "docs/archive/worklog-phase3-0809-339-340.md",
+        "docs/archive/worklog-phase3-0820-723.md",
+        "output/insights/2026-08-08/t664-docs-budget/verbatim/s1-evidence.md",
+        "output/insights/2026-08-09/t682-provenance-known-violations/verbatim/s2b-plan.md",
+        "output/insights/2026-08-09/t682-provenance-known-violations/verbatim/s4-adjudication.md",
+        "output/insights/2026-08-11/t793-pubcore-impl/verbatim/s1-parent-independent-analysis.md",
+        "output/insights/2026-09-16/t2642-cleanup-cd-guard/s4-adjudication.md",
+        "output/insights/2026-09-21/login-check-count-wall/verbatim/probe-ledger.md",
+        "output/insights/2026-09-21/login-check-count-wall/verbatim/s1-brief.md"
+      ]
+    },
+    {
+      "matches": 1114,
+      "pattern": "output/insights/**/README.md",
+      "sources": [
+        "output/insights/2026-09-02/b10-missing-iterations-scope/verbatim/s3-lensB.md"
+      ]
+    },
+    {
+      "matches": 4335,
+      "pattern": "output/insights/**/evidence/**",
+      "sources": [
+        "docs/archive/worklog-phase3-0804-158-159.md",
+        "docs/archive/worklog-phase3-0804-163-164.md",
+        "docs/archive/worklog-phase3-0804-166.md",
+        "docs/archive/worklog-phase3-0804-167.md",
+        "docs/failures.md"
+      ]
+    },
+    {
+      "matches": 123,
+      "pattern": "output/insights/**/mut*-ledger.json",
+      "sources": [
+        "output/insights/2026-09-14/repo-bloat-audit/README.md"
+      ]
+    },
+    {
+      "matches": 862,
+      "pattern": "output/insights/**/mutation*spec*.json",
+      "sources": [
+        "output/insights/2026-09-09/t2279-mutation-dispatch-override/README.md"
+      ]
+    },
+    {
+      "matches": 6343,
+      "pattern": "output/insights/*.json",
+      "sources": [
+        "output/insights/2026-07-25_t094-placeholder-gate.md"
+      ]
+    },
+    {
+      "matches": 11091,
+      "pattern": "output/insights/*.md",
+      "sources": [
+        "docs/archive/worklog-phase3-0725.md",
+        "docs/archive/worklog-phase3-0809-334.md",
+        "docs/decisions.md",
+        "docs/failures.md",
+        "orchestrator/tests/test_check_docs.py",
+        "output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md",
+        "output/insights/2026-07-25_t094-placeholder-gate-verbatim.md",
+        "output/insights/2026-07-25_t094-placeholder-gate.md",
+        "output/insights/2026-07-26_t103-never-issued-vector.md",
+        "output/insights/2026-07-29/t143-ruleops-wave/s3-safety.md",
+        "output/insights/2026-08-01_t207-adoption-audit/s3a-integration-scope-verbatim.md",
+        "output/insights/2026-08-07_t139-prereg-freeze/s6-revB.md",
+        "output/insights/2026-08-09/t682-provenance-known-violations/verbatim/s4-adjudication.md",
+        "output/insights/2026-08-11_t139-pubcore-stage2/verbatim/README.md",
+        "output/insights/2026-08-11_t139-pubcore-stage2/verbatim/s6-lensC.md",
+        "output/insights/2026-08-29/t2061-persisted-wal-admission/verbatim/s3-lens-b.md",
+        "output/insights/2026-09-01_t1777-pilot-preregistration/verbatim/s2-plan.md",
+        "output/insights/2026-09-01_t1777-pilot-preregistration/verbatim/s3-consult-luna.md",
+        "output/insights/2026-09-04/tuned-adaptive-control-paper-reference/README.md",
+        "output/insights/2026-09-19/b5-generator-contrast-prereg/codex/plan-prompt.md"
+      ]
+    },
+    {
+      "matches": 1114,
+      "pattern": "output/insights/*/README.md",
+      "sources": [
+        "output/insights/2026-09-04/t2202-missing-population-caveats/verbatim/s1-brief.md",
+        "output/insights/2026-09-19/b5-generator-contrast-prereg/codex/plan-prompt.md"
+      ]
+    },
+    {
+      "matches": 64,
+      "pattern": "output/insights/*/mutation-*-report.json",
+      "sources": [
+        "output/insights/2026-09-08_t2140-t2414-b4-prereg-rulings/verbatim/parent-verified-facts.md"
+      ]
+    },
+    {
+      "matches": 3729,
+      "pattern": "output/insights/2026-08-03_t361-t362-cluster-probes/evidence/**",
+      "sources": [
+        "docs/archive/worklog-phase3-0804-163-164.md"
+      ]
+    },
+    {
+      "matches": 56,
+      "pattern": "output/insights/2026-08-27_t1969-axis1-search-execution/queries/*.gz",
+      "sources": [
+        "output/insights/2026-08-27_t1969-axis1-search-execution/README.md"
+      ]
+    },
+    {
+      "matches": 122,
+      "pattern": "output/insights/2026-09-03/t2090-axis1-openalex-window1/[A-Za-z0-9._-]*",
+      "sources": [
+        "output/insights/2026-09-03/t2090-axis1-openalex-window1/stage3-consult-reachability.md"
+      ]
+    },
+    {
+      "matches": 71,
+      "pattern": "output/insights/2026-09-03_*",
+      "sources": [
+        "orchestrator/tests/test_knowledge_manifest.py",
+        "orchestrator/tests/test_layer3_report.py",
+        "orchestrator/tests/test_p3_s4_loop.py",
+        "output/insights/2026-09-04/t2246-k2-knowledge-closure/mutation-ledger.json",
+        "output/insights/2026-09-04/t2246-k2-knowledge-closure/mutation-probe-out.json",
+        "output/insights/2026-09-04/t2246-k2-knowledge-closure/verbatim/s2-plan.md"
+      ]
+    },
+    {
+      "matches": 317,
+      "pattern": "output/insights/2026-09-07/t2090-axis1-openalex-window3/*.json",
+      "sources": [
+        "output/insights/2026-09-07/t2090-axis1-openalex-window3/driver.py.txt"
+      ]
+    },
+    {
+      "matches": 66,
+      "pattern": "output/insights/2026-09-08/t2090-axis1-openalex-window4/*.json",
+      "sources": [
+        "output/insights/2026-09-08/t2090-axis1-openalex-window4/driver.py.txt"
+      ]
+    },
+    {
+      "matches": 78,
+      "pattern": "output/insights/2026-09-08/t2090-axis1-openalex-window4/[A-Za-z0-9][A-Za-z0-9._-]*",
+      "sources": [
+        "output/insights/2026-09-08/t2090-axis1-openalex-window4/driver.py.txt"
+      ]
+    },
+    {
+      "matches": 98,
+      "pattern": "output/insights/2026-09-08_t2380-b5-closure/*.meta.json",
+      "sources": [
+        "output/insights/2026-09-08_t2380-b5-closure/README.md"
+      ]
+    },
+    {
+      "matches": 77,
+      "pattern": "output/insights/2026-09-17/t2035-axis1-openalex-window5/*.json",
+      "sources": [
+        "output/insights/2026-09-17/t2035-axis1-openalex-window5/driver.py.txt"
+      ]
+    },
+    {
+      "matches": 91,
+      "pattern": "output/insights/2026-09-17/t2035-axis1-openalex-window5/[A-Za-z0-9][A-Za-z0-9._-]*",
+      "sources": [
+        "output/insights/2026-09-17/t2035-axis1-openalex-window5/driver.py.txt"
+      ]
+    },
+    {
+      "matches": 1118,
+      "pattern": "output/insights/2026-09-1[4-6]*",
+      "sources": [
+        "output/insights/2026-09-17/paper-story-20260917/verbatim/prompt-plan.md"
+      ]
+    },
+    {
+      "matches": 54,
+      "pattern": "output/insights/2026-09-20/t2792-a1-sized-attempt2/**",
+      "sources": [
+        "output/insights/2026-09-20/t2792-a1-sized-attempt2/verbatim/brief.md"
+      ]
+    },
+    {
+      "matches": 200,
+      "pattern": "output/insights/2026-09-20/t2797-b5-contrast/ledgers/*/events/*.json",
+      "sources": [
+        "output/insights/2026-09-22/t2797-effect-bundle/README.md"
+      ]
+    },
+    {
+      "matches": 117,
+      "pattern": "output/insights/2026-09-21/t2826-modify-timing-resume/*.txt",
+      "sources": [
+        "output/insights/2026-09-21/t2826-modify-timing-resume/README.md"
+      ]
+    },
+    {
+      "matches": 27175,
+      "pattern": "output/insights/[a-z0-9][a-z0-9._-]*",
+      "sources": [
+        "output/insights/2026-07-18_s8b-c22-consultations.md"
+      ]
+    }
+  ],
+  "commit": "035fc11fa601547f5d68e54f5661c5daa70b93a5",
+  "corpus_blobs": 35127,
+  "corpus_bytes": 1065225236,
+  "elapsed_seconds": 2286.854,
+  "gz_exceeded": 0,
+  "gz_expanded": 1781,
+  "gz_failed": 0,
+  "targets": 27176,
+  "targets_with_refs": {
+    "R1": 13324,
+    "R2": 15017,
+    "R3": 26030,
+    "R4": 7011,
+    "R4t": 3970,
+    "R5": 13573,
+    "R5t": 4052,
+    "R6": 20707,
+    "R6root": 26705,
+    "R7": 2019
+  }
+}

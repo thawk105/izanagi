@@ -1,0 +1,1285 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.........                                                                [100%]\n9 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "03b868e5d59a8dd0e086fc733c52aa70beb9b3f6a2d503a86b403403681da7a1"
+    },
+    "artifact_error": null,
+    "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+    "duration_s": 5.347,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f7afc670524d93f1c36df352ddbbc8e8b7d9821d020efec6de9492e677fe2665",
+    "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+    "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+    "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+    "status": "PASSED",
+    "test_output_sha256": "03b868e5d59a8dd0e086fc733c52aa70beb9b3f6a2d503a86b403403681da7a1",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+  },
+  "date": "2026-09-29T07:20:11.323655+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.........                                                                [100%]\n9 passed in 4.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2b3bc7701dbb328ae15b13eb92e7af6e292e30f0ba1fe5ba5bbb5fc20c5206b4"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.49,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "mc0-comment-only",
+      "injection_diff_sha256": "51f5fa5c229ec7330e5ff66c12e12a972a98a1b5157b128dd6234be05101dd23",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "6fee3c422f4f6fe16511e1ad5432ca6b1df6e7d16d8d2edd25e9035d2246aee1",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "    # The queue determines traversal order. MC0\n",
+          "old": "    # A deque keeps the first recorded violation at minimum transition depth.\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "SURVIVED",
+      "test_output_sha256": "2b3bc7701dbb328ae15b13eb92e7af6e292e30f0ba1fe5ba5bbb5fc20c5206b4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n______________________ test_search_all_edges_and_shortest ______________________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_all_edges_and_shortest():\n        graph = {\n            \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n            \"long1\": ((\"long2\", \"long_2\"),),\n            \"long2\": ((\"target\", \"long_3\"),),\n            \"short\": ((\"target\", \"short_2\"),),\n            \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n            \"end\": (),\n        }\n        result = explore(\"root\", lambda state: graph[state], (\n            Judgment(\"branch\", lambda b, a, e: True,\n                     lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n            Judgment(\"target\", lambda b, a, e: True,\n                     lambda b, a, e: \"reached\" if a == \"target\" else None),\n            Judgment(\"seen\", lambda b, a, e: True,\n                     lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n        ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n        assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n>       assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\nE       AssertionError: assert (3 == 6)\nE        +  where 3 = SearchStats(visited=3, transitions_checked=3, terminal=0, elapsed_seconds=2.2898006136529148e-05, complete=True, stop_reason='exhausted').visited\nE        +    where SearchStats(visited=3, transitions_checked=3, terminal=0, elapsed_seconds=2.2898006136529148e-05, complete=True, stop_reason='exhausted') = SearchResult(statistics=SearchStats(visited=3, transitions_checked=3, terminal=0, elapsed_seconds=2.2898006136529148e-...seen'))}, first_violation=Violation(judgment_id='branch', reason='short', steps=('branch_short',)), witness_steps=None).statistics\n\norchestrator/tests/test_cc_model_checker.py:50: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\n1 failed, 8 passed in 4.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1828 retained_bytes=1828 omitted_bytes=0 rendered_excerpt_bytes=1881 sha256=c2fed64a96fe328658cbb03ea002949f5bec6302103c520fee4402b32c9c5930\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_all_edges_and_shortest():\n>         graph = {\n>             \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n>             \"long1\": ((\"long2\", \"long_2\"),),\n>             \"long2\": ((\"target\", \"long_3\"),),\n>             \"short\": ((\"target\", \"short_2\"),),\n>             \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n>             \"end\": (),\n>         }\n>         result = explore(\"root\", lambda state: graph[state], (\n>             Judgment(\"branch\", lambda b, a, e: True,\n>                      lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n>             Judgment(\"target\", lambda b, a, e: True,\n>                      lambda b, a, e: \"reached\" if a == \"target\" else None),\n>             Judgment(\"seen\", lambda b, a, e: True,\n>                      lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n>         ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n>         assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n> >       assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\n> E       AssertionError: assert (3 == 6)\n> E        +  where 3 = SearchStats(visited=3, transitions_checked=3, terminal=0, elapsed_seconds=2.2898006136529148e-05, complete=True, stop_reason='exhausted').visited\n> E        +    where SearchStats(visited=3, transitions_checked=3, terminal=0, elapsed_seconds=2.2898006136529148e-05, complete=True, stop_reason='exhausted') = SearchResult(statistics=SearchStats(visited=3, transitions_checked=3, terminal=0, elapsed_seconds=2.2898006136529148e-...seen'))}, first_violation=Violation(judgment_id='branch', reason='short', steps=('branch_short',)), witness_steps=None).statistics\n> \n> orchestrator/tests/test_cc_model_checker.py:50: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1828 retained_bytes=1828 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2587 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "425b7da9e1850dbb8a7e8ee7ef69339b4a99775984ffc5a588aaf1e521675575"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.672,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "hang_risk": false,
+      "id": "mc1-first-edge-only",
+      "injection_diff_sha256": "61cbc3a0ea80b6043f28f6a0f427eedc261541d731f915718660245211fcd063",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e0ba576872b4e119339b5155fae8bcb446fd82c45afdadbfdcb7c1e5264a8e99",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "        for next_state, step in list(transitions(state))[:1]:  # MC1\n",
+          "old": "        for next_state, step in transitions(state):\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "425b7da9e1850dbb8a7e8ee7ef69339b4a99775984ffc5a588aaf1e521675575",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n______________________ test_search_all_edges_and_shortest ______________________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_all_edges_and_shortest():\n        graph = {\n            \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n            \"long1\": ((\"long2\", \"long_2\"),),\n            \"long2\": ((\"target\", \"long_3\"),),\n            \"short\": ((\"target\", \"short_2\"),),\n            \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n            \"end\": (),\n        }\n        result = explore(\"root\", lambda state: graph[state], (\n            Judgment(\"branch\", lambda b, a, e: True,\n                     lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n            Judgment(\"target\", lambda b, a, e: True,\n                     lambda b, a, e: \"reached\" if a == \"target\" else None),\n            Judgment(\"seen\", lambda b, a, e: True,\n                     lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n        ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n        assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n        assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\n        assert result.statistics.terminal == 1\n        assert result.first_violation.judgment_id == \"branch\"\n        assert result.first_by_judgment[\"target\"].steps == (\"branch_short\", \"short_2\")\n>       assert result.first_by_judgment[\"seen\"].steps[-1] == \"return_seen\"\nE       AttributeError: 'NoneType' object has no attribute 'steps'\n\norchestrator/tests/test_cc_model_checker.py:54: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\n1 failed, 8 passed in 4.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1546 retained_bytes=1546 omitted_bytes=0 rendered_excerpt_bytes=1603 sha256=e3b2407f728e55d7a6a4bec45bcc25f6a7a02a77251fcbadaf61853175e1a44b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_all_edges_and_shortest():\n>         graph = {\n>             \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n>             \"long1\": ((\"long2\", \"long_2\"),),\n>             \"long2\": ((\"target\", \"long_3\"),),\n>             \"short\": ((\"target\", \"short_2\"),),\n>             \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n>             \"end\": (),\n>         }\n>         result = explore(\"root\", lambda state: graph[state], (\n>             Judgment(\"branch\", lambda b, a, e: True,\n>                      lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n>             Judgment(\"target\", lambda b, a, e: True,\n>                      lambda b, a, e: \"reached\" if a == \"target\" else None),\n>             Judgment(\"seen\", lambda b, a, e: True,\n>                      lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n>         ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n>         assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n>         assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\n>         assert result.statistics.terminal == 1\n>         assert result.first_violation.judgment_id == \"branch\"\n>         assert result.first_by_judgment[\"target\"].steps == (\"branch_short\", \"short_2\")\n> >       assert result.first_by_judgment[\"seen\"].steps[-1] == \"return_seen\"\n> E       AttributeError: 'NoneType' object has no attribute 'steps'\n> \n> orchestrator/tests/test_cc_model_checker.py:54: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1546 retained_bytes=1546 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2309 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9d77e921c7d4f38067620f8f53cd2f196ac3f459e7c18d89c921bf62a183f5a7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.792,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "hang_risk": false,
+      "id": "mc2-skip-judgment-on-visited",
+      "injection_diff_sha256": "36f00a81c84aa3e1c120725ff961d11e25c1fa1ad5ff8629aba6cc210d142a71",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "83d6c8b00b34d84a2269edf4c10f751008dbc67a7831111f5ea13684f1782524",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "                if next_state not in parent and item.applies(state, next_state, step):  # MC2\n",
+          "old": "                if item.applies(state, next_state, step):\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "9d77e921c7d4f38067620f8f53cd2f196ac3f459e7c18d89c921bf62a183f5a7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n______________________ test_search_all_edges_and_shortest ______________________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_all_edges_and_shortest():\n        graph = {\n            \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n            \"long1\": ((\"long2\", \"long_2\"),),\n            \"long2\": ((\"target\", \"long_3\"),),\n            \"short\": ((\"target\", \"short_2\"),),\n            \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n            \"end\": (),\n        }\n        result = explore(\"root\", lambda state: graph[state], (\n            Judgment(\"branch\", lambda b, a, e: True,\n                     lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n            Judgment(\"target\", lambda b, a, e: True,\n                     lambda b, a, e: \"reached\" if a == \"target\" else None),\n            Judgment(\"seen\", lambda b, a, e: True,\n                     lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n        ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n        assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n>       assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\nE       AssertionError: assert (1 == 6)\nE        +  where 1 = SearchStats(visited=1, transitions_checked=1, terminal=0, elapsed_seconds=1.226099266204983e-05, complete=True, stop_reason='exhausted').visited\nE        +    where SearchStats(visited=1, transitions_checked=1, terminal=0, elapsed_seconds=1.226099266204983e-05, complete=True, stop_reason='exhausted') = SearchResult(statistics=SearchStats(visited=1, transitions_checked=1, terminal=0, elapsed_seconds=1.226099266204983e-0...': None}, first_violation=Violation(judgment_id='branch', reason='short', steps=('branch_short',)), witness_steps=None).statistics\n\norchestrator/tests/test_cc_model_checker.py:50: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\n1 failed, 8 passed in 4.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1826 retained_bytes=1826 omitted_bytes=0 rendered_excerpt_bytes=1879 sha256=a93fe98c763f5e379f97eed35e9e7cd5ecc7f36f3ddcb6fa2ec4185320f77720\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_all_edges_and_shortest():\n>         graph = {\n>             \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n>             \"long1\": ((\"long2\", \"long_2\"),),\n>             \"long2\": ((\"target\", \"long_3\"),),\n>             \"short\": ((\"target\", \"short_2\"),),\n>             \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n>             \"end\": (),\n>         }\n>         result = explore(\"root\", lambda state: graph[state], (\n>             Judgment(\"branch\", lambda b, a, e: True,\n>                      lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n>             Judgment(\"target\", lambda b, a, e: True,\n>                      lambda b, a, e: \"reached\" if a == \"target\" else None),\n>             Judgment(\"seen\", lambda b, a, e: True,\n>                      lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n>         ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n>         assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n> >       assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\n> E       AssertionError: assert (1 == 6)\n> E        +  where 1 = SearchStats(visited=1, transitions_checked=1, terminal=0, elapsed_seconds=1.226099266204983e-05, complete=True, stop_reason='exhausted').visited\n> E        +    where SearchStats(visited=1, transitions_checked=1, terminal=0, elapsed_seconds=1.226099266204983e-05, complete=True, stop_reason='exhausted') = SearchResult(statistics=SearchStats(visited=1, transitions_checked=1, terminal=0, elapsed_seconds=1.226099266204983e-0...': None}, first_violation=Violation(judgment_id='branch', reason='short', steps=('branch_short',)), witness_steps=None).statistics\n> \n> orchestrator/tests/test_cc_model_checker.py:50: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1826 retained_bytes=1826 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2585 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f1bdc615aee2663c0c2e935b5e1d8c5223972d7da9f4b0373804785835e8e6c6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.714,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "hang_risk": false,
+      "id": "mc3-stop-at-first-violation",
+      "injection_diff_sha256": "cd68b52168d5a4df5d5d9665dbf645c471058f64a87b24b51061d1f90d62d3ca",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4ab54936c2969c9cbf0fbc48f53c43b30bbd743987d13225d8d48cffad174bf2",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "                            return SearchResult(SearchStats(len(parent), checked, terminal, monotonic() - began, True, \"exhausted\"), first, violation, witness_steps)  # MC3\n",
+          "old": "                            first_violation = violation\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "f1bdc615aee2663c0c2e935b5e1d8c5223972d7da9f4b0373804785835e8e6c6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n______________________ test_search_all_edges_and_shortest ______________________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_all_edges_and_shortest():\n        graph = {\n            \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n            \"long1\": ((\"long2\", \"long_2\"),),\n            \"long2\": ((\"target\", \"long_3\"),),\n            \"short\": ((\"target\", \"short_2\"),),\n            \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n            \"end\": (),\n        }\n        result = explore(\"root\", lambda state: graph[state], (\n            Judgment(\"branch\", lambda b, a, e: True,\n                     lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n            Judgment(\"target\", lambda b, a, e: True,\n                     lambda b, a, e: \"reached\" if a == \"target\" else None),\n            Judgment(\"seen\", lambda b, a, e: True,\n                     lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n        ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n        assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n        assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\n        assert result.statistics.terminal == 1\n        assert result.first_violation.judgment_id == \"branch\"\n>       assert result.first_by_judgment[\"target\"].steps == (\"branch_short\", \"short_2\")\nE       AssertionError: assert ('branch_long..._2', 'long_3') == ('branch_short', 'short_2')\nE         \nE         At index 0 diff: 'branch_long' != 'branch_short'\nE         Left contains one more item: 'long_3'\nE         Use -v to get more diff\n\norchestrator/tests/test_cc_model_checker.py:53: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\n1 failed, 8 passed in 4.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1649 retained_bytes=1649 omitted_bytes=0 rendered_excerpt_bytes=1712 sha256=4afcab39b32aea28c72a9e8bfa80c3a244d842c4287f7cbc2ff02e5e93f1fb9a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_all_edges_and_shortest():\n>         graph = {\n>             \"root\": ((\"short\", \"branch_short\"), (\"long1\", \"branch_long\")),\n>             \"long1\": ((\"long2\", \"long_2\"),),\n>             \"long2\": ((\"target\", \"long_3\"),),\n>             \"short\": ((\"target\", \"short_2\"),),\n>             \"target\": ((\"target\", \"return_seen\"), (\"end\", \"to_end\")),\n>             \"end\": (),\n>         }\n>         result = explore(\"root\", lambda state: graph[state], (\n>             Judgment(\"branch\", lambda b, a, e: True,\n>                      lambda b, a, e: \"short\" if e == \"branch_short\" else None),\n>             Judgment(\"target\", lambda b, a, e: True,\n>                      lambda b, a, e: \"reached\" if a == \"target\" else None),\n>             Judgment(\"seen\", lambda b, a, e: True,\n>                      lambda b, a, e: \"seen\" if e == \"return_seen\" else None),\n>         ), witness=lambda b, a, e, trace: e == \"to_end\" and len(trace()) == 3)\n>         assert result.statistics.complete and result.statistics.stop_reason == \"exhausted\"\n>         assert result.statistics.visited == 6 and result.statistics.transitions_checked == 7\n>         assert result.statistics.terminal == 1\n>         assert result.first_violation.judgment_id == \"branch\"\n> >       assert result.first_by_judgment[\"target\"].steps == (\"branch_short\", \"short_2\")\n> E       AssertionError: assert ('branch_long..._2', 'long_3') == ('branch_short', 'short_2')\n> E         \n> E         At index 0 diff: 'branch_long' != 'branch_short'\n> E         Left contains one more item: 'long_3'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_cc_model_checker.py:53: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1649 retained_bytes=1649 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2418 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3d28418d47c8afe42b6c050bfee7acd0243309d6660a1d572ed071498b9a1516"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.541,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+      ],
+      "hang_risk": false,
+      "id": "mc4-lifo-queue",
+      "injection_diff_sha256": "ee01fed5629cd7252bfa98197566f762d7481e221828671a7a26b1f35caa77dc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4c92e0f02d56dc6e102adb9f88a169bb319a0bc6604cfef97f1fdeb782a335b7",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "        state = queue.pop()  # MC4\n",
+          "old": "        state = queue.popleft()\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "3d28418d47c8afe42b6c050bfee7acd0243309d6660a1d572ed071498b9a1516",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n____________________ test_search_limits_and_invariant_error ____________________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_limits_and_invariant_error():\n        graph = {0: ((1, \"forward\"),), 1: ((0, \"back\"), (2, \"next\")), 2: ()}\n        walk = lambda state: graph[state]\n        result = explore(0, walk, (), max_states=2)\n        assert result.statistics.stop_reason == \"max_states\" and not result.statistics.complete\n        with patch(\"cc_model_checker.search.monotonic\", side_effect=(0.0, 1.0, 1.0)):\n            result = explore(0, walk, (), max_seconds=0.5)\n        assert result.statistics.stop_reason == \"max_seconds\" and not result.statistics.complete\n        assert explore(0, lambda _: (), ()).statistics.complete\n        for invalid_seconds in (float(\"nan\"), float(\"inf\"), float(\"-inf\")):\n            _expect_raises(ValueError, lambda: explore(0, walk, (), max_seconds=invalid_seconds))\n        assert explore(0, lambda _: (), (), max_seconds=1.0).statistics.complete\n    \n>       exc = _expect_raises(ModelInvariantError, lambda: explore(\n            0, walk, (), state_invariant=lambda state: (_ for _ in ()).throw(ValueError(\"bad\"))\n            if state == 1 else None))\n\norchestrator/tests/test_cc_model_checker.py:71: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'cc_model_checker.search.ModelInvariantError'>\ncall = <function test_search_limits_and_invariant_error.<locals>.<lambda> at 0x152f432edfc0>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ModelInvariantError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\n1 failed, 8 passed in 4.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=1728 retained_bytes=1728 omitted_bytes=0 rendered_excerpt_bytes=1797 sha256=685bd1bfb002a8314d4f5862b0ff9ee38e174c2e6919865dfac535cbb6002631\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_limits_and_invariant_error():\n>         graph = {0: ((1, \"forward\"),), 1: ((0, \"back\"), (2, \"next\")), 2: ()}\n>         walk = lambda state: graph[state]\n>         result = explore(0, walk, (), max_states=2)\n>         assert result.statistics.stop_reason == \"max_states\" and not result.statistics.complete\n>         with patch(\"cc_model_checker.search.monotonic\", side_effect=(0.0, 1.0, 1.0)):\n>             result = explore(0, walk, (), max_seconds=0.5)\n>         assert result.statistics.stop_reason == \"max_seconds\" and not result.statistics.complete\n>         assert explore(0, lambda _: (), ()).statistics.complete\n>         for invalid_seconds in (float(\"nan\"), float(\"inf\"), float(\"-inf\")):\n>             _expect_raises(ValueError, lambda: explore(0, walk, (), max_seconds=invalid_seconds))\n>         assert explore(0, lambda _: (), (), max_seconds=1.0).statistics.complete\n>     \n> >       exc = _expect_raises(ModelInvariantError, lambda: explore(\n>             0, walk, (), state_invariant=lambda state: (_ for _ in ()).throw(ValueError(\"bad\"))\n>             if state == 1 else None))\n> \n> orchestrator/tests/test_cc_model_checker.py:71: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'cc_model_checker.search.ModelInvariantError'>\n> call = <function test_search_limits_and_invariant_error.<locals>.<lambda> at 0x152f432edfc0>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ModelInvariantError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1728 retained_bytes=1728 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2507 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f3c9f46984238df72e203fedb1518cbf7d0c6f1a34503924f3d4eaff15e1ead3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.603,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+      ],
+      "hang_risk": false,
+      "id": "mc5-skip-new-state-invariant",
+      "injection_diff_sha256": "f2d87c311e9d788bdbd4190b3ce1692d3f7b016ea96d8dafb661b186f6b75304",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "375c53ba58bc708c219850f222d060b0a0d6ba97f569d21826d7fd16a3938f22",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "                pass  # MC5\n",
+          "old": "                check_state(next_state, state, step, steps)\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "f3c9f46984238df72e203fedb1518cbf7d0c6f1a34503924f3d4eaff15e1ead3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n____________________ test_search_limits_and_invariant_error ____________________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_limits_and_invariant_error():\n        graph = {0: ((1, \"forward\"),), 1: ((0, \"back\"), (2, \"next\")), 2: ()}\n        walk = lambda state: graph[state]\n        result = explore(0, walk, (), max_states=2)\n>       assert result.statistics.stop_reason == \"max_states\" and not result.statistics.complete\nE       AssertionError: assert ('max_states' == 'max_states'\nE         \nE           max_states and not True)\nE        +  where True = SearchStats(visited=2, transitions_checked=1, terminal=0, elapsed_seconds=9.336014045402408e-06, complete=True, stop_reason='max_states').complete\nE        +    where SearchStats(visited=2, transitions_checked=1, terminal=0, elapsed_seconds=9.336014045402408e-06, complete=True, stop_reason='max_states') = SearchResult(statistics=SearchStats(visited=2, transitions_checked=1, terminal=0, elapsed_seconds=9.336014045402408e-06, complete=True, stop_reason='max_states'), first_by_judgment={}, first_violation=None, witness_steps=None).statistics\n\norchestrator/tests/test_cc_model_checker.py:62: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\n1 failed, 8 passed in 4.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=1107 retained_bytes=1107 omitted_bytes=0 rendered_excerpt_bytes=1136 sha256=9155dc735e16cee3a75229c185c6b6e617dfdca825a2fe493fe66487a5f95be6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_limits_and_invariant_error():\n>         graph = {0: ((1, \"forward\"),), 1: ((0, \"back\"), (2, \"next\")), 2: ()}\n>         walk = lambda state: graph[state]\n>         result = explore(0, walk, (), max_states=2)\n> >       assert result.statistics.stop_reason == \"max_states\" and not result.statistics.complete\n> E       AssertionError: assert ('max_states' == 'max_states'\n> E         \n> E           max_states and not True)\n> E        +  where True = SearchStats(visited=2, transitions_checked=1, terminal=0, elapsed_seconds=9.336014045402408e-06, complete=True, stop_reason='max_states').complete\n> E        +    where SearchStats(visited=2, transitions_checked=1, terminal=0, elapsed_seconds=9.336014045402408e-06, complete=True, stop_reason='max_states') = SearchResult(statistics=SearchStats(visited=2, transitions_checked=1, terminal=0, elapsed_seconds=9.336014045402408e-06, complete=True, stop_reason='max_states'), first_by_judgment={}, first_violation=None, witness_steps=None).statistics\n> \n> orchestrator/tests/test_cc_model_checker.py:62: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1107 retained_bytes=1107 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1846 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c0f09b149a6143d456bbeeadd15683029463d08dcbdbcc4060eff6281bf42c13"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.676,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+      ],
+      "hang_risk": false,
+      "id": "mc6-complete-on-limit",
+      "injection_diff_sha256": "ca4ece08dafddaff9685c146e80bbd92b195da014c35e338117987de61a9423e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8ddbae0aed52ab35fed7fd78f9bb13f75180ddfdcba583b93cc5006e27f6131e",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "                                    monotonic() - began, True,  # MC6\n",
+          "old": "                                    monotonic() - began, stop_reason == \"exhausted\",\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "c0f09b149a6143d456bbeeadd15683029463d08dcbdbcc4060eff6281bf42c13",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_________________________ test_cycle_ww_only_required __________________________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_ww_only_required():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"T\"),\n                          _version(\"A2\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions, {\"U\": (Read(\"B\", \"B0\"),)})\n>       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"ww\", \"rw\"}\nE       assert (None is not None)\n\norchestrator/tests/test_cc_model_checker.py:88: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required\n1 failed, 8 passed in 4.53s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=560 retained_bytes=560 omitted_bytes=0 rendered_excerpt_bytes=583 sha256=5fd882be3529c5ef3c8850fa7d0e3a0083cd88984e400ea48027aaed940a93dd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_ww_only_required():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"T\"),\n>                           _version(\"A2\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions, {\"U\": (Read(\"B\", \"B0\"),)})\n> >       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"ww\", \"rw\"}\n> E       assert (None is not None)\n> \n> orchestrator/tests/test_cc_model_checker.py:88: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=560 retained_bytes=560 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1277 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5dea7970849ec7ec590d7480f6f76fd0b1555b7e0e2495e55f9787eeec88c2f3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.614,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+      ],
+      "hang_risk": false,
+      "id": "mc7-drop-ww",
+      "injection_diff_sha256": "9999bd5ad94922b733310f5ad81c2e18f5a09429086fbd9c25dcd97d2d9ff07b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0e1bee3266aad5d2219e3d72e148aff05b3e1717766d59d318ddd3a9f11110fb",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/cycles.py",
+          "new": "        for earlier, later in ():  # MC7\n",
+          "old": "        for earlier, later in zip(versions, versions[1:]):\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "5dea7970849ec7ec590d7480f6f76fd0b1555b7e0e2495e55f9787eeec88c2f3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_________________________ test_cycle_wr_only_required __________________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_wr_only_required():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"U\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n                           {\"T\": (Read(\"A\", \"A1\"), Read(\"B\", \"B0\"))})\n>       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"wr\", \"rw\"}\nE       assert (None is not None)\n\norchestrator/tests/test_cc_model_checker.py:98: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required\n1 failed, 8 passed in 4.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=551 retained_bytes=551 omitted_bytes=0 rendered_excerpt_bytes=574 sha256=78d8337e02b2a0292b1009e3e58aade786878e6a9bcff8aa8ab0953c9081dbbb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_wr_only_required():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"U\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n>                            {\"T\": (Read(\"A\", \"A1\"), Read(\"B\", \"B0\"))})\n> >       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"wr\", \"rw\"}\n> E       assert (None is not None)\n> \n> orchestrator/tests/test_cc_model_checker.py:98: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=551 retained_bytes=551 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1268 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cfdb783edfc80538430b9e241218ce2b31a776993df578927e7b30b50070f57d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.174,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required"
+      ],
+      "hang_risk": false,
+      "id": "mc8-drop-wr",
+      "injection_diff_sha256": "8e7db0a20027aeb2389a3fe5d716677a76ce3596677b3afc5fad1336febe4abe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4280335d7749cc8f85ec9e183f3db51658ee0ae69943d0ad9ab53f7183cd373d",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/cycles.py",
+          "new": "            pass  # MC8\n",
+          "old": "            add(version.writer, reader, \"wr\", read.key, version.id, version.id)\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "cfdb783edfc80538430b9e241218ce2b31a776993df578927e7b30b50070f57d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n....FFFF.                                                                [100%]\n=================================== FAILURES ===================================\n_________________________ test_cycle_wr_only_required __________________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_wr_only_required():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"U\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n                           {\"T\": (Read(\"A\", \"A1\"), Read(\"B\", \"B0\"))})\n>       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"wr\", \"rw\"}\nE       assert (None is not None)\n\norchestrator/tests/test_cc_model_checker.py:98: AssertionError\n________________________ test_cycle_all_later_versions _________________________\n[gw8] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_all_later_versions():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A00\", \"A\"),\n                          _version(\"A1\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n                           {\"T\": (Read(\"A\", \"A0\"),), \"U\": (Read(\"B\", \"B0\"),)})\n>       assert cycle is not None\nE       assert None is not None\n\norchestrator/tests/test_cc_model_checker.py:118: AssertionError\n_________________________ test_cycle_ww_only_required __________________________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_ww_only_required():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"T\"),\n                          _version(\"A2\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions, {\"U\": (Read(\"B\", \"B0\"),)})\n>       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"ww\", \"rw\"}\nE       assert (None is not None)\n\norchestrator/tests/test_cc_model_checker.py:88: AssertionError\n____________________ test_cycle_write_skew_rw_only_required ____________________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_write_skew_rw_only_required():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n                           {\"T\": (Read(\"A\", \"A0\"),), \"U\": (Read(\"B\", \"B0\"),)})\n>       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"rw\"}\nE       assert (None is not None)\n\norchestrator/tests/test_cc_model_checker.py:108: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required\n4 failed, 5 passed in 4.32s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=566 retained_bytes=566 omitted_bytes=0 rendered_excerpt_bytes=589 sha256=38e13c036506d4a553e6211b466298d416b99f2928a778b71d7190c85f79030c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_write_skew_rw_only_required():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n>                            {\"T\": (Read(\"A\", \"A0\"),), \"U\": (Read(\"B\", \"B0\"),)})\n> >       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"rw\"}\n> E       assert (None is not None)\n> \n> orchestrator/tests/test_cc_model_checker.py:108: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=560 retained_bytes=560 omitted_bytes=0 rendered_excerpt_bytes=583 sha256=5fd882be3529c5ef3c8850fa7d0e3a0083cd88984e400ea48027aaed940a93dd\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_ww_only_required():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"T\"),\n>                           _version(\"A2\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions, {\"U\": (Read(\"B\", \"B0\"),)})\n> >       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"ww\", \"rw\"}\n> E       assert (None is not None)\n> \n> orchestrator/tests/test_cc_model_checker.py:88: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=553 retained_bytes=553 omitted_bytes=0 rendered_excerpt_bytes=578 sha256=f04fd83883ea4b14795f7e7569423dc588a5202501ead1ce770e130b328f74fe\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_all_later_versions():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A00\", \"A\"),\n>                           _version(\"A1\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n>                            {\"T\": (Read(\"A\", \"A0\"),), \"U\": (Read(\"B\", \"B0\"),)})\n> >       assert cycle is not None\n> E       assert None is not None\n> \n> orchestrator/tests/test_cc_model_checker.py:118: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=551 retained_bytes=551 omitted_bytes=0 rendered_excerpt_bytes=574 sha256=78d8337e02b2a0292b1009e3e58aade786878e6a9bcff8aa8ab0953c9081dbbb\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_wr_only_required():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"U\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n>                            {\"T\": (Read(\"A\", \"A1\"), Read(\"B\", \"B0\"))})\n> >       assert cycle is not None and {edge.kind for edge in cycle.edges} == {\"wr\", \"rw\"}\n> E       assert (None is not None)\n> \n> orchestrator/tests/test_cc_model_checker.py:98: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=2230 retained_bytes=2230 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4260 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7c8219e1f835030d7f84ab67adf3b110d5a88554818085f2ede938de3fdaf1a4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.094,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required"
+      ],
+      "hang_risk": false,
+      "id": "mc9-drop-rw",
+      "injection_diff_sha256": "b036cc1e379b3ffce7cbcc871f3d1cbadcafbacc083f6097fbd874ad269f359f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "91cde34f3a3df848270fab220ba4f7ea75eb85cd5c9d85089698ed6c984fd0a5",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/cycles.py",
+          "new": "            for later in ():  # MC9\n",
+          "old": "            for later in versions[index + 1:]:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "7c8219e1f835030d7f84ab67adf3b110d5a88554818085f2ede938de3fdaf1a4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n________________________ test_cycle_all_later_versions _________________________\n[gw8] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_all_later_versions():\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A00\", \"A\"),\n                          _version(\"A1\", \"A\", \"U\")),\n                    \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n        cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n                           {\"T\": (Read(\"A\", \"A0\"),), \"U\": (Read(\"B\", \"B0\"),)})\n>       assert cycle is not None\nE       assert None is not None\n\norchestrator/tests/test_cc_model_checker.py:118: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions\n1 failed, 8 passed in 4.32s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=553 retained_bytes=553 omitted_bytes=0 rendered_excerpt_bytes=578 sha256=f04fd83883ea4b14795f7e7569423dc588a5202501ead1ce770e130b328f74fe\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_all_later_versions():\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A00\", \"A\"),\n>                           _version(\"A1\", \"A\", \"U\")),\n>                     \"B\": (_version(\"B0\", \"B\"), _version(\"B1\", \"B\", \"T\"))}\n>         cycle = find_cycle(frozenset((\"T\", \"U\")), versions,\n>                            {\"T\": (Read(\"A\", \"A0\"),), \"U\": (Read(\"B\", \"B0\"),)})\n> >       assert cycle is not None\n> E       assert None is not None\n> \n> orchestrator/tests/test_cc_model_checker.py:118: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=553 retained_bytes=553 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1274 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bf68a11b835c19520f45ed0b7eb2e49409ee872f854add38b504ec72e30b4be5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.073,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions"
+      ],
+      "hang_risk": false,
+      "id": "mc10-rw-next-only",
+      "injection_diff_sha256": "f2614f1db0bde0c59ad283cc48edcf3b55439e850e85af6a7ed6a2819662544e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8f39a1a5c944120426b652d805f0ae9e90ca0247cfeeff409ff183d5bded293b",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/cycles.py",
+          "new": "            for later in versions[index + 1:index + 2]:  # MC10\n",
+          "old": "            for later in versions[index + 1:]:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "bf68a11b835c19520f45ed0b7eb2e49409ee872f854add38b504ec72e30b4be5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_________________________ test_cycle_input_validation __________________________\n[gw6] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_input_validation():\n        duplicate = {\"A\": (_version(\"same\", \"A\"),), \"B\": (_version(\"same\", \"B\"),)}\n>       _expect_raises(ModelInputError, lambda: find_cycle(frozenset(), duplicate, {}))\n\norchestrator/tests/test_cc_model_checker.py:127: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'cc_model_checker.cycles.ModelInputError'>\ncall = <function test_cycle_input_validation.<locals>.<lambda> at 0x14ac1d7fdfc0>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ModelInputError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation\n1 failed, 8 passed in 4.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=836 retained_bytes=836 omitted_bytes=0 rendered_excerpt_bytes=879 sha256=de105cb0092ce8f1ffb21fa23092e65883bea966c795ff6a70ab1f23d76e12d7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_input_validation():\n>         duplicate = {\"A\": (_version(\"same\", \"A\"),), \"B\": (_version(\"same\", \"B\"),)}\n> >       _expect_raises(ModelInputError, lambda: find_cycle(frozenset(), duplicate, {}))\n> \n> orchestrator/tests/test_cc_model_checker.py:127: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'cc_model_checker.cycles.ModelInputError'>\n> call = <function test_cycle_input_validation.<locals>.<lambda> at 0x14ac1d7fdfc0>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ModelInputError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=836 retained_bytes=836 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1573 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "27d1e613f355fcd65cf30b22785d7c560019e4732e76637fb860ceb0057f3762"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.136,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+      ],
+      "hang_risk": false,
+      "id": "mc11-no-duplicate-id-check",
+      "injection_diff_sha256": "3e80ef831627ab22b8115483face0187db04700b631ad822abd9954ef695f46c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "038210576721ce1d36bd8c87d5864248fd8531226cea4f9fc8f74b330fdcdb14",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/cycles.py",
+          "new": "            if False:  # MC11\n",
+          "old": "            if version.id in by_id:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "27d1e613f355fcd65cf30b22785d7c560019e4732e76637fb860ceb0057f3762",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n__________________________ test_counterexample_schema __________________________\n[gw7] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_counterexample_schema():\n        record = _record()\n        encoded = to_json_bytes(record)\n        assert from_json_bytes(encoded) == record\n        assert validate_counterexample(asdict(record)) == record\n        raw = asdict(record)\n        raw[\"unknown\"] = \"x\"\n>       _expect_raises(ValueError, lambda: validate_counterexample(raw))\n\norchestrator/tests/test_cc_model_checker.py:171: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'ValueError'>\ncall = <function test_counterexample_schema.<locals>.<lambda> at 0x14cad076bbe0>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\n1 failed, 8 passed in 4.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=942 retained_bytes=942 omitted_bytes=0 rendered_excerpt_bytes=995 sha256=dca242d99d85b696b4d7362468435f246c4484d75117112a4147cc7f933084f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_counterexample_schema():\n>         record = _record()\n>         encoded = to_json_bytes(record)\n>         assert from_json_bytes(encoded) == record\n>         assert validate_counterexample(asdict(record)) == record\n>         raw = asdict(record)\n>         raw[\"unknown\"] = \"x\"\n> >       _expect_raises(ValueError, lambda: validate_counterexample(raw))\n> \n> orchestrator/tests/test_cc_model_checker.py:171: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'ValueError'>\n> call = <function test_counterexample_schema.<locals>.<lambda> at 0x14cad076bbe0>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=942 retained_bytes=942 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1688 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5097e56e2a99dbf9727d7aaa6a0d0c3cf42af1ca10650097b19358b5711f5e63"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.109,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "hang_risk": false,
+      "id": "mc12-allow-unknown-field",
+      "injection_diff_sha256": "30a659140b8b198730fb993305343989fd84a3200d0d1f1e67246eb4b0775b3f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6e21857eeb0e3006d76501c5512a3fa99a2d0b2be6664c25a7005ffa728ee8a0",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/schema.py",
+          "new": "    if not expected <= set(value):  # MC12\n",
+          "old": "    if set(value) != expected:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "5097e56e2a99dbf9727d7aaa6a0d0c3cf42af1ca10650097b19358b5711f5e63",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n__________________________ test_counterexample_schema __________________________\n[gw7] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_counterexample_schema():\n        record = _record()\n        encoded = to_json_bytes(record)\n        assert from_json_bytes(encoded) == record\n        assert validate_counterexample(asdict(record)) == record\n        raw = asdict(record)\n        raw[\"unknown\"] = \"x\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"steps\"][0][\"observed_value\"] = \"free text\"\n>       _expect_raises(ValueError, lambda: validate_counterexample(raw))\n\norchestrator/tests/test_cc_model_checker.py:174: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'ValueError'>\ncall = <function test_counterexample_schema.<locals>.<lambda> at 0x14ed29c4bd90>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\n1 failed, 8 passed in 4.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=1100 retained_bytes=1100 omitted_bytes=0 rendered_excerpt_bytes=1159 sha256=5b7e32fdf98e618adfbffd7b050aa1a9e8ae21ac79456b9361e5c4bfceed05a9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_counterexample_schema():\n>         record = _record()\n>         encoded = to_json_bytes(record)\n>         assert from_json_bytes(encoded) == record\n>         assert validate_counterexample(asdict(record)) == record\n>         raw = asdict(record)\n>         raw[\"unknown\"] = \"x\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"steps\"][0][\"observed_value\"] = \"free text\"\n> >       _expect_raises(ValueError, lambda: validate_counterexample(raw))\n> \n> orchestrator/tests/test_cc_model_checker.py:174: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'ValueError'>\n> call = <function test_counterexample_schema.<locals>.<lambda> at 0x14ed29c4bd90>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1100 retained_bytes=1100 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1857 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "238b46ee9b08fb6340526f3d65c6af3a04152bda0e1c756477537014d01f873b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.15,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "hang_risk": false,
+      "id": "mc13-no-atom-charset",
+      "injection_diff_sha256": "ad28e9a6ca205e9985eadf97dc8fd2a06fae58f60c64ee010849d02ed59ad3e5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b655effe923411cf8004dbece19bc1df0f5a89211fbd8ab4d1ce5b02971924f8",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/schema.py",
+          "new": "    if type(value) is str and (len(value) <= 64 or _DIGEST.fullmatch(value)):  # MC13\n",
+          "old": "    if type(value) is str and (_ID.fullmatch(value) or _DIGEST.fullmatch(value)):\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "238b46ee9b08fb6340526f3d65c6af3a04152bda0e1c756477537014d01f873b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n........F                                                                [100%]\n=================================== FAILURES ===================================\n___________________________ test_l3_counts_order_ids ___________________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_l3_counts_order_ids():\n        for count, expected in ((2, 1600), (3, 32000)):\n            rows = list(iter_l3(count))\n>           assert len(rows) == expected\nE           AssertionError: assert 64 == 1600\nE            +  where 64 = len([ScenarioDescriptor(id='l3-v1-n2-i11-t0RA-t1RA', txn_ops=((Operation(kind='R', key='A'),), (Operation(kind='R', key='A...-t0RA-t1RB', txn_ops=((Operation(kind='R', key='A'),), (Operation(kind='R', key='B'),)), initial_versions=(1, 2)), ...])\n\norchestrator/tests/test_cc_model_checker.py:147: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids\n1 failed, 8 passed in 4.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids\" nodeid_bytes=69 nodeid_omitted_bytes=0 source_bytes=604 retained_bytes=604 omitted_bytes=0 rendered_excerpt_bytes=625 sha256=c6b9b69c792daf10b6e293e46bf8dd18de0c78b9dc3f4dee277797d3d57eb063\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_l3_counts_order_ids():\n>         for count, expected in ((2, 1600), (3, 32000)):\n>             rows = list(iter_l3(count))\n> >           assert len(rows) == expected\n> E           AssertionError: assert 64 == 1600\n> E            +  where 64 = len([ScenarioDescriptor(id='l3-v1-n2-i11-t0RA-t1RA', txn_ops=((Operation(kind='R', key='A'),), (Operation(kind='R', key='A...-t0RA-t1RB', txn_ops=((Operation(kind='R', key='A'),), (Operation(kind='R', key='B'),)), initial_versions=(1, 2)), ...])\n> \n> orchestrator/tests/test_cc_model_checker.py:147: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=604 retained_bytes=604 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1316 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "942f23c911923562b7099b15050a647d37a3bbe084c796b7d493e2da1acf23e1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 4.997,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids"
+      ],
+      "hang_risk": false,
+      "id": "mc14-drop-length-two-ops",
+      "injection_diff_sha256": "4dce2d00e71c24cecdf32a877d6ee3e33d94269a1aa5301f30193ccc5777a604",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9d393b4b9385b889acad4363a70c0548f1792ab2dfc76a1c16eddc53c59d6fd2",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/scenarios.py",
+          "new": "    operations = tuple((op,) for op in alphabet)  # MC14\n",
+          "old": "    operations = tuple((op,) for op in alphabet) + tuple(product(alphabet, repeat=2))\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "942f23c911923562b7099b15050a647d37a3bbe084c796b7d493e2da1acf23e1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n_________________________ test_cycle_input_validation __________________________\n[gw6] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_cycle_input_validation():\n        duplicate = {\"A\": (_version(\"same\", \"A\"),), \"B\": (_version(\"same\", \"B\"),)}\n        _expect_raises(ModelInputError, lambda: find_cycle(frozenset(), duplicate, {}))\n        base = {\"A\": (_version(\"A0\", \"A\"),)}\n        _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)), base,\n                                                      {\"U\": (Read(\"A\", \"A0\"),)}))\n        _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)), base,\n                                                      {\"T\": (Read(\"B\", \"A0\"),)}))\n        _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)), base,\n                                                      {\"T\": (Read(\"A\", \"missing\"),)}))\n        _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)),\n                                                      {\"A\": (_version(\"A1\", \"A\", \"U\"),)}, {}))\n        versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"T\"),\n                          _version(\"A2\", \"A\", \"U\"), _version(\"A3\", \"A\", \"T\"))}\n>       _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\", \"U\")), versions, {}))\n\norchestrator/tests/test_cc_model_checker.py:139: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'cc_model_checker.cycles.ModelInputError'>\ncall = <function test_cycle_input_validation.<locals>.<lambda> at 0x14f8890f5fc0>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ModelInputError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation\n1 failed, 8 passed in 4.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=1806 retained_bytes=1806 omitted_bytes=0 rendered_excerpt_bytes=1873 sha256=d32e0a48a985a524aa5ea60f9bb7ee76c98e21845b117e28bf4a87ea56c17d02\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_cycle_input_validation():\n>         duplicate = {\"A\": (_version(\"same\", \"A\"),), \"B\": (_version(\"same\", \"B\"),)}\n>         _expect_raises(ModelInputError, lambda: find_cycle(frozenset(), duplicate, {}))\n>         base = {\"A\": (_version(\"A0\", \"A\"),)}\n>         _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)), base,\n>                                                       {\"U\": (Read(\"A\", \"A0\"),)}))\n>         _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)), base,\n>                                                       {\"T\": (Read(\"B\", \"A0\"),)}))\n>         _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)), base,\n>                                                       {\"T\": (Read(\"A\", \"missing\"),)}))\n>         _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\",)),\n>                                                       {\"A\": (_version(\"A1\", \"A\", \"U\"),)}, {}))\n>         versions = {\"A\": (_version(\"A0\", \"A\"), _version(\"A1\", \"A\", \"T\"),\n>                           _version(\"A2\", \"A\", \"U\"), _version(\"A3\", \"A\", \"T\"))}\n> >       _expect_raises(ModelInputError, lambda: find_cycle(frozenset((\"T\", \"U\")), versions, {}))\n> \n> orchestrator/tests/test_cc_model_checker.py:139: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'cc_model_checker.cycles.ModelInputError'>\n> call = <function test_cycle_input_validation.<locals>.<lambda> at 0x14f8890f5fc0>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ModelInputError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1806 retained_bytes=1806 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2572 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2997fac0875414feb51b33d62ca94c7448f7d14747503adcfca82ad0f9fdfb3d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.161,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+      ],
+      "hang_risk": false,
+      "id": "mc15-no-duplicate-writer-check",
+      "injection_diff_sha256": "48380740e3832c2c057abcb816ba8c87d92cb9fd1c60028f64466c6a322a4465",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "83ee3bc409a9039ce0c14f8d33140ad63961967f46dce7a44c2928a6f1363f37",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/cycles.py",
+          "new": "                if False:  # MC15\n",
+          "old": "                if version.writer in writers:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "2997fac0875414feb51b33d62ca94c7448f7d14747503adcfca82ad0f9fdfb3d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n____________________ test_search_limits_and_invariant_error ____________________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_search_limits_and_invariant_error():\n        graph = {0: ((1, \"forward\"),), 1: ((0, \"back\"), (2, \"next\")), 2: ()}\n        walk = lambda state: graph[state]\n        result = explore(0, walk, (), max_states=2)\n        assert result.statistics.stop_reason == \"max_states\" and not result.statistics.complete\n        with patch(\"cc_model_checker.search.monotonic\", side_effect=(0.0, 1.0, 1.0)):\n            result = explore(0, walk, (), max_seconds=0.5)\n        assert result.statistics.stop_reason == \"max_seconds\" and not result.statistics.complete\n        assert explore(0, lambda _: (), ()).statistics.complete\n        for invalid_seconds in (float(\"nan\"), float(\"inf\"), float(\"-inf\")):\n>           _expect_raises(ValueError, lambda: explore(0, walk, (), max_seconds=invalid_seconds))\n\norchestrator/tests/test_cc_model_checker.py:68: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'ValueError'>\ncall = <function test_search_limits_and_invariant_error.<locals>.<lambda> at 0x146347472200>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\n1 failed, 8 passed in 4.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=1399 retained_bytes=1399 omitted_bytes=0 rendered_excerpt_bytes=1458 sha256=a5656c361d2195c18b1a1c2db8067a450c861564c8abf1536283da085089e640\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_search_limits_and_invariant_error():\n>         graph = {0: ((1, \"forward\"),), 1: ((0, \"back\"), (2, \"next\")), 2: ()}\n>         walk = lambda state: graph[state]\n>         result = explore(0, walk, (), max_states=2)\n>         assert result.statistics.stop_reason == \"max_states\" and not result.statistics.complete\n>         with patch(\"cc_model_checker.search.monotonic\", side_effect=(0.0, 1.0, 1.0)):\n>             result = explore(0, walk, (), max_seconds=0.5)\n>         assert result.statistics.stop_reason == \"max_seconds\" and not result.statistics.complete\n>         assert explore(0, lambda _: (), ()).statistics.complete\n>         for invalid_seconds in (float(\"nan\"), float(\"inf\"), float(\"-inf\")):\n> >           _expect_raises(ValueError, lambda: explore(0, walk, (), max_seconds=invalid_seconds))\n> \n> orchestrator/tests/test_cc_model_checker.py:68: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'ValueError'>\n> call = <function test_search_limits_and_invariant_error.<locals>.<lambda> at 0x146347472200>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1399 retained_bytes=1399 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2168 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a1781e01540d700c42911f02144b3803142423ecd0eef7dd54327cc0f7a623c5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.083,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+      ],
+      "hang_risk": false,
+      "id": "mc16-no-finite-seconds-check",
+      "injection_diff_sha256": "c38099ae912612c3a2644fb0d6af2b9474a5ff92f03f5c882a14979502e43033",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fcd2f5da1084da16361f5893be38c4250c2eb01166d57322508d18fac3b205aa",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/search.py",
+          "new": "    if False:  # MC16\n",
+          "old": "    if type(max_seconds) is float and not isfinite(max_seconds):\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "a1781e01540d700c42911f02144b3803142423ecd0eef7dd54327cc0f7a623c5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n__________________________ test_counterexample_schema __________________________\n[gw7] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_counterexample_schema():\n        record = _record()\n        encoded = to_json_bytes(record)\n        assert from_json_bytes(encoded) == record\n        assert validate_counterexample(asdict(record)) == record\n        raw = asdict(record)\n        raw[\"unknown\"] = \"x\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"steps\"][0][\"observed_value\"] = \"free text\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"steps\"][0][\"number\"] = True\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        del raw[\"steps\"][0][\"name\"]\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"cycle_edges\"][0][\"target\"] = \"T\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = encoded.decode(\"ascii\").replace('\"scenario_id\":\"scenario.1\"',\n                                               '\"scenario_id\":\"scenario.1\",\"scenario_id\":\"again\"')\n        _expect_raises(ValueError, lambda: from_json_bytes(raw.encode(\"ascii\")))\n        _expect_raises(ValueError, lambda: from_json_bytes(encoded.replace(b\"null\", b\"NaN\", 1)))\n        vocabulary = {\"judgment_id\": frozenset((\"J1\",)),\n                      \"name\": frozenset((\"read\",)), \"rule_id\": frozenset((\"R1\",))}\n        assert validate_counterexample(record, vocabulary=vocabulary) == record\n        assert from_json_bytes(encoded, vocabulary=vocabulary) == record\n        _expect_raises(ValueError, lambda: validate_counterexample(record, vocabulary={\"other\": frozenset()}))\n        for field, allowed in ((\"judgment_id\", \"J2\"), (\"name\", \"write\"), (\"rule_id\", \"R2\")):\n            _expect_raises(ValueError, lambda: validate_counterexample(\n                record, vocabulary={field: frozenset((allowed,))}))\n        _expect_raises(ValueError, lambda: from_json_bytes(\n            encoded, vocabulary={\"name\": frozenset((\"write\",))}))\n        raw = asdict(record)\n        raw[\"steps\"] = [dict(asdict(record.steps[0]), number=number)\n                        for number in range(1, 1026)]\n>       _expect_raises(ValueError, lambda: validate_counterexample(raw))\n\norchestrator/tests/test_cc_model_checker.py:201: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'ValueError'>\ncall = <function test_counterexample_schema.<locals>.<lambda> at 0x14facbe99fc0>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\n1 failed, 8 passed in 4.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=2870 retained_bytes=2870 omitted_bytes=0 rendered_excerpt_bytes=2983 sha256=5495c7f261c57811f161ffd768921453548619a8cdf92ac791482b91cc7fc4d0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_counterexample_schema():\n>         record = _record()\n>         encoded = to_json_bytes(record)\n>         assert from_json_bytes(encoded) == record\n>         assert validate_counterexample(asdict(record)) == record\n>         raw = asdict(record)\n>         raw[\"unknown\"] = \"x\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"steps\"][0][\"observed_value\"] = \"free text\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"steps\"][0][\"number\"] = True\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         del raw[\"steps\"][0][\"name\"]\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"cycle_edges\"][0][\"target\"] = \"T\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = encoded.decode(\"ascii\").replace('\"scenario_id\":\"scenario.1\"',\n>                                                '\"scenario_id\":\"scenario.1\",\"scenario_id\":\"again\"')\n>         _expect_raises(ValueError, lambda: from_json_bytes(raw.encode(\"ascii\")))\n>         _expect_raises(ValueError, lambda: from_json_bytes(encoded.replace(b\"null\", b\"NaN\", 1)))\n>         vocabulary = {\"judgment_id\": frozenset((\"J1\",)),\n>                       \"name\": frozenset((\"read\",)), \"rule_id\": frozenset((\"R1\",))}\n>         assert validate_counterexample(record, vocabulary=vocabulary) == record\n>         assert from_json_bytes(encoded, vocabulary=vocabulary) == record\n>         _expect_raises(ValueError, lambda: validate_counterexample(record, vocabulary={\"other\": frozenset()}))\n>         for field, allowed in ((\"judgment_id\", \"J2\"), (\"name\", \"write\"), (\"rule_id\", \"R2\")):\n>             _expect_raises(ValueError, lambda: validate_counterexample(\n>                 record, vocabulary={field: frozenset((allowed,))}))\n>         _expect_raises(ValueError, lambda: from_json_bytes(\n>             encoded, vocabulary={\"name\": frozenset((\"write\",))}))\n>         raw = asdict(record)\n>         raw[\"steps\"] = [dict(asdict(record.steps[0]), number=number)\n>                         for number in range(1, 1026)]\n> >       _expect_raises(ValueError, lambda: validate_counterexample(raw))\n> \n> orchestrator/tests/test_cc_model_checker.py:201: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'ValueError'>\n> call = <function test_counterexample_schema.<locals>.<lambda> at 0x14facbe99fc0>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2870 retained_bytes=2870 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3681 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "91f00dfc07d6648ef3fad5f41205e3f71497bd796c83a1e13da875fcf3d83787"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.048,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "hang_risk": false,
+      "id": "mc17-no-step-count-cap",
+      "injection_diff_sha256": "08a8c5546d5ee81acc5f15dbef4d2c6e29a35684cb8c90224621157ecb971c19",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fed58cb9d1b8de1a986eb25ac465faa78d5a84fe0d2196d52dae438e99fc9140",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/schema.py",
+          "new": "    if False:  # MC17\n",
+          "old": "    if len(raw_steps) > 1024:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "91f00dfc07d6648ef3fad5f41205e3f71497bd796c83a1e13da875fcf3d83787",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......F.                                                                [100%]\n=================================== FAILURES ===================================\n__________________________ test_counterexample_schema __________________________\n[gw7] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_counterexample_schema():\n        record = _record()\n        encoded = to_json_bytes(record)\n        assert from_json_bytes(encoded) == record\n        assert validate_counterexample(asdict(record)) == record\n        raw = asdict(record)\n        raw[\"unknown\"] = \"x\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"steps\"][0][\"observed_value\"] = \"free text\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"steps\"][0][\"number\"] = True\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        del raw[\"steps\"][0][\"name\"]\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = asdict(record)\n        raw[\"cycle_edges\"][0][\"target\"] = \"T\"\n        _expect_raises(ValueError, lambda: validate_counterexample(raw))\n        raw = encoded.decode(\"ascii\").replace('\"scenario_id\":\"scenario.1\"',\n                                               '\"scenario_id\":\"scenario.1\",\"scenario_id\":\"again\"')\n        _expect_raises(ValueError, lambda: from_json_bytes(raw.encode(\"ascii\")))\n        _expect_raises(ValueError, lambda: from_json_bytes(encoded.replace(b\"null\", b\"NaN\", 1)))\n        vocabulary = {\"judgment_id\": frozenset((\"J1\",)),\n                      \"name\": frozenset((\"read\",)), \"rule_id\": frozenset((\"R1\",))}\n        assert validate_counterexample(record, vocabulary=vocabulary) == record\n        assert from_json_bytes(encoded, vocabulary=vocabulary) == record\n        _expect_raises(ValueError, lambda: validate_counterexample(record, vocabulary={\"other\": frozenset()}))\n        for field, allowed in ((\"judgment_id\", \"J2\"), (\"name\", \"write\"), (\"rule_id\", \"R2\")):\n>           _expect_raises(ValueError, lambda: validate_counterexample(\n                record, vocabulary={field: frozenset((allowed,))}))\n\norchestrator/tests/test_cc_model_checker.py:194: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nexc_type = <class 'ValueError'>\ncall = <function test_counterexample_schema.<locals>.<lambda> at 0x149b28fcbd90>\n\n    def _expect_raises(exc_type, call):\n        try:\n            call()\n        except exc_type as exc:\n            return exc\n>       raise AssertionError(f\"expected {exc_type.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_cc_model_checker.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\n1 failed, 8 passed in 4.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=2519 retained_bytes=2519 omitted_bytes=0 rendered_excerpt_bytes=2620 sha256=0e8571c6b18f480f709db2788f25bf36b7df26de275bb53be18b6ebf14a3e53c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_counterexample_schema():\n>         record = _record()\n>         encoded = to_json_bytes(record)\n>         assert from_json_bytes(encoded) == record\n>         assert validate_counterexample(asdict(record)) == record\n>         raw = asdict(record)\n>         raw[\"unknown\"] = \"x\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"steps\"][0][\"observed_value\"] = \"free text\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"steps\"][0][\"number\"] = True\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         del raw[\"steps\"][0][\"name\"]\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = asdict(record)\n>         raw[\"cycle_edges\"][0][\"target\"] = \"T\"\n>         _expect_raises(ValueError, lambda: validate_counterexample(raw))\n>         raw = encoded.decode(\"ascii\").replace('\"scenario_id\":\"scenario.1\"',\n>                                                '\"scenario_id\":\"scenario.1\",\"scenario_id\":\"again\"')\n>         _expect_raises(ValueError, lambda: from_json_bytes(raw.encode(\"ascii\")))\n>         _expect_raises(ValueError, lambda: from_json_bytes(encoded.replace(b\"null\", b\"NaN\", 1)))\n>         vocabulary = {\"judgment_id\": frozenset((\"J1\",)),\n>                       \"name\": frozenset((\"read\",)), \"rule_id\": frozenset((\"R1\",))}\n>         assert validate_counterexample(record, vocabulary=vocabulary) == record\n>         assert from_json_bytes(encoded, vocabulary=vocabulary) == record\n>         _expect_raises(ValueError, lambda: validate_counterexample(record, vocabulary={\"other\": frozenset()}))\n>         for field, allowed in ((\"judgment_id\", \"J2\"), (\"name\", \"write\"), (\"rule_id\", \"R2\")):\n> >           _expect_raises(ValueError, lambda: validate_counterexample(\n>                 record, vocabulary={field: frozenset((allowed,))}))\n> \n> orchestrator/tests/test_cc_model_checker.py:194: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> exc_type = <class 'ValueError'>\n> call = <function test_counterexample_schema.<locals>.<lambda> at 0x149b28fcbd90>\n> \n>     def _expect_raises(exc_type, call):\n>         try:\n>             call()\n>         except exc_type as exc:\n>             return exc\n> >       raise AssertionError(f\"expected {exc_type.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_cc_model_checker.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2519 retained_bytes=2519 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3318 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "24133affd1ed518be87b011c831a1bebec75c65c9ceda85cb2164c9c3a886cda"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "eeaab846baad75a9549655ac190b166f7fbb1ac46e601c60d6802d5cd4cd5133",
+      "duration_s": 5.131,
+      "expected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "hang_risk": false,
+      "id": "mc18-no-vocabulary-check",
+      "injection_diff_sha256": "d281799bf11b9c94605353804caa08ae74220a1132806586e40e8d195f0f996c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ba2eb46836fe3e9d605f703c8b4397efb641b99ebf66e5e955e6eb498c0a2b58",
+      "replacements": [
+        {
+          "file": "tools/cc_model_checker/schema.py",
+          "new": "        if False:  # MC18\n",
+          "old": "        if allowed is not None and item not in allowed:\n"
+        }
+      ],
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "KILLED",
+      "test_output_sha256": "24133affd1ed518be87b011c831a1bebec75c65c9ceda85cb2164c9c3a886cda",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\norchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest\norchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error\norchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required\norchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required\norchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required\norchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions\norchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation\norchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids\norchestrator/tests/test_cc_model_checker.py::test_counterexample_schema\n\n9 tests collected in 0.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "8f527bb97b475e9d381ebfca126dc168b2fd572af03b167c06d1a4477b16ed42"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest",
+        "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions",
+        "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation",
+        "orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids",
+        "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+      ],
+      "duration_s": 1.541,
+      "rc": 0,
+      "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+      "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+      "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+      "status": "PASSED",
+      "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7"
+    },
+    "hang_timeout_seconds": 4800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "mc0-comment-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "51f5fa5c229ec7330e5ff66c12e12a972a98a1b5157b128dd6234be05101dd23",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "    # The queue determines traversal order. MC0\n",
+            "old": "    # A deque keeps the first recorded violation at minimum transition depth.\n"
+          }
+        ]
+      },
+      "mc1-first-edge-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "61cbc3a0ea80b6043f28f6a0f427eedc261541d731f915718660245211fcd063",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "        for next_state, step in list(transitions(state))[:1]:  # MC1\n",
+            "old": "        for next_state, step in transitions(state):\n"
+          }
+        ]
+      },
+      "mc10-rw-next-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f2614f1db0bde0c59ad283cc48edcf3b55439e850e85af6a7ed6a2819662544e",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/cycles.py",
+            "new": "            for later in versions[index + 1:index + 2]:  # MC10\n",
+            "old": "            for later in versions[index + 1:]:\n"
+          }
+        ]
+      },
+      "mc11-no-duplicate-id-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3e80ef831627ab22b8115483face0187db04700b631ad822abd9954ef695f46c",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/cycles.py",
+            "new": "            if False:  # MC11\n",
+            "old": "            if version.id in by_id:\n"
+          }
+        ]
+      },
+      "mc12-allow-unknown-field": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "30a659140b8b198730fb993305343989fd84a3200d0d1f1e67246eb4b0775b3f",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/schema.py",
+            "new": "    if not expected <= set(value):  # MC12\n",
+            "old": "    if set(value) != expected:\n"
+          }
+        ]
+      },
+      "mc13-no-atom-charset": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ad28e9a6ca205e9985eadf97dc8fd2a06fae58f60c64ee010849d02ed59ad3e5",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/schema.py",
+            "new": "    if type(value) is str and (len(value) <= 64 or _DIGEST.fullmatch(value)):  # MC13\n",
+            "old": "    if type(value) is str and (_ID.fullmatch(value) or _DIGEST.fullmatch(value)):\n"
+          }
+        ]
+      },
+      "mc14-drop-length-two-ops": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_l3_counts_order_ids"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4dce2d00e71c24cecdf32a877d6ee3e33d94269a1aa5301f30193ccc5777a604",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/scenarios.py",
+            "new": "    operations = tuple((op,) for op in alphabet)  # MC14\n",
+            "old": "    operations = tuple((op,) for op in alphabet) + tuple(product(alphabet, repeat=2))\n"
+          }
+        ]
+      },
+      "mc15-no-duplicate-writer-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_input_validation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "48380740e3832c2c057abcb816ba8c87d92cb9fd1c60028f64466c6a322a4465",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/cycles.py",
+            "new": "                if False:  # MC15\n",
+            "old": "                if version.writer in writers:\n"
+          }
+        ]
+      },
+      "mc16-no-finite-seconds-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c38099ae912612c3a2644fb0d6af2b9474a5ff92f03f5c882a14979502e43033",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "    if False:  # MC16\n",
+            "old": "    if type(max_seconds) is float and not isfinite(max_seconds):\n"
+          }
+        ]
+      },
+      "mc17-no-step-count-cap": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "08a8c5546d5ee81acc5f15dbef4d2c6e29a35684cb8c90224621157ecb971c19",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/schema.py",
+            "new": "    if False:  # MC17\n",
+            "old": "    if len(raw_steps) > 1024:\n"
+          }
+        ]
+      },
+      "mc18-no-vocabulary-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_counterexample_schema"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d281799bf11b9c94605353804caa08ae74220a1132806586e40e8d195f0f996c",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/schema.py",
+            "new": "        if False:  # MC18\n",
+            "old": "        if allowed is not None and item not in allowed:\n"
+          }
+        ]
+      },
+      "mc2-skip-judgment-on-visited": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "36f00a81c84aa3e1c120725ff961d11e25c1fa1ad5ff8629aba6cc210d142a71",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "                if next_state not in parent and item.applies(state, next_state, step):  # MC2\n",
+            "old": "                if item.applies(state, next_state, step):\n"
+          }
+        ]
+      },
+      "mc3-stop-at-first-violation": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cd68b52168d5a4df5d5d9665dbf645c471058f64a87b24b51061d1f90d62d3ca",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "                            return SearchResult(SearchStats(len(parent), checked, terminal, monotonic() - began, True, \"exhausted\"), first, violation, witness_steps)  # MC3\n",
+            "old": "                            first_violation = violation\n"
+          }
+        ]
+      },
+      "mc4-lifo-queue": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_all_edges_and_shortest"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ee01fed5629cd7252bfa98197566f762d7481e221828671a7a26b1f35caa77dc",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "        state = queue.pop()  # MC4\n",
+            "old": "        state = queue.popleft()\n"
+          }
+        ]
+      },
+      "mc5-skip-new-state-invariant": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f2d87c311e9d788bdbd4190b3ce1692d3f7b016ea96d8dafb661b186f6b75304",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "                pass  # MC5\n",
+            "old": "                check_state(next_state, state, step, steps)\n"
+          }
+        ]
+      },
+      "mc6-complete-on-limit": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_search_limits_and_invariant_error"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ca4ece08dafddaff9685c146e80bbd92b195da014c35e338117987de61a9423e",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/search.py",
+            "new": "                                    monotonic() - began, True,  # MC6\n",
+            "old": "                                    monotonic() - began, stop_reason == \"exhausted\",\n"
+          }
+        ]
+      },
+      "mc7-drop-ww": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9999bd5ad94922b733310f5ad81c2e18f5a09429086fbd9c25dcd97d2d9ff07b",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/cycles.py",
+            "new": "        for earlier, later in ():  # MC7\n",
+            "old": "        for earlier, later in zip(versions, versions[1:]):\n"
+          }
+        ]
+      },
+      "mc8-drop-wr": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8e7db0a20027aeb2389a3fe5d716677a76ce3596677b3afc5fad1336febe4abe",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/cycles.py",
+            "new": "            pass  # MC8\n",
+            "old": "            add(version.writer, reader, \"wr\", read.key, version.id, version.id)\n"
+          }
+        ]
+      },
+      "mc9-drop-rw": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_all_later_versions",
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_wr_only_required",
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_write_skew_rw_only_required",
+          "orchestrator/tests/test_cc_model_checker.py::test_cycle_ww_only_required"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b036cc1e379b3ffce7cbcc871f3d1cbadcafbacc083f6097fbd874ad269f359f",
+        "replacements": [
+          {
+            "file": "tools/cc_model_checker/cycles.py",
+            "new": "            for later in ():  # MC9\n",
+            "old": "            for later in versions[index + 1:]:\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f7afc670524d93f1c36df352ddbbc8e8b7d9821d020efec6de9492e677fe2665",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_cc_model_checker.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "eb083d44eb64800539b31217d01da174ac5e8086",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_cc_model_checker.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-gen-opt-model-checker/mutation-scratch-final2/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4722216185e8c786630800f1e4f45e987a8deb06",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "72c2d0926a7309c382975c7ce6ae67b11cb448a30d1d34603899959416593863",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "81570c3d5d0d3554a22d84a70925921f30acc64cb9f851235f19fce6aa72b31c",
+  "summary": {
+    "KILLED": 18,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 19,
+    "matching": 19,
+    "recorded": 19,
+    "registered": 19
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-gen-opt-model-checker/mutation-scratch-final2/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "431955e3548fb6f0d49768640763d05facde8666edcfd5e8bbaadfe4173e71f7",
+  "updated_at": "2026-09-29T07:25:45.210127+00:00"
+}

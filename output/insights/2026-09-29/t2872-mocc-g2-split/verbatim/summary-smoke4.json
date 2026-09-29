@@ -1,0 +1,81 @@
+{
+  "schema_version": "t2872-summary/v1",
+  "arms": {
+    "T": {
+      "runs": 4,
+      "commit_count_mean": 5687057.0,
+      "commit_count_range": [
+        5625282,
+        5749572
+      ],
+      "validated_items": 217263143,
+      "class_a": 19,
+      "class_b": 40,
+      "commits": 22748228,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "class_a_per_commit": 8.352298913128531e-07,
+      "class_b_per_commit": 1.7583787185533747e-06,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "N": {
+      "runs": 4,
+      "commit_count_mean": 7148849.25,
+      "commit_count_range": [
+        7083798,
+        7231521
+      ],
+      "validated_items": 272916124,
+      "class_a": 156,
+      "class_b": 502,
+      "commits": 28595397,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "class_a_per_commit": 5.455423472526015e-06,
+      "class_b_per_commit": 1.7555272969282435e-05,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    },
+    "P": {
+      "runs": 2,
+      "commit_count_mean": 7239813.5,
+      "commit_count_range": [
+        7235132,
+        7244495
+      ],
+      "validated_items": 0,
+      "class_a": 0,
+      "class_b": 0,
+      "commits": 0,
+      "pending_overflow": 0,
+      "committed_overflow": 0,
+      "class_a_per_commit": 0.0,
+      "class_b_per_commit": 0.0,
+      "r0_indeterminate_runs": 0,
+      "verify_indeterminate_runs": 0
+    }
+  },
+  "t_g2_runs": [],
+  "witnesses": [],
+  "rules": {
+    "R0_indeterminate_runs": {
+      "T": 0,
+      "N": 0,
+      "P": 0
+    },
+    "R1_N_clean_class_a": 156,
+    "R1_N_indeterminate_runs": 0,
+    "R2_T_G2_witnesses_with_A": 0,
+    "R2_T_G2_witnesses_total": 0,
+    "R3_B_only": 0,
+    "R3_none": 0,
+    "R3_indeterminate": 0,
+    "R2_T_incomplete_witness_runs": 0,
+    "R2_all_witnesses_status": "indeterminate",
+    "R4_T_eligible_runs": 4,
+    "R4_T_verifier_indeterminate_runs": 0,
+    "R4_T_G2_runs": 0,
+    "R4_zero_G2_conclusive": true
+  }
+}

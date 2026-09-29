@@ -17,6 +17,7 @@ output/
 │   ├── characterization/         正しさ検査の歯の実証 (correctness-only、fitness 非計測。例: t152 write-intent。必須 env は各 driver docstring が正本)
 │   └── profile/                  perf 機序プロファイル (spin 分離・有用 IPC 等, P2-4)
 ├── insights/                     CCBench 還元すべき発見 / calibrator・探索の妥当性文書
+├── PRUNED-INDEX.jsonl            `git rm` で HEAD から外した file の索引 (1 行 1 file: path・blob・size・最後に存在した commit・分類・理由)。原本は `git show <commit>:<path>` で取り出せる。外す基準と走査方法は output/insights/2026-09-29/output-pruning/README.md
 ├── runs/silo-sample/             任意・追跡外 (.gitignore) の**大規模**実 Silo trace。置いた機体でだけ追加検証される。**規律2 の常時検査はこれではなく**追跡 fixture 3 つ (orchestrator/tests/fixtures/ の g5_silo_real_prefix/ g6_silo_serial_1thread/ r8_silo_broken_norw/) が担う (契約は orchestrator/tests/README.md、独立性の射程は同 fixtures/README.md)
 ├── s1-freeze/                    S-1 の known-axes / measurement freeze (両者とも生成済み)
 ├── s1-budget/                    S-1 計測の時間台帳 (time_ledger.json)
