@@ -45,7 +45,7 @@ MACROS = {"dependency": (), "stock": ("CICADA_LONGTX",), "fwd": ("CICADA_FWD_ENA
           "gc-e": ("CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_GC_SAFEPOINT", "CICADA_GC_WAIT"),
           "gc-stock-count": ("CICADA_LONGTX", "CICADA_GC_COUNT"),
           "gc-c-count": ("CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT", "CICADA_GC_COUNT"),
-          "gc-e-count": ("CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_GC_SAFEPOINT", "CICADA_GC_WAIT", "CICADA_GC_COUNT")}
+          "gc-e-count": ("CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT", "CICADA_GC_SAFEPOINT", "CICADA_GC_WAIT", "CICADA_GC_COUNT")}
 GC_PATCH = ROOT / "patches/cicada-forwarding-gc.patch"
 GC_ARMS = ("stock", "C", "E-hb", "E")
 GC_GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
@@ -60,7 +60,7 @@ GC_THREAD = frozenset(("thid", "safepoints", "requests", "attempts", "success", 
     "early_publish_then_fail", "installs", "detaches"))
 GC_NESTED = {"uniform": ("count", "negative", "lag_rts_hist", "lag_rts_sum_us",
     "lag_rts_max_us", "lag_wts_hist", "live_sum", "live_max", "argmin_rts_thid",
-    "series", "series_stride"), "publish": ("count", "lag_rts_hist", "interval_hist"),
+    "series", "series_stride", "max_gap_intervals"), "publish": ("count", "lag_rts_hist", "interval_hist"),
     "begin": ("count", "lag_rts_hist"), "retention": ("count", "sum_us", "hist")}
 WORKLOADS = ("normal", "many_ops", "wait_after_reads")
 GC_VALUES = (10, 100, 1000)
@@ -378,6 +378,10 @@ def _gc_summary(counter: dict, longtx: dict, value_bytes=GC_VALUE_BYTES) -> dict
             "lag_rts_p50_upper_us": percentile(uniform["lag_rts_hist"], .5),
             "lag_rts_p95_upper_us": percentile(uniform["lag_rts_hist"], .95),
             "lag_rts_max_us": uniform["lag_rts_max_us"],
+            "lag_wts_p50_upper_us": percentile(uniform["lag_wts_hist"], .5),
+            "lag_wts_p95_upper_us": percentile(uniform["lag_wts_hist"], .95),
+            "max_gap_intervals": uniform["max_gap_intervals"],
+            "series": uniform["series"], "series_stride": uniform["series_stride"],
             "uniform_samples": uniform["count"], "uniform_negative": uniform["negative"],
             "live_mean": uniform["live_sum"] / uniform["count"] if uniform["count"] else None,
             "live_max": uniform["live_max"], "live_end": counter["live_end"],
@@ -388,9 +392,15 @@ def _gc_summary(counter: dict, longtx: dict, value_bytes=GC_VALUE_BYTES) -> dict
             "estimated_live_bytes_end": counter["live_end"] *
                 (counter["version_struct_bytes"] + value_bytes),
             "retention_count": retention["count"],
+            "retention_sum_us": retention["sum_us"],
             "retention_p50_upper_us": percentile(retention["hist"], .5),
             "retention_p95_upper_us": percentile(retention["hist"], .95),
             "publish_count": counter["publish"]["count"],
+            "publish_lag_rts_p50_upper_us": percentile(counter["publish"]["lag_rts_hist"], .5),
+            "publish_lag_rts_p95_upper_us": percentile(counter["publish"]["lag_rts_hist"], .95),
+            "begin_count": counter["begin"]["count"],
+            "begin_lag_rts_p50_upper_us": percentile(counter["begin"]["lag_rts_hist"], .5),
+            "begin_lag_rts_p95_upper_us": percentile(counter["begin"]["lag_rts_hist"], .95),
             "long_argmin_fraction": sum(argmin[i] for i in long_ids if i < len(argmin)) / sum(argmin)
                 if sum(argmin) else None, **sums}
 
@@ -398,6 +408,8 @@ def _gc_summary(counter: dict, longtx: dict, value_bytes=GC_VALUE_BYTES) -> dict
 def gc_aggregate_jobs(jobs: list[dict]) -> dict:
     cells = {}
     seen_jobs = set()
+    required_jobs = {("wait_after_reads", 1000), ("wait_after_reads", 10000),
+                     ("normal", None), ("many_ops", None)}
     for job in jobs:
         if job.get("command") != "gc-run":
             raise ValueError("gc-aggregate requires gc-run jobs")
@@ -406,6 +418,8 @@ def gc_aggregate_jobs(jobs: list[dict]) -> dict:
         job_key = (job["workload"], job.get("wait_us"))
         if job_key in seen_jobs:
             raise ValueError(f"duplicate GC job: {job_key}")
+        if job_key not in required_jobs:
+            raise ValueError(f"unexpected GC job: {job_key}")
         seen_jobs.add(job_key)
         expected = {(s["gc_inter_us"], s["arm"], s["build_kind"], s["rep"])
                     for s in gc_plan_runs(job["workload"], job.get("wait_us"))}
@@ -441,6 +455,24 @@ def gc_aggregate_jobs(jobs: list[dict]) -> dict:
             perf = cell["arms"][arm]["performance"]
             cell["arms"][arm]["throughput_median_tps"] = statistics.median(
                 row["throughput_tps"] for row in perf)
+        if cell["workload"] == "wait_after_reads":
+            comparisons = {}
+            for label, left, right in (("primary_E_minus_E-hb", "E", "E-hb"),
+                                       ("auxiliary_E-hb_minus_stock", "E-hb", "stock"),
+                                       ("auxiliary_E-hb_minus_C", "E-hb", "C")):
+                left_reps = {row["rep"]: row for row in cell["arms"][left]["gc"]}
+                right_reps = {row["rep"]: row for row in cell["arms"][right]["gc"]}
+                if left_reps.keys() != right_reps.keys():
+                    raise ValueError(f"unpaired GC reps: {label}")
+                comparisons[label] = {}
+                for metric in ("lag_rts_mean_us", "live_mean", "retention_p50_upper_us"):
+                    differences = [left_reps[rep][metric] - right_reps[rep][metric]
+                                   for rep in sorted(left_reps) if left_reps[rep][metric] is not None
+                                   and right_reps[rep][metric] is not None]
+                    comparisons[label][metric] = statistics.median(differences) if differences else None
+            cell["gc_comparisons"] = comparisons
+    if seen_jobs != required_jobs:
+        raise ValueError(f"missing GC jobs: {sorted(required_jobs - seen_jobs, key=str)}")
     return {"schema_version": "vhash-gc-aggregate/v1", "verification_status": "未検証の診断値",
             "cells": cells}
 
@@ -524,7 +556,8 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
         if spec.get("gc_job"):
             gc = parse_gc_line(text, spec["build_kind"].endswith("-count"))
             fwd, longtx = parse_counter_lines(text,
-                "count" if spec["build_kind"] == "gc-c-count" else "fwd" if spec["arm"] != "stock" else "stock")
+                "count" if spec["build_kind"] in ("gc-c-count", "gc-e-count") else
+                "fwd" if spec["arm"] != "stock" else "stock")
             metric = parse_bench_stdout(text).get("throughput[tps]")
             if metric is None or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", metric):
                 raise ValueError("missing throughput[tps] result line")
@@ -862,14 +895,19 @@ def gc_main(args, parser) -> int:
                 if not gc_touched <= md6_touched:
                     raise RuntimeError("GC patch touches files outside md_6 patch; cannot safely revert stack")
                 with patchharness.applied(str(PATCH), pin.CURRENT_PIN, str(source)):
+                    binaries = {}
+                    binary, gates, seconds = _build_variant(source, scratch / "build-gc-dependency",
+                                                             "gc-dependency", deps, toolchain)
+                    binaries["gc-dependency"] = (binary, gates)
+                    job["builds"]["gc-dependency"] = {"binary_sha256": sha_file(binary),
+                        "seconds": seconds, "gate_receipts": gates}
                     if args.command == "gc-smoke":
                         # Compile arguments come from this build; both sources use the same command.
                         _build_variant(source, scratch / "build-inert-md6", "gc-stock", deps, toolchain)
                         job["inert_receipt"] = _gc_inert_receipt(source, scratch / "build-inert-md6")
                     else:
                         patchharness.apply_patch(str(GC_PATCH), str(source))
-                    binaries = {}
-                    for kind in ("gc-dependency", "gc-stock", "gc-c", "gc-e",
+                    for kind in ("gc-stock", "gc-c", "gc-e",
                                  "gc-stock-count", "gc-c-count", "gc-e-count"):
                         binary, gates, seconds = _build_variant(source, scratch / ("build-" + kind),
                                                                  kind, deps, toolchain)
@@ -888,12 +926,15 @@ def gc_main(args, parser) -> int:
                     if args.command == "gc-smoke":
                         successes = [sum(t["success"] for t in r["gc_counters"]["threads"])
                                      for r in job["records"] if r["arm"] == "E" and r["gc_counters"]]
-                        job["e_success_warning"] = not any(successes)
+                        job["e_success_total"] = sum(successes)
+                        if not job["e_success_total"]:
+                            raise RuntimeError("wait_after_reads E success total is zero")
                     job["all_pass"] = True
     except Exception as exc:
         job["error"] = type(exc).__name__ + ": " + str(exc)
-        if hasattr(exc, "inert_receipt"):
-            job["inert_receipt"] = exc.inert_receipt
+        for attr in ("inert_receipt", "condition_gate_evidence"):
+            if hasattr(exc, attr):
+                job[attr] = getattr(exc, attr)
     job["ended"] = now()
     _write(output, job)
     print(output)
