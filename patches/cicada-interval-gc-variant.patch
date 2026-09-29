@@ -41,7 +41,9 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
  
    Version() {
      status_.store(VersionStatus::pending, memory_order_release);
-@@ -88,9 +96,20 @@
+@@ -83,11 +91,22 @@
+   uint64_t ldAcqWts() { return wts_.load(std::memory_order_acquire); }
+ 
    void set(const uint64_t rts, const uint64_t wts, TupleBody&& body) {
 +#if CICADA_INTERVAL_GC
 +    // A pooled version becomes new only after the gcq_ pop.
@@ -94,7 +96,7 @@ diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -5,6 +5,18 @@
+@@ -5,6 +5,20 @@
  #include <iostream>
  #include <string>
  #include <vector>
@@ -104,6 +106,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#include <cassert>
 +#include <cstdint>
 +#include <cstdlib>
++#include <unordered_map>
++#include "gflags/gflags.h"
 +#endif
 +#if CICADA_INTERVAL_COUNT
 +#include <array>
@@ -113,7 +117,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -25,6 +37,496 @@
+@@ -25,6 +39,603 @@
  using namespace std;
  
  #define MSK_TID 0b11111111
@@ -127,6 +131,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +namespace {
 +struct alignas(CACHE_LINE_SIZE) IGCCounts {
 +  uint64_t snapshots = 0, begin_skips = 0;
++  uint64_t mode_calls[4] = {}, mode_intervals[4] = {}, mode_versions[4] = {};
 +  uint64_t gap_keys = 0, empty_gap_keys = 0;
 +  uint64_t attempts = 0, success = 0, cas_fail = 0, lock_fail = 0;
 +  uint64_t stock_lock_dropped = 0, stock_lock_dropped_pruned = 0;
@@ -202,34 +207,46 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
 +      if (i) std::cout << ',';
 +      const auto& c = igc_counts[i];
-+      std::cout
-+          << "{\"thid\":" << i << ",\"long\":"
-+          << (i && FLAGS_cicada_igc_count_long_threads &&
-+                      i >= TotalThreadNum - FLAGS_cicada_igc_count_long_threads
-+                  ? "true"
-+                  : "false")
-+          << ",\"snapshots\":" << c.snapshots
-+          << ",\"begin_skips\":" << c.begin_skips
-+          << ",\"gap_keys\":" << c.gap_keys
-+          << ",\"empty_gap_keys\":" << c.empty_gap_keys
-+          << ",\"attempts\":" << c.attempts << ",\"success\":" << c.success
-+          << ",\"cas_fail\":" << c.cas_fail << ",\"lock_fail\":" << c.lock_fail
-+          << ",\"stock_lock_dropped\":" << c.stock_lock_dropped
-+          << ",\"stock_lock_dropped_pruned\":" << c.stock_lock_dropped_pruned
-+          << ",\"installed\":" << c.installed
-+          << ",\"installed_bytes\":" << c.installed_bytes
-+          << ",\"pruned\":" << c.pruned
-+          << ",\"pruned_bytes\":" << c.pruned_bytes << ",\"reuse\":" << c.reuse
-+          << ",\"reuse_bytes\":" << c.reuse_bytes
-+          << ",\"reuse_pool\":" << c.reuse_pool
-+          << ",\"stock_removed\":" << c.stock_removed
-+          << ",\"stock_removed_bytes\":" << c.stock_removed_bytes
-+          << ",\"boundary_samples\":" << c.boundary_samples
-+          << ",\"boundary_age_sum\":" << c.boundary_age_sum
-+          << ",\"retention_unknown\":" << c.retention_unknown
-+          << ",\"write_hops\":" << c.write_hops << ",\"hops\":[["
-+          << c.hops[0][0] << ',' << c.hops[0][1] << "],[" << c.hops[1][0] << ','
-+          << c.hops[1][1] << "]],\"prune_age_log2\":[";
++      std::cout << "{\"thid\":" << i << ",\"long\":"
++                << (i && FLAGS_cicada_igc_count_long_threads &&
++                            i >= TotalThreadNum -
++                                     FLAGS_cicada_igc_count_long_threads
++                        ? "true"
++                        : "false")
++                << ",\"debug_modes\":[";
++      for (size_t m = 0; m < 4; ++m) {
++        if (m) std::cout << ',';
++        std::cout << "{\"mode\":" << m << ",\"calls\":" << c.mode_calls[m]
++                  << ",\"intervals\":" << c.mode_intervals[m]
++                  << ",\"versions\":" << c.mode_versions[m] << '}';
++      }
++      std::cout << "]"
++                << ",\"snapshots\":" << c.snapshots
++                << ",\"begin_skips\":" << c.begin_skips
++                << ",\"gap_keys\":" << c.gap_keys
++                << ",\"empty_gap_keys\":" << c.empty_gap_keys
++                << ",\"attempts\":" << c.attempts
++                << ",\"success\":" << c.success
++                << ",\"cas_fail\":" << c.cas_fail
++                << ",\"lock_fail\":" << c.lock_fail
++                << ",\"stock_lock_dropped\":" << c.stock_lock_dropped
++                << ",\"stock_lock_dropped_pruned\":"
++                << c.stock_lock_dropped_pruned
++                << ",\"installed\":" << c.installed
++                << ",\"installed_bytes\":" << c.installed_bytes
++                << ",\"pruned\":" << c.pruned
++                << ",\"pruned_bytes\":" << c.pruned_bytes
++                << ",\"reuse\":" << c.reuse
++                << ",\"reuse_bytes\":" << c.reuse_bytes
++                << ",\"reuse_pool\":" << c.reuse_pool
++                << ",\"stock_removed\":" << c.stock_removed
++                << ",\"stock_removed_bytes\":" << c.stock_removed_bytes
++                << ",\"boundary_samples\":" << c.boundary_samples
++                << ",\"boundary_age_sum\":" << c.boundary_age_sum
++                << ",\"retention_unknown\":" << c.retention_unknown
++                << ",\"write_hops\":" << c.write_hops << ",\"hops\":[["
++                << c.hops[0][0] << ',' << c.hops[0][1] << "],[" << c.hops[1][0]
++                << ',' << c.hops[1][1] << "]],\"prune_age_log2\":[";
 +      for (size_t b = 0; b < 64; ++b) {
 +        if (b) std::cout << ',';
 +        std::cout << c.prune_age[b];
@@ -244,6 +261,14 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    std::cout << "]}" << std::endl;
 +  }
 +} igc_report;
++[[maybe_unused]] void igc_count_mode_call(uint8_t thid, unsigned mode) {
++  ++igc_counts[thid].mode_calls[mode];
++}
++[[maybe_unused]] void igc_count_mode_candidate(uint8_t thid, unsigned mode,
++                                               size_t n) {
++  ++igc_counts[thid].mode_intervals[mode];
++  igc_counts[thid].mode_versions[mode] += n;
++}
 +[[maybe_unused]] void igc_count_pruned(uint8_t thid, Version* v) {
 +  ++igc_counts[thid].pruned;
 +  igc_counts[thid].pruned_bytes += igc_bytes(v);
@@ -270,14 +295,21 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#define IGC_COUNT_PRUNED(id, v) igc_count_pruned(id, v)
 +#define IGC_COUNT_PRUNED_DROP(id, v) igc_count_pruned_drop(id, v)
 +#define IGC_COUNT_REUSE(id, v) igc_count_reuse(id, v)
++#define IGC_COUNT_MODE_CALL(id, mode) igc_count_mode_call(id, mode)
++#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) igc_count_mode_candidate(id, mode, n)
 +#else
 +#define IGC_COUNT(id, expression) ((void) 0)
 +#define IGC_COUNT_PRUNED(id, v) ((void) 0)
 +#define IGC_COUNT_PRUNED_DROP(id, pruned) ((void) 0)
 +#define IGC_COUNT_REUSE(id, v) ((void) 0)
++#define IGC_COUNT_MODE_CALL(id, mode) ((void) 0)
++#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) ((void) 0)
 +#endif
 +
 +#if CICADA_INTERVAL_GC
++DEFINE_uint64(cicada_igc_debug_mode, 0,
++              "0 normal, 1 leak detached versions, 2 count without unlink, 3 "
++              "skip pruning.");
 +bool Version::igc_assert_pool_reuse([[maybe_unused]] uint64_t old_wts,
 +                                    Version* version) {
 +  [[maybe_unused]] uint64_t minr = MinRts.load(std::memory_order_acquire);
@@ -292,6 +324,60 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  return true;
 +}
 +namespace {
++// assert() erases all read-path bookkeeping from performance builds.
++thread_local std::unordered_map<Version*, uint64_t> igc_read_wts;
++[[maybe_unused]] bool igc_record_read_path(Version* later, Version* selected) {
++  Version* v = later ? later : selected;
++  for (size_t hops = 0; v && hops < 100000; ++hops) {
++    igc_read_wts.emplace(v, v->ldAcqWts());
++    if (v == selected) return true;
++    v = v->ldAcqNext();
++  }
++  std::fprintf(stderr, "A7 read path did not reach selected=%p later=%p\n",
++               static_cast<void*>(selected), static_cast<void*>(later));
++  return false;
++}
++[[maybe_unused]] bool igc_check_read_version(uint8_t thid, Version* v) {
++  if (!v) {
++    std::fprintf(stderr, "A7 thid=%u null read path\n", thid);
++    return false;
++  }
++  auto it = igc_read_wts.find(v);
++  if (it == igc_read_wts.end()) return true; // concurrent new insertion
++  uint64_t now = v->ldAcqWts();
++  if (now == it->second) return true;
++  std::fprintf(
++      stderr,
++      "A7 thid=%u ver=%p read_wts=%lu now_wts=%lu status=%u mark=%u next=%p\n",
++      thid, static_cast<void*>(v), it->second, now,
++      static_cast<unsigned>(v->ldAcqStatus()),
++      v->igc_pruned_.load(std::memory_order_acquire),
++      static_cast<void*>(v->ldAcqNext()));
++  return false;
++}
++[[maybe_unused]] Version* igc_checked_read_next([[maybe_unused]] uint8_t thid,
++                                                Version* v) {
++  assert(igc_check_read_version(thid, v));
++  Version* next = v->ldAcqNext();
++  assert(igc_check_read_version(thid, next));
++  return next;
++}
++[[maybe_unused]] bool igc_check_spin(uint64_t n, uint8_t thid, Version* v,
++                                     Version* installed) {
++  if (n <= 100000000) return true;
++  std::fprintf(stderr,
++               "A8 thid=%u spin=%lu ver=%p wts=%lu status=%u mark=%u next=%p "
++               "new=%p new_wts=%lu new_status=%u new_mark=%u new_next=%p\n",
++               thid, n, static_cast<void*>(v), v->ldAcqWts(),
++               static_cast<unsigned>(v->ldAcqStatus()),
++               v->igc_pruned_.load(std::memory_order_acquire),
++               static_cast<void*>(v->ldAcqNext()),
++               static_cast<void*>(installed), installed->ldAcqWts(),
++               static_cast<unsigned>(installed->ldAcqStatus()),
++               installed->igc_pruned_.load(std::memory_order_acquire),
++               static_cast<void*>(installed->ldAcqNext()));
++  std::abort();
++}
 +constexpr size_t kIgcThreads = 256;
 +std::array<std::atomic<bool>, kIgcThreads> igc_beginning{};
 +constexpr size_t kIgcMaxPoints = kIgcThreads * 3 + 2;
@@ -384,6 +470,9 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +
 +void igc_prune(Tuple* tuple, [[maybe_unused]] std::string_view key,
 +               [[maybe_unused]] uint64_t tx_wts, uint8_t thid) {
++  unsigned mode = static_cast<unsigned>(FLAGS_cicada_igc_debug_mode);
++  if (mode > 3) std::abort();
++  IGC_COUNT_MODE_CALL(thid, mode);
 +  IGC_COUNT(thid, attempts);
 +  if (!tuple->getGCRight(thid + 1)) {
 +    IGC_COUNT(thid, lock_fail);
@@ -505,6 +594,9 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      IGC_COUNT(thid, cas_fail);
 +      continue;
 +    }
++    unsigned mode = static_cast<unsigned>(FLAGS_cicada_igc_debug_mode);
++    IGC_COUNT_MODE_CANDIDATE(thid, mode, i - first);
++    if (mode == 2) continue;
 +    Version* expected = chain[first];
 +    if (chain[first - 1]->next_.compare_exchange_strong(
 +            expected, chain[i], std::memory_order_acq_rel,
@@ -563,6 +655,18 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  tuple->returnGCRight();
 +}
 +} // namespace
++#define IGC_ASSERT_A7_RESET() assert((igc_read_wts.clear(), true));
++#define IGC_ASSERT_A7_RECORD(later, selected)                                  \
++  assert(igc_record_read_path(later, selected));
++#define IGC_ASSERT_A7_CHECK(id, ver) assert(igc_check_read_version(id, ver));
++#define IGC_A7_NEXT(id, node) igc_checked_read_next(id, node)
++#define IGC_WAIT_PENDING(id, node, installed)                                  \
++  do {                                                                         \
++    [[maybe_unused]] uint64_t igc_spins = 0;                                   \
++    while (node->ldAcqStatus() == VersionStatus::pending) {                    \
++      assert(igc_check_spin(++igc_spins, id, node, installed));                \
++    }                                                                          \
++  } while (false);
 +#define IGC_ASSERT_A1(id, pre, next)                                           \
 +  assert((!(pre)->igc_pruned_.load(std::memory_order_acquire)) ||              \
 +         (std::fprintf(stderr,                                                 \
@@ -602,6 +706,13 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +                       static_cast<void*>((tuple)->ldAcqLatest())),            \
 +          false));
 +#else
++#define IGC_ASSERT_A7_RESET()
++#define IGC_ASSERT_A7_RECORD(later, selected)
++#define IGC_ASSERT_A7_CHECK(id, ver)
++#define IGC_A7_NEXT(id, node) node->ldAcqNext()
++#define IGC_WAIT_PENDING(id, node, installed)                                  \
++  while (node->ldAcqStatus() == VersionStatus::pending)                        \
++    ;
 +#define IGC_ASSERT_A1(id, pre, next)
 +#define IGC_ASSERT_A5(id, installed, candidate)
 +#define IGC_ASSERT_A4(id, tuple, version)
@@ -610,10 +721,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  /**
   * @brief Initialize function of transaction.
-@@ -32,6 +534,10 @@
+@@ -32,6 +643,11 @@
   * @return void
   */
  void TxExecutor::begin() {
++  IGC_ASSERT_A7_RESET()
 +#if CICADA_INTERVAL_GC
 +  igc_beginning[thid_].store(true, std::memory_order_seq_cst);
 +#endif
@@ -621,7 +733,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +547,10 @@
+@@ -41,6 +657,10 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -632,7 +744,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +611,16 @@
+@@ -101,6 +721,16 @@
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -649,7 +761,16 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -267,6 +787,10 @@
+@@ -123,6 +753,8 @@
+     return nullptr;
+   }
+ 
++  IGC_ASSERT_A7_RECORD(later_ver, ver)
++#line 126
+   read_set_.emplace_back(s, key, tuple, later_ver, ver);
+ 
+ #if INLINE_VERSION_OPT
+@@ -267,6 +899,10 @@
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -660,7 +781,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
    }
  
-@@ -298,6 +822,10 @@
+@@ -298,6 +934,10 @@
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -671,7 +792,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +874,10 @@
+@@ -346,6 +986,10 @@
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -682,7 +803,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +949,10 @@
+@@ -417,6 +1061,10 @@
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -693,32 +814,66 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -521,6 +1057,8 @@
+@@ -520,6 +1168,8 @@
+         }
+       } else {
          (*itr).new_ver_->strRelNext(ver);
 +        IGC_ASSERT_A1(thid_, pre_ver, ver)
 +#line 524
          if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
                                                     memory_order_acq_rel,
                                                     memory_order_acquire)) {
-           break;
-         }
-@@ -575,11 +1113,15 @@
-   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
-     if ((*itr).op_ == OpType::INSERT) { continue; }
-     Version* ver = (*itr).new_ver_->ldAcqNext();
-+    IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
-+#line 579
+@@ -547,17 +1197,25 @@
+     else
+       ver = (*itr).rcdptr_->ldAcqLatest();
+ 
+-    while (ver->ldAcqWts() >= this->wts_.ts_) ver = ver->ldAcqNext();
++    IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 550
++    while (ver->ldAcqWts() >= this->wts_.ts_) ver = IGC_A7_NEXT(thid_, ver);
+     // if write after read occured, it may happen "==".
+ 
++    IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 553
      while (ver->ldAcqStatus() == VersionStatus::pending)
        ;
      while (ver->ldAcqStatus() != VersionStatus::committed &&
             ver->ldAcqStatus() != VersionStatus::deleted) {
-       ver = ver->ldAcqNext();
-+      IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
-+#line 584
+-      ver = ver->ldAcqNext();
++      ver = IGC_A7_NEXT(thid_, ver);
++      IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 558
        while (ver->ldAcqStatus() == VersionStatus::pending)
          ;
      }
-@@ -716,6 +1258,18 @@
++    IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 561
+     /**
+      * This part is different from the original.
+      * Checking that view is not broken.
+@@ -576,13 +1234,17 @@
+   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+     if ((*itr).op_ == OpType::INSERT) { continue; }
+     Version* ver = (*itr).new_ver_->ldAcqNext();
+-    while (ver->ldAcqStatus() == VersionStatus::pending)
+-      ;
++    IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
++#line 579
++    IGC_WAIT_PENDING(thid_, ver, (*itr).new_ver_)
++#line 581
+     while (ver->ldAcqStatus() != VersionStatus::committed &&
+            ver->ldAcqStatus() != VersionStatus::deleted) {
+       ver = ver->ldAcqNext();
+-      while (ver->ldAcqStatus() == VersionStatus::pending)
+-        ;
++      IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
++#line 584
++      IGC_WAIT_PENDING(thid_, ver, (*itr).new_ver_)
++#line 586
+     }
+ 
+     if (ver->ldAcqRts() > this->wts_.ts_ ||
+@@ -716,6 +1378,22 @@
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -731,13 +886,17 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    igc_record_install((*itr).new_ver_);
 +#endif
 +#if CICADA_INTERVAL_GC
-+    igc_prune((*itr).rcdptr_, (*itr).key_, this->wts_.ts_, thid_);
++    if (FLAGS_cicada_igc_debug_mode == 3) {
++      IGC_COUNT_MODE_CALL(thid_, 3);
++    } else {
++      igc_prune((*itr).rcdptr_, (*itr).key_, this->wts_.ts_, thid_);
++    }
 +#endif
 +#line 719
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -813,12 +1367,46 @@
+@@ -813,12 +1491,49 @@
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -772,9 +931,12 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +                        MinRts.load(std::memory_order_acquire),
 +                        static_cast<void*>(tuple->ldAcqLatest())),
 +           false));
-+      IGC_COUNT_REUSE(thid_, pruned);
-+      // Keep next intact for traversals already in the detached run.
-+      reuse_version_from_gc_.emplace_back(pruned);
++      // Mode 1 intentionally leaks the detached version to isolate reuse.
++      if (FLAGS_cicada_igc_debug_mode != 1) {
++        IGC_COUNT_REUSE(thid_, pruned);
++        // Keep next intact for traversals already in the detached run.
++        reuse_version_from_gc_.emplace_back(pruned);
++      }
 +      tuple->returnGCRight();
 +      gcq_.pop_front();
 +      continue;
@@ -784,7 +946,10 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -835,6 +1423,21 @@
+@@ -832,9 +1547,24 @@
+         gcq_.front().ver_->next_.load(std::memory_order_acquire);
+ 
+     // the thread detaches the rest of the version list from v
 +    IGC_ASSERT_A4(thid_, tuple, gcq_.front().ver_)
 +#line 834
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
@@ -806,7 +971,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -961,6 +1564,13 @@
+@@ -961,6 +1691,13 @@
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
