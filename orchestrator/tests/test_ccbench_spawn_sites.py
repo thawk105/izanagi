@@ -982,6 +982,14 @@ class _DeferredGateMember:
 
 _DEFERRED_GATE_MEMBERS = (
     _DeferredGateMember(
+        "orchestrator/campaign/p3_s4_loop_policy.py",
+        "wave t2867",
+        "fixed 10 us stock build calls p3_s4_loop._require_condition_gate before run_campaign",
+        "campaign",
+        "<module>.run_stock_control",
+        446,
+    ),
+    _DeferredGateMember(
         "orchestrator/campaign/b4_binary_record.py",
         "wave t2636",
         "稼働 wave が所有する非 sort floor 依存供給の build_fn seam",
@@ -2989,6 +2997,10 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         )
         for item in _DEFERRED_GATE_MEMBERS
     } == {
+        (
+            "orchestrator/campaign/p3_s4_loop_policy.py",
+            "wave t2867", "campaign", "<module>.run_stock_control", 446,
+        ),
         (
             "orchestrator/campaign/b4_binary_record.py",
             "wave t2636", "buildcache", "<module>._build_with_dependencies", 118,

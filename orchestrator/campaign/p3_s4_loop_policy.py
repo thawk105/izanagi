@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 from dataclasses import dataclass, replace
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -15,6 +16,7 @@ if __package__ in {None, ""}:
     __package__ = "orchestrator.campaign"
 
 from . import axis_silo_function_policy as axis
+from . import pipeline
 from . import env_contract, ident, p3_s4_loop as L, site_policy, source_digest
 from . import wal
 from .artifact_admission import CampaignReadPurpose, require_admitted_campaign
@@ -30,7 +32,8 @@ from .model import CampaignConfig, Genome, STAGE_ABORT, STAGE_BENCH_DONE, STAGE_
 from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE, PerfConfig, variant_id
 from .projection_guard import assert_closed_proposal_schema
 from .silo_policy_compile import check_policy_body, find_compiler
-from .silo_policy_ir import parse_policy_ir, render_policy
+from .silo_policy_ir import enumerate_recon, parse_policy_ir, render_policy
+from .silo_policy_contrast_generators import tagged
 from ..verifier.core import result_to_dict_v3
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -76,6 +79,43 @@ class Proposal:
     justification: str
 
 
+def initial_proposal(case_id):
+    if case_id not in ('0000', '0001'):
+        raise ValueError('unregistered initial point')
+    ir = tagged(next(case.ir for case in enumerate_recon() if case.case_id == case_id))
+    return Proposal(render_policy(parse_policy_ir(ir)), ir, '')
+
+
+MACHINE_NAMES = {'random-ir': frozenset({'random-ir'}),
+                 'evo-ir': frozenset({'evo-ir', 'evo-fallback-ir'})}
+
+
+def load_machine_proposal(path, *, arm, series, form):
+    if arm not in MACHINE_NAMES or form != 'ir':
+        raise ValueError('machine proposal forbidden for this arm')
+    with open(path, encoding='utf-8') as stream:
+        document = json.load(stream, object_pairs_hook=_unique_pairs)
+    if type(document) is not dict or set(document) != {'generator', 'ir'}:
+        raise ValueError('invalid machine proposal')
+    provenance = document['generator']
+    if (type(provenance) is not dict or set(provenance) !=
+            {'name', 'version', 'series', 'a', 'counter', 'preimage'}
+            or provenance['name'] not in MACHINE_NAMES[arm]
+            or type(provenance['version']) is not str
+            or type(provenance['series']) is not int or provenance['series'] != series
+            or type(provenance['a']) is not int or provenance['a'] < 1
+            or type(provenance['counter']) is not int or not 0 <= provenance['counter'] < 1000
+            or type(provenance['preimage']) is not str):
+        raise ValueError('invalid generator provenance')
+    prefix = {'random-ir': 'random', 'evo-ir': 'evo',
+              'evo-fallback-ir': 'evo-fallback'}[provenance['name']]
+    expected = f"{provenance['version']}|{prefix}|{series}|{provenance['a']}|{provenance['counter']}"
+    if provenance['preimage'] != expected:
+        raise ValueError('generator preimage mismatch')
+    ir = document['ir']
+    return Proposal(render_policy(parse_policy_ir(ir)), ir, '')
+
+
 def _unique_pairs(pairs):
     result = {}
     for key, value in pairs:
@@ -85,14 +125,16 @@ def _unique_pairs(pairs):
     return result
 
 
-def load_proposal_file(path, *, form, preview=False):
+def load_proposal_file(path, *, form, preview=False, preview_auditor=False):
     if form not in ('cpp', 'ir'):
         raise ValueError('unknown form')
     with open(path, encoding='utf-8') as stream:
         document = json.load(stream, object_pairs_hook=_unique_pairs)
     if preview:
-        if type(document) is not dict or set(document) != {'coder'}:
-            raise ValueError('preview requires only coder')
+        allowed = ({'coder'}, {'coder', 'auditor'}) if preview_auditor else ({'coder'},)
+        if type(document) is not dict or set(document) not in allowed:
+            raise ValueError('invalid preview proposal fields' if preview_auditor
+                             else 'preview requires only coder')
         coder_keys = {'axis', 'implementation' if form == 'cpp' else 'ir'}
         if type(document['coder']) is not dict or not coder_keys <= set(document['coder']) or set(document['coder']) - coder_keys - {'justification', 'confidence'}:
             raise ValueError('invalid preview coder')
@@ -114,17 +156,26 @@ def load_proposal_file(path, *, form, preview=False):
         ir = coder['ir']
         parsed = parse_policy_ir(ir)
         implementation = render_policy(parsed)
-    auditor = None if preview else parse_auditor_dict(document['auditor'], max_violation_type=26)
+    auditor = (parse_auditor_dict(document['auditor'], max_violation_type=26)
+               if 'auditor' in document and (not preview or preview_auditor) else None)
     return Proposal(implementation, ir, coder.get('justification', '')), auditor
 
 
-def default_cfg(*, form, reflux=True, campaign_env=ENV_TAG, evaluation_purpose=None):
+def default_cfg(*, form, reflux=True, campaign_env=ENV_TAG, evaluation_purpose=None,
+                contrast=None):
     if form not in ('cpp', 'ir'):
         raise ValueError('unknown form')
     if campaign_env not in (ENV_TAG, 'pegasus'):
         raise ValueError('unknown campaign environment')
     if evaluation_purpose not in (None, 'bootstrap', 'r2'):
         raise ValueError('unknown evaluation purpose')
+    if contrast is not None:
+        cohort, arm, series = contrast
+        if (type(cohort) is not str or not cohort or arm not in
+                (*MACHINE_NAMES, 'llm-cpp', 'llm-ir', 'reference')
+                or type(series) is not int or series < 1
+                or form != ('cpp' if arm in ('llm-cpp', 'reference') else 'ir')):
+            raise ValueError('invalid contrast coordinates')
     cfg = CampaignConfig(
         spec_slug='p3-silo-policy-loop', search_tag='silo-policy-autonomous',
         spec_content='Silo function policy; D2214.', ccbench_commit=axis.PIN,
@@ -133,7 +184,11 @@ def default_cfg(*, form, reflux=True, campaign_env=ENV_TAG, evaluation_purpose=N
                        'perf': _perf_identity(default_perf()),
                        SEARCH_CONFIG_VERIFY_KEY: VERIFY_LEGACY_PLUS_PERFORMANCE,
                        **({'evaluation_purpose': evaluation_purpose}
-                          if evaluation_purpose is not None else {})},
+                          if evaluation_purpose is not None else {}),
+                       **({'contrast_cohort': cohort, 'contrast_arm': arm,
+                           'contrast_series': series,
+                           'verify_performance_concurrent': True}
+                          if contrast is not None else {})},
         trial='p3-silo-policy-loop')
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     cfg = ident.bind_admission_policy(cfg, context.policy)
@@ -175,7 +230,8 @@ def _reject(subtype, rule_id):
         reason=subtype.value, digest=digest, violations=[digest])
 
 
-def policy_gate(sub, implementation, auditor, *, compiler, scratch_dir, write):
+def policy_gate(sub, implementation, auditor, *, compiler, scratch_dir, write,
+                origin=None):
     """Use one gate for preview and run, with writes after all checks."""
     result, base, edited, working_diff = L.quarantine(
         sub, implementation, marker_id=axis.MARKER_ID,
@@ -195,7 +251,7 @@ def policy_gate(sub, implementation, auditor, *, compiler, scratch_dir, write):
             result, auditor, working_diff, diff_region=axis.SOURCE_REL,
             template_diff_id=axis.MARKER_ID, max_violation_type=26)
     if result.passed and write:
-        if auditor is None:
+        if auditor is None and origin not in ('machine', 'initial'):
             raise AuditorGateFailure('auditor required for write')
         source = Path(sub) / axis.SOURCE_REL
         source.write_text(edited, encoding='utf-8')
@@ -222,6 +278,8 @@ def _append_history(layout, iteration, proposal, out):
            'verifier_digest': out.get('verifier_digest'),
            'justification': proposal.justification,
            'measurement_campaign_id': out.get('measurement_campaign_id')}
+    if 'logical_slot' in out:
+        row['logical_slot'] = out['logical_slot']
     with _history_path(layout).open('a', encoding='utf-8') as stream:
         stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
 
@@ -366,22 +424,36 @@ def _stock_result(layout, summary):
 def run_stock_control(cfg, perf, sub, *, layout, cache_root='',
                       build_context, contract, dependency_prefix='',
                       fetchcontent_options=None, authorization_session=None,
-                      log=print):
+                      log=print, fixed10=False):
     """Evaluate the original stock source; see D2256 and the runbook."""
     genome = Genome('silo', {key: value for key, value in BASE.items()
                              if key != axis.FLAG})
-    layout.ensure()
-    ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
-    options = _measurement_options(build_context=build_context, contract=contract,
-        dependency_prefix=dependency_prefix,
-        fetchcontent_options=fetchcontent_options,
-        authorization_session=authorization_session, stock=True)
-    summary = run_campaign(cfg, [genome], perf, contract.env_tag,
-        contract.clocks_per_us, numactl=list(contract.numactl), log=log,
-        ccbench_dir=sub, cache_root=cache_root,
-        authorization_contract=env_contract.authorize(contract.env_tag),
-        build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
-        **options)
+    if fixed10:
+        genome = Genome('silo', {**genome.flags, 'BACKOFF_FIXED': 10})
+        from .patchharness import applied
+        patch = applied(str(ROOT / 'patches/silo-backoff-fixed.patch'), axis.PIN, sub)
+    else:
+        patch = contextlib.nullcontext()
+    with patch:
+        if fixed10:
+            L._require_condition_gate(sub, genome)
+        layout.ensure()
+        ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
+        options = _measurement_options(build_context=build_context, contract=contract,
+            dependency_prefix=dependency_prefix,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, stock=not fixed10)
+        summary = run_campaign(cfg, [genome], perf, contract.env_tag,
+            contract.clocks_per_us, numactl=list(contract.numactl), log=log,
+            ccbench_dir=sub, cache_root=cache_root,
+            authorization_contract=env_contract.authorize(contract.env_tag),
+            build_context=build_context, declared_use_class=DECLARED_USE_CLASS,
+            **options)
+    if fixed10:
+        result = summary.results[0] if summary.results else None
+        return {'outcome': 'certified' if result and result.certified and not result.aborted else 'aborted',
+                'variant': result.variant if result else None,
+                'fitness_tps': result.fitness_tps if result else None}
     return _stock_result(layout, summary)
 
 
@@ -389,7 +461,7 @@ def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
                       layout, compiler, scratch_dir, build_context,
                       cache_root='', contract=None, dependency_prefix='',
                       fetchcontent_options=None, authorization_session=None,
-                      log=print):
+                      log=print, origin=None):
     _require_perf_identity(cfg, perf)
     if cfg.search_config.get('form') != ('ir' if proposal.ir is not None else 'cpp'):
         raise ValueError('policy form mismatch')
@@ -404,7 +476,8 @@ def run_one_iteration(cfg, perf, proposal, auditor, sub, do_build, *,
     from .patchharness import applied
     with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
         result, _diff = policy_gate(sub, proposal.implementation, auditor,
-            compiler=compiler, scratch_dir=scratch_dir, write=do_build)
+            compiler=compiler, scratch_dir=scratch_dir, write=do_build,
+            origin=origin)
         if not result.passed:
             if not do_build:
                 return {'outcome': 'rejected', 'variant': None, 'digest': result.digest}
@@ -530,11 +603,312 @@ def _record_rejected_gate(cfg, proposal, result, layout, state, build_context):
     return out
 
 
+CONTRAST_SLOTS = frozenset(('stock', 'seed', 'eval', 'score',
+                            'ref-stock', 'ref-fixed10'))
+
+
+class ContrastUnitMismatch(ValueError):
+    """The submitted unit does not match the next ledger unit."""
+
+
+def contrast_cfg(header, *, campaign_env, slot=None, index=None, attempt=0):
+    form, arm = header['form'], header['arm']
+    cfg = default_cfg(form=form, campaign_env=campaign_env,
+        contrast=(header['cohort'], arm, header['series']))
+    if slot is None:
+        return cfg
+    if slot not in CONTRAST_SLOTS or type(index) is not int or index < 0 or type(attempt) is not int or attempt < 0:
+        raise ValueError('invalid contrast slot')
+    return replace(cfg, search_config={**cfg.search_config,
+        'contrast_slot': f'{slot}-{index}-a{attempt}'})
+
+
+def _contrast_header(ledger_root, form, campaign_env):
+    from .silo_policy_contrast import ContrastLedger
+    root = Path(ledger_root)
+    if not root.is_absolute():
+        raise ValueError('contrast ledger root must be absolute')
+    ledger = ContrastLedger(root)
+    if ledger.header['form'] != form:
+        raise ValueError('contrast form differs from ledger')
+    return ledger, contrast_cfg(ledger.header, campaign_env=campaign_env)
+
+
+def _contrast_preview_failure(subtype, exc):
+    print(json.dumps({'passed': False, 'working_diff': None,
+        'diff_digest': None, 'subtype': subtype, 'rule_id': str(exc)[:80]},
+        ensure_ascii=False))
+    return 1
+
+
+def _preview_policy_gate(sub, proposal, auditor, compiler, scratch, *, contrast):
+    try:
+        return policy_gate(sub, proposal.implementation, auditor,
+            compiler=compiler, scratch_dir=scratch, write=False)
+    except AuditorGateFailure as exc:
+        if not contrast:
+            raise
+        subtype = 'auditor-digest' if 'auditor.diff_digest' in str(exc) else 'auditor-gate'
+        _contrast_preview_failure(subtype, exc)
+        return None
+
+
+def drive_contrast_record_reject(cfg, perf, proposal, auditor, sub, *, a, compiler,
+                                 scratch_dir, build_context, layout=None):
+    """Record a rejected opportunity without consulting the legacy loop state."""
+    _require_perf_identity(cfg, perf)
+    cfg = ident.bind_admission_policy(cfg, build_context.policy)
+    cfg = ident.bind_environment_contract(cfg, _cfg_contract(cfg))
+    layout = layout or _campaign_layout(cfg)
+    from .patchharness import applied
+    with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
+        result, _ = policy_gate(sub, proposal.implementation, auditor,
+            compiler=compiler, scratch_dir=scratch_dir, write=False)
+    if result.passed:
+        raise ValueError('record-reject requires a rejected candidate')
+    layout.ensure()
+    ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
+    variant = L.record_diff_reject(layout, Genome('silo', dict(BASE)),
+        proposal.implementation, result, env_tag=_cfg_contract(cfg).env_tag)
+    out = {'outcome': 'rejected', 'variant': variant, 'digest': result.digest}
+    _append_history(layout, a, proposal, out)
+    return out
+
+
+def _slot_observation(layout, variant, perf, out, logical_slot, attempt):
+    from .b5_generator_contrast import (MACHINE_FAILURE_ABORT_REASONS,
+                                         classify_session, wal_timing)
+    records = [record for record in wal.read_records(layout)
+               if record.variant == variant] if variant else []
+    start = next((r for r in records if r.stage == STAGE_BUILD_START), None)
+    if start is not None:
+        records = [r for r in records if r.payload.get('build_attempt_id') ==
+                   start.payload.get('build_attempt_id')]
+    abort = next((r for r in reversed(records) if r.stage == STAGE_ABORT), None)
+    benches = [r for r in records if r.stage == STAGE_BENCH_DONE]
+    reason = abort.payload.get('reason') if abort else None
+    anomalies = sum(r.payload.get('anomalies', 0) for r in records
+                    if r.stage == 'verify_done')
+    quality = classify_session(benches[-1].payload, perf.reps) if benches else None
+    if anomalies or (type(reason) is str and 'anomaly' in reason):
+        outcome, failure = 'anomaly', 'candidate'
+    elif reason in MACHINE_FAILURE_ABORT_REASONS:
+        outcome, failure = 'machine-failure', 'machine-failure'
+    elif out.get('outcome') in ('certified', 'certified-stock'):
+        outcome, failure = ('certified', None) if quality == 'normal' else ('quality-missing', 'quality')
+    elif abort is not None:
+        outcome, failure = 'candidate-failure', 'candidate'
+    else:
+        outcome, failure = 'unclassified-missing', 'unclassified'
+    wal_path = Path(layout.wal_file)
+    return {'logical_slot': logical_slot, 'attempt': attempt,
+        'campaign_id': Path(layout.root).name, 'campaign_root': str(Path(layout.root).resolve()),
+        'variant': variant, 'source_digest': start.payload.get('src_token') if start else None,
+        'outcome': outcome, 'failure_class': failure, 'quality': quality,
+        'fitness_tps': out.get('fitness_tps') or (benches[-1].payload.get('median_tps') if benches else None),
+        'abort_rate_pct': (out.get('abort_rate_pct') if out.get('abort_rate_pct') is not None
+                           else benches[-1].payload.get('leading_indicators', {}).get('abort_rate', 0) * 100
+                           if benches else None), 'anomalies': anomalies,
+        'wal_sha256': hashlib.sha256(wal_path.read_bytes()).hexdigest() if wal_path.exists() else None,
+        'timing': wal_timing(records, perf.reps), 'critic_digest': None}
+
+
+def measure_slot(header, slot, index, attempt, *, proposal, auditor, sub,
+                 compiler, scratch_dir, build_context, stock_context,
+                 contract, cache_root='', fetchcontent_options=None,
+                 authorization_session=None, log=print, origin=None):
+    """Evaluate one physical slot in its own campaign identity."""
+    cfg = contrast_cfg(header, campaign_env=contract.env_tag, slot=slot,
+                       index=index, attempt=attempt)
+    layout = _campaign_layout(cfg)
+    perf = default_perf()
+    if slot in ('stock', 'ref-stock'):
+        out = run_stock_control(cfg, perf, sub, layout=layout, cache_root=cache_root,
+            build_context=stock_context, contract=contract,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, log=log)
+    elif slot == 'ref-fixed10':
+        out = run_stock_control(cfg, perf, sub, layout=layout, cache_root=cache_root,
+            build_context=build_context, contract=contract,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, log=log, fixed10=True)
+    else:
+        if proposal is None:
+            raise ValueError('candidate slot needs a proposal')
+        origin = origin or ('initial' if slot == 'seed' else 'machine'
+                            if header['arm'] in MACHINE_NAMES else None)
+        out = run_one_iteration(cfg, perf, proposal, auditor, sub, True,
+            layout=layout, compiler=compiler, scratch_dir=scratch_dir,
+            build_context=build_context, cache_root=cache_root, contract=contract,
+            fetchcontent_options=fetchcontent_options,
+            authorization_session=authorization_session, log=log, origin=origin)
+    logical_slot = f'{slot}-{index}'
+    row = _slot_observation(layout, out.get('variant'), perf, out,
+                            logical_slot, attempt)
+    if slot in ('seed', 'eval'):
+        view = require_admitted_campaign(layout.root,
+            purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE)
+        row['critic_digest'] = L.make_critic_digest(view, tag='p3-silo-policy',
+            reflux=cfg.search_config.get('reflux') == 'on',
+            identity_projection=L.make_critic_identity_projection(view))
+    return row
+
+
+def _contrast_unit(ledger, unit_path, ledger_root):
+    from .silo_policy_contrast import UNIT_SCHEMA, next_unit, series_state
+    path = Path(unit_path)
+    unit = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=_unique_pairs)
+    if (type(unit) is not dict or set(unit) != {'schema', 'ledger_root', 'kind',
+            'index', 'attempt', 'proposal_path', 'proposal_sha256'}
+            or unit['schema'] != UNIT_SCHEMA
+            or type(unit['index']) is not int or type(unit['attempt']) is not int
+            or type(unit['kind']) is not str
+            or type(unit['ledger_root']) is not str
+            or not Path(unit['ledger_root']).is_absolute()
+            or Path(unit['ledger_root']) != Path(ledger_root).resolve()):
+        raise ContrastUnitMismatch('unit schema or ledger mismatch')
+    head = pipeline._current_repo_head(str(ROOT))
+    if (Path(ledger.header['submit_checkout']).resolve() != ROOT.resolve()
+            or ledger.header['checkout_head'] != head):
+        raise ContrastUnitMismatch('submit checkout or HEAD mismatch')
+    expected = next_unit(ledger)
+    if (expected is None or expected['kind'] == 'dead-job'
+            or any(unit[key] != expected[key] for key in ('kind', 'index', 'attempt', 'proposal_sha256'))):
+        raise ContrastUnitMismatch('unit is not next in ledger')
+    proposal_path = unit['proposal_path']
+    if proposal_path is not None:
+        if type(proposal_path) is not str or not Path(proposal_path).is_absolute():
+            raise ContrastUnitMismatch('proposal path must be absolute')
+        actual = hashlib.sha256(Path(proposal_path).read_bytes()).hexdigest()
+        if actual != unit['proposal_sha256']:
+            raise ContrastUnitMismatch('proposal digest mismatch')
+    elif unit['proposal_sha256'] is not None:
+        raise ContrastUnitMismatch('proposal digest without path')
+    if series_state(ledger)['unfinished_slots']:
+        raise ContrastUnitMismatch('unfinished slot attempt')
+    return unit, expected
+
+
+def _fixed_endpoint_proposal(ledger, form):
+    fixed = next((e for e in reversed(ledger.events)
+                  if e['kind'] == 'endpoint-fixed'), None)
+    if fixed is None:
+        raise ContrastUnitMismatch('score endpoint has not been fixed')
+    origin_slot = fixed.get('logical_slot')
+    if type(origin_slot) is not str:
+        raise ContrastUnitMismatch('fixed endpoint slot is missing')
+    source = next((e for e in reversed(ledger.events) if e['kind'] == 'slot-result'
+                   and e.get('logical_slot') == origin_slot), None)
+    if (source is None or type(source.get('implementation')) is not str
+            or type(fixed.get('variant')) is not str
+            or type(fixed.get('source_digest')) is not str
+            or fixed.get('variant') != source.get('variant')
+            or fixed.get('source_digest') != source.get('source_digest')):
+        raise ValueError('fixed endpoint source is unavailable')
+    proposal = Proposal(source['implementation'], source.get('ir'), '')
+    auditor = None
+    if origin_slot.startswith('eval-') and ledger.header['arm'] not in MACHINE_NAMES:
+        a = int(origin_slot.split('-')[1])
+        opportunity = next((e for e in ledger.events
+            if e['kind'] == 'opportunity-end' and e.get('a') == a
+            and e.get('outcome') == 'proposed'), None)
+        if opportunity is None:
+            raise ValueError('endpoint auditor provenance missing')
+        original, auditor = load_proposal_file(opportunity['proposal_path'], form=form)
+        if original.implementation != proposal.implementation:
+            raise ValueError('endpoint source differs from proposal')
+    return proposal, auditor, origin_slot
+
+
+def _append_seed_history(series_layout, results, form):
+    history_path = _history_path(series_layout)
+    existing = ({json.loads(line).get('logical_slot') for line in
+                 history_path.read_text(encoding='utf-8').splitlines()}
+                if history_path.exists() else set())
+    for result in results:
+        if result['logical_slot'].startswith('seed-'):
+            if result['logical_slot'] in existing:
+                continue
+            seed_index = int(result['logical_slot'].split('-')[1])
+            case = initial_proposal('0000' if seed_index == 0 else '0001')
+            if form == 'cpp':
+                case = Proposal(case.implementation, None, '')
+            _append_history(series_layout, seed_index - 2, case, {
+                'outcome': result['outcome'], 'variant': result['variant'],
+                'logical_slot': result['logical_slot'],
+                'measurement_campaign_id': result['campaign_id']})
+
+
+def run_contrast_unit(unit_path, *, form, contract, fetchcontent_options,
+                      context, stock_context, sub, cache_root, compiler,
+                      scratch_dir, log):
+    from .silo_policy_contrast import ContrastLedger, close_series_if_done
+    raw = json.loads(Path(unit_path).read_text(encoding='utf-8'),
+                     object_pairs_hook=_unique_pairs)
+    ledger = ContrastLedger(raw['ledger_root'])
+    if ledger.header['form'] != form:
+        raise ContrastUnitMismatch('form differs from ledger')
+    unit, expected = _contrast_unit(ledger, unit_path, raw['ledger_root'])
+    proposal = auditor = None
+    if unit['proposal_path'] is not None:
+        if ledger.header['arm'] in MACHINE_NAMES:
+            proposal = load_machine_proposal(unit['proposal_path'],
+                arm=ledger.header['arm'], series=ledger.header['series'], form=form)
+        else:
+            proposal, auditor = load_proposal_file(unit['proposal_path'], form=form)
+    if unit['kind'] == 'score':
+        proposal, auditor, origin_slot = _fixed_endpoint_proposal(ledger, form)
+    results = []
+    from . import loop
+    for spec in expected['slots']:
+        slot, index, attempt = spec['slot'], spec['index'], spec['attempt']
+        if slot == 'seed':
+            selected = initial_proposal('0000' if index == 0 else '0001')
+            if form == 'cpp':
+                selected = Proposal(selected.implementation, None, '')
+            selected_auditor = None
+        else:
+            selected, selected_auditor = proposal, auditor
+        ledger.append('slot-start', logical_slot=f'{slot}-{index}',
+                      attempt=attempt, unit_kind=unit['kind'],
+                      unit_index=unit['index'])
+        with loop.authorization_session() as session:
+            result = measure_slot(ledger.header, slot, index, attempt,
+                proposal=selected, auditor=selected_auditor, sub=sub,
+                compiler=compiler, scratch_dir=scratch_dir,
+                build_context=context, stock_context=stock_context,
+                contract=contract, cache_root=cache_root,
+                fetchcontent_options=fetchcontent_options,
+                authorization_session=session, log=log,
+                origin=('initial' if unit['kind'] == 'score' and origin_slot.startswith('seed-') else None))
+        if selected is not None:
+            result['ir'] = selected.ir
+            result['implementation'] = selected.implementation
+        ledger.append('slot-result', **result)
+        results.append(result)
+        if unit['kind'] == 'job1' and slot == 'stock' and result['outcome'] != 'certified':
+            break
+    series_layout = _campaign_layout(contrast_cfg(ledger.header,
+                                                   campaign_env=contract.env_tag))
+    series_layout.ensure()
+    if unit['kind'] == 'job1':
+        _append_seed_history(series_layout, results, form)
+    elif unit['kind'] == 'eval' and results:
+        _append_history(series_layout, unit['index'], proposal, {
+            'outcome': results[0]['outcome'], 'variant': results[0]['variant'],
+            'logical_slot': results[0]['logical_slot'],
+            'measurement_campaign_id': results[0]['campaign_id']})
+    close_series_if_done(ledger)
+    return {'kind': unit['kind'], 'index': unit['index'], 'slots': results}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Silo function-policy campaign')
     parser.add_argument('--form', choices=('cpp', 'ir'), required=True)
     parser.add_argument('--preview-diff', metavar='PROPOSAL.json')
     parser.add_argument('--record-reject', metavar='CODER.json')
+    parser.add_argument('--contrast-ledger', metavar='ROOT')
+    parser.add_argument('--contrast-run-unit', metavar='UNIT.json')
     parser.add_argument('--run-iteration', metavar='PROPOSAL.json')
     parser.add_argument('--replay-proposal', metavar='PROPOSAL.json')
     parser.add_argument('--stock-baseline', action='store_true')
@@ -552,22 +926,28 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if sum(bool(x) for x in (args.preview_diff, args.record_reject,
                              args.run_iteration, args.replay_proposal,
-                             args.stock_baseline, args.emit_coder_input)) != 1:
+                             args.stock_baseline, args.emit_coder_input,
+                             args.contrast_run_unit)) != 1:
         parser.error('select one action')
+    if args.contrast_ledger and not (args.preview_diff or args.record_reject or args.emit_coder_input):
+        parser.error('--contrast-ledger requires a login action')
+    if args.contrast_run_unit and (args.no_build or args.campaign_env != 'pegasus'):
+        parser.error('--contrast-run-unit requires pegasus and a build')
     if args.stock_control and not args.run_iteration:
         parser.error('--stock-control requires --run-iteration')
     if args.stock_control and args.no_build:
         parser.error('--stock-control requires a build')
     if args.critic_output and not args.emit_coder_input:
         parser.error('--critic-output requires --emit-coder-input')
-    measuring = args.stock_baseline or args.replay_proposal or (args.run_iteration and not args.no_build)
+    measuring = (args.stock_baseline or args.replay_proposal or args.contrast_run_unit
+                 or (args.run_iteration and not args.no_build))
     if args.fetchcontent_prebuild_receipt and (not measuring or args.no_build):
         parser.error('--fetchcontent-prebuild-receipt requires a measuring action')
     if args.stock_baseline and args.no_build:
         parser.error('--stock-baseline requires a build')
     if args.replay_proposal and args.no_build:
         parser.error('--replay-proposal requires a build')
-    if (args.run_iteration or args.replay_proposal) and not args.no_build and args.coder_build_authority is None:
+    if (args.run_iteration or args.replay_proposal or args.contrast_run_unit) and not args.no_build and args.coder_build_authority is None:
         raise BuildAdmissionError('明示 opt-in --allow-coder-derived-build is required')
     contract = _measurement_contract(args.campaign_env) if measuring else None
     fetchcontent_options = None
@@ -582,8 +962,13 @@ def main(argv=None):
             'googletest_source_dir': googletest_source_dir,
             'fetchcontent_dependency_receipt': fetchcontent_dependency_receipt}
     purpose = 'bootstrap' if args.stock_baseline else 'r2' if args.replay_proposal else None
-    cfg = default_cfg(form=args.form, campaign_env=args.campaign_env,
-                      evaluation_purpose=purpose)
+    ledger = None
+    if args.contrast_ledger:
+        ledger, cfg = _contrast_header(args.contrast_ledger, args.form,
+                                       args.campaign_env)
+    else:
+        cfg = default_cfg(form=args.form, campaign_env=args.campaign_env,
+                          evaluation_purpose=purpose)
     layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
     if args.emit_coder_input:
         if args.baseline_throughput_tps is None or args.baseline_abort_rate_pct is None:
@@ -597,14 +982,24 @@ def main(argv=None):
         return 0
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP,
         coder_authority=(args.coder_build_authority
-                         if args.run_iteration or args.replay_proposal else None)
+                         if args.run_iteration or args.replay_proposal or args.contrast_run_unit else None)
                          if not args.no_build else None)
     stock_context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
     proposal = auditor = None
-    if not args.stock_baseline:
-        proposal, auditor = load_proposal_file(
-            args.preview_diff or args.record_reject or args.run_iteration or args.replay_proposal,
-            form=args.form, preview=bool(args.preview_diff or args.record_reject))
+    if not args.stock_baseline and not args.contrast_run_unit:
+        proposal_path = args.preview_diff or args.record_reject or args.run_iteration or args.replay_proposal
+        try:
+            if ledger is not None and ledger.header['arm'] in MACHINE_NAMES:
+                proposal = load_machine_proposal(proposal_path,
+                    arm=ledger.header['arm'], series=ledger.header['series'], form=args.form)
+            else:
+                proposal, auditor = load_proposal_file(proposal_path,
+                    form=args.form, preview=bool(args.preview_diff or args.record_reject),
+                    preview_auditor=ledger is not None)
+        except ValueError as exc:
+            if ledger is None or not args.preview_diff:
+                raise
+            return _contrast_preview_failure('proposal-schema', exc)
     compiler = find_compiler() if not args.stock_baseline else None
     if not args.stock_baseline and compiler is None:
         raise RuntimeError('policy compiler unavailable')
@@ -631,8 +1026,11 @@ def main(argv=None):
         if args.preview_diff:
             from .patchharness import applied
             with applied(str(ROOT / 'patches' / axis.TEMPLATE_PATCH), axis.PIN, sub):
-                result, diff = policy_gate(sub, proposal.implementation, None,
-                    compiler=compiler, scratch_dir=scratch, write=False)
+                gate = _preview_policy_gate(sub, proposal, auditor, compiler, scratch,
+                                            contrast=ledger is not None)
+            if gate is None:
+                return 1
+            result, diff = gate
             print(json.dumps({'passed': result.passed, 'working_diff': diff,
                 'diff_digest': compute_diff_digest(diff),
                 'subtype': result.digest.get('subtype') if result.digest else None,
@@ -640,9 +1038,30 @@ def main(argv=None):
                 ensure_ascii=False))
             return 0 if result.passed else 1
         if args.record_reject:
-            out = drive_record_reject(cfg, default_perf(), proposal, sub,
-                compiler=compiler, scratch_dir=scratch, layout=layout,
-                build_context=context)
+            if ledger is not None:
+                from .silo_policy_contrast import open_opportunity
+                a = open_opportunity(ledger)
+                if a is None:
+                    raise ValueError('record-reject requires an open opportunity')
+                out = drive_contrast_record_reject(cfg, default_perf(), proposal, auditor, sub,
+                    a=a, compiler=compiler, scratch_dir=scratch, layout=layout,
+                    build_context=context)
+            else:
+                out = drive_record_reject(cfg, default_perf(), proposal, sub,
+                    compiler=compiler, scratch_dir=scratch, layout=layout,
+                    build_context=context)
+            print(json.dumps(out, ensure_ascii=False))
+            return 0
+        if args.contrast_run_unit:
+            try:
+                out = run_contrast_unit(args.contrast_run_unit, form=args.form,
+                    contract=contract, fetchcontent_options=fetchcontent_options,
+                    context=context, stock_context=stock_context, sub=sub,
+                    cache_root=cache_root, compiler=compiler, scratch_dir=scratch,
+                    log=measurement_log)
+            except ContrastUnitMismatch as exc:
+                print(str(exc), file=sys.stderr)
+                return 2
             print(json.dumps(out, ensure_ascii=False))
             return 0
         if args.replay_proposal:

@@ -203,6 +203,37 @@ campaign identity は骨格 patch の bytes を含まないため、新旧の系
 
 ---
 
+## 3.3 生成器対照の系列 ([T-2867]、事前登録の草稿 `docs/silo-policy-generator-contrast-preregistration.md`)
+
+§1〜§3 の loop とは別の経路で、系列ごとの台帳 (`orchestrator/campaign/silo_policy_contrast.py`) が A (原提案) と
+B (評価) と次の単位を持ち、driver の `check_stop`・`loop_state.json` は使わない。規則の正本は草稿、段 4 の設計判断は
+記録 insight `output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md`。ここは運用の順だけを書く。
+
+- **submit checkout:** §0 の 2 と同じく AI worktree 容器の外に 1 本作り、台帳 dir・evidence・trace 保全先は全 repo の外に置く。
+  台帳 header は checkout の絶対 path と HEAD を持ち、job はそれが自分と一致しなければ最初の slot の前に rc=2 で止まる。
+- **台帳を作る:** `tools/pegasus/silo_policy_contrast_launch.py init --ledger <dir> --checkout <submit checkout>
+  --cohort <cohort> --arm <llm-cpp|llm-ir|random-ir|evo-ir|reference> --version <版文字列> --pin <PIN> --series <r>`。
+  発効前の試験・生死確認の版文字列は `silo-policy-contrast-test-2026-09-29` とし、登録版の文字列で生成器を呼ばない。
+  参照 job は arm `reference`、series = 実行 batch 番号。
+- **単位の投入:** `... launch.py submit --ledger <dir> --evidence-root <abs> --archive-root <abs> --walltime <秒>` で
+  次の単位 (job 1 = 系列開始 stock + 初期点 2 → 評価 1 回ずつ → score 5 session、参照は stock 5 + 静的 10 µs 5) の単位 file と
+  qsub argv を表示し、`--submit` で投入する。1 系列に同時に走る job は 1 つ。未終端の slot (結果の無い `slot-start`) があれば
+  `dead-job` として止まるので、自動で投げ直さず理由を分類する。score の前に launcher が endpoint を台帳に固定する。
+- **原提案 (機械 arm):** `... launch.py generate --ledger <dir>` が生成 → driver の preview → 拒否なら record-reject を行い、
+  台帳に `opportunity-end` を書く。通った候補だけが次の `submit` で評価 job になる。
+- **原提案 (LLM arm):** login で `tools/pegasus/silo_policy_contrast_parent.py --ledger <dir> --a <a> --out <dir>
+  --settings <file> --model <exact ID> --checkout <submit checkout>` を 1 原提案ごとに起動する (毎回新しい `claude -p` session、
+  resume しない)。親は指示文 `tools/pegasus/silo_policy_contrast_parent.md` に従い、`tools/silo_policy_contrast_round.py` の
+  `prepare` (必要なら critic) → coder → `check` (preview、拒否なら record-reject) → auditor → `finalize` (auditor の veto と digest を
+  完成 proposal で preview し直してから `proposed`) を進める。429 は `claude -p` の JSON の構造化 field だけで判定し、900 秒後に
+  同じ a で新しい session を起こす (A を消費しない)。他の異常終了は同じ a で追加 2 回まで。
+- **状態の確認:** `... launch.py status --ledger <dir>` (A・B の使用数、未終端 slot、次の単位)。系列の終了は台帳の `series-end` に
+  1 度だけ書かれる。
+- **report:** `orchestrator/campaign/silo_policy_contrast_report.py` が全系列と参照の台帳 dir を読み、族 A・B の Holm と草稿 §7.4 の
+  判定順を当てる。
+
+---
+
 ## 4. 既知の限界
 
 - certified は有限の観測履歴についての判定。verify と perf で同じ分岐を踏んだとは言えない (設計 §3.1)。

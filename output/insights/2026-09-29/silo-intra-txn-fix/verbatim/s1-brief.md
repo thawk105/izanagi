@@ -1,0 +1,23 @@
+# 段 1 brief — silo-intra-txn-fix ([T-2905]・[T-2885])、2026-09-29 21:55 JST
+
+- 研究前進: gen-opt の評価開始の前提 (gen-opt-correctness-gate §3.5 の 4「修正後に D2b が全 key で 0 件」) を、CCBench の修正 branch の実物で満たし、gitlink 前進 wave の材料 (上流 CI 2 本・D297・trace 実測・patch 棚卸し) を揃える。完了判定 = 修正 commit の SHA、CI 2 本 rc=0、D297 が事前登録どおり、trace 実測で修正後 D1 0・D2b 0 (発生あり)・判定器 certified、F (修正前) で D2b ≥1、棚卸し表と裁定。
+- 確定裁定: ユーザー「Siloに不具合があったなら直すよ」(2026-09-29、依頼 md_1)。修正は CCBench に入れる。push は人間。gitlink は進めない ([T-2854] の wave が F への前進を所有)。
+- 実測済みの前提 (親、21:40〜21:50 JST): main gitlink = 68106660。F = 25898d00 (branch `izanagi-tpcc-v3-silo-mocc-fmt`) は wave 木の submodule に在り、GitHub には未 push (ls-remote に無し、Actions run 0 件)。修正案 patch sha256 2fca9651… は一次資料どおり。上流 master b28f96b6 の Silo にも fuzz 0 で当たる (offset -16/-68、`master-probe.log`)。patches/ の Silo 系 44 本 (全 76 本)、driver の適用は素の `git apply`。
+- 新事実 (brief で出す): D297 は旧新の TRACE=0 正規化前処理出力の**一致**を見る検査なので、TRACE=0 のコードを意図して変える本物の修正では F→修正後の tip は**拒否が正しい結果**。検査器は最初の不一致で `CheckError` を出して rc=1 (`TRACE=0 正規化 preprocess 出力が不一致: path='cc/silo/transaction.cc' ...`)。依頼の「header 受理規則の検査を取る」はこの差分 (header なし) では header 分岐に入らない。
+- 変更面 (実アンカー):
+  - submodule `cc/silo/transaction.cc` (F): `TxExecutor::read` 195 行〜 (216 行 `we = searchWriteSet` を read set の探索より前へ)、`TxExecutor::update` 528 行〜 (533 行 `if (searchWriteSet(s, key)) goto FINISH_WRITE;` を body 置換へ)。patch と同じ変更 (+3 行)。
+  - F の同 file には update より後に `#line 635/658/679/700` がある (TRACE=0 の行番号を C2' に揃える F の流儀)。
+  - repo 外: 計装 patch (F 用に作り直し)、起動器 (pin 固定 → bundle + OID)、D297・CI build の job script ([T-2854] job dir の `judge/run_judge.sh`・`build/run_ci_build.sh` は C2'/C の OID を固定)。
+- 暫定裁定 (攻撃対象):
+  - (P1) 土台 = F `25898d00`。新 branch `izanagi-silo-intra-txn-fix`、1 commit、Codex author・Codex reviewer・Claude manager の trailer 3 行、英語 message。
+  - (P2) `#line` の値は変えない (patch と同じ変更だけ)。update 以降 `#line 635` までの TRACE=0 行は +3 ずれ、`#line` 以降は F と同じ番号。`ERR` の `__LINE__` (silo は 106・690) は変わらない見込み — [T-2854] の `line_macro_probe` で確かめる。
+  - (P3) D297 は 2 本: (a) 依頼どおり F→修正後の tip (期待 = GCC 11/12 とも rc=1、拒否文が cc/silo/transaction.cc の正規化前処理の不一致、`--expect-paths cc/silo/transaction.cc` は通る)。(b) 追加: 合成 commit P′ = pin 68106660 + 修正案 (親 pin)、P″ = P′ の子で tree = 修正後の tip の tree。P′→P″ は C→F と同型で GCC 11/12 とも pass が期待 (= 修正後の tip の TRACE=0 は pin + 修正の TRACE=0 と一致、修正は修正以外の TRACE=0 変化を持ち込まない)。P′・P″ は bundle と job dir にだけ置き branch にしない。
+  - (P4) trace 実測は 1 job で F+計装 (対照) と修正後の tip+計装 を build し、各 W-rmw・W-blind (U0 と同じ flags)。事前登録: 対照 = 到達可能性 pass・D1 0・D2b (i)+(ii) ≥1 (各 workload)。修正 = 到達可能性 pass・D1 0・D2b (i)(ii) とも 0 かつ発生条件 ≥1 (not-exercised を合格にしない)・判定器 serializable・certified・取引数 = commit 件数。
+  - (P5) 計装 patch は U0 と同じ Q/V 行・刻印の意味、すべて `#if TRACE` の内側、F と修正後の tip の両方に厳密適用で当たる、TRACE 枝を除くと F と bytes 一致。
+  - (P6) CI: format は login の clang-format 14.0.0 と image :latest の 14.0.6、全 213 file `--dry-run --Werror`。build は計算ノードで image :ci (T-2854 と同じ SIF)。F は format 緑 (T-2854 実測) なので修正後も全体緑が合格。
+  - (P7) 棚卸し: 44 本を F と修正後の tip の clean checkout に `git apply --check` (driver と同じ素の apply)。F で当たり修正後で当たらないものと、当たっても修正で意味が変わるもの (V26・V27 を含む) を列挙し、段 4 で「作り直しを起票 / 意味を記録して残す」を裁定。patches/ は編集しない。検査を外して緑にしない。
+- 不変条件: 規律 1 (計装は TRACE の内側、性能 build は別)・2 (変異を外して緑にしない)・7 (修正前の測定は当時の事実)。F1040 (commit 前に trailer 照合)、F1046 (`git archive` は cc/oze を落とす → clone/checkout を使う)、F1006 (木の中身を実測)。
+- 成果物: submodule branch + bundle、`output/insights/2026-09-29/silo-intra-txn-fix/README.md`、spool worklog fragment ([T-2905]・[T-2885] 更新、gitlink 前進 wave の起票)。
+- 分割: Codex author 1 本 (子木 1 本): 修正 file・commit message 下書き・計装 patch・起動器・D297/CI job script。親: commit・bundle・合成 P′/P″・投入・判定・棚卸しの実走・記録。
+- 計算見積り: trace 1 job (U0 実績 2〜3 分 × 2 build)、CI build 1 job (33 s)、D297 (a) 短時間の拒否 + (b) 約 1,000 s。合計 約 0.4 node 時間 (2 node 時間の線の下)。
+- 段構成: 軽量版。段 2 省略 (brief がアンカー表を持つ)、段 3 相談 1 本、段 6 レビュー 1 本 (計算ノードで数値を書く wave、記憶の 3 例)。変異 matrix は repo の実装面の差分 0 で免除 (DW-S04)、修正の検出力は F 対照 (D2b 赤) が担う。
