@@ -1,0 +1,29 @@
+md_24: Cicada の正しさを「巡回なし (indeterminate)」から certified へ上げるための証拠面を設計する (設計と推奨まで)
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「Cicada の trace (D2279) は YCSB point read / update に加え」を含む item を grep して対象とする (T 番号は固定しない)。この wave はその (2) を扱う。
+
+■ 目的
+Cicada の判定器 (md_3 / md_17、D2279・D2294) は、巡回が見つからない履歴を indeterminate としか判定できない。Silo / MOCC にある X / P / I に当たる証拠面が Cicada に無いためである
+(output/insights/2026-09-29/vhash-cicada-verifier/README.md §1 項 5・§8)。このままでは VHash 論文で「forwarding を入れた Cicada は serializable を保つ」と書けず、性能値も「未検証の診断値」のままになる。
+この (2) は台帳上「研究前進の裁定候補」なので、本 wave は設計と推奨までとし、実装に進むかはユーザーの判断に返す。
+
+■ やること
+1. Silo / MOCC の証拠面 (X / P / I) が何を記録し、判定器がそれで何を「certified」と言えるのかを、現行の検査器と関連する D を読んで整理する。
+2. Cicada の多版 (wts / rts、PENDING の待ち、read-only の固定 snapshot、GC による回収) で、同じ水準の判定に何の記録が要るかを設計する。少なくとも: 各 read が見た版の区間の証拠、書き込みの設置順、rts の更新と検証の順序、read-only snapshot の境界。
+3. 観測者効果 (絶対規律 1): 追加の記録がすべて `#if TRACE` の内側に収まり、TRACE=0 で命令列が変わらない設計にする。
+4. 費用の見積り: trace の量、判定時間 (直列性検査が所要の主因になることがある)、実装の規模。campaign 側の trace 供給 (certified を要する門へ Cicada を入れる経路) の設計も要点だけ書く。
+5. 推奨: 「実装する / VHash 論文では indeterminate の範囲で主張する」の 2 案と、それぞれで論文に書ける文の違いを並べ、codex の 2 レンズ (実装する側 / しない側) で攻めさせたうえで推奨を 1 つ出す。
+
+■ 成果物
+- 一次資料: output/insights/<着手日>/cicada-certified-evidence-design/README.md (整理、設計、費用、2 案と推奨、論文の文の違い)。
+- spool fragment (対象 item の更新。推奨と、ユーザーに返す判断点を明記)。
+
+■ 所有
+自分の一次資料と fragment だけ。patches/ と external/ccbench と orchestrator/verifier/ は編集しない (設計のみ)。
+
+■ 注意
+- 新規の計測も実装もしない。
+- 正しさの主張の地位に関わる設計なので、段 3 の相談と段 6 の review を省かない。
