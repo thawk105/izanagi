@@ -7,7 +7,6 @@ from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
 import time
@@ -17,6 +16,7 @@ if __package__ in {None, ""}:
     __package__ = "orchestrator.campaign"
 
 from . import axis_silo_function_policy as axis
+from . import pipeline
 from . import env_contract, ident, p3_s4_loop as L, site_policy, source_digest
 from . import wal
 from .artifact_admission import CampaignReadPurpose, require_admitted_campaign
@@ -767,8 +767,7 @@ def _contrast_unit(ledger, unit_path, ledger_root):
             or not Path(unit['ledger_root']).is_absolute()
             or Path(unit['ledger_root']) != Path(ledger_root).resolve()):
         raise ContrastUnitMismatch('unit schema or ledger mismatch')
-    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT,
-                                   text=True).strip()
+    head = pipeline._current_repo_head(str(ROOT))
     if (Path(ledger.header['submit_checkout']).resolve() != ROOT.resolve()
             or ledger.header['checkout_head'] != head):
         raise ContrastUnitMismatch('submit checkout or HEAD mismatch')

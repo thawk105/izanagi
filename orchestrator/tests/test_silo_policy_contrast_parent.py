@@ -1,6 +1,11 @@
 """Claude launch is the only external process seam."""
-import json
+
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import pytest
+import json
 from types import SimpleNamespace
 
 from orchestrator.campaign.silo_policy_contrast import ContrastLedger, DEFAULT_BUDGETS, series_state
@@ -86,3 +91,7 @@ def test_restart_uses_next_attempt_and_prior_failures(tmp_path):
         model="fixed", checkout=tmp_path, spawn=spawn) == "role-failure"
     assert (out / "attempt-0004" / "exit.json").exists()
     assert (out / "attempt-0005" / "exit.json").exists()
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

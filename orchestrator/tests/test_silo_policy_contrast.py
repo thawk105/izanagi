@@ -1,3 +1,9 @@
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import pytest
 from orchestrator.campaign.silo_policy_contrast import (
     ContrastLedger, DEFAULT_BUDGETS, close_series_if_done, next_opportunity,
     next_unit, open_opportunity, select_endpoint, series_state)
@@ -119,3 +125,7 @@ def test_open_and_next_opportunity_after_outage(tmp_path):
     item.append('opportunity-end', a=1, outcome='rejected')
     assert open_opportunity(item) is None
     assert next_opportunity(item) == 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

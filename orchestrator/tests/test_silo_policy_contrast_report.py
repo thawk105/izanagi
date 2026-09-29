@@ -1,4 +1,9 @@
 """Generation eligibility and family adjustment use the actual ledger events."""
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import json
 import pytest
 
@@ -115,3 +120,7 @@ def test_retry_uses_final_slot_result_for_stock_score_and_reference(tmp_path):
     refs = [ref] + [_ledger(tmp_path, "reference", i, []) for i in (2, 3)]
     stocks, _ = R._reference([ContrastLedger(p) for p in refs], set())
     assert stocks[1] == [100, 101, 102, 103, 104]
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

@@ -1,6 +1,10 @@
 """The round CLI preserves driver bytes and gates auditor on preview."""
-import json
+
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import json
 from types import SimpleNamespace
 import pytest
 
@@ -161,3 +165,7 @@ def test_preview_failure_classification(tmp_path, action, subtype):
     ends = [e for e in ContrastLedger(root).events if e["kind"] == "opportunity-end"]
     assert [(e["reject_subtype"], e["reject_rule_id"]) for e in ends] == (
         [] if subtype is None else [(subtype, "rule")])
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

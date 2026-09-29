@@ -1,5 +1,10 @@
-import json
+
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import pytest
+import json
 from types import SimpleNamespace
 
 from tools.pegasus import silo_policy_contrast_launch as launch
@@ -97,3 +102,7 @@ def test_generate_reject_preserves_preview_subtype(tmp_path, monkeypatch):
     launch.generate(SimpleNamespace(ledger=str(item.root)))
     end = ContrastLedger(item.root).events[-1]
     assert (end['reject_subtype'], end['reject_rule_id']) == ('typed-ir', 'rule-7')
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

@@ -1,3 +1,9 @@
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import pytest
 from orchestrator.campaign import silo_policy_contrast_generators as G
 from orchestrator.campaign.silo_policy_ir import parse_policy_ir, render_policy
 
@@ -94,3 +100,7 @@ def test_bool_grow_selects_operator_before_compare_operand():
         outputs.append(type(G._grow('bool', 'lock', (), 1, draw, (1,))).__name__)
         assert draw.operations == [('select', 'compare')]
     assert outputs == ['Select', 'Compare', 'Select', 'Compare']
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
