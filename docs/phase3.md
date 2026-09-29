@@ -52,7 +52,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [x] [T-2853] (5'') R2 の fig11 単位 (A-6 read-heavy、stock 対 fixed 2 µs) を現行 repo の certification driver・現行 policy (5 node)・現行 CCBench pin (`pin.CURRENT_PIN`、投入時の値は insight に記録) で測り直した (2026-09-29、1.47 node 時間)。
   attempt `a6-r2-20260929a` (request 35349) は完走し、outer status `reject`・効果 −5.2144%・正しさ 2/2 certified・source binding 2/2 bound。地位 (別 attempt・非合成・投げ直し条件) は投入前に commit。
   collect は repo 外の空 dir へ materialize し、元 attempt の tracked leaf に触れていない。同じ生成器で R2 図を描き (全検査通過、caption の役割語 4 箇所だけ差し替え)、元 attempt と並べた表つき。trace 保全口はこの経路に渡す口が無く未使用。
-  fig8b・fig11 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-29/t2853-r2-fig11/README.md`。
+  fig6・fig8b・fig11 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-29/t2853-r2-fig11/README.md`。
 - [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
   4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
   (certified はまだ出さない)、(b) に関数単位の軸の段階 C (LLM 生成は未実施)、3.3 節に SI の検出件数の時点、限界節に合成ループの小構成を反映した。主張は増やしていない。組版 15 頁 (初版 14 頁)。
