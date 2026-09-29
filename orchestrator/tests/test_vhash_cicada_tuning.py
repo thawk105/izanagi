@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 import json
 import math
@@ -9,6 +10,7 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from threading import Barrier, Lock
 from unittest.mock import patch
 
 from tools.vhash_cicada_tuning import analysis as a, driver as d, model as m
@@ -279,6 +281,163 @@ def test_failed_build_is_recorded_in_manifest(tmp_path=None):
     assert manifest["status"] == "failed"
 
 
+def test_j0_wait_build_compile_failure_is_missing_w5(tmp_path=None):
+    if tmp_path is None:
+        with TemporaryDirectory() as tmp:
+            return test_j0_wait_build_compile_failure_is_missing_w5(Path(tmp))
+    from orchestrator.calibrator import perf_preflight
+
+    def attempt(failed_wait, failed_stage):
+        job_id = f"j0-{'wait' if failed_wait else 'normal'}-{failed_stage}"
+        spec = {"schema": d.SCHEMA, "job_id": job_id, "stage": "j0",
+                "build_parallelism": 2, "builds": [], "runs": []}
+        spec_path = tmp_path / f"{job_id}.json"
+        spec_path.write_text(json.dumps(spec))
+        output = tmp_path / "output"
+        output.mkdir(exist_ok=True)
+        log = output / job_id / "failed.log"
+        calls = []
+
+        def build(source, scratch, dependencies, toolchain, build_spec, jobs, output_dir):
+            if build_spec["wait"] == failed_wait:
+                log.write_bytes(b"compile failed\n")
+                raise d.BuildFailure({"label": "failed", "wait": failed_wait,
+                                      "failure_stage": failed_stage, "failure_rc": 2,
+                                      "failure_log": str(log),
+                                      "build_log_sha256": d.digest(log.read_bytes()),
+                                      "build_seconds": 1.0})
+            return ({"label": "normal", "wait": build_spec["wait"],
+                     "binary_sha256": "sha", "build_seconds": 1.0}, tmp_path / "binary")
+
+        def run_one(run, binary, sha, output_dir, run_job_id, previous, host):
+            calls.append(run)
+            return {"schema": d.SCHEMA, "job_id": run_job_id,
+                    "run_id": f"{len(calls):05d}", "stage": run["stage"],
+                    "workload": run["workload"], "records": run["records"],
+                    "throughput_tps": 100.0, "miss_rate": None,
+                    "maxrss_kb": 100000, "elapsed_seconds": 1.0,
+                    "perf": run["perf"], "exit_code": 0,
+                    "genome": m.canonical(run["genome"]),
+                    "gc_inter_us": run["gc_inter_us"], "host": host}
+
+        with patch.object(d, "OUTPUT", output), patch.object(d, "_check_site"), \
+             patch.object(d, "_check_solo"), \
+             patch.object(d, "_prepare_toolchain", return_value=({}, {})), \
+             patch.object(d.patchharness, "checkout", return_value=nullcontext(tmp_path)), \
+             patch.object(d.subprocess, "run", return_value=SimpleNamespace(stdout="pin\n")), \
+             patch.object(d, "_build", side_effect=build), \
+             patch.object(d, "_run_one", side_effect=run_one), \
+             patch.object(d.runner, "settle", return_value=True), \
+             patch.object(d, "_l3_bytes", return_value=1024), \
+             patch.object(perf_preflight, "probe_perf_availability", return_value={"available": False}), \
+             patch.object(d.analysis, "choose_records", return_value={
+                 "records": 1_000_000, "reason": "D15_RSS_lower_bound_perf_unavailable"}):
+            if failed_wait and failed_stage == "build":
+                d.execute(spec_path, tmp_path, tmp_path)
+            else:
+                _raises(lambda: d.execute(spec_path, tmp_path, tmp_path), d.BuildFailure)
+            manifest = json.loads((output / job_id / "job-manifest.json").read_text())
+            rows_path = output / job_id / "runs.jsonl"
+            if failed_wait and failed_stage == "build":
+                assert manifest["status"] == "complete"
+                assert manifest["wait_smoke"] == {
+                    "alive": False, "reason": "wait_build_failed", "failed_stage": "build",
+                    "rc": 2, "log": str(log), "log_sha256": d.digest(b"compile failed\n")}
+                assert calls and all(run["workload"] != "W5" for run in calls)
+                assert any(run["stage"] == "j0_calibration" for run in calls)
+                assert any(run["stage"] == "j0_within" for run in calls)
+                summary = d.analyze([rows_path])
+                assert summary["wait_smoke"] == manifest["wait_smoke"]
+                assert summary["workload_status"]["W5"] == {
+                    "status": "missing", "reason": "wait_build_failed"}
+                assert "W5" not in summary["within_run_cv"]
+            else:
+                assert manifest["status"] == "failed"
+                assert not calls
+                assert "wait_smoke" not in manifest
+
+    attempt(True, "build")
+    attempt(False, "build")
+    attempt(True, "configure")
+    attempt(True, "binding")
+
+
+def test_j1_j2_build_failure_still_stops(tmp_path=None):
+    if tmp_path is None:
+        with TemporaryDirectory() as tmp:
+            return test_j1_j2_build_failure_still_stops(Path(tmp))
+    for stage in ("j1", "j2"):
+        spec = {"schema": d.SCHEMA, "job_id": f"{stage}-build-failure", "stage": stage,
+                "build_parallelism": 1,
+                "builds": [{"genome": m.CONTROL, "wait": False}], "runs": []}
+        spec_path = tmp_path / f"{stage}.json"
+        spec_path.write_text(json.dumps(spec))
+        output = tmp_path / "output"
+        output.mkdir(exist_ok=True)
+        failure = d.BuildFailure({"label": stage, "wait": False,
+                                  "failure_stage": "build", "failure_rc": 2,
+                                  "failure_log": "failed.log"})
+        with patch.object(d, "OUTPUT", output), patch.object(d, "_check_site"), \
+             patch.object(d, "_check_solo"), \
+             patch.object(d, "_prepare_toolchain", return_value=({}, {})), \
+             patch.object(d.patchharness, "checkout", return_value=nullcontext(tmp_path)), \
+             patch.object(d.subprocess, "run", return_value=SimpleNamespace(stdout="pin\n")), \
+             patch.object(d, "_build", side_effect=failure):
+            _raises(lambda: d.execute(spec_path, tmp_path, tmp_path), d.BuildFailure)
+        manifest = json.loads((output / spec["job_id"] / "job-manifest.json").read_text())
+        assert manifest["status"] == "failed" and "wait_smoke" not in manifest
+
+
+def test_j1_seven_parallel_builds_use_distinct_masstree_sources(tmp_path=None):
+    if tmp_path is None:
+        with TemporaryDirectory() as tmp:
+            return test_j1_seven_parallel_builds_use_distinct_masstree_sources(Path(tmp))
+    source = tmp_path / "source"
+    source.mkdir()
+    shared = tmp_path / "masstree"
+    shared.mkdir()
+    (shared / "source.txt").write_text("original")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    output = tmp_path / "output"
+    output.mkdir()
+    deps = {"masstree": shared, "mimalloc": tmp_path / "mimalloc",
+            "googletest": tmp_path / "googletest", "gflags": tmp_path / "gflags",
+            "glog": tmp_path / "glog"}
+    specs = d.make_spec("j1", {w: 1_000_000 for w in m.WORKLOADS},
+                        build_parallelism=7)
+    builds = specs[0]["builds"]
+    assert len(builds) == 7 and specs[0]["build_parallelism"] == 7
+    barrier = Barrier(7)
+    lock = Lock()
+    paths = []
+
+    def cmake(argv, **kwargs):
+        if "-S" in argv:
+            masstree = Path(next(arg.split("=", 1)[1] for arg in argv
+                                 if arg.startswith("-DFETCHCONTENT_SOURCE_DIR_MASSTREE=")))
+            assert masstree != shared and (masstree / "source.txt").read_text() == "original"
+            with lock:
+                paths.append(masstree)
+            barrier.wait(timeout=5)
+        else:
+            build_dir = Path(argv[2])
+            binary = build_dir / "cc/cicada/ycsb_cicada.exe"
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b"binary")
+            (build_dir / "compile_commands.json").write_text("[]")
+        return SimpleNamespace(returncode=0)
+
+    with patch.object(d.subprocess, "run", side_effect=cmake), \
+         patch.object(d, "check_compile_commands", return_value={"valid": True}):
+        with ThreadPoolExecutor(max_workers=7) as pool:
+            results = list(pool.map(lambda b: d._build(source, scratch, deps,
+                                {"cc_path": "cc", "cxx_path": "c++"}, b, 1, output), builds))
+    assert len(results) == len(set(paths)) == 7
+    assert all(path.parent == scratch for path in paths)
+    assert (shared / "source.txt").read_text() == "original"
+
+
 def test_control_session_cv_metadata():
     rows = [{"stage": "j1", "perf": False, "exit_code": 0,
              "throughput_tps": value, "workload": "W1", "records": 1_000_000,
@@ -308,6 +467,11 @@ def test_select_j1_tie_and_spec_determinism():
     j2 = d.make_spec("j2", records, selected=selected)
     assert j2 == d.make_spec("j2", records, selected=selected)
     assert len(j2) == 5 and all(s["stage"] == "j2" for s in j2)
+    without_w5 = d.make_spec("j2", records, selected=selected,
+                             workloads=("W1", "W2", "W3", "W4"))
+    assert len(without_w5) == 4
+    assert all(run["workload"] != "W5" for spec in without_w5 for run in spec["runs"])
+    assert all(not build["wait"] for spec in without_w5 for build in spec["builds"])
 
 
 def test_estimate_walltime():

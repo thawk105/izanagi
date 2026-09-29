@@ -448,11 +448,23 @@ def execute(spec_path: Path, cache_root: Path, scratch_root: Path) -> Path:
                             manifest["builds"].append(results[i][0])
                         except BuildFailure as exc:
                             manifest["builds"].append(exc.record)
-                            failures.append(exc)
+                            if (spec["stage"] == "j0" and builds[i]["wait"] is True
+                                    and exc.record.get("failure_stage") == "build"):
+                                manifest["wait_smoke"] = {
+                                    "alive": False, "reason": "wait_build_failed",
+                                    "failed_stage": exc.record["failure_stage"],
+                                    "rc": exc.record.get("failure_rc"),
+                                    "log": exc.record.get("failure_log"),
+                                    "log_sha256": exc.record.get("build_log_sha256")}
+                            else:
+                                failures.append(exc)
                 if failures:
                     raise failures[0]
                 binaries = {}
-                for build, (record, binary) in zip(builds, results):
+                for build, result in zip(builds, results):
+                    if result is None:
+                        continue
+                    record, binary = result
                     binaries[(model.canonical(build["genome"]), build["wait"])] = (binary, record["binary_sha256"])
                 settled = runner.settle(timeout_s=180.0)
                 manifest["settle"] = settled
@@ -485,13 +497,15 @@ def execute(spec_path: Path, cache_root: Path, scratch_root: Path) -> Path:
 def _execute_j0(take, manifest: dict) -> None:
     from orchestrator.calibrator.perf_preflight import probe_perf_availability
 
-    for run in _j0_runs():
-        take(run)
+    if "wait_smoke" not in manifest:
+        for run in _j0_runs():
+            take(run)
     rows_path = OUTPUT / manifest["job_id"] / "runs.jsonl"
     smoke = [json.loads(line) for line in rows_path.read_text().splitlines()]
     normal = [r["throughput_tps"] for r in smoke if r["workload"] == "W2"]
     delayed = [r["throughput_tps"] for r in smoke if r["workload"] == "W5"]
-    manifest["wait_smoke"] = analysis.wait_alive(normal, delayed)
+    if "wait_smoke" not in manifest:
+        manifest["wait_smoke"] = analysis.wait_alive(normal, delayed)
     policy = json.loads((ROOT / "tools/pegasus/policy.json").read_text())
     preflight = probe_perf_availability(perf_candidates=policy.get("perf_candidates", []))
     manifest["perf_preflight"] = preflight
@@ -623,7 +637,17 @@ def analyze(paths: list[Path], k: int = 3, costs_path: Path | None = None,
                                                                expected_reps=len(planned_reps) or 3)
     normal = [r["throughput_tps"] for r in j0 if r["stage"] == "j0_smoke" and r["workload"] == "W2"]
     delayed = [r["throughput_tps"] for r in j0 if r["stage"] == "j0_smoke" and r["workload"] == "W5"]
-    if normal and delayed:
+    for manifest_path in j0_manifests:
+        if manifest_path.is_file():
+            wait_smoke = json.loads(manifest_path.read_text()).get("wait_smoke")
+            if wait_smoke is not None:
+                summary["wait_smoke"] = wait_smoke
+                if wait_smoke.get("alive") is False:
+                    summary["workload_status"] = {
+                        "W5": {"status": "missing",
+                               "reason": wait_smoke.get("reason", "wait_smoke_not_alive")}}
+                break
+    if "wait_smoke" not in summary and normal and delayed:
         summary["wait_smoke"] = analysis.wait_alive(normal, delayed)
     rr50_n = summary["calibration"].get("W2", {}).get("records")
     if rr50_n and rr50_n != 1_000_000:
