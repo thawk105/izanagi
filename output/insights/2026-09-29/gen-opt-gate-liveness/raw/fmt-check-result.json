@@ -1,0 +1,1727 @@
+{
+  "changed": {
+    "cc/silo/transaction.cc": {
+      "delta": 0,
+      "fixed_warnings_on_changed_ranges": 0,
+      "ranges": [
+        [
+          208,
+          221
+        ],
+        [
+          526,
+          535
+        ]
+      ]
+    }
+  },
+  "fixed": {
+    "cc/cicada/bomb_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/cicada_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/time_stamp.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/sbomb_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/testzip.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/tpcc_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/ycsb_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/dbomb_d2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/d2pl_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/sbomb_d2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/bomb_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/garbage_collection.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/ermia_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/garbage_collection.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/transaction_table.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/sbomb_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/tpcc_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/ycsb_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/bomb_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/mocc_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/lock.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/sbomb_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/tpcc_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/transaction.cc": {
+      "rc": 1,
+      "warnings": 26
+    },
+    "cc/mocc/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/ycsb_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/bomb_mvto.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/mvto_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/time_stamp.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/tpcc_mvto.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/bomb_oze.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/debug.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/cc_mode.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/debug.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/oze.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/oze_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/scan.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/test.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/thread_management.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/time_stamp.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/txid.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/tpcc_oze.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/ycsb_oze.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/bomb_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/garbage_collection.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/garbage_collection.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/si_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/transaction_table.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/sbomb_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/tpcc_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/ycsb_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/bomb_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/log.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/silo_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/replayTest.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/sbomb_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/tpcc_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/transaction.cc": {
+      "rc": 1,
+      "warnings": 17
+    },
+    "cc/silo/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/ycsb_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/bomb_ss2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/ss2pl_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/ss2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/test/make_db_test.cpp": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/tpcc_ss2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/bomb_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/tictoc_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/sbomb_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/tpcc_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/ycsb_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "common/result.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "common/runner.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "common/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/atomic_wrapper.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/backoff.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/bomb.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/bomb_pessimistic.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/bomb_static.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/cache_line_size.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/check.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/compiler.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/config.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/cpu.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/dbomb_deterministic.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/debug.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/delay.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/fence.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/fileio.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/heap_object.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/inline.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/int64byte.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/masstree_wrapper.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/procedure.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/queue.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/random.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/rwlock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/sbomb_deterministic.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/string.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_initializer.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_query.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tables.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_delivery.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_neworder.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_orderstatus.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_payment.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_stocklevel.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/trace.hh": {
+      "rc": 1,
+      "warnings": 3
+    },
+    "include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tsc.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tuple_body.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tx_executor_concept.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/workload.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/ycsb.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/zipf.hh": {
+      "rc": 0,
+      "warnings": 0
+    }
+  },
+  "fixed_ci_format_pass": false,
+  "pin": {
+    "cc/cicada/bomb_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/cicada_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/time_stamp.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/sbomb_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/testzip.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/tpcc_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/cicada/ycsb_cicada.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/dbomb_d2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/d2pl_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/sbomb_d2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/d2pl/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/bomb_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/garbage_collection.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/ermia_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/garbage_collection.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/transaction_table.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/sbomb_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/tpcc_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ermia/ycsb_ermia.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/bomb_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/mocc_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/lock.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/sbomb_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/tpcc_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/transaction.cc": {
+      "rc": 1,
+      "warnings": 26
+    },
+    "cc/mocc/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mocc/ycsb_mocc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/bomb_mvto.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/mvto_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/time_stamp.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/tpcc_mvto.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/mvto/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/bomb_oze.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/debug.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/cc_mode.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/debug.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/oze.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/oze_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/scan.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/test.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/thread_management.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/time_stamp.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/txid.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/tpcc_oze.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/oze/ycsb_oze.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/bomb_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/garbage_collection.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/garbage_collection.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/si_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/transaction_table.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/include/version.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/sbomb_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/tpcc_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/si/ycsb_si.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/bomb_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/log.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/silo_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/replayTest.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/sbomb_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/tpcc_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/transaction.cc": {
+      "rc": 1,
+      "warnings": 17
+    },
+    "cc/silo/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/silo/ycsb_silo.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/bomb_ss2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/ss2pl_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/ss2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/test/make_db_test.cpp": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/tpcc_ss2pl.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/ss2pl/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/bomb_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/atomic_tool.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/scan_callback.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/tictoc_op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/transaction.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/tuple.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/sbomb_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/tpcc_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/transaction.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "cc/tictoc/ycsb_tictoc.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "common/result.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "common/runner.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "common/util.cc": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/atomic_wrapper.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/backoff.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/bomb.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/bomb_pessimistic.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/bomb_static.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/cache_line_size.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/check.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/compiler.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/config.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/cpu.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/dbomb_deterministic.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/debug.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/delay.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/fence.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/fileio.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/heap_object.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/inline.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/int64byte.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/lock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/masstree_wrapper.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/op_element.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/procedure.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/queue.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/random.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/result.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/rwlock.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/sbomb_deterministic.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/string.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_common.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_initializer.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_query.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tables.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_delivery.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_neworder.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_orderstatus.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_payment.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_tx_stocklevel.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tpcc/tpcc_util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/trace.hh": {
+      "rc": 1,
+      "warnings": 3
+    },
+    "include/transaction_status.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tsc.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tuple_body.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/tx_executor_concept.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/util.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/workload.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/ycsb.hh": {
+      "rc": 0,
+      "warnings": 0
+    },
+    "include/zipf.hh": {
+      "rc": 0,
+      "warnings": 0
+    }
+  }
+}

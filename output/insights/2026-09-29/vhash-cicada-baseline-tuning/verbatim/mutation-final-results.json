@@ -1,0 +1,701 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/77e18a37050c58b718c8d12665b753e1/izdw-77e18a3705.o35014",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/77e18a37050c58b718c8d12665b753e1/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................                                                [100%]\n25 passed in 10.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "fced19ea4a578355b4aade0b7f4f9f0205b50f7d470977a8f31cfaff7f05c1fb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+    "duration_s": 32.553,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "9736c2525601bc02571a3655a87c5a61b239b3e7d038a12f1dd41ee5f3f45200",
+    "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+    "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+    "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+    "status": "PASSED",
+    "test_output_sha256": "fced19ea4a578355b4aade0b7f4f9f0205b50f7d470977a8f31cfaff7f05c1fb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+  },
+  "date": "2026-09-29T04:24:37.666454+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0e214d953d57541115d39c2987339816/izdw-0e214d953d.o35015",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0e214d953d57541115d39c2987339816/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................FFF....                                                [100%]\n=================================== FAILURES ===================================\n______________ test_j1_stock_buildable_genomes_and_missing_cells _______________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_j1_stock_buildable_genomes_and_missing_cells():\n        all_genomes = [m.canonical(g) for g in m.genomes()]\n        buildable = [g for g in all_genomes if not (\n            \"INLINE_VERSION_OPT=1\" in g and \"INLINE_VERSION_PROMOTION=1\" in g)]\n>       assert len(buildable) == 16\nE       AssertionError: assert 24 == 16\nE        +  where 24 = len(['BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0', 'BACK_OFF=0,INLINE_..._LATEST_ONLY=0', 'BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1', ...])\n\norchestrator/tests/test_plot_vhash_cicada_tuning.py:217: AssertionError\n____________________ test_measured_throughput_scale_layout _____________________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_measured_throughput_scale_layout():\n        \"\"\"Exercise the measured 16-genome and 3-genome x 4-GC shapes without raw files.\"\"\"\n        genomes = [m.canonical(g) for g in m.genomes()]\n        buildable = {g for g in genomes if not (\n            \"INLINE_VERSION_OPT=1\" in g and \"INLINE_VERSION_PROMOTION=1\" in g)}\n        selected = set(genomes[:2]) | {m.canonical(m.CONTROL)}\n>       assert len(buildable) == 16\nE       AssertionError: assert 24 == 16\nE        +  where 24 = len({'BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0', 'BACK_OFF=0,INLINE_..._LATEST_ONLY=0', 'BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1', ...})\n\norchestrator/tests/test_plot_vhash_cicada_tuning.py:131: AssertionError\n___________________________ test_genomes_and_control ___________________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_genomes_and_control():\n>       assert len(m.genomes()) == 24\nE       AssertionError: assert 32 == 24\nE        +  where 32 = len([{'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 0, 'REUSE_VERSION': 0, ...}, {'BACK_OFF': 0, 'IN...RSION': 0, ...}, {'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 1, 'REUSE_VERSION': 0, ...}, ...])\nE        +    where [{'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 0, 'REUSE_VERSION': 0, ...}, {'BACK_OFF': 0, 'IN...RSION': 0, ...}, {'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 1, 'REUSE_VERSION': 0, ...}, ...] = <function genomes at 0x14884a3471c0>()\nE        +      where <function genomes at 0x14884a3471c0> = m.genomes\n\norchestrator/tests/test_vhash_cicada_tuning.py:28: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells\nFAILED orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control\n3 failed, 22 passed in 9.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=869 retained_bytes=869 omitted_bytes=0 rendered_excerpt_bytes=890 sha256=10ccf2e712d30d2f6c92a2da4d0a55291809c23346d55cf4142bdf809874b1a6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_genomes_and_control():\n> >       assert len(m.genomes()) == 24\n> E       AssertionError: assert 32 == 24\n> E        +  where 32 = len([{'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 0, 'REUSE_VERSION': 0, ...}, {'BACK_OFF': 0, 'IN...RSION': 0, ...}, {'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 1, 'REUSE_VERSION': 0, ...}, ...])\n> E        +    where [{'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 0, 'REUSE_VERSION': 0, ...}, {'BACK_OFF': 0, 'IN...RSION': 0, ...}, {'BACK_OFF': 0, 'INLINE_VERSION_OPT': 0, 'INLINE_VERSION_PROMOTION': 1, 'REUSE_VERSION': 0, ...}, ...] = <function genomes at 0x14884a3471c0>()\n> E        +      where <function genomes at 0x14884a3471c0> = m.genomes\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:28: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=854 retained_bytes=854 omitted_bytes=0 rendered_excerpt_bytes=881 sha256=554f0c5086509aba9aa19e8ecb64e3630c00b3b8abf18f9a14c37c202246d463\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_measured_throughput_scale_layout():\n>         \"\"\"Exercise the measured 16-genome and 3-genome x 4-GC shapes without raw files.\"\"\"\n>         genomes = [m.canonical(g) for g in m.genomes()]\n>         buildable = {g for g in genomes if not (\n>             \"INLINE_VERSION_OPT=1\" in g and \"INLINE_VERSION_PROMOTION=1\" in g)}\n>         selected = set(genomes[:2]) | {m.canonical(m.CONTROL)}\n> >       assert len(buildable) == 16\n> E       AssertionError: assert 24 == 16\n> E        +  where 24 = len({'BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0', 'BACK_OFF=0,INLINE_..._LATEST_ONLY=0', 'BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1', ...})\n> \n> orchestrator/tests/test_plot_vhash_cicada_tuning.py:131: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=719 retained_bytes=719 omitted_bytes=0 rendered_excerpt_bytes=742 sha256=99a72017c2d1b5eb05ab38626865e1bc29b59f87d9a7691669168cd6e34d2766\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_j1_stock_buildable_genomes_and_missing_cells():\n>         all_genomes = [m.canonical(g) for g in m.genomes()]\n>         buildable = [g for g in all_genomes if not (\n>             \"INLINE_VERSION_OPT=1\" in g and \"INLINE_VERSION_PROMOTION=1\" in g)]\n> >       assert len(buildable) == 16\n> E       AssertionError: assert 24 == 16\n> E        +  where 24 = len(['BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=0,WRITE_LATEST_ONLY=0', 'BACK_OFF=0,INLINE_..._LATEST_ONLY=0', 'BACK_OFF=0,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=1,REUSE_VERSION=0,WRITE_LATEST_ONLY=1', ...])\n> \n> orchestrator/tests/test_plot_vhash_cicada_tuning.py:217: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=2442 retained_bytes=2442 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4076 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2059053de421cbffb6de069cf507184416789666604b2001ea5ebc6f44a1db26"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 478.976,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "d949cb7b738c1773eff7b8a0a3e1e1503c9c2c200d15d5f276ebeee69e6a040e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e0cc6ac937f1d189f42f33c0fc625058dfe39f9e2e965b87f600ba2df5aee05a",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/model.py",
+          "new": "    import itertools\n    result = [dict(zip(AXES, values)) for values in itertools.product((0, 1), repeat=len(AXES))]\n    if CONTROL not in result:\n",
+          "old": "    result = [dict(g.flags) for g in CICADA_SPACE.enumerate()]\n    if len(result) != 24 or CONTROL not in result:\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "2059053de421cbffb6de069cf507184416789666604b2001ea5ebc6f44a1db26",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/bc89714fafd3feae3b5faf0544d8c3d4/izdw-bc89714faf.o35019",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/bc89714fafd3feae3b5faf0544d8c3d4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F......                                                [100%]\n=================================== FAILURES ===================================\n__________________ test_compile_binding_positive_and_negative __________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_compile_binding_positive_and_negative():\n        assert d.check_compile_commands(_commands(), m.CONTROL, False)[\"valid\"]\n        assert d.check_compile_commands(_commands(wait=True), m.CONTROL, True)[\"valid\"]\n        bad = _commands()\n        bad[0][\"arguments\"][1] = \"-DTRACE=1\"\n        _raises(lambda: d.check_compile_commands(bad, m.CONTROL, False))\n        bad = _commands()\n        bad[0][\"arguments\"] = [v.replace(\"-DWRITE_LATEST_ONLY=0\", \"-DWRITE_LATEST_ONLY=1\")\n                               for v in bad[0][\"arguments\"]]\n>       _raises(lambda: d.check_compile_commands(bad, m.CONTROL, False))\n\norchestrator/tests/test_vhash_cicada_tuning.py:65: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfn = <function test_compile_binding_positive_and_negative.<locals>.<lambda> at 0x14cc4ba4a0e0>\nkind = <class 'ValueError'>\n\n    def _raises(fn, kind=ValueError):\n        try:\n            fn()\n        except kind:\n            return\n>       raise AssertionError(f\"expected {kind.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_vhash_cicada_tuning.py:24: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative\n1 failed, 24 passed in 9.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1199 retained_bytes=1199 omitted_bytes=0 rendered_excerpt_bytes=1256 sha256=34b563917875117fb27d6cfdf8161fb46622e20a83820b67ed338b4166445bc5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_compile_binding_positive_and_negative():\n>         assert d.check_compile_commands(_commands(), m.CONTROL, False)[\"valid\"]\n>         assert d.check_compile_commands(_commands(wait=True), m.CONTROL, True)[\"valid\"]\n>         bad = _commands()\n>         bad[0][\"arguments\"][1] = \"-DTRACE=1\"\n>         _raises(lambda: d.check_compile_commands(bad, m.CONTROL, False))\n>         bad = _commands()\n>         bad[0][\"arguments\"] = [v.replace(\"-DWRITE_LATEST_ONLY=0\", \"-DWRITE_LATEST_ONLY=1\")\n>                                for v in bad[0][\"arguments\"]]\n> >       _raises(lambda: d.check_compile_commands(bad, m.CONTROL, False))\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:65: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> fn = <function test_compile_binding_positive_and_negative.<locals>.<lambda> at 0x14cc4ba4a0e0>\n> kind = <class 'ValueError'>\n> \n>     def _raises(fn, kind=ValueError):\n>         try:\n>             fn()\n>         except kind:\n>             return\n> >       raise AssertionError(f\"expected {kind.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:24: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1199 retained_bytes=1199 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1973 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "214100edda4c533fe203870be88959cb19db96ad5cddec6079792c881cc36e5b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 452.349,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "0b8a9e2609e84169598098d6e1f20002352b4d30560b2fc089b032b95d7481e3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b83b971db96e864c70cd21a2634c1a26a33e3a3610173996589de762df2d9a78",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/driver.py",
+          "new": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **{k: v for k, v in genome.items() if k != \"WRITE_LATEST_ONLY\"},\n",
+          "old": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **genome,\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "214100edda4c533fe203870be88959cb19db96ad5cddec6079792c881cc36e5b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b3f6f0a338d6f158b4af49fc72a29c53/izdw-b3f6f0a338.o35039",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b3f6f0a338d6f158b4af49fc72a29c53/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F......                                                [100%]\n=================================== FAILURES ===================================\n__________________ test_compile_binding_positive_and_negative __________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_compile_binding_positive_and_negative():\n        assert d.check_compile_commands(_commands(), m.CONTROL, False)[\"valid\"]\n        assert d.check_compile_commands(_commands(wait=True), m.CONTROL, True)[\"valid\"]\n        bad = _commands()\n        bad[0][\"arguments\"][1] = \"-DTRACE=1\"\n>       _raises(lambda: d.check_compile_commands(bad, m.CONTROL, False))\n\norchestrator/tests/test_vhash_cicada_tuning.py:61: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfn = <function test_compile_binding_positive_and_negative.<locals>.<lambda> at 0x154f7db060e0>\nkind = <class 'ValueError'>\n\n    def _raises(fn, kind=ValueError):\n        try:\n            fn()\n        except kind:\n            return\n>       raise AssertionError(f\"expected {kind.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_vhash_cicada_tuning.py:24: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative\n1 failed, 24 passed in 9.98s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=948 retained_bytes=948 omitted_bytes=0 rendered_excerpt_bytes=997 sha256=315d4566489a50758b4c2bd44a947aae7b21cdfef04aebd7db89d9f56a7e9c31\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_compile_binding_positive_and_negative():\n>         assert d.check_compile_commands(_commands(), m.CONTROL, False)[\"valid\"]\n>         assert d.check_compile_commands(_commands(wait=True), m.CONTROL, True)[\"valid\"]\n>         bad = _commands()\n>         bad[0][\"arguments\"][1] = \"-DTRACE=1\"\n> >       _raises(lambda: d.check_compile_commands(bad, m.CONTROL, False))\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:61: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> fn = <function test_compile_binding_positive_and_negative.<locals>.<lambda> at 0x154f7db060e0>\n> kind = <class 'ValueError'>\n> \n>     def _raises(fn, kind=ValueError):\n>         try:\n>             fn()\n>         except kind:\n>             return\n> >       raise AssertionError(f\"expected {kind.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:24: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=948 retained_bytes=948 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1709 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7a9df5d76a59ad068607e81d3593cc5119143db2a6be2fcc8679cde507ffaa0a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 33.109,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "854ecb8be5d034a77340c2bac0ae1a89612162780f9b3ee029a8b8ae912404b6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "343b6283d33d3b54b06acb3e18525d1755b9fadff60d498b6d38f28c464ccd40",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/driver.py",
+          "new": "    expected = {\"ADD_ANALYSIS\": 0, **genome,\n",
+          "old": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **genome,\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "7a9df5d76a59ad068607e81d3593cc5119143db2a6be2fcc8679cde507ffaa0a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2dba2eca972b28e58a88cba7a8c62145/izdw-2dba2eca97.o35040",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/2dba2eca972b28e58a88cba7a8c62145/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F.......                                                [100%]\n=================================== FAILURES ===================================\n_______________________ test_rss_boundary_and_saturation _______________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_rss_boundary_and_saturation():\n        l3 = 1024\n>       assert a.rss_lower_bound([{\"records\": 1, \"maxrss_kb\": 3},\n                                  {\"records\": 2, \"maxrss_kb\": 4}], l3) == 2\nE       AssertionError: assert None == 2\nE        +  where None = <function rss_lower_bound at 0x14ace3b904c0>([{'records': 1, 'maxrss_kb': 3}, {'records': 2, 'maxrss_kb': 4}], 1024)\nE        +    where <function rss_lower_bound at 0x14ace3b904c0> = a.rss_lower_bound\n\norchestrator/tests/test_vhash_cicada_tuning.py:151: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation\n1 failed, 24 passed in 9.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=586 retained_bytes=586 omitted_bytes=0 rendered_excerpt_bytes=609 sha256=6c03db38ac59c917c58f0ce8d299c05d66076c9eaa61c3f6070b3ad5ab0bc3d5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_rss_boundary_and_saturation():\n>         l3 = 1024\n> >       assert a.rss_lower_bound([{\"records\": 1, \"maxrss_kb\": 3},\n>                                   {\"records\": 2, \"maxrss_kb\": 4}], l3) == 2\n> E       AssertionError: assert None == 2\n> E        +  where None = <function rss_lower_bound at 0x14ace3b904c0>([{'records': 1, 'maxrss_kb': 3}, {'records': 2, 'maxrss_kb': 4}], 1024)\n> E        +    where <function rss_lower_bound at 0x14ace3b904c0> = a.rss_lower_bound\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:151: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=586 retained_bytes=586 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1311 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9ee1932d95a95378e98dc5ebe01c8a759c754a33450d788d866d84bdd5d77c02"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 32.484,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "fe56918b7ed7515ff39265a51651f80403020c86599240acf60704fac51787f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "89f21461841344bfd6dea896102513d253486d4ffb1c7f907efe78da6392b41a",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "new": "                and int(p[\"maxrss_kb\"]) * 1024 > 4 * l3_bytes]\n",
+          "old": "                and int(p[\"maxrss_kb\"]) * 1024 >= 4 * l3_bytes]\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "9ee1932d95a95378e98dc5ebe01c8a759c754a33450d788d866d84bdd5d77c02",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/61d88478d8463772c3f4da281085b67e/izdw-61d88478d8.o35041",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/61d88478d8463772c3f4da281085b67e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F......                                                [100%]\n=================================== FAILURES ===================================\n___________________________ test_cv_and_j2_boundary ____________________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cv_and_j2_boundary():\n        assert math.isclose(a.sample_cv([1, 2, 3]), 0.5)\n        rows = []\n        for genome, tps in ((\"a\", 100.0), (\"b\", 90.0), (m.canonical(m.CONTROL), 100.0)):\n            rows.append({\"stage\": \"j2\", \"perf\": False, \"exit_code\": 0, \"throughput_tps\": tps,\n                         \"workload\": \"W1\", \"job_id\": \"job\", \"genome\": genome, \"gc_inter_us\": 10})\n        result = a.j2_best(rows, \"W1\", 0.1, [(\"a\", 10), (\"b\", 10)], 3, expected_reps=1)\n>       assert (\"b\", 10) in result[\"observed_control_cv_width_candidates\"]\nE       AssertionError: assert ('b', 10) in []\n\norchestrator/tests/test_vhash_cicada_tuning.py:182: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary\n1 failed, 24 passed in 10.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=715 retained_bytes=715 omitted_bytes=0 rendered_excerpt_bytes=742 sha256=c47e8c7dec65812b9f74f15e2ece87cdba065a5c1e35e2b62d2d19f4691e43a5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cv_and_j2_boundary():\n>         assert math.isclose(a.sample_cv([1, 2, 3]), 0.5)\n>         rows = []\n>         for genome, tps in ((\"a\", 100.0), (\"b\", 90.0), (m.canonical(m.CONTROL), 100.0)):\n>             rows.append({\"stage\": \"j2\", \"perf\": False, \"exit_code\": 0, \"throughput_tps\": tps,\n>                          \"workload\": \"W1\", \"job_id\": \"job\", \"genome\": genome, \"gc_inter_us\": 10})\n>         result = a.j2_best(rows, \"W1\", 0.1, [(\"a\", 10), (\"b\", 10)], 3, expected_reps=1)\n> >       assert (\"b\", 10) in result[\"observed_control_cv_width_candidates\"]\n> E       AssertionError: assert ('b', 10) in []\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:182: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=715 retained_bytes=715 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1435 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b365304fd6888d268e0bcc845bc72d4d9dc225d4add62a901a5d753817de8278"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 32.29,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "42c33248173ec34edc1689b30e1e7919ff736b5fec1f9128ef14f90b7176f4ff",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1a3e5fda101697f91998c4890e2ca7f194c4595b29eb30a40999f81ae57f718a",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "new": "                     if value >= scores[best] * (1 + cv))\n",
+          "old": "                     if value >= scores[best] * (1 - cv))\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "b365304fd6888d268e0bcc845bc72d4d9dc225d4add62a901a5d753817de8278",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d2297559e7757c641e2781964436f8f8/izdw-d2297559e7.o35043",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/d2297559e7757c641e2781964436f8f8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................FF......                                                [100%]\n=================================== FAILURES ===================================\n___________________________ test_cv_and_j2_boundary ____________________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cv_and_j2_boundary():\n>       assert math.isclose(a.sample_cv([1, 2, 3]), 0.5)\nE       assert False\nE        +  where False = <built-in function isclose>(0.408248290463863, 0.5)\nE        +    where <built-in function isclose> = math.isclose\nE        +    and   0.408248290463863 = <function sample_cv at 0x153d88ce5c60>([1, 2, 3])\nE        +      where <function sample_cv at 0x153d88ce5c60> = a.sample_cv\n\norchestrator/tests/test_vhash_cicada_tuning.py:176: AssertionError\n_______________________ test_control_session_cv_metadata _______________________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_control_session_cv_metadata():\n        rows = [{\"stage\": \"j1\", \"perf\": False, \"exit_code\": 0,\n                 \"throughput_tps\": value, \"workload\": \"W1\", \"records\": 1_000_000,\n                 \"gc_inter_us\": 10, \"genome\": m.canonical(m.CONTROL),\n                 \"job_id\": f\"j{i}\", \"host\": f\"h{i % 2}\", \"submission_cluster\": f\"c{i % 2}\"}\n                for i, value in enumerate((100, 110, 90))]\n        result = a.control_cv(rows, \"W1\", 1_000_000)\n        assert result[\"session_count\"] == result[\"job_count\"] == 3\n        assert result[\"cluster_count\"] == result[\"host_count\"] == 2\n>       assert math.isclose(result[\"cv\"], 0.1)\nE       assert False\nE        +  where False = <built-in function isclose>(0.08164965809277261, 0.1)\nE        +    where <built-in function isclose> = math.isclose\n\norchestrator/tests/test_vhash_cicada_tuning.py:477: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata\n2 failed, 23 passed in 10.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=924 retained_bytes=924 omitted_bytes=0 rendered_excerpt_bytes=959 sha256=a86e84a65fa301c18364fe646c9a6c24777d4ff14de8d128070d3dc327ca6da0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_control_session_cv_metadata():\n>         rows = [{\"stage\": \"j1\", \"perf\": False, \"exit_code\": 0,\n>                  \"throughput_tps\": value, \"workload\": \"W1\", \"records\": 1_000_000,\n>                  \"gc_inter_us\": 10, \"genome\": m.canonical(m.CONTROL),\n>                  \"job_id\": f\"j{i}\", \"host\": f\"h{i % 2}\", \"submission_cluster\": f\"c{i % 2}\"}\n>                 for i, value in enumerate((100, 110, 90))]\n>         result = a.control_cv(rows, \"W1\", 1_000_000)\n>         assert result[\"session_count\"] == result[\"job_count\"] == 3\n>         assert result[\"cluster_count\"] == result[\"host_count\"] == 2\n> >       assert math.isclose(result[\"cv\"], 0.1)\n> E       assert False\n> E        +  where False = <built-in function isclose>(0.08164965809277261, 0.1)\n> E        +    where <built-in function isclose> = math.isclose\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:477: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=533 retained_bytes=533 omitted_bytes=0 rendered_excerpt_bytes=556 sha256=8ed4d4df37e4d55b7a9503167e27c823ca0269e288248e62df188570d9fc3c1d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cv_and_j2_boundary():\n> >       assert math.isclose(a.sample_cv([1, 2, 3]), 0.5)\n> E       assert False\n> E        +  where False = <built-in function isclose>(0.408248290463863, 0.5)\n> E        +    where <built-in function isclose> = math.isclose\n> E        +    and   0.408248290463863 = <function sample_cv at 0x153d88ce5c60>([1, 2, 3])\n> E        +      where <function sample_cv at 0x153d88ce5c60> = a.sample_cv\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:176: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1457 retained_bytes=1457 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2627 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "386200c5373a1c93349278313eb723ab36ffe13ad853dc102d6be654b968acde"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 32.314,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "bbc3b93ab9ec7051864c2d42c52abaa2c5052d266247ef275f2122a3145f3f56",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "97febf2a5511736c8f7b8aee3edf79f727278994d16d9dc35734e94c6e289280",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "new": "    return st.pstdev(values) / mean\n",
+          "old": "    return st.stdev(values) / mean\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "386200c5373a1c93349278313eb723ab36ffe13ad853dc102d6be654b968acde",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9c81c2477f5460163f9b9516278a244e/izdw-9c81c2477f.o35044",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/9c81c2477f5460163f9b9516278a244e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................F......                                                [100%]\n=================================== FAILURES ===================================\n____________________________ test_holdout_and_argv _____________________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_holdout_and_argv():\n        assert \"-ycsb_tuple_num=1000000\" in m.runtime_argv(m.WORKLOADS[\"W2\"], 1_000_000, 10)\n        assert \"-tuple_num=1000000\" not in m.runtime_argv(m.WORKLOADS[\"W2\"], 1_000_000, 10)\n        for rr in (20, 80):\n>           _raises(lambda rr=rr: m.reject_holdout_ratio(rr))\n\norchestrator/tests/test_vhash_cicada_tuning.py:40: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfn = <function test_holdout_and_argv.<locals>.<lambda> at 0x14983beee050>\nkind = <class 'ValueError'>\n\n    def _raises(fn, kind=ValueError):\n        try:\n            fn()\n        except kind:\n            return\n>       raise AssertionError(f\"expected {kind.__name__}\")\nE       AssertionError: expected ValueError\n\norchestrator/tests/test_vhash_cicada_tuning.py:24: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv\n1 failed, 24 passed in 10.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv\" nodeid_bytes=69 nodeid_omitted_bytes=0 source_bytes=869 retained_bytes=869 omitted_bytes=0 rendered_excerpt_bytes=916 sha256=e31f7dadbbd5c1a679f68ee96bf95c791fd2eb11f60c0432f78dc0de811b6ab1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_holdout_and_argv():\n>         assert \"-ycsb_tuple_num=1000000\" in m.runtime_argv(m.WORKLOADS[\"W2\"], 1_000_000, 10)\n>         assert \"-tuple_num=1000000\" not in m.runtime_argv(m.WORKLOADS[\"W2\"], 1_000_000, 10)\n>         for rr in (20, 80):\n> >           _raises(lambda rr=rr: m.reject_holdout_ratio(rr))\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:40: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> fn = <function test_holdout_and_argv.<locals>.<lambda> at 0x14983beee050>\n> kind = <class 'ValueError'>\n> \n>     def _raises(fn, kind=ValueError):\n>         try:\n>             fn()\n>         except kind:\n>             return\n> >       raise AssertionError(f\"expected {kind.__name__}\")\n> E       AssertionError: expected ValueError\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:24: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=869 retained_bytes=869 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1607 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "88574662762667d808041e1a09fde49519b11c3c72f06e25ad2c8a1c29eb8f24"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 32.443,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv"
+      ],
+      "hang_risk": false,
+      "id": "M7",
+      "injection_diff_sha256": "6f860d38b5d0372c8b09e8360282de1ad82942a6d825fc48ec6e87c8db4de307",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f1bf914ee938ffde984c89f7169c774f459286065813f515711d455b1f1adeff",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/model.py",
+          "new": "    if rratio in ():\n",
+          "old": "    if rratio in (20, 80):\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "88574662762667d808041e1a09fde49519b11c3c72f06e25ad2c8a1c29eb8f24",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c1eb0961c6ba48a5871b47b2c775a068/izdw-c1eb0961c6.o35071",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/c1eb0961c6ba48a5871b47b2c775a068/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................F....                                                [100%]\n=================================== FAILURES ===================================\n_________________ test_real_size_figures_and_overlap_rejection _________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_real_size_figures_and_overlap_rejection():\n        rows = _rows()\n        summary_data = _summary(rows)\n        for builder in (p.make_j1_figure, p.make_j2_figure):\n            fig, axes = builder(rows, summary_data)\n            try:\n                p.check_figure_layout(fig, axes)\n                with tempfile.TemporaryDirectory() as directory:\n                    root = Path(directory)\n                    raw = root / \"runs.jsonl\"\n                    summary = root / \"summary.json\"\n                    raw.write_text(\"\\n\".join(json.dumps(r) for r in rows) + \"\\n\")\n                    summary.write_text(json.dumps(summary_data))\n                    prefix = root / \"figure\"\n                    p.publish(fig, axes, prefix, [raw], summary,\n                              \"j1\" if builder is p.make_j1_figure else \"j2\", rows, summary_data)\n                    assert all(Path(str(prefix) + suffix).is_file()\n                               for suffix in (\".png\", \".pdf\", \".provenance.json\"))\n                    provenance = json.loads(Path(str(prefix) + \".provenance.json\").read_text())\n                    assert provenance[\"missing_workloads\"][\"W5\"] == \"wait_build_failed\"\n                    assert provenance[\"raw_aggregates\"]\n                    assert all(\"median_tps\" in cell and \"mean_tps\" not in cell\n                               for cell in provenance[\"raw_aggregates\"].values())\n                assert len(fig.axes) == (8 if builder is p.make_j1_figure else 4)\n                assert (\"J1 探索値\" if builder is p.make_j1_figure else \"J2 確認値\") in fig._suptitle.get_text()\n                axes[0].text(0.5, 0.5, \"forced overlap\", transform=axes[0].transAxes)\n                axes[0].text(0.5, 0.5, \"forced overlap\", transform=axes[0].transAxes)\n                try:\n                    p.check_figure_layout(fig, axes)\n                except p.FigureLayoutError:\n                    pass\n                else:\n>                   raise AssertionError(\"overlap was not rejected\")\nE                   AssertionError: overlap was not rejected\n\norchestrator/tests/test_plot_vhash_cicada_tuning.py:83: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection\n1 failed, 24 passed in 9.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=2195 retained_bytes=2195 omitted_bytes=0 rendered_excerpt_bytes=2296 sha256=853fd1efaae28144641948353bb4b531b685ef302ea8896cbc2a977668b97ad1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_real_size_figures_and_overlap_rejection():\n>         rows = _rows()\n>         summary_data = _summary(rows)\n>         for builder in (p.make_j1_figure, p.make_j2_figure):\n>             fig, axes = builder(rows, summary_data)\n>             try:\n>                 p.check_figure_layout(fig, axes)\n>                 with tempfile.TemporaryDirectory() as directory:\n>                     root = Path(directory)\n>                     raw = root / \"runs.jsonl\"\n>                     summary = root / \"summary.json\"\n>                     raw.write_text(\"\\x5cn\".join(json.dumps(r) for r in rows) + \"\\x5cn\")\n>                     summary.write_text(json.dumps(summary_data))\n>                     prefix = root / \"figure\"\n>                     p.publish(fig, axes, prefix, [raw], summary,\n>                               \"j1\" if builder is p.make_j1_figure else \"j2\", rows, summary_data)\n>                     assert all(Path(str(prefix) + suffix).is_file()\n>                                for suffix in (\".png\", \".pdf\", \".provenance.json\"))\n>                     provenance = json.loads(Path(str(prefix) + \".provenance.json\").read_text())\n>                     assert provenance[\"missing_workloads\"][\"W5\"] == \"wait_build_failed\"\n>                     assert provenance[\"raw_aggregates\"]\n>                     assert all(\"median_tps\" in cell and \"mean_tps\" not in cell\n>                                for cell in provenance[\"raw_aggregates\"].values())\n>                 assert len(fig.axes) == (8 if builder is p.make_j1_figure else 4)\n>                 assert (\"J1 \\u63a2\\u7d22\\u5024\" if builder is p.make_j1_figure else \"J2 \\u78ba\\u8a8d\\u5024\") in fig._suptitle.get_text()\n>                 axes[0].text(0.5, 0.5, \"forced overlap\", transform=axes[0].transAxes)\n>                 axes[0].text(0.5, 0.5, \"forced overlap\", transform=axes[0].transAxes)\n>                 try:\n>                     p.check_figure_layout(fig, axes)\n>                 except p.FigureLayoutError:\n>                     pass\n>                 else:\n> >                   raise AssertionError(\"overlap was not rejected\")\n> E                   AssertionError: overlap was not rejected\n> \n> orchestrator/tests/test_plot_vhash_cicada_tuning.py:83: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2195 retained_bytes=2195 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3020 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c6fdf9e9e315d00bd7804f9879884d5d7f44bf636010fbb05a628fb44f496204"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 32.358,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection"
+      ],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "9f1d79ae5cf077a39f8adce58a638242989d38dacbac1a84c153515d97886686",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4b02e2c9da563992d8d283616449bcd70a57c65e57afc8055d93f8fcf8c550a1",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_cicada_tuning.py",
+          "new": "            if False:\n",
+          "old": "            if _intersection_area(left_box, right_box) > 1.0:\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "c6fdf9e9e315d00bd7804f9879884d5d7f44bf636010fbb05a628fb44f496204",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6442b5d490f8d7a7404033a2e13c8fce/izdw-6442b5d490.o35072",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/6442b5d490f8d7a7404033a2e13c8fce/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................F.......                                                [100%]\n=================================== FAILURES ===================================\n___________________________ test_wait_alive_boundary ___________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_wait_alive_boundary():\n>       assert a.wait_alive([100] * 3, [50] * 3)[\"alive\"]\nE       assert False\n\norchestrator/tests/test_vhash_cicada_tuning.py:171: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary\n1 failed, 24 passed in 10.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=229 retained_bytes=229 omitted_bytes=0 rendered_excerpt_bytes=244 sha256=089e5e3371631bd2a781399b6a19671d576291dd407ddd9a70b4ca012734fb24\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_wait_alive_boundary():\n> >       assert a.wait_alive([100] * 3, [50] * 3)[\"alive\"]\n> E       assert False\n> \n> orchestrator/tests/test_vhash_cicada_tuning.py:171: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=229 retained_bytes=229 omitted_bytes=0 budget_bytes=49152 rendered_bytes=937 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f35fda3ae12188ae12d3e1034a866639048e6b60df58c258396d334e733e163d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8ad8c9a699ec318a909c8e99e52e9f4d21aaf39baf485d3b74916e774d4eb9e3",
+      "duration_s": 32.191,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary"
+      ],
+      "hang_risk": false,
+      "id": "M9",
+      "injection_diff_sha256": "4c058e6d6f006796010716cc9a68c60ad1553a9dd2c1c0cebec36d77fcc512ed",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f20e02bc98c94b0f9e6b9624fc064fad2423fc6e50389e20c539e21c0e1a3d0f",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "new": "    return {\"ratio\": ratio, \"alive\": ratio > 0.75}\n",
+          "old": "    return {\"ratio\": ratio, \"alive\": ratio < 0.75}\n"
+        }
+      ],
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "KILLED",
+      "test_output_sha256": "f35fda3ae12188ae12d3e1034a866639048e6b60df58c258396d334e733e163d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3cd14a62585d782be0fb297cd265c690/izdw-3cd14a6258.o34997",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3cd14a62585d782be0fb297cd265c690/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control\norchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv\norchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative\norchestrator/tests/test_vhash_cicada_tuning.py::test_runtime_flags_binding\norchestrator/tests/test_vhash_cicada_tuning.py::test_run_parses_cicada_stdout_without_show_opt\norchestrator/tests/test_vhash_cicada_tuning.py::test_perf_csv_suffix_and_missing_counter\norchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation\norchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary\norchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary\norchestrator/tests/test_vhash_cicada_tuning.py::test_j2_best_with_two_sessions_keeps_scores\norchestrator/tests/test_vhash_cicada_tuning.py::test_build_isolates_masstree_and_preserves_failure_logs\norchestrator/tests/test_vhash_cicada_tuning.py::test_failed_build_is_recorded_in_manifest\norchestrator/tests/test_vhash_cicada_tuning.py::test_j0_wait_build_compile_failure_is_missing_w5\norchestrator/tests/test_vhash_cicada_tuning.py::test_j1_j2_build_failure_still_stops\norchestrator/tests/test_vhash_cicada_tuning.py::test_j1_seven_parallel_builds_use_distinct_masstree_sources\norchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata\norchestrator/tests/test_vhash_cicada_tuning.py::test_condition_absolute_medians_ignore_invalid_runs\norchestrator/tests/test_vhash_cicada_tuning.py::test_select_j1_tie_and_spec_determinism\norchestrator/tests/test_vhash_cicada_tuning.py::test_estimate_walltime\norchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection\norchestrator/tests/test_plot_vhash_cicada_tuning.py::test_genome_labels_and_published_mapping\norchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout\norchestrator/tests/test_plot_vhash_cicada_tuning.py::test_partial_workloads_and_input_binding\norchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells\norchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j2_summary_missing_condition_is_not_drawn\n\n25 tests collected in 1.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "18a06cad96d03fd153edde635542e523687425763727336b9859552a3d13fb1c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_runtime_flags_binding",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_run_parses_cicada_stdout_without_show_opt",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_perf_csv_suffix_and_missing_counter",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_j2_best_with_two_sessions_keeps_scores",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_build_isolates_masstree_and_preserves_failure_logs",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_failed_build_is_recorded_in_manifest",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_j0_wait_build_compile_failure_is_missing_w5",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_j1_j2_build_failure_still_stops",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_j1_seven_parallel_builds_use_distinct_masstree_sources",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_condition_absolute_medians_ignore_invalid_runs",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_select_j1_tie_and_spec_determinism",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_estimate_walltime",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_genome_labels_and_published_mapping",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_partial_workloads_and_input_binding",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j2_summary_missing_condition_is_not_drawn"
+      ],
+      "duration_s": 21.944,
+      "rc": 0,
+      "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+      "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+      "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+      "status": "PASSED",
+      "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells",
+          "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout",
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d949cb7b738c1773eff7b8a0a3e1e1503c9c2c200d15d5f276ebeee69e6a040e",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/model.py",
+            "new": "    import itertools\n    result = [dict(zip(AXES, values)) for values in itertools.product((0, 1), repeat=len(AXES))]\n    if CONTROL not in result:\n",
+            "old": "    result = [dict(g.flags) for g in CICADA_SPACE.enumerate()]\n    if len(result) != 24 or CONTROL not in result:\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0b8a9e2609e84169598098d6e1f20002352b4d30560b2fc089b032b95d7481e3",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/driver.py",
+            "new": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **{k: v for k, v in genome.items() if k != \"WRITE_LATEST_ONLY\"},\n",
+            "old": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **genome,\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "854ecb8be5d034a77340c2bac0ae1a89612162780f9b3ee029a8b8ae912404b6",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/driver.py",
+            "new": "    expected = {\"ADD_ANALYSIS\": 0, **genome,\n",
+            "old": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **genome,\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fe56918b7ed7515ff39265a51651f80403020c86599240acf60704fac51787f2",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/analysis.py",
+            "new": "                and int(p[\"maxrss_kb\"]) * 1024 > 4 * l3_bytes]\n",
+            "old": "                and int(p[\"maxrss_kb\"]) * 1024 >= 4 * l3_bytes]\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "42c33248173ec34edc1689b30e1e7919ff736b5fec1f9128ef14f90b7176f4ff",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/analysis.py",
+            "new": "                     if value >= scores[best] * (1 + cv))\n",
+            "old": "                     if value >= scores[best] * (1 - cv))\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata",
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bbc3b93ab9ec7051864c2d42c52abaa2c5052d266247ef275f2122a3145f3f56",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/analysis.py",
+            "new": "    return st.pstdev(values) / mean\n",
+            "old": "    return st.stdev(values) / mean\n"
+          }
+        ]
+      },
+      "M7": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6f860d38b5d0372c8b09e8360282de1ad82942a6d825fc48ec6e87c8db4de307",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/model.py",
+            "new": "    if rratio in ():\n",
+            "old": "    if rratio in (20, 80):\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9f1d79ae5cf077a39f8adce58a638242989d38dacbac1a84c153515d97886686",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_cicada_tuning.py",
+            "new": "            if False:\n",
+            "old": "            if _intersection_area(left_box, right_box) > 1.0:\n"
+          }
+        ]
+      },
+      "M9": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4c058e6d6f006796010716cc9a68c60ad1553a9dd2c1c0cebec36d77fcc512ed",
+        "replacements": [
+          {
+            "file": "tools/vhash_cicada_tuning/analysis.py",
+            "new": "    return {\"ratio\": ratio, \"alive\": ratio > 0.75}\n",
+            "old": "    return {\"ratio\": ratio, \"alive\": ratio < 0.75}\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "9736c2525601bc02571a3655a87c5a61b239b3e7d038a12f1dd41ee5f3f45200",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_vhash_cicada_tuning.py",
+      "orchestrator/tests/test_plot_vhash_cicada_tuning.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "cdd14ea8f74f1bdeb43e28897c0c59dcdf1a3d66",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_vhash_cicada_tuning.py",
+      "orchestrator/tests/test_plot_vhash_cicada_tuning.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "97c6b1bbd0362abbb06bd738d09bc9282f417f6c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "31c95d48b9b931446032eeb08db5f8a03678939c2109c1b430a2b161acbe4c09",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "293719f6e4b0c4cd0a433560424e9fdd4520a673aaaca8f68ca525e33977eaf1",
+  "summary": {
+    "KILLED": 9,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-baseline-tuning/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "6624398c9b4afcf7d46ebc486c98751cc28fa5b18c8ba21d97b4d8a5fddc975e",
+  "updated_at": "2026-09-29T04:46:02.941661+00:00"
+}

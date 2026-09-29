@@ -73707,3 +73707,42 @@ spool fragment に置き、次の版の wave がそれらから全面再導出�
 - HP (代行による前進) — 通常経路の費用が増え、止まった thread でも段階 C は解けない。採るなら descriptor の世代つき CAS が確定だけでなく公開までを覆い、snapshot の後に tx が読み取りを足せないことが必要 (段 3 の相談で判明、未検査)。
 - 「公開した floor の最大値」を gc_floor と別の量として持つ — アクセス駆動の公開を記録し損ね、意味が二重になる。
 - 効果を同じ trace 上の「要求直前 → 公開直後」の差で数える — 他 tx の進行が混ざる。
+
+## D2291. VHash 論文の比較相手 Cicada の較正は、stock のまま新規の診断 driver で測り、floor にも採否にも接続しない (2026-09-29)
+
+**決定:** VHash 論文の主 baseline (最適化と GC 設定を調整した Cicada) を決める計測を、次の形で行った。
+
+1. 既存の between-run floor driver (D1373 の関門で Cicada を拒否する) を変えず、新規の診断 driver `tools/vhash_cicada_tuning/` で測る。得た job 間ばらつきは「Cicada control の job 間 session-median CV (複数投入束)」と名乗り、D145 の floor とは呼ばない。floor artifact (`output/env/*/calibration/between_run_noise_*`)・compare・採否には接続しない。関門の射程は floor の生成であり、診断値として一次資料に書くことは迂回ではない (段 3 相談 A も「関門を理由に診断測定を止める必要はない」と判定)。
+2. CCBench は改変しない (stock のまま測る)。stock で compile できない設定 (INLINE_VERSION_OPT=1 かつ INLINE_VERSION_PROMOTION=1 の 8 genome、WORKER1_INSERT_DELAY_RPHASE の待機型) は欠測として記録し、CCBench 還元候補の insight にする。
+3. 条件の binding は build ごとの compile command の -D 照合と binary sha256 で行う。Cicada は `#ShowOptParameters()` を呼ばない (定義だけ) ので、起動時表示は binding に使えない。
+4. 探索 (J1) と確認 (J2) を分け、最良と候補集合は J2 だけから計算する。候補集合の規則 (score ≥ score_best × (1 − cv)) は結果を見る前に段 4 で固定した記述的なリストで、統計的同等性の主張ではない。
+5. 計算は合計 2 node 時間未満に収めるため、J0 の実測単価で事前登録の縮小梯子 (R1〜R3) を結果前の式どおりに適用した。
+
+**理由:**
+- 弱い baseline に勝っても論文の主張にならない。実測で、CCBench の既定の Cicada は観測最良より rr50 で約 4.5 倍遅かった (一次資料 `output/insights/2026-09-29/vhash-cicada-baseline-tuning/README.md` §6)。
+- D1373 の関門は source の trace hook 証拠が無い protocol の floor 生成を拒否するもので、Cicada の hook は patch にしか無い (md_3)。関門を変えず、floor を作らない経路で測るのが最小である。
+- 1 投入束 (実質 1 時間窓) の値を floor と呼ぶことは D145 が禁じている。
+
+**却下した選択肢:**
+- `between_run_floor.py` の BASELINES に Cicada を足す — D1373 の関門で止まり、足しても測定は開通しない (D2083 項 4 と同じ)。
+- 既定 (CMake cache 既定) の Cicada を比較相手にする — 最良から 2〜4.5 倍離れた弱い baseline になる。
+- build できない 8 genome を patch で直して測る — 依頼の所有制約 (cc/cicada を改変しない) に反し、stock の比較相手としても使えない。
+
+## D2292. VHash の選択的 forwarding の直列化可能性の一般論証は md_4 仕様 v1 の R9' に固定し、Cicada 型の「PENDING を待つ」書き込み検査は条件 W* を置いた別補題として扱う (2026-09-29)
+
+**決定:**
+
+1. 一般論証 (一次資料 `output/insights/2026-09-29/vhash-forwarding-proof/README.md`) の定理は、md_4 仕様 v1 (D2282、R9' を含む) を前提にする。範囲は point read / update、逐次一貫なメモリ、md_4 の原子性、出典メモ §25 の構成 C (GC 保護は変えない)、O1 のあり・なしの両方。仮定は A1〜A11 として列挙する。
+2. 論証の芯は「reader は rts を上げてから観測し直す」「writer は設置してから PENDING を越えて最初の確定版まで rts を検査する」の 2 つの順序。違反した状態で確定している版のうち wts が最小のものを取り、確定・abort が吸収状態であることを使って、複数 writer の場合を帰納法なしに閉じる。
+3. Cicada の書き込み検査は R9' と違い PENDING の確定を待つので、定理の前提 (A6) には入れない。待機解除後に status を観測し直す条件 W* を置いた補題 2′ で、同じ結論が出ることを示す。Cicada 実装が W* を満たすかは後で確かめる項目とし、主張しない。
+4. md_10 の SP は確認 (G2) と確定 (G3) が R5・R6 と同じ手順である部分に限って同じ議論が通るとし、GC 接続 (G4〜G7) の安全性は主張しない。md_6 の試作 (D2287、O1 なし) については「O1 なしの経路が試作設計の狙いを説明する」に留め、試作の正しさは主張しない。
+
+**理由:**
+- 段 2 の起草と段 3 の相談 2 本が、R9' (PENDING の rts も見て越える) と Cicada の待ち (待ってから確定版を見る) は別規則で、1 つの性質にまとめると一次資料 (md_8) の区別を消すと指摘した。相談 A は、待機後に観測し直さない解釈で印を見落とす列を作った。
+- 論文に書く定理の対象を 1 つの仕様に固定すると、証明と md_4 の反例 (v0/S8、U1v、U2、U1f+O1、U6+O1) の対応が一対一に書ける。
+- 段 3 相談 A と段 6 レビュー A (反例を作る側) は、範囲の中で定理を破る列を作れなかった。
+
+**却下した選択肢:**
+- 書き込み側を 1 つの抽象性質 (親の段 1 の仮置き WP) で R9' と Cicada の待ちの両方に通す — 待つ型では待機後の再観測が要り、R9' の証明はそれを含まない。
+- md_10 を「発火の契機を問わない」ことの根拠にする — md_10 は待機中の発火と限られた候補の固定 6 場面の探索で、一般の独立性の根拠にならない。独立性は証明が R4 (発火と前進先の選び方) を使わないことから示した。
+- 探索 (固定場面) を増やして一般性を補う — md_13 は新規の計測・実装をしない指示で、場面を増やしても一般の証明にはならない。

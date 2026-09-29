@@ -21763,6 +21763,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: fix 子の報告に「指示衝突により変更なしで停止」が現れたら、
   禁止の射程が過大だった合図として扱う。
 
+
+- **再発: 2026-09-29** — VHash 比較相手 Cicada の較正 wave の段 6 fix-4 で、「既存テストの期待値を変更しない」と書いたため、同じ wave で新設した test の `len(j2) == 5` (裁定が 4 job へ変える挙動を写した期待) と衝突し、子は何も変えずに停止した (1 巡空費)。fix-4b で「この wave で新設した 2 本の test file に限り、裁定の fix 行が変える挙動を直接写した期待だけ更新を許す」と名指しして通った。
 ### F734. 正例の述語は正しかったが走行が変異箇所を通らなかった [恒真ゲート] [検出力]
 
 - 事象: 新しい道具の出力へ「呼び手を持たない無条件 `false` の削除許可 field」を差し戻す変異が、
@@ -22010,6 +22012,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: `docs/dev-wave/operations.md` DW-O17へcompound shellの先頭`set -e`、またはtool call分離を追加した。
 - 再発検知: commit前tool callの先頭と実行結果を確認し、preflight非0後にHEADが進んでいないことを照合する。
 
+
+- **再発: 2026-09-29** — VHash 比較相手 Cicada の較正 wave で、local main 取り込みの merge commit の provenance 事前検査 (`--message-file`) と `git commit -F` を同じ応答内の並列 tool 呼出しにしたため、事前検査が赤 (両親と異なる実装面 `orchestrator/tests/test_official_perf_closure.py` に Codex role=author が無い) なのに merge commit が作られた。受入・land に使う前に気づき、Codex 子の merge 合成監査を経て message を amend した。`DW-O17` の「tool call を分ける」は順に呼ぶ意味で、並列呼出しは分けたことにならない。
 ### F754. 検証が要求する入力を、その入力を記録した producer 自身が検証前に削除していた [ドリフト] [手順漏れ]
 
 - 事象: 床値実測の主経路が binary admission receipt の発行段で
@@ -23323,6 +23327,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   'kind': 'update-no-fetch'}` を出し、submodule 自体は初期化済み (status 行頭の `-` が消えていた)、
   2 走目で `OK` rc=0。同 wave で後から作った 2 つ目の worktree (`…-scope-lift`、同一 commit) では
   1 走目で rc=0 だった。回数は固定ではないという既知の観測と整合する。
+
+- **再発: 2026-09-29** — dev-wave-vhash-forwarding-proof の wave 用 worktree で、`tools/dev_wave_submodule_init.py --worktree <ABS>` の 1 回目が **`ERROR: invalid-run: detail={'label': 'git', 'kind': 'timeout'}`** の rc=1 になった (本エントリの既載の再発はどれも `update-no-fetch` で、timeout を直接観測していなかった。今回は tool 自身が git の timeout を報告した)。2 回目は 57 秒かかって `runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}` の rc=1。その後 `git -c protocol.file.allow=always submodule update --init --recursive` を直接実行して rc=0 になったが、入れ子の googletest が未初期化 (`git submodule status --recursive` で `-`) のまま残り、同じ command の 2 回目で揃った。同時刻に別 session の `git worktree add` が 5 本並走し (load average 176)、本 wave の `git worktree add` 自体も 1 回目は checkout 中の `システムコール割り込み` (EINTR) で `fatal: cannot create directory` になって作り直した。既載の「`_GIT_TIMEOUT_S = 30` が submodule 段全体に配られ、高負荷の新規 worktree では収まらない」という候補と整合する観測である。恒久対応は引き続き未実施。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
@@ -28645,3 +28651,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 子への指示が「公開 source を読む」だけで、repo が原典かどうかを確かめる手順を持たなかった。検索で先に現れた repo をそのまま使った。
 - 恒久対応: memory `paper-source-must-come-from-upstream-repo` (子の prompt に原典 repo の指定と fork 判定を書く、親が API の `fork`・`parent`・`pushed_at` を見て SHA-256 を照合する)。
 - 再発検知: 子の報告に GitHub repo 名が出たら、親が API の `fork` を 1 回確かめる (記録は insight の取得記録)。
+
+### F1065. 印字関数の定義を「実行時に必ず印字される」と取り違え、run の binding 照合を全 run 必須にした [手順漏れ] [恒真ゲート]
+
+- 事象: VHash 比較相手 Cicada の較正 wave の段 1 brief (P8) に「`#ShowOptParameters()` 行は util.cc:326-336 が必ず印字」と書き、driver はその行がちょうど 1 行あることを全 run で要求した。実物では Cicada の `ShowOptParameters()` は定義だけで、CCBench 全体の呼出しは `cc/ss2pl/ss2pl.cc:117` の 1 件だけだった。段 2 plan・段 3 相談 2 本・段 5 author も見逃した。計算ノードへ投入する前の親の自己レビューで見つけ、fix で照合を compile command の -D 照合へ置き換えた (投入前なので計算の空費はなし)。
+- 根本原因: 印字の実在を関数定義の grep で確かめ、呼出し側 (実行経路) を確かめなかった。`DW-O13` の「field の実在では足りない、実環境で取りうる値を実測」を、コード読みの段階で「実行経路に乗るか」まで当てなかった。
+- 恒久対応: memory `print-function-must-be-called-to-count`（印字・計測の関数は定義でなく呼出しを grep し、実行経路に乗ることを確かめてから照合の入力にする）。`docs/dev-wave/operations.md` の `DW-O13` (入力の実在は実環境の値で確かめる) の適用例。
+- 再発検知: binding や照合の入力を「stdout の行」「ログの行」にするとき、段 1 で呼出し元の file:line を brief に書けなければ未確認として扱う。

@@ -1,0 +1,155 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/model.py",
+          "old": "    result = [dict(g.flags) for g in CICADA_SPACE.enumerate()]\n    if len(result) != 24 or CONTROL not in result:\n",
+          "new": "    import itertools\n    result = [dict(zip(AXES, values)) for values in itertools.product((0, 1), repeat=len(AXES))]\n    if CONTROL not in result:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_j1_stock_buildable_genomes_and_missing_cells",
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_measured_throughput_scale_layout",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_genomes_and_control"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/driver.py",
+          "old": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **genome,\n",
+          "new": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **{k: v for k, v in genome.items() if k != \"WRITE_LATEST_ONLY\"},\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/driver.py",
+          "old": "    expected = {\"TRACE\": 0, \"ADD_ANALYSIS\": 0, **genome,\n",
+          "new": "    expected = {\"ADD_ANALYSIS\": 0, **genome,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_compile_binding_positive_and_negative"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "old": "                and int(p[\"maxrss_kb\"]) * 1024 >= 4 * l3_bytes]\n",
+          "new": "                and int(p[\"maxrss_kb\"]) * 1024 > 4 * l3_bytes]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_rss_boundary_and_saturation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "old": "                     if value >= scores[best] * (1 - cv))\n",
+          "new": "                     if value >= scores[best] * (1 + cv))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "old": "    return st.stdev(values) / mean\n",
+          "new": "    return st.pstdev(values) / mean\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_control_session_cv_metadata",
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_cv_and_j2_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/model.py",
+          "old": "    if rratio in (20, 80):\n",
+          "new": "    if rratio in ():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_holdout_and_argv"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_cicada_tuning.py",
+          "old": "            if _intersection_area(left_box, right_box) > 1.0:\n",
+          "new": "            if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_cicada_tuning.py::test_real_size_figures_and_overlap_rejection"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/vhash_cicada_tuning/analysis.py",
+          "old": "    return {\"ratio\": ratio, \"alive\": ratio < 0.75}\n",
+          "new": "    return {\"ratio\": ratio, \"alive\": ratio > 0.75}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_tuning.py::test_wait_alive_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
