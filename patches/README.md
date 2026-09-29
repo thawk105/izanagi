@@ -910,6 +910,14 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
 
 ---
 
+## cicada-vhash-hot-block-variant.patch — Cicada の物理先頭 K 版の hot block (2026-09-29)
+
+pin C `68106660` の `cc/cicada/` にだけ当てる out-of-tree patch。`CICADA_VHASH_K` は 0 (未定義の既定・stock)、1、2、4、8 のみ。`CICADA_VHASH_COUNT` と `CICADA_VHASH_WL` は各 0/1 (未定義は 0)。WL=1 の `--vhash_ronly_pct` は −1 (YCSB 生成のまま) または 0〜100。K>0 は Tuple の latest 直後に atomic な sequence、件数、K 件の wts/ptr を置き、物理列の先頭 K 件 (PENDING・ABORTED を含む) を写す。reader は第 1 段だけで使用し、奇数・世代変化なら stock に戻る。install の 2 CAS と GC の tail 切断は sequence 書き区間内。`TRACE=1` の場合は pin → `instr-cicada-trace.patch` → 本 patch と重ねる。性能用には TRACE=0・COUNT=0 を使う。
+
+COUNT=1 は終了時に stdout へ `CICADA_VHASH_COUNT_JSON` を 1 行出す。schema_version=1、k、sizeof_tuple (byte)、workers (thid 0〜255 の配列)。各 worker の hot は hot snapshot 採用回数、fallback_odd / fallback_changed は sequence による stock fallback 回数、cold は hot 全件が新しく cold 探索へ出た回数。hops は第 1 段で飛ばした物理版数の bucket `[0,1,2,3,4-7,8-15,16+]`、snapshot_lag_ts は ro transaction の begin 時の `max(0,wts_.ts_−rts_)` の bucket `[0,1,2-3,4-7,...,32768-65535,65536+]` (timestamp 単位)。ro_commit / ro_abort / update_commit / update_abort は transaction 件数。install_wait_cycles、install_hold_cycles、gc_hold_cycles は rdtscp cycle の総和、install_count / gc_count は対応する区間の件数。K=0 でも hops、lag、commit/abort を計数する。
+
+壊し patch は本 patch の上にだけ重ねる。`broken-cicada-vhash-stale-hot.patch` は ro の hot 採用で 1 件古い確定版を選ぶ。`broken-cicada-vhash-skip-pending.patch` は hot 採用の PENDING を待たずに後続の確定版へ進む。両方とも stderr に `CICADA_BREAK_EVENT` (reached / changed / committed、tx_wts、key、read_wts) を全件、終了時に `CICADA_BREAK_FIRED` を出す。trace v2 の行は変更しない。
+
 ## instr-cicada-trace.patch / broken-cicada-{skip-read-recheck,no-rts-update,stale-read-ro}.patch — Cicada の trace と正例 (VHash 論文の前提 G0、2026-09-29)
 
 pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 の本来の置き場 (`izanagi-trace` 枝) への移送と pin 前進は
@@ -922,6 +930,8 @@ pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 
 | broken-cicada-skip-read-recheck | なし | validation の read set 再検査で、読んだ版が今の可視版と違っても abort しない |
 | broken-cicada-no-rts-update | なし | `readTimestampUpdateInValidation()` の呼出しを外す |
 | broken-cicada-stale-read-ro | なし | read-only txn の可視版選択で、txn 内の偶数番目の読みに限り可視版の 1 つ古い committed 版を選ぶ |
+| broken-cicada-vhash-stale-hot | なし | hot から選んだ版の 1 件古い確定版を ro 読みの一部に返す (variant の上だけ) |
+| broken-cicada-vhash-skip-pending | なし | hot から選んだ PENDING 版を待たずに次の確定版へ進む (variant の上だけ) |
 
 - **重ね方:** 壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
   instr が `cc/cicada/` の 4 file)。壊しは裸マクロを持たない無条件 patch なので、既定で重ならず、正例の build にだけ当てる。
