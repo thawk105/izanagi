@@ -131,6 +131,7 @@
   再生成は wrapper 経由で行う:
   `python3.10 /work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/tools/t2853_r2_fig6_plot.py --generator <repo>/tools/plotting/plot_a2_certification.py --expected-generator-sha256 aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448 draw --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2853r2-20260929a --certification <collect-root>/output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json --raw-manifest <同 dir>/raw-manifest.json --out-prefix <出力 dir>/fig6_r2_a2_certification`
   (`<collect-root>` = `/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/collect-root`)。対照表は同じ wrapper の `table` (argv は置き場の README)。
+- 図と同じ dir の `figures/README.md` に、caption 末尾の定型文の注意と、wrapper 経由の再生成手順を置いた (段 6 レビュー B-1・B-2)。
 
 ### 5.1 wrapper (repo 外の使い捨て)
 
@@ -168,3 +169,27 @@
 - repo 外: 測定原本 `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2853r2-20260929a/` (receipts・job root 2 本)、
   置き場 `/work/1/SFC/tanab/izanagi-repro-archive/t2853-r2-fig6-20260929/` (`collect-root/`・`figure/`・`control/`・`tools/`・`README.md`)。
   投入元 checkout は一時置き場 `/work/1/SFC/tanab/tmp/t2853-r2-fig6-20260929/submit-tree` (wave の終わりに撤去)。
+
+## 9. 段 6 レビュー
+
+commit `75749a951` と repo 外の成果物を対象に、Codex の read-only レビューを 2 本並列で行った (受理検査 rc=0)。
+
+- **A (一次資料との照合・正しさ境界): GO、所見なし** (`verbatim/s6-review-a.md`)。識別子・sha256・4 cell の集計値の食い違い 0、Elapse の和から 2.161 node 時間を再計算、
+  両 job の verify 出力 24 行すべて anomaly 0、raw cell が正しさ検証に trace 有効 build・性能計測に trace 無効 build を記録していること、wrapper が `expected_hashes` だけを使い検査関数・定数を差し替えていないこと、
+  §0 が結果後も同一で原 attempt の tracked 成果物と fig6 に差分が無いことを確かめた。
+- **B (過剰・削除): NO-GO (should-fix 2・nit 1)** (`verbatim/s6-review-b.md`)。追加の gate や台帳を求める所見は無い。
+
+| ID | 所見 | 判定 | 処置 |
+|---|---|---|---|
+| B-1 | provenance の `reproduction` をそのまま実行すると入力 hash 検査で止まる | real | 図と同じ dir に `figures/README.md` を置き、wrapper 経由の実行できる手順を書いた。provenance は生成器の出力のまま変えない |
+| B-2 | caption 末尾の「符号差」の定型文が、図だけを読む人を誤解させる | real | caption は生成器の既定のまま (段 4 (P2)) とし、`figures/README.md` に「R2 と原 attempt の効果はどちらも正で符号差は無い、この文は原 fig6 の定型文」と注記した |
+| B-3 | 受入の実測が worklog にまだ無い | real (nit) | 受入後に worklog fragment へ実測を書く |
+
+### 9.1 逐語の可逆最小正規化
+
+Codex の出力 2 本は markdown の行末 2 空白を含み `git diff --check` に抵触したので、**行末の 2 空白だけを除去**した (可視文字は不変)。復元は列挙した行の末尾へ 2 空白 (U+0020 ×2) を戻す。
+
+| file | 原文 sha256 | 原文 bytes | 正規化後 bytes | 除去した行 (原文の行番号) |
+|---|---|---|---|---|
+| `verbatim/s6-review-a.md` | `b91b28d0ac788e9d42d3263bde9f5eb4c611ee973b35898ca30111a41b88fa18` | 831 | 829 | 7 |
+| `verbatim/s6-review-b.md` | `2c085e605a70ad43431b3ae2fb0c107a5b1e97cd8c0f5eaf2aaa3d84e383f36c` | 2,470 | 2,468 | 13 |
