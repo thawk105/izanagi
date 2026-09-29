@@ -280,7 +280,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +                                      __ATOMIC_ACQUIRE)) {}
 +}
 +
-+void gc_failure(uint8_t thid, ForwardCheck c) {
++void gc_failure([[maybe_unused]] uint8_t thid, ForwardCheck c) {
 +  switch (c) {
 +    case ForwardCheck::read_mismatch:
 +      GC_INC(thid, read_mismatch);
@@ -411,8 +411,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +}
 +} // namespace
 +
-+void cicada_gc_hold_begin(TxExecutor& tx) { GC_HELD_BEGIN(tx); }
-+void cicada_gc_hold_end(TxExecutor& tx) { GC_HELD_END(tx); }
++void cicada_gc_hold_begin([[maybe_unused]] TxExecutor& tx) { GC_HELD_BEGIN(tx); }
++void cicada_gc_hold_end([[maybe_unused]] TxExecutor& tx) { GC_HELD_END(tx); }
 +
 +void cicada_gc_safepoint(TxExecutor& tx) {
 +  GC_INC(tx.thid_, safepoints);
