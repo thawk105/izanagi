@@ -5,6 +5,7 @@ from dataclasses import replace
 from .model import State, Txn, Version, enabled_steps, visible, _hot
 
 NAMES = tuple(f"S{i}" for i in range(1, 11))
+GC_NAMES = tuple(f"G{i}" for i in range(1, 7))
 
 
 def _v(key, ts, rts=None):
@@ -16,7 +17,46 @@ def _t(name, ts, *ops):
 
 
 def scenario(name):
-    if name == "S1":
+    if name == "G1":
+        state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
+                      (_t("T", 45, ("R", "A"), ("WAIT", "")),
+                       _t("W", 50, ("W", "B"))))
+        predicate = lambda b, a, x: x.operation == "read_floor" and any(
+            t.id == "T" and t.gc_floor > t.start and t.pc == 1 and t.phase == "ops"
+            for t in a.txns)
+    elif name == "G2":
+        state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
+                      (_t("T", 45, ("R", "A"), ("WAIT", "")),
+                       _t("U", 35, ("R", "A"), ("WAIT", ""))))
+        predicate = lambda b, a, x: x.operation == "read_floor" and any(
+            t.id == "T" and t.gc_floor > t.start and t.pc == 1 for t in a.txns) and any(
+            t.id == "U" and t.gc_floor == t.start and t.pc == 1 for t in a.txns)
+    elif name == "G3":
+        state = State((_v("A", 20), _v("B", 40), _v("B", 60)),
+                      (_t("T", 45, ("R", "A"), ("WAIT", ""), ("R", "B")),
+                       _t("W", 50, ("W", "A"))))
+        predicate = lambda b, a, x: x.operation == "read_floor" and any(
+            t.id == "T" and t.phase in ("p_rts", "p_check", "p_commit")
+            and t.cand_ts == t.start for t in a.txns)
+    elif name == "G4":
+        state = State((_v("A", 20), _v("B", 40), _v("B", 60), _v("B", 80)),
+                      (_t("T", 45, ("R", "A"), ("WAIT", ""), ("R", "B")),))
+        predicate = lambda b, a, x: x.operation == "read_floor" and any(
+            t.id == "T" and t.cand_ts > t.start and t.pc == 1 for t in a.txns)
+    elif name == "G5":
+        state = State((_v("A", 10), _v("B", 11), _v("B", 25)),
+                      (_t("T", 15, ("R", "A"), ("WAIT", ""), ("W", "B")),
+                       _t("W", 20, ("R", "B"), ("W", "A"))))
+        predicate = lambda b, a, x: x.operation == "install" and x.version == "W:A" and any(
+            t.id == "T" and t.phase in ("p_rts", "p_check", "p_commit") for t in a.txns)
+    elif name == "G6":
+        state = State((_v("A", 20), _v("B", 40), _v("B", 60), _v("B", 80)),
+                      (_t("T", 45, ("R", "A"), ("WAIT", ""), ("R", "B")),
+                       _t("W", 70, ("W", "A"))))
+        predicate = lambda b, a, x: x.operation == "pressure_fallback" and any(
+            t.id == "T" and t.published_max > t.start for t in a.txns) and any(
+            v.id == "B40" and v.reclaimed for v in a.versions)
+    elif name == "S1":
         state = State((_v("A", 10), _v("B", 11)),
                       (_t("T", 70, ("R", "A"), ("W", "B")),
                        _t("W", 50, ("R", "B"), ("W", "A"))), 1)
@@ -102,6 +142,21 @@ def scenario(name):
 
 def danger_witness(name):
     """Unsafe outcomes, distinct from the interruption-window witnesses."""
+    if name in ("G1", "G2"):
+        return lambda b, a, x: False
+    if name == "G3":
+        return lambda b, a, x: x.operation == "reclaim" and x.version == "B40" and any(
+            t.id == "T" and t.cand_ts == 45 and t.pc == 1 and t.phase in
+            ("p_rts", "p_check", "p_commit") for t in b.txns)
+    if name == "G4":
+        return lambda b, a, x: x.operation == "reclaim" and x.version == "B60" and any(
+            t.id == "T" and t.cand_ts == 61 and t.pc == 1 for t in b.txns)
+    if name == "G5":
+        from .judge import j1
+        return lambda b, a, x: x.operation == "decide_committed" and bool(j1(a))
+    if name == "G6":
+        from .judge import j3
+        return lambda b, a, x: x.operation == "pressure_fallback" and bool(j3(b, a, x))
     if name == "S3":
         return lambda b, a, x: (x.operation == "reclaim" and x.version == "A20"
                                 and any(t.phase == "f_publish" and t.start == 45

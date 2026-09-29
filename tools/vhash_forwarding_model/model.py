@@ -49,12 +49,19 @@ class Txn:
     observed_end: tuple[tuple[str, int], ...] = ()
     observed_rts: tuple[tuple[str, int], ...] = ()
     forward_hot: str = ""
+    published_max: int = 0
+    pressure_request: bool = False
+    attempt_base: int = 0
+    tried_targets: tuple[int, ...] = ()
+    pressure_base_confirmed: int = 0
 
     def __post_init__(self):
         if not self.cand_ts:
             object.__setattr__(self, "cand_ts", self.start)
         if not self.gc_floor:
             object.__setattr__(self, "gc_floor", self.start)
+        if not self.published_max:
+            object.__setattr__(self, "published_max", self.start)
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +76,8 @@ class State:
         initial = [v.wts for v in self.versions if v.owner == "initial"]
         starts = [t.start for t in self.txns]
         assert len(initial + starts) == len(set(initial + starts))
-        assert all(len(t.ops) <= 3 for t in self.txns)
+        assert all(len(t.ops) <= 4 and sum(op != "WAIT" for op, _ in t.ops) <= 3
+                   for t in self.txns)
         assert self.k in (1, 2)
         object.__setattr__(self, "_cached_hash", hash((self.versions, self.txns, self.k, self.gc_seen)))
 
@@ -199,13 +207,17 @@ def _abort_or_next(t: Txn, success: bool) -> Txn:
     return replace(t, failed=t.failed or not success, index=t.index + 1)
 
 
-def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool = False) -> tuple[State, Step] | None:
+def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool = False,
+             pressure: str = "off") -> tuple[State, Step] | None:
     if t.phase == "done":
         return None
     if t.phase == "ops":
         if t.pc == len(t.ops):
             return _put_txn(s, replace(t, phase="fixed")), Step(t.id, "begin_commit")
         op, key = t.ops[t.pc]
+        if op == "WAIT":
+            return _put_txn(s, replace(t, pc=t.pc + 1, pressure_request=False,
+                                       tried_targets=())), Step(t.id, "end_wait")
         if op == "W" or key in _writes(t) and any(o == "W" and k == key for o, k in t.ops[:t.pc]):
             return _put_txn(s, replace(t, pc=t.pc + 1)), Step(t.id, "buffer_write" if op == "W" else "local_read")
         v = visible(s, key, t.cand_ts, faults)
@@ -267,9 +279,47 @@ def txn_step(s: State, t: Txn, protocol: str, faults: frozenset[str], o1: bool =
                      confirmed=t.confirmed + tuple((vid, t.target) for _, vid in t.read_log))
         return _put_txn(s, nt), Step(t.id, "forward_commit")
     if t.phase == "f_publish":
-        return _put_txn(s, replace(t, gc_floor=t.cand_ts, phase="ops")), Step(t.id, "publish_floor")
+        return _put_txn(s, replace(t, gc_floor=t.cand_ts, phase="ops",
+                                   published_max=max(t.published_max, t.cand_ts)
+                                   if pressure == "self" else t.published_max)), Step(t.id, "publish_floor")
     if t.phase == "fallback":
         return _read(s, t, t.ops[t.pc][1], cold=True, faults=faults)
+    if t.phase in ("p_rts", "p_check"):
+        ids = tuple(vid for _, vid in t.read_log)
+        if t.index == len(ids):
+            phase = "p_check" if t.phase == "p_rts" else "p_commit"
+            return _put_txn(s, replace(t, phase=phase, index=0)), Step(t.id, "pressure_pass")
+        vid = ids[t.index]
+        v = _version(s, vid)
+        if v.reclaimed:
+            return s, Step(t.id, "touch_reclaimed", vid)
+        if t.phase == "p_rts":
+            ns = _put_version(s, replace(v, rts=max(v.rts, t.target)))
+            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, "pressure_rts", vid)
+        selected = visible(s, v.key, t.target)
+        if selected and selected.reclaimed:
+            return s, Step(t.id, "touch_reclaimed", selected.id)
+        ok = "UG3" in faults or bool(selected and selected.id == vid)
+        return _put_txn(s, _abort_or_next(t, ok)), Step(t.id, "pressure_check", vid,
+                                                        "UG3" if "UG3" in faults else "")
+    if t.phase == "p_commit":
+        if t.failed:
+            base = t.start if "UF1" in faults and t.published_max > t.start else t.attempt_base
+            nt = replace(t, cand_ts=base, phase="ops", target=0, failed=False,
+                         pressure_request=False)
+            return _put_txn(s, nt), Step(t.id, "pressure_fallback",
+                                         fault="UF1" if base == t.start and base != t.attempt_base else "")
+        floor = 10**9 if "UG2" in faults else t.gc_floor
+        nt = replace(t, cand_ts=t.target, phase="p_publish", gc_floor=floor,
+                     refs=() if "UG2r" in faults else t.refs,
+                     confirmed=t.confirmed + tuple((vid, t.target) for _, vid in t.read_log))
+        fault = "UG2" if "UG2" in faults else "UG2r" if "UG2r" in faults else ""
+        return _put_txn(s, nt), Step(t.id, "pressure_commit", fault=fault)
+    if t.phase == "p_publish":
+        nt = replace(t, gc_floor=t.cand_ts if "UG2" not in faults else t.gc_floor,
+                     published_max=max(t.published_max, t.cand_ts), phase="ops",
+                     target=0, pressure_request=False)
+        return _put_txn(s, nt), Step(t.id, "pressure_publish")
     if t.phase == "fixed":
         return _put_txn(s, replace(t, fixed=True, phase="install")), Step(t.id, "fix_timestamp")
     if t.phase == "install":
@@ -354,13 +404,34 @@ def gc_steps(s: State, faults: frozenset[str]) -> list[tuple[State, Step]]:
     return out
 
 
-def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = frozenset(), o1: bool = False):
+def enabled_steps(s: State, protocol: str = "v1", faults: frozenset[str] = frozenset(),
+                  o1: bool = False, pressure: str = "off", revert_after_confirm: bool = False):
     assert protocol in ("v0", "v1")
     assert len(faults) <= 1
     for t in s.txns:
-        result = txn_step(s, t, protocol, faults, o1)
+        result = txn_step(s, t, protocol, faults, o1, pressure)
         if result is not None:
             yield result
+        if pressure == "self" and t.phase == "ops" and t.pc < len(t.ops) and t.ops[t.pc] == ("WAIT", ""):
+            if not t.pressure_request:
+                yield _put_txn(s, replace(t, pressure_request=True)), Step("GC", "request_pressure", t.id)
+            if t.pressure_request and not t.fixed and not t.pending:
+                from .gc_connection import pressure_targets
+                for target in pressure_targets(s, t):
+                    if target in t.tried_targets:
+                        continue
+                    nt = replace(t, phase="p_rts", target=target, index=0, failed=False,
+                                 attempt_base=t.cand_ts, pressure_base_confirmed=len(t.confirmed),
+                                 tried_targets=t.tried_targets + (target,))
+                    if "UG1" in faults:
+                        nt = replace(nt, gc_floor=target)
+                    yield _put_txn(s, nt), Step(t.id, "pressure_start", str(target),
+                                                 "UG1" if "UG1" in faults else "")
+        if revert_after_confirm and t.phase == "p_publish":
+            nt = replace(t, cand_ts=t.attempt_base, target=0, phase="ops",
+                         confirmed=t.confirmed[:t.pressure_base_confirmed],
+                         pressure_request=False)
+            yield _put_txn(s, nt), Step(t.id, "pressure_revert")
     yield from gc_steps(s, faults)
 
 
@@ -391,10 +462,12 @@ def fault_changes_forward_check(initial: State, trace: list[Step], fault: str,
     return False
 
 
-def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False) -> State:
+def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False,
+           pressure="off", revert_after_confirm=False) -> State:
     s = initial
     for step in trace:
-        matches = [(n, x) for n, x in enabled_steps(s, protocol, frozenset((fault,)) if fault else frozenset(), o1)
+        matches = [(n, x) for n, x in enabled_steps(s, protocol, frozenset((fault,)) if fault else frozenset(), o1,
+                                                pressure, revert_after_confirm)
                    if x == step]
         assert len(matches) == 1, step
         s = matches[0][0]
@@ -402,7 +475,8 @@ def replay(initial: State, trace: list[Step], protocol="v1", fault="", o1=False)
 
 
 def explore(initial: State, protocol="v1", fault="", witness=None, max_states=None,
-            o1=False, max_seconds=None, all_transitions=False, danger=None):
+            o1=False, max_seconds=None, all_transitions=False, danger=None,
+            pressure="off", revert_after_confirm=False, state_invariant=None):
     """Explore every enabled edge, including edges to states already visited.
 
     J1 and J2 depend only on committed transactions and committed versions, so
@@ -418,11 +492,18 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
     queue = deque([initial])
     parent = {initial: None}
     check_timestamp_uniqueness(initial)
+    if state_invariant is not None:
+        state_invariant(initial)
     verdicts = {"J1": None, "J2": None, "J3": None}
     violation_kinds = {"J1": set(), "J2": set(), "J3": set()}
     counterexample = None
     witness_trace = None
     danger_trace = None
+    effects = None
+    if any(("WAIT", "") in t.ops for t in initial.txns):
+        effects = {"waiting_states": 0, "max_B": None, "max_freed": None,
+                   "simultaneous": None, "max_delta_B": None, "max_delta_freed": None,
+                   "g2": {"T_only": None, "both": None}}
     terminals = deadlocks = 0
     timed_out = False
     def trace(s):
@@ -436,7 +517,25 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             timed_out = True
             break
         s = queue.popleft()
-        steps = list(enabled_steps(s, protocol, faults, o1))
+        if effects is not None:
+            from .gc_connection import effect_snapshot
+            waiting = [t for t in s.txns if t.phase == "ops" and t.pc < len(t.ops)
+                       and t.ops[t.pc] == ("WAIT", "")]
+            if waiting:
+                effects["waiting_states"] += 1
+                snap = effect_snapshot(s)
+                path = trace(s)
+                for key, value in (("max_B", snap["B"]), ("max_freed", snap["freed"])):
+                    if effects[key] is None or value > effects[key]["value"]:
+                        effects[key] = {"value": value, "snapshot": snap, "steps": path}
+                if len(s.txns) >= 2 and {t.id for t in s.txns} >= {"T", "U"}:
+                    t = next(t for t in s.txns if t.id == "T")
+                    u = next(t for t in s.txns if t.id == "U")
+                    label = "T_only" if t.gc_floor > t.start and u.gc_floor == u.start else (
+                        "both" if t.gc_floor > t.start and u.gc_floor > u.start else "")
+                    if label and effects["g2"][label] is None:
+                        effects["g2"][label] = {"snapshot": snap, "steps": path}
+        steps = list(enabled_steps(s, protocol, faults, o1, pressure, revert_after_confirm))
         if not steps:
             terminals += 1
             if any(t.phase != "done" for t in s.txns):
@@ -444,8 +543,11 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
         for ns, step in steps:
             if ns not in parent:
                 check_timestamp_uniqueness(ns)
+                if state_invariant is not None:
+                    state_invariant(ns)
+            lowered = any(a.cand_ts < b.cand_ts for a, b in zip(ns.txns, s.txns))
             relevant = (all_transitions or step.operation.startswith("decide_")
-                        or step.operation in ("reclaim", "touch_reclaimed"))
+                        or step.operation in ("reclaim", "touch_reclaimed") or lowered)
             if not relevant and not witness:
                 found = {}
             elif relevant:
@@ -471,6 +573,18 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
                            if danger_uses_trace else danger(s, ns, step))
                 if reached:
                     danger_trace = trace(s) + [step]
+            if effects is not None and step.operation == "pressure_publish":
+                path = trace(s) + [step]
+                request_at = next((i for i in range(len(path) - 2, -1, -1)
+                                   if path[i].operation == "request_pressure" and path[i].version == step.thread), None)
+                if request_at is not None:
+                    before_request = replay(initial, path[:request_at], protocol, fault, o1,
+                                            pressure, revert_after_confirm)
+                    old, new = effect_snapshot(before_request), effect_snapshot(ns)
+                    for key, field in (("max_delta_B", "B"), ("max_delta_freed", "freed")):
+                        delta = new[field] - old[field]
+                        if effects[key] is None or delta > effects[key]["value"]:
+                            effects[key] = {"value": delta, "before": old, "after": new, "steps": path}
             if ns in parent:
                 continue
             parent[ns] = (s, step)
@@ -478,22 +592,34 @@ def explore(initial: State, protocol="v1", fault="", witness=None, max_states=No
             if max_states and len(parent) >= max_states:
                 queue.clear()
                 break
+    if effects is not None and effects["max_B"] is not None and effects["max_freed"] is not None:
+        mb, mf = effects["max_B"]["value"], effects["max_freed"]["value"]
+        for state in parent:
+            t = next((x for x in state.txns if x.phase == "ops" and x.pc < len(x.ops)
+                      and x.ops[x.pc] == ("WAIT", "")), None)
+            if t is not None:
+                snap = effect_snapshot(state)
+                if snap["B"] == mb and snap["freed"] == mf:
+                    effects["simultaneous"] = {"snapshot": snap, "steps": trace(state)}
+                    break
     return {"statistics": {"visited": len(parent), "terminal": terminals, "deadlock": deadlocks,
                            "seconds": monotonic() - began,
                            "complete": not timed_out and (not bool(max_states) or len(parent) < max_states)},
             "verdicts": verdicts, "counterexample": counterexample,
             "violation_kinds": {k: sorted(v) for k, v in violation_kinds.items()},
             "witness": {"reached": witness_trace is not None, "steps": witness_trace or []},
-            "danger": {"reached": danger_trace is not None, "steps": danger_trace or []}}
+            "danger": {"reached": danger_trace is not None, "steps": danger_trace or []},
+            "effects": effects}
 
 
-def aborted_after_fault(initial: State, fault: str, o1: bool = False) -> list[Step] | None:
+def aborted_after_fault(initial: State, fault: str, o1: bool = False,
+                        pressure: str = "off") -> list[Step] | None:
     """Find a fault step followed by that transaction's failed commit validation."""
     queue = deque([(initial, "", False, [])])
     seen = {(initial, "", False)}
     while queue:
         state, actor, failed_validation, trace = queue.popleft()
-        for next_state, step in enabled_steps(state, "v1", frozenset((fault,)), o1):
+        for next_state, step in enabled_steps(state, "v1", frozenset((fault,)), o1, pressure):
             changed = step.fault == fault
             if changed and fault == "U5":
                 txn = next(t for t in state.txns if t.id == step.thread)

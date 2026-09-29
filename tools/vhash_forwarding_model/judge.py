@@ -84,6 +84,12 @@ def j2(state):
 def j3(before, after, step):
     if step.operation == "touch_reclaimed":
         return {"version": step.version, "txn": step.thread, "reason": "use_after_free"}
+    for old, new in zip(before.txns, after.txns):
+        if new.cand_ts < old.cand_ts:
+            for v in after.versions:
+                if v.reclaimed and _needed_future(after, new, v):
+                    return {"version": v.id, "txn": new.id, "reason": "rollback",
+                            "cand_ts": new.cand_ts, "gc_step": step.operation}
     if step.operation != "reclaim":
         return None
     v = next(x for x in before.versions if x.id == step.version)
@@ -102,7 +108,8 @@ def j3(before, after, step):
 
 def judge(before, after, step, *, all_transitions=False):
     decision = all_transitions or step.operation.startswith("decide_")
-    gc = all_transitions or step.operation in ("reclaim", "touch_reclaimed")
+    gc = (all_transitions or step.operation in ("reclaim", "touch_reclaimed")
+          or any(a.cand_ts < b.cand_ts for a, b in zip(after.txns, before.txns)))
     return {"J1": j1(after) if decision else None,
             "J2": j2(after) if decision else None,
             "J3": j3(before, after, step) if gc else None}
