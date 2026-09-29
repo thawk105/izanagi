@@ -225,7 +225,7 @@ def _flags(cell: dict, *, records: int, extime: int, clocks_per_us: int,
             "izanagi_rogc_seed": seed,
             "extime": extime, "clocks_per_us": clocks_per_us,
             "group_commit": 0,
-            **({"izanagi_ronly_pct": -1, "izanagi_long_kind": 0} if
+            **({"izanagi_ronly_pct": -1} if
                cell.get("vlife") else {})}
 
 

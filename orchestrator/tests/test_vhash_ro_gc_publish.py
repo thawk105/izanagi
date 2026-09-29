@@ -32,6 +32,30 @@ def test_condition_grid_and_balanced_order():
         assert sum(row["order"][0] == "stock" for row in rows) == 3
 
 
+@pytest.mark.parametrize("records,extime,workers", ((1000000, 3, 48), (200, 1, 4)))
+def test_vlife_flags_match_build_macros(records, extime, workers):
+    # The main measure and smoke-vlife builds both use these macros. LONGTX is
+    # absent, so its guarded izanagi_long_kind flag is unavailable at runtime.
+    main = next(node for node in ast.parse(inspect.getsource(P)).body
+                if isinstance(node, ast.FunctionDef) and node.name == "main")
+    macro_literals = {node.value for node in ast.walk(main)
+                      if isinstance(node, ast.Constant) and isinstance(node.value, str)}
+    assert "IZANAGI_CICADA_VLIFE" in macro_literals
+    assert "IZANAGI_CICADA_LONGTX" not in macro_literals
+    assert sum(isinstance(node, ast.AugAssign)
+               and isinstance(node.target, ast.Name) and node.target.id == "macros"
+               and any(isinstance(value, ast.Constant)
+                       and value.value == "IZANAGI_CICADA_VLIFE"
+                       for value in ast.walk(node.value))
+               for node in ast.walk(main)) == 2
+    cell = {**P.CONDITIONS["S95-wait10msR-gc10"], "vlife": True}
+    flags = P._flags(cell, records=records, extime=extime,
+                     clocks_per_us=2100, workers=workers)
+    assert flags["izanagi_ronly_pct"] == -1
+    assert flags["worker1_insert_delay_rphase_us"] == 0
+    assert "izanagi_long_kind" not in flags
+
+
 def test_each_source_copy_prepares_ungated_build_before_condition_gates(monkeypatch, tmp_path):
     calls = []
 
