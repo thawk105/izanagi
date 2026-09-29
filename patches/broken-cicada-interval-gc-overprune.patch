@@ -26,7 +26,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    IGC_COUNT(thid, attempts);
    if (!tuple->getGCRight(thid + 1)) {
      IGC_COUNT(thid, lock_fail);
-@@ -357,7 +375,7 @@
+@@ -370,12 +388,12 @@
      if (!in_gap || chain[n]->ldAcqWts() > snap.horizon) return false;
      for (size_t j = 0; j < snap.count; ++j) {
        // Condition (b): no protected timestamp in this visible interval.
@@ -34,8 +34,13 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      if (j != 0 && chain[i]->ldAcqWts() <= snap.points[j] &&
            snap.points[j] < chain[n]->ldAcqWts())
          return false;
-       // Condition (d): retain the node directly above each visible node.
-@@ -382,6 +400,14 @@
+       // Keep both anchors: the first node at/below p may be pending, so
+       // its predecessor need not be the visible committed predecessor.
+       // A detached node keeps its next links. A blind writer following
+       // later_ver_ to insert at wts <= p reaches the protected predecessor
+       // of the first node at/below p before its pre_ver->next_ CAS.
+       if (vis[j] == i + 1 || first_le[j] == i + 1) return false;
+@@ -414,6 +432,14 @@
        for (size_t k = first; k < i; ++k) {
          // gc_lock_ serializes this mark with gcq_ pop for this tuple.
          chain[k]->igc_pruned_.store(1, std::memory_order_release);

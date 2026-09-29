@@ -105,7 +105,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -25,6 +36,368 @@
+@@ -25,6 +36,396 @@
  using namespace std;
  
  #define MSK_TID 0b11111111
@@ -236,7 +236,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    std::cout << "]}" << std::endl;
 +  }
 +} igc_report;
-+void igc_count_pruned(uint8_t thid, Version* v) {
++[[maybe_unused]] void igc_count_pruned(uint8_t thid, Version* v) {
 +  ++igc_counts[thid].pruned;
 +  igc_counts[thid].pruned_bytes += igc_bytes(v);
 +  unsigned bucket = igc_retention_bucket(v, false);
@@ -245,10 +245,10 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  else
 +    ++igc_counts[thid].retention_unknown;
 +}
-+void igc_count_pruned_drop(uint8_t thid, bool pruned) {
++[[maybe_unused]] void igc_count_pruned_drop(uint8_t thid, bool pruned) {
 +  if (pruned) ++igc_counts[thid].stock_lock_dropped_pruned;
 +}
-+void igc_count_reuse(uint8_t thid, Version* v) {
++[[maybe_unused]] void igc_count_reuse(uint8_t thid, Version* v) {
 +  ++igc_counts[thid].reuse;
 +  igc_counts[thid].reuse_bytes += igc_bytes(v);
 +  igc_retention_bucket(v, true);
@@ -305,7 +305,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +}
 +IGCPointSet igc_read_snapshot() {
 +  IGCPointSet result;
-+  for (;;) {
++  for (unsigned attempt = 0; attempt < 8; ++attempt) {
 +    const auto& src =
 +        igc_snapshot_slots[igc_published_slot.load(std::memory_order_seq_cst)];
 +    uint64_t before = src.sequence.load(std::memory_order_seq_cst);
@@ -318,6 +318,8 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    result.generation = src.generation.load(std::memory_order_seq_cst);
 +    if (before == src.sequence.load(std::memory_order_seq_cst)) return result;
 +  }
++  // A busy publisher can lap a slow reader. Skip this pruning attempt.
++  return {};
 +}
 +uint64_t igc_last_sample = 0;
 +
@@ -369,14 +371,17 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  struct Scratch {
 +    std::vector<Version*> chain;
 +    std::vector<size_t> vis;
++    std::vector<size_t> first_le;
 +    std::vector<size_t> newer_committed;
 +  };
 +  thread_local Scratch scratch;
 +  auto& chain = scratch.chain;
 +  auto& vis = scratch.vis;
++  auto& first_le = scratch.first_le;
 +  auto& newer_committed = scratch.newer_committed;
 +  chain.clear();
 +  vis.clear();
++  first_le.clear();
 +  newer_committed.clear();
 +  for (Version* v = tuple->ldAcqLatest(); v; v = v->ldAcqNext())
 +    chain.push_back(v);
@@ -396,8 +401,13 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +        return i;
 +    return chain.size();
 +  };
-+  for (size_t j = 0; j < snap.count; ++j)
++  for (size_t j = 0; j < snap.count; ++j) {
 +    vis.push_back(visible(snap.points[j]));
++    size_t first = 0;
++    while (first < chain.size() && chain[first]->ldAcqWts() > snap.points[j])
++      ++first;
++    first_le.push_back(first);
++  }
 +  const size_t minr_visible = visible(MinRts.load(std::memory_order_acquire));
 +  const size_t p1 = vis.front();
 +  size_t p2 = p1;
@@ -437,8 +447,12 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      if (chain[i]->ldAcqWts() <= snap.points[j] &&
 +          snap.points[j] < chain[n]->ldAcqWts())
 +        return false;
-+      // Condition (d): retain the node directly above each visible node.
-+      if (vis[j] == i + 1) return false;
++      // Keep both anchors: the first node at/below p may be pending, so
++      // its predecessor need not be the visible committed predecessor.
++      // A detached node keeps its next links. A blind writer following
++      // later_ver_ to insert at wts <= p reaches the protected predecessor
++      // of the first node at/below p before its pre_ver->next_ CAS.
++      if (vis[j] == i + 1 || first_le[j] == i + 1) return false;
 +    }
 +    return true;
 +  };
@@ -451,6 +465,20 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    any = true;
 +    size_t first = i;
 +    do { ++i; } while (i + 1 < chain.size() && eligible(i));
++    // Recheck the whole run: a CAS at its upper edge cannot detect an
++    // insertion into its interior after the chain was collected.
++    bool intact = true;
++    for (size_t k = first; k < i; ++k) {
++      if (chain[k]->ldAcqNext() != chain[k + 1] ||
++          chain[k]->ldAcqStatus() != VersionStatus::committed) {
++        intact = false;
++        break;
++      }
++    }
++    if (!intact) {
++      IGC_COUNT(thid, cas_fail);
++      continue;
++    }
 +    Version* expected = chain[first];
 +    if (chain[first - 1]->next_.compare_exchange_strong(
 +            expected, chain[i], std::memory_order_acq_rel,
@@ -474,7 +502,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
  /**
   * @brief Initialize function of transaction.
-@@ -32,6 +405,10 @@
+@@ -32,6 +433,10 @@
   * @return void
   */
  void TxExecutor::begin() {
@@ -485,7 +513,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +418,10 @@
+@@ -41,6 +446,10 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -496,7 +524,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +482,16 @@
+@@ -101,6 +510,16 @@
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -513,7 +541,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -267,6 +658,10 @@
+@@ -267,6 +686,10 @@
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -524,7 +552,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
    }
  
-@@ -298,6 +693,10 @@
+@@ -298,6 +721,10 @@
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -535,7 +563,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +745,10 @@
+@@ -346,6 +773,10 @@
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -546,7 +574,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +820,10 @@
+@@ -417,6 +848,10 @@
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -557,7 +585,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -716,6 +1123,18 @@
+@@ -716,6 +1151,18 @@
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -576,7 +604,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -813,12 +1232,33 @@
+@@ -813,12 +1260,33 @@
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -610,7 +638,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -835,6 +1275,19 @@
+@@ -835,6 +1303,19 @@
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
@@ -630,7 +658,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -961,6 +1414,13 @@
+@@ -961,6 +1442,13 @@
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
