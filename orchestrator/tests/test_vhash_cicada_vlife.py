@@ -61,7 +61,8 @@ def _payload2():
                      "dc_cf_wait_sum_us", "dc_ro_gap_sum_us", "dc_leader_wait_sum_us",
                      "dc_interval_sum_us",
                      "dc_count", "dc_first", "dc_missing", "dc_generation",
-                     "dc_negative", "dc_epoch_mismatch", "dc_leader_count", "holder_count", "holder_unresolved")
+                     "dc_negative", "dc_epoch_mismatch", "dc_late_epoch",
+                     "dc_leader_count", "holder_count", "holder_unresolved")
     for worker in payload["workers"]:
         worker.update({field: 0 for field in scalar_fields})
         worker.update(readonly_candidate=[0] * 5, ro_snapshot_age_us=[0] * 42,
@@ -140,14 +141,18 @@ def test_schema2_required_fields_and_three_term_identity():
     p["workers"][0]["gc_publish_us"][4] = 1
     p["workers"][0]["dc_cf_kind_count"][3] = 1
     p["workers"][0]["dc_cf_kind_sum_us"][3] = 3
+    p["workers"][0]["dc_late_epoch"] = 1
     assert V.parse_vlife_line(_line(p)) == p
+    assert V.summarize(p)["dc_late_epoch"] == 1
     for change in (
         lambda q: q["workers"][0].pop("readonly_reads"),
+        lambda q: q["workers"][0].pop("dc_late_epoch"),
         lambda q: q["workers"][0].update(extra=0),
         lambda q: q["workers"][0].update(dc_ro_gap_sum_us=5),
         lambda q: q["workers"][0].update(readonly_candidate=[1, 0, 0, 0, 0]),
         lambda q: q["workers"][0].update(ro_snapshot_age_us=[0]),
         lambda q: q["workers"][0].update(gc_publish_sum_us=-1),
+        lambda q: q["workers"][0].update(dc_late_epoch=3),
     ):
         q = json.loads(json.dumps(p))
         change(q)
@@ -397,6 +402,17 @@ def test_mut16_epoch_advances_before_cicada_publication():
     assert advance in before
     assert "vlife_epoch_.fetch_add" not in after
     assert "dc_epoch_mismatch" in after
+
+
+def test_mut18_late_publication_advances_epoch():
+    leader = V.PATCH.read_text().split(" void TxExecutor::leaderWork() {", 1)[1]
+    after = leader.split("   cicadaLeaderWork();", 1)[1]
+    publication = after.split("+  if (leader_ready &&", 1)[1].split(
+        "+    const uint64_t now = rdtscp();", 1)[0]
+    assert re.search(
+        r"\+    if \(!all_ready\) \{\n\+      \+\+vlife_epoch_;",
+        publication,
+    )
 
 
 def test_mut17_run_duration_controls_provenance_rates():
@@ -759,6 +775,7 @@ def _run():
              test_mut13_readonly_depth_and_reads_follow_deleted_guard,
              test_mut15_tuned_comparison_panels_exist,
              test_mut16_epoch_advances_before_cicada_publication,
+             test_mut18_late_publication_advances_epoch,
              test_mut17_run_duration_controls_provenance_rates,
              test_k_boundary_and_condition_subset,
              test_real_patch_define_registry_and_rejection,
