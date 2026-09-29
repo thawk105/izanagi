@@ -9,6 +9,7 @@ Compute-node submission examples::
 
 The module only runs inside the submitted job. Its identity is hostname and start time;
 PBS_JOBID is not required. No correctness or serializability claim follows from it.
+For the md_6 workload, -ycsb_zipf_skew controls both ordinary and long-thread key selection.
 """
 from __future__ import annotations
 
@@ -339,7 +340,11 @@ def gc_order_rotation(rep: int) -> tuple[str, ...]:
     return GC_ARMS[rep % 4:] + GC_ARMS[:rep % 4]
 
 
-def gc_plan_runs(workload: str, wait_us: int | None, *, smoke=False) -> list[dict]:
+def gc_plan_runs(workload: str, wait_us: int | None, *, skew=0.9, smoke=False) -> list[dict]:
+    if skew not in (0.9, 0):
+        raise ValueError("GC skew must be 0.9 or 0")
+    if workload != "wait_after_reads" and skew != 0.9:
+        raise ValueError("skew 0 only applies to wait_after_reads")
     if workload == "wait_after_reads" and wait_us not in (1000, 10000):
         raise ValueError("wait_after_reads requires wait_us 1000 or 10000")
     if workload != "wait_after_reads" and wait_us is not None:
@@ -353,7 +358,7 @@ def gc_plan_runs(workload: str, wait_us: int | None, *, smoke=False) -> list[dic
                     build = "gc-stock" if arm == "stock" else "gc-c" if arm == "C" else "gc-e"
                     if counted:
                         build += "-count"
-                    specs.append(dict(gc_job=True, workload=workload, wait_us=wait_us,
+                    specs.append(dict(gc_job=True, workload=workload, wait_us=wait_us, skew=skew,
                                       gc_inter_us=gc_inter_us, slice_us=100 if arm.startswith("E") else 0,
                                       arm=arm, build_kind=build, rep=rep, order_index=order_index,
                                       extime=1 if smoke else 3))
@@ -408,24 +413,25 @@ def _gc_summary(counter: dict, longtx: dict, value_bytes=GC_VALUE_BYTES) -> dict
 def gc_aggregate_jobs(jobs: list[dict]) -> dict:
     cells = {}
     seen_jobs = set()
-    required_jobs = {("wait_after_reads", 1000), ("wait_after_reads", 10000),
-                     ("normal", None), ("many_ops", None)}
+    required_jobs = {("wait_after_reads", wait, skew) for wait in (1000, 10000)
+                     for skew in (0.9, 0)} | {("normal", None, 0.9), ("many_ops", None, 0.9)}
     for job in jobs:
         if job.get("command") != "gc-run":
             raise ValueError("gc-aggregate requires gc-run jobs")
         if not job.get("all_pass"):
             raise ValueError("incomplete gc-run job")
-        job_key = (job["workload"], job.get("wait_us"))
+        job_key = (job["workload"], job.get("wait_us"), job["skew"])
         if job_key in seen_jobs:
             raise ValueError(f"duplicate GC job: {job_key}")
         if job_key not in required_jobs:
             raise ValueError(f"unexpected GC job: {job_key}")
         seen_jobs.add(job_key)
         expected = {(s["gc_inter_us"], s["arm"], s["build_kind"], s["rep"])
-                    for s in gc_plan_runs(job["workload"], job.get("wait_us"))}
+                    for s in gc_plan_runs(job["workload"], job.get("wait_us"), skew=job["skew"])}
         actual = set()
         for record in job["records"]:
-            if record["workload"] != job["workload"] or record.get("wait_us") != job.get("wait_us"):
+            if (record["workload"] != job["workload"] or
+                    record.get("wait_us") != job.get("wait_us") or record["skew"] != job["skew"]):
                 raise ValueError("record condition differs from job")
             key = tuple(record[k] for k in ("gc_inter_us", "arm", "build_kind", "rep"))
             if key in actual:
@@ -434,9 +440,11 @@ def gc_aggregate_jobs(jobs: list[dict]) -> dict:
             counted = record["build_kind"].endswith("-count")
             if not record.get("valid") or record.get("perf_eligible") is counted:
                 raise ValueError("invalid or mislabeled record")
-            cell_key = f"{job['workload']}/wait={job.get('wait_us')}/gc={record['gc_inter_us']}"
+            cell_key = (f"{job['workload']}/wait={job.get('wait_us')}/skew={job['skew']:g}"
+                        f"/gc={record['gc_inter_us']}")
             cell = cells.setdefault(cell_key, {"workload": job["workload"],
-                "wait_us": job.get("wait_us"), "gc_inter_us": record["gc_inter_us"],
+                "wait_us": job.get("wait_us"), "skew": job["skew"],
+                "gc_inter_us": record["gc_inter_us"],
                 "arms": {arm: {"performance": [], "gc": []} for arm in GC_ARMS},
                 "primary_comparison": ["E", "E-hb"],
                 "auxiliary_comparisons": [["stock", "E-hb"], ["C", "E-hb"]]})
@@ -464,7 +472,7 @@ def gc_aggregate_jobs(jobs: list[dict]) -> dict:
                 right_reps = {row["rep"]: row for row in cell["arms"][right]["gc"]}
                 if left_reps.keys() != right_reps.keys():
                     raise ValueError(f"unpaired GC reps: {label}")
-                comparisons[label] = {}
+                comparisons[label] = {"skew": cell["skew"]}
                 for metric in ("lag_rts_mean_us", "live_mean", "retention_p50_upper_us"):
                     differences = [left_reps[rep][metric] - right_reps[rep][metric]
                                    for rep in sorted(left_reps) if left_reps[rep][metric] is not None
@@ -489,7 +497,8 @@ def _probe() -> dict:
 
 def _argv(binary: Path, spec: dict) -> list[str]:
     if spec.get("gc_job"):
-        flags = ["-thread_num=48", "-ycsb_tuple_num=1000000", "-ycsb_zipf_skew=0.9",
+        flags = ["-thread_num=48", "-ycsb_tuple_num=1000000",
+                 f"-ycsb_zipf_skew={spec['skew']:g}",
                  "-ycsb_rratio=50", "-ycsb_max_ope=10", "-ycsb_rmw=0",
                  f"-extime={spec['extime']}", "-clocks_per_us=2100",
                  f"-gc_inter_us={spec['gc_inter_us']}",
@@ -721,11 +730,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--workload", choices=WORKLOADS)
     parser.add_argument("--wait-us", type=int, choices=(1000, 10000))
+    parser.add_argument("--skew", type=float, choices=(0.9, 0))
     parser.add_argument("--k-sweep", action="store_true")
     parser.add_argument("--raw", type=Path, action="append", help="explicit aggregate input JSON; repeat for each job")
     args = parser.parse_args(argv)
     if args.command.startswith("gc-"):
         return gc_main(args, parser)
+    if args.skew is not None:
+        parser.error("--skew only applies to gc-run")
     if args.command != "aggregate" and args.third_party_cache is None:
         parser.error("smoke and run require --third-party-cache")
     if args.third_party_cache is not None and not args.third_party_cache.is_absolute():
@@ -852,6 +864,8 @@ def _gc_inert_receipt(source: Path, stock_build: Path) -> dict:
 
 
 def gc_main(args, parser) -> int:
+    if args.skew is not None and args.command != "gc-run":
+        parser.error("--skew only applies to gc-run")
     if args.command == "gc-aggregate":
         if not args.raw:
             parser.error("gc-aggregate requires --raw")
@@ -864,19 +878,22 @@ def gc_main(args, parser) -> int:
         parser.error("gc-run requires --workload")
     workload = args.workload or "wait_after_reads"
     wait_us = args.wait_us if args.wait_us is not None else (10000 if workload == "wait_after_reads" else None)
+    skew = args.skew if args.skew is not None else 0.9
     try:
-        specs = gc_plan_runs(workload, wait_us, smoke=args.command == "gc-smoke")
+        specs = gc_plan_runs(workload, wait_us, skew=skew, smoke=args.command == "gc-smoke")
     except ValueError as exc:
         parser.error(str(exc))
     started = now()
     job = {"schema_version": "vhash-gc-job/v1", "command": args.command,
-           "workload": workload, "wait_us": wait_us, "ccbench_pin": pin.CURRENT_PIN,
+           "workload": workload, "wait_us": wait_us, "skew": skew,
+           "ccbench_pin": pin.CURRENT_PIN,
            "patch_sha256": {str(p.relative_to(ROOT)): sha_file(p) for p in (PATCH, GC_PATCH)},
            "genome": GC_GENOME, "value_bytes": GC_VALUE_BYTES,
            "verification_status": "未検証の診断値",
            "job_id": socket.gethostname() + "-" + started, "hostname": socket.gethostname(),
            "started": started, "records": [], "builds": {}, "all_pass": False}
-    output = args.output / ("raw-" + args.command + "-" + workload + "-" +
+    output = args.output / ("raw-" + args.command + "-" + workload +
+             ("-skew" + f"{skew:g}" if args.command == "gc-run" else "") + "-" +
              started.replace(":", "-") + ".json")
     try:
         if re.fullmatch(r"pegasus0[0-9]", socket.gethostname()):

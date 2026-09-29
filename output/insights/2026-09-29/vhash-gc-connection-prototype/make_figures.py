@@ -50,13 +50,15 @@ def check_figure_layout(fig, axes):
 def make_figure(data):
     import matplotlib.pyplot as plt
     plt.rcParams["font.family"] = ["DejaVu Sans", "Droid Sans Fallback"]
-    selected = [(key, cell) for key, cell in sorted(data["cells"].items())
-                if cell["workload"] == "wait_after_reads"]
+    selected = sorted(((key, cell) for key, cell in data["cells"].items()
+                       if cell["workload"] == "wait_after_reads"),
+                      key=lambda pair: (pair[1]["wait_us"], pair[1]["skew"],
+                                        pair[1]["gc_inter_us"]))
     if not selected:
         raise ValueError("no wait_after_reads cells")
     fig, axes = plt.subplots(len(selected), 4, figsize=(18, max(4, 3.4 * len(selected))),
                              squeeze=False, constrained_layout=True)
-    fig.suptitle("Cicada GC · 未検証の診断値 · 48 threads, 1M tuples, zipf 0.9, read 50%")
+    fig.suptitle("Cicada GC · 未検証の診断値 · 48 threads, 1M tuples, read 50%")
     values = {}
     for row, (key, cell) in enumerate(selected):
         values[key] = {}
@@ -83,7 +85,7 @@ def make_figure(data):
             ax.set_xticks(range(4), GC_ARMS)
             ax.set_xlim(-.5, 3.5)
             ax.set_ylabel(ylabel)
-            ax.set_title(f"wait {cell['wait_us']} µs · GC {cell['gc_inter_us']} µs")
+            ax.set_title(f"wait {cell['wait_us']} µs · skew {cell['skew']:g} · GC {cell['gc_inter_us']} µs")
             if metric == "success":
                 ax.legend(fontsize=7)
     check_figure_layout(fig, list(axes.flat))
@@ -109,7 +111,8 @@ def main(argv=None):
     plt.close(fig)
     provenance = {"inputs": {str(path.resolve()): hashlib.sha256(path.read_bytes()).hexdigest()
                              for path in (args.aggregate, *args.raw)},
-                  "conditions": {"threads": 48, "tuples": 1000000, "zipf": .9, "rratio": 50},
+                  "conditions": {"threads": 48, "tuples": 1000000,
+                                 "skew": [0, .9], "rratio": 50},
                   "major_values": values, "verification_status": "未検証の診断値"}
     args.output.with_suffix(".provenance.json").write_text(json.dumps(provenance, indent=2, ensure_ascii=False) + "\n")
     return 0

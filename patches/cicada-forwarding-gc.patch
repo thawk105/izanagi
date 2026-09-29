@@ -23,7 +23,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if CICADA_FWD_ENABLE
  #include <algorithm>
  #include <cstdlib>
-@@ -114,6 +129,423 @@
+@@ -114,6 +129,428 @@
  } // namespace
  #endif
  
@@ -105,13 +105,17 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    return FLAGS_tuple_num + installs - detaches;
 +  }
 +  void sample(uint64_t now) {
++    uint64_t r = MinRts.load(std::memory_order_acquire);
++    if (!r) {
++      last_sample = now;
++      return;
++    }
 +    uint64_t interval = FLAGS_cicada_gc_sample_us * FLAGS_clocks_per_us;
 +    if (!interval) interval = 1;
 +    uint64_t k = last_sample ? (now - last_sample) / interval : 1;
 +    if (!k) return;
 +    last_sample = last_sample ? last_sample + k * interval : now;
 +    max_gap_intervals = std::max(max_gap_intervals, k);
-+    uint64_t r = MinRts.load(std::memory_order_acquire);
 +    add(uniform_rts, now, r, k);
 +    add(uniform_wts, now, MinWts.load(std::memory_order_acquire), k);
 +    uint64_t n = live();
@@ -139,8 +143,10 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    }
 +  }
 +  void published(uint64_t now) {
++    uint64_t r = MinRts.load(std::memory_order_acquire);
++    if (!r) return;
 +    ++publish_count;
-+    add(publish, now, MinRts.load(std::memory_order_acquire));
++    add(publish, now, r);
 +    if (last_publish)
 +      ++interval_hist[bucket((now - last_publish) / FLAGS_clocks_per_us)];
 +    last_publish = now;
@@ -406,7 +412,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  // Publish only after the local transaction state has been finalized.
 +  __atomic_store_n(&ThreadWtsArray[thid].obj_, target, __ATOMIC_RELEASE);
 +  GC_INC(thid, publishes);
-+  gc_publish_rts(thid, MinWts.load(std::memory_order_acquire) - 1);
++  gc_publish_rts(thid, target - 1);
 +  return true;
 +}
 +} // namespace
@@ -437,7 +443,6 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    return;
 +  GC_INC(tx.thid_, requests);
 +  if (FLAGS_cicada_gc_mode == "e") gc_advance(tx);
-+  gc_publish_rts(tx.thid_, MinWts.load(std::memory_order_acquire) - 1);
 +  storeRelease(GCFlag[tx.thid_].obj_, 1);
 +  GC_INC(tx.thid_, flag_raises);
 +  tx.gcstart_ = now;
@@ -447,19 +452,20 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #line 29
  /**
   * @brief Initialize function of transaction.
-@@ -147,6 +579,11 @@
+@@ -147,6 +584,12 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
 +#if CICADA_GC_COUNT
-+  GcReport::add(gc_slots[thid_].begin, rdtscp(),
-+                MinRts.load(std::memory_order_acquire));
++  uint64_t gc_min_rts = MinRts.load(std::memory_order_acquire);
++  if (gc_min_rts)
++    GcReport::add(gc_slots[thid_].begin, rdtscp(), gc_min_rts);
 +#endif
 +#line 44
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -801,6 +1238,10 @@
+@@ -801,6 +1244,10 @@
        }
      }
      (*itr).finish_version_install_ = true;
@@ -470,7 +476,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    }
  
    /**
-@@ -1112,6 +1553,13 @@
+@@ -1112,6 +1559,13 @@
  
      // the thread detaches the rest of the version list from v
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
@@ -484,7 +490,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
      gcAfterThisVersion(tuple, delTarget);
-@@ -1245,7 +1693,17 @@
+@@ -1245,7 +1699,17 @@
  bool TxExecutor::isLeader() { return this->thid_ == 0; }
  
  void TxExecutor::leaderWork() {
