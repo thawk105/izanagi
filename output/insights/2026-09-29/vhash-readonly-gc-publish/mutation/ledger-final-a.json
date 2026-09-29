@@ -1,0 +1,994 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...........................................                              [100%]\n43 passed in 20.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4ca2f462bac516db63b9ea58efe02b0fc8c92dfb9172a50e682af02e8142ec4d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+    "duration_s": 21.119,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0e9f426c5142c91b3680f17c2659cf145dd58ed7281f389c459b2b69e6031e1b",
+    "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+    "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+    "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+    "status": "PASSED",
+    "test_output_sha256": "4ca2f462bac516db63b9ea58efe02b0fc8c92dfb9172a50e682af02e8142ec4d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+  },
+  "date": "2026-09-29T17:55:47.743382+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...........................F...........F.F.                              [100%]\n=================================== FAILURES ===================================\n______________________ test_bad_clear_slot_counterexample ______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_clear_slot_counterexample():\n        row = _result(\"bad-clear-slot\")\n        assert row[\"complete\"] and row[\"states\"] == 5971\n>       assert row[\"gc_violations\"] == 12\nE       assert 0 == 12\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:110: AssertionError\n______________ test_bad_raise_slot_counterexample_and_extra_flag _______________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_raise_slot_counterexample_and_extra_flag():\n        row = _result(\"bad-raise-slot\", cap=30_000)\n        assert row[\"complete\"] and row[\"states\"] == 28742\n>       assert row[\"gc_violations\"] == 10\nE       assert 0 == 10\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:90: AssertionError\n___________________ test_configurations_and_completed_safety ___________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_configurations_and_completed_safety():\n        expected = {\n            \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n            \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n            \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n        }\n        assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n        other_expected = {\n            \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n            \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n            \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n            \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n            \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n        }\n        for config in m.CONFIGS:\n            rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n            states, complete = expected[config.name]\n            assert tuple(r[\"states\"] for r in rows) == states\n            assert tuple(r[\"complete\"] for r in rows) == complete\n            for row in rows:\n                assert row[\"config\"] == config.name\n                assert row[\"serializability\"] == m.SERIALIZABILITY\n                assert row[\"progress_meaning\"] == m.PROGRESS\n                if row[\"complete\"]:\n                    assert row[\"gc_violations\"] == 0\n            if all(complete):\n                assert rows[0][\"publications\"] == rows[0][\"cuts\"] == 0\n                assert rows[1][\"cuts\"] > 0 and rows[2][\"cuts\"] > 0\n            other = [_result(arm, config) for arm in\n                     (\"neg-early-flag\", \"bad-raise-slot\", \"bad-clear-slot\")]\n            states, complete = other_expected[config.name]\n            assert tuple(r[\"states\"] for r in other) == states\n            assert tuple(r[\"complete\"] for r in other) == complete\n            if other[0][\"complete\"]:\n                assert other[0][\"gc_violations\"] == 0\n            for row in other[1:]:\n                if row[\"complete\"]:\n>                   assert row[\"gc_violations\"] > 0\nE                   assert 0 > 0\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:61: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\n3 failed, 40 passed in 9.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2331 retained_bytes=2331 omitted_bytes=0 rendered_excerpt_bytes=2422 sha256=7372ee8ec2a9c420794cc9fa178d7c03a179e050901cacb6f7dd896414f43f41\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_configurations_and_completed_safety():\n>         expected = {\n>             \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n>             \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n>             \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n>         }\n>         assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n>         other_expected = {\n>             \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n>             \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n>             \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n>         }\n>         for config in m.CONFIGS:\n>             rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n>             states, complete = expected[config.name]\n>             assert tuple(r[\"states\"] for r in rows) == states\n>             assert tuple(r[\"complete\"] for r in rows) == complete\n>             for row in rows:\n>                 assert row[\"config\"] == config.name\n>                 assert row[\"serializability\"] == m.SERIALIZABILITY\n>                 assert row[\"progress_meaning\"] == m.PROGRESS\n>                 if row[\"complete\"]:\n>                     assert row[\"gc_violations\"] == 0\n>             if all(complete):\n>                 assert rows[0][\"publications\"] == rows[0][\"cuts\"] == 0\n>                 assert rows[1][\"cuts\"] > 0 and rows[2][\"cuts\"] > 0\n>             other = [_result(arm, config) for arm in\n>                      (\"neg-early-flag\", \"bad-raise-slot\", \"bad-clear-slot\")]\n>             states, complete = other_expected[config.name]\n>             assert tuple(r[\"states\"] for r in other) == states\n>             assert tuple(r[\"complete\"] for r in other) == complete\n>             if other[0][\"complete\"]:\n>                 assert other[0][\"gc_violations\"] == 0\n>             for row in other[1:]:\n>                 if row[\"complete\"]:\n> >                   assert row[\"gc_violations\"] > 0\n> E                   assert 0 > 0\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:61: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=361 retained_bytes=361 omitted_bytes=0 rendered_excerpt_bytes=380 sha256=48de5cac527ea890d880dfa35d9307965b2af9932c7fd0460f29dbca12bc77a6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_raise_slot_counterexample_and_extra_flag():\n>         row = _result(\"bad-raise-slot\", cap=30_000)\n>         assert row[\"complete\"] and row[\"states\"] == 28742\n> >       assert row[\"gc_violations\"] == 10\n> E       assert 0 == 10\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:90: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=334 retained_bytes=334 omitted_bytes=0 rendered_excerpt_bytes=353 sha256=709d7c421172b1d64cea79e8feb413448607849e34f2bd0a4bcc46bde0c35b08\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_clear_slot_counterexample():\n>         row = _result(\"bad-clear-slot\")\n>         assert row[\"complete\"] and row[\"states\"] == 5971\n> >       assert row[\"gc_violations\"] == 12\n> E       assert 0 == 12\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:110: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3026 retained_bytes=3026 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4748 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "279160a0346bd8a5438c09126e9361591cecf17e518b6c246cdf48e85132f6c9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 10.242,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+      ],
+      "hang_risk": false,
+      "id": "MA1-gc-oracle-never-violates",
+      "injection_diff_sha256": "d903c7c0eaf387330402622cf575bd0fc02dd7b1cc6dd7a0bc30315dd584a098",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "575d0d18343a0cd7f8833b256a58a38b51642666081ff469bee5330f8486ed15",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+          "new": "    if False and \"A10\" in needed_versions(before, config):\n",
+          "old": "    if \"A10\" in needed_versions(before, config):\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "279160a0346bd8a5438c09126e9361591cecf17e518b6c246cdf48e85132f6c9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................................F..F.                              [100%]\n=================================== FAILURES ===================================\n______________ test_bad_raise_slot_counterexample_and_extra_flag _______________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_raise_slot_counterexample_and_extra_flag():\n        row = _result(\"bad-raise-slot\", cap=30_000)\n>       assert row[\"complete\"] and row[\"states\"] == 28742\nE       assert (True and 16630 == 28742)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:89: AssertionError\n___________________ test_configurations_and_completed_safety ___________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_configurations_and_completed_safety():\n        expected = {\n            \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n            \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n            \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n        }\n        assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n        other_expected = {\n            \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n            \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n            \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n            \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n            \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n        }\n        for config in m.CONFIGS:\n            rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n            states, complete = expected[config.name]\n            assert tuple(r[\"states\"] for r in rows) == states\n            assert tuple(r[\"complete\"] for r in rows) == complete\n            for row in rows:\n                assert row[\"config\"] == config.name\n                assert row[\"serializability\"] == m.SERIALIZABILITY\n                assert row[\"progress_meaning\"] == m.PROGRESS\n                if row[\"complete\"]:\n                    assert row[\"gc_violations\"] == 0\n            if all(complete):\n                assert rows[0][\"publications\"] == rows[0][\"cuts\"] == 0\n                assert rows[1][\"cuts\"] > 0 and rows[2][\"cuts\"] > 0\n            other = [_result(arm, config) for arm in\n                     (\"neg-early-flag\", \"bad-raise-slot\", \"bad-clear-slot\")]\n            states, complete = other_expected[config.name]\n>           assert tuple(r[\"states\"] for r in other) == states\nE           assert (16630, 16630, 5971) == (16630, 20000, 5971)\nE             \nE             At index 1 diff: 16630 != 20000\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\n2 failed, 41 passed in 9.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2181 retained_bytes=2181 omitted_bytes=0 rendered_excerpt_bytes=2266 sha256=7c6fd6e370e86c8e9006ac327262e4132b890a996908114f03d8d6770c234652\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_configurations_and_completed_safety():\n>         expected = {\n>             \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n>             \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n>             \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n>         }\n>         assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n>         other_expected = {\n>             \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n>             \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n>             \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n>         }\n>         for config in m.CONFIGS:\n>             rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n>             states, complete = expected[config.name]\n>             assert tuple(r[\"states\"] for r in rows) == states\n>             assert tuple(r[\"complete\"] for r in rows) == complete\n>             for row in rows:\n>                 assert row[\"config\"] == config.name\n>                 assert row[\"serializability\"] == m.SERIALIZABILITY\n>                 assert row[\"progress_meaning\"] == m.PROGRESS\n>                 if row[\"complete\"]:\n>                     assert row[\"gc_violations\"] == 0\n>             if all(complete):\n>                 assert rows[0][\"publications\"] == rows[0][\"cuts\"] == 0\n>                 assert rows[1][\"cuts\"] > 0 and rows[2][\"cuts\"] > 0\n>             other = [_result(arm, config) for arm in\n>                      (\"neg-early-flag\", \"bad-raise-slot\", \"bad-clear-slot\")]\n>             states, complete = other_expected[config.name]\n> >           assert tuple(r[\"states\"] for r in other) == states\n> E           assert (16630, 16630, 5971) == (16630, 20000, 5971)\n> E             \n> E             At index 1 diff: 16630 != 20000\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:55: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=337 retained_bytes=337 omitted_bytes=0 rendered_excerpt_bytes=354 sha256=706a404c2b6a8f9fb85c2060419e4c91d1868178bcaa161c9763df0ce941e6c4\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_raise_slot_counterexample_and_extra_flag():\n>         row = _result(\"bad-raise-slot\", cap=30_000)\n> >       assert row[\"complete\"] and row[\"states\"] == 28742\n> E       assert (True and 16630 == 28742)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2518 retained_bytes=2518 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3786 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9a6687e2729662bc4b265a3e8d6444d402850c2232a45dac619b5783349b02e2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 10.251,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+      ],
+      "hang_risk": false,
+      "id": "MA2-bad-raise-slot-never-raises",
+      "injection_diff_sha256": "a316ed87139359a1273044c5bd5810d9cfe463d61445d0ce6ff01729fb7a021d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f88312bd6ab7eba56cac149d4f62c6078a10a063af76f8d851bcb7098b3a54f8",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+          "new": "        if arm == \"bad-raise-slot\" and not s.raised and s.procedure == 0 and s.min_wts > s.r_rts + 1 and False:\n",
+          "old": "        if arm == \"bad-raise-slot\" and not s.raised and s.procedure == 0 and s.min_wts > s.r_rts + 1:\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "9a6687e2729662bc4b265a3e8d6444d402850c2232a45dac619b5783349b02e2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...................................FFFFF.F.                              [100%]\n=================================== FAILURES ===================================\n______________________ test_bad_clear_slot_counterexample ______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_clear_slot_counterexample():\n        row = _result(\"bad-clear-slot\")\n>       assert row[\"complete\"] and row[\"states\"] == 5971\nE       assert (False)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:109: AssertionError\n__________ test_safe_cut_is_after_three_versions_and_next_slot_store ___________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_safe_cut_is_after_three_versions_and_next_slot_store():\n        for arm in (\"safe-flag\", \"safe-mainte\"):\n            row = _result(arm)\n>           assert row[\"complete\"] and row[\"cuts\"] > 0\nE           assert (False)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:67: AssertionError\n_____________________ test_stock_has_no_publication_or_cut _____________________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_stock_has_no_publication_or_cut():\n        row = _result(\"stock\")\n>       assert row[\"complete\"] and row[\"publications\"] == 0 and row[\"cuts\"] == 0\nE       assert (False)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:83: AssertionError\n_____________ test_early_flag_is_safe_and_progress_is_descriptive ______________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_early_flag_is_safe_and_progress_is_descriptive():\n        row = _result(\"neg-early-flag\")\n>       assert row[\"complete\"] and row[\"gc_violations\"] == 0\nE       assert (False)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:127: AssertionError\n______________ test_bad_raise_slot_counterexample_and_extra_flag _______________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_raise_slot_counterexample_and_extra_flag():\n        row = _result(\"bad-raise-slot\", cap=30_000)\n>       assert row[\"complete\"] and row[\"states\"] == 28742\nE       assert (False)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:89: AssertionError\n___________________ test_configurations_and_completed_safety ___________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_configurations_and_completed_safety():\n        expected = {\n            \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n            \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n            \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n        }\n        assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n        other_expected = {\n            \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n            \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n            \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n            \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n            \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n        }\n        for config in m.CONFIGS:\n            rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n            states, complete = expected[config.name]\n>           assert tuple(r[\"states\"] for r in rows) == states\nE           assert (20000, 20000, 20000) == (299, 4594, 13478)\nE             \nE             At index 0 diff: 20000 != 299\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:41: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\n6 failed, 37 passed in 9.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1394 retained_bytes=1394 omitted_bytes=0 rendered_excerpt_bytes=1451 sha256=27c887cc9c278b54614bf4a22956591dab1a086cf7ce9ebce5ff8d8796a3e45f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_configurations_and_completed_safety():\n>         expected = {\n>             \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n>             \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n>             \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n>         }\n>         assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n>         other_expected = {\n>             \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n>             \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n>             \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n>         }\n>         for config in m.CONFIGS:\n>             rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n>             states, complete = expected[config.name]\n> >           assert tuple(r[\"states\"] for r in rows) == states\n> E           assert (20000, 20000, 20000) == (299, 4594, 13478)\n> E             \n> E             At index 0 diff: 20000 != 299\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:41: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=356 retained_bytes=356 omitted_bytes=0 rendered_excerpt_bytes=375 sha256=aab0c71746fd5478964c2fffd0f5448090c0bc1da3e67520c76920f3eba2f514\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_safe_cut_is_after_three_versions_and_next_slot_store():\n>         for arm in (\"safe-flag\", \"safe-mainte\"):\n>             row = _result(arm)\n> >           assert row[\"complete\"] and row[\"cuts\"] > 0\n> E           assert (False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:67: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=319 retained_bytes=319 omitted_bytes=0 rendered_excerpt_bytes=336 sha256=3f449d38d8c468e06433e0d4a64b0830ee9ee038ed76194419e57852008569c2\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_raise_slot_counterexample_and_extra_flag():\n>         row = _result(\"bad-raise-slot\", cap=30_000)\n> >       assert row[\"complete\"] and row[\"states\"] == 28742\n> E       assert (False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:89: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=313 retained_bytes=313 omitted_bytes=0 rendered_excerpt_bytes=330 sha256=4abb0a65b738f5b40067347460e89b9fa597513d8ba85d8524833d8ea143d0c0\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_early_flag_is_safe_and_progress_is_descriptive():\n>         row = _result(\"neg-early-flag\")\n> >       assert row[\"complete\"] and row[\"gc_violations\"] == 0\n> E       assert (False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:127: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=308 retained_bytes=308 omitted_bytes=0 rendered_excerpt_bytes=325 sha256=e91777f878bd11774e4f75bc8f768cf868ca3d2ebac9600a3cea1c6cc6de3566\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_stock_has_no_publication_or_cut():\n>         row = _result(\"stock\")\n> >       assert row[\"complete\"] and row[\"publications\"] == 0 and row[\"cuts\"] == 0\n> E       assert (False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:83: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=292 retained_bytes=292 omitted_bytes=0 rendered_excerpt_bytes=309 sha256=a821265a50e11ba522d175d663cb8015d599fcd987c1a2bc521bdfed65d074e0\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_clear_slot_counterexample():\n>         row = _result(\"bad-clear-slot\")\n> >       assert row[\"complete\"] and row[\"states\"] == 5971\n> E       assert (False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:109: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=2982 retained_bytes=2982 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6044 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1c277ba7360298bbb92fd2bdbfac8fc4208e408bf714aea45f1d847aa284f8fe"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 10.247,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+      ],
+      "hang_risk": false,
+      "id": "MA3-leader-ignores-flags",
+      "injection_diff_sha256": "6361aa69b317db41e756ea3399e92a759b6dc5fca3318c15845131dfa02d8348",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f36d99ef9e18922449753e00a9fe9efc6a8e2a4840a21619d70b8f37cbdb2c43",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+          "new": "        yield replace(s, leader=l + 1), Event(\"L\", f\"load_flag{l}\", flag)\n",
+          "old": "        yield replace(s, leader=l + 1 if flag else 0), Event(\"L\", f\"load_flag{l}\", flag)\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "1c277ba7360298bbb92fd2bdbfac8fc4208e408bf714aea45f1d847aa284f8fe",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...........................F.F.............                              [100%]\n=================================== FAILURES ===================================\n__________ test_safe_cut_is_after_three_versions_and_next_slot_store ___________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_safe_cut_is_after_three_versions_and_next_slot_store():\n        for arm in (\"safe-flag\", \"safe-mainte\"):\n            row = _result(arm)\n>           assert row[\"complete\"] and row[\"cuts\"] > 0\nE           assert (True and 0 > 0)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:67: AssertionError\n___________________ test_configurations_and_completed_safety ___________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_configurations_and_completed_safety():\n        expected = {\n            \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n            \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n            \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n        }\n        assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n        other_expected = {\n            \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n            \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n            \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n            \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n            \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n        }\n        for config in m.CONFIGS:\n            rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n            states, complete = expected[config.name]\n>           assert tuple(r[\"states\"] for r in rows) == states\nE           assert (299, 4594, 161) == (299, 4594, 13478)\nE             \nE             At index 2 diff: 161 != 13478\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:41: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\n2 failed, 41 passed in 9.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1389 retained_bytes=1389 omitted_bytes=0 rendered_excerpt_bytes=1446 sha256=3ac79c918796a3e2d2cbda58e2922f451bf65e221d8ff023044a3b87737f5b55\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_configurations_and_completed_safety():\n>         expected = {\n>             \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n>             \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n>             \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n>         }\n>         assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n>         other_expected = {\n>             \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n>             \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n>             \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n>         }\n>         for config in m.CONFIGS:\n>             rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n>             states, complete = expected[config.name]\n> >           assert tuple(r[\"states\"] for r in rows) == states\n> E           assert (299, 4594, 161) == (299, 4594, 13478)\n> E             \n> E             At index 2 diff: 161 != 13478\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:41: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=365 retained_bytes=365 omitted_bytes=0 rendered_excerpt_bytes=384 sha256=1efa823c05fa6a0221d27ae38498c3b6ea3e2e43d3aa4cca29a4d5bd85318d0e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_safe_cut_is_after_three_versions_and_next_slot_store():\n>         for arm in (\"safe-flag\", \"safe-mainte\"):\n>             row = _result(arm)\n> >           assert row[\"complete\"] and row[\"cuts\"] > 0\n> E           assert (True and 0 > 0)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:67: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1754 retained_bytes=1754 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3004 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "86bab2d5ce14cf149996a09a0a1630f73ec582f2aedfb3e5b8309997b3f35374"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 10.238,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+      ],
+      "hang_risk": false,
+      "id": "MA4-safe-mainte-ro-never-maintains",
+      "injection_diff_sha256": "5b93586ae76a183bf6e0c216c06302fefcb9591decc90d069776caa72e9552cc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "865174306c11fc5fa177bbb34586dd0274b8be180df2c7117ed02a1e113f8499",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+          "new": "            yield replace(s, procedure=count, phase=\"maint_wait\", r_maint=\"idle\"), Event(\"R\", \"mainte_start\")\n",
+          "old": "            yield replace(s, procedure=count, phase=\"maint_wait\", r_maint=\"exec_check\"), Event(\"R\", \"mainte_start\")\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "86bab2d5ce14cf149996a09a0a1630f73ec582f2aedfb3e5b8309997b3f35374",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...........................FF..........FF..                              [100%]\n=================================== FAILURES ===================================\n__________ test_safe_cut_is_after_three_versions_and_next_slot_store ___________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_safe_cut_is_after_three_versions_and_next_slot_store():\n        for arm in (\"safe-flag\", \"safe-mainte\"):\n            row = _result(arm)\n>           assert row[\"complete\"] and row[\"cuts\"] > 0\nE           assert (True and 0 > 0)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:67: AssertionError\n______________________ test_bad_clear_slot_counterexample ______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_clear_slot_counterexample():\n        row = _result(\"bad-clear-slot\")\n>       assert row[\"complete\"] and row[\"states\"] == 5971\nE       assert (True and 5955 == 5971)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:109: AssertionError\n___________________ test_configurations_and_completed_safety ___________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_configurations_and_completed_safety():\n        expected = {\n            \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n            \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n            \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n            \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n        }\n        assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n        other_expected = {\n            \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n            \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n            \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n            \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n            \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n        }\n        for config in m.CONFIGS:\n            rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n            states, complete = expected[config.name]\n            assert tuple(r[\"states\"] for r in rows) == states\n            assert tuple(r[\"complete\"] for r in rows) == complete\n            for row in rows:\n                assert row[\"config\"] == config.name\n                assert row[\"serializability\"] == m.SERIALIZABILITY\n                assert row[\"progress_meaning\"] == m.PROGRESS\n                if row[\"complete\"]:\n                    assert row[\"gc_violations\"] == 0\n            if all(complete):\n                assert rows[0][\"publications\"] == rows[0][\"cuts\"] == 0\n>               assert rows[1][\"cuts\"] > 0 and rows[2][\"cuts\"] > 0\nE               assert (0 > 0)\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:51: AssertionError\n______________ test_bad_raise_slot_counterexample_and_extra_flag _______________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_bad_raise_slot_counterexample_and_extra_flag():\n        row = _result(\"bad-raise-slot\", cap=30_000)\n        assert row[\"complete\"] and row[\"states\"] == 28742\n>       assert row[\"gc_violations\"] == 10\nE       assert 0 == 10\n\norchestrator/tests/test_vhash_forwarding_model_rogc.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\nFAILED orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\n4 failed, 39 passed in 9.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1797 retained_bytes=1797 omitted_bytes=0 rendered_excerpt_bytes=1868 sha256=241672066fc682f9f5b8645c666dd6827c138517482541f50604f2c6c2ebd94d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_configurations_and_completed_safety():\n>         expected = {\n>             \"w2-k1-r1\": ((299, 4594, 13478), (True, True, True)),\n>             \"w2-k1-r2\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r1\": ((345, 5171, 14055), (True, True, True)),\n>             \"w2-k2-r2\": ((529, 7479, 16363), (True, True, True)),\n>             \"w3-k1-r1\": ((5980, 20000, 20000), (True, False, False)),\n>         }\n>         assert tuple(c.name for c in m.CONFIGS) == tuple(expected)\n>         other_expected = {\n>             \"w2-k1-r1\": ((16630, 20000, 5971), (True, False, True)),\n>             \"w2-k1-r2\": ((18815, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r1\": ((19033, 20000, 6708), (True, False, True)),\n>             \"w2-k2-r2\": ((20000, 20000, 9656), (False, False, True)),\n>             \"w3-k1-r1\": ((20000, 20000, 20000), (False, False, False)),\n>         }\n>         for config in m.CONFIGS:\n>             rows = [_result(arm, config) for arm in (\"stock\", \"safe-flag\", \"safe-mainte\")]\n>             states, complete = expected[config.name]\n>             assert tuple(r[\"states\"] for r in rows) == states\n>             assert tuple(r[\"complete\"] for r in rows) == complete\n>             for row in rows:\n>                 assert row[\"config\"] == config.name\n>                 assert row[\"serializability\"] == m.SERIALIZABILITY\n>                 assert row[\"progress_meaning\"] == m.PROGRESS\n>                 if row[\"complete\"]:\n>                     assert row[\"gc_violations\"] == 0\n>             if all(complete):\n>                 assert rows[0][\"publications\"] == rows[0][\"cuts\"] == 0\n> >               assert rows[1][\"cuts\"] > 0 and rows[2][\"cuts\"] > 0\n> E               assert (0 > 0)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=365 retained_bytes=365 omitted_bytes=0 rendered_excerpt_bytes=384 sha256=1efa823c05fa6a0221d27ae38498c3b6ea3e2e43d3aa4cca29a4d5bd85318d0e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_safe_cut_is_after_three_versions_and_next_slot_store():\n>         for arm in (\"safe-flag\", \"safe-mainte\"):\n>             row = _result(arm)\n> >           assert row[\"complete\"] and row[\"cuts\"] > 0\n> E           assert (True and 0 > 0)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:67: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=361 retained_bytes=361 omitted_bytes=0 rendered_excerpt_bytes=380 sha256=48de5cac527ea890d880dfa35d9307965b2af9932c7fd0460f29dbca12bc77a6\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_raise_slot_counterexample_and_extra_flag():\n>         row = _result(\"bad-raise-slot\", cap=30_000)\n>         assert row[\"complete\"] and row[\"states\"] == 28742\n> >       assert row[\"gc_violations\"] == 10\n> E       assert 0 == 10\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:90: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=308 retained_bytes=308 omitted_bytes=0 rendered_excerpt_bytes=325 sha256=210a1d2718edeed9b2820a4c29028a5c1c10038e59b39f9d4a32db67c3f5ba3e\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_bad_clear_slot_counterexample():\n>         row = _result(\"bad-clear-slot\")\n> >       assert row[\"complete\"] and row[\"states\"] == 5971\n> E       assert (True and 5955 == 5971)\n> \n> orchestrator/tests/test_vhash_forwarding_model_rogc.py:109: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=2831 retained_bytes=2831 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5001 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "95ead1ca1e0ebaa4257ffa7f03a4d8317508830009e072c3e928460f6cc21296"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 10.24,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag"
+      ],
+      "hang_risk": false,
+      "id": "MA7-no-legal-cut",
+      "injection_diff_sha256": "494fb0385a886fbba1d6a06eda11b27c2239f715e795933f10231d6cc8f05fe5",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f066a8294e6d67f851443a767cc59f244cd7b8162684fab4907202287be11805",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+          "new": "        if s.u_write >= 3 and floor > 30 and not s.reclaimed:\n",
+          "old": "        if s.u_write >= 2 and floor > 30 and not s.reclaimed:\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "95ead1ca1e0ebaa4257ffa7f03a4d8317508830009e072c3e928460f6cc21296",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n............................FFF............                              [100%]\n=================================== FAILURES ===================================\n_________ test_both_patches_apply_without_fuzz_on_real_preimages[pin] __________\n[gw31] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw31/test_both_patches_apply_withou0')\npreimage = 'pin'\n\n    @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n    def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n        source = tmp_path / \"ccbench\"\n        shutil.copytree(P.ROOT / \"external/ccbench\", source,\n                        ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n        if preimage != \"pin\":\n            prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n            subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n        for patch in (P.WORKLOAD, P.VARIANT):\n            subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n                           cwd=source, check=True)\n            subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n        transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n        ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n        clear = transaction.index(\"node_map_.clear();\", ro)\n        call = transaction.index(\"mainte();\", clear)\n        ret = transaction.index(\"return true;\", call)\n        assert ro < clear < call < ret\n        guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\n\", clear, call)\n        close = transaction.find(\"#endif\\n\", call)\n>       assert clear < guard < call < close < ret\nE       assert 27827 < -1\n\norchestrator/tests/test_vhash_ro_gc_publish.py:204: AssertionError\n________ test_both_patches_apply_without_fuzz_on_real_preimages[trace] _________\n[gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw32/test_both_patches_apply_withou0')\npreimage = 'trace'\n\n    @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n    def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n        source = tmp_path / \"ccbench\"\n        shutil.copytree(P.ROOT / \"external/ccbench\", source,\n                        ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n        if preimage != \"pin\":\n            prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n            subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n        for patch in (P.WORKLOAD, P.VARIANT):\n            subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n                           cwd=source, check=True)\n            subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n        transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n        ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n        clear = transaction.index(\"node_map_.clear();\", ro)\n        call = transaction.index(\"mainte();\", clear)\n        ret = transaction.index(\"return true;\", call)\n        assert ro < clear < call < ret\n        guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\n\", clear, call)\n        close = transaction.find(\"#endif\\n\", call)\n>       assert clear < guard < call < close < ret\nE       assert 27929 < -1\n\norchestrator/tests/test_vhash_ro_gc_publish.py:204: AssertionError\n________ test_both_patches_apply_without_fuzz_on_real_preimages[vlife] _________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw33/test_both_patches_apply_withou0')\npreimage = 'vlife'\n\n    @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n    def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n        source = tmp_path / \"ccbench\"\n        shutil.copytree(P.ROOT / \"external/ccbench\", source,\n                        ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n        if preimage != \"pin\":\n            prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n            subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n        for patch in (P.WORKLOAD, P.VARIANT):\n            subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n                           cwd=source, check=True)\n            subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n        transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n        ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n        clear = transaction.index(\"node_map_.clear();\", ro)\n        call = transaction.index(\"mainte();\", clear)\n        ret = transaction.index(\"return true;\", call)\n        assert ro < clear < call < ret\n        guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\n\", clear, call)\n        close = transaction.find(\"#endif\\n\", call)\n>       assert clear < guard < call < close < ret\nE       assert 45645 < -1\n\norchestrator/tests/test_vhash_ro_gc_publish.py:204: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]\n3 failed, 40 passed in 20.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1570 retained_bytes=1570 omitted_bytes=0 rendered_excerpt_bytes=1635 sha256=10e8aac9e012855b7ac7373e29121521accb75108b369595b0d293bb2a0a1b38\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw32/test_both_patches_apply_withou0')\n> preimage = 'trace'\n> \n>     @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n>     def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n>         source = tmp_path / \"ccbench\"\n>         shutil.copytree(P.ROOT / \"external/ccbench\", source,\n>                         ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n>         if preimage != \"pin\":\n>             prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n>             subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n>         for patch in (P.WORKLOAD, P.VARIANT):\n>             subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n>                            cwd=source, check=True)\n>             subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n>         transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n>         ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n>         clear = transaction.index(\"node_map_.clear();\", ro)\n>         call = transaction.index(\"mainte();\", clear)\n>         ret = transaction.index(\"return true;\", call)\n>         assert ro < clear < call < ret\n>         guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\x5cn\", clear, call)\n>         close = transaction.find(\"#endif\\x5cn\", call)\n> >       assert clear < guard < call < close < ret\n> E       assert 27929 < -1\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:204: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=1570 retained_bytes=1570 omitted_bytes=0 rendered_excerpt_bytes=1635 sha256=a90e84a7b8b1337aa6e91a284ce224632851f33ef4bfa3af6cd769f29198632e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw33/test_both_patches_apply_withou0')\n> preimage = 'vlife'\n> \n>     @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n>     def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n>         source = tmp_path / \"ccbench\"\n>         shutil.copytree(P.ROOT / \"external/ccbench\", source,\n>                         ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n>         if preimage != \"pin\":\n>             prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n>             subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n>         for patch in (P.WORKLOAD, P.VARIANT):\n>             subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n>                            cwd=source, check=True)\n>             subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n>         transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n>         ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n>         clear = transaction.index(\"node_map_.clear();\", ro)\n>         call = transaction.index(\"mainte();\", clear)\n>         ret = transaction.index(\"return true;\", call)\n>         assert ro < clear < call < ret\n>         guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\x5cn\", clear, call)\n>         close = transaction.find(\"#endif\\x5cn\", call)\n> >       assert clear < guard < call < close < ret\n> E       assert 45645 < -1\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:204: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1568 retained_bytes=1568 omitted_bytes=0 rendered_excerpt_bytes=1633 sha256=0e671f3574ac8f3100502e2c8d1cb03587cdd6bbf253b558288d7fe406b56b21\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw31/test_both_patches_apply_withou0')\n> preimage = 'pin'\n> \n>     @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n>     def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n>         source = tmp_path / \"ccbench\"\n>         shutil.copytree(P.ROOT / \"external/ccbench\", source,\n>                         ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n>         if preimage != \"pin\":\n>             prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n>             subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n>         for patch in (P.WORKLOAD, P.VARIANT):\n>             subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n>                            cwd=source, check=True)\n>             subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n>         transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n>         ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n>         clear = transaction.index(\"node_map_.clear();\", ro)\n>         call = transaction.index(\"mainte();\", clear)\n>         ret = transaction.index(\"return true;\", call)\n>         assert ro < clear < call < ret\n>         guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\x5cn\", clear, call)\n>         close = transaction.find(\"#endif\\x5cn\", call)\n> >       assert clear < guard < call < close < ret\n> E       assert 27827 < -1\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:204: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4708 retained_bytes=4708 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6538 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "df91809d94121eb522c0f9d0c148f1d44c0aea6b7b73b431578522bab9a48375"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.465,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]"
+      ],
+      "hang_risk": false,
+      "id": "MB1-variant-mainte-unconditional",
+      "injection_diff_sha256": "4b7011ca620cb16cbf5322d5e0eec80abc7b45155e856d23a07c1845a5df9d2a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0b86a91c0fad18c4341730aace0e9055df496438e5916ce85fe748ebfa29a6b3",
+      "replacements": [
+        {
+          "file": "patches/cicada-ro-gcflag-variant.patch",
+          "new": "+#if 1\n+#if IZANAGI_CICADA_RO_GCFLAG_COUNT\n+    ++ro_gcflag_count[thid_].commits;\n",
+          "old": "+#if IZANAGI_CICADA_RO_GCFLAG\n+#if IZANAGI_CICADA_RO_GCFLAG_COUNT\n+    ++ro_gcflag_count[thid_].commits;\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "df91809d94121eb522c0f9d0c148f1d44c0aea6b7b73b431578522bab9a48375",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..........................F................                              [100%]\n=================================== FAILURES ===================================\n________ test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE] _________\n[gw13] linux -- Python 3.10.12 /usr/bin/python3.10\n\nforbidden = 'IZANAGI_CICADA_VLIFE'\n\n    @pytest.mark.parametrize(\"forbidden\", (\n        \"IZANAGI_CICADA_VLIFE\", \"TRACE\", \"IZANAGI_CICADA_RO_GCFLAG_COUNT\"))\n    def test_throughput_rejects_instrumentation(forbidden):\n>       with pytest.raises(ValueError, match=\"forbids\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_vhash_ro_gc_publish.py:102: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]\n1 failed, 42 passed in 20.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=425 retained_bytes=425 omitted_bytes=0 rendered_excerpt_bytes=448 sha256=75048fdbb995551d5577b4a50b758b0b13685f717763f8b04d115351d6fee675\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> forbidden = 'IZANAGI_CICADA_VLIFE'\n> \n>     @pytest.mark.parametrize(\"forbidden\", (\n>         \"IZANAGI_CICADA_VLIFE\", \"TRACE\", \"IZANAGI_CICADA_RO_GCFLAG_COUNT\"))\n>     def test_throughput_rejects_instrumentation(forbidden):\n> >       with pytest.raises(ValueError, match=\"forbids\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:102: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=425 retained_bytes=425 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1180 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "93e54a4f80842e4b46d5e00b9111de234e98e223947f1e0d4b60822ad39b665e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.306,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]"
+      ],
+      "hang_risk": false,
+      "id": "MB4-throughput-accepts-vlife",
+      "injection_diff_sha256": "3772e25bab4f1321eeba690072d6f4e46abab588538ce22917675584323af7ee",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3442c8f22ef799416f694bb96ecd8e31d6931b0d88bb3e85bb4e8854dbf3e38d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+          "new": "    if any(m in macros for m in (\"TRACE\",\n",
+          "old": "    if any(m in macros for m in (\"IZANAGI_CICADA_VLIFE\", \"TRACE\",\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "93e54a4f80842e4b46d5e00b9111de234e98e223947f1e0d4b60822ad39b665e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..........................F................                              [100%]\n=================================== FAILURES ===================================\n____________________ test_condition_grid_and_balanced_order ____________________\n[gw9] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_condition_grid_and_balanced_order():\n        assert len(P.CONDITIONS) == 12\n        assert {c[\"genome\"] for c in P.CONDITIONS.values()} == {\"default\", \"tuned\"}\n        assert {c[\"ro_pct\"] for c in P.CONDITIONS.values()} == {0, 50, 95}\n        assert {c[\"wait_us\"] for c in P.CONDITIONS.values()} == {0, 10000}\n        plan = P.pair_plan(tuple(P.CONDITIONS))\n        assert len(plan) == 72\n        assert P._flags(P.CONDITIONS[\"S50-none-gc10\"], records=200, extime=1,\n                        clocks_per_us=2100, workers=4, seed=3)[\"izanagi_rogc_seed\"] == 3\n        for cid in P.CONDITIONS:\n            rows = [row for row in plan if row[\"condition\"] == cid]\n>           assert [row[\"order\"] for row in rows] == [\n                [\"stock\", \"variant\"], [\"variant\", \"stock\"],\n                [\"stock\", \"variant\"], [\"variant\", \"stock\"],\n                [\"stock\", \"variant\"], [\"variant\", \"stock\"],\n            ]\nE           AssertionError: assert [['stock', 'v...', 'variant']] == [['stock', 'v...nt', 'stock']]\nE             \nE             At index 1 diff: ['stock', 'variant'] != ['variant', 'stock']\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_ro_gc_publish.py:27: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order\n1 failed, 42 passed in 20.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1265 retained_bytes=1265 omitted_bytes=0 rendered_excerpt_bytes=1314 sha256=cf9458a9b1dfe1fae7fe2feff825c0bc2ce73c24e1655df57338460500fb6ec5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_condition_grid_and_balanced_order():\n>         assert len(P.CONDITIONS) == 12\n>         assert {c[\"genome\"] for c in P.CONDITIONS.values()} == {\"default\", \"tuned\"}\n>         assert {c[\"ro_pct\"] for c in P.CONDITIONS.values()} == {0, 50, 95}\n>         assert {c[\"wait_us\"] for c in P.CONDITIONS.values()} == {0, 10000}\n>         plan = P.pair_plan(tuple(P.CONDITIONS))\n>         assert len(plan) == 72\n>         assert P._flags(P.CONDITIONS[\"S50-none-gc10\"], records=200, extime=1,\n>                         clocks_per_us=2100, workers=4, seed=3)[\"izanagi_rogc_seed\"] == 3\n>         for cid in P.CONDITIONS:\n>             rows = [row for row in plan if row[\"condition\"] == cid]\n> >           assert [row[\"order\"] for row in rows] == [\n>                 [\"stock\", \"variant\"], [\"variant\", \"stock\"],\n>                 [\"stock\", \"variant\"], [\"variant\", \"stock\"],\n>                 [\"stock\", \"variant\"], [\"variant\", \"stock\"],\n>             ]\n> E           AssertionError: assert [['stock', 'v...', 'variant']] == [['stock', 'v...nt', 'stock']]\n> E             \n> E             At index 1 diff: ['stock', 'variant'] != ['variant', 'stock']\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:27: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1265 retained_bytes=1265 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2027 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bccb0ecb9b69d5052a7573e324aeaa8c1ec6192b1ab15e812af4c62245688980"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.639,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order"
+      ],
+      "hang_risk": false,
+      "id": "MB5-order-not-balanced",
+      "injection_diff_sha256": "561cfd617d36cae3cf9be66cba088c0353602063fb7be842d66c276f2ff91d7d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fb43e0052144fabecb33ae2356f4e606770fab6d4c6e9800eda9abf5d1dc3103",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+          "new": "ORDER = ((\"stock\", \"variant\"),) * 6\n",
+          "old": "ORDER = ((\"stock\", \"variant\"), (\"variant\", \"stock\")) * 3\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "bccb0ecb9b69d5052a7573e324aeaa8c1ec6192b1ab15e812af4c62245688980",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..........................F................                              [100%]\n=================================== FAILURES ===================================\n____________ test_verify_acceptance_requires_real_flag_and_no_cycle ____________\n[gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_verify_acceptance_requires_real_flag_and_no_cycle():\n        integrity = {key: 0 for key in (\n            \"orphan_reads\", \"version_dups\", \"dup_txids\", \"genesis_commits\",\n            \"missing_txids\", \"write_version_mismatch\", \"malformed_keys\",\n            \"framing_violations\", \"lock_coverage_violations\",\n            \"write_intent_violations\", \"permutation_violations\",\n            \"existence_violations\",\n        )}\n        integrity[\"clean\"] = False  # Cicada lacks the proof surfaces for certification.\n        report = {\"runs\": 1, \"non_serializable\": 0, \"indeterminate\": 1,\n                  \"results\": [{\"total_cycles\": 0, \"integrity\": integrity,\n                               \"stats\": {\"txns\": 20}}]}\n        count = {\"ro_commits\": 10, \"flag_raises\": 2}\n        assert P.verify_acceptance(3, report, 0, count, 20)\n        assert P.verdict_label(0) == \"certified\"\n        assert P.verdict_label(3) == \"no-cycle (upper bound indeterminate)\"\n        assert P.verdict_label(1) == \"rejected\"\n>       assert not P.verify_acceptance(1, report, 0, count, 20)\nE       AssertionError: assert not True\nE        +  where True = <function verify_acceptance at 0x152f4588f370>(1, {'runs': 1, 'non_serializable': 0, 'indeterminate': 1, 'results': [{'total_cycles': 0, 'integrity': {'orphan_reads': 0, 'version_dups': 0, 'dup_txids': 0, 'genesis_commits': 0, ...}, 'stats': {'txns': 20}}]}, 0, {'ro_commits': 10, 'flag_raises': 2}, 20)\nE        +    where <function verify_acceptance at 0x152f4588f370> = P.verify_acceptance\n\norchestrator/tests/test_vhash_ro_gc_publish.py:125: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle\n1 failed, 42 passed in 20.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1648 retained_bytes=1648 omitted_bytes=0 rendered_excerpt_bytes=1699 sha256=a90996d835cff8ed853c21c750598c608bbaf279ca79d7793189eefd31508c56\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_verify_acceptance_requires_real_flag_and_no_cycle():\n>         integrity = {key: 0 for key in (\n>             \"orphan_reads\", \"version_dups\", \"dup_txids\", \"genesis_commits\",\n>             \"missing_txids\", \"write_version_mismatch\", \"malformed_keys\",\n>             \"framing_violations\", \"lock_coverage_violations\",\n>             \"write_intent_violations\", \"permutation_violations\",\n>             \"existence_violations\",\n>         )}\n>         integrity[\"clean\"] = False  # Cicada lacks the proof surfaces for certification.\n>         report = {\"runs\": 1, \"non_serializable\": 0, \"indeterminate\": 1,\n>                   \"results\": [{\"total_cycles\": 0, \"integrity\": integrity,\n>                                \"stats\": {\"txns\": 20}}]}\n>         count = {\"ro_commits\": 10, \"flag_raises\": 2}\n>         assert P.verify_acceptance(3, report, 0, count, 20)\n>         assert P.verdict_label(0) == \"certified\"\n>         assert P.verdict_label(3) == \"no-cycle (upper bound indeterminate)\"\n>         assert P.verdict_label(1) == \"rejected\"\n> >       assert not P.verify_acceptance(1, report, 0, count, 20)\n> E       AssertionError: assert not True\n> E        +  where True = <function verify_acceptance at 0x152f4588f370>(1, {'runs': 1, 'non_serializable': 0, 'indeterminate': 1, 'results': [{'total_cycles': 0, 'integrity': {'orphan_reads': 0, 'version_dups': 0, 'dup_txids': 0, 'genesis_commits': 0, ...}, 'stats': {'txns': 20}}]}, 0, {'ro_commits': 10, 'flag_raises': 2}, 20)\n> E        +    where <function verify_acceptance at 0x152f4588f370> = P.verify_acceptance\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:125: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1648 retained_bytes=1648 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2429 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9dba93b2d5b9546308d3da10a148484be7bbfd089237a7af341400c4c6ccedf6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.26,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle"
+      ],
+      "hang_risk": false,
+      "id": "MB6-verify-accepts-cycle-rc",
+      "injection_diff_sha256": "fd1521e5bf4f0abcb398cd574d46388fc1180b1d35b7a5b185764220cb89ca2a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6663ca96731ffa67579881de92d709a3e790e2c0bd449f138a817d26454cb6d4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+          "new": "    return (verifier_rc in (0, 1, 3) and report.get(\"runs\") == 1\n",
+          "old": "    return (verifier_rc in (0, 3) and report.get(\"runs\") == 1\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "9dba93b2d5b9546308d3da10a148484be7bbfd089237a7af341400c4c6ccedf6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..........................F................                              [100%]\n=================================== FAILURES ===================================\n____________ test_verify_acceptance_requires_real_flag_and_no_cycle ____________\n[gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_verify_acceptance_requires_real_flag_and_no_cycle():\n        integrity = {key: 0 for key in (\n            \"orphan_reads\", \"version_dups\", \"dup_txids\", \"genesis_commits\",\n            \"missing_txids\", \"write_version_mismatch\", \"malformed_keys\",\n            \"framing_violations\", \"lock_coverage_violations\",\n            \"write_intent_violations\", \"permutation_violations\",\n            \"existence_violations\",\n        )}\n        integrity[\"clean\"] = False  # Cicada lacks the proof surfaces for certification.\n        report = {\"runs\": 1, \"non_serializable\": 0, \"indeterminate\": 1,\n                  \"results\": [{\"total_cycles\": 0, \"integrity\": integrity,\n                               \"stats\": {\"txns\": 20}}]}\n        count = {\"ro_commits\": 10, \"flag_raises\": 2}\n        assert P.verify_acceptance(3, report, 0, count, 20)\n        assert P.verdict_label(0) == \"certified\"\n        assert P.verdict_label(3) == \"no-cycle (upper bound indeterminate)\"\n        assert P.verdict_label(1) == \"rejected\"\n        assert not P.verify_acceptance(1, report, 0, count, 20)\n        assert not P.verify_acceptance(3, {**report, \"non_serializable\": 1}, 0, count, 20)\n        assert not P.verify_acceptance(3, report, 1, count, 20)\n>       assert not P.verify_acceptance(3, report, 0, {**count, \"flag_raises\": 0}, 20)\nE       AssertionError: assert not True\nE        +  where True = <function verify_acceptance at 0x14cd91adf370>(3, {'runs': 1, 'non_serializable': 0, 'indeterminate': 1, 'results': [{'total_cycles': 0, 'integrity': {'orphan_reads': 0, 'version_dups': 0, 'dup_txids': 0, 'genesis_commits': 0, ...}, 'stats': {'txns': 20}}]}, 0, {'ro_commits': 10, 'flag_raises': 0}, 20)\nE        +    where <function verify_acceptance at 0x14cd91adf370> = P.verify_acceptance\n\norchestrator/tests/test_vhash_ro_gc_publish.py:128: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle\n1 failed, 42 passed in 20.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1889 retained_bytes=1889 omitted_bytes=0 rendered_excerpt_bytes=1946 sha256=d898fedc820b4fa52e25ba2914ae2d144f77f4ee52ee38e62db73cb81e875d01\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_verify_acceptance_requires_real_flag_and_no_cycle():\n>         integrity = {key: 0 for key in (\n>             \"orphan_reads\", \"version_dups\", \"dup_txids\", \"genesis_commits\",\n>             \"missing_txids\", \"write_version_mismatch\", \"malformed_keys\",\n>             \"framing_violations\", \"lock_coverage_violations\",\n>             \"write_intent_violations\", \"permutation_violations\",\n>             \"existence_violations\",\n>         )}\n>         integrity[\"clean\"] = False  # Cicada lacks the proof surfaces for certification.\n>         report = {\"runs\": 1, \"non_serializable\": 0, \"indeterminate\": 1,\n>                   \"results\": [{\"total_cycles\": 0, \"integrity\": integrity,\n>                                \"stats\": {\"txns\": 20}}]}\n>         count = {\"ro_commits\": 10, \"flag_raises\": 2}\n>         assert P.verify_acceptance(3, report, 0, count, 20)\n>         assert P.verdict_label(0) == \"certified\"\n>         assert P.verdict_label(3) == \"no-cycle (upper bound indeterminate)\"\n>         assert P.verdict_label(1) == \"rejected\"\n>         assert not P.verify_acceptance(1, report, 0, count, 20)\n>         assert not P.verify_acceptance(3, {**report, \"non_serializable\": 1}, 0, count, 20)\n>         assert not P.verify_acceptance(3, report, 1, count, 20)\n> >       assert not P.verify_acceptance(3, report, 0, {**count, \"flag_raises\": 0}, 20)\n> E       AssertionError: assert not True\n> E        +  where True = <function verify_acceptance at 0x14cd91adf370>(3, {'runs': 1, 'non_serializable': 0, 'indeterminate': 1, 'results': [{'total_cycles': 0, 'integrity': {'orphan_reads': 0, 'version_dups': 0, 'dup_txids': 0, 'genesis_commits': 0, ...}, 'stats': {'txns': 20}}]}, 0, {'ro_commits': 10, 'flag_raises': 0}, 20)\n> E        +    where <function verify_acceptance at 0x14cd91adf370> = P.verify_acceptance\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:128: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1889 retained_bytes=1889 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2676 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5332cc833b97c991c839925c0a610386926804ff5fb978639077c0768c601284"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.269,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle"
+      ],
+      "hang_risk": false,
+      "id": "MB7-verify-accepts-zero-flag-raise",
+      "injection_diff_sha256": "ea0036935b5be4b66d11cf8cf5e63abd4cabbcf43bc4d750170c48aaa94e9a5c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "35818b44ac3ed60ac4182037cefe36ce4f675028b31d8ebedc4a9ffab6f54d90",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+          "new": "            and count[\"flag_raises\"] >= 0)\n",
+          "old": "            and count[\"flag_raises\"] > 0)\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "5332cc833b97c991c839925c0a610386926804ff5fb978639077c0768c601284",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n............................FFF............                              [100%]\n=================================== FAILURES ===================================\n_________ test_both_patches_apply_without_fuzz_on_real_preimages[pin] __________\n[gw31] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw31/test_both_patches_apply_withou0')\npreimage = 'pin'\n\n    @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n    def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n        source = tmp_path / \"ccbench\"\n        shutil.copytree(P.ROOT / \"external/ccbench\", source,\n                        ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n        if preimage != \"pin\":\n            prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n            subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n        for patch in (P.WORKLOAD, P.VARIANT):\n            subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n                           cwd=source, check=True)\n            subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n        transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n        ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n        clear = transaction.index(\"node_map_.clear();\", ro)\n        call = transaction.index(\"mainte();\", clear)\n        ret = transaction.index(\"return true;\", call)\n        assert ro < clear < call < ret\n        guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\n\", clear, call)\n        close = transaction.find(\"#endif\\n\", call)\n        assert clear < guard < call < close < ret\n        assert \"#line 937\" in transaction[call:ret]\n        workload = (source / \"include/ycsb.hh\").read_text()\n>       assert \"if (!has_write) tx.pro_set_.front().ope_\" in workload\nE       assert 'if (!has_write) tx.pro_set_.front().ope_' in '#pragma once\\n\\n#include <thread>\\n#include <vector>\\n\\n#include \"config.hh\"\\n#include \"debug.hh\"\\n#include \"heap_obj... << FLAGS_ycsb_tuple_num << endl;\\n    cout << \"#FLAGS_ycsb_zipf_skew:\\\\t\" << FLAGS_ycsb_zipf_skew << endl;\\n  }\\n};\\n'\n\norchestrator/tests/test_vhash_ro_gc_publish.py:207: AssertionError\n________ test_both_patches_apply_without_fuzz_on_real_preimages[vlife] _________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw33/test_both_patches_apply_withou0')\npreimage = 'vlife'\n\n    @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n    def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n        source = tmp_path / \"ccbench\"\n        shutil.copytree(P.ROOT / \"external/ccbench\", source,\n                        ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n        if preimage != \"pin\":\n            prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n            subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n        for patch in (P.WORKLOAD, P.VARIANT):\n            subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n                           cwd=source, check=True)\n            subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n        transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n        ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n        clear = transaction.index(\"node_map_.clear();\", ro)\n        call = transaction.index(\"mainte();\", clear)\n        ret = transaction.index(\"return true;\", call)\n        assert ro < clear < call < ret\n        guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\n\", clear, call)\n        close = transaction.find(\"#endif\\n\", call)\n        assert clear < guard < call < close < ret\n        assert \"#line 937\" in transaction[call:ret]\n        workload = (source / \"include/ycsb.hh\").read_text()\n>       assert \"if (!has_write) tx.pro_set_.front().ope_\" in workload\nE       assert 'if (!has_write) tx.pro_set_.front().ope_' in '#pragma once\\n\\n#include <thread>\\n#include <vector>\\n\\n#include \"config.hh\"\\n#include \"debug.hh\"\\n#include \"heap_obj... << FLAGS_ycsb_tuple_num << endl;\\n    cout << \"#FLAGS_ycsb_zipf_skew:\\\\t\" << FLAGS_ycsb_zipf_skew << endl;\\n  }\\n};\\n'\n\norchestrator/tests/test_vhash_ro_gc_publish.py:207: AssertionError\n________ test_both_patches_apply_without_fuzz_on_real_preimages[trace] _________\n[gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw32/test_both_patches_apply_withou0')\npreimage = 'trace'\n\n    @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n    def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n        source = tmp_path / \"ccbench\"\n        shutil.copytree(P.ROOT / \"external/ccbench\", source,\n                        ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n        if preimage != \"pin\":\n            prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n            subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n        for patch in (P.WORKLOAD, P.VARIANT):\n            subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n                           cwd=source, check=True)\n            subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n        transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n        ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n        clear = transaction.index(\"node_map_.clear();\", ro)\n        call = transaction.index(\"mainte();\", clear)\n        ret = transaction.index(\"return true;\", call)\n        assert ro < clear < call < ret\n        guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\n\", clear, call)\n        close = transaction.find(\"#endif\\n\", call)\n        assert clear < guard < call < close < ret\n        assert \"#line 937\" in transaction[call:ret]\n        workload = (source / \"include/ycsb.hh\").read_text()\n>       assert \"if (!has_write) tx.pro_set_.front().ope_\" in workload\nE       assert 'if (!has_write) tx.pro_set_.front().ope_' in '#pragma once\\n\\n#include <thread>\\n#include <vector>\\n\\n#include \"config.hh\"\\n#include \"debug.hh\"\\n#include \"heap_obj... << FLAGS_ycsb_tuple_num << endl;\\n    cout << \"#FLAGS_ycsb_zipf_skew:\\\\t\" << FLAGS_ycsb_zipf_skew << endl;\\n  }\\n};\\n'\n\norchestrator/tests/test_vhash_ro_gc_publish.py:207: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]\n3 failed, 40 passed in 20.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2029 retained_bytes=2029 omitted_bytes=0 rendered_excerpt_bytes=2139 sha256=3e42287d2ac1360c89a2b5ec555264d1210f476ee67cc5c402abc683aaac265c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw32/test_both_patches_apply_withou0')\n> preimage = 'trace'\n> \n>     @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n>     def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n>         source = tmp_path / \"ccbench\"\n>         shutil.copytree(P.ROOT / \"external/ccbench\", source,\n>                         ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n>         if preimage != \"pin\":\n>             prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n>             subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n>         for patch in (P.WORKLOAD, P.VARIANT):\n>             subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n>                            cwd=source, check=True)\n>             subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n>         transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n>         ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n>         clear = transaction.index(\"node_map_.clear();\", ro)\n>         call = transaction.index(\"mainte();\", clear)\n>         ret = transaction.index(\"return true;\", call)\n>         assert ro < clear < call < ret\n>         guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\x5cn\", clear, call)\n>         close = transaction.find(\"#endif\\x5cn\", call)\n>         assert clear < guard < call < close < ret\n>         assert \"#line 937\" in transaction[call:ret]\n>         workload = (source / \"include/ycsb.hh\").read_text()\n> >       assert \"if (!has_write) tx.pro_set_.front().ope_\" in workload\n> E       assert 'if (!has_write) tx.pro_set_.front().ope_' in '#pragma once\\x5cn\\x5cn#include <thread>\\x5cn#include <vector>\\x5cn\\x5cn#include \"config.hh\"\\x5cn#include \"debug.hh\"\\x5cn#include \"heap_obj... << FLAGS_ycsb_tuple_num << endl;\\x5cn    cout << \"#FLAGS_ycsb_zipf_skew:\\x5c\\x5ct\" << FLAGS_ycsb_zipf_skew << endl;\\x5cn  }\\x5cn};\\x5cn'\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:207: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2029 retained_bytes=2029 omitted_bytes=0 rendered_excerpt_bytes=2139 sha256=0addbc1d06880c92133c3a8ade3ed9807db9b6cf44bbf7fa0f0b9ccdd8720901\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw33/test_both_patches_apply_withou0')\n> preimage = 'vlife'\n> \n>     @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n>     def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n>         source = tmp_path / \"ccbench\"\n>         shutil.copytree(P.ROOT / \"external/ccbench\", source,\n>                         ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n>         if preimage != \"pin\":\n>             prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n>             subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n>         for patch in (P.WORKLOAD, P.VARIANT):\n>             subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n>                            cwd=source, check=True)\n>             subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n>         transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n>         ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n>         clear = transaction.index(\"node_map_.clear();\", ro)\n>         call = transaction.index(\"mainte();\", clear)\n>         ret = transaction.index(\"return true;\", call)\n>         assert ro < clear < call < ret\n>         guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\x5cn\", clear, call)\n>         close = transaction.find(\"#endif\\x5cn\", call)\n>         assert clear < guard < call < close < ret\n>         assert \"#line 937\" in transaction[call:ret]\n>         workload = (source / \"include/ycsb.hh\").read_text()\n> >       assert \"if (!has_write) tx.pro_set_.front().ope_\" in workload\n> E       assert 'if (!has_write) tx.pro_set_.front().ope_' in '#pragma once\\x5cn\\x5cn#include <thread>\\x5cn#include <vector>\\x5cn\\x5cn#include \"config.hh\"\\x5cn#include \"debug.hh\"\\x5cn#include \"heap_obj... << FLAGS_ycsb_tuple_num << endl;\\x5cn    cout << \"#FLAGS_ycsb_zipf_skew:\\x5c\\x5ct\" << FLAGS_ycsb_zipf_skew << endl;\\x5cn  }\\x5cn};\\x5cn'\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:207: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=2027 retained_bytes=2027 omitted_bytes=0 rendered_excerpt_bytes=2137 sha256=c4b8af2728fce891db43f1e9e249ce618e6e24705428136e83712dd77be1508a\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw31/test_both_patches_apply_withou0')\n> preimage = 'pin'\n> \n>     @pytest.mark.parametrize(\"preimage\", (\"pin\", \"trace\", \"vlife\"))\n>     def test_both_patches_apply_without_fuzz_on_real_preimages(tmp_path, preimage):\n>         source = tmp_path / \"ccbench\"\n>         shutil.copytree(P.ROOT / \"external/ccbench\", source,\n>                         ignore=shutil.ignore_patterns(\".git\", \"build*\"))\n>         if preimage != \"pin\":\n>             prior = P.TRACE if preimage == \"trace\" else P.VLIFE\n>             subprocess.run([\"git\", \"apply\", str(prior)], cwd=source, check=True)\n>         for patch in (P.WORKLOAD, P.VARIANT):\n>             subprocess.run([\"git\", \"apply\", \"--check\", str(patch)],\n>                            cwd=source, check=True)\n>             subprocess.run([\"git\", \"apply\", str(patch)], cwd=source, check=True)\n>         transaction = (source / \"cc/cicada/transaction.cc\").read_text()\n>         ro = transaction.index(\"if (this->is_ronly_)\", transaction.index(\"bool TxExecutor::commit()\"))\n>         clear = transaction.index(\"node_map_.clear();\", ro)\n>         call = transaction.index(\"mainte();\", clear)\n>         ret = transaction.index(\"return true;\", call)\n>         assert ro < clear < call < ret\n>         guard = transaction.rfind(\"#if IZANAGI_CICADA_RO_GCFLAG\\x5cn\", clear, call)\n>         close = transaction.find(\"#endif\\x5cn\", call)\n>         assert clear < guard < call < close < ret\n>         assert \"#line 937\" in transaction[call:ret]\n>         workload = (source / \"include/ycsb.hh\").read_text()\n> >       assert \"if (!has_write) tx.pro_set_.front().ope_\" in workload\n> E       assert 'if (!has_write) tx.pro_set_.front().ope_' in '#pragma once\\x5cn\\x5cn#include <thread>\\x5cn#include <vector>\\x5cn\\x5cn#include \"config.hh\"\\x5cn#include \"debug.hh\"\\x5cn#include \"heap_obj... << FLAGS_ycsb_tuple_num << endl;\\x5cn    cout << \"#FLAGS_ycsb_zipf_skew:\\x5c\\x5ct\" << FLAGS_ycsb_zipf_skew << endl;\\x5cn  }\\x5cn};\\x5cn'\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:207: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=6085 retained_bytes=6085 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8050 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "70fc886d967bbc7b8d70de53077d625bc559d51939fa693e9ebb840d7831cd72"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.27,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]"
+      ],
+      "hang_risk": false,
+      "id": "MB8-workload-no-write-guarantee",
+      "injection_diff_sha256": "6f8c1bb68bc062fbc3aee75c154357e96367376875e6bfaa8499ea733d5ae003",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e6603a5088d2ba397749f34b041d0acae57fcde2b105dbaf588ad1bdf82212d3",
+      "replacements": [
+        {
+          "file": "patches/cicada-ro-gcflag-workload.patch",
+          "new": "+      if (false) tx.pro_set_.front().ope_ = FLAGS_ycsb_rmw ?\n",
+          "old": "+      if (!has_write) tx.pro_set_.front().ope_ = FLAGS_ycsb_rmw ?\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "70fc886d967bbc7b8d70de53077d625bc559d51939fa693e9ebb840d7831cd72",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................................F...                              [100%]\n=================================== FAILURES ===================================\n___________ test_record_raw_round_trip_into_plot_and_boundary_table ____________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw42/test_record_raw_round_trip_int0')\n\n    def test_record_raw_round_trip_into_plot_and_boundary_table(tmp_path):\n        from tools.plotting import plot_vhash_ro_gc_publish as plot\n        paths = {}\n        for command in (\"measure\", \"throughput\"):\n            raw = {\"command\": command, \"conditions\": P.CONDITIONS,\n                   \"ccbench_commit\": P.PIN, \"records\": 1000000, \"extime\": 3,\n                   \"workers\": 48, \"site\": \"compute\",\n                   \"measurement_env\": {\"records\": 1000000, \"extime\": 3,\n                                       \"workers\": 48, \"site\": \"compute\"},\n                   \"patch_sha256\": {p.name: P.sha(p) for p in\n                       (P.VARIANT, P.WORKLOAD, P.VLIFE, P.TRACE)}, \"runs\": []}\n            for item in P.pair_plan(tuple(P.CONDITIONS)):\n                cid, rep = item[\"condition\"], item[\"rep\"]\n                for arm in item[\"order\"]:\n                    wait = P.CONDITIONS[cid][\"delay\"] == \"wait10msR\"\n                    payload = _vlife_fixture(0 if arm == \"stock\" else 1,\n                                              2 if wait else 1, 750000)\n                    stdout = (P.WORKLOAD_PREFIX +\n                              '{\"schema\":1,\"attempts\":10,\"ro_attempts\":5,\"commits\":8,\"long_ro_attempts\":1}\\n')\n                    if command == \"measure\":\n                        stdout += V.PREFIX + json.dumps(payload) + \"\\n\"\n                    else:\n                        stdout += \"throughput[tps]:\\t100\\n\"\n                    build = {\"trace\": False, \"vlife\": command == \"measure\",\n                             \"macro\": [\"IZANAGI_CICADA_ROGC_WORKLOAD\"],\n                             \"genome\": {\"genome\": P.CONDITIONS[cid][\"genome\"]}}\n                    run = {\"rc\": 0, \"stdout\": stdout, \"stderr\": \"\",\n                           \"argv\": [\"binary\", \"-extime=3\"],\n                           \"started_at\": \"start\", \"ended_at\": \"end\", \"wall_s\": 3.0}\n                    raw[\"runs\"].append(P._record(run, condition=cid, arm=arm, rep=rep,\n                        order=item[\"order\"], build=build, command=command))\n            path = tmp_path / f\"{command}.json\"\n            path.write_text(json.dumps(raw))\n            paths[command] = path\n        measure = plot.load_raw([paths[\"measure\"]], \"measure\")\n        throughput = plot.load_raw([paths[\"throughput\"]], \"throughput\")\n        malformed = json.loads(paths[\"measure\"].read_text())\n        malformed[\"measurement_env\"][\"workers\"] = 4\n        paths[\"measure\"].write_text(json.dumps(malformed))\n        with pytest.raises(ValueError, match=\"measurement environment\"):\n            plot.load_raw([paths[\"measure\"]], \"measure\")\n        malformed[\"measurement_env\"][\"workers\"] = 48\n        paths[\"measure\"].write_text(json.dumps(malformed))\n        assert plot.paired_values(throughput, \"throughput\", \"throughput_tps\")[\n            \"S95-wait10msR-gc10\"] == [1.0] * 6\n        table = plot.boundary_context(measure)\n>       assert table[\"S95-wait10msR-gc10\"][\"stock\"][0] == {\n            \"publications\": 0, \"publication_label\": \"公開 0 回\",\n            \"boundary_age_us\": None, \"boundary_age_label\": \"未定義\"}\nE       AssertionError: assert {'publication..._label': None} == {'publication...label': '未定義'}\nE         \nE         Differing items:\nE         {'boundary_age_us': 2.0} != {'boundary_age_us': None}\nE         {'boundary_age_label': None} != {'boundary_age_label': '未定義'}\nE         {'publication_label': '1 回'} != {'publication_label': '公開 0 回'}\nE         {'publications': 1} != {'publications': 0}\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_ro_gc_publish.py:416: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table\n1 failed, 42 passed in 20.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=3753 retained_bytes=3753 omitted_bytes=0 rendered_excerpt_bytes=3940 sha256=f53eeb20d18185c0cdec866afc2fa867546502741f2c28b3cc34a6500f714976\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw42/test_record_raw_round_trip_int0')\n> \n>     def test_record_raw_round_trip_into_plot_and_boundary_table(tmp_path):\n>         from tools.plotting import plot_vhash_ro_gc_publish as plot\n>         paths = {}\n>         for command in (\"measure\", \"throughput\"):\n>             raw = {\"command\": command, \"conditions\": P.CONDITIONS,\n>                    \"ccbench_commit\": P.PIN, \"records\": 1000000, \"extime\": 3,\n>                    \"workers\": 48, \"site\": \"compute\",\n>                    \"measurement_env\": {\"records\": 1000000, \"extime\": 3,\n>                                        \"workers\": 48, \"site\": \"compute\"},\n>                    \"patch_sha256\": {p.name: P.sha(p) for p in\n>                        (P.VARIANT, P.WORKLOAD, P.VLIFE, P.TRACE)}, \"runs\": []}\n>             for item in P.pair_plan(tuple(P.CONDITIONS)):\n>                 cid, rep = item[\"condition\"], item[\"rep\"]\n>                 for arm in item[\"order\"]:\n>                     wait = P.CONDITIONS[cid][\"delay\"] == \"wait10msR\"\n>                     payload = _vlife_fixture(0 if arm == \"stock\" else 1,\n>                                               2 if wait else 1, 750000)\n>                     stdout = (P.WORKLOAD_PREFIX +\n>                               '{\"schema\":1,\"attempts\":10,\"ro_attempts\":5,\"commits\":8,\"long_ro_attempts\":1}\\x5cn')\n>                     if command == \"measure\":\n>                         stdout += V.PREFIX + json.dumps(payload) + \"\\x5cn\"\n>                     else:\n>                         stdout += \"throughput[tps]:\\x5ct100\\x5cn\"\n>                     build = {\"trace\": False, \"vlife\": command == \"measure\",\n>                              \"macro\": [\"IZANAGI_CICADA_ROGC_WORKLOAD\"],\n>                              \"genome\": {\"genome\": P.CONDITIONS[cid][\"genome\"]}}\n>                     run = {\"rc\": 0, \"stdout\": stdout, \"stderr\": \"\",\n>                            \"argv\": [\"binary\", \"-extime=3\"],\n>                            \"started_at\": \"start\", \"ended_at\": \"end\", \"wall_s\": 3.0}\n>                     raw[\"runs\"].append(P._record(run, condition=cid, arm=arm, rep=rep,\n>                         order=item[\"order\"], build=build, command=command))\n>             path = tmp_path / f\"{command}.json\"\n>             path.write_text(json.dumps(raw))\n>             paths[command] = path\n>         measure = plot.load_raw([paths[\"measure\"]], \"measure\")\n>         throughput = plot.load_raw([paths[\"throughput\"]], \"throughput\")\n>         malformed = json.loads(paths[\"measure\"].read_text())\n>         malformed[\"measurement_env\"][\"workers\"] = 4\n>         paths[\"measure\"].write_text(json.dumps(malformed))\n>         with pytest.raises(ValueError, match=\"measurement environment\"):\n>             plot.load_raw([paths[\"measure\"]], \"measure\")\n>         malformed[\"measurement_env\"][\"workers\"] = 48\n>         paths[\"measure\"].write_text(json.dumps(malformed))\n>         assert plot.paired_values(throughput, \"throughput\", \"throughput_tps\")[\n>             \"S95-wait10msR-gc10\"] == [1.0] * 6\n>         table = plot.boundary_context(measure)\n> >       assert table[\"S95-wait10msR-gc10\"][\"stock\"][0] == {\n>             \"publications\": 0, \"publication_label\": \"\\u516c\\u958b 0 \\u56de\",\n>             \"boundary_age_us\": None, \"boundary_age_label\": \"\\u672a\\u5b9a\\u7fa9\"}\n> E       AssertionError: assert {'publication..._label': None} == {'publication...label': '\\u672a\\u5b9a\\u7fa9'}\n> E         \n> E         Differing items:\n> E         {'boundary_age_us': 2.0} != {'boundary_age_us': None}\n> E         {'boundary_age_label': None} != {'boundary_age_label': '\\u672a\\u5b9a\\u7fa9'}\n> E         {'publication_label': '1 \\u56de'} != {'publication_label': '\\u516c\\u958b 0 \\u56de'}\n> E         {'publications': 1} != {'publications': 0}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_ro_gc_publish.py:416: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3753 retained_bytes=3753 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4671 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "829dd12166518530416b5423cf934a5015711e4d2d599470ff567b93d93f1caa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.655,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table"
+      ],
+      "hang_risk": false,
+      "id": "MB9-plot-stock-variant-swapped",
+      "injection_diff_sha256": "317e103e88461ac68f0060d79d09b0c2b067b04adc71d8baf75f121b46ed52bd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d5ac9064f4eb9a6d5b3272ed1306681f8db0c90ef2f0128e35216fa0b300aec9",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_ro_gc_publish.py",
+          "new": "            s = V.summarize(V.parse_vlife_line(rows[cid, rep, \"variant\"][\"stdout\"]))\n",
+          "old": "            s = V.summarize(V.parse_vlife_line(rows[cid, rep, \"stock\"][\"stdout\"]))\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "KILLED",
+      "test_output_sha256": "829dd12166518530416b5423cf934a5015711e4d2d599470ff567b93d93f1caa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...........................................                              [100%]\n43 passed in 20.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "030757d0a91007a562d21c180d33edd065b7fe270710419b7b1b940a92129afd"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "05c6e3e8f05397ad3831c2080e0207a66b424163d887a59a8807de25230bd461",
+      "duration_s": 21.234,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "EQ-1-driver-docstring",
+      "injection_diff_sha256": "4debfd7746082fee5746b5d83d29f5eba55b486538857d707ba7cfa6f59f31ca",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "92a595262cdc45d5a92271a798ec8c1ea2b96c7f07e0ffdcb7426ebacce9432c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+          "new": "\"\"\"Paired Cicada read-only GC publication diagnostic on one compute node.\"\"\"\n",
+          "old": "\"\"\"Paired Cicada read-only GC publication diagnostic on a compute node.\"\"\"\n"
+        }
+      ],
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "SURVIVED",
+      "test_output_sha256": "030757d0a91007a562d21c180d33edd065b7fe270710419b7b1b940a92129afd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_equal_publication_is_not_progress\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_oracle_ignores_gc_boundary\norchestrator/tests/test_vhash_forwarding_model_rogc.py::test_state_cap_is_incomplete\norchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order\norchestrator/tests/test_vhash_ro_gc_publish.py::test_vlife_flags_match_build_macros[1000000-3-48]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_vlife_flags_match_build_macros[200-1-4]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_each_source_copy_prepares_ungated_build_before_condition_gates\norchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[TRACE]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_RO_GCFLAG_COUNT]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[orphan_reads]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[version_dups]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[dup_txids]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[genesis_commits]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[missing_txids]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[write_version_mismatch]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[malformed_keys]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[framing_violations]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[lock_coverage_violations]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[write_intent_violations]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[permutation_violations]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[existence_violations]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_txn_mismatch\norchestrator/tests/test_vhash_ro_gc_publish.py::test_counter_parsers_reject_missing_duplicate_and_inconsistent\norchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_patch_size_and_owner_paths\norchestrator/tests/test_vhash_ro_gc_publish.py::test_full_size_figure_layout_fixture\norchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_overlapping_real_text\norchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_legend_inside_data_axes\norchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_ignores_minor_tick_outside_view\norchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_drawn_text_outside_canvas[title]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_drawn_text_outside_canvas[legend]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_drawn_text_outside_canvas[visible_tick]\norchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table\n\n43 tests collected in 0.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "59a435c1fbd7a09ed7c3c0fd45567587356aaf73973c4b45d9e39406202736d1"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_equal_publication_is_not_progress",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_oracle_ignores_gc_boundary",
+        "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_state_cap_is_incomplete",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_vlife_flags_match_build_macros[1000000-3-48]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_vlife_flags_match_build_macros[200-1-4]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_each_source_copy_prepares_ungated_build_before_condition_gates",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[TRACE]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_RO_GCFLAG_COUNT]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[orphan_reads]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[version_dups]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[dup_txids]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[genesis_commits]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[missing_txids]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[write_version_mismatch]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[malformed_keys]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[framing_violations]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[lock_coverage_violations]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[write_intent_violations]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[permutation_violations]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_each_integrity_violation[existence_violations]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_rejects_txn_mismatch",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_counter_parsers_reject_missing_duplicate_and_inconsistent",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_patch_size_and_owner_paths",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_full_size_figure_layout_fixture",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_overlapping_real_text",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_legend_inside_data_axes",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_ignores_minor_tick_outside_view",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_drawn_text_outside_canvas[title]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_drawn_text_outside_canvas[legend]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_figure_layout_rejects_drawn_text_outside_canvas[visible_tick]",
+        "orchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table"
+      ],
+      "duration_s": 1.461,
+      "rc": 0,
+      "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+      "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+      "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+      "status": "PASSED",
+      "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "EQ-1-driver-docstring": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4debfd7746082fee5746b5d83d29f5eba55b486538857d707ba7cfa6f59f31ca",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+            "new": "\"\"\"Paired Cicada read-only GC publication diagnostic on one compute node.\"\"\"\n",
+            "old": "\"\"\"Paired Cicada read-only GC publication diagnostic on a compute node.\"\"\"\n"
+          }
+        ]
+      },
+      "MA1-gc-oracle-never-violates": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d903c7c0eaf387330402622cf575bd0fc02dd7b1cc6dd7a0bc30315dd584a098",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+            "new": "    if False and \"A10\" in needed_versions(before, config):\n",
+            "old": "    if \"A10\" in needed_versions(before, config):\n"
+          }
+        ]
+      },
+      "MA2-bad-raise-slot-never-raises": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a316ed87139359a1273044c5bd5810d9cfe463d61445d0ce6ff01729fb7a021d",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+            "new": "        if arm == \"bad-raise-slot\" and not s.raised and s.procedure == 0 and s.min_wts > s.r_rts + 1 and False:\n",
+            "old": "        if arm == \"bad-raise-slot\" and not s.raised and s.procedure == 0 and s.min_wts > s.r_rts + 1:\n"
+          }
+        ]
+      },
+      "MA3-leader-ignores-flags": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_early_flag_is_safe_and_progress_is_descriptive",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_stock_has_no_publication_or_cut"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6361aa69b317db41e756ea3399e92a759b6dc5fca3318c15845131dfa02d8348",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+            "new": "        yield replace(s, leader=l + 1), Event(\"L\", f\"load_flag{l}\", flag)\n",
+            "old": "        yield replace(s, leader=l + 1 if flag else 0), Event(\"L\", f\"load_flag{l}\", flag)\n"
+          }
+        ]
+      },
+      "MA4-safe-mainte-ro-never-maintains": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5b93586ae76a183bf6e0c216c06302fefcb9591decc90d069776caa72e9552cc",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+            "new": "            yield replace(s, procedure=count, phase=\"maint_wait\", r_maint=\"idle\"), Event(\"R\", \"mainte_start\")\n",
+            "old": "            yield replace(s, procedure=count, phase=\"maint_wait\", r_maint=\"exec_check\"), Event(\"R\", \"mainte_start\")\n"
+          }
+        ]
+      },
+      "MA7-no-legal-cut": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_clear_slot_counterexample",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_bad_raise_slot_counterexample_and_extra_flag",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_configurations_and_completed_safety",
+          "orchestrator/tests/test_vhash_forwarding_model_rogc.py::test_safe_cut_is_after_three_versions_and_next_slot_store"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "494fb0385a886fbba1d6a06eda11b27c2239f715e795933f10231d6cc8f05fe5",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/ro_gc_publish.py",
+            "new": "        if s.u_write >= 3 and floor > 30 and not s.reclaimed:\n",
+            "old": "        if s.u_write >= 2 and floor > 30 and not s.reclaimed:\n"
+          }
+        ]
+      },
+      "MB1-variant-mainte-unconditional": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]",
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4b7011ca620cb16cbf5322d5e0eec80abc7b45155e856d23a07c1845a5df9d2a",
+        "replacements": [
+          {
+            "file": "patches/cicada-ro-gcflag-variant.patch",
+            "new": "+#if 1\n+#if IZANAGI_CICADA_RO_GCFLAG_COUNT\n+    ++ro_gcflag_count[thid_].commits;\n",
+            "old": "+#if IZANAGI_CICADA_RO_GCFLAG\n+#if IZANAGI_CICADA_RO_GCFLAG_COUNT\n+    ++ro_gcflag_count[thid_].commits;\n"
+          }
+        ]
+      },
+      "MB4-throughput-accepts-vlife": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_throughput_rejects_instrumentation[IZANAGI_CICADA_VLIFE]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3772e25bab4f1321eeba690072d6f4e46abab588538ce22917675584323af7ee",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+            "new": "    if any(m in macros for m in (\"TRACE\",\n",
+            "old": "    if any(m in macros for m in (\"IZANAGI_CICADA_VLIFE\", \"TRACE\",\n"
+          }
+        ]
+      },
+      "MB5-order-not-balanced": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_condition_grid_and_balanced_order"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "561cfd617d36cae3cf9be66cba088c0353602063fb7be842d66c276f2ff91d7d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+            "new": "ORDER = ((\"stock\", \"variant\"),) * 6\n",
+            "old": "ORDER = ((\"stock\", \"variant\"), (\"variant\", \"stock\")) * 3\n"
+          }
+        ]
+      },
+      "MB6-verify-accepts-cycle-rc": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fd1521e5bf4f0abcb398cd574d46388fc1180b1d35b7a5b185764220cb89ca2a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+            "new": "    return (verifier_rc in (0, 1, 3) and report.get(\"runs\") == 1\n",
+            "old": "    return (verifier_rc in (0, 3) and report.get(\"runs\") == 1\n"
+          }
+        ]
+      },
+      "MB7-verify-accepts-zero-flag-raise": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_verify_acceptance_requires_real_flag_and_no_cycle"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ea0036935b5be4b66d11cf8cf5e63abd4cabbcf43bc4d750170c48aaa94e9a5c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ro_gc_publish.py",
+            "new": "            and count[\"flag_raises\"] >= 0)\n",
+            "old": "            and count[\"flag_raises\"] > 0)\n"
+          }
+        ]
+      },
+      "MB8-workload-no-write-guarantee": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[pin]",
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[trace]",
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_both_patches_apply_without_fuzz_on_real_preimages[vlife]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6f8c1bb68bc062fbc3aee75c154357e96367376875e6bfaa8499ea733d5ae003",
+        "replacements": [
+          {
+            "file": "patches/cicada-ro-gcflag-workload.patch",
+            "new": "+      if (false) tx.pro_set_.front().ope_ = FLAGS_ycsb_rmw ?\n",
+            "old": "+      if (!has_write) tx.pro_set_.front().ope_ = FLAGS_ycsb_rmw ?\n"
+          }
+        ]
+      },
+      "MB9-plot-stock-variant-swapped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ro_gc_publish.py::test_record_raw_round_trip_into_plot_and_boundary_table"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "317e103e88461ac68f0060d79d09b0c2b067b04adc71d8baf75f121b46ed52bd",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_ro_gc_publish.py",
+            "new": "            s = V.summarize(V.parse_vlife_line(rows[cid, rep, \"variant\"][\"stdout\"]))\n",
+            "old": "            s = V.summarize(V.parse_vlife_line(rows[cid, rep, \"stock\"][\"stdout\"]))\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0e9f426c5142c91b3680f17c2659cf145dd58ed7281f389c459b2b69e6031e1b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_forwarding_model_rogc.py",
+      "orchestrator/tests/test_vhash_ro_gc_publish.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "41e47091d9400d3addba3b034317e35f861eebcf",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_forwarding_model_rogc.py",
+      "orchestrator/tests/test_vhash_ro_gc_publish.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-ro-gc-publish-2026-09-29/mutation/scratch-final-a/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e1d7991b0937d02fae2216556f53e2118f4d6347",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "2b20628c4813101060cd0f6b69d1bc4023482f8d4234b096d457fd5356cc4533",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "7c992a9f54934236581c8553ad14fd6921edf10a1d639ee644bc29e19874c6b6",
+  "summary": {
+    "KILLED": 12,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 13,
+    "matching": 13,
+    "recorded": 13,
+    "registered": 13
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-ro-gc-publish-2026-09-29/mutation/scratch-final-a/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "f7c4a67a358202344ab7c51c6adc1c98b556068d1fe29e5a44fd78400dc60f92",
+  "updated_at": "2026-09-29T18:01:12.496359+00:00"
+}

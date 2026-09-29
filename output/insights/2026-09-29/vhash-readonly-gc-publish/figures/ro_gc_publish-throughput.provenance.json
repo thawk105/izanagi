@@ -1,0 +1,237 @@
+{
+  "campaign_id": "vhash-ro-gc-publish",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-ro-gc-publish-2026-09-29/compact/measure1.json",
+      "sha256": "157b725d49b5232fb6c72e776d363384d0285132fcf20e3ba69ba9b5a4c3d12f"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-ro-gc-publish-2026-09-29/compact/throughput1.json",
+      "sha256": "3a15cf2eec8c8c1d84b195f5d7e6bb8b27c6361054fdc4c0ea2b75e3aa7ecaf8"
+    }
+  ],
+  "conditions": {
+    "S0-none-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 0,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "S0-wait10msR-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 0,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "S50-none-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 50,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "S50-wait10msR-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 50,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "S95-none-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 95,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "S95-wait10msR-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 95,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "T0-none-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 0,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "T0-wait10msR-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 0,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "T50-none-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 50,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "T50-wait10msR-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 50,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "T95-none-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 95,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "T95-wait10msR-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 95,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    }
+  },
+  "measurement_env": [
+    {
+      "records": 1000000,
+      "extime": 3,
+      "workers": 48,
+      "site": "PEGASUS_COMPUTE"
+    },
+    {
+      "records": 1000000,
+      "extime": 3,
+      "workers": 48,
+      "site": "PEGASUS_COMPUTE"
+    }
+  ],
+  "metric": "throughput",
+  "boundary_context": null,
+  "paired_values": {
+    "S0-none-gc10": [
+      0.9882461055520284,
+      0.9987722152306701,
+      0.9924351339930482,
+      0.9975018777934619,
+      0.9998835980667322,
+      1.0024518933591176
+    ],
+    "S0-wait10msR-gc10": [
+      5.9364452701656605,
+      6.71403594304255,
+      5.962533109962403,
+      5.955676612419362,
+      5.937892657081332,
+      5.977685790923221
+    ],
+    "S50-none-gc10": [
+      0.9836656328362258,
+      0.9935817166528935,
+      0.9952695574944916,
+      1.0060544767096884,
+      0.9980757962840163,
+      0.9943245940258253
+    ],
+    "S50-wait10msR-gc10": [
+      3.8867597631765927,
+      3.8767215091152916,
+      3.9023569536116822,
+      3.8796789492378623,
+      3.876084313737604,
+      4.365287685451695
+    ],
+    "S95-none-gc10": [
+      0.9875992203882621,
+      0.9873169201636863,
+      0.9851166339465891,
+      0.990687547410144,
+      0.9934834981435824,
+      0.9895346500987455
+    ],
+    "S95-wait10msR-gc10": [
+      1.5666803282347848,
+      1.6764332694670563,
+      1.5733702386824004,
+      1.5603895736009294,
+      1.5642979780125779,
+      1.5712942705429547
+    ],
+    "T0-none-gc10": [
+      1.0624654753457783,
+      0.9879608856496992,
+      0.9643460935348437,
+      1.0731377973346488,
+      1.0255070865159082,
+      1.0355914879135018
+    ],
+    "T0-wait10msR-gc10": [
+      4.1445334502485975,
+      4.172070635940136,
+      4.088894028582745,
+      4.212351727893592,
+      4.1442881810646375,
+      4.707963251542472
+    ],
+    "T50-none-gc10": [
+      1.046558682035847,
+      1.072799614874988,
+      1.0734485639977978,
+      1.020689730493513,
+      1.0585879221367993,
+      1.0369546505532024
+    ],
+    "T50-wait10msR-gc10": [
+      16.779376413397674,
+      16.683395298561535,
+      16.72706916471135,
+      16.66637435043581,
+      16.756361777016743,
+      16.83142935423541
+    ],
+    "T95-none-gc10": [
+      1.0308312507447124,
+      1.0225622950058597,
+      1.0278878877782722,
+      1.0324743938679888,
+      1.0468693319426094,
+      1.0333367322237506
+    ],
+    "T95-wait10msR-gc10": [
+      15.428214746016426,
+      15.569427425159638,
+      15.473469710072631,
+      15.48580119165648,
+      15.488122902891185,
+      15.538730167352815
+    ]
+  }
+}

@@ -447,6 +447,27 @@ VHash 論文 (`docs/paper-story-vhash/`) の新規性の芯 U0 (abort せず既�
   md_6 の `smoke` / `run` / `aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良 `BACK_OFF=0, INLINE_VERSION_OPT=1, INLINE_VERSION_PROMOTION=0, REUSE_VERSION=1, WRITE_LATEST_ONLY=0`。
 - **一次資料:** `output/insights/2026-09-29/vhash-gc-connection-prototype/README.md`。
 
+## cicada-ro-gcflag-variant.patch / cicada-ro-gcflag-workload.patch — read-only commit でも GC の公開を進める variant と、3 build で共通の ro 手続き生成 (合成 variant, D18 第 4 類, VHash 論文 md_22)
+
+Cicada の read-only commit は `mainte()` を通らず GC flag を立てないので、read-only だけを続ける worker が 1 本いると leader が MinRts を公開できない (md_15 §6.3)。
+本 variant は ro commit の後始末 (`read_set_`・`node_map_` を消した後) で `mainte()` を呼ぶ。ro の rts・ThreadRtsArray・版の選び方は変えない (固定 snapshot の意味は不変)。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a`。variant は `cc/cicada/transaction.cc` だけ、workload は `include/ycsb.hh` と `cc/cicada/ycsb_cicada.cc`。
+  pin 単独・pin + `instr-cicada-trace.patch`・pin + `instr-cicada-version-lifetime.patch` の 3 通りに、workload → variant の順で fuzz なしの `git apply` で当たる。
+- **macro (未定義 = 0 = stock と同じ変更経路、挿入後は無条件 `#line` で行番号を戻す):**
+  - `IZANAGI_CICADA_RO_GCFLAG` (owner `cc/cicada/transaction.cc`): ro commit で `mainte()` を呼ぶ。
+  - `IZANAGI_CICADA_RO_GCFLAG_COUNT` (owner 同、companion `IZANAGI_CICADA_RO_GCFLAG=1`): ro commit 数と、その `mainte()` で GC flag が 0→1 になった回数を数え、終了時に
+    `IZANAGI_CICADA_RO_GCFLAG_COUNT_V1 {json}` を 1 行出す。検査 (trace build) と smoke 専用で、性能 build では使わない。
+  - `IZANAGI_CICADA_ROGC_WORKLOAD` (owner `cc/cicada/ycsb_cicada.cc`、分岐は owner TU 2 と include する `include/ycsb.hh` 7): 手続き生成時 (retry では変えない) に
+    `--izanagi_rogc_ronly_pct` の確率で全 op を READ・ro にし、非 ro は少なくとも 1 op を write にする。`--izanagi_rogc_wait_us` > 0 なら worker 1 を長い ro に固定し、
+    読み終えて commit の前にその µs 待つ。乱数は YCSB の既存系列を乱さない別系列 (`--izanagi_rogc_seed`)。終了時に `IZANAGI_CICADA_ROGC_WORKLOAD_V1 {json}` (試行・ro 試行・commit・長い ro) を 1 行出す。
+    計器 build (vlife) でも同じ手続き生成を使い、vlife 側の ro 書換え (`izanagi_ronly_pct`) と長い tx 用 macro (`IZANAGI_CICADA_LONGTX`) は使わない。
+- **登録:** 3 macro を `orchestrator/campaign/condition_meaning_gate.py` の許可ドメインへ登録し、`screening_driver.py` の既定値表、`test_p3_s4_loop.py` の許可表、
+  spawn site の define 交差表、materializer 登録簿を追随。**`patches/ledger.json` には登録しない** (D2288 と同じ理由: 同 ledger は `silo_ladder_rung1` 専用で entry 1 件を契約が要求する)。
+- **driver:** `orchestrator/campaign/vhash_ro_gc_publish.py` の `smoke` / `verify` / `measure` / `throughput`。source copy ごとに macro なしの依存物 build (masstree の `config.h` を作る) → condition gate → 本 build の順。
+- **一次資料:** `output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`。
+
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
 段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の

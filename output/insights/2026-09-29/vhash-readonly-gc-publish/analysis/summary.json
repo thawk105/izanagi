@@ -1,0 +1,722 @@
+{
+ "model": {
+  "w2-k1-r1/bad-clear-slot": {
+   "states": 5971,
+   "complete": true,
+   "gc_violations": 12,
+   "cuts": 128,
+   "boundary_loads": 176,
+   "no_cuts": 56,
+   "publications": 294,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 35
+  },
+  "w2-k1-r1/bad-raise-slot": {
+   "states": 28742,
+   "complete": true,
+   "gc_violations": 10,
+   "cuts": 190,
+   "boundary_loads": 1073,
+   "no_cuts": 999,
+   "publications": 1320,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 49
+  },
+  "w2-k1-r1/neg-early-flag": {
+   "states": 16630,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 50,
+   "boundary_loads": 626,
+   "no_cuts": 592,
+   "publications": 820,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 52
+  },
+  "w2-k1-r1/safe-flag": {
+   "states": 4594,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 10,
+   "boundary_loads": 132,
+   "no_cuts": 128,
+   "publications": 212,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 54
+  },
+  "w2-k1-r1/safe-mainte": {
+   "states": 13478,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 40,
+   "boundary_loads": 787,
+   "no_cuts": 771,
+   "publications": 524,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 63
+  },
+  "w2-k1-r1/stock": {
+   "states": 299,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 0,
+   "boundary_loads": 0,
+   "no_cuts": 0,
+   "publications": 0,
+   "progress": false,
+   "gc_witness_steps": null,
+   "cut_witness_steps": null
+  },
+  "w2-k1-r2/bad-clear-slot": {
+   "states": 6708,
+   "complete": true,
+   "gc_violations": 18,
+   "cuts": 140,
+   "boundary_loads": 191,
+   "no_cuts": 59,
+   "publications": 330,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 36
+  },
+  "w2-k1-r2/bad-raise-slot": {
+   "states": 32293,
+   "complete": true,
+   "gc_violations": 10,
+   "cuts": 210,
+   "boundary_loads": 1206,
+   "no_cuts": 1125,
+   "publications": 1492,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 50
+  },
+  "w2-k1-r2/neg-early-flag": {
+   "states": 18815,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 55,
+   "boundary_loads": 706,
+   "no_cuts": 669,
+   "publications": 936,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 53
+  },
+  "w2-k1-r2/safe-flag": {
+   "states": 5171,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 10,
+   "boundary_loads": 144,
+   "no_cuts": 140,
+   "publications": 236,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 56
+  },
+  "w2-k1-r2/safe-mainte": {
+   "states": 14055,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 40,
+   "boundary_loads": 799,
+   "no_cuts": 783,
+   "publications": 548,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 65
+  },
+  "w2-k1-r2/stock": {
+   "states": 345,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 0,
+   "boundary_loads": 0,
+   "no_cuts": 0,
+   "publications": 0,
+   "progress": false,
+   "gc_witness_steps": null,
+   "cut_witness_steps": null
+  },
+  "w2-k2-r1/bad-clear-slot": {
+   "states": 6708,
+   "complete": true,
+   "gc_violations": 12,
+   "cuts": 140,
+   "boundary_loads": 191,
+   "no_cuts": 59,
+   "publications": 330,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 35
+  },
+  "w2-k2-r1/bad-raise-slot": {
+   "states": 33624,
+   "complete": true,
+   "gc_violations": 10,
+   "cuts": 225,
+   "boundary_loads": 1244,
+   "no_cuts": 1158,
+   "publications": 1553,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 49
+  },
+  "w2-k2-r1/neg-early-flag": {
+   "states": 19033,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 55,
+   "boundary_loads": 709,
+   "no_cuts": 672,
+   "publications": 948,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 52
+  },
+  "w2-k2-r1/safe-flag": {
+   "states": 5171,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 10,
+   "boundary_loads": 144,
+   "no_cuts": 140,
+   "publications": 236,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 54
+  },
+  "w2-k2-r1/safe-mainte": {
+   "states": 14055,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 40,
+   "boundary_loads": 799,
+   "no_cuts": 783,
+   "publications": 548,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 63
+  },
+  "w2-k2-r1/stock": {
+   "states": 345,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 0,
+   "boundary_loads": 0,
+   "no_cuts": 0,
+   "publications": 0,
+   "progress": false,
+   "gc_witness_steps": null,
+   "cut_witness_steps": null
+  },
+  "w2-k2-r2/bad-clear-slot": {
+   "states": 9656,
+   "complete": true,
+   "gc_violations": 36,
+   "cuts": 188,
+   "boundary_loads": 251,
+   "no_cuts": 71,
+   "publications": 474,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 36
+  },
+  "w2-k2-r2/bad-raise-slot": {
+   "states": 50490,
+   "complete": true,
+   "gc_violations": 30,
+   "cuts": 335,
+   "boundary_loads": 1852,
+   "no_cuts": 1728,
+   "publications": 2363,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 50
+  },
+  "w2-k2-r2/neg-early-flag": {
+   "states": 28209,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 75,
+   "boundary_loads": 1035,
+   "no_cuts": 986,
+   "publications": 1436,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 53
+  },
+  "w2-k2-r2/safe-flag": {
+   "states": 7479,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 10,
+   "boundary_loads": 192,
+   "no_cuts": 188,
+   "publications": 332,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 56
+  },
+  "w2-k2-r2/safe-mainte": {
+   "states": 16363,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 40,
+   "boundary_loads": 847,
+   "no_cuts": 831,
+   "publications": 644,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 65
+  },
+  "w2-k2-r2/stock": {
+   "states": 529,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 0,
+   "boundary_loads": 0,
+   "no_cuts": 0,
+   "publications": 0,
+   "progress": false,
+   "gc_witness_steps": null,
+   "cut_witness_steps": null
+  },
+  "w3-k1-r1/bad-clear-slot": {
+   "states": 203482,
+   "complete": true,
+   "gc_violations": 1044,
+   "cuts": 8524,
+   "boundary_loads": 17434,
+   "no_cuts": 9366,
+   "publications": 4038,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 46
+  },
+  "w3-k1-r1/bad-raise-slot": {
+   "states": 1004378,
+   "complete": true,
+   "gc_violations": 654,
+   "cuts": 12276,
+   "boundary_loads": 92813,
+   "no_cuts": 88407,
+   "publications": 19228,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 71
+  },
+  "w3-k1-r1/neg-early-flag": {
+   "states": 562350,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 3180,
+   "boundary_loads": 52772,
+   "no_cuts": 50202,
+   "publications": 12108,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 74
+  },
+  "w3-k1-r1/safe-flag": {
+   "states": 154824,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 624,
+   "boundary_loads": 12978,
+   "no_cuts": 12716,
+   "publications": 2884,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 76
+  },
+  "w3-k1-r1/safe-mainte": {
+   "states": 502328,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 2496,
+   "boundary_loads": 61213,
+   "no_cuts": 60165,
+   "publications": 7648,
+   "progress": true,
+   "gc_witness_steps": null,
+   "cut_witness_steps": 85
+  },
+  "w3-k1-r1/stock": {
+   "states": 5980,
+   "complete": true,
+   "gc_violations": 0,
+   "cuts": 0,
+   "boundary_loads": 0,
+   "no_cuts": 0,
+   "publications": 0,
+   "progress": false,
+   "gc_witness_steps": null,
+   "cut_witness_steps": null
+  }
+ },
+ "measure1": {
+  "hostname": "bnode005",
+  "started_at": "2026-09-29T16:18:45.653883+00:00",
+  "ended_at": "2026-09-29T16:29:52.790202+00:00",
+  "S0-none-gc10": {
+   "stock": {
+    "pubs_min": 14623,
+    "pubs_max": 15652,
+    "pubs_mean": 15204.5,
+    "age_mean_us": 353.6439252913426,
+    "age_n": 6,
+    "commits_mean": 11480451.5,
+    "ro_mean": 0.0
+   },
+   "variant": {
+    "pubs_min": 13745,
+    "pubs_max": 16460,
+    "pubs_mean": 14627.666666666666,
+    "age_mean_us": 366.02764374087354,
+    "age_n": 6,
+    "commits_mean": 11455522.166666666,
+    "ro_mean": 0.0
+   }
+  },
+  "S0-wait10msR-gc10": {
+   "stock": {
+    "pubs_min": 0,
+    "pubs_max": 0,
+    "pubs_mean": 0,
+    "age_mean_us": null,
+    "age_n": 0,
+    "commits_mean": 2017159.8333333333,
+    "ro_mean": 0.00014863264794350316
+   },
+   "variant": {
+    "pubs_min": 296,
+    "pubs_max": 299,
+    "pubs_mean": 298.5,
+    "age_mean_us": 14272.3611908313,
+    "age_n": 6,
+    "commits_mean": 10663953.333333334,
+    "ro_mean": 2.8117875778110868e-05
+   }
+  },
+  "S50-none-gc10": {
+   "stock": {
+    "pubs_min": 21641,
+    "pubs_max": 22748,
+    "pubs_mean": 22173.166666666668,
+    "age_mean_us": 218.40903221075513,
+    "age_n": 6,
+    "commits_mean": 16189884.333333334,
+    "ro_mean": 0.49990808799736597
+   },
+   "variant": {
+    "pubs_min": 50802,
+    "pubs_max": 62140,
+    "pubs_mean": 57906,
+    "age_mean_us": 89.80916196215318,
+    "age_n": 6,
+    "commits_mean": 16112439.333333334,
+    "ro_mean": 0.4999683302004245
+   }
+  },
+  "S50-wait10msR-gc10": {
+   "stock": {
+    "pubs_min": 0,
+    "pubs_max": 0,
+    "pubs_mean": 0,
+    "age_mean_us": null,
+    "age_n": 0,
+    "commits_mean": 4340555.833333333,
+    "ro_mean": 0.499800416456177
+   },
+   "variant": {
+    "pubs_min": 299,
+    "pubs_max": 299,
+    "pubs_mean": 299,
+    "age_mean_us": 14103.904682274248,
+    "age_n": 6,
+    "commits_mean": 14938425.5,
+    "ro_mean": 0.4998777308424261
+   }
+  },
+  "S95-none-gc10": {
+   "stock": {
+    "pubs_min": 4933,
+    "pubs_max": 5021,
+    "pubs_mean": 4977.833333333333,
+    "age_mean_us": 810.167389930087,
+    "age_n": 6,
+    "commits_mean": 24012409.833333332,
+    "ro_mean": 0.9500085470104274
+   },
+   "variant": {
+    "pubs_min": 124949,
+    "pubs_max": 144723,
+    "pubs_mean": 139567.16666666666,
+    "age_mean_us": 35.97183184766756,
+    "age_n": 6,
+    "commits_mean": 23629405.833333332,
+    "ro_mean": 0.9499756548735211
+   }
+  },
+  "S95-wait10msR-gc10": {
+   "stock": {
+    "pubs_min": 0,
+    "pubs_max": 0,
+    "pubs_mean": 0,
+    "age_mean_us": null,
+    "age_n": 0,
+    "commits_mean": 15911629.666666666,
+    "ro_mean": 0.9500359844900951
+   },
+   "variant": {
+    "pubs_min": 295,
+    "pubs_max": 299,
+    "pubs_mean": 298.3333333333333,
+    "age_mean_us": 13132.758537875781,
+    "age_n": 6,
+    "commits_mean": 23359211.666666668,
+    "ro_mean": 0.949991126886199
+   }
+  },
+  "T0-none-gc10": {
+   "stock": {
+    "pubs_min": 24654,
+    "pubs_max": 28743,
+    "pubs_mean": 26003.5,
+    "age_mean_us": 191.41617770156995,
+    "age_n": 6,
+    "commits_mean": 9738075.833333334,
+    "ro_mean": 0.0
+   },
+   "variant": {
+    "pubs_min": 22516,
+    "pubs_max": 27597,
+    "pubs_mean": 25540.833333333332,
+    "age_mean_us": 195.4647077452508,
+    "age_n": 6,
+    "commits_mean": 9628080.666666666,
+    "ro_mean": 0.0
+   }
+  },
+  "T0-wait10msR-gc10": {
+   "stock": {
+    "pubs_min": 0,
+    "pubs_max": 0,
+    "pubs_mean": 0,
+    "age_mean_us": null,
+    "age_n": 0,
+    "commits_mean": 1983048.5,
+    "ro_mean": 6.101024798844919e-05
+   },
+   "variant": {
+    "pubs_min": 289,
+    "pubs_max": 290,
+    "pubs_mean": 289.6666666666667,
+    "age_mean_us": 13600.856697689218,
+    "age_n": 6,
+    "commits_mean": 7480425.166666667,
+    "ro_mean": 2.2837466339497175e-05
+   }
+  },
+  "T50-none-gc10": {
+   "stock": {
+    "pubs_min": 16729,
+    "pubs_max": 18079,
+    "pubs_mean": 17491,
+    "age_mean_us": 269.2719920067165,
+    "age_n": 6,
+    "commits_mean": 14075253.666666666,
+    "ro_mean": 0.40796528723011927
+   },
+   "variant": {
+    "pubs_min": 31436,
+    "pubs_max": 36167,
+    "pubs_mean": 34725.833333333336,
+    "age_mean_us": 140.6395605507333,
+    "age_n": 6,
+    "commits_mean": 14116413.333333334,
+    "ro_mean": 0.4075415014992442
+   }
+  },
+  "T50-wait10msR-gc10": {
+   "stock": {
+    "pubs_min": 0,
+    "pubs_max": 0,
+    "pubs_mean": 0,
+    "age_mean_us": null,
+    "age_n": 0,
+    "commits_mean": 477560.1666666667,
+    "ro_mean": 0.49024431293209014
+   },
+   "variant": {
+    "pubs_min": 295,
+    "pubs_max": 297,
+    "pubs_mean": 296.5,
+    "age_mean_us": 12665.123594819781,
+    "age_n": 6,
+    "commits_mean": 7844964.333333333,
+    "ro_mean": 0.4389205198842171
+   }
+  },
+  "T95-none-gc10": {
+   "stock": {
+    "pubs_min": 7267,
+    "pubs_max": 7347,
+    "pubs_mean": 7314.166666666667,
+    "age_mean_us": 527.4633369314271,
+    "age_n": 6,
+    "commits_mean": 33601820.833333336,
+    "ro_mean": 0.9454977581949823
+   },
+   "variant": {
+    "pubs_min": 124740,
+    "pubs_max": 150828,
+    "pubs_mean": 145149.83333333334,
+    "age_mean_us": 32.3915589597386,
+    "age_n": 6,
+    "commits_mean": 34029961,
+    "ro_mean": 0.9452667682559699
+   }
+  },
+  "T95-wait10msR-gc10": {
+   "stock": {
+    "pubs_min": 0,
+    "pubs_max": 0,
+    "pubs_mean": 0,
+    "age_mean_us": null,
+    "age_n": 0,
+    "commits_mean": 1455955.5,
+    "ro_mean": 0.9494751747257224
+   },
+   "variant": {
+    "pubs_min": 299,
+    "pubs_max": 299,
+    "pubs_mean": 299,
+    "age_mean_us": 12504.415830546266,
+    "age_n": 6,
+    "commits_mean": 22314641.5,
+    "ro_mean": 0.94700703547166
+   }
+  }
+ },
+ "throughput1": {
+  "hostname": "bnode031",
+  "started_at": "2026-09-29T16:40:25.924006+00:00",
+  "ended_at": "2026-09-29T16:51:00.156640+00:00",
+  "S0-none-gc10": {
+   "stock_mean": 4235521.166666667,
+   "variant_mean": 4220816.833333333,
+   "ratio_mean": 0.9965484706658431,
+   "ratio_min": 0.9882461055520284,
+   "ratio_max": 1.0024518933591176
+  },
+  "S0-wait10msR-gc10": {
+   "stock_mean": 658686.5,
+   "variant_mean": 3997167.8333333335,
+   "ratio_mean": 6.080711563932422,
+   "ratio_min": 5.9364452701656605,
+   "ratio_max": 6.71403594304255
+  },
+  "S50-none-gc10": {
+   "stock_mean": 6008029.5,
+   "variant_mean": 5978754.0,
+   "ratio_mean": 0.9951619623338568,
+   "ratio_min": 0.9836656328362258,
+   "ratio_max": 1.0060544767096884
+  },
+  "S50-wait10msR-gc10": {
+   "stock_mean": 1418188.6666666667,
+   "variant_mean": 5611102.333333333,
+   "ratio_mean": 3.964481529055121,
+   "ratio_min": 3.876084313737604,
+   "ratio_max": 4.365287685451695
+  },
+  "S95-none-gc10": {
+   "stock_mean": 9291592.833333334,
+   "variant_mean": 9188925.666666666,
+   "ratio_mean": 0.9889564116918349,
+   "ratio_min": 0.9851166339465891,
+   "ratio_max": 0.9934834981435824
+  },
+  "S95-wait10msR-gc10": {
+   "stock_mean": 5661107.166666667,
+   "variant_mean": 8970057.333333334,
+   "ratio_mean": 1.5854109430901173,
+   "ratio_min": 1.5603895736009294,
+   "ratio_max": 1.6764332694670563
+  },
+  "T0-none-gc10": {
+   "stock_mean": 3458795.1666666665,
+   "variant_mean": 3541822.3333333335,
+   "ratio_mean": 1.0248348043823967,
+   "ratio_min": 0.9643460935348437,
+   "ratio_max": 1.0731377973346488
+  },
+  "T0-wait10msR-gc10": {
+   "stock_mean": 641456.8333333334,
+   "variant_mean": 2717446.8333333335,
+   "ratio_mean": 4.24501687921203,
+   "ratio_min": 4.088894028582745,
+   "ratio_max": 4.707963251542472
+  },
+  "T50-none-gc10": {
+   "stock_mean": 5454566.666666667,
+   "variant_mean": 5733527.5,
+   "ratio_mean": 1.0515065273486912,
+   "ratio_min": 1.020689730493513,
+   "ratio_max": 1.0734485639977978
+  },
+  "T50-wait10msR-gc10": {
+   "stock_mean": 168270.33333333334,
+   "variant_mean": 2816946.8333333335,
+   "ratio_mean": 16.740667726393088,
+   "ratio_min": 16.66637435043581,
+   "ratio_max": 16.83142935423541
+  },
+  "T95-none-gc10": {
+   "stock_mean": 12703606.166666666,
+   "variant_mean": 13113551.0,
+   "ratio_mean": 1.032326981927199,
+   "ratio_min": 1.0225622950058597,
+   "ratio_max": 1.0468693319426094
+  },
+  "T95-wait10msR-gc10": {
+   "stock_mean": 518171.8333333333,
+   "variant_mean": 8030226.833333333,
+   "ratio_mean": 15.49729435719153,
+   "ratio_min": 15.428214746016426,
+   "ratio_max": 15.569427425159638
+  },
+  "none_ratio_range": [
+   0.9643460935348437,
+   1.0734485639977978,
+   36
+  ],
+  "wait_ratio_range": [
+   1.5603895736009294,
+   16.83142935423541,
+   36
+  ]
+ },
+ "verify2": {
+  "hostname": "bnode026",
+  "runs": 24,
+  "accepted": 24,
+  "rc": [
+   3
+  ],
+  "cycles": 0,
+  "txns": 12321579,
+  "flag_raises_min": 196,
+  "flag_raises_max": 209933,
+  "ro_commits_sum": 9866341,
+  "mismatch_sum": 0
+ }
+}

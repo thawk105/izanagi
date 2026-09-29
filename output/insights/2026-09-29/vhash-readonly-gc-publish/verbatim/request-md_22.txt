@@ -1,0 +1,30 @@
+md_22: 読み取り専用 tx の commit でも GC の公開を進められるかを、小モデルと Cicada で確かめる
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「Cicada の read-only commit は GC flag を上げない」を含む item を grep して対象とする (T 番号は固定しない)。
+
+■ 目的
+md_15 (output/insights/2026-09-29/vhash-readonly-share/README.md §6.2 ほか) は、Cicada の read-only commit が `mainte()` を通らず GC flag を上げないため、
+長い read-only tx 1 本で MinRts の公開が止まり、更新 tx が速い設定では read-only が多いと公開待ちの 3/4 を占めることを示した。
+固定 snapshot の意味を変えずに公開を進められれば、GC の遅れの大きな部分を安く解ける可能性がある (VHash の GC 側の主張の足場になる)。
+
+■ やること
+1. 分けて扱う: (a) read-only commit が flag を上げないことによる公開の遅れ (snapshot を動かさずに直せる見込み)、(b) 長い read-only tx が rts で境界を押さえる分 (snapshot を前へ動かさないと直らない。固定 snapshot を要求する tx では直さない)。本 wave は (a) を主に扱い、(b) は見積りと限界の記録にとどめる。
+2. 小モデル: tools/vhash_forwarding_model/ に read-only commit が flag を上げる (または他 thread が代わりに上げる) 場面を足し、GC 安全 (まだ要る版を回収しない) と serializability を全探索する。わざと危ない版 (flag を上げる前に reader の参照が残る、境界を下げる) を正例として入れる。Codex author。
+3. 実物: 安全と分かった形を Cicada の inert variant patch (例: patches/cicada-ro-gcflag-variant.patch、既定では stock と挙動が一致) として実装し、md_3 / md_17 の判定器で検査する。
+4. 計測: 土台は md_11 の観測最良設定 (正しさ確認は md_20 が並行。結果が main に無ければその旨を明記)。read-only 比率 × 長い read-only tx の有無で、stock と variant の回収境界の遅れ・公開回数・生存版を同時刻に比べる。throughput は計器を外したビルドで。
+
+■ 成果物
+- tools/vhash_forwarding_model/ の追加とテスト、patches/cicada-ro-gcflag-*.patch と ledger・README の該当 entry、計測 driver (新規)。
+- 一次資料: output/insights/<着手日>/vhash-readonly-gc-publish/README.md。
+- spool fragment (対象 item の完了または更新、設計の選択は decisions fragment)。
+
+■ 所有
+tools/vhash_forwarding_model/ とそのテスト、patches/cicada-ro-gcflag-*、新規 driver、ledger・README の該当 entry、自分の一次資料と fragment。
+external/ccbench (md_19)、patches/cicada-forwarding-* (md_21)、patches/cicada-interval-gc-* (md_18)、patches/instr-cicada-trace.patch (md_20) は触らない。
+
+■ 注意
+- 合計 2 node 時間未満。md_18・md_20・md_21 と同じノードで計測しない。
+- 正しさに関わる wave なので、段 2・段 3・段 6 を省かない。

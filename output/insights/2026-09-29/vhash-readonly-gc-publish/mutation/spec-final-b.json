@@ -1,0 +1,25 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MB3-gate-rogcflag-inert-value",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/condition_meaning_gate.py",
+     "old": "        \"patches/cicada-ro-gcflag-variant.patch\", inert_values=(\"0\",),\n    ),\n    \"IZANAGI_CICADA_RO_GCFLAG_COUNT\": DefineSpec(\n",
+     "new": "        \"patches/cicada-ro-gcflag-variant.patch\", inert_values=(\"1\",),\n    ),\n    \"IZANAGI_CICADA_RO_GCFLAG_COUNT\": DefineSpec(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_condition_meaning_gate.py::test_new_branch_selection_supply_meaning_and_admission[IZANAGI_CICADA_RO_GCFLAG]",
+    "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
