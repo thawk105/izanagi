@@ -28667,3 +28667,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 親は「行番号がずれないこと」を確かめる手段として、手元にあった行番号マーカーの byte 比較をそのまま完了条件にした。依頼する変更 (`#line` の追加) がその観測量を必ず変えることを確かめなかった。
 - 恒久対応: 完了条件を書く前に、依頼する変更自身がその観測量に現れないかを確かめ、守るべき性質そのもの (ここでは推定行番号の列、`__LINE__` の展開値) を観測量にする。性質の定義は参照実装つきで渡す (本 wave の `probe/presumed_lines.py`、insight `output/insights/2026-09-29/t2854-ccbench-format-ci/README.md` §5.2)。memory `completion-criterion-must-not-observe-own-change`。
 - 再発検知: 実装子が「完了条件が成立しない」と実測して停止する (fail-closed)。
+
+### F1067. 再現パッケージの repo 外 wrapper が入力 file 自身の sha256 を期待値にして生成器へ渡し、hash 照合が自己照合になった [恒真ゲート]
+
+- 事象: [T-2853] R2 fig11 wave で、固定 hash 表を持つ生成器 `tools/plotting/plot_a2_certification.py` に R2 の入力を描かせる repo 外 wrapper が、certification / raw-manifest の sha256 を入力 file 自身から計算して `expected_hashes` に渡していた。
+  生成器の hash 照合は必ず一致し、入力が後から整合的に差し替わっても再描画が受理される形だった。段 6 レビュー A が must-fix として検出し、fix で collect 後に記録した 2 つの sha256 を wrapper の定数に固定した (`output/insights/2026-09-29/t2853-r2-fig11/README.md` §5.1・§9)。
+  先例の R2 fig8b の wrapper (`/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-20260928/tools/t2853_r2_fig8b_plot.py`) も入力の sha256 を実行時に file から計算して差し替えており (同 insight §5.2)、同じ型である (fig8b 側は直していない)。
+- 根本原因: 親が段 5 の prompt に「実 bytes の sha256 を計算して expected_hashes として渡す」と書き、固定表を迂回する口が照合そのものを無効にすることを設計時に見なかった。先例の wrapper の形をそのまま下敷きにした。
+- 恒久対応: memory `repo-external-wrapper-must-pin-input-hashes` — 固定 hash 表を迂回する wrapper は、期待値を結果記録に書いた定数として持ち、入力 file から計算した値を期待値にしない。段 6 のレンズ A (一次資料照合・正しさ境界) が検出した。
+- 再発検知: 段 6 の正しさ境界レビュー。wrapper の負例 1 本 (別 attempt の入力を渡すと生成器が拒否し図が作られない) を実走して確かめる。
