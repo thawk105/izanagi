@@ -20,3 +20,7 @@ seq: 3
 ### F733
 
 - **再発: 2026-09-29** — VHash 比較相手 Cicada の較正 wave の段 6 fix-4 で、「既存テストの期待値を変更しない」と書いたため、同じ wave で新設した test の `len(j2) == 5` (裁定が 4 job へ変える挙動を写した期待) と衝突し、子は何も変えずに停止した (1 巡空費)。fix-4b で「この wave で新設した 2 本の test file に限り、裁定の fix 行が変える挙動を直接写した期待だけ更新を許す」と名指しして通った。
+
+### F753
+
+- **再発: 2026-09-29** — VHash 比較相手 Cicada の較正 wave で、local main 取り込みの merge commit の provenance 事前検査 (`--message-file`) と `git commit -F` を同じ応答内の並列 tool 呼出しにしたため、事前検査が赤 (両親と異なる実装面 `orchestrator/tests/test_official_perf_closure.py` に Codex role=author が無い) なのに merge commit が作られた。受入・land に使う前に気づき、Codex 子の merge 合成監査を経て message を amend した。`DW-O17` の「tool call を分ける」は順に呼ぶ意味で、並列呼出しは分けたことにならない。
