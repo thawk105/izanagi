@@ -37,3 +37,132 @@
    性能は認証しない (performance certification ではない)。R2 の値を他の read 比率・他の機体・他の pin・他の protocol へ外挿しない。
 10. **trace 保全口 (D2233)。** 投入 driver `submit_paper_story_a2_certification.sh` は `qsub -v` へ渡す環境変数を固定で列挙し、`IZANAGI_TRACE_ARCHIVE_ROOT` を job へ渡す口が無い。driver は変えないので保全口は使わない。
     R2 の trace は保全されず、R1 (保存 trace の再判定) の入力にならない。
+
+## 結論
+
+1. **fig11 の測定 (A-6 read-heavy、stock 対 fixed 2 µs の 2 cell × 各 5 標本) を、現行 repo の certification driver `tools/pegasus/submit_paper_story_a2_certification.sh` で Pegasus に 1 回投げて測り直した。**
+   request `35349.nqsv` (5 node、2026-09-29 15:17〜15:35 JST) は完走し (driver_rc 0)、finish-group と collect も終了コード 0 だった。測定は **1.47 node 時間** (見積り 1.47 とほぼ一致、§2)。投げ直しは無い。
+2. **R2 の outer status は `reject`、効果 (adopted 中央値 / stock 中央値 − 1) は −5.2144%** (stock 中央値 10,325,830 tps、fixed 2 µs 中央値 9,787,402 tps)。正しさは別の trace 有効走で 2 cell とも `certified`・anomaly 0、source binding は 2 cell とも `bound` (§3)。
+   元 attempt は `reject`・−5.7841% だった。2 つを合成せず、符号の一致を再現精度として評価しない (§0 項 4)。
+3. **元の fig11 と同じ生成器 (bytes 不変) で R2 の図を描いた。** 生成器の受理検査・閉包検査・レイアウト検査はすべて通った。repo 外の wrapper は caption の地位・役割語 4 箇所だけを差し替えた (§5)。
+   同じ wrapper で元 attempt を原 metadata のまま描くと、既存 fig11 の provenance と `artist_series` が完全一致した (陽性対照)。
+4. **元 attempt と R2 の値を並べた表**を、同じ生成器の読み込み関数 (全検査つき) を attempt ごとに別々に呼んで作った (§4)。
+5. trace 保全口 (D2233) は、この driver が環境変数を job へ渡す口を持たないので使っていない (§0 項 10)。driver は変えていない。
+
+## 1. 経路と投入前の前提
+
+- **投入 checkout。** 着手時の local main `035fc11fa` の detached worktree を `/work/1/SFC/tanab/tmp/t2853-r2-fig11-20260929/submit-tree` に作り (submodule 再帰初期化、CCBench = `68106660`)、そこから投げた。
+  job が待ち行列にいる間に wave の branch が進んでも、job が照合する HEAD (`IZANAGI_A2_EXPECTED_HEAD`) と repo root が動かないようにするためである。untracked を含めて clean であることを投入直前に確かめた。
+- **fig6 wave との分離。** 並走する fig6 wave は A-2 policy (job 名 `paper-a2-cert`、durable base `dev-wave-paper-story-a2-cert-20260824`) で、本件は A-6 policy (job 名 `paper-a6-cert`、base `dev-wave-paper-story-a6-cert-20260902`) である。
+  checkout・job 名 (driver の同名 request 検査の単位)・attempt root・collect 先・wrapper の置き場はすべて別。
+- **依存元。** `--dependency-prefix-source /work/1/SFC/tanab/izanagi-a2-deps` (B-7 と同じ)。third-party は永続 cache `/work/1/SFC/tanab/izanagi-thirdparty-cache` から `tools/pegasus/fetch_third_party.py hydrate` で repo 外の新 staging
+  `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/thirdparty-src` を作り、その `source_root` を渡した。5 本 (masstree・mimalloc・googletest・gflags・glog) とも head = policy pin (`verbatim/hydrate.log`)。
+- **現行 pin での初回。** CCBench `511c953..6810666` の差分は `cc/mocc/transaction.cc` だけ (silo・CMake・依存宣言は同じ)。durable base の既存 A-6 attempt (`a6-20260908b`・`a6-20260909a`・`a6-20260909b`) の preregistration はすべて pin `511c953` で、
+  insights・worklog の grep でも pin `6810666` でこの driver を投げた記録は見つからなかった (射程はこの範囲)。投入前に login で、driver と同じ素の `git apply` の `--check` で静的 backoff patch が `6810666` の木へ当たることを確かめた (`verbatim/precheck-patch.log`、rc 0)。
+  condition gate・実 compiler・兄弟 node への検証 fanout は計算ノードでしか確かめられず、job 自身の測定前検査に任せた (結果は §2、通った)。
+- **collect の書き先。** collect は `<repo_root>/<tracked_destination>` (policy が固定する元 attempt の tracked leaf と同じ相対 path) へ materialize し、既存の leaf を拒否する。
+  元 attempt の tracked 成果物に触れないよう、`--repo-root` に repo 外の空 dir `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/collect-root` を渡した (materialize は git 状態を見ない)。
+  materialize は durable base の同じ (study, policy_sha256, current_pin) の兄弟の結果も調べるが、既存 attempt は pin が違うので衝突しない。collect は submission receipt が policy の絶対 path を束縛するため submit-tree の module から呼んだ。
+
+## 2. 投入と完走
+
+| attempt | 投入 (JST) | request | 確保 | host (campaign claim) | 開始〜終了 (JST) | Elapse (s) | driver_rc |
+|---|---|---|---|---|---|---|---|
+| `a6-r2-20260929a` | 2026-09-29 15:16:53〜15:17:21 (submitter) | `35349.nqsv` | 5 node (NQSV 会計の Number of Jobs 5) | `bnode087` | 15:17:25 〜 15:35:01 | 1,061 | 0 |
+
+- 投入 argv と出力は `verbatim/submit.log`、会計は `verbatim/elapse.log` (job.stderr の NQSV 会計行の抜粋)。投入から開始まで 12 秒で、待ち行列の待ちはほぼ無かった。
+- 起動時検査での失敗・投げ直しは無い (§0 項 5 の投げ直しは発動していない)。
+- finish-group (15:36、終了コード 0) が completion と acquisition の receipt を作り、collect (15:36、終了コード 0) が R2 の certification を collect-root に materialize した (`verbatim/finish-group.log`・`verbatim/collect.log`)。
+- attempt root: `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-r2-20260929a/` (preregistration・receipts・jobs)。
+
+## 3. R2 の certification — 本番 CLI の出力
+
+collect-root の `output/insights/2026-09-08_t2411-paper-story-a6-certification/` (repo 外。名前は policy の `tracked_destination` をそのまま使ったもので、元 attempt の tracked leaf とは別の場所) に次が出た。
+
+| 成果物 | sha256 |
+|---|---|
+| `certification.json` | `0a6008d175f0b4a13d952b98306621e717ecd8d07e00354e5914a205d550aed0` |
+| `raw-manifest.json` | `7799a0644effe5f89b932be201bba6b9c9ab879f44fbab786a274cd220653dfd` |
+| `artifact-manifest.json` | `85dd2d517ecaa554563988ddb94742da4fc6c09aac85c2b2d0846fbb7df2180b` |
+| `COMPLETE.json` | `73fc715de8e4c866ba033b6f0e371f99d0251053d28efc5c1544a9d12f17901b` |
+| `acquisition-receipt.json` | `808401b95f6122e8a81e7c6f7e10ce1c78124658ab76005a586531bee058f25c` |
+| `submission-receipt.json` | `14edbe8a7f4ba59bec3e9dcfb3f246f6e054cc97c2bd5006f17fc24a4f2ac7b6` |
+| `completion-receipt.json` | `5b3f2c74e160d1fb702139d78f74c8ff8375775190e10531b72cbc757d5521a9` |
+| `condition-gate-rr95.admissions.jsonl` | `71fa88dd92aef9a0542386d2d18f0abebbab1aa1e7e8330a8bf54c295e71fdce` |
+
+- `certification.json`: schema `paper-story-a2-certification-result/v4`、study `paper-story-a6-certification`、attempt `a6-r2-20260929a`、**status `reject`**、`effects.rr95` = −0.05214379860989382、
+  `current_pin` `6810666`、`source_commit` `035fc11fa601547f5d68e54f5661c5daa70b93a5`、protocol SHA-256 `21427e71…` (元 attempt と同じ)。
+- cell: `rr95-stock` (stock) 中央値 10,325,830 tps、`rr95-fixed2` (adopted) 中央値 9,787,402 tps。2 cell とも `correctness.status = certified`、`source_binding_status = bound`。
+- 正しさは job 内の trace 有効 build の別走、性能は trace 無効 build (job body の既存経路、規律 1)。anomaly は 0 (生成器の読み込み検査で確認)。
+- §0 のとおり、この status は元 attempt の status と合成しない。性能は認証していない。
+
+## 4. 元 attempt と R2 の対照表
+
+同じ生成器の `load_measurements` (全検査つき) を、元 attempt は生成器の固定 hash 表で、R2 は collect 後の実 bytes の sha256 で、別々に呼んで書いた表である
+(`figures/fig11_comparison.md`、sha256 `fece70835969b5c285d7fb55c3c7085154b011eec93cb58ee7dbc410e3dde4a7`)。値は attempt ごとに計算し、合成・差・比を作っていない。数値の近さを再現精度として評価しない (§0 項 4)。
+
+| attempt | request | host | source commit | CCBench pin | 確保 node | effects.rr95 | outer status |
+|---|---|---|---|---|---|---|---|
+| 元 `a6-20260908b` | `982234.nqsv` | bnode031 | `ae8a767eb` | `511c953` | 1 | −0.057841193339621455 | reject |
+| R2 `a6-r2-20260929a` | `35349.nqsv` | bnode087 | `035fc11fa` | `6810666` | 5 (会計) | −0.05214379860989382 | reject |
+
+| attempt | cell | trace 無効性能 5 標本 (tps) | 中央値 | 平均 ± t 95% CI 半幅 (自由度 4) | 代表反復の abort rate | 正しさ / anomaly |
+|---|---|---|---|---|---|---|
+| 元 | rr95-stock | 10365808, 10103030, 10029940, 10088796, 10073679 | 10088796 | 10132250.6 ± 165646.2 | 0.1547 | certified / 0 |
+| 元 | rr95-fixed2 | 9753031, 9587735, 9488225, 9494008, 9505248 | 9505248 | 9565649.4 ± 139341.9 | 0.1450 | certified / 0 |
+| R2 | rr95-stock | 10632564, 10325830, 10361900, 10281088, 10315111 | 10325830 | 10383298.6 ± 176681.3 | 0.1554 | certified / 0 |
+| R2 | rr95-fixed2 | 9961007, 9787402, 9778168, 9790839, 9739453 | 9787402 | 9811373.8 ± 106923.1 | 0.1445 | certified / 0 |
+
+- 表の生成物は R2 の確保 node を「receipt unknown」と書く (wrapper が R2 の receipt から node 数を取り出せなかった欄)。上の表の 5 は NQSV 会計の Number of Jobs 5 (`verbatim/elapse.log`) と policy の `scheduler.nodes = 5` による。
+- abort rate は生成器の規則どおり、throughput が中央値に最も近い反復の 1 観測であり、区間も機序の主張も持たない。
+- CI は標本の記述であって、効果・判定・中央値の区間ではない。有意差の判定はしない。
+
+## 5. 図 — 元の fig11 と同じ生成器で描いた R2 の図
+
+- **描けた。** 生成器 `tools/plotting/plot_a2_certification.py` (sha256 `aac636595ec0b211133edcc18bc1f72f984e346f58e7146da444396ea8d86448`、既存 fig11 の provenance が記録する生成器と同一) の `main` を、repo 外の wrapper 経由で R2 の入力に対して呼んだ。
+  出力後に生成器の `validate_external_sources` と `validate_repo_closure` を通した (`verbatim/draw-r2.log`)。
+  - `figures/fig11_r2_a6_certification.png` (sha256 `7cf4e1a71e82be2c387fb9d1dcb72dbcff9c561a19d5d000ac5af1611d676918`)
+  - `figures/fig11_r2_a6_certification.provenance.json` (sha256 `0123fa03a520a35f2b3aacea9a3e107ff365ed2f44c53d77f99d8c459993c91b`)。入力の sha256、cell・標本・正しさ、描いた点列 (`artist_series`)、caption、再現コマンド (`reproduction`、wrapper の呼び出し) を持つ。
+  - 原本 (PNG・PDF・provenance・表) は repo 外 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/figure/` にある。PDF は `63e70237…`。insight の写しは原本と bytes 一致。
+- 図の見た目: 上段は各 cell の 5 標本・中央値の横棒・平均と CI、灰色の破線が stock 中央値 (効果の分母) で、fixed 2 µs 側に −5.2144% と出る。下段は代表反復の abort rate (stock 0.155、fixed 2 µs 0.145) の記述値。
+- 原 fig11 (`docs/paper-story/figures/`) は変えていない。R2 の図は論文図ではなく、再現パッケージの記録である。
+
+### 5.1 wrapper (repo 外の使い捨て)
+
+- 段 5 の Codex 実装子が書き、repo には入れていない。保管先は `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/tools/t2853_r2_fig11_plot.py` (sha256 `1f94ca5d604a6e14755c50a796d61c3190a619c357e552889109a9698c6846a7`、221 行)。
+  生成器の sha256 が上の値と違えば描かずに止まる。実装子の報告は `verbatim/s5-author.md`。
+- **差し替えたもの (R2 の描画だけ):** caption の地位・役割語の 4 箇所 (各 1 回の出現を assert、外れたら描かない)。
+  1. 「A-6 formal certification attempt …」→「A-6 R2 reproduction-package attempt labelled a6-r2-20260929a (…; separate from original a6-20260908b)」
+  2. 「This is one attempt of five samples per cell;」→「This R2 reproduction-package attempt has five samples per cell;」
+  3. 「(limitations (i) to (v) of the results note)」→ 元 attempt の結果稿の限定であることと本 insight の path を明記
+  4. B-10 read-heavy の「historical concordance」の文 → 元 attempt の結果稿の記述であることを明記
+  同じ差し替えを provenance の閉包検査 (caption の再計算) にも wrapper 内で適用し、`reproduction` を wrapper の実際の呼び出しにした。
+- **差し替えていないもの:** 測定値の受理条件 (hash 照合・WAL / raw / certification の一致・5 標本・正しさ・source binding・condition receipt)、レイアウト検査、数値と 5 標本・中央値・効果・CI・正しさの別走・一般化の限定の説明文。
+- **hash の差し込みの意味。** R2 の certification / raw-manifest の sha256 は生成器の固定表に無いので、wrapper が collect 後の実 bytes から計算して生成器に渡した。これは collect 後の bytes を束縛する自己計算値であって、独立した canonical pin ではない。
+  R2 の provenance はこの 2 入力の `authority_scope` を「post-collect bytes bound by self-computed SHA-256; not a canonical pin」と記録する。R2 の受理の根拠は driver の receipt chain (submission → completion → acquisition → collect) と生成器の照合である。
+- **陽性対照:** 同じ wrapper で元 attempt を原 metadata のまま (caption 差し替えなし・固定 hash 表) 描き、出力 provenance の `artist_series` が既存 fig11 の provenance と完全一致した (親の実行、`verbatim/draw-r2.log` の control 行。実装子も同じ確認をした)。
+  負例は新しく作っていない (段 4 裁定)。
+
+## 6. 費用
+
+- 測定: 1 request × 5 node × Elapse 1,061 s = 5,305 s = **1.47 node 時間** ((a) Elapse、`verbatim/elapse.log`)。見積り (5 × 1,057 s = 1.47) とほぼ一致し、投げ直しは無い。
+- 開発の検査: 受入全走 1 回 (D2219 項 1 と同じ線で数える)。所要は見積り約 0.25 node 時間で、実測は worklog に書く。測定の実測と受入の見積りの和は約 1.72 (見積りを含む) で、D2212 項 4 の線 (2 node 時間) を下回る見込み。
+- plan・相談・実装子の Codex 子 3 本 (各 receipt は wave の作業置き場)。collect・描画・表は login で数秒ずつ。
+
+## 7. 言わないこと
+
+- **R2 は元 attempt の置換でも、A-6 の attempt 系列への追加でもない** (§0)。2 つの outer status・効果・標本を合成しない。「2 回とも reject だった」を統合判定や再現精度として読まない。
+- R2 は現行 driver・5 node・pin `6810666` の測定であり、元 attempt (1 node・pin `511c953`) と同じ build・同じ環境の再実行ではない。値の差を build・pin・node 形・日時のどれかに帰属させない。
+- outer status `reject` は protocol の中央値比較の答えであり、有意差・between-run floor 超の退行・研究の成否・read-heavy で stock が最良であることを判定しない。性能は認証していない。他の read 比率・機体・pin・protocol へ外挿しない。
+- 計算ノードの割当ては専有の保証ではない。単独性は job body の既存の測定前 probe に拠る。
+- trace は保全していない (§0 項 10)。R1 (保存 trace の再判定) の入力にならない。
+
+## 8. 出所
+
+- `verbatim/request.md` — 依頼の逐語。`verbatim/startup-gate.log` — 開始 gate (rc 0)。`verbatim/s1-brief.md` — 段 1 brief。
+- `verbatim/s2-plan.md` — 段 2 プラン (Codex、read-only)。`verbatim/s3-consult.md` — 段 3 敵対相談 (2 レンズを 1 本で、Codex、read-only)。`verbatim/s4-ruling.md` — 段 4 裁定。
+- `verbatim/precheck-patch.log` — 投入前の patch の厳密 check。`verbatim/hydrate.log` — third-party の hydrate。
+- `verbatim/submit.log` — 投入。`verbatim/elapse.log` — NQSV 会計。`verbatim/finish-group.log`・`verbatim/collect.log` — 完走後の receipt と collect。
+- `verbatim/s5-author.md` — wrapper の実装子の報告。`verbatim/draw-r2.log` — 陽性対照・R2 描画・表の親の実行。
+- repo 外: attempt root `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-r2-20260929a/`、出力親 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig11-20260929/` (collect-root・figure・tools・thirdparty-src)。
+  submit-tree は一時置き場 `/work/1/SFC/tanab/tmp/t2853-r2-fig11-20260929/submit-tree` (wave の終わりに撤去)。

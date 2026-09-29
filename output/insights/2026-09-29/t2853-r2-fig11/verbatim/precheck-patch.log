@@ -1,4 +1,4 @@
-date=2026-09-29 15:3x JST (親が login で実行)
+date=2026-09-29 15:09〜15:10 JST (親が login で実行。s3-consult.done の mtime 15:09:01 の後、本 log の作成 mtime 15:10:44 の前。初稿の「15:3x」は推定の誤記で、commit c231b9042 (15:12:21) で訂正前の値が入った)
 cwd=<wave worktree>/external/ccbench
 cmd: git rev-parse HEAD && git status --porcelain --untracked-files=no | wc -l && git apply --check -v ../../patches/silo-backoff-fixed.patch
      (driver の orchestrator/campaign/patchharness.py apply_patch と同じ素の git apply。--check のため書き込みなし)
