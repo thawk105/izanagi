@@ -31,6 +31,10 @@ title: /cleanup-branches を「残す対象以外の古い・価値の小さい�
   final は baseline 緑 (38 秒)・KILLED 4 (M1 command SHA を旧値へ 321 node、M2 予算 −1 で 1 node、M3 説明文を旧文へ 337 node、M4 YAML を旧文へ 336 node)・
   m0 SURVIVED・MISMATCH 0。M1・M3・M4 の多数 node は合成 repo を使う test が同じ 1 つの理由 (pin 不一致) で赤になるため (T-2814 と同型)。
   要約は job dir の `mutation-final-summary.json`。
-- 受入は この記録 commit の tip で行い、受領証は job dir (`/work/1/SFC/tanab/dev-wave-jobs/cleanup-skill-revision-20260929/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
+- 受入 1 回目 (tip 5600b6f43 + post-claim merge 60fb68a2b、tested main 681f1bbca): 28,195 passed・1 failed・74 skipped。赤は
+  `orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate` の「first evaluation did not finish」
+  (5,000 tick の時間待ちループの時間切れ)。wave 固有差分 8 file (cleanup 文書・check_docs・test_check_docs・spool) を参照せず到達不能、同 test には時間依存の是正履歴がある。
+  同 tip の単独再走 (36989.nqsv) は 1 passed で非再現。非帰属として受入を取り直した (DW-O18)。
+- 最終受入は この記録 commit の tip で行い、受領証は job dir (`/work/1/SFC/tanab/dev-wave-jobs/cleanup-skill-revision-20260929/`) に残す (受入後にこの fragment を書き足すと受入のやり直しになるため、結果は書き足さない)。
 
 ## 次の一手差分
