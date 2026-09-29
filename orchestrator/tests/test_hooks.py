@@ -5399,6 +5399,30 @@ def test_cleanup_stop_subprocess_rejects_oversized_and_non_utf8_stdin(tmp_path):
         assert result.returncode == 0 and result.stdout == b"" and result.stderr == b""
 
 
+def test_cleanup_stop_subprocess_size_limit_prevents_block(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    script = Path(_REPO) / "tools" / "dev_wave_cleanup_stop_hook.py"
+    def payload(padding):
+        return json.dumps({"cwd": os.fspath(wave), "padding": padding}).encode()
+
+    small = payload("x" * 32)
+    limit = 1024 * 1024
+    large = payload("x" * (limit + 1 - len(payload(""))))
+    assert len(small) < limit and len(large) == limit + 1
+    for data, should_block in ((small, True), (large, False)):
+        result = subprocess.run(
+            [sys.executable, os.fspath(script)], input=data,
+            capture_output=True, timeout=5,
+        )
+        assert result.returncode == 0 and result.stderr == b""
+        if should_block:
+            assert json.loads(result.stdout)["decision"] == "block"
+        else:
+            assert result.stdout == b""
+
+
 def test_hook_scripts_run_as_subprocess():
     """settings.json が呼ぶ形 (stdin JSON → exit code) の煙テスト。"""
     env = dict(os.environ)

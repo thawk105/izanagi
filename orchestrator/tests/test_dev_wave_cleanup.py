@@ -506,6 +506,27 @@ def test_remove_child_rejects_unreachable_reflog_history(tmp_path, monkeypatch):
     _child_rejected(case, monkeypatch, 'integration', reason='unreachable')
 
 
+def test_remove_child_archive_rejects_reflog_only_commit(tmp_path, monkeypatch):
+    case = _make_child_repo(tmp_path, monkeypatch)
+    (case.child / 'tracked.txt').write_text('not integrated\n')
+    _git(case.child, 'commit', '-am', 'unintegrated owned file')
+    archive_tip = _sha(case.child)
+    (case.child / 'lost.txt').write_text('reflog only\n')
+    _git(case.child, 'add', 'lost.txt')
+    _git(case.child, 'commit', '-m', 'lost after reset')
+    lost = _sha(case.child)
+    _git(case.child, 'reset', '--hard', archive_tip)
+    assert lost in _git(case.child, 'reflog', '--format=%H', 'HEAD').stdout.decode().splitlines()
+    assert _git(case.repo.main, 'branch', '--contains', lost,
+                '--format=%(refname)').stdout == b''
+    assert _git(case.repo.main, 'merge-base', '--is-ancestor', _sha(case.repo.wave),
+                'main', check=False).returncode == 0
+    assert _git(case.repo.main, 'merge-base', '--is-ancestor', archive_tip,
+                'main', check=False).returncode == 1
+    assert _git(case.repo.main, 'show', 'main:tracked.txt').stdout != (case.child / 'tracked.txt').read_bytes()
+    _child_rejected(case, monkeypatch, 'integration', reason='unreachable')
+
+
 def test_remove_child_rejects_skip_worktree_flag(tmp_path, monkeypatch):
     case = _make_child_repo(tmp_path, monkeypatch)
     _git(case.child, 'update-index', '--skip-worktree', 'tracked.txt')
