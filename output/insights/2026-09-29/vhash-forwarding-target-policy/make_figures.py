@@ -72,9 +72,11 @@ def make_success(data):
     fig.subplots_adjust(left=.08, right=.98, top=.75, bottom=.24)
     fig.suptitle("Forwarding requests and outcomes · 48 threads, 1M tuples, 50% reads · diagnostic",
                  y=.97, fontsize=12)
-    arms = ("E-hb", "E-now", "E-max", "E-max-once")
+    arms = tuple(arm for arm in ("E-hb", "E-now", "E-max", "E-max-once")
+                 if any(r["e"]["success_rate"] is not None
+                        for _, cell in cells for r in cell["arms"][arm]["count"]))
     fig.legend(handles=[Line2D([], [], color=COLORS[a], marker="D", label=a) for a in arms],
-               loc="upper center", ncol=4, bbox_to_anchor=(.5, .92), frameon=False)
+               loc="upper center", ncol=len(arms), bbox_to_anchor=(.5, .92), frameon=False)
     values = {}
     for index, (key, cell) in enumerate(cells):
         values[key] = {}
@@ -83,7 +85,7 @@ def make_success(data):
             rates = [r["e"]["success_rate"] for r in rows]
             values[key][arm] = {"success_per_request": rates,
                                 "policy_exercised": cell["arms"][arm]["policy_exercised"]}
-            x = index + (ai - 1.5) * .16
+            x = index + (ai - (len(arms) - 1) / 2) * .16
             _point(ax, x, rates, COLORS[arm], divisor=.01)
     labels = [f"{c['wait_us']//1000}/{c['skew']:g}/{c['gc_inter_us']}" for _, c in cells]
     ax.set_ylabel("Success / requests (%)")
@@ -132,13 +134,16 @@ def make_failure_reasons(data):
     cells = _cells(data, "wait_after_reads")
     reasons = ("read_mismatch", "write_constraint", "conflict", "ineligible",
                "no_room", "once_skipped", "overflow")
-    arms = ("E-hb", "E-now", "E-max", "E-max-once")
+    arms = tuple(arm for arm in ("E-hb", "E-now", "E-max", "E-max-once")
+                 if any(r["e"]["failure_reasons_per_request"][reason] is not None
+                        for _, cell in cells for r in cell["arms"][arm]["count"]
+                        for reason in reasons))
     fig, axes = plt.subplots(4, 2, figsize=(18, 16))
     fig.subplots_adjust(left=.07, right=.98, top=.92, bottom=.10, hspace=.75, wspace=.20)
     fig.suptitle("Failure reasons / requests · E policies · 48 threads, 1M tuples · diagnostic",
                  y=.985, fontsize=12)
     fig.legend(handles=[Line2D([], [], color=COLORS[a], marker="D", label=a) for a in arms],
-               loc="upper center", ncol=4, bbox_to_anchor=(.5, .955), frameon=False)
+               loc="upper center", ncol=len(arms), bbox_to_anchor=(.5, .955), frameon=False)
     values = {}
     labels = [f"{c['wait_us']//1000}/{c['skew']:g}/{c['gc_inter_us']}" for _, c in cells]
     for ri, reason in enumerate(reasons):
@@ -149,7 +154,8 @@ def make_failure_reasons(data):
                 points = [r["e"]["failure_reasons_per_request"][reason]
                           for r in cell["arms"][arm]["count"]]
                 values[key].setdefault(arm, {})[reason] = points
-                _point(ax, ci + (ai - 1.5) * .16, points, COLORS[arm], divisor=.01)
+                _point(ax, ci + (ai - (len(arms) - 1) / 2) * .16,
+                       points, COLORS[arm], divisor=.01)
         ax.set_title(reason.replace("_", " "), fontsize=9)
         ax.set_ylabel("Failure / requests (%)")
         ax.set_xticks(range(len(cells)), labels, fontsize=7)
@@ -196,11 +202,17 @@ def make_c_failure_reasons(data):
 
 def make_many_ops(data):
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
     cells = _cells(data, "many_ops")
     fig, axes = plt.subplots(3, 1, figsize=(13, 12))
     fig.subplots_adjust(left=.11, right=.98, top=.90, bottom=.12, hspace=.55)
     fig.suptitle("Many ops · long versus ordinary threads · 48 threads, 1M tuples · diagnostic",
                  y=.97, fontsize=12)
+    completion_arms = ("stock", "C-min", "C-max", "C-partial", "C-partial-once", "F")
+    fig.legend(handles=[Line2D([], [], color=COLORS[a], marker="D", label=a)
+                        for a in completion_arms],
+               loc="upper center", ncol=len(completion_arms),
+               bbox_to_anchor=(.5, .93), frameon=False)
     values = {}
     for index, (key, cell) in enumerate(cells):
         values[key] = {}
@@ -212,7 +224,6 @@ def make_many_ops(data):
                 "policy_exercised": cell["arms"][arm]["policy_exercised"]}
             _point(axes[0], index + (ai - 1.5) * .18, rates["long"], COLORS[arm], divisor=.01)
             _point(axes[1], index + (ai - 1.5) * .18, rates["normal"], COLORS[arm], divisor=.01)
-        completion_arms = ("stock", "C-min", "C-max", "C-partial", "C-partial-once", "F")
         for ai, arm in enumerate(completion_arms):
             rows = cell["arms"][arm]["performance"]
             completion = []
@@ -245,7 +256,10 @@ def make_throughput(data):
     fig.suptitle("Throughput / stock · uninstrumented builds · descriptive only · 48 threads, 1M tuples",
                  y=.97, fontsize=12)
     arms = tuple(a for a in COLORS if a != "stock")
-    fig.legend(handles=[Line2D([], [], color=COLORS[a], marker="D", label=a) for a in arms],
+    throughput_colors = {**COLORS, "E-now": "#882255", "E-max": "#332288",
+                         "E-max-once": "#117733"}
+    fig.legend(handles=[Line2D([], [], color=throughput_colors[a], marker="D", label=a)
+                        for a in arms],
                loc="upper center", ncol=5, bbox_to_anchor=(.5, .91), frameon=False)
     values = {}
     for index, (key, cell) in enumerate(cells):
@@ -255,7 +269,8 @@ def make_throughput(data):
         for ai, arm in enumerate(present):
             points = [r["throughput_tps"] / stock for r in cell["arms"][arm]["performance"]]
             values[key][arm] = points
-            _point(ax, index + (ai - (len(present)-1)/2) * .10, points, COLORS[arm])
+            _point(ax, index + (ai - (len(present)-1)/2) * .10,
+                   points, throughput_colors[arm])
     ax.axhline(1, color=COLORS["stock"], ls="--", lw=1)
     ax.set_ylabel("Throughput / stock")
     ax.set_xticks(range(len(cells)), [k.replace("/", "\n") for k, _ in cells], fontsize=7)
