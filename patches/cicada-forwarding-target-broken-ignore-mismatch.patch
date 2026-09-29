@@ -8,6 +8,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  uint64_t no_room = 0, once_skipped = 0, uncapped = 0, forced_success = 0;
  #line 40
    std::atomic<uint64_t> installs{0}, detaches{0};
+@@ -349,3 +349,3 @@
+     }
+-    const bool v2 = std::string(GC_TARGET_TEXT) != "now" || GC_ONCE_BOOL;
++    const bool v2 = true;
+     std::cout << (v2 ? "CICADA_GC_V2 {\"schema\":2,\"mode\":\""
 @@ -382,5 +382,6 @@
          std::cout << ",\"no_room\":" << c.no_room
                    << ",\"once_skipped\":" << c.once_skipped

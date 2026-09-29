@@ -1060,7 +1060,7 @@ def _target_json_line(stdout: str, prefix: str, expected: bool) -> dict | None:
 def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) -> tuple[dict | None, dict | None, dict]:
     """Reject every extra, missing or duplicate counter line and key."""
     fwd_default = not arm.startswith("C-") or arm == "C-min"
-    gc_default = not arm.startswith("E-") or arm in ("E-hb", "E-now")
+    gc_default = (not arm.startswith("E-") or arm in ("E-hb", "E-now")) and not broken
     fwd_expected = counted and arm != "stock"
     gc_expected = counted
     fwd_v1 = _target_json_line(stdout, "CICADA_FWD_V1 ", fwd_expected and fwd_default)
@@ -1106,7 +1106,7 @@ def parse_target_lines(stdout: str, arm: str, counted: bool, *, broken=False) ->
         else:
             top = GC_TOP | {"target", "once"}
             if type(gc) is not dict or gc.keys() != top or gc["schema"] != 2 or \
-                    gc["target"] != "max" or \
+                    gc["target"] != ("now" if broken and arm == "E-now" else "max") or \
                     type(gc["once"]) is not bool or gc["once"] != (arm == "E-max-once"):
                 raise ValueError("GC V2 top schema invalid")
             reduced = {k: v for k, v in gc.items() if k in GC_TOP}

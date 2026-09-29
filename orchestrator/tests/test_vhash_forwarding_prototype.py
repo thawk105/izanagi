@@ -772,6 +772,25 @@ def test_target_default_v1_and_nondefault_rejects_v1():
         driver.parse_target_lines(_target_counter_text("E-now"), "E-max", True)
 
 
+def test_target_broken_requires_v2_forced_success():
+    with pytest.raises(ValueError, match="CICADA_GC_V1 expected 0 lines"):
+        driver.parse_target_lines(_target_counter_text("E-now"), "E-now", True, broken=True)
+
+    v2 = _target_counter_text("E-max")
+    with pytest.raises(ValueError, match="GC V2 thread schema invalid"):
+        driver.parse_target_lines(v2, "E-max", True, broken=True)
+
+    def broken_now(gc):
+        gc["target"] = "now"
+        for row in gc["threads"]:
+            row["forced_success"] = 0
+
+    now_v2 = _replace_target_counter(v2, "CICADA_GC_V2 ", broken_now)
+    assert driver.parse_target_lines(now_v2, "E-now", True, broken=True)[1]["target"] == "now"
+    with pytest.raises(ValueError, match="GC V2 top schema invalid"):
+        driver.parse_target_lines(now_v2, "E-max", True, broken=True)
+
+
 def _replace_target_counter(text, prefix, change):
     lines = text.splitlines()
     for index, line in enumerate(lines):
