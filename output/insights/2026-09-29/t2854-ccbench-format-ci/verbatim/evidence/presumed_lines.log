@@ -1,0 +1,36 @@
+== cc/mocc/transaction.cc (child worktree)
+ctx=plain code_lines old=476 new=476 identical_presumed_lines=False
+   first diff: old=(124, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {') new=(125, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {')
+   first diff: old=(125, '  for (auto& re : read_set_) {') new=(126, '  for (auto& re : read_set_) {')
+   first diff: old=(126, '    if (re.storage_ != s) continue;') new=(127, '    if (re.storage_ != s) continue;')
+ctx=analysis+locks code_lines old=611 new=611 identical_presumed_lines=False
+   first diff: old=(124, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {') new=(125, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {')
+   first diff: old=(125, '  for (auto& re : read_set_) {') new=(126, '  for (auto& re : read_set_) {')
+   first diff: old=(126, '    if (re.storage_ != s) continue;') new=(127, '    if (re.storage_ != s) continue;')
+== cc/mocc/transaction.cc (pure clang-format)
+ctx=plain code_lines old=476 new=476 identical_presumed_lines=False
+   first diff: old=(124, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {') new=(121, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {')
+   first diff: old=(125, '  for (auto& re : read_set_) {') new=(122, '  for (auto& re : read_set_) {')
+   first diff: old=(126, '    if (re.storage_ != s) continue;') new=(123, '    if (re.storage_ != s) continue;')
+ctx=analysis+locks code_lines old=611 new=611 identical_presumed_lines=False
+   first diff: old=(124, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {') new=(121, 'ReadElement<Tuple>* TxExecutor::searchReadSet(Storage s, std::string_view key) {')
+   first diff: old=(125, '  for (auto& re : read_set_) {') new=(122, '  for (auto& re : read_set_) {')
+   first diff: old=(126, '    if (re.storage_ != s) continue;') new=(123, '    if (re.storage_ != s) continue;')
+== cc/silo/transaction.cc (child worktree)
+ctx=plain code_lines old=346 new=346 identical_presumed_lines=True
+ctx=analysis+locks code_lines old=367 new=367 identical_presumed_lines=True
+== cc/silo/transaction.cc (pure clang-format)
+ctx=plain code_lines old=346 new=346 identical_presumed_lines=False
+   first diff: old=(365, '}') new=(366, '}')
+   first diff: old=(367, 'void TxExecutor::unlockWriteSet(') new=(368, 'void TxExecutor::unlockWriteSet(')
+   first diff: old=(368, '    std::vector<WriteElement<Tuple>>::iterator end) {') new=(369, '    std::vector<WriteElement<Tuple>>::iterator end) {')
+ctx=analysis+locks code_lines old=367 new=367 identical_presumed_lines=False
+   first diff: old=(365, '}') new=(366, '}')
+   first diff: old=(367, 'void TxExecutor::unlockWriteSet(') new=(368, 'void TxExecutor::unlockWriteSet(')
+   first diff: old=(368, '    std::vector<WriteElement<Tuple>>::iterator end) {') new=(369, '    std::vector<WriteElement<Tuple>>::iterator end) {')
+== include/trace.hh (child worktree)
+ctx=plain code_lines old=0 new=0 identical_presumed_lines=True
+ctx=analysis+locks code_lines old=0 new=0 identical_presumed_lines=True
+== include/trace.hh (pure clang-format)
+ctx=plain code_lines old=0 new=0 identical_presumed_lines=True
+ctx=analysis+locks code_lines old=0 new=0 identical_presumed_lines=True

@@ -1,0 +1,54 @@
+cc/mocc/transaction.cc ctx=plain TRACE=0 identical_with_linemarkers=False
+    --- 
+    +++ 
+    @@ -857 +857 @@
+    -# 124 "<stdin>"
+    +# 121 "<stdin>"
+    @@ -866 +866 @@
+    -# 141 "<stdin>"
+    +# 138 "<stdin>"
+    @@ -891 +891 @@
+    -# 173 "<stdin>"
+    +# 170 "<stdin>"
+    @@ -981 +981 @@
+cc/mocc/transaction.cc ctx=analysis+locks TRACE=0 identical_with_linemarkers=False
+    --- 
+    +++ 
+    @@ -867 +867 @@
+    -# 124 "<stdin>"
+    +# 121 "<stdin>"
+    @@ -876 +876 @@
+    -# 141 "<stdin>"
+    +# 138 "<stdin>"
+    @@ -901 +901 @@
+    -# 173 "<stdin>"
+    +# 170 "<stdin>"
+    @@ -1052 +1052 @@
+cc/silo/transaction.cc ctx=plain TRACE=0 identical_with_linemarkers=False
+    --- 
+    +++ 
+    @@ -1171,0 +1172 @@
+    +
+    @@ -1187,0 +1189 @@
+    +
+    @@ -1191 +1193 @@
+    -# 408 "<stdin>"
+    +# 410 "<stdin>"
+    @@ -1193 +1195 @@
+    -# 437 "<stdin>"
+    +# 439 "<stdin>"
+cc/silo/transaction.cc ctx=analysis+locks TRACE=0 identical_with_linemarkers=False
+    --- 
+    +++ 
+    @@ -1192,0 +1193 @@
+    +
+    @@ -1208,0 +1210 @@
+    +
+    @@ -1214 +1216 @@
+    -# 408 "<stdin>"
+    +# 410 "<stdin>"
+    @@ -1216 +1218 @@
+    -# 437 "<stdin>"
+    +# 439 "<stdin>"
+include/trace.hh ctx=plain TRACE=0 identical_with_linemarkers=True
+include/trace.hh ctx=analysis+locks TRACE=0 identical_with_linemarkers=True

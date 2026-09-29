@@ -1,0 +1,43 @@
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- ccache enabled: /usr/bin/ccache
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /usr/lib/x86_64-linux-gnu/libgflags.so  
+-- Found glog: /usr/lib/x86_64-linux-gnu/libglog.so  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.83.0/BoostConfig.cmake (found version "1.83.0") found components: filesystem 
+-- The C compiler identification is GNU 13.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Found Git: /usr/bin/git (found version "2.43.0") 
+-- 
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/cc
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Could NOT find Python3 (missing: Python3_EXECUTABLE Interpreter) 
+-- Wrote protocol×workload matrix to /scr/t2854-ci-build-TFVUxcSc/ccbench/build/PROTOCOL_MATRIX.md
+-- Configuring done (1.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /scr/t2854-ci-build-TFVUxcSc/ccbench/build
