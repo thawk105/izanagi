@@ -1,0 +1,783 @@
+{
+ "source": "jobs/verify2/result-GC.json (repo 外)",
+ "source_sha256": "8e9b4227cd74b49d775860fd1172c51506cd66d0fb59b8aeef02824cd96a89a2",
+ "repo_head": "e50b666bfce1f78b92824ff4f09def48581af4b8",
+ "hostname": "bnode001",
+ "exceptions": [],
+ "broken_observation": {
+  "BROKEN_E-G10-e-t8": {
+   "reached": false,
+   "detected": false,
+   "diagnostics": {}
+  },
+  "BROKEN_E-G100-e-t8": {
+   "reached": false,
+   "detected": false,
+   "diagnostics": {}
+  }
+ },
+ "runs": {
+  "STOCK-G10-hb-t8": {
+   "build": "STOCK",
+   "cell": "G10-hb",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 419692,
+   "trace_counts": {
+    "rows": {
+     "C": 419692,
+     "R": 1647889,
+     "W": 1838672,
+     "E": 419692
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": null,
+   "gc_attempts": null,
+   "gc_success": null,
+   "gc_read_mismatch": null,
+   "fwd_success": null
+  },
+  "STOCK-G100-hb-t8": {
+   "build": "STOCK",
+   "cell": "G100-hb",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 431874,
+   "trace_counts": {
+    "rows": {
+     "C": 431874,
+     "R": 1696077,
+     "W": 1891022,
+     "E": 431874
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": null,
+   "gc_attempts": null,
+   "gc_success": null,
+   "gc_read_mismatch": null,
+   "fwd_success": null
+  },
+  "C-G10-hb-t8": {
+   "build": "C",
+   "cell": "G10-hb",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 416228,
+   "trace_counts": {
+    "rows": {
+     "C": 416228,
+     "R": 1632645,
+     "W": 1825431,
+     "E": 416228
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": null,
+   "gc_attempts": null,
+   "gc_success": null,
+   "gc_read_mismatch": null,
+   "fwd_success": 2641
+  },
+  "C-G100-hb-t8": {
+   "build": "C",
+   "cell": "G100-hb",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 426845,
+   "trace_counts": {
+    "rows": {
+     "C": 426845,
+     "R": 1677270,
+     "W": 1868435,
+     "E": 426845
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": null,
+   "gc_attempts": null,
+   "gc_success": null,
+   "gc_read_mismatch": null,
+   "fwd_success": 2963
+  },
+  "E-G10-hb-t8": {
+   "build": "E",
+   "cell": "G10-hb",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_gc_mode": "hb",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 409405,
+   "trace_counts": {
+    "rows": {
+     "C": 409405,
+     "R": 1607947,
+     "W": 1793101,
+     "E": 409405
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": 9858,
+   "gc_attempts": 0,
+   "gc_success": 0,
+   "gc_read_mismatch": 0,
+   "fwd_success": 2689
+  },
+  "E-G10-e-t8": {
+   "build": "E",
+   "cell": "G10-e",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_gc_mode": "e",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 414953,
+   "trace_counts": {
+    "rows": {
+     "C": 414953,
+     "R": 1630778,
+     "W": 1816751,
+     "E": 414953
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": 10841,
+   "gc_attempts": 10841,
+   "gc_success": 2,
+   "gc_read_mismatch": 9433,
+   "fwd_success": 2812
+  },
+  "E-G100-hb-t8": {
+   "build": "E",
+   "cell": "G100-hb",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "cicada_gc_mode": "hb",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 403482,
+   "trace_counts": {
+    "rows": {
+     "C": 403482,
+     "R": 1586275,
+     "W": 1766046,
+     "E": 403482
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": 9589,
+   "gc_attempts": 0,
+   "gc_success": 0,
+   "gc_read_mismatch": 0,
+   "fwd_success": 2685
+  },
+  "E-G100-e-t8": {
+   "build": "E",
+   "cell": "G100-e",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "cicada_gc_mode": "e",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 412066,
+   "trace_counts": {
+    "rows": {
+     "C": 412066,
+     "R": 1617952,
+     "W": 1804693,
+     "E": 412066
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": 9967,
+   "gc_attempts": 9967,
+   "gc_success": 0,
+   "gc_read_mismatch": 9062,
+   "fwd_success": 2597
+  },
+  "E-U10-hb-t8": {
+   "build": "E",
+   "cell": "U10-hb",
+   "flags": {
+    "ycsb_tuple_num": "10000",
+    "ycsb_zipf_skew": "0",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_gc_mode": "hb",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 576703,
+   "trace_counts": {
+    "rows": {
+     "C": 576703,
+     "R": 2881875,
+     "W": 2883289,
+     "E": 576703
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": 9219,
+   "gc_attempts": 0,
+   "gc_success": 0,
+   "gc_read_mismatch": 0,
+   "fwd_success": 0
+  },
+  "E-U10-e-t8": {
+   "build": "E",
+   "cell": "U10-e",
+   "flags": {
+    "ycsb_tuple_num": "10000",
+    "ycsb_zipf_skew": "0",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_gc_mode": "e",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": 0,
+   "error": null,
+   "verdict": "indeterminate",
+   "certified": false,
+   "total_cycles": 0,
+   "integrity_numeric": {
+    "orphan_reads": 0,
+    "version_dups": 0,
+    "dup_txids": 0,
+    "genesis_commits": 0,
+    "missing_txids": 0,
+    "write_version_mismatch": 0,
+    "malformed_keys": 0,
+    "framing_violations": 0,
+    "lock_coverage_violations": 0,
+    "write_intent_violations": 0,
+    "permutation_violations": 0
+   },
+   "commits": 573920,
+   "trace_counts": {
+    "rows": {
+     "C": 573920,
+     "R": 2866273,
+     "W": 2871048,
+     "E": 573920
+    },
+    "reasons": {
+     "X": {},
+     "P": {},
+     "I": {}
+    }
+   },
+   "read_wts_mismatch": 0,
+   "gc_detection": {
+    "cycle": false,
+    "version_dups": 0,
+    "read_wts_mismatch": 0,
+    "held_changed": 0,
+    "early_publish": 0,
+    "early_publish_then_fail": 0,
+    "c_lines_equal_commits": true
+   },
+   "gc_requests": 9335,
+   "gc_attempts": 9335,
+   "gc_success": 294,
+   "gc_read_mismatch": 9040,
+   "fwd_success": 1
+  },
+  "BROKEN_E-G10-e-t8": {
+   "build": "BROKEN_E",
+   "cell": "G10-e",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "10",
+    "cicada_gc_mode": "e",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": -11,
+   "error": "invalid CICADA_GC_V1 line: CICADA_GC_V1 expected 1 lines, found 0",
+   "verdict": null,
+   "certified": null,
+   "total_cycles": null,
+   "integrity_numeric": {},
+   "commits": null,
+   "trace_counts": null,
+   "read_wts_mismatch": null,
+   "gc_detection": null,
+   "gc_requests": null,
+   "gc_attempts": null,
+   "gc_success": null,
+   "gc_read_mismatch": null,
+   "fwd_success": null
+  },
+  "BROKEN_E-G100-e-t8": {
+   "build": "BROKEN_E",
+   "cell": "G100-e",
+   "flags": {
+    "ycsb_tuple_num": "50",
+    "ycsb_zipf_skew": "0.9",
+    "ycsb_rratio": "50",
+    "ycsb_rmw": "false",
+    "ycsb_max_ope": "10",
+    "extime": "1",
+    "gc_inter_us": "100",
+    "cicada_gc_mode": "e",
+    "cicada_gc_slice_us": "100",
+    "cicada_gc_sample_us": "10",
+    "cicada_long_threads": "2",
+    "cicada_long_kind": "wait_after_reads",
+    "cicada_long_wait_us": "10000",
+    "cicada_wait_reads": "10",
+    "thread_num": "8",
+    "group_commit": "0",
+    "cicada_fwd_policy": "c"
+   },
+   "rc": -11,
+   "error": "invalid CICADA_GC_V1 line: CICADA_GC_V1 expected 1 lines, found 0",
+   "verdict": null,
+   "certified": null,
+   "total_cycles": null,
+   "integrity_numeric": {},
+   "commits": null,
+   "trace_counts": null,
+   "read_wts_mismatch": null,
+   "gc_detection": null,
+   "gc_requests": null,
+   "gc_attempts": null,
+   "gc_success": null,
+   "gc_read_mismatch": null,
+   "fwd_success": null
+  }
+ }
+}
