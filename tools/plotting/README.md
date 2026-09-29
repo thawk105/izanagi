@@ -553,3 +553,18 @@ bootstrap 95% 区間 (反復変動の記述) は生の反復値からその場�
 `OUT_PREFIX.png`、`.pdf`、`.provenance.json`、`.summary.json` (全 group の cell × arm の中央値・区間・perf の 1 op 当たり値)。
 既存の出力先へ出し直すと、置換の途中で失敗したときに新旧が混在しうるので、毎回新しい prefix に出す。一次資料は
 `output/insights/2026-09-29/vhash-hot-block-microbench/README.md`。
+
+## Cicada baseline tuning の診断図
+
+計測機の外で、J1/J2 の `runs.jsonl` と `analyze` の summary JSON から再生成する。
+値は探索用で、正しさ未検証の診断値である。
+
+```bash
+MPLCONFIGDIR=/tmp/cicada-mpl PYTHONPATH=. python3 -m tools.plotting.plot_vhash_cicada_tuning \
+  --runs output/env/pegasus/vhash-cicada-baseline-tuning/*/runs.jsonl \
+  --summary /path/to/cicada-summary.json \
+  --out-prefix /path/to/vhash-cicada
+```
+
+`vhash-cicada-j1` と `vhash-cicada-j2` の各 prefix に PNG・PDF・provenance JSON を作る。
+保存前に実 Figure の文字重なり・パネル逸脱を検査する。
