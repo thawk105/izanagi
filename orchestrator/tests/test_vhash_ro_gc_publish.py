@@ -287,6 +287,45 @@ def test_figure_layout_rejects_legend_inside_data_axes():
         plt.close(fig)
 
 
+def test_figure_layout_ignores_minor_tick_outside_view():
+    from tools.plotting.plot_vhash_ro_gc_publish import check_figure_layout
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    try:
+        ax.set_yscale("log")
+        ax.set_yticks([.02], minor=True)
+        ax.set_yticklabels(["outside view minor tick"], minor=True)
+        ax.set_ylim(.8, 1.2)
+        fig.canvas.draw()
+        tick = ax.yaxis.get_minor_ticks()[0]
+        assert tick.get_loc() < min(ax.yaxis.get_view_interval())
+        assert tick.label1.get_window_extent(fig.canvas.get_renderer()).y1 < fig.bbox.y0
+        check_figure_layout(fig)
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("kind", ("title", "legend", "visible_tick"))
+def test_figure_layout_rejects_drawn_text_outside_canvas(kind):
+    from tools.plotting.plot_vhash_ro_gc_publish import check_figure_layout
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    try:
+        if kind == "title":
+            ax.set_title("outside title", x=-.5)
+        elif kind == "legend":
+            ax.plot([], [], label="outside legend")
+            ax.legend(loc="upper right", bbox_to_anchor=(-.5, 1))
+        else:
+            ax.set_yticks([.5])
+            ax.set_yticklabels(["visible tick label outside canvas" * 2])
+            ax.set_ylim(0, 1)
+        with pytest.raises(ValueError, match="figure text outside canvas"):
+            check_figure_layout(fig)
+    finally:
+        plt.close(fig)
+
+
 def _vlife_fixture(publications: int, age: int, ro_units: int) -> dict:
     worker = {"hops": [[0] * 18 for _ in V.SITES],
               "position": [[0] * 18 for _ in V.SITES]}

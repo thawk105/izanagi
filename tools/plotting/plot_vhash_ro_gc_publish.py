@@ -258,13 +258,20 @@ def check_figure_layout(fig) -> None:
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     bounds = fig.bbox
+    outside_view_ticks = set()
     for ax in fig.axes:
         legend = ax.get_legend()
         if legend is not None and legend.get_window_extent(renderer).overlaps(ax.bbox):
             raise ValueError("legend overlaps data axes")
+        for axis in (ax.xaxis, ax.yaxis):
+            low, high = sorted(axis.get_view_interval())
+            for tick in axis.get_major_ticks() + axis.get_minor_ticks():
+                if not low <= tick.get_loc() <= high:
+                    outside_view_ticks.update((tick.label1, tick.label2))
     labels = []
     for artist in fig.findobj(match=Text):
-        if not artist.get_visible() or not artist.get_text().strip():
+        if (artist in outside_view_ticks or not artist.get_visible()
+                or not artist.get_text().strip()):
             continue
         box = artist.get_window_extent(renderer)
         if not (bounds.x0 <= box.x0 and box.x1 <= bounds.x1 and
