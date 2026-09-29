@@ -123,3 +123,8 @@ final 12 / 12 KILLED (独立 clone、main = `9138194a0`、runner `tools/run_test
 - LLM 対 非 LLM の対照 ([T-2867]、事前登録草稿 `docs/silo-policy-generator-contrast-preregistration.md`) が要る driver 側の口は本 wave の対象外。
 - auditor role の出力節に gate の閉じた形を書く改訂と、coder の固定リーク防止文脈を方策軸用にする改訂は、role・固定入力の変更でユーザー承認事項。持ち越しに起票した。
 - 骨格の乱数初期値の問題 (§3.4) は性能上の指摘で、正しさ・受理集合を変えない。記録に留める。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が投入元として名指す `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-stage-f/trees/e2e` は、2026-09-30 の掃除 wave で回収せずに撤去する。campaign 原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260927/` (manifest `t2865-stage-f-originals`) にあり、trace の保全先 `/work/1/SFC/tanab/izanagi-repro-archive/t2865-stage-f-20260927/` は変えない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

@@ -1,0 +1,33 @@
+request.json environment PYTHONDONTWRITEBYTECODE (all 3 shards) x pre peak, 09-26..09-29, runs=124
+warm: yes=6 no=37 mixed=0
+cold: yes=67 no=2 mixed=0
+mid: yes=0 no=12 mixed=0
+09-26: {('warm', 'no'): 13, ('cold', 'yes'): 15, ('warm', 'yes'): 1}
+09-27: {('warm', 'no'): 9, ('cold', 'yes'): 26, ('mid', 'no'): 1, ('warm', 'yes'): 1}
+09-29: {('cold', 'yes'): 26, ('warm', 'no'): 15, ('warm', 'yes'): 4, ('mid', 'no'): 11, ('cold', 'no'): 2}
+--- counterexamples (req export=yes & warm; req export=no & cold)
+{'start': '09-26 21:53', 'day': '09-26', 'digest': 'da8c8be3', 'wt': 't2273-shard0-precopy', 'nth': 1, 'pre': '71/73/71', 'peak': 'warm', 'req_export': 'yes', 'Wmax': 377.319, 'W0': 377.319}
+{'start': '09-27 18:47', 'day': '09-27', 'digest': '48d74748', 'wt': 't2273-shard0-precopy', 'nth': 5, 'pre': '75/76/75', 'peak': 'warm', 'req_export': 'yes', 'Wmax': 294.733, 'W0': 294.733}
+{'start': '09-29 06:25', 'day': '09-29', 'digest': '31d6bf0a', 'wt': 'paper-story-vhash-setup', 'nth': 1, 'pre': '74/80/80', 'peak': 'warm', 'req_export': 'yes', 'Wmax': 297.407, 'W0': 297.407}
+{'start': '09-29 07:37', 'day': '09-29', 'digest': '279f541f', 'wt': 'paper-story-vhash-setup', 'nth': 2, 'pre': '72/72/73', 'peak': 'warm', 'req_export': 'yes', 'Wmax': 289.233, 'W0': 289.233}
+{'start': '09-29 08:03', 'day': '09-29', 'digest': 'cc7cdcef', 'wt': 'paper-story-vhash-setup', 'nth': 3, 'pre': '70/80/73', 'peak': 'warm', 'req_export': 'yes', 'Wmax': 310.624, 'W0': 310.624}
+{'start': '09-29 10:03', 'day': '09-29', 'digest': '3ba38d6b', 'wt': 'dev-wave-t2273-issue-subprocess', 'nth': 5, 'pre': '67/69/67', 'peak': 'warm', 'req_export': 'yes', 'Wmax': 256.501, 'W0': 256.501}
+{'start': '09-29 14:49', 'day': '09-29', 'digest': 'b815c9b0', 'wt': 'dev-wave-vhash-cicada-baseline-tuning', 'nth': 1, 'pre': '128/129/129', 'peak': 'cold', 'req_export': 'no', 'Wmax': 324.149, 'W0': 324.149}
+{'start': '09-29 16:18', 'day': '09-29', 'digest': '1c0e5d3c', 'wt': 'dev-wave-t2853-r2-fig11', 'nth': 1, 'pre': '116/118/117', 'peak': 'cold', 'req_export': 'no', 'Wmax': 307.398, 'W0': 307.398}
+--- mid
+{'start': '09-27 17:45', 'day': '09-27', 'digest': '0e939b3c', 'wt': 't2273-shard0-precopy', 'nth': 3, 'pre': '77/99/72', 'peak': 'mid', 'req_export': 'no', 'Wmax': 317.194, 'W0': 317.194}
+{'start': '09-29 07:03', 'day': '09-29', 'digest': '17a2320e', 'wt': 'dev-wave-vhash-cicada-verifier', 'nth': 1, 'pre': '97/87/74', 'peak': 'mid', 'req_export': 'no', 'Wmax': 379.196, 'W0': 379.196}
+{'start': '09-29 07:17', 'day': '09-29', 'digest': '3eb11866', 'wt': 'dev-wave-t2273-issue-subprocess', 'nth': 1, 'pre': '68/97/75', 'peak': 'mid', 'req_export': 'no', 'Wmax': 349.375, 'W0': 321.576}
+{'start': '09-29 07:51', 'day': '09-29', 'digest': 'b45fb3e6', 'wt': 'dev-wave-t2871-policy-loop-iter', 'nth': 1, 'pre': '71/73/101', 'peak': 'mid', 'req_export': 'no', 'Wmax': 337.078, 'W0': 317.295}
+{'start': '09-29 09:36', 'day': '09-29', 'digest': 'f92e1434', 'wt': 'dev-wave-vhash-cicada-version-measure', 'nth': 1, 'pre': '67/97/69', 'peak': 'mid', 'req_export': 'no', 'Wmax': 381.375, 'W0': 296.548}
+{'start': '09-29 15:16', 'day': '09-29', 'digest': '0c7d2386', 'wt': 'dev-wave-gen-opt-stage-a-candidate', 'nth': 1, 'pre': '112/111/113', 'peak': 'mid', 'req_export': 'no', 'Wmax': 390.986, 'W0': 390.986}
+{'start': '09-29 15:51', 'day': '09-29', 'digest': '01556101', 'wt': 'dev-wave-t2853-r2-fig6', 'nth': 1, 'pre': '67/93/103', 'peak': 'mid', 'req_export': 'no', 'Wmax': 295.849, 'W0': 294.186}
+{'start': '09-29 16:29', 'day': '09-29', 'digest': 'a28aa0d6', 'wt': 'dev-wave-gen-opt-gate-liveness', 'nth': 1, 'pre': '90/81/100', 'peak': 'mid', 'req_export': 'no', 'Wmax': 281.897, 'W0': 281.897}
+{'start': '09-29 17:30', 'day': '09-29', 'digest': '4fa72f2b', 'wt': 'dev-wave-t2854-ccbench-format-ci', 'nth': 1, 'pre': '71/68/116', 'peak': 'mid', 'req_export': 'no', 'Wmax': 314.893, 'W0': 314.893}
+{'start': '09-29 18:01', 'day': '09-29', 'digest': '130096fb', 'wt': 'dev-wave-t2853-r2-fig11', 'nth': 2, 'pre': '93/67/142', 'peak': 'mid', 'req_export': 'no', 'Wmax': 436.359, 'W0': 436.359}
+{'start': '09-29 18:20', 'day': '09-29', 'digest': 'eb660338', 'wt': 'dev-wave-vhash-cicada-verifier-ext', 'nth': 1, 'pre': '67/119/67', 'peak': 'mid', 'req_export': 'no', 'Wmax': 307.012, 'W0': 307.012}
+{'start': '09-29 18:57', 'day': '09-29', 'digest': '8700cb61', 'wt': 'dev-wave-md2-push-pack-hint', 'nth': 1, 'pre': '113/85/89', 'peak': 'mid', 'req_export': 'no', 'Wmax': 319.084, 'W0': 319.084}
+--- 9/29 W by peak
+warm n=19 Wmax med 297 W0 med 293
+cold n=28 Wmax med 357 W0 med 357
+mid n=11 Wmax med 337 W0 med 317

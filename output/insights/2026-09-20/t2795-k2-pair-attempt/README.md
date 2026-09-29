@@ -168,3 +168,8 @@ attempt dir は `mkdir` だけ (job body 所有)。
   `submit-tree-pair/output/exploration/campaigns/p3-s4-loop-s4-autonomous-b24749ae/` と `submit-tree-pair/output/env/pegasus/claims/`。
 - job root の glue (repo 外、実装面ではない): `setup-submit-trees.sh`、`qsub-submit-pair.sh`、`wait-job.sh`、`wal_outcomes.py`、`project_pair_results.py`、`consult-launcher.sh`。
   4 巡目用の `submit-tree-r4` は構築したが未使用 (撤去)。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が名指す submit-tree `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2795-k2-pair/submit-tree-pair` は、2026-09-30 の掃除 wave で回収せずに撤去する。campaign 原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260923/` (manifest `k2-pair-first-originals`) と job dir の `originals-copy-20260920/` に残る。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

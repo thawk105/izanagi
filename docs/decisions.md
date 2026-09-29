@@ -74147,3 +74147,200 @@ fig15 (観測の再実施、元の認可は 1 回限り) は今は再認可し�
 - 更新: T-2854 (人間の push は済み・CI 緑 → pin 前進 wave (AI))、T-2867 (発効承認 → 発効の決定と本走 (AI))、T-2850 (引き続き見送り)、T-2852 (起草 (AI))、T-2874 (M の実装 (AI))、T-2881 (局所修正 (AI))、T-2853 (fig2c・fig10 の投入 (AI))、T-2912 ((2) を閉じる)、T-2895 (取り寄せの優先順)。
 - 稼働中 wave 所有のため本決定では次の一手を書かず、repo 外の控えに記した: T-2905・T-2885 (`worktree-dev-wave-silo-intra-txn-fix`)、T-2904 (`worktree-dev-wave-ccbench-cicada-bugfix`)、T-2908 (`worktree-dev-wave-vhash-cicada-gc-records-fix`)、T-2872 (`worktree-dev-wave-mocc-validation-fix`)。
 - 索引外で状態を確かめた項: T-2288 の採用裁定は D1641 決定 2 で AI に委任済み。T-2838 の取り直しは時点 (9/26 から約 5.5 日) が未到来。T-2859 は 2026-12-11。T-2893・T-2915 は発効の前提が未充足。T-2870 は実装 wave が差分を示す段。repo 内 handoff `docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md` は T-2674 で T-1998 の対が回収済みで生きていない。
+
+## D2306. 対話型の dev-wave を当面の研究の主経路にする — 8c の元の達成条件と「未達」は変えず、ComSys 締切後に無人の多世代ループの実現可能性を小さく試して再裁定する。論文では「人間が介在する逐次探索」と書き、人間の判断と投入時間は無人で得た成果と分けて記録する (2026-09-30)
+
+**背景:** ユーザーが「ループプログラムによる一般的な進化探索は難しいのではないか。dev-wave が repo に知識と結果を溜め、次の wave がそれを読んで先へ進む『対話型進化探索』という枠組みをどう思うか」と相談した。Claude (親) の初案を Codex 2 本 (独立見解 A・最強の反論 B) にかけ、両者の指摘で初案を修正した推奨をユーザーが受領した。一次資料は `output/insights/2026-09-29/interactive-dev-wave-ruling/` (ユーザー発話の逐語、裁定の控え、相談 brief と回答の写し)。
+
+**ユーザー発話 (逐語、一次資料から写し):**
+
+> [1] izanagiではループプログラムを回してエージェントを使ったりして一般的な進化探索をやることをゴールに目指してきました。でも、それは難しいのでは無いかと最近考えています。dev-waveで開発・実験・実装を進めていく、リポジトリに知識や結果を溜めていく、その次に行われるdev-waveはそれまでに行われたdev-waveを学習して先に進んでいくみたいな、対話型進化探索という枠組みについてどう思いますか？
+>
+> [2] よし。ここら辺は推奨通りで良い。
+
+**決定 (修正後の推奨どおり):**
+
+1. **研究の進め方** — 対話型の dev-wave (repo に結果と失敗を溜め、次の wave がそれを読んで進む) を当面の研究の主経路として正式に採用する。P0〜P6 と TPC-C (D2212) を優先する。正しさ判定・候補の検証・性能計測・試行記録は機械側に残し、対話へ移すのは「次に何を調べるか・予算・結果の解釈・方針変更」だけとする。
+2. **8c (無人の多世代ループ)** — 元の達成条件 (roadmap §2「システム合成と無人自律を名乗るための要件」の、反復駆動がセッション非依存で checkpoint・予算・再開を orchestrator が所有すること) と「未達」の状態をそのまま残す。定義の書き換えで達成扱いにしない。ComSys 締切 (2026-10-30) の後に、小さな予算で無人の多世代ループの実現可能性を別に試し、その結果で継続・延期・目標変更をあらためてユーザーが裁定する。計算が 1 タスク合計 2 node 時間以上なら投入前に確認を取る (D2212)。
+3. **呼び名** — 「対話型進化探索」は内部の呼び名に留め、論文と正式な方法名では「人間が介在する逐次探索」と書く。roadmap §2・§10 の「進化探索」の用語予約は維持する。
+4. **記録** — 人間の判断と投入時間を記録し、無人で得た成果と混ぜない。進み具合は wave の本数ではなく、certified な成果・既知最良との差・論文の図表の充足で見る。新しい機構は作らず、既存の worklog の書き方 (ユーザー裁定・エージェント工数を書く欄) で対応する。
+
+**理由:**
+
+- 相談 A は、この運用を開発の進め方として採用する価値は高いが、候補集団・世代更新・選択・変異の寄与を示さない限り、研究上は「人間が介在する累積的な逐次探索」と呼ぶのが正確だとした。無人探索の難しさのうち、週上限による LLM の停止・検証費用・共有環境での性能比較は実際の制約で、8c の official 系列を止めた重い証拠手続きは主に自分たちで置いた課題であり、「無人探索は不可能」とは言えないとした。
+- 相談 B は、初案の「無人自律を wave の内側ループの範囲に限って主張する」が、8c の未達を名前の付け替えで見えなくすると攻撃した。ユーザーが柱と見ていたのは、セッション外から多世代の反復を駆動し人間が候補を運ばずに完走することであり、外側の候補選びと次の wave の起動を人間が担う限り元の 8c を満たさない。
+- A と B は、無人探索を目標として残して別に確かめる点、「進化探索」を研究上の名称にしない点、正しさ判定を機械に残す点で一致した。決定 1〜4 はこの一致点に従う。
+- 進み具合を wave の本数で測ると、手続きが増えるほど進んだように見える。A の推奨どおり、論文と成果に直結する量で見る。
+
+**却下した選択肢:**
+
+- **無人自律を wave の内側ループ (固定空間の候補生成・検証・計測の N 反復) の範囲に限って主張する** (初案) — 8c の未達を定義の変更で見えなくする (相談 B)。目標を変えるなら、変えたことを明示した裁定として行う。
+- **圧縮・忘却を仕組みとして新設する** (初案) — 研究や記録を現に止めている実測根拠が無く、wave をさらに重くし、否定的結果を見えにくくするおそれがある (相談 B)。
+- **「対話型進化探索」を正式な手法名・論文の中心主張にする** — wave の軌跡は人間の着想・投入時間・実験条件が混ざり、探索法の効果を示す比較に使いにくい。dev-wave 間の学習を発見として主張するなら、過去の知識を渡す条件と渡さない条件・同じ予算の対照・独立反復が要る (相談 A・B)。
+- **8c の完成を待ってから研究を進める** — 論文に必要な実験 (P0〜P6・TPC-C) が止まる (相談 A)。
+- **無人探索を目標から外す** — 主張できるのは人間なしで完走した範囲だけであり、目標を残して別に実証する方が主張の線引きが保てる (相談 A)。
+
+**最も強い反対論 (相談 B、記録として残す):** wave を進化の個体に見立てる対応は成立しない — wave の中身は実験・実装・文書変更と不揃いで、正しさゲートは失格判定であって wave 間の適応度ではなく、land は研究成果だけでなく実装の容易さや人間の判断にも左右される。repo に知識が残ることと、個体が継承され変異・選択されることも別である。対話型進化計算 (IEC) との類比は比喩としては使えても方法の分類としては未確認である。費用制約は大集団が難しい根拠であって、無人ループを断念する証明ではない (少数候補の順次評価や安い評価での絞り込みまで不可能とは言えない)。本決定は、この反論を受けて初案の 8c 書き換えと圧縮・忘却の新設を落とした結果である。なお B 自身が、内側と外側の役割を分けて説明すること、正しさ判定を機械に残すこと、「進化探索」の用語を避けることは攻撃として成立しないとした。
+
+**位置づけ:** ユーザーと協議して合意した改訂なので、roadmap は版番号を上げず history に凍結せず in-place で反映する (`docs/roadmap-history/README.md`)。反映先は roadmap §1 の主張階層 4 の直後、§2「システム合成と無人自律を名乗るための要件」、§2 探索戦略と §10 の用語予約の近く、および repo 直下の `README.md`。D44 と 2026-07-14 協議改訂の要件は変えない。D2212 が 8b / 8c の official 系列の再開を論文の必須経路から外したこと、および roadmap §1「論文の目標と必須経路」(2026-09-21 協議改訂) の「論文へ至る経路の判断であって、§2 の無人自律をシステムの目標から外すものではない」も変えない。本 D は改訂の追跡ではなく設計判断の記録として置く。
+
+## D2307. 日常作業の高速化と不要物の整理から外すもの — T-080 E2E の削除・変異 matrix の免除拡大・門番の閾値と上限の変更・恒久保留 test の削除・新しい削除台帳・8b / 8c 資産と既裁定で残す束の削除はやらない。削除の記録は `prune(` 題の commit と既存の墓標・索引で行う (2026-09-30)
+
+**背景:** D2306 の裁定に続けて、ユーザーが同日に依頼した (逐語)「この裁定で進めるにあたって、日常の営みを高速化できるところは高速化しておきたい。不要なテスト、ツール、ファイルは削除して記録しておき、後でgit参照しやすいようにするとかさ。」。親セッションが調査 3 本 (read-only) で候補を集めて計画案を作り、Codex 2 本 (計画検査 C・反論 D) にかけ、両者が一致して退けた項目を計画から落とした。本決定はその修正の記録であり、各項について個別のユーザー裁定を経たものではない。一次資料は `output/insights/2026-09-29/interactive-dev-wave-ruling/` (計画案 plan.md、相談 brief と回答 outC.md・outD.md の写し)。
+
+**決定:**
+
+1. **前提:** 削除は整理の価値はあるが、日常の wall 時間をほとんど縮めない。D1990 の結論 (`< 0.01 秒` の 12,223 件は合計 25.8 秒で、D747 の「安いテストを消しても効かない」は母数が 2.85 倍になっても成立する) が再び当てはまる。速さに効くのは受入の最長 shard の実 wall・門番待ち・`check_docs.py` などで、これらは検査する範囲 (受理集合) を縮めずに縮める。受入の短縮は worker 時間の総和ではなく最長 shard の実 wall で判断する (相談 C)。
+2. **やらないこと** (再提案するときは、各項の既裁定が求める新しい実測・条件、またはユーザーによる上書き裁定を添える):
+   - **T-080 stub-free E2E の削除** — D700 が却下済み。D700 は「直接 helper 検査は実 repo・public `verify_receipt`・public driver gate を通す E2E と受理集合が異なる。部分削除でも受理集合を実際に縮める」とし、opt-in で走らなかった 11 日間に 2 件が赤になったことを記録している。計画案が挙げた約 3,566 秒は約 20 関数の worker 時間の和で、D700 の 6 function / 11 nodeid (call 時間合計 492.17 秒) とも受入 wall の短縮幅とも同一視できない (相談 C・D)。setup の共有で時間を縮めることは受理集合を保つので妨げない。
+   - **変異 matrix の免除範囲の拡大** — D301 は免除を「『実装しない』裁定と実装差分ゼロの連言」に限り、免除を実装差分ゼロの wave 一般へ広げる案をユーザー裁定で不採用にしている。計画案の「test・gate を新設・変更する wave に限る」は、verifier や producer の変更 (相談 C)、実効 gate を変える文書変更 (相談 D) を検査から外しうる。
+   - **門番の閾値・上限の変更** — D2211 項 4 は受入 leader の数え方の統一 (択 A) だけを採り、他 leader 上限の期間限定試行 (択 B) は D2206 項 6 の再提示条件が未成立として採らず、maxload 80 などは採らなかった。D2206 項 6 は閾値と postcheck の据え置きを継続し、再提示条件を「門番待ちの実測 wave **と** 受入律速の診断の結果が揃ったとき」の連言に保った。「一定時間で投入」する単純な上限は、この順序 (待ち・受入 wall・赤率の対照を先に取る) を飛ばす (相談 C)。
+   - **D335 の恒久保留 test の削除** — D335 は削除せず恒久保留とし、解除はユーザーの明示命令だけとしている。保留中の所要は 0 秒で、消しても速くならない。
+   - **新しい削除台帳・ディレクトリ (`pruned/` と wave ごとの索引) の新設** — Git にある blob・サイズ・削除時点を別台帳へ重複記録し、毎回の編集と整合確認を増やす (相談 C)。
+   - **8b / 8c の module の切り離しと 8c 系 (`s8c_*`、`reflux_*`、8c の設計・runbook 文書) の削除** — 8c の目標は残る (D2306 決定 2)。調査では 8b / 8c の大半の module を現役 module が import しており、file の削除だけでは消せない。
+   - **B-4 の producer_auth_experiment 系と T-189 の codex_reasoning_ab 束の削除** — B-4 本走は研究本流で、実験 test が本走の入力・記録を検査していないかは関数単位で未確認である。docstring の自己申告 (「production 認証層ではない」) は根拠にならない (D1989 の却下した選択肢「対象自身の本文を根拠にする」)。T-189 の保留 node は所要 0 秒で、速度の改善にならない (相談 C・D)。
+   - **`t1434_t1222_science_slice` の削除** — D2179 が残すと裁定した。D2179 は「項 5 R3 の名指しを項 6 より優先して science-slice の対を削る」案を「逐語に優先の根拠が無く、派生値 pin を消す」として却下している (相談 C)。
+3. **削除してよい条件:** 条件の中身は既存の決定のものを変えずに使い、今回の計画の対象へどれを当てるかを種類ごとに定める。対象ごとに現物で確かめる。
+   - どの対象も D1989 (参照 4 分類で現役の拘束的 consumer が無いこと) を満たす。
+   - `output/` 以外の対象 (tool・module・test・文書) は、さらに D2179 が D2172 項 5 R3 (c) の 15 対の判定に使った条件 (一回限り・結果凍結済み・現行機構の実装でない の 3 連言。専用 test を伴う対象では、その test が本当に専用であること) を満たす。D2179 自体は 15 対への裁定であり、同じ条件を今回の計画の対象に課すのは本決定である (共通指示 `common.txt` 3 節)。
+   - `output/` の file は D2297 に従う。外してよいのは (A) 参照閉包で参照が 0 の機械出力と、(B) README 本文が結論と数値を要約済みで、名前では引かれていない生出力の 2 種だけで、hash で束縛された file・事前登録や凍結の材料・テストや道具が読む file などは外さない。
+   確かめられない条件が 1 つでもあれば残し、残した理由を一次資料に書く。調査役の機械集計の候補一覧は削除許可ではない (相談 D)。凍結 bytes・hash・path に束縛された文書や成果物は動かさない (規律 7)。
+4. **削除の記録方式:** 新しい台帳は作らず、次の既存の形で後から引けるようにする。
+   - 削除 commit の題を `prune(<領域>): ...` で始め、本文に削除した path・理由・関連 D を 1 行ずつ書く。最後に存在した版は `git show <削除 commit>^:<path>` で引ける。
+   - docs の削除は `docs/archive/README.md` の墓標行 (git-history-only 化の様式) に 1 行足す。
+   - `output/` の削除は `output/PRUNED-INDEX.jsonl` に追記する (D2297)。
+   - 引き方は repo 直下の `README.md`「削除したものの探し方」に置く。
+
+**理由:**
+
+- 計画案は削除を高速化の主施策に数えていたが、両相談とも、単発 tool・文書・保留 test・安い test の削除が通常の受入 wall を縮める実測は無いとした。速さのための削除で受理集合を縮めれば、規律 2 の面を削ることになる。
+- 同じ提案は繰り返し起票されうる。D1990 が「否定的結論こそ台帳に残す価値がある」としたのと同じ理由で、退けた項目と根拠の既裁定をここに束ねておく。
+
+**却下した選択肢 (計画案の項目):**
+
+- **T-080 E2E 群と floor campaign の official 系の重複 setup を削る (D700 を上書き)** — 上の決定 2 の 1 項目目。重複 setup の共有化は別案として残る。
+- **B-4 実験系と T-189 束を削除する** — 上の決定 2 の 7 項目目。D1989・D2179 の条件を関数単位で満たしたものだけ、整理目的で別に扱える (相談 C)。
+- **変異 matrix の限定と門番待ちの上限 (例: 10 分で投入) の両方を採る** — 上の決定 2 の 2・3 項目目。門番待ちに上限を置くこと自体は正しさゲートの縮小ではない (相談 D が攻撃不成立とした) が、D2206 項 6 の再提示条件が揃うまで提示しない。
+- **repo 直下に `pruned/` を新設し wave ごとの JSONL を置く** — 上の決定 2 の 5 項目目。
+
+**位置づけ:** 親セッションの計画修正の記録で、ユーザー依頼 (高速化と削除記録) への回答の一部である。後続の削除・短縮の wave は本決定の決定 2〜4 を前提にする。
+
+## D2308. CCBench の Cicada の不具合は直す (ユーザー判断)。build 不能 2 件と計器 build 1 件を、非既定の #if の内側の行の置換だけで F の子 commit G に直す。promotion 有効の 8 genome は build できるようになったが判定器が直列化違反を検出したので失格とし、D297 検査器が cicada の変更を判定できないことは検査器を変えずに記録する (2026-09-30)
+
+**決定 (ユーザー判断):** 還元判断がユーザー確認待ちだった Cicada の build 不具合 (INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1 の 8 genome と WORKER1_INSERT_DELAY_RPHASE が compile できない) について、ユーザーは 2026-09-29 (21 時台 JST) に「CCBench の不具合は直したい」と判断した。本決定はこれを「直す」で確定し、次の方針で直したことを記録する。
+TPC-C 全 mix × 4 thread の `gc_records()` の ERR は、後から作られた専用の依頼 (md_23) が扱う (同じ判断の対象だが本決定の修理の範囲外)。
+
+1. **置き場:** CCBench の新しい local branch `izanagi-cicada-build-fix` に、F `25898d00` (D2293) の子 commit G `eb93423bbb27a2694d3d75861696c365f0fb8f7c` として置く (Codex author、D95)。izanagi の gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN`・`patches/` は変えない。push・PR は人間 (D16・D18・D20)。pin の前進は push と GitHub の CI が緑になった後の別の作業とする (D2277 項 1 の順序)。
+2. **直し方:** 変更は非既定の `#if` 区間の内側の行の置換だけにし、物理行数を変えない。既定の build の preprocess 出力と `ERR` の `__LINE__` を F と同じに保ち、既存の patch (計装 patch の `#line` の値を含む) がそのまま当たるようにするため。promotion は改名後の `update()` を呼ぶ形にし、`read_internal()` が既に積んだ読み取りを promotion が重ねて積む行を除く。待機の分岐は README と flag 定義どおり runtime flag `-worker1_insert_delay_rphase_us` を読み、既に取り込み済みの `sleepTics()` で待つ。ADD_ANALYSIS=1 で compile できない計上の行 (存在しない計時開始値を使う) も同じ族として直す。
+3. **検証:** G で正準 24 genome・ADD_ANALYSIS=1 の promotion 2 genome・W5 の build が全部通り、上流 CI の 2 本 (clang-format 14 の 213 file と CI image の全 protocol build、本体の warning・error 0) を手元で通した。W5 の待機は trace の thread 別 commit 数で直接確かめた (待機 1 ms で worker 1 の commit が 2 件、待機なしの対照で 47,551 件)。既定 genome の YCSB・TPC-C (Delivery なし) の小走行は判定器で巡回 0。
+4. **promotion の 8 genome は失格 (規律 2):** 計装の `#error` を外した診断用の変種で promotion genome の 1 設定 (BACK_OFF=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0) を走らせると、判定器は YCSB K で巡回 4 件、R で 327 件を検出し、TPC-C は `std::bad_alloc` で異常終了した。promotion の経路はこれまで compile できず一度も走っていなかった。異常は 1 設定で観測したものだが、安全側の判断として 8 設定すべてを VHash の比較・探索から除外する。G で除いた重複登録を戻しても YCSB K・R の巡回は残り、計装なし (TRACE=0) でも TPC-C の異常終了は再現した。重複登録の除去は観測した YCSB の巡回に必須ではなく、計装は TPC-C の異常終了に必須ではない (それ以上の原因の除外はしていない)。G の promotion の修正は取り消さない (compile できないままでは欠陥を観測できない。既定の build の preprocess 出力を変えない見込みで、既存 patch の当たり方も F と同じ)。原因の特定と修理は別の項目とする。build できることと正しく動くことを分けて記録する。
+5. **D297:** D297 検査器は C→G を判定できない (cicada の transaction.cc の条件指令が参照する cicada 固有の macro が検査器の既知の文脈に無く、判定の前に fails-closed で止まる、T-148)。検査器は変えない (規律 2)。選定文脈 (stock・mocc・silo) についての結論は C→F の判定 (D2293、pass) と同じと推論し、cicada の 2 file は意図した変更として差分の範囲を一次資料に書く。この推論を検査器の pass とは呼ばない。pin を G へ進める作業は、cicada の文脈 macro の扱いを決める必要がある。
+6. **直さないもの:** YCSB の再試行で読み取り専用の指定が戻らないこと (workload 共通 header の設計)、`update()` の early abort が `Status` に出ないこと (既存の挙動)、待ち時間の積の桁あふれ (現実の指定では起きない)。一次資料に記録するだけにする。
+
+一次資料: `output/insights/2026-09-29/ccbench-cicada-bugfix/README.md`。
+
+**理由:** ユーザー判断と D2277 項 2 (基盤の欠陥は使いながら直す)。VHash の較正 (build できない 8 genome) と評価の前提 (読み取り後に待つ長い tx の型 W5) を埋める。上流の CCBench の CI を通す品質で作る (D2277 項 1)。行数を変えない形は D2293 と同じく、既定の build と既存の patch を変えないため。promotion の失格は、build できたことを正しさの根拠にしないため (規律 2・3)。
+
+**却下した選択肢:**
+- compile 時定数 `WORKER1_INSERT_DELAY_RPHASE_US` を定義する — README・flag 定義と食い違い、待ち時間を変えるたびに build し直す。
+- `include/delay.hh` を include して `clock_delay()` を使う — 物理行数が変わり、既定 build の `ERR` の行番号と既存 patch の `#line` がずれる。
+- promotion の引数を無名にして未使用の警告を避ける — 計装 patch の hunk がその行を文脈に含み、G に当たらなくなる (段 6 レビューが検出)。
+- promotion の修正を取り消して compile できない状態に戻す — 欠陥の観測ができなくなり、ユーザーの「直したい」にも反する。
+- D297 検査器に cicada の macro を登録して C→G を判定させる — gate の変更で本件の範囲を超える。pin 前進の作業で扱う。
+
+## D2309. 原本を抱えた古い投入木と branch 91 本・11 本は回収せずに撤去し、D2242 決定 1 の「branch は残す」を解く (2026-09-30)
+
+**決定:**
+
+1. 2026-09-30 の棚卸しで、研究記録が原本の所在・固定 checkout・発効版として path を名指すために残していた worktree 91 本 (dev-wave-jobs 等の投入木 80 本と個別の木 11 本) と
+   local branch 11 本を、**回収せずに撤去する**。回収 (repo 外の恒久置き場 `izanagi-repro-archive` への新しい写し) は 0 件。
+   判定基準はユーザー方針 (2026-09-30、依頼 md_1) のとおり、(a) 論文の数値・図がその原本からしか得られない、(b) phase3 の現行タスクか worklog 末尾の次の一手が入力に取る、
+   (c) 有効な事前登録・凍結が入力に取る、のいずれかを一次資料で示せた系列だけを回収する。名指しされているだけ (経緯・所在の記述) は回収理由にしない。
+   調査の結果、(a)〜(c) に当たる系列は 0、コード・テストが木の path を読む箇所も 0 だった。T-2850 追補 3 が入力に取るのは main の祖先の commit `299aa022e` で、木ではない。
+2. 記録の付け替えは集約 insight `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とし、名指していた insight README の末尾に日付付きの追記節を足す。
+   結果稿・版・claim-evidence・receipt・MANIFEST・verbatim・raw (append-only の凍結物) は書き換えず、`docs/paper-story/README.md` の所在注記から訂正先を指す。
+3. B-5 の発効 commit `6fce61d6e` (唯一の ref が branch `worktree-dev-wave-t2797-b5-main-run`) は tag を作らず、branch の bundle で保全する。
+4. D2242 決定 1 の「branch `worktree-t2273-shard0-local-copy` は残す」を解き、bundle に退避してから削除する。
+
+**理由:**
+
+- 論文の主張は「どの仕組みで何が得られたか」と粗い時期で足り、bytes 級 provenance の保全は既定で最小側に倒す (ユーザー明言 2026-08-12)。数値・図はすべて repo 内の派生物 (insight・結果稿) にあり、
+  K2 3 組・B-5 試走・MOCC 疎通 21 本・T-2850 試走 v2 18 本・T-2865 段階 F の campaign 原本は既に `izanagi-repro-archive` に sha256 照合つきで写してある。
+- T-2871 生死確認の WAL 2 本は `output/insights/2026-09-29/gen-opt-evolution-design/README.md` §6.1 の内訳の生データとして名指されるが、同設計は未採用・本走未承認で、内訳値は同 README に転記済みなので (b) に当たらない
+  (攻撃役の指摘を採用)。前日の退避 tar に入っている。
+- tag は管理する ref を増やすだけで、論文稿の「branch にある」という所在の記述はどちらにしても注記で直す必要がある。発効 commit の差分は json 1 file・25 行で bundle から復元できる。
+- D2242 が branch を残した趣旨は決定 3 (中立な整理としての land を別判断に残す) にあり、その判断は D2243 項 2 が候補 (c) として不採用にした。branch を入力に取るタスクは無い。
+- 残し続ける費用は実測で重い: 2026-09-29 に worktree 216 本で `git worktree list` 7.2 秒・rescue gate が時間切れ・全 worktree の status 15 分超。
+
+**却下した選択肢:**
+
+- 名指しがある木を全部残す (前日の Codex 判断) — 経緯の記述を回収理由にすることになり、ユーザー方針に反する。
+- T-2871 の WAL 2 本を恒久置き場へ回収する (決定役の案) — (a)〜(c) を満たさない。
+- B-5 発効 commit に tag `archive/t2797-b5-effect` を作る (決定役の案) — 上記の理由で不要。
+- git の登録だけ外して directory を残す — 施錠・checkout と HEAD の対応・submodule 接続が壊れ、残した directory も再現に使えない (前日の決定役の判断を維持)。
+- 到達不能 object 台帳へ削除 commit を転記する — 人間の喪失受容を要する期限つき台帳で、`/cleanup-branches` §5 も別 wave への引き渡しとしている。bundle の所在を集約 insight に書くに留める。
+
+## D2310. stock Cicada の削除経路の欠陥は、回収側 (gc_records) が aborted の版を読み飛ばす形と、scan の key を Tuple の複写から取る形で直す。受理集合を変える直し方は採らず、CCBench の local branch 2 commit と同じ差分の out-of-tree patch に置く (2026-09-30)
+
+**決定:**
+1. 原因 (診断で 10/10 実測): 後発の Delivery の削除版が read set 再検査で abort し、`writeSetClean()` が aborted にしたまま版鎖の最上段に残るため、先発の削除を commit した thread の `gc_records()` が ERR する。
+2. 修理 1: `gc_records()` が最上段から続く aborted の版を何段でも読み飛ばし、到達した版が deleted なら回収、それ以外 (null・pending・committed) は ERR を残す。最上段の wts による待機判定、validation・commit・abort・版の install は変えない。
+3. 修理 2: 修理 1 で表に出た既存欠陥 (scan が最新版の body から key を取り、body の無い削除版が最上段の行で key が空になる) を、作成時に複写される `Tuple::body_` の key を使い、空なら従来どおり最新版から取る形で直す。上流の「1 課題 1 文脈」に合わせ別 commit・別 patch。
+4. 置き場: CCBench local branch `izanagi-cicada-gc-records-fix` (F `25898d00` の子 2 commit) と、同じ差分の `patches/fix-cicada-gc-records.patch`・`patches/fix-cicada-gc-records-scan-key.patch` (pin C → (計装) → 修理 1 → 修理 2 の順で厳密適用、`patches/ledger.json` には登録しない)。push と pin の前進は人間の手番 (D16・D18・D20)。
+5. 確認は事前登録した観測 (修理自身が出さない量) で判定した: 修理版の完走と同じ job の無修理版の ERR、修理版 trace の判定器の数値 (巡回・integrity・存在履歴・C 行)、削除を含まない cell の判定不変、TRACE=0 の命令列一致、ASan、変異 (1 段だけ読み飛ばす変異は KILLED、read 再検査の壊しは判定器が巡回として検出)。
+
+**理由:**
+- 修理 1 は回収の判定だけを変え、どの tx が commit / abort するかを変えない。安全性は (i) 削除版の上に install された版は read set 再検査か write set 検査で必ず abort する、(ii) 回収可の時点 (最上段の wts < MinRts) で版鎖に実行中の tx の版は無い (thread ごとの wts の単調性と公開 rts の関係、group_commit=0)、(iii) 読み飛ばす aborted 版と削除版はどこからも解放されない、に依る (一次資料 §2)。
+- ERR を残すので、本当に不整合な状態 (committed の版が最上段に来るなど) は従来どおり止まる。
+- 修理 2 がないと修理版の trace が判定器に掛からず、依頼の完了判定 (並行下の削除を含む trace の判定) が取れない。CC 自体でも空 key は read-own-reads の key 照合を誤らせうる。
+
+**却下した選択肢:**
+- abort 時に install 済みの版を版鎖から外す — 並行する CAS・読み手の走査・版の回収と再利用の全部に触れ、小さな修理にならない。
+- install 時に最新版が deleted / pending なら abort する — pending の削除と競合する経路を塞げず単独では足りず、受理集合を縮める。
+- ERR を外す — 本当の不整合を隠す。
+- 1 段だけ読み飛ばす — 診断で 2 段重なる例があり、変異走行で落ちた (KILLED)。
+- 修理 2 を別 wave に回す — 依頼の完了判定に必要。
+- ASan が見つけた `abort()` の use-after-free を同じ wave で直す — 削除経路と無関係の別の欠陥で、依頼の完了判定に要らない。次の一手に置いた。
+
+## D2311. VHash の hot block (構成 B) は、key ごとの seqlock で守る「物理的な版の列の先頭 K 件の {wts, Version*} の写し」として inert patch で Cicada に入れ、第 1 段の走査だけを置き換える。条件 gate への登録は自分の 3 macro と driver の行だけとし、COUNT には companion K=1 を固定する (2026-09-30)
+
+**決定:**
+1. **hot の中身:** key (Tuple) ごとに `latest_` の直後へ seq・件数・K 個の `{wts, Version*}` を置き、物理的な版の列の先頭 min(K, 長さ) 件を写す。ABORTED・PENDING の版も含み、状態は写さない。値は置かない。K はコンパイル時の値 (1/2/4/8) で K ごとに別 binary。
+2. **一貫した読み:** key ごとの seqlock (Boehm 2012 の形: 書き手は偶→奇の CAS acq_rel・release fence・relaxed store・奇→偶 release store、読み手は acquire load・relaxed load・acquire fence・再読込)。奇数か変化なら spin せず stock の走査へ落ちる。pointer は再確認の後だけ参照する。
+3. **読みと保守:** `read_internal` の第 1 段 (新しすぎる版を飛ばす走査) だけを hot の走査に置き換え、`later_ver` は物理の直前の記述子にする。第 2 段以降は stock のまま。validation の版の挿入 (位置探索と CAS) と GC の切り離しを書き区間の中で行い、GC は hot から古い記述子を消してから版を再利用へ回す。lock の順は `gc_lock_` → hot の一方向。
+4. **macro と登録:** `CICADA_VHASH_K`・`CICADA_VHASH_COUNT`・`CICADA_VHASH_WL` (IZANAGI_ 接頭辞なし、未定義で stock と前処理一致、分岐は owner TU `cc/cicada/transaction.cc` と include する 2 header だけ)。条件 gate (`orchestrator/campaign/condition_meaning_gate.py`) と連動する在庫へ、自分の 3 macro と新 driver の行だけを足す (依頼の所有の外だが、patch に新しい #if があると登録簿の test が赤になり build も gate を要するので必要最小、D2288 と同じ理由)。`CICADA_VHASH_COUNT` は分岐の多くが `#if CICADA_VHASH_K` の内側にあるので companion `CICADA_VHASH_K=1` を固定する (D2288 の `CICADA_FWD_COUNT` と同じ形)。
+5. **ro 指定率の制御は variant patch の WL に置き、stock 対照も同じ patch (K=0・WL=1) で build する** (計器 patch の中にしか無い制御では性能値を取れないため)。`patches/ledger.json` には載せない (D2279・D2288)。
+
+**理由:**
+- hot を「物理列の先頭の写し」に限ると、読み手が選ぶ版は seq を確かめた時点の物理列で stock の第 1 段が止まる版と同じになり、validation の read 再検査が辿り始める点も変わらない。安全性を stock へ帰着させて論じられる (一次資料 §2)。
+- 実測 (一次資料 `output/insights/2026-09-29/vhash-hot-block-cicada/README.md`): この実装で K = 1, 2, 4, 8 は 3 つの trace cell で判定器を通り (巡回なし、上限 indeterminate)、壊し 2 本は検出・帰属した。性能は ro 95% で stock 比 0.98〜1.01、更新中心で 0.23〜0.80 倍 (書き区間の待ちが主因)。
+- 値を置かないのは、Cicada の値が HeapObject の別確保であり、md_5 で K=8 の inline 値は最新版の読みで散在 linked より遅かったため。
+- smoke1 で COUNT の meaning が宣言 20 / 観測 8 で拒否された (gate の probe は K 未定義で前処理するので K の内側の分岐が見えない)。
+
+**却下した選択肢:**
+- ABORTED を hot から外して評価計画草稿 §2 の数え方に合わせる — `later_ver` の意味と物理列との一致が崩れる反例がある (段 2)。構成 D を作るときに「hot miss = 論理 K 境界」の対応を取り直す。
+- 挿入の CAS の後に hot を遅れて更新する (書き区間を CAS の外に出す) — 読み手が過去の列の状態を見る窓ができ、安全の論証が変わる。更新中心の費用を下げる本命の候補だが、本 wave では論証を書いていないので採らず、次の一手に回した。
+- 値も hot に置く — 上の理由。
+- 条件 gate の登録を避けて patch を patches/ の外に置く — 検査逃れで D18 の inert patch 方針から外れる。
+- 共通 header `include/ycsb.hh` に ro 指定率の制御を置く — 他 protocol の TU を変え、gate の owner TU の観測範囲の外になる (先例 md_15 は transaction.cc の begin() に置いた)。
+
+## D2312. 受入門番の共有雛形は PYTHONDONTWRITEBYTECODE を立てない。受入 shard の割付と所要台帳は変えない (2026-09-30)
+
+**決定:**
+
+1. 受入門番の共有雛形 `/work/1/SFC/tanab/dev-wave-jobs/_shared-templates/run-acceptance-gated.sh` から `export PYTHONDONTWRITEBYTECODE=1` を外した (repo 外、sha256 `b30be0fb…` → `25d25685…`、差分は export 1 行の削除と理由のコメント 1 行)。受入自身の login collection (`tools/run_tests.py` の `_collect_login_universe`) が、post-claim merge 後の検査対象の木に bytecode cache を書く。門番の閾値・周期・再投入は変えない。
+2. 受入 shard の割付 (`tools/acceptance_shards.py`) と所要台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) は変えない。
+3. 明示的な温め (投入前に login で pytest の collect-only を直接起動する) は採らない。
+
+**理由:**
+
+- 9/26 以降の受入 shard の collection (pre) の倍増 (温 65〜80 秒 / 冷 125〜140 秒の二峰) は、雛形の export が launcher → run_tests.py → login collection と計算ノード worker に継承され、投入元 worktree の `orchestrator/tests/__pycache__` を誰も書かないことで説明できる。9/26〜29 の 124 走で、dispatch の request env にこの値がある 73 走は冷 67、無い 51 走は冷 2。
+- 同時刻対照 2 対 (同 commit の fresh 木、事前登録) では、H (値なし) の pre が 6/6 shard で 24.7〜28.6 秒短かった。事前登録の判定は、待ち行列が短く H の全 shard が login collection 完了前に始まったため「判定不能」で、全効果 (約 65 秒) は同時刻対照では測っていない。変更は pre を縮める方向にしか働かず、受入の受理集合・受領証・清浄性の指紋 (`git status` 由来、`__pycache__/` は .gitignore 済み) を変えない (段 3 相談・段 6 review とも反証なし)。
+- 割付: 現行台帳の `allocate` は実走と 3 shard 完全一致し、台帳を実測中央値・`--refresh` 再生成・5 走中央値の合成に替えても、予測した shard 間最大の makespan は 153.7 秒で差 0 (shard-1 / 2 は単独の長い test 1 本が律速)。
+- 明示の温めは AGENTS.md の「pytest・build を自分で直接起動しない。必ず tools/run_tests.py を通す」に反し、login の `run_tests.py --collect-only` は計算ノードへ dispatch されて login の cache を温めない。
+
+**却下した選択肢:**
+
+- `tools/run_tests.py` の login collection で env を外す恒久策 — run_tests.py の blob 差は D987 により in-flight の全 wave の再受入を招く。初回受入でも shard 開始前に cache をそろえる設計択一として次の一手に残す。
+- 所要台帳の再生成 — 効果 0 秒 (上記)。land のたびに台帳が競合する既知の循環 (memory) も負う。
+- 事前登録の判定を結果を見た後に緩めて「支持」と書く — 規律 3 の後付け禁止と同じ向き。観測値として並記するに留める。

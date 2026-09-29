@@ -145,3 +145,8 @@ drift 層の基準として M0 (pipeline.py のコメント)・M0p (p3_s4_loop.p
   親は `claude -p --model claude-opus-5` をサブスクのログインで起動する (起動前に API キー類の環境変数 0 件・課金種別 `stripe_subscription` を確認)。
   指示文は D2245 の template の写しで、固定 commit の記述だけ差し替えた (`trial-v2/parents/template-effective.md`、sha256 `ada47925…`)。
 - 所在はすべて repo 外の job dir `dev-wave-jobs/dev-wave-t2850-trace-concurrent-verify/trial-v2/`。結果の集計 (事前登録 §8) は試走の終了後の別 wave。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight に関わる submit-tree `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trace-concurrent-verify/submit-tree`・`submit-tree-2` と試走 v2 の `trial-v2/trees/` 19 本は、2026-09-30 の掃除 wave で回収せずに撤去する。試走 v2 の campaign 原本の写しは `/work/1/SFC/tanab/izanagi-repro-archive/t2853-20260927/` (manifest `t2850-trial-v2-originals`) にあり、固定 commit `299aa022e` は main の祖先で残る。job dir の台帳・materials は撤去しない。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。
