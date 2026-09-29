@@ -22,6 +22,21 @@ FIXED_FILES = (
     "test_p3_b4_wiring_probe.py",
 )
 FIXED_NODES = ("test_campaign.py::test_certified_writer_authorization_caller_inventory_is_closed",)
+INSPECTED_CONTAINER_READERS = frozenset({
+    "tools/check_docs.py", "tools/spool_fold.py", "tools/dev_wave_land.py",
+    "tools/scoped_acceptance.py", "tools/audit_dangling_commits.py",
+    "orchestrator/campaign/layout.py", "orchestrator/campaign/p3_b4_wiring_probe.py",
+})
+INSIGHT_CONTAINERS = tuple(
+    quote + name + quote
+    for quote in (b'"', b"'")
+    for name in (b"output/insights", b"output/insights/", b"insights")
+)
+SPOOL_CONTAINERS = tuple(
+    quote + name + quote
+    for quote in (b'"', b"'")
+    for name in (b"docs/spool", b"docs/spool/", b"spool")
+)
 GENERIC = {"docs", "output", "insights", "spool", "worklog", "decisions",
            "failures", "archive", "README.md", "index.md"}
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
@@ -112,10 +127,12 @@ def _keys(path: str) -> set[bytes]:
         keys.add(parts[-1])
     if path.startswith("docs/spool/"):
         return {key.encode("utf-8") for key in keys}
-    minimum_depth = 4 if path.startswith("output/insights/") else 2
+    minimum_depth = 3 if path.startswith("output/insights/") else 2
     for depth in range(minimum_depth, len(parts)):
-        keys.add("/".join(parts[:depth]))
         name = parts[depth - 1]
+        if path.startswith("output/insights/") and DATE.fullmatch(name):
+            continue
+        keys.add("/".join(parts[:depth]))
         if name not in GENERIC and not DATE.fullmatch(name):
             keys.add(name)
     return {key.encode("utf-8") for key in keys}
@@ -178,6 +195,15 @@ def classify(repo: Path, tested_main: str, tested_tip: str) -> dict:
     except ValueError as exc:
         return {"rules_version": RULES_VERSION, "eligible": False,
                 "reasons": [str(exc)], "entries": [], "entries_digest": _digest([])}
+    insight_changed = any(entry["path"].startswith("output/insights/") for entry in entries)
+    spool_changed = any(entry["path"].startswith("docs/spool/") for entry in entries)
+    for candidate, oid in candidates:
+        if candidate in INSPECTED_CONTAINER_READERS:
+            continue
+        body = production_blobs[oid]
+        if ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))
+                or (spool_changed and any(literal in body for literal in SPOOL_CONTAINERS))):
+            reasons.append(f"container-reader:{candidate}")
     for entry in entries:
         path = entry["path"]
         parts = path.split("/")
@@ -257,9 +283,12 @@ def select_tests(repo: Path, tested_tip: str, classification: dict) -> dict:
     files = {"orchestrator/tests/" + name for name in FIXED_FILES}
     keys = set().union(*(_keys(entry["path"]) for entry in classification["entries"]))
     insight = any(entry["path"].startswith("output/insights/") for entry in classification["entries"])
+    spool = any(entry["path"].startswith("docs/spool/") for entry in classification["entries"])
     for path, oid in tests.items():
         body = test_blobs[oid]
-        if _references(body, keys) or insight and (b'"insights"' in body or b"'insights'" in body):
+        if (_references(body, keys)
+                or insight and (b'"insights"' in body or b"'insights'" in body)
+                or spool and b"docs/spool" in body):
             files.add(path)
     files = sorted(files)
     return {"nodes": nodes, "files": files, "selection_digest": _digest({"nodes": nodes, "files": files}),

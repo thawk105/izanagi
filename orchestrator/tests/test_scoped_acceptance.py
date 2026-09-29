@@ -225,6 +225,86 @@ def test_insights_literal_selects_test(tree):
     assert "orchestrator/tests/test_consumer.py" in got["selection"]["files"]
 
 
+def test_insight_depth_three_split_reader_rejects(tree):
+    repo, _ = tree
+    put(repo, "orchestrator/campaign/p3_b4_wiring_probe.py",
+        'ROOT = "output" / "insights" / "2026-01-01_slug"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "reader")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "output/insights/2026-01-01_slug/report.md", "# insight\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "insight")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["reasons"] == [
+        "production-reference:output/insights/2026-01-01_slug/report.md:"
+        "orchestrator/campaign/p3_b4_wiring_probe.py"
+    ]
+
+
+def test_uninspected_insight_container_reader_rejects(tree):
+    repo, _ = tree
+    put(repo, "tools/x.py", 'ROOT = "insights"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "reader")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "output/insights/2026-01-01/topic/report.md", "# insight\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "insight")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["reasons"] == ["container-reader:tools/x.py"]
+
+
+def test_uninspected_spool_container_reader_rejects(tree):
+    repo, _ = tree
+    put(repo, "tools/x.py", "ROOT = 'docs/spool/'\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "reader")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "docs/spool/worklog/unique-fragment.md", "# log\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "fragment")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["reasons"] == ["container-reader:tools/x.py"]
+
+
+def test_inspected_insight_container_readers_stay_eligible(tree):
+    repo, _ = tree
+    put(repo, "tools/check_docs.py", 'ROOT = "insights"\n')
+    put(repo, "tools/audit_dangling_commits.py", 'ROOT = "insights"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "inspected readers")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "output/insights/2026-01-01/topic/report.md", "# insight\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "insight")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["eligible"] is True
+    assert got["classification"]["reasons"] == []
+
+
+def test_insight_date_ancestor_is_not_a_key():
+    keys = SCOPED._keys("output/insights/2026-01-01/topic/report.md")
+    assert b"output/insights/2026-01-01" not in keys
+    assert b"2026-01-01" not in keys
+    assert b"output/insights/2026-01-01/topic" in keys
+    assert b"topic" in keys
+
+
+def test_spool_container_path_selects_consumer(tree):
+    repo, _ = tree
+    put(repo, "orchestrator/tests/test_consumer.py", 'ROOT = "docs/spool"\n')
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "consumer")
+    main = git(repo, "rev-parse", "HEAD")
+    put(repo, "docs/spool/worklog/unique-fragment.md", "# log\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "fragment")
+    got = SCOPED.plan(repo, main, git(repo, "rev-parse", "HEAD"))
+    assert got["classification"]["eligible"] is True
+    assert "orchestrator/tests/test_consumer.py" in got["selection"]["files"]
+
+
 def test_missing_fixed_file_fails_closed(tree):
     got = result(tree, {"docs/story.md": "# story\n"},
                  delete=("orchestrator/tests/test_spool_fold.py",))
