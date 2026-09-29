@@ -675,13 +675,15 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | 経路 | なぜ `unknown` か |
 |---|---|
 | `tools/codex_worker_ledger.py` | `~/.codex/sessions` を再帰走査し rollout を保持 (調査時点で約 887 MB / 941 rollout) |
-| `tools/strip_claude_session_trailers.sh` | clone + 全履歴 rewrite |
 | `tools/pegasus/submit_silo_ladder_rung1.sh` | login で外部 3 repo を clone。**入力量としては `unknown` 相当だが、registry 上は `local-ok` / `legacy-admitted (未実測)` として grandfather 追認済みであり hook は許可する** |
 | `tools/plotting/plot_backoff.py` | matplotlib の import より前に campaign WAL を全読み |
 | `tools/check_workflow_models.py --dir` / `tools/ruleops.py` | 入力・履歴サイズに比例 |
 | `tools/check_docs.py` | archive / insight を全読みし本文をリスト保持 (総数・総 bytes 上限なし) |
 | `tools/dev_waves/checker.py` | 履歴量に上限の無い repo を 2 回 clone する |
 | `tools/codex_worker_launch.py` / `tools/codex_reasoning_ab.py` | prompt bytes・rollout JSONL に上限なし (ただし LLM 子の実行場所は上記の除外に従う) |
+
+旧 `tools/strip_claude_session_trailers.sh` (clone + 全履歴 rewrite) は実施済みの一回限りの道具として削除済み。
+最後の版は `git log --grep='^prune' -- tools/strip_claude_session_trailers.sh` で引ける。
 
 **実測して `local-ok` に分類した経路** (2026-08-04、上の手順で専用 scope を作り測定。
 certified peak = 観測ピーク + max(25%, 128 MiB) を規範値 512 MiB と比較)。

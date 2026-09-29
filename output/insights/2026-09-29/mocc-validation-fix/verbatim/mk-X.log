@@ -1,0 +1,88 @@
+start 2026-09-29 22:28:14 JST
+message: /work/1/SFC/tanab/tmp/mocc-validation-fix-2026-09-29/msg-X.txt sha256=9b564ec2ef426b54d9dfc7a0d96c19700d1554b9eb9ea1464bbde520656fdd3c
+input: cc/mocc/transaction.cc sha256=db2a3465ea7b2935f706e34904d60747a6ac80bdd1fd82355a6a90273085ff5b
+sub HEAD before: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+Preparing worktree (detached HEAD 25898d00b)
+warning: unable to access 'cc/oze/include/.gitattributes': システムコール割り込み
+HEAD is now at 25898d00b style(trace): apply clang-format 14 to the izanagi trace changes
+Switched to a new branch 'izanagi-mocc-validation-fix'
+cc/mocc/transaction.cc placed=a914efa11f18de838924b980da783b000cab0e91 expected=a914efa11f18de838924b980da783b000cab0e91
+staged:
+:100644 100644 cc1c72877 a914efa11 M	cc/mocc/transaction.cc
+modes unchanged
+[izanagi-mocc-validation-fix f4a5169ed] fix(mocc): recheck the read-set version after the lock check in validation
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+X = f4a5169ede52630d9357444e3412ffe9aed7c78f parents: f4a5169ede52630d9357444e3412ffe9aed7c78f 25898d00b9a6bbf09329ff8e8318c77d4f08b46e tree: 3ca67b31f5dd9dc794fca8b5fbff568befa5153d
+diff-tree F..X (raw):
+:100644 100644 cc1c72877f3b45de6a66512bf85233f4276f3f7b a914efa11f18de838924b980da783b000cab0e91 M	cc/mocc/transaction.cc
+diff F..X:
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+index cc1c72877..a914efa11 100644
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -1058,7 +1058,22 @@ bool TxExecutor::validation() {
+     }
+ #endif // RWLOCK
+
+-    this->max_rset_ = max(this->max_rset_, (*itr).rcdptr_->tidword_);
++    // Version and writer lock are separate words. Recheck the version after
++    // the lock read to catch a writer that published and unlocked meanwhile.
++    Tidword check_after_lock;
++    check_after_lock.obj_ =
++        __atomic_load_n(&((*itr).rcdptr_->tidword_.obj_), __ATOMIC_ACQUIRE);
++    if (check_after_lock.epoch != check.epoch ||
++        check_after_lock.tid != check.tid) {
++      (*itr).failed_verification_ = true;
++      this->status_ = TransactionStatus::aborted;
++#if ADD_ANALYSIS
++      ++result_->local_validation_failure_by_tid_;
++#endif
++      return false;
++    }
++
++    this->max_rset_ = max(this->max_rset_, check);
+   }
+
+   // validate the node set
+message:
+fix(mocc): recheck the read-set version after the lock check in validation
+
+MOCC keeps a record's version (tidword_) and its writer lock (rwlock_)
+in separate words, so the read-set check in validation() loads the
+version, compares it with the version seen in the read phase, and then
+loads the lock counter in a second load. A concurrent writer can publish
+a new version and unlock the record between these two loads. The reader
+then sees an unchanged version and an unlocked record, and commits even
+though the value it read has been overwritten. Because max_rset_ was
+computed from a third load of the version, the reader also took the
+writer's new version into max_rset_ and chose a commit TID later than
+the writer's.
+
+If this happens on one read-write edge of two transactions that read
+what the other writes, both can commit a write skew (G2). On a
+read-heavy YCSB setting (48 threads, 1,000,000 records, 95% reads,
+zipf 0.9) a serializability checker found five such G2 cycles, and a
+diagnostic probe tied each of them to this window on one edge (two
+observed directly, three inferred from the order of the loads).
+
+Load the version again after the lock check and abort, with the same
+abort state and ADD_ANALYSIS counter as the existing version-mismatch
+check, if its epoch or TID differs from the version that was checked.
+Compute max_rset_ from the checked version, as Silo does with its
+single tidword load. The existing checks are unchanged; the new check
+only adds a reason to abort, and max_rset_ now comes from the checked
+version instead of a later load.
+
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-5-1m; reasoning=unknown; role=manager
+
+sub HEAD after: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+branch ref: f4a5169ede52630d9357444e3412ffe9aed7c78f
+/work/1/SFC/tanab/tmp/mocc-validation-fix-2026-09-29/X.bundle is okay
+The bundle contains this ref:
+f4a5169ede52630d9357444e3412ffe9aed7c78f refs/heads/izanagi-mocc-validation-fix
+The bundle records a complete history.
+f4a5169ede52630d9357444e3412ffe9aed7c78f refs/heads/izanagi-mocc-validation-fix
+bundle bytes: 3208067 sha256: 15802e3e6eb49cd46cd38c2adafdc18e717ab176e3210267bac77e8ddb74533d
+end 2026-09-29 22:28:35 JST

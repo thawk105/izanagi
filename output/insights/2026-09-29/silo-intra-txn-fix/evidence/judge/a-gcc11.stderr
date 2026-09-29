@@ -1,0 +1,1 @@
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: TRACE=0 正規化 preprocess 出力が不一致: path='cc/silo/transaction.cc' genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=0,NO_WAIT_OF_TICTOC=1,WAL=0' context='base'
