@@ -73550,3 +73550,41 @@ spool fragment に置き、次の版の wave がそれらから全面再導出�
 - (a) S1-wh で本走の準備を進める — 上の価値は認めるが、P5 の中心の機構分類が構造上得られず、最小でも 72 node 時間を要する。(ii) の期限で縮小案として再提示する。
 - 再判断を T-2867 の進捗だけに結ぶ — T-2867 が遅れると契機が永久に来ない (記録の攻撃側の must-fix)。
 - 「ユーザー裁定」として記録する — ユーザー本人が (c) を選んだ、または将来の投入を承認したと誤読される。
+
+## D2284. 受入 shard-0 の律速 (b) 発行 subprocess は、三軸走査の正規表現照合を軸 literal の出現近傍の窓に局所化する係数削減 (report の bytes は不変) で縮め、実受入の隣接 3 対で事前登録の区分 (ii) = 小さい改善として land する。E1 は系列途中で shard-0 の割付一致に限定する erratum にした。5 分上限は B の W_max 中央値 276.1 秒で達成 (2026-09-29)
+
+**決定:**
+
+1. 発行 child (約 86 秒) の CPU の 99 % を占めた `s8b_holdout_freeze.search_repository` の `_scan_one` を、D512 の枠内で係数削減する。軸 literal L (既存 `_derive_required_literal` の 1 要素 mapping 導出、非 None のときだけ) の各出現 p を重なりも含めて列挙し、同じ compiled 式を窓 `[max(0, p + len(L) − W), min(len, p + W))` で search する (W は stdlib `sre_parse` の `getwidth()` の最大値)。共通 literal の判定は 1 回の `search_repository` 内で (literal, rel) ごとに 1 回とし、既存の `_ScanMemo` の identity 束縛・内容変化拒否の後で、判定した text object と `is` で一致するときだけ再利用する。L が None・非 exact str の式は従来の全文 search。report の canonical bytes・受理集合・列挙と読取と例外・発行 child 内の走査回数は変えない。
+2. 既存の発火回数の番人 (D513) は、数える単位を「局所化 helper に届いた (軸, text) 候補数」に移して数値 (5 / 0・5・9 / reference 3 回) を保ち、三段分離 fixture に局所化だけを外した段を足す。production に最適化無効化 knob を足さない。
+3. 事前登録の land 判定 (隣接 3 対、A = local main `51f896352`、B = A + 実装 `ad8c91ecf`): shard-0 W_0 の対差 +32.333 / +40.457 / +16.512 秒 (3 対すべて正)、対率中央値 9.136 % で区分 (ii)。事前登録どおり小さい改善として land する (出力等価な変更で検出力の喪失が無く、目標値は合否判定ではない)。
+4. 事前登録 E1 の erratum E1' (9/29 07:29 JST、01-A・02-B の後、W を閲覧する前に固定): 新設 8 node が所要時間台帳に無く shard-1 / 2 の分割を変えたため、旧 E1 (A/B 共通 node の 3 shard 割付の完全一致) は A/B の木で決まる性質として成立しない。land 判定量 W_0 を決める shard-0 の共通 node 集合 (4,302 件) は完全一致しているので、割付一致の要求を shard-0 に限定した。旧 E1 での判定は `undetermined` として並記する。
+5. 5 分上限は別判定で達成: B の W_max 3 走の中央値 276.108 秒 (349.375 / 259.260 / 276.108)。02-B は shard-1 が最遅で 300 秒を超えた。
+
+**理由:**
+
+- 律速の実測 (計算ノードの単独走 py-spy): 走査 1 回 ≈ 6.6 秒 × 約 13 回で、fixture は計算ノード /tmp 上なので D512 が実 repo で測った律速 (共有 FS の metadata 遅延) ではなく正規表現照合が支配していた。係数削減の対象が D512 のときと違う。
+- 窓式は、helper が非 None を返す文法では全 match が L を含み長さ ≤ W で anchor・lookaround が無いので、全文 search と真偽が同じ。段 3 の相談 A は反例を構成できなかった。変異 final (M1 右端・M2 左端・M3 重なり・M5 cache key・M7 identity は KILLED、M4 局所化の除去・M6 共通判定 memo の除去は出力等価の診断 pin) は期待と完全一致。
+- 走査回数を減らす案 (validate の内包重複・draft の verifier 走査の共有) は観測点を減らすので、受領証の検査内容を変えないという依頼の条件に反する。
+- E1' について、賛成側は W_0 を担う shard-0 の同一 test 集合という比較に要る性質が保たれることを、反対側は系列開始後の基準変更であり shard-1 / 2 の構成差が W_0 に間接的に効きうることを挙げた。分割を揃えた新系列は B の実装 commit を変えて系列をやり直す必要があり、揃う保証も無く、承認済みの計算上限を超えうる。付帯条件 (旧 E1 の並記、host 重なりの報告、W_1・W_2・pre の対差を効果と呼ばない) を付けて採った。
+
+**却下した選択肢:**
+
+- 走査結果を呼出しを跨いで cache する — D512 が memo を 1 回の呼出しに閉じると定めている。
+- MAXREPEAT (無限幅) の分岐と注入 test — 現行 helper の受理文法では到達せず、幅が飽和しても窓が全文に広がるだけで結果は正しい (段 3 の相談 B、段 4)。
+- E1 を維持して系列を無効にし、分割を揃えた B で新系列を取る — 上の理由。
+- 03-B (無効になった対 2 の 1 回目) を採用する — 集計器の文法どおり赤の走を含む対は対ごと取り直す。
+
+## D2285. VHash の hot block 配置の微小計測は CCBench を改変せず、tools/ の独立 C++ と driver に置く (2026-09-29)
+
+**決定:** VHash 論文の H1 (少数版の記述子の局所化) を確かめる 1 キー版選択の微小計測は、`tools/vhash_microbench/` の依存なし C++20 単一 TU (`hot_block_bench.cc`) と Python 3.9 互換の driver (`run_hot_block.py`) に置き、作図は `tools/plotting/plot_vhash_hot_block.py` に置く。CCBench の gitlink と中身、`patches/` には触れない。build は CCBench に揃え (計算ノードの g++-12、`-O3 -DNDEBUG -std=c++20 -Wall -Wextra -Werror`、ISA は `-march=native` でなく明示 flag = CCBench の microbench の慣行)、計算ノードへは `tools/pegasus/dispatch_compute.py --task generic` で 1 shard = 1 job として投げる。生出力は schema `izanagi-vhash-hot-block-microbench/v2` の JSON で、作図器はこの契約だけを受理する。一次資料は `output/insights/2026-09-29/vhash-hot-block-microbench/README.md`。
+
+**理由:**
+- D16 / D18 / D20 は **CCBench の改変** の行き先を分類する決定であり、CCBench のコードを 1 行も使わない独立の微小計測はその分類の対象外である。
+- CCBench の `microbench/` (既定 OFF) へ patch で足す案は、gflags / glog / FetchContent を含む configure と CCBench の上流 CI 規約 (clang-format) を負うのに、得るのは同じ compiler・同じ flag だけである。
+- `orchestrator/campaign/` に driver を置くと、本番の起動箇所・build 箇所の台帳テスト (`orchestrator/tests/test_ccbench_spawn_sites.py` の走査対象) に掛かる。`tools/vhash_microbench/` はその走査の外である。
+
+**却下した選択肢:**
+- CCBench の `microbench/` へ inert patch で足す — 上記のとおり負担だけが増える。
+- `orchestrator/campaign/` に置く — 本番 campaign の台帳に研究用の微小計測が混ざる。
+- 受入所要台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) へ新 test を登録する — 被覆率 gate (0.90) は未登録でも割らず、land の競合循環を避けるため登録しない。

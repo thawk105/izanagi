@@ -1,0 +1,429 @@
+{
+ "land_class": "land-small",
+ "land_reasons": [
+  "delta_W_0 by pair (A-B): [32.33299999999997, 40.456999999999994, 16.512]; all positive: True",
+  "median pair rate: 9.135964% (10% threshold)"
+ ],
+ "old_e1_land_class": "undetermined",
+ "five_minute_goal": {
+  "status": "met",
+  "median_B_W_max_s": 276.108,
+  "threshold_s": 300,
+  "B_runs": [
+   {
+    "run": "02-B",
+    "W_max_s": 349.375,
+    "excess_s": 49.375,
+    "exceeds_300_s": true
+   },
+   {
+    "run": "05-B",
+    "W_max_s": 259.26,
+    "excess_s": -40.74,
+    "exceeds_300_s": false
+   },
+   {
+    "run": "08-B",
+    "W_max_s": 276.108,
+    "excess_s": -23.892,
+    "exceeds_300_s": false
+   }
+  ]
+ },
+ "W_0": {
+  "median_delta_s": 32.33299999999997,
+  "median_pair_rate": 0.09135964329813588
+ },
+ "valid_pairs": 3,
+ "total_runs": 8,
+ "series_invalid": [],
+ "overlapping_host_run_count": 0,
+ "record_line": "land_class: land-small; 5min: met",
+ "pairs": [
+  {
+   "pair_slot": 1,
+   "attempt": 1,
+   "runs": [
+    "01-A",
+    "02-B"
+   ],
+   "valid": true,
+   "reason": null,
+   "e1_reasons": [],
+   "e1_full_shard": {
+    "valid": false,
+    "shard_differences": [
+     {
+      "shard": 0,
+      "A_only_count": 0,
+      "B_only_count": 0
+     },
+     {
+      "shard": 1,
+      "A_only_count": 5189,
+      "B_only_count": 4611
+     },
+     {
+      "shard": 2,
+      "A_only_count": 4611,
+      "B_only_count": 5189
+     }
+    ]
+   },
+   "shard_hosts": {
+    "01-A": [
+     "bnode092",
+     "bnode108",
+     "bnode087"
+    ],
+    "02-B": [
+     "bnode068",
+     "bnode106",
+     "bnode092"
+    ]
+   },
+   "W_0_A": 353.909,
+   "W_0_B": 321.576,
+   "delta_W_0": 32.33299999999997,
+   "r": 0.09135964329813588,
+   "W_max_B": 349.375,
+   "W_1_A": 301.539,
+   "W_1_B": 349.375,
+   "W_2_A": 231.184,
+   "W_2_B": 271.877,
+   "pre_A": 75.55990552902222,
+   "pre_B": 68.20746994018555,
+   "post_A": 10.02558970451355,
+   "post_B": 10.345783233642578,
+   "O_max_A": 247.392873171,
+   "O_max_B": 228.106427701,
+   "slowest_shards_A": [
+    0
+   ],
+   "slowest_shards_B": [
+    1
+   ]
+  },
+  {
+   "pair_slot": 2,
+   "attempt": 1,
+   "runs": [
+    "03-B",
+    "04-A"
+   ],
+   "valid": false,
+   "reason": "invalid run in adjacent pair",
+   "e1_reasons": [],
+   "e1_full_shard": null,
+   "shard_hosts": {},
+   "W_0_A": null,
+   "W_0_B": null,
+   "delta_W_0": null,
+   "r": null,
+   "W_max_B": null,
+   "W_1_A": null,
+   "W_1_B": null,
+   "W_2_A": null,
+   "W_2_B": null,
+   "pre_A": null,
+   "pre_B": null,
+   "post_A": null,
+   "post_B": null,
+   "O_max_A": null,
+   "O_max_B": null,
+   "slowest_shards_A": null,
+   "slowest_shards_B": null
+  },
+  {
+   "pair_slot": 2,
+   "attempt": 2,
+   "runs": [
+    "05-B",
+    "06-A"
+   ],
+   "valid": true,
+   "reason": null,
+   "e1_reasons": [],
+   "e1_full_shard": {
+    "valid": false,
+    "shard_differences": [
+     {
+      "shard": 0,
+      "A_only_count": 0,
+      "B_only_count": 0
+     },
+     {
+      "shard": 1,
+      "A_only_count": 5189,
+      "B_only_count": 4611
+     },
+     {
+      "shard": 2,
+      "A_only_count": 4611,
+      "B_only_count": 5189
+     }
+    ]
+   },
+   "shard_hosts": {
+    "06-A": [
+     "bnode078",
+     "bnode077",
+     "bnode076"
+    ],
+    "05-B": [
+     "bnode070",
+     "bnode069",
+     "bnode074"
+    ]
+   },
+   "W_0_A": 299.717,
+   "W_0_B": 259.26,
+   "delta_W_0": 40.456999999999994,
+   "r": 0.1349840015748189,
+   "W_max_B": 259.26,
+   "W_1_A": 238.853,
+   "W_1_B": 229.211,
+   "W_2_A": 229.053,
+   "W_2_B": 246.603,
+   "pre_A": 74.66123723983765,
+   "pre_B": 68.4193217754364,
+   "post_A": 10.06393313407898,
+   "post_B": 10.02931833267212,
+   "O_max_A": 212.351996869,
+   "O_max_B": 180.565120755,
+   "slowest_shards_A": [
+    0
+   ],
+   "slowest_shards_B": [
+    0
+   ]
+  },
+  {
+   "pair_slot": 3,
+   "attempt": 1,
+   "runs": [
+    "07-A",
+    "08-B"
+   ],
+   "valid": true,
+   "reason": null,
+   "e1_reasons": [],
+   "e1_full_shard": {
+    "valid": false,
+    "shard_differences": [
+     {
+      "shard": 0,
+      "A_only_count": 0,
+      "B_only_count": 0
+     },
+     {
+      "shard": 1,
+      "A_only_count": 5189,
+      "B_only_count": 4611
+     },
+     {
+      "shard": 2,
+      "A_only_count": 4611,
+      "B_only_count": 5189
+     }
+    ]
+   },
+   "shard_hosts": {
+    "07-A": [
+     "bnode077",
+     "bnode087",
+     "bnode088"
+    ],
+    "08-B": [
+     "bnode053",
+     "bnode062",
+     "bnode051"
+    ]
+   },
+   "W_0_A": 292.62,
+   "W_0_B": 276.108,
+   "delta_W_0": 16.512,
+   "r": 0.0564281320483904,
+   "W_max_B": 276.108,
+   "W_1_A": 238.733,
+   "W_1_B": 233.359,
+   "W_2_A": 238.984,
+   "W_2_B": 239.918,
+   "pre_A": 74.09542179107666,
+   "pre_B": 69.40142488479614,
+   "post_A": 10.066617965698242,
+   "post_B": 10.029613971710205,
+   "O_max_A": 205.972722939,
+   "O_max_B": 165.891413404,
+   "slowest_shards_A": [
+    0
+   ],
+   "slowest_shards_B": [
+    0
+   ]
+  }
+ ],
+ "runs": [
+  {
+   "tag": "01-A",
+   "valid": true,
+   "errors": [],
+   "W": [
+    353.909,
+    301.539,
+    231.184
+   ],
+   "selected": [
+    4302,
+    11427,
+    12242
+   ],
+   "hosts": [
+    "bnode092",
+    "bnode108",
+    "bnode087"
+   ],
+   "classification": null
+  },
+  {
+   "tag": "02-B",
+   "valid": true,
+   "errors": [],
+   "W": [
+    321.576,
+    349.375,
+    271.877
+   ],
+   "selected": [
+    4302,
+    10857,
+    12820
+   ],
+   "hosts": [
+    "bnode068",
+    "bnode106",
+    "bnode092"
+   ],
+   "classification": null
+  },
+  {
+   "tag": "03-B",
+   "valid": true,
+   "errors": [],
+   "W": [
+    250.212,
+    228.723,
+    232.516
+   ],
+   "selected": [
+    4302,
+    10857,
+    12820
+   ],
+   "hosts": [
+    "bnode085",
+    "bnode148",
+    "bnode071"
+   ],
+   "classification": null
+  },
+  {
+   "tag": "04-A",
+   "valid": false,
+   "errors": [
+    "rc/copy_ok"
+   ],
+   "W": [],
+   "selected": [],
+   "hosts": [],
+   "classification": {
+    "class": "infra",
+    "reason": "1 failed / 27896 passed。唯一の赤 orchestrator/tests/test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[modified] は、実 repo に対する git archive (source-stage.tar) が 30 秒の subprocess timeout を超えた TimeoutExpired (shard-1、gw18)。A 木は local main 51f896352 で本 wave の変更 (s8b_holdout_freeze と その test) を含まず、赤の test は本 wave の変更 file を参照しない。共有 FS の I/O 遅延による環境由来の赤と判定 (親、2026-09-29 08:1x JST、assertion 本文で判定)。"
+   }
+  },
+  {
+   "tag": "05-B",
+   "valid": true,
+   "errors": [],
+   "W": [
+    259.26,
+    229.211,
+    246.603
+   ],
+   "selected": [
+    4302,
+    10857,
+    12820
+   ],
+   "hosts": [
+    "bnode070",
+    "bnode069",
+    "bnode074"
+   ],
+   "classification": null
+  },
+  {
+   "tag": "06-A",
+   "valid": true,
+   "errors": [],
+   "W": [
+    299.717,
+    238.853,
+    229.053
+   ],
+   "selected": [
+    4302,
+    11427,
+    12242
+   ],
+   "hosts": [
+    "bnode078",
+    "bnode077",
+    "bnode076"
+   ],
+   "classification": null
+  },
+  {
+   "tag": "07-A",
+   "valid": true,
+   "errors": [],
+   "W": [
+    292.62,
+    238.733,
+    238.984
+   ],
+   "selected": [
+    4302,
+    11427,
+    12242
+   ],
+   "hosts": [
+    "bnode077",
+    "bnode087",
+    "bnode088"
+   ],
+   "classification": null
+  },
+  {
+   "tag": "08-B",
+   "valid": true,
+   "errors": [],
+   "W": [
+    276.108,
+    233.359,
+    239.918
+   ],
+   "selected": [
+    4302,
+    10857,
+    12820
+   ],
+   "hosts": [
+    "bnode053",
+    "bnode062",
+    "bnode051"
+   ],
+   "classification": null
+  }
+ ]
+}
