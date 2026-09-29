@@ -377,6 +377,8 @@
 - **再発: 2026-09-26 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-26 版の wave で発見)** — 2026-09-23 版 §1 は機序を言語化する仮説層 (v3) について「K2 2 巡目で初めて適用され 3 巡目でも同型に適用されたが、生まれた材料は 2 巡分の非 certifying の二次 view」と書いたが、K2 4 巡目の還流 (entry 1832、材料レポート v3 の `mechanism_hypotheses` 1 件) は同版の起点 `65fd1422f` に着地済みで、同版自身の §8 B-9 は「3 巡分」と書いていた (版内の不一致)。同版の親・段 6 の Codex レビュー・焦点再レビューはいずれも拾わなかった。2026-09-26 版の §1 担当の子が段 5 で見つけ、2026-09-26 版は訂正 1 件として冒頭・§10・`docs/paper-story/README.md` に記録した (凍結物の 2026-09-23 版は書き換えない)。版の再導出で同じ事実を複数の節が書くときは、件数・巡数を節ごとに一次資料 (entry) へ再照合し、節どうしの値を突き合わせる (2026-09-20 版の追記と同型)。
 
 - **再発: 2026-09-27 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-27 版の wave で発見)** — 2026-09-26 版 §6・§7 は認定較正 record の現物を「計 8 record」「現物は 8 record」と現在形で書いたが、MOCC の動作点を pin C で較正した 3 件 (`f72ad2c52`、2026-09-26 14:12 JST、D2248) は同版の起点 `6d198ca8a` の祖先で、起点の `output/env/pegasus/calibration/registered/` は 11 file だった (2026-09-23 版の起点 `65fd1422f` では 8 file で真)。前版から運んだ件数の文を、起点の現物の件数と照合せずに運んだのが原因。2026-09-27 版の §7 担当の子が起点の tree を数えて見つけ、同版の冒頭・§6・§7・§10 と README で訂正した。版の再導出では、運ぶ件数の文を起点の現物 (tree の file 数) で数え直す。
+
+- **再発: 2026-09-29** — gen-opt md_2 wave の親が、検索の事前登録 file の改訂 1・2 と handoff に書いた時刻 (09:52・10:40・10:45) を `date` で測らず推定で書き、実時刻 (改訂 1 は 09:49〜09:50、改訂 2 は 10:06、handoff の該当時点は 10:01) と最大 39 分ずれた。file の mtime で気づき、登録 file は本文を書き換えず末尾へ訂正を追記した。恒久対応は既存どおり、時刻を書く 1 回ごとに `date` か mtime を取る。事前登録の改訂のように後から書き換えない記録には、`date` の出力を同じ command で埋め込むのが安い。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -28634,3 +28636,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 全体時間上限は「投入時刻 + walltime + `--overall-grace` (既定 300 秒)」で、RUN を観測したときにだけ起点が付け替わる (`tools/pegasus/dispatch_compute.py` の `total_deadline`)。待ち上限 (3600 秒) を広げても、walltime + 300 秒を超えて待つと先に全体上限へ達する。**初出は 2026-08-04 の [T-425] (受入 dispatch が 55 分 QUE のまま overall-timeout) で、その知識は AI の記憶だけにあり、failures 台帳と runbook に無かった。** 今回は記憶を引かずに投入して再発した。
 - 恒久対応: `docs/pegasus-runbook.md` の generic task 節に「`--overall-grace` を `--queue-wait-timeout` 以上にする」を追記した。本 wave の再投入は `--overall-grace 3900` で通った。
 - 再発検知: `IZANAGI_DISPATCH_OUTCOME_V1` に `"reason":"overall-timeout"` が出て、receipt の `state_history` が全部 `QUE` なら本項である。
+
+### F1064. 原典読みの子が論文の公開 source を第三者の fork から取った (near miss) [手順漏れ]
+
+- 事象: 2026-09-29 の文献カード wave (gen-opt md_2) で、Polaris (SIGMOD 2023) の本文を取れなかった子が公開 source に切り替え、原典 repo (`chenhao-ye/polaris`) ではなく 2026-09-18 作成の第三者の fork (`ssya23/polaris`) から README と source 2 file を取ってカードを書いた。親が GitHub API の `fork`・`parent` で気づき、原典 repo の同じ 3 file と SHA-256 が一致することを確かめてカードの出典を直した (中身は同一で実害なし)。
+- 根本原因: 子への指示が「公開 source を読む」だけで、repo が原典かどうかを確かめる手順を持たなかった。検索で先に現れた repo をそのまま使った。
+- 恒久対応: memory `paper-source-must-come-from-upstream-repo` (子の prompt に原典 repo の指定と fork 判定を書く、親が API の `fork`・`parent`・`pushed_at` を見て SHA-256 を照合する)。
+- 再発検知: 子の報告に GitHub repo 名が出たら、親が API の `fork` を 1 回確かめる (記録は insight の取得記録)。
