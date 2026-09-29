@@ -1,0 +1,18 @@
+## a/0034-T commits=5662645 cycles=1 status=B_only
+  reader 5092727 None writer 5092734 key 0000000000000002 read [67, 4817] over [67, 4821] match none hit(v1,vmid,v3,l2,class) []
+  reader 5092734 (13, 67, 4821) writer 5092727 key 0000000000000000 read [67, 4806] over [67, 4820] match B hit(v1,vmid,v3,l2,class) [('67,4806', '67,4806', '67,4820', '0', 'B')]
+## a/0050-T commits=5662929 cycles=1 status=one_A
+  reader 971176 None writer 971187 key 0000000000000040 read [14, 655] over [14, 715] match none hit(v1,vmid,v3,l2,class) []
+  reader 971187 (11, 14, 715) writer 971176 key 0000000000000001 read [14, 704] over [14, 714] match A hit(v1,vmid,v3,l2,class) [('14,704', '14,714', '14,714', '0', 'A')]
+## a/0054-T commits=5607964 cycles=1 status=one_A
+  reader 2819239 None writer 2819245 key 0000000000000001 read [38, 2143] over [38, 2170] match none hit(v1,vmid,v3,l2,class) []
+  reader 2819245 (10, 38, 2170) writer 2819239 key 0000000000000000 read [38, 2164] over [38, 2167] match A hit(v1,vmid,v3,l2,class) [('38,2164', '38,2167', '38,2167', '0', 'A')]
+## a/0062-T commits=5703602 cycles=1 status=B_only
+  reader 4385811 None writer 4385819 key 0000000000000000 read [58, 294] over [58, 298] match none hit(v1,vmid,v3,l2,class) []
+  reader 4385819 (26, 58, 298) writer 4385811 key 0000000000000005 read [58, 290] over [58, 297] match B hit(v1,vmid,v3,l2,class) [('58,290', '58,290', '58,297', '0', 'B')]
+## b/0079-T commits=5566938 cycles=1 status=B_only
+  reader 3857483 None writer 3857485 key 000000000000000b read [52, 4285] over [52, 4397] match none hit(v1,vmid,v3,l2,class) []
+  reader 3857485 (45, 52, 4397) writer 3857483 key 0000000000000000 read [52, 4393] over [52, 4396] match B hit(v1,vmid,v3,l2,class) [('52,4393', '52,4393', '52,4396', '0', 'B')]
+T runs 112 commits mean 5650766 sd 44414 min 5534149 max 5766297 A 616 B 945 validated 6042813966 A/commit 9.73e-07 B/commit 1.49e-06 runs_with_A 112 g2 5
+N runs 112 commits mean 7175519 sd 86617 min 6932282 max 7389505 A 4284 B 14252 validated 7670748800 A/commit 5.33e-06 B/commit 1.77e-05 runs_with_A 112 g2 0
+P runs 56 commits mean 7233623 sd 104987 min 6994782 max 7449379 A 0 B 0 validated 0 A/commit 0 B/commit 0 runs_with_A 0 g2 0
