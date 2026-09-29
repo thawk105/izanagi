@@ -159,6 +159,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/vhash_forwarding_prototype.py", "<module>.checked"): 1,
     # Configure/build, preprocess, patch, and read-only Git commands only.
     ("campaign/vhash_interval_gc.py", "<module>.checked"): 1,
+    # Bounded gdb attach or rerun for a failed diagnostic; the YCSB launch
+    # is inventoried separately at run_measured.
+    ("campaign/vhash_interval_gc.py", "<module>.run_diagnostic.debugger_call"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     # Pre-existing fork, now visible with T-1994's fork API coverage: runs

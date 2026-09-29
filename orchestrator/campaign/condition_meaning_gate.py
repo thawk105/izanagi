@@ -608,7 +608,7 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "CICADA_GC_SAFEPOINT": 3,
     "CICADA_GC_WAIT": 2,
     "CICADA_GC_COUNT": 7,
-    "CICADA_INTERVAL_GC": 11,
+    "CICADA_INTERVAL_GC": 19,
     "CICADA_INTERVAL_GC_GENERAL": 1,
     "CICADA_INTERVAL_COUNT": 8,
     "CICADA_INTERVAL_LONGTX": 2,
@@ -619,6 +619,7 @@ _CONDITIONAL_BRANCH_COMPANION_SITES = {
     ),
     "IZANAGI_CICADA_LONGTX": (),
     "CICADA_INTERVAL_GC": (
+        ("cc/cicada/include/transaction.hh", "#if CICADA_INTERVAL_GC", 1),
         ("cc/cicada/include/version.hh", "#if CICADA_INTERVAL_GC", 3),
     ),
     "CICADA_INTERVAL_COUNT": (
