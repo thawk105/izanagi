@@ -577,7 +577,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "1d3bdff0364ec943f7628f0a7adbf1785fd40f9079e81aef8f5baa53d79f49b1"
+    "e777a6f489e8ec53d306effbb73dc9c13a2c8b7c66ec066f5eeb5e049d0eb5dc"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -716,10 +716,10 @@ detach・unlock・branch/directory 削除・prune を行わず、そのまま引
 remote branch 削除・main の push はせず対象を列挙。未削除 branch は理由 (ahead>0/dirty 等)・閉包・判定・
 救出期限、worktree は理由を報告。`-D` した branch は bundle の path・sha256・verify 結果と rescue JSON の
 path を示し、損失 commit の台帳転記を別 dev-wave へ引き渡す。
-push が毎回別 object の `loose object <sha> ... is corrupt` で落ちたら実物は正常 (混雑 Lustre の読込失敗)。
-修復・fsck の前に main checkout で送る範囲だけ pack 化してから再 push:
+push が毎回別 object の `loose object <sha> ... is corrupt` で落ち、名指し object が正常なら Lustre 読込失敗の疑い。
+修復・fsck 前に primary の main checkout で送る範囲だけ pack 化してから再 push:
 `printf 'main\\n^origin/main\\n' | git pack-objects --revs -q .git/objects/pack/pack`。
-pack を足すだけで object は消さない (D1115 と非衝突)。全体 repack は 10 分超で勧めない。
+元の object は消さない (D1115 と非衝突)。全体 repack は 10 分超で不要。
 
 ## 6. 自己改善候補の終端
 
@@ -9958,22 +9958,22 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
-    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_440, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 7_437
+    assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(7_437, 110)
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 7_434
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 7_437
+        assert len(original.encode("utf-8")) == 7_434
         oversized = original + "\n" + "x" * 3
-        assert len(oversized.encode("utf-8")) == 7_441
+        assert len(oversized.encode("utf-8")) == 7_438
         _write(root, rel, oversized)
 
         res = _run_check(root)
 
         assert res.returncode == 1, res.stdout
         assert (
-            f"{rel}: 7441 bytes > 予算 7440 bytes" in res.stdout
+            f"{rel}: 7438 bytes > 予算 7437 bytes" in res.stdout
         ), res.stdout
     finally:
         shutil.rmtree(root, ignore_errors=True)
