@@ -1,0 +1,3607 @@
+{
+  "campaign_id": "vhash-cicada-version-measure",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/raw/final-j0.json",
+      "sha256": "d28bdd3ebc8f5eb8eccddd933cd4d4b79feb4f832aa679313dd6cd6030f70226"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/raw/final-j1.json",
+      "sha256": "5809225134ffca0e8dded1069753cb52940a65d1d859eb866c1e5ce92946ed31"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/raw/final-j2.json",
+      "sha256": "09f41d74e000fd6f828c670944b7c39dcff058d646c8e2c380702706517902ca"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-cicada-version-measure-2026-09-29/raw/final-j3.json",
+      "sha256": "d9ee45a969264eb3de2144ed86ced8e11242b858e03d594cea13cb769eb12cde"
+    }
+  ],
+  "records": 1000000,
+  "conditions": {
+    "A-none-gc10": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 10
+    },
+    "A-none-gc1000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 1000
+    },
+    "A-none-gc100000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 100000
+    },
+    "A-wait1ms-gc10": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 1000,
+      "gc_inter_us": 10
+    },
+    "A-wait1ms-gc1000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 1000,
+      "gc_inter_us": 1000
+    },
+    "A-wait1ms-gc100000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 1000,
+      "gc_inter_us": 100000
+    },
+    "A-wait10ms-gc10": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 10000,
+      "gc_inter_us": 10
+    },
+    "A-wait10ms-gc1000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 10000,
+      "gc_inter_us": 1000
+    },
+    "A-wait10ms-gc100000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 10000,
+      "gc_inter_us": 100000
+    },
+    "A-ops1000-gc10": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 47,
+      "batch_th_num": 1,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 10
+    },
+    "A-ops1000-gc1000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 47,
+      "batch_th_num": 1,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 1000
+    },
+    "A-ops1000-gc100000": {
+      "ycsb_rratio": 50,
+      "ycsb_zipf_skew": 0,
+      "thread_num": 47,
+      "batch_th_num": 1,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 100000
+    },
+    "B-none-gc10": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 10
+    },
+    "B-none-gc1000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 1000
+    },
+    "B-none-gc100000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 100000
+    },
+    "B-wait1ms-gc10": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 1000,
+      "gc_inter_us": 10
+    },
+    "B-wait1ms-gc1000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 1000,
+      "gc_inter_us": 1000
+    },
+    "B-wait1ms-gc100000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 1000,
+      "gc_inter_us": 100000
+    },
+    "B-wait10ms-gc10": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 10000,
+      "gc_inter_us": 10
+    },
+    "B-wait10ms-gc1000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 10000,
+      "gc_inter_us": 1000
+    },
+    "B-wait10ms-gc100000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 48,
+      "batch_th_num": 0,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 10000,
+      "gc_inter_us": 100000
+    },
+    "B-ops1000-gc10": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 47,
+      "batch_th_num": 1,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 10
+    },
+    "B-ops1000-gc1000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 47,
+      "batch_th_num": 1,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 1000
+    },
+    "B-ops1000-gc100000": {
+      "ycsb_rratio": 95,
+      "ycsb_zipf_skew": 0.9,
+      "thread_num": 47,
+      "batch_th_num": 1,
+      "batch_max_ope": 1000,
+      "worker1_insert_delay_rphase_us": 0,
+      "gc_inter_us": 100000
+    }
+  },
+  "n_reps": 3,
+  "throughput_interpretation": "diagnostic, not performance",
+  "condition_caption": "Instrumented build; throughput is not a performance result. YCSB 10 ops, payload 4 B; read ratio/skew [(50, 0), (95, 0.9)]; long tx ['none', 'ops1000', 'wait10ms', 'wait1ms']; gc_inter_us [10, 1000, 100000]; N=1,000,000; 3 s, 3 repetitions; timestamp space includes clock boost; read position starts at latest, validation position at scan start",
+  "replicate_summaries": {
+    "A-none-gc10": [
+      {
+        "deep": [
+          542,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          244,
+          0,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3287,
+          81,
+          3,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          85,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          17,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.45018450184501846,
+          null,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 14591,
+        "readonly_attempts": 11075
+      },
+      {
+        "deep": [
+          588,
+          4,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          252,
+          4,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3111,
+          86,
+          1,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          73,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          17,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.42857142857142855,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 70656,
+        "readonly_attempts": 11245
+      },
+      {
+        "deep": [
+          585,
+          8,
+          1,
+          0,
+          0
+        ],
+        "candidate": [
+          278,
+          6,
+          1,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3047,
+          82,
+          5,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          83,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          27,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.4752136752136752,
+          0.75,
+          1.0,
+          null,
+          null
+        ],
+        "logical_version_delta": 901,
+        "readonly_attempts": 11350
+      }
+    ],
+    "A-none-gc1000": [
+      {
+        "deep": [
+          508,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          202,
+          1,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3767,
+          82,
+          1,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          81,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          23,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.39763779527559057,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 51358,
+        "readonly_attempts": 10878
+      },
+      {
+        "deep": [
+          522,
+          5,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          246,
+          5,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3772,
+          91,
+          2,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          59,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          10,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.47126436781609193,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 122376,
+        "readonly_attempts": 10961
+      },
+      {
+        "deep": [
+          565,
+          2,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          238,
+          2,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3736,
+          98,
+          2,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          67,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          13,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.42123893805309737,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 46020,
+        "readonly_attempts": 10791
+      }
+    ],
+    "A-none-gc100000": [
+      {
+        "deep": [
+          422,
+          2,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          161,
+          2,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          43435,
+          18212,
+          6374,
+          1933,
+          3
+        ],
+        "deep_read_zero": [
+          74,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          11,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.3815165876777251,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 1653126,
+        "readonly_attempts": 8651
+      },
+      {
+        "deep": [
+          406,
+          4,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          149,
+          4,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          44027,
+          18398,
+          6439,
+          1896,
+          5
+        ],
+        "deep_read_zero": [
+          58,
+          2,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          11,
+          2,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.3669950738916256,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 2013004,
+        "readonly_attempts": 8711
+      },
+      {
+        "deep": [
+          419,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          154,
+          0,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          43221,
+          17821,
+          6372,
+          1961,
+          7
+        ],
+        "deep_read_zero": [
+          73,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          12,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.36754176610978523,
+          null,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 1689979,
+        "readonly_attempts": 8609
+      }
+    ],
+    "A-wait1ms-gc10": [
+      {
+        "deep": [
+          517,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          222,
+          1,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3837,
+          106,
+          0,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          75,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          14,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.42940038684719534,
+          1.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 38807,
+        "readonly_attempts": 10720
+      },
+      {
+        "deep": [
+          541,
+          7,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          225,
+          4,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3692,
+          78,
+          0,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          73,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          8,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.41589648798521256,
+          0.5714285714285714,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 27748,
+        "readonly_attempts": 10774
+      },
+      {
+        "deep": [
+          507,
+          2,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          220,
+          0,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3759,
+          98,
+          2,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          86,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          27,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.4339250493096647,
+          0.0,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 26189,
+        "readonly_attempts": 10812
+      }
+    ],
+    "A-wait1ms-gc1000": [
+      {
+        "deep": [
+          545,
+          7,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          246,
+          2,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4156,
+          101,
+          5,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          75,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          23,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.45137614678899085,
+          0.2857142857142857,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 56453,
+        "readonly_attempts": 10910
+      },
+      {
+        "deep": [
+          507,
+          6,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          204,
+          2,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4179,
+          109,
+          4,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          73,
+          2,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          14,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.40236686390532544,
+          0.3333333333333333,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 69341,
+        "readonly_attempts": 10958
+      },
+      {
+        "deep": [
+          519,
+          4,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          214,
+          1,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4055,
+          107,
+          0,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          69,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          17,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.4123314065510597,
+          0.25,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 90941,
+        "readonly_attempts": 11065
+      }
+    ],
+    "A-wait1ms-gc100000": [
+      {
+        "deep": [
+          389,
+          7,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          152,
+          3,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          44045,
+          18383,
+          6558,
+          1976,
+          5
+        ],
+        "deep_read_zero": [
+          43,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          13,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.390745501285347,
+          0.42857142857142855,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 1565174,
+        "readonly_attempts": 8681
+      },
+      {
+        "deep": [
+          415,
+          5,
+          1,
+          0,
+          0
+        ],
+        "candidate": [
+          150,
+          3,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          37839,
+          15547,
+          5301,
+          1623,
+          1
+        ],
+        "deep_read_zero": [
+          66,
+          1,
+          1,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          10,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.3614457831325301,
+          0.6,
+          0.0,
+          null,
+          null
+        ],
+        "logical_version_delta": 1782422,
+        "readonly_attempts": 7821
+      },
+      {
+        "deep": [
+          408,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          133,
+          0,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          43107,
+          17910,
+          6171,
+          1902,
+          4
+        ],
+        "deep_read_zero": [
+          72,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          15,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.32598039215686275,
+          null,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 1609449,
+        "readonly_attempts": 8615
+      }
+    ],
+    "A-wait10ms-gc10": [
+      {
+        "deep": [
+          561,
+          21,
+          9,
+          3,
+          0
+        ],
+        "candidate": [
+          206,
+          1,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          16025,
+          1767,
+          150,
+          11,
+          0
+        ],
+        "deep_read_zero": [
+          82,
+          1,
+          1,
+          1,
+          0
+        ],
+        "candidate_read_zero": [
+          24,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.3672014260249554,
+          0.047619047619047616,
+          0.0,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 690847,
+        "readonly_attempts": 9861
+      },
+      {
+        "deep": [
+          594,
+          36,
+          19,
+          7,
+          0
+        ],
+        "candidate": [
+          229,
+          4,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          16571,
+          1881,
+          173,
+          13,
+          0
+        ],
+        "deep_read_zero": [
+          90,
+          6,
+          4,
+          1,
+          0
+        ],
+        "candidate_read_zero": [
+          16,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.38552188552188554,
+          0.1111111111111111,
+          0.0,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 320834,
+        "readonly_attempts": 9583
+      },
+      {
+        "deep": [
+          588,
+          53,
+          9,
+          2,
+          0
+        ],
+        "candidate": [
+          183,
+          7,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          17184,
+          1942,
+          163,
+          9,
+          0
+        ],
+        "deep_read_zero": [
+          96,
+          11,
+          2,
+          2,
+          0
+        ],
+        "candidate_read_zero": [
+          10,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.3112244897959184,
+          0.1320754716981132,
+          0.0,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 205810,
+        "readonly_attempts": 10007
+      }
+    ],
+    "A-wait10ms-gc1000": [
+      {
+        "deep": [
+          657,
+          58,
+          24,
+          5,
+          0
+        ],
+        "candidate": [
+          210,
+          3,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          17633,
+          2025,
+          191,
+          11,
+          0
+        ],
+        "deep_read_zero": [
+          111,
+          13,
+          6,
+          2,
+          0
+        ],
+        "candidate_read_zero": [
+          17,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.319634703196347,
+          0.05172413793103448,
+          0.0,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 473577,
+        "readonly_attempts": 10193
+      },
+      {
+        "deep": [
+          628,
+          40,
+          12,
+          6,
+          0
+        ],
+        "candidate": [
+          216,
+          3,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          17818,
+          2130,
+          191,
+          15,
+          0
+        ],
+        "deep_read_zero": [
+          102,
+          8,
+          1,
+          1,
+          0
+        ],
+        "candidate_read_zero": [
+          19,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.34394904458598724,
+          0.075,
+          0.0,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 357778,
+        "readonly_attempts": 10073
+      },
+      {
+        "deep": [
+          626,
+          20,
+          1,
+          0,
+          0
+        ],
+        "candidate": [
+          228,
+          2,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          17711,
+          2077,
+          183,
+          11,
+          0
+        ],
+        "deep_read_zero": [
+          89,
+          4,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          23,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.36421725239616615,
+          0.1,
+          0.0,
+          null,
+          null
+        ],
+        "logical_version_delta": 407011,
+        "readonly_attempts": 10215
+      }
+    ],
+    "A-wait10ms-gc100000": [
+      {
+        "deep": [
+          489,
+          12,
+          1,
+          0,
+          0
+        ],
+        "candidate": [
+          152,
+          1,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          46626,
+          20348,
+          7515,
+          2400,
+          6
+        ],
+        "deep_read_zero": [
+          81,
+          2,
+          1,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          16,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.310838445807771,
+          0.08333333333333333,
+          0.0,
+          null,
+          null
+        ],
+        "logical_version_delta": 2926295,
+        "readonly_attempts": 8685
+      },
+      {
+        "deep": [
+          446,
+          18,
+          1,
+          0,
+          0
+        ],
+        "candidate": [
+          136,
+          0,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          47113,
+          20863,
+          7894,
+          2581,
+          10
+        ],
+        "deep_read_zero": [
+          63,
+          4,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          9,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.30493273542600896,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        "logical_version_delta": 2651122,
+        "readonly_attempts": 8768
+      },
+      {
+        "deep": [
+          450,
+          16,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          144,
+          2,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          45437,
+          19315,
+          7025,
+          2195,
+          7
+        ],
+        "deep_read_zero": [
+          84,
+          4,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          13,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.32,
+          0.125,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 2779745,
+        "readonly_attempts": 8702
+      }
+    ],
+    "A-ops1000-gc10": [
+      {
+        "deep": [
+          4238,
+          23,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          2098,
+          12,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4035,
+          113,
+          4,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          182,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          15,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.49504483246814535,
+          0.5217391304347826,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 64489,
+        "readonly_attempts": 10742
+      },
+      {
+        "deep": [
+          3568,
+          21,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          1876,
+          11,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          3842,
+          87,
+          2,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          174,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          19,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.5257847533632287,
+          0.5238095238095238,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 42010,
+        "readonly_attempts": 10891
+      },
+      {
+        "deep": [
+          4264,
+          15,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          2170,
+          9,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4140,
+          109,
+          3,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          176,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          27,
+          1,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.5089118198874296,
+          0.6,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 57142,
+        "readonly_attempts": 10676
+      }
+    ],
+    "A-ops1000-gc1000": [
+      {
+        "deep": [
+          4548,
+          21,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          2009,
+          15,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4478,
+          128,
+          0,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          270,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          11,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.44173262972735267,
+          0.7142857142857143,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 111520,
+        "readonly_attempts": 10719
+      },
+      {
+        "deep": [
+          4394,
+          21,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          1935,
+          12,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4530,
+          121,
+          3,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          293,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          15,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.4403732362312244,
+          0.5714285714285714,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 29923,
+        "readonly_attempts": 10754
+      },
+      {
+        "deep": [
+          4650,
+          41,
+          0,
+          0,
+          0
+        ],
+        "candidate": [
+          2136,
+          11,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          4534,
+          123,
+          5,
+          0,
+          0
+        ],
+        "deep_read_zero": [
+          234,
+          3,
+          0,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          16,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.4593548387096774,
+          0.2682926829268293,
+          null,
+          null,
+          null
+        ],
+        "logical_version_delta": 94233,
+        "readonly_attempts": 10809
+      }
+    ],
+    "A-ops1000-gc100000": [
+      {
+        "deep": [
+          6409,
+          382,
+          207,
+          1,
+          0
+        ],
+        "candidate": [
+          1734,
+          16,
+          1,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          42913,
+          17629,
+          6170,
+          1859,
+          5
+        ],
+        "deep_read_zero": [
+          686,
+          68,
+          51,
+          0,
+          0
+        ],
+        "candidate_read_zero": [
+          19,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.27055702917771884,
+          0.041884816753926704,
+          0.004830917874396135,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 3362496,
+        "readonly_attempts": 8525
+      },
+      {
+        "deep": [
+          8007,
+          831,
+          41,
+          6,
+          0
+        ],
+        "candidate": [
+          1654,
+          8,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          43321,
+          18067,
+          6232,
+          1895,
+          2
+        ],
+        "deep_read_zero": [
+          992,
+          164,
+          9,
+          1,
+          0
+        ],
+        "candidate_read_zero": [
+          9,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.2065692519045835,
+          0.009626955475330927,
+          0.0,
+          0.0,
+          null
+        ],
+        "logical_version_delta": 3119404,
+        "readonly_attempts": 8601
+      },
+      {
+        "deep": [
+          8531,
+          903,
+          599,
+          374,
+          11
+        ],
+        "candidate": [
+          1661,
+          11,
+          0,
+          0,
+          0
+        ],
+        "readonly_deep": [
+          43255,
+          18124,
+          6319,
+          1907,
+          10
+        ],
+        "deep_read_zero": [
+          1143,
+          184,
+          126,
+          74,
+          3
+        ],
+        "candidate_read_zero": [
+          16,
+          0,
+          0,
+          0,
+          0
+        ],
+        "candidate_rate": [
+          0.19470167623959678,
+          0.012181616832779624,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "logical_version_delta": 1768878,
+        "readonly_attempts": 8502
+      }
+    ],
+    "B-none-gc10": [
+      {
+        "deep": [
+          477237,
+          43670,
+          5387,
+          1071,
+          124
+        ],
+        "candidate": [
+          13338,
+          3314,
+          820,
+          343,
+          99
+        ],
+        "readonly_deep": [
+          12943488,
+          9766811,
+          8292055,
+          7369796,
+          5423646
+        ],
+        "deep_read_zero": [
+          57791,
+          5195,
+          587,
+          106,
+          4
+        ],
+        "candidate_read_zero": [
+          44,
+          20,
+          13,
+          12,
+          4
+        ],
+        "candidate_rate": [
+          0.027948377849999057,
+          0.07588733684451568,
+          0.1522183033228142,
+          0.3202614379084967,
+          0.7983870967741935
+        ],
+        "logical_version_delta": 2454,
+        "readonly_attempts": 5501051
+      },
+      {
+        "deep": [
+          470990,
+          41395,
+          4577,
+          987,
+          164
+        ],
+        "candidate": [
+          13258,
+          3114,
+          800,
+          373,
+          119
+        ],
+        "readonly_deep": [
+          12952096,
+          9783422,
+          8308398,
+          7384880,
+          5439932
+        ],
+        "deep_read_zero": [
+          57617,
+          4992,
+          510,
+          90,
+          11
+        ],
+        "candidate_read_zero": [
+          42,
+          31,
+          22,
+          18,
+          11
+        ],
+        "candidate_rate": [
+          0.02814921760546933,
+          0.07522647662761203,
+          0.17478697837011142,
+          0.3779128672745694,
+          0.725609756097561
+        ],
+        "logical_version_delta": 5004,
+        "readonly_attempts": 5478289
+      },
+      {
+        "deep": [
+          474016,
+          43038,
+          5443,
+          1060,
+          142
+        ],
+        "candidate": [
+          13243,
+          3274,
+          799,
+          352,
+          106
+        ],
+        "readonly_deep": [
+          12966626,
+          9792079,
+          8322132,
+          7389073,
+          5444692
+        ],
+        "deep_read_zero": [
+          57912,
+          5108,
+          624,
+          82,
+          2
+        ],
+        "candidate_read_zero": [
+          38,
+          14,
+          10,
+          6,
+          2
+        ],
+        "candidate_rate": [
+          0.027937875514750556,
+          0.07607230819275988,
+          0.1467940474003307,
+          0.3320754716981132,
+          0.7464788732394366
+        ],
+        "logical_version_delta": 5137,
+        "readonly_attempts": 5496510
+      }
+    ],
+    "B-none-gc1000": [
+      {
+        "deep": [
+          476685,
+          43258,
+          5404,
+          896,
+          154
+        ],
+        "candidate": [
+          13279,
+          3304,
+          817,
+          349,
+          117
+        ],
+        "readonly_deep": [
+          13899395,
+          10618362,
+          9098288,
+          8138511,
+          6128375
+        ],
+        "deep_read_zero": [
+          57907,
+          5213,
+          605,
+          56,
+          3
+        ],
+        "candidate_read_zero": [
+          36,
+          21,
+          13,
+          7,
+          3
+        ],
+        "candidate_rate": [
+          0.02785697053609826,
+          0.0763789356881964,
+          0.1511843079200592,
+          0.38950892857142855,
+          0.7597402597402597
+        ],
+        "logical_version_delta": 4145,
+        "readonly_attempts": 5499702
+      },
+      {
+        "deep": [
+          489042,
+          46004,
+          5559,
+          1058,
+          166
+        ],
+        "candidate": [
+          14109,
+          3563,
+          856,
+          351,
+          125
+        ],
+        "readonly_deep": [
+          14088319,
+          10774593,
+          9228302,
+          8255910,
+          6212416
+        ],
+        "deep_read_zero": [
+          59153,
+          5377,
+          607,
+          89,
+          2
+        ],
+        "candidate_read_zero": [
+          42,
+          20,
+          11,
+          6,
+          2
+        ],
+        "candidate_rate": [
+          0.028850282797796507,
+          0.07744978697504565,
+          0.15398452959165318,
+          0.33175803402646503,
+          0.7530120481927711
+        ],
+        "logical_version_delta": 4752,
+        "readonly_attempts": 5578486
+      },
+      {
+        "deep": [
+          483027,
+          46765,
+          5960,
+          1122,
+          149
+        ],
+        "candidate": [
+          14098,
+          3530,
+          895,
+          363,
+          101
+        ],
+        "readonly_deep": [
+          14016223,
+          10703555,
+          9166138,
+          8190090,
+          6157395
+        ],
+        "deep_read_zero": [
+          58547,
+          5620,
+          695,
+          97,
+          4
+        ],
+        "candidate_read_zero": [
+          41,
+          16,
+          10,
+          6,
+          4
+        ],
+        "candidate_rate": [
+          0.0291867742382931,
+          0.07548380198866673,
+          0.15016778523489932,
+          0.3235294117647059,
+          0.6778523489932886
+        ],
+        "logical_version_delta": 3896,
+        "readonly_attempts": 5565126
+      }
+    ],
+    "B-none-gc100000": [
+      {
+        "deep": [
+          181998,
+          12519,
+          1257,
+          221,
+          32
+        ],
+        "candidate": [
+          4149,
+          883,
+          204,
+          109,
+          26
+        ],
+        "readonly_deep": [
+          15816961,
+          13020657,
+          11713878,
+          10887754,
+          9142020
+        ],
+        "deep_read_zero": [
+          22250,
+          1505,
+          121,
+          18,
+          1
+        ],
+        "candidate_read_zero": [
+          9,
+          8,
+          7,
+          5,
+          1
+        ],
+        "candidate_rate": [
+          0.02279695381267926,
+          0.07053279015895839,
+          0.162291169451074,
+          0.49321266968325794,
+          0.8125
+        ],
+        "logical_version_delta": 144999,
+        "readonly_attempts": 3413651
+      },
+      {
+        "deep": [
+          188218,
+          12022,
+          1102,
+          178,
+          48
+        ],
+        "candidate": [
+          4228,
+          835,
+          193,
+          94,
+          36
+        ],
+        "readonly_deep": [
+          15814367,
+          13017424,
+          11717551,
+          10893690,
+          9133852
+        ],
+        "deep_read_zero": [
+          22955,
+          1476,
+          121,
+          12,
+          3
+        ],
+        "candidate_read_zero": [
+          15,
+          9,
+          6,
+          4,
+          3
+        ],
+        "candidate_rate": [
+          0.02246331381695693,
+          0.06945599733821328,
+          0.1751361161524501,
+          0.5280898876404494,
+          0.75
+        ],
+        "logical_version_delta": 158419,
+        "readonly_attempts": 3413839
+      },
+      {
+        "deep": [
+          184170,
+          12364,
+          1197,
+          268,
+          49
+        ],
+        "candidate": [
+          4203,
+          900,
+          213,
+          115,
+          43
+        ],
+        "readonly_deep": [
+          15750238,
+          12955704,
+          11658194,
+          10837693,
+          9098115
+        ],
+        "deep_read_zero": [
+          22357,
+          1482,
+          149,
+          28,
+          1
+        ],
+        "candidate_read_zero": [
+          11,
+          7,
+          5,
+          4,
+          1
+        ],
+        "candidate_rate": [
+          0.022821306401694087,
+          0.07279197670656745,
+          0.17794486215538846,
+          0.4291044776119403,
+          0.8775510204081632
+        ],
+        "logical_version_delta": 142328,
+        "readonly_attempts": 3400182
+      }
+    ],
+    "B-wait1ms-gc10": [
+      {
+        "deep": [
+          467204,
+          41088,
+          4810,
+          850,
+          139
+        ],
+        "candidate": [
+          13437,
+          3272,
+          767,
+          340,
+          107
+        ],
+        "readonly_deep": [
+          15287021,
+          11862063,
+          10264704,
+          9271671,
+          7147842
+        ],
+        "deep_read_zero": [
+          56472,
+          4871,
+          517,
+          66,
+          5
+        ],
+        "candidate_read_zero": [
+          41,
+          19,
+          13,
+          10,
+          5
+        ],
+        "candidate_rate": [
+          0.028760455818015257,
+          0.07963395638629284,
+          0.15945945945945947,
+          0.4,
+          0.7697841726618705
+        ],
+        "logical_version_delta": 7638,
+        "readonly_attempts": 5503850
+      },
+      {
+        "deep": [
+          451622,
+          39453,
+          4713,
+          879,
+          138
+        ],
+        "candidate": [
+          12328,
+          3047,
+          763,
+          331,
+          106
+        ],
+        "readonly_deep": [
+          14872033,
+          11527217,
+          9970190,
+          8987040,
+          6926991
+        ],
+        "deep_read_zero": [
+          54758,
+          4693,
+          531,
+          79,
+          2
+        ],
+        "candidate_read_zero": [
+          31,
+          18,
+          11,
+          10,
+          2
+        ],
+        "candidate_rate": [
+          0.027297164442830507,
+          0.07723113578181634,
+          0.16189263738595375,
+          0.37656427758816835,
+          0.7681159420289855
+        ],
+        "logical_version_delta": 5742,
+        "readonly_attempts": 5378156
+      },
+      {
+        "deep": [
+          459718,
+          41112,
+          5216,
+          1059,
+          163
+        ],
+        "candidate": [
+          12870,
+          3115,
+          791,
+          332,
+          105
+        ],
+        "readonly_deep": [
+          15037272,
+          11663652,
+          10096869,
+          9102603,
+          7021178
+        ],
+        "deep_read_zero": [
+          55875,
+          4906,
+          573,
+          118,
+          8
+        ],
+        "candidate_read_zero": [
+          54,
+          32,
+          22,
+          17,
+          7
+        ],
+        "candidate_rate": [
+          0.027995423281228927,
+          0.07576863202957775,
+          0.15164877300613497,
+          0.31350330500472146,
+          0.6441717791411042
+        ],
+        "logical_version_delta": 5723,
+        "readonly_attempts": 5415124
+      }
+    ],
+    "B-wait1ms-gc1000": [
+      {
+        "deep": [
+          463815,
+          41461,
+          4917,
+          956,
+          102
+        ],
+        "candidate": [
+          13099,
+          3172,
+          796,
+          314,
+          82
+        ],
+        "readonly_deep": [
+          15135422,
+          11736654,
+          10155631,
+          9156229,
+          7051440
+        ],
+        "deep_read_zero": [
+          56653,
+          4925,
+          552,
+          91,
+          1
+        ],
+        "candidate_read_zero": [
+          31,
+          14,
+          9,
+          7,
+          1
+        ],
+        "candidate_rate": [
+          0.028241863674094196,
+          0.07650563179855768,
+          0.16188732967256458,
+          0.3284518828451883,
+          0.803921568627451
+        ],
+        "logical_version_delta": 6056,
+        "readonly_attempts": 5469983
+      },
+      {
+        "deep": [
+          455915,
+          40623,
+          4804,
+          1073,
+          148
+        ],
+        "candidate": [
+          12282,
+          2926,
+          752,
+          305,
+          98
+        ],
+        "readonly_deep": [
+          14992549,
+          11631196,
+          10070052,
+          9083128,
+          7013930
+        ],
+        "deep_read_zero": [
+          55721,
+          4838,
+          533,
+          110,
+          6
+        ],
+        "candidate_read_zero": [
+          35,
+          18,
+          10,
+          7,
+          6
+        ],
+        "candidate_rate": [
+          0.026939232093701675,
+          0.07202816138640672,
+          0.1565362198168193,
+          0.2842497670083877,
+          0.6621621621621622
+        ],
+        "logical_version_delta": 5611,
+        "readonly_attempts": 5385981
+      },
+      {
+        "deep": [
+          457530,
+          40448,
+          4943,
+          936,
+          126
+        ],
+        "candidate": [
+          12623,
+          3083,
+          779,
+          327,
+          99
+        ],
+        "readonly_deep": [
+          15019309,
+          11651442,
+          10078707,
+          9091932,
+          6995053
+        ],
+        "deep_read_zero": [
+          56067,
+          4859,
+          504,
+          76,
+          10
+        ],
+        "candidate_read_zero": [
+          46,
+          27,
+          19,
+          14,
+          10
+        ],
+        "candidate_rate": [
+          0.027589447686490503,
+          0.07622132120253164,
+          0.157596601254299,
+          0.34935897435897434,
+          0.7857142857142857
+        ],
+        "logical_version_delta": 6177,
+        "readonly_attempts": 5425610
+      }
+    ],
+    "B-wait1ms-gc100000": [
+      {
+        "deep": [
+          180579,
+          12003,
+          1318,
+          275,
+          44
+        ],
+        "candidate": [
+          4202,
+          916,
+          222,
+          104,
+          41
+        ],
+        "readonly_deep": [
+          15560106,
+          12809425,
+          11531353,
+          10722821,
+          8993670
+        ],
+        "deep_read_zero": [
+          21867,
+          1437,
+          142,
+          24,
+          1
+        ],
+        "candidate_read_zero": [
+          14,
+          9,
+          8,
+          6,
+          1
+        ],
+        "candidate_rate": [
+          0.023269593917343654,
+          0.07631425476964092,
+          0.16843702579666162,
+          0.3781818181818182,
+          0.9318181818181818
+        ],
+        "logical_version_delta": 127710,
+        "readonly_attempts": 3355241
+      },
+      {
+        "deep": [
+          178818,
+          11659,
+          1249,
+          245,
+          45
+        ],
+        "candidate": [
+          4032,
+          829,
+          187,
+          88,
+          37
+        ],
+        "readonly_deep": [
+          15529142,
+          12779010,
+          11495450,
+          10686708,
+          8970353
+        ],
+        "deep_read_zero": [
+          21412,
+          1353,
+          128,
+          20,
+          3
+        ],
+        "candidate_read_zero": [
+          8,
+          5,
+          4,
+          4,
+          3
+        ],
+        "candidate_rate": [
+          0.022548065630976746,
+          0.0711038682562827,
+          0.14971977582065651,
+          0.35918367346938773,
+          0.8222222222222222
+        ],
+        "logical_version_delta": 127148,
+        "readonly_attempts": 3355185
+      },
+      {
+        "deep": [
+          180122,
+          12223,
+          1105,
+          179,
+          43
+        ],
+        "candidate": [
+          4052,
+          933,
+          199,
+          114,
+          35
+        ],
+        "readonly_deep": [
+          15662054,
+          12894206,
+          11601783,
+          10780982,
+          9050152
+        ],
+        "deep_read_zero": [
+          21956,
+          1493,
+          97,
+          5,
+          1
+        ],
+        "candidate_read_zero": [
+          8,
+          4,
+          3,
+          2,
+          1
+        ],
+        "candidate_rate": [
+          0.02249586391445798,
+          0.07633150617687966,
+          0.18009049773755656,
+          0.6368715083798883,
+          0.813953488372093
+        ],
+        "logical_version_delta": 134528,
+        "readonly_attempts": 3380187
+      }
+    ],
+    "B-wait10ms-gc10": [
+      {
+        "deep": [
+          317150,
+          23664,
+          2522,
+          410,
+          81
+        ],
+        "candidate": [
+          7792,
+          1797,
+          386,
+          169,
+          60
+        ],
+        "readonly_deep": [
+          18502511,
+          15035061,
+          13429698,
+          12418487,
+          10272490
+        ],
+        "deep_read_zero": [
+          38261,
+          2681,
+          250,
+          27,
+          1
+        ],
+        "candidate_read_zero": [
+          21,
+          10,
+          7,
+          4,
+          1
+        ],
+        "candidate_rate": [
+          0.02456881601765726,
+          0.07593813387423935,
+          0.15305313243457574,
+          0.4121951219512195,
+          0.7407407407407407
+        ],
+        "logical_version_delta": 37334,
+        "readonly_attempts": 4537133
+      },
+      {
+        "deep": [
+          333630,
+          25229,
+          2658,
+          497,
+          109
+        ],
+        "candidate": [
+          8547,
+          1980,
+          436,
+          212,
+          72
+        ],
+        "readonly_deep": [
+          19241330,
+          15646981,
+          13965259,
+          12901242,
+          10663630
+        ],
+        "deep_read_zero": [
+          40867,
+          2936,
+          279,
+          40,
+          2
+        ],
+        "candidate_read_zero": [
+          22,
+          13,
+          10,
+          6,
+          2
+        ],
+        "candidate_rate": [
+          0.025618199802176063,
+          0.07848111300487534,
+          0.16403310759969902,
+          0.42655935613682094,
+          0.6605504587155964
+        ],
+        "logical_version_delta": 38014,
+        "readonly_attempts": 4719932
+      },
+      {
+        "deep": [
+          329622,
+          25035,
+          2592,
+          544,
+          134
+        ],
+        "candidate": [
+          8060,
+          1779,
+          405,
+          193,
+          80
+        ],
+        "readonly_deep": [
+          19057457,
+          15489253,
+          13829353,
+          12791215,
+          10573399
+        ],
+        "deep_read_zero": [
+          40160,
+          3009,
+          272,
+          36,
+          4
+        ],
+        "candidate_read_zero": [
+          18,
+          11,
+          5,
+          1,
+          1
+        ],
+        "candidate_rate": [
+          0.024452251366717026,
+          0.07106051527860995,
+          0.15625,
+          0.3547794117647059,
+          0.5970149253731343
+        ],
+        "logical_version_delta": 28875,
+        "readonly_attempts": 4675105
+      }
+    ],
+    "B-wait10ms-gc1000": [
+      {
+        "deep": [
+          330075,
+          25059,
+          2383,
+          429,
+          81
+        ],
+        "candidate": [
+          8265,
+          1907,
+          429,
+          186,
+          61
+        ],
+        "readonly_deep": [
+          18887940,
+          15345965,
+          13695654,
+          12655755,
+          10442032
+        ],
+        "deep_read_zero": [
+          40285,
+          3039,
+          252,
+          27,
+          1
+        ],
+        "candidate_read_zero": [
+          18,
+          8,
+          4,
+          3,
+          1
+        ],
+        "candidate_rate": [
+          0.025039763690070438,
+          0.07610040304880482,
+          0.1800251783466219,
+          0.43356643356643354,
+          0.7530864197530864
+        ],
+        "logical_version_delta": 31514,
+        "readonly_attempts": 4665593
+      },
+      {
+        "deep": [
+          319967,
+          23588,
+          2281,
+          390,
+          86
+        ],
+        "candidate": [
+          7790,
+          1724,
+          380,
+          190,
+          63
+        ],
+        "readonly_deep": [
+          18355299,
+          14909677,
+          13307050,
+          12293146,
+          10141279
+        ],
+        "deep_read_zero": [
+          39243,
+          2812,
+          266,
+          27,
+          4
+        ],
+        "candidate_read_zero": [
+          15,
+          8,
+          7,
+          3,
+          2
+        ],
+        "candidate_rate": [
+          0.024346260708135527,
+          0.07308801085297609,
+          0.16659359929855327,
+          0.48717948717948717,
+          0.7325581395348837
+        ],
+        "logical_version_delta": 39717,
+        "readonly_attempts": 4548646
+      },
+      {
+        "deep": [
+          338114,
+          25839,
+          2681,
+          480,
+          82
+        ],
+        "candidate": [
+          8364,
+          1938,
+          444,
+          208,
+          62
+        ],
+        "readonly_deep": [
+          18972770,
+          15413209,
+          13758736,
+          12713464,
+          10492475
+        ],
+        "deep_read_zero": [
+          41560,
+          3106,
+          295,
+          37,
+          1
+        ],
+        "candidate_read_zero": [
+          16,
+          9,
+          6,
+          3,
+          1
+        ],
+        "candidate_rate": [
+          0.024737218807857706,
+          0.07500290258910948,
+          0.16560984707198806,
+          0.43333333333333335,
+          0.7560975609756098
+        ],
+        "logical_version_delta": 72235,
+        "readonly_attempts": 4702353
+      }
+    ],
+    "B-wait10ms-gc100000": [
+      {
+        "deep": [
+          164206,
+          11100,
+          1042,
+          248,
+          48
+        ],
+        "candidate": [
+          3776,
+          822,
+          195,
+          85,
+          37
+        ],
+        "readonly_deep": [
+          15383151,
+          12687806,
+          11426725,
+          10633322,
+          8946208
+        ],
+        "deep_read_zero": [
+          19956,
+          1326,
+          109,
+          19,
+          0
+        ],
+        "candidate_read_zero": [
+          11,
+          4,
+          3,
+          3,
+          0
+        ],
+        "candidate_rate": [
+          0.022995505645347917,
+          0.07405405405405406,
+          0.1871401151631478,
+          0.34274193548387094,
+          0.7708333333333334
+        ],
+        "logical_version_delta": 167386,
+        "readonly_attempts": 3235480
+      },
+      {
+        "deep": [
+          161021,
+          10433,
+          930,
+          192,
+          48
+        ],
+        "candidate": [
+          3579,
+          784,
+          166,
+          91,
+          37
+        ],
+        "readonly_deep": [
+          15204513,
+          12542371,
+          11297984,
+          10514175,
+          8843390
+        ],
+        "deep_read_zero": [
+          19658,
+          1219,
+          104,
+          18,
+          3
+        ],
+        "candidate_read_zero": [
+          11,
+          8,
+          7,
+          2,
+          2
+        ],
+        "candidate_rate": [
+          0.022226914501835164,
+          0.07514617080417904,
+          0.17849462365591398,
+          0.4739583333333333,
+          0.7708333333333334
+        ],
+        "logical_version_delta": 121867,
+        "readonly_attempts": 3197277
+      },
+      {
+        "deep": [
+          165302,
+          10696,
+          998,
+          138,
+          36
+        ],
+        "candidate": [
+          3826,
+          833,
+          181,
+          86,
+          31
+        ],
+        "readonly_deep": [
+          15501294,
+          12791598,
+          11519293,
+          10722807,
+          9028480
+        ],
+        "deep_read_zero": [
+          20190,
+          1231,
+          104,
+          4,
+          1
+        ],
+        "candidate_read_zero": [
+          13,
+          5,
+          4,
+          1,
+          1
+        ],
+        "candidate_rate": [
+          0.023145515480756433,
+          0.07787958115183247,
+          0.1813627254509018,
+          0.6231884057971014,
+          0.8611111111111112
+        ],
+        "logical_version_delta": 113717,
+        "readonly_attempts": 3250258
+      }
+    ],
+    "B-ops1000-gc10": [
+      {
+        "deep": [
+          486114,
+          45855,
+          5870,
+          1399,
+          172
+        ],
+        "candidate": [
+          18228,
+          4360,
+          1111,
+          444,
+          132
+        ],
+        "readonly_deep": [
+          12917301,
+          9765062,
+          8304960,
+          7378812,
+          5442729
+        ],
+        "deep_read_zero": [
+          56756,
+          5009,
+          595,
+          102,
+          6
+        ],
+        "candidate_read_zero": [
+          48,
+          20,
+          16,
+          10,
+          6
+        ],
+        "candidate_rate": [
+          0.03749737715844432,
+          0.09508232471922363,
+          0.18926746166950598,
+          0.3173695496783417,
+          0.7674418604651163
+        ],
+        "logical_version_delta": 3311,
+        "readonly_attempts": 5451327
+      },
+      {
+        "deep": [
+          504350,
+          51281,
+          8199,
+          2322,
+          182
+        ],
+        "candidate": [
+          20087,
+          5615,
+          1707,
+          728,
+          118
+        ],
+        "readonly_deep": [
+          12980687,
+          9818381,
+          8345745,
+          7419498,
+          5468584
+        ],
+        "deep_read_zero": [
+          57163,
+          4981,
+          550,
+          79,
+          4
+        ],
+        "candidate_read_zero": [
+          44,
+          27,
+          17,
+          11,
+          4
+        ],
+        "candidate_rate": [
+          0.03982750074353128,
+          0.10949474464226516,
+          0.20819612147822905,
+          0.31352282515073215,
+          0.6483516483516484
+        ],
+        "logical_version_delta": 2865,
+        "readonly_attempts": 5467565
+      },
+      {
+        "deep": [
+          485609,
+          46756,
+          6615,
+          1315,
+          161
+        ],
+        "candidate": [
+          17500,
+          4628,
+          1364,
+          588,
+          107
+        ],
+        "readonly_deep": [
+          12918095,
+          9750343,
+          8284323,
+          7361946,
+          5423817
+        ],
+        "deep_read_zero": [
+          57042,
+          5236,
+          606,
+          61,
+          4
+        ],
+        "candidate_read_zero": [
+          37,
+          21,
+          8,
+          7,
+          4
+        ],
+        "candidate_rate": [
+          0.03603722336282894,
+          0.09898194884079049,
+          0.20619803476946333,
+          0.44714828897338404,
+          0.6645962732919255
+        ],
+        "logical_version_delta": 3910,
+        "readonly_attempts": 5478749
+      }
+    ],
+    "B-ops1000-gc1000": [
+      {
+        "deep": [
+          478546,
+          44608,
+          5512,
+          1034,
+          134
+        ],
+        "candidate": [
+          17496,
+          4614,
+          1196,
+          416,
+          102
+        ],
+        "readonly_deep": [
+          13821077,
+          10559918,
+          9047271,
+          8095232,
+          6089407
+        ],
+        "deep_read_zero": [
+          56725,
+          5023,
+          538,
+          87,
+          4
+        ],
+        "candidate_read_zero": [
+          44,
+          30,
+          19,
+          12,
+          4
+        ],
+        "candidate_rate": [
+          0.03656074860097044,
+          0.10343436154949785,
+          0.2169811320754717,
+          0.402321083172147,
+          0.7611940298507462
+        ],
+        "logical_version_delta": 4612,
+        "readonly_attempts": 5467501
+      },
+      {
+        "deep": [
+          467649,
+          41157,
+          4807,
+          899,
+          161
+        ],
+        "candidate": [
+          15906,
+          3686,
+          883,
+          335,
+          127
+        ],
+        "readonly_deep": [
+          13661634,
+          10445518,
+          8948462,
+          8013660,
+          6044281
+        ],
+        "deep_read_zero": [
+          56061,
+          4752,
+          476,
+          66,
+          4
+        ],
+        "candidate_read_zero": [
+          45,
+          20,
+          16,
+          11,
+          4
+        ],
+        "candidate_rate": [
+          0.034012689003932436,
+          0.08955949170250505,
+          0.1836904514250052,
+          0.37263626251390436,
+          0.7888198757763976
+        ],
+        "logical_version_delta": 4955,
+        "readonly_attempts": 5397908
+      },
+      {
+        "deep": [
+          491890,
+          48656,
+          7083,
+          1710,
+          163
+        ],
+        "candidate": [
+          17875,
+          4504,
+          1222,
+          454,
+          101
+        ],
+        "readonly_deep": [
+          13863878,
+          10606191,
+          9093036,
+          8149056,
+          6138643
+        ],
+        "deep_read_zero": [
+          56333,
+          5055,
+          535,
+          78,
+          6
+        ],
+        "candidate_read_zero": [
+          42,
+          21,
+          15,
+          12,
+          6
+        ],
+        "candidate_rate": [
+          0.036339425481306795,
+          0.09256823413350872,
+          0.17252576591839616,
+          0.2654970760233918,
+          0.6196319018404908
+        ],
+        "logical_version_delta": 5867,
+        "readonly_attempts": 5438549
+      }
+    ],
+    "B-ops1000-gc100000": [
+      {
+        "deep": [
+          187947,
+          13015,
+          1234,
+          260,
+          51
+        ],
+        "candidate": [
+          9301,
+          1874,
+          406,
+          144,
+          40
+        ],
+        "readonly_deep": [
+          15632295,
+          12873606,
+          11579887,
+          10764469,
+          9038915
+        ],
+        "deep_read_zero": [
+          21440,
+          1415,
+          99,
+          11,
+          0
+        ],
+        "candidate_read_zero": [
+          13,
+          4,
+          4,
+          2,
+          0
+        ],
+        "candidate_rate": [
+          0.049487355477874084,
+          0.14398770649250864,
+          0.32901134521880065,
+          0.5538461538461539,
+          0.7843137254901961
+        ],
+        "logical_version_delta": 144885,
+        "readonly_attempts": 3372942
+      },
+      {
+        "deep": [
+          203193,
+          15286,
+          1818,
+          356,
+          49
+        ],
+        "candidate": [
+          12162,
+          2474,
+          525,
+          173,
+          40
+        ],
+        "readonly_deep": [
+          15693056,
+          12920677,
+          11621727,
+          10807390,
+          9065013
+        ],
+        "deep_read_zero": [
+          22119,
+          1450,
+          126,
+          19,
+          0
+        ],
+        "candidate_read_zero": [
+          13,
+          10,
+          6,
+          5,
+          0
+        ],
+        "candidate_rate": [
+          0.0598544241189411,
+          0.1618474421038859,
+          0.2887788778877888,
+          0.4859550561797753,
+          0.8163265306122449
+        ],
+        "logical_version_delta": 141230,
+        "readonly_attempts": 3391912
+      },
+      {
+        "deep": [
+          184303,
+          12021,
+          1250,
+          281,
+          52
+        ],
+        "candidate": [
+          6284,
+          1158,
+          252,
+          122,
+          40
+        ],
+        "readonly_deep": [
+          15531269,
+          12785215,
+          11506406,
+          10696421,
+          8964518
+        ],
+        "deep_read_zero": [
+          21625,
+          1316,
+          134,
+          23,
+          0
+        ],
+        "candidate_read_zero": [
+          12,
+          6,
+          6,
+          5,
+          0
+        ],
+        "candidate_rate": [
+          0.03409602665176367,
+          0.0963314200149738,
+          0.2016,
+          0.43416370106761565,
+          0.7692307692307693
+        ],
+        "logical_version_delta": 121982,
+        "readonly_attempts": 3359006
+      }
+    ]
+  },
+  "figure_caption": "Shares: repetition means with 95% t confidence intervals; zero retained by symlog. Instrumented build; throughput is not a performance result. YCSB 10 ops, payload 4 B; read ratio/skew [(50, 0), (95, 0.9)]; long tx ['none', 'ops1000', 'wait10ms', 'wait1ms']; gc_inter_us [10, 1000, 100000]; N=1,000,000; 3 s, 3 repetitions; timestamp space includes clock boost; read position starts at latest, validation position at scan start",
+  "figure": "search_length"
+}

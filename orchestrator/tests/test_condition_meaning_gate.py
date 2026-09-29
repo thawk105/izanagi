@@ -45,6 +45,8 @@ def test_mocc_backoff_fixed_uses_mocc_owner_and_target():
     assert G._validate_define_request(silo)[0] == G.DEFINE_SPECS["BACKOFF_FIXED"]
     assert G._validate_define_request(mocc)[0].owner_tus == G._MOCC_OWNER
 _COMPILE_TIME_BRANCH_MACROS = (
+    "IZANAGI_CICADA_VLIFE",
+    "IZANAGI_CICADA_LONGTX",
     "SILO_POLICY_VARIANT",
     "IZANAGI_SILO_POLICY_PROBE",
     "IZANAGI_BREAK_SILO_POLICY",
@@ -100,6 +102,12 @@ _REQUESTED_US_CONTRAST = 0
 
 # Independent patch expectations: source, exact directive, site count, contrast.
 _NEW_BRANCH_EXPECTATIONS = {
+    "IZANAGI_CICADA_VLIFE": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE", 33, 0,
+    ),
+    "IZANAGI_CICADA_LONGTX": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_LONGTX", 3, 0,
+    ),
     "SILO_POLICY_VARIANT": (
         "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT", 15, 0,
     ),
@@ -416,6 +424,18 @@ def _compile_time_source_root(
     if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
         owner_text = "int izanagi_owner_present = 1;\n" + owner_text
     owner.write_text(owner_text, encoding="utf-8")
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX"):
+        includes = []
+        for source_rel, start, n in G._CONDITIONAL_BRANCH_COMPANION_SITES[macro]:
+            path = root / source_rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            includes.append(f'#include "{os.path.relpath(path, owner.parent)}"\n')
+            path.write_text("".join(
+                f"{start}\nint selected_{path.stem}_{i} = 1;\n"
+                f"#else\nint selected_{path.stem}_{i} = 0;\n#endif\n"
+                for i in range(n)
+            ), encoding="utf-8")
+        owner.write_text("".join(includes) + owner_text, encoding="utf-8")
     install_condition_gate_build_fixture(root, define_spec=spec)
     if macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT":
         with (root / "CMakeLists.txt").open("a", encoding="utf-8") as stream:
@@ -457,7 +477,13 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
         )
         expected_pair = (source_rel, expected_directive)
         count = 1
-    if macro == "BACKOFF_REQUESTED_US":
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX"):
+        expected = [expected_pair] * count
+        expected += [(path, directive) for path, directive, n
+                     in G._CONDITIONAL_BRANCH_COMPANION_SITES[macro]
+                     for _ in range(n)]
+        assert sorted(matches) == sorted(expected)
+    elif macro == "BACKOFF_REQUESTED_US":
         assert matches == [
             ("include/backoff.hh", "#if BACKOFF_REQUESTED_US"),
             ("include/backoff.hh", "#if BACKOFF_REQUESTED_US"),
@@ -1509,6 +1535,8 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
 ):
     root = _compile_time_source_root(tmp_path, macro)
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX"):
+        count = G._declared_total_site_count(macro)
     if macro == "BACKOFF_REQUESTED_US":
         count, contrast = 4, _REQUESTED_US_CONTRAST
     request = _compile_time_request(macro, default=contrast)
@@ -1553,6 +1581,8 @@ def test_new_branch_selection_supply_meaning_and_admission(tmp_path, macro):
     dynamic reachability, or misattribution firing.
     """
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS[macro]
+    if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX"):
+        count = G._declared_total_site_count(macro)
     root = _compile_time_source_root(tmp_path, macro)
     request = _compile_time_request(macro, default=contrast)
     captured = G.capture_define_inputs(root)
@@ -3474,6 +3504,7 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
+        "IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
         "SILO_POLICY_VARIANT", "IZANAGI_SILO_POLICY_PROBE", "IZANAGI_BREAK_SILO_POLICY",
         "MOCC_TEMP_PREDICATE",
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
@@ -3539,8 +3570,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 43
-    assert len(G.MEANING_SUPPORTED_MACROS) == 44
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 45
+    assert len(G.MEANING_SUPPORTED_MACROS) == 46
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3631,7 +3662,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 37
+        ) == 39
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -3751,9 +3782,9 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 
 def test_module_claim_names_the_exact_61_define_supply_domain() -> None:
-    assert "supply domain contains the 61 patch-derived defines" in G.__doc__
+    assert "supply domain contains the 63 patch-derived defines" in G.__doc__
     assert (
-        "Forty-three\nregistered macros additionally have a bounded compile-time witness"
+        "Forty-five\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__

@@ -1,0 +1,10 @@
+{
+  "A": {
+    "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2273is-base-a",
+    "sha": "51f896352ccfb8105859f3cc7440886820662232"
+  },
+  "B": {
+    "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2273-issue-subprocess",
+    "sha": "ad8c91ecf4ee3085ec5b77cdeb63a54d12f0db08"
+  }
+}

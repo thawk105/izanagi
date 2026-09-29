@@ -1,0 +1,137 @@
+{
+ "tree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-cvl-mut4",
+ "head": "2e56d5fed6ca1c8ee6681d04483442ff9deef559",
+ "tests": [
+  "orchestrator/tests/test_vhash_cicada_vlife.py"
+ ],
+ "baseline": {
+  "failed": [],
+  "raw": {
+   "orchestrator/tests/test_vhash_cicada_vlife.py": {
+    "rc": 0,
+    "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+   }
+  }
+ },
+ "mutations": {
+  "MUT-1-duplicate-json-line-accepted": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "FAIL test_json_line_contract AssertionError invalid JSON line accepted\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-2-k-boundary-strict": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nFAIL test_k_boundary_and_condition_subset AssertionError \nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-3-instrument-statement-outside-macro": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nFAIL test_patch_default_preprocess_matches_stock AssertionError cc/cicada/transaction.cc\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-4-duplicate-condition-accepted": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nFAIL test_k_boundary_and_condition_subset AssertionError bad condition list accepted\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-5-readonly-in-forwarding-denominator": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nFAIL test_worker_sum_and_readonly_denominator AssertionError \nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-6-line-directive-with-filename": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nFAIL test_patch_default_preprocess_matches_stock AssertionError cc/cicada/transaction.cc\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-7-smoke-patch-sha-unchecked": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nFAIL test_smoke_identity_binds_records AssertionError mismatched patch accepted\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-8-selected-records-not-recomputed": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nFAIL test_smoke_recomputes_calibration_and_requires_success AssertionError invalid smoke accepted\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-9-delay-compile-row-not-target-bound": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nFAIL test_delay_compile_selects_unique_ycsb_target AssertionError \nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "MUT-10-publication-judged-without-flag-fall": {
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store"
+   ],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 1,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nFAIL test_leader_publication_counts_same_value_store AssertionError \nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  },
+  "EQ-1-equivalent-site-list": {
+   "failed": [],
+   "raw": {
+    "orchestrator/tests/test_vhash_cicada_vlife.py": {
+     "rc": 0,
+     "tail": "PASS test_json_line_contract\nPASS test_worker_sum_and_readonly_denominator\nPASS test_k_boundary_and_condition_subset\nPASS test_real_patch_define_registry_and_rejection\nPASS test_patch_default_preprocess_matches_stock\nPASS test_smoke_identity_binds_records\nPASS test_smoke_recomputes_calibration_and_requires_success\nPASS test_delay_compile_selects_unique_ycsb_target\nPASS test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\nPASS test_smoke_records_failed_delay_compile_without_failing\nPASS test_batch_extension_stays_in_begin_and_retries_same_procedure\nPASS test_leader_publication_counts_same_value_store\nPASS test_worker_limit_checked_at_construction\n"
+    }
+   }
+  }
+ }
+}

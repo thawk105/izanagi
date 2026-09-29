@@ -73521,3 +73521,70 @@ spool fragment に置き、次の版の wave がそれらから全面再導出�
 - 通常 read のたびに rts を上げる設計 (段 2 の plan 初稿) — Cicada の前提から離れ、forwarding 固有の順序問題を消してしまう。
 - orchestrator/verifier の依存グラフを直接使う — 同時編集中の API に結合する。将来の独立照合の候補として残す。
 - 明示的な STOP 遷移 — 安全性の探索では冗長で、状態数だけを増やす。
+
+## D2283. P5 (workload 記述 × critic の介入) の S1-wh 本走は今は投入せず、S3 の生成器対照の後に別の登録で行う — ユーザーの判断委任による判断で、2026-11-02 に再提示する (2026-09-29)
+
+**決定 (ユーザーの判断委任を受け、codex との相談の後に親が選んだ判断。ユーザー本人の裁定ではない):** D2278 が返した択一 (草稿 §14 の確認事項 1) のうち
+(c) を採る。S1-wh の本走は今は投入せず、介入と出力コードの分類は S3 (関数方策軸、T-2867) の生成器対照の後に別の事前登録で行う。
+本決定は択一を解くだけで、草稿は未発効のまま、草稿 §13 の実装・本走・計算投入のどれの承認でもない。どの案でも投入の前に D2212 項 4 のユーザー確認を取る。
+記録は `output/insights/2026-09-29/t2852-p5-decision/README.md` (出所・相談の要点・期限の理由) と同 dir の `verbatim/`。
+
+1. **出所:** マネージャー session の中継 (ユーザー不在の間は codex と相談して決めよ) を受け、codex に (a) 推し・(c) 推しの 2 立場で相談した。
+   記録と land はいったんユーザーへ返し、ユーザー本人の「codex に相談して決めてください」を受けて、記録の仕方も 2 立場 (案・攻撃) で相談した。
+2. **再判断の条件:** (i) T-2867 の段階 F の生死確認と実測単価が揃った時点で、P5 を S3 で別登録する案と費用を再提示する。
+   (ii) それと独立に、**2026-11-02** に /rulings が S3 の見通しと、表示と critic の効果に問いを絞った S1 の縮小案を並べて再提示する。
+   (iii) 2027-03-01 から逆算して S3 でも S1 縮小案でも実施・分析が収まらなければ、P5 を論文の未取得の限界として明記する。
+
+**理由:**
+- P5 の中心である「出力コードを読んで既知候補の再発見・無効変更・機構の変更に分ける」は、S1 では受理コードが `double now_backoff = <数値>;` の 1 行のため
+  構造上得られない。規模を増やしても解けない (相談の 2 立場とも同意)。
+- 費用は最小でも 72.3 node 時間・LLM の直列 48.0 時間 (6 cell × n = 3、試走 v2 の中央値の単価)。精度の面では s_plan を当てた計画半幅 0.049〜0.172 が
+  同等の目安 0.0148 に届かない懸念があるが、これは新しい cell の分散を測った値ではない感度の目安で、介入効果の検出可能性を否定する根拠にはしない。
+- (a) を選んでも今夜は投入できない (草稿 §13 の実装、役割文書の改訂 (ユーザー承認事項)、投入ごとの計算確認が先に要る)。したがって今決めるのは準備を
+  どちらへ向けるかで、機構も読める S3 へ向ける。
+- **認めた (a) の価値と、(c) の損失:** S1 の介入は「LLM に見せる表示と critic の解釈が同じ数値探索の結果・提案過程を変えるか」という S3 とは独立の問いに答え、
+  D2259 (値 1 個での LLM 対 非 LLM の見送り) はこの LLM 内の介入に直接は当たらず、T-2869 の手法間の不公平も残らない。S3 の単価と暦は未測定で、
+  待つ方が安い・早いとは言えない。延期すると P5 の「なぜ」が論文に載らない危険がある。この損失を抑えるために (ii) の独立の期限を置いた。
+
+**却下した選択肢:**
+- (a) S1-wh で本走の準備を進める — 上の価値は認めるが、P5 の中心の機構分類が構造上得られず、最小でも 72 node 時間を要する。(ii) の期限で縮小案として再提示する。
+- 再判断を T-2867 の進捗だけに結ぶ — T-2867 が遅れると契機が永久に来ない (記録の攻撃側の must-fix)。
+- 「ユーザー裁定」として記録する — ユーザー本人が (c) を選んだ、または将来の投入を承認したと誤読される。
+
+## D2284. 受入 shard-0 の律速 (b) 発行 subprocess は、三軸走査の正規表現照合を軸 literal の出現近傍の窓に局所化する係数削減 (report の bytes は不変) で縮め、実受入の隣接 3 対で事前登録の区分 (ii) = 小さい改善として land する。E1 は系列途中で shard-0 の割付一致に限定する erratum にした。5 分上限は B の W_max 中央値 276.1 秒で達成 (2026-09-29)
+
+**決定:**
+
+1. 発行 child (約 86 秒) の CPU の 99 % を占めた `s8b_holdout_freeze.search_repository` の `_scan_one` を、D512 の枠内で係数削減する。軸 literal L (既存 `_derive_required_literal` の 1 要素 mapping 導出、非 None のときだけ) の各出現 p を重なりも含めて列挙し、同じ compiled 式を窓 `[max(0, p + len(L) − W), min(len, p + W))` で search する (W は stdlib `sre_parse` の `getwidth()` の最大値)。共通 literal の判定は 1 回の `search_repository` 内で (literal, rel) ごとに 1 回とし、既存の `_ScanMemo` の identity 束縛・内容変化拒否の後で、判定した text object と `is` で一致するときだけ再利用する。L が None・非 exact str の式は従来の全文 search。report の canonical bytes・受理集合・列挙と読取と例外・発行 child 内の走査回数は変えない。
+2. 既存の発火回数の番人 (D513) は、数える単位を「局所化 helper に届いた (軸, text) 候補数」に移して数値 (5 / 0・5・9 / reference 3 回) を保ち、三段分離 fixture に局所化だけを外した段を足す。production に最適化無効化 knob を足さない。
+3. 事前登録の land 判定 (隣接 3 対、A = local main `51f896352`、B = A + 実装 `ad8c91ecf`): shard-0 W_0 の対差 +32.333 / +40.457 / +16.512 秒 (3 対すべて正)、対率中央値 9.136 % で区分 (ii)。事前登録どおり小さい改善として land する (出力等価な変更で検出力の喪失が無く、目標値は合否判定ではない)。
+4. 事前登録 E1 の erratum E1' (9/29 07:29 JST、01-A・02-B の後、W を閲覧する前に固定): 新設 8 node が所要時間台帳に無く shard-1 / 2 の分割を変えたため、旧 E1 (A/B 共通 node の 3 shard 割付の完全一致) は A/B の木で決まる性質として成立しない。land 判定量 W_0 を決める shard-0 の共通 node 集合 (4,302 件) は完全一致しているので、割付一致の要求を shard-0 に限定した。旧 E1 での判定は `undetermined` として並記する。
+5. 5 分上限は別判定で達成: B の W_max 3 走の中央値 276.108 秒 (349.375 / 259.260 / 276.108)。02-B は shard-1 が最遅で 300 秒を超えた。
+
+**理由:**
+
+- 律速の実測 (計算ノードの単独走 py-spy): 走査 1 回 ≈ 6.6 秒 × 約 13 回で、fixture は計算ノード /tmp 上なので D512 が実 repo で測った律速 (共有 FS の metadata 遅延) ではなく正規表現照合が支配していた。係数削減の対象が D512 のときと違う。
+- 窓式は、helper が非 None を返す文法では全 match が L を含み長さ ≤ W で anchor・lookaround が無いので、全文 search と真偽が同じ。段 3 の相談 A は反例を構成できなかった。変異 final (M1 右端・M2 左端・M3 重なり・M5 cache key・M7 identity は KILLED、M4 局所化の除去・M6 共通判定 memo の除去は出力等価の診断 pin) は期待と完全一致。
+- 走査回数を減らす案 (validate の内包重複・draft の verifier 走査の共有) は観測点を減らすので、受領証の検査内容を変えないという依頼の条件に反する。
+- E1' について、賛成側は W_0 を担う shard-0 の同一 test 集合という比較に要る性質が保たれることを、反対側は系列開始後の基準変更であり shard-1 / 2 の構成差が W_0 に間接的に効きうることを挙げた。分割を揃えた新系列は B の実装 commit を変えて系列をやり直す必要があり、揃う保証も無く、承認済みの計算上限を超えうる。付帯条件 (旧 E1 の並記、host 重なりの報告、W_1・W_2・pre の対差を効果と呼ばない) を付けて採った。
+
+**却下した選択肢:**
+
+- 走査結果を呼出しを跨いで cache する — D512 が memo を 1 回の呼出しに閉じると定めている。
+- MAXREPEAT (無限幅) の分岐と注入 test — 現行 helper の受理文法では到達せず、幅が飽和しても窓が全文に広がるだけで結果は正しい (段 3 の相談 B、段 4)。
+- E1 を維持して系列を無効にし、分割を揃えた B で新系列を取る — 上の理由。
+- 03-B (無効になった対 2 の 1 回目) を採用する — 集計器の文法どおり赤の走を含む対は対ごと取り直す。
+
+## D2285. VHash の hot block 配置の微小計測は CCBench を改変せず、tools/ の独立 C++ と driver に置く (2026-09-29)
+
+**決定:** VHash 論文の H1 (少数版の記述子の局所化) を確かめる 1 キー版選択の微小計測は、`tools/vhash_microbench/` の依存なし C++20 単一 TU (`hot_block_bench.cc`) と Python 3.9 互換の driver (`run_hot_block.py`) に置き、作図は `tools/plotting/plot_vhash_hot_block.py` に置く。CCBench の gitlink と中身、`patches/` には触れない。build は CCBench に揃え (計算ノードの g++-12、`-O3 -DNDEBUG -std=c++20 -Wall -Wextra -Werror`、ISA は `-march=native` でなく明示 flag = CCBench の microbench の慣行)、計算ノードへは `tools/pegasus/dispatch_compute.py --task generic` で 1 shard = 1 job として投げる。生出力は schema `izanagi-vhash-hot-block-microbench/v2` の JSON で、作図器はこの契約だけを受理する。一次資料は `output/insights/2026-09-29/vhash-hot-block-microbench/README.md`。
+
+**理由:**
+- D16 / D18 / D20 は **CCBench の改変** の行き先を分類する決定であり、CCBench のコードを 1 行も使わない独立の微小計測はその分類の対象外である。
+- CCBench の `microbench/` (既定 OFF) へ patch で足す案は、gflags / glog / FetchContent を含む configure と CCBench の上流 CI 規約 (clang-format) を負うのに、得るのは同じ compiler・同じ flag だけである。
+- `orchestrator/campaign/` に driver を置くと、本番の起動箇所・build 箇所の台帳テスト (`orchestrator/tests/test_ccbench_spawn_sites.py` の走査対象) に掛かる。`tools/vhash_microbench/` はその走査の外である。
+
+**却下した選択肢:**
+- CCBench の `microbench/` へ inert patch で足す — 上記のとおり負担だけが増える。
+- `orchestrator/campaign/` に置く — 本番 campaign の台帳に研究用の微小計測が混ざる。
+- 受入所要台帳 (`orchestrator/tests/acceptance_duration_ledger.json`) へ新 test を登録する — 被覆率 gate (0.90) は未登録でも割らず、land の競合循環を避けるため登録しない。
