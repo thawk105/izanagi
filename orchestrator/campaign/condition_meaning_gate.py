@@ -405,6 +405,15 @@ def _request_spec(request: DefineRequest) -> DefineSpec:
     return DEFINE_SPECS[request.macro]
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "IZANAGI_CICADA_RO_GCFLAG": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG",
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG_COUNT",
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD",
+    ),
     "IZANAGI_CICADA_VLIFE": (
         "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE",
     ),
@@ -458,15 +467,6 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": (
         "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
-    ),
-    "IZANAGI_CICADA_RO_GCFLAG": (
-        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG",
-    ),
-    "IZANAGI_CICADA_RO_GCFLAG_COUNT": (
-        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG_COUNT",
-    ),
-    "IZANAGI_CICADA_ROGC_WORKLOAD": (
-        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD",
     ),
     "CICADA_FWD_ENABLE": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE",

@@ -19,6 +19,7 @@ import time
 from orchestrator.calibrator.benchparse import parse_bench_stdout
 from . import site_policy
 from . import vhash_cicada_vlife as V
+from . import condition_meaning_gate as condition
 from .materializer_admission import non_admissible_materializer
 from .p2_2 import _assert_single_tenant
 
@@ -127,6 +128,11 @@ def verify_acceptance(verifier_rc: int, report: dict, mismatch: int,
             and count["flag_raises"] > 0)
 
 
+def verdict_label(verifier_rc: int) -> str:
+    return {0: "certified", 3: "no-cycle (upper bound indeterminate)"}.get(
+        verifier_rc, "rejected")
+
+
 def _source_copy(dest: Path) -> Path:
     source = ROOT / "external/ccbench"
     observed = _checked(["git", "-C", str(source), "rev-parse", "HEAD"]).stdout.strip()
@@ -142,6 +148,31 @@ def _apply(source: Path, patches: tuple[Path, ...]) -> None:
         _checked(["git", "apply", str(patch)], cwd=source)
 
 
+def _gates(source: Path, macros: tuple[str, ...], args: list[str], cxx: str) -> list[dict]:
+    records = []
+    for macro in macros:
+        captured = condition.capture_define_inputs(source, configure_args=tuple(args))
+        request = condition.make_define_request(
+            driver_id=DRIVER_ID, macro=macro, requested_value=1, default_value=0)
+        with condition._configured_define_compile_commands(
+                captured, request=request, cxx=cxx, cmake="cmake") as commands:
+            supply = condition.evaluate_define_supply_effectuation(
+                captured, request=request, cxx=cxx, cmake="cmake",
+                configured_commands=commands)
+            meaning = condition.evaluate_define_runtime_meaning(
+                captured, request=request,
+                declaration=condition.declare_define_runtime_meaning(request),
+                cxx=cxx, cmake="cmake", configured_commands=commands)
+        admission = condition.require_condition_gate_family(
+            [supply], [meaning], use_class="raw-measurement")
+        records.append({"macro": macro, "supply": json.loads(supply.canonical_json()),
+                        "meaning": json.loads(meaning.canonical_json()),
+                        "admission": json.loads(admission.canonical_json())})
+        if not admission.admitted:
+            raise RuntimeError(f"condition gate rejected {macro}: {records[-1]}")
+    return records
+
+
 def _build_variant(source: Path, build: Path, genome: str, macros: tuple[str, ...],
                    *, trace: bool, toolchain: dict, dependencies: dict) -> tuple[Path, dict]:
     non_admissible_materializer(MATERIALIZER)
@@ -150,7 +181,7 @@ def _build_variant(source: Path, build: Path, genome: str, macros: tuple[str, ..
                                             dependencies=dependencies)
     args = [arg for arg in args if arg not in V.compute.STOCK_G.cmake_defines()]
     args += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", *V.genome_args(genome)]
-    gates = V._gates(source, macros, args, toolchain["cxx_path"])
+    gates = _gates(source, macros, args, toolchain["cxx_path"])
     args.append("-DCMAKE_CXX_FLAGS=" + " ".join(f"-D{m}=1" for m in macros))
     configure = ["cmake", "-S", str(source), "-B", str(build),
                  "-DCMAKE_CXX_COMPILER=" + toolchain["cxx_path"], *args]
@@ -268,8 +299,9 @@ def _verify(source: Path, binary: Path, cell: dict, *, scratch: Path,
     record["trace_files"] = [
         {"path": str(path.resolve()), "sha256": sha(path)}
         for path in sorted(trace_dir.glob("trace_*.log"))]
-    record["accepted"] = verify_acceptance(verdict.returncode, report,
-                                            record["read_wts_mismatch"], record["count"])
+    record["verdict_label"] = verdict_label(verdict.returncode)
+    record["no_cycle_upper_bound_indeterminate"] = verify_acceptance(
+        verdict.returncode, report, record["read_wts_mismatch"], record["count"])
     return record
 
 
@@ -299,6 +331,8 @@ def main(argv: list[str] | None = None) -> int:
     raw = {"schema_version": 1, "command": mode, "ccbench_commit": PIN,
            "hostname": socket.gethostname(), "site": site,
            "records": args.records, "extime": args.extime, "workers": 48,
+           "measurement_env": {"records": args.records, "extime": args.extime,
+                               "workers": 48, "site": site},
            "started_at": now(),
            "patch_sha256": {p.name: sha(p) for p in (VARIANT, WORKLOAD, VLIFE, TRACE)},
            "conditions": {cid: CONDITIONS[cid] for cid in ids}, "plan": plan,
@@ -404,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(raw, indent=2, ensure_ascii=False) + "\n")
     return 0 if "error" not in raw and raw["runs"] and all(
-        row.get("accepted", True) for row in raw["runs"]) else 1
+        row.get("no_cycle_upper_bound_indeterminate", True) for row in raw["runs"]) else 1
 
 
 if __name__ == "__main__":

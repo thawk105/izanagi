@@ -58,7 +58,7 @@ def paired_values(raw: dict, command: str, metric: str) -> dict[str, list[float 
                      summary["gc_boundary_mean_us"])
         else:
             from orchestrator.calibrator.benchparse import parse_bench_stdout
-            value = parse_bench_stdout(row["stdout"])["throughput[tps]"]
+            value = float(parse_bench_stdout(row["stdout"])["throughput[tps]"])
         groups[key][arm] = value
     if any(set(group) != {"stock", "variant"} for group in groups.values()):
         raise ValueError("missing paired run")
@@ -72,6 +72,53 @@ def paired_values(raw: dict, command: str, metric: str) -> dict[str, list[float 
                           (b / a if command == "throughput" and a > 0 else
                            b - a if command == "measure" else None))
         result[cid] = values
+    return result
+
+
+def boundary_context(raw: dict) -> dict:
+    """Produce the (b) number table from validated, paired VLIFE runs."""
+    paired_values(raw, "measure", "gc_publications_per_s")
+    rows = {(row["condition"], row["rep"], row["arm"]): row
+            for row in raw["runs"]}
+    result = {}
+    for cid in IDS:
+        stock = []
+        variant = []
+        for rep in range(1, 7):
+            s = V.summarize(V.parse_vlife_line(rows[cid, rep, "stock"]["stdout"]))
+            v = V.summarize(V.parse_vlife_line(rows[cid, rep, "variant"]["stdout"]))
+            publications = s["gc_publications"]
+            stock.append({"publications": publications,
+                          "publication_label": "公開 0 回" if publications == 0 else f"{publications} 回",
+                          "boundary_age_us": s["gc_boundary_mean_us"] if publications else None,
+                          "boundary_age_label": "未定義" if publications == 0 else None})
+            holders = v["holder_fraction"]
+            variant.append({"boundary_age_us": v["gc_boundary_mean_us"],
+                            "ro_holder_fraction": None if holders[3] is None else
+                            holders[3] + holders[4]})
+        fractions = [point["ro_holder_fraction"] for point in variant]
+        result[cid] = {"stock": stock, "variant": variant,
+                       "variant_ro_holder_fraction": {
+                           "repetitions": fractions,
+                           "mean": None if any(x is None for x in fractions)
+                           else sum(fractions) / len(fractions)}}
+    for cid in IDS:
+        cell = P.CONDITIONS[cid]
+        if cell["delay"] != "wait10msR":
+            continue
+        none = next(key for key in IDS if all(
+            P.CONDITIONS[key][field] == cell[field]
+            for field in ("series", "ro_pct", "gc_inter_us"))
+            and P.CONDITIONS[key]["delay"] == "none")
+        points = []
+        for rep in range(6):
+            wait_age = result[cid]["variant"][rep]["boundary_age_us"]
+            none_age = result[none]["variant"][rep]["boundary_age_us"]
+            points.append(None if wait_age is None or none_age is None else
+                          wait_age - none_age)
+        result[cid]["variant_wait_minus_none_boundary_age_us"] = {
+            "repetitions": points, "mean": None if any(x is None for x in points)
+            else sum(points) / len(points)}
     return result
 
 
@@ -97,11 +144,13 @@ def load_raw(paths: list[Path], command: str) -> dict:
             raise ValueError("duplicate condition across raw files")
         merged["conditions"].update(row["conditions"])
         merged["runs"].extend(row["runs"])
+        environment = row.get("measurement_env")
+        if environment != {key: row.get(key) for key in
+                           ("records", "extime", "workers", "site")}:
+            raise ValueError("measurement environment differs from driver raw")
         if "measurement_env" not in merged:
-            merged["measurement_env"] = {key: row.get(key) for key in
-                ("records", "extime", "workers", "site")}
-        elif merged["measurement_env"] != {key: row.get(key) for key in
-                ("records", "extime", "workers", "site")}:
+            merged["measurement_env"] = environment
+        elif merged["measurement_env"] != environment:
             raise ValueError("mixed measurement environment")
     merged["patch_sha256"] = identity
     return merged
@@ -194,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     values = (paired_values(raw[0], "measure", "gc_publications_per_s"),
               paired_values(raw[0], "measure", "gc_boundary_mean_us"),
               paired_values(raw[1], "throughput", "throughput_tps"))
+    context = boundary_context(raw[0])
     figures = make_figure(*values)
     for kind, fig in zip(("publication_boundary", "throughput"), figures):
         check_figure_layout(fig)
@@ -208,10 +258,18 @@ def main(argv: list[str] | None = None) -> int:
             "conditions": raw[0]["conditions"],
             "measurement_env": [row["measurement_env"] for row in raw],
             "metric": kind,
+            "boundary_context": context if kind == "publication_boundary" else None,
             "paired_values": values[:2] if kind == "publication_boundary" else values[2]}
         stem.with_suffix(".provenance.json").write_text(
             json.dumps(provenance, indent=2, ensure_ascii=False) + "\n")
         plt.close(fig)
+    table_path = args.out_prefix.with_name(args.out_prefix.name + "-boundary-table.json")
+    table_path.write_text(json.dumps({"campaign_id": "vhash-ro-gc-publish",
+        "inputs": [{"path": str(path.resolve()),
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                   for path in args.measure],
+        "measurement_env": raw[0]["measurement_env"], "conditions": context},
+        indent=2, ensure_ascii=False) + "\n")
     return 0
 
 

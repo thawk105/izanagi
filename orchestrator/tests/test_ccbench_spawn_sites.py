@@ -3598,6 +3598,18 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert failures == []
 
 
+def test_ro_gc_publish_build_sink_uses_complete_condition_gate_family():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    classifications, failures = _define_sink_cross_product_classification(
+        _production_build_sources(), frozenset(patch_sources))
+    sink = _BuildSink(
+        "orchestrator/campaign/vhash_ro_gc_publish.py",
+        "<module>._build_variant", 197, "direct-cmake-target")
+    assert classifications[sink] == Counter({
+        "covered": 4, "proven-unreachable": 68})
+    assert failures == []
+
+
 def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     sources = _production_build_sources()
     patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
