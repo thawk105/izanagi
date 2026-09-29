@@ -1,0 +1,1108 @@
+{
+  "schema": "vhash-forwarding-model/1",
+  "scenario": "G2",
+  "protocol": "v1",
+  "faults": [
+    "UG3"
+  ],
+  "o1": false,
+  "pressure": "self",
+  "revert_after_confirm": false,
+  "bounds": {
+    "keys": 2,
+    "transactions": 2,
+    "operations_per_transaction": {
+      "T": 2,
+      "U": 2
+    },
+    "versions_per_key": {
+      "A": 1,
+      "B": 2
+    },
+    "K": 1,
+    "timestamps": [
+      20,
+      35,
+      40,
+      45,
+      60
+    ],
+    "atomicity": "one key sequence observation, one version field write, or local state plus at most one shared write"
+  },
+  "limits": {
+    "keys": 2,
+    "transactions": 3,
+    "operations_per_transaction": 3,
+    "operations_including_WAIT": 4,
+    "versions_per_key": 3,
+    "K": [
+      1,
+      2
+    ]
+  },
+  "population": {
+    "versions": [
+      {
+        "id": "A20",
+        "key": "A",
+        "wts": 20,
+        "rts": 20,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B40",
+        "key": "B",
+        "wts": 40,
+        "rts": 40,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      },
+      {
+        "id": "B60",
+        "key": "B",
+        "wts": 60,
+        "rts": 60,
+        "status": "COMMITTED",
+        "owner": "initial",
+        "reclaimed": false
+      }
+    ],
+    "transactions": [
+      {
+        "id": "T",
+        "start": 45,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "WAIT",
+            ""
+          ]
+        ],
+        "cand_ts": 45,
+        "gc_floor": 45,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": "",
+        "pressure_request": false,
+        "attempt_base": 0,
+        "tried_targets": [],
+        "pressure_base_confirmed": 0,
+        "pressure_base_floor": 0
+      },
+      {
+        "id": "U",
+        "start": 35,
+        "ops": [
+          [
+            "R",
+            "A"
+          ],
+          [
+            "WAIT",
+            ""
+          ]
+        ],
+        "cand_ts": 35,
+        "gc_floor": 35,
+        "pc": 0,
+        "phase": "ops",
+        "index": 0,
+        "target": 0,
+        "read_log": [],
+        "refs": [],
+        "confirmed": [],
+        "fixed": false,
+        "failed": false,
+        "pending": [],
+        "observed_end": [],
+        "observed_rts": [],
+        "forward_hot": "",
+        "pressure_request": false,
+        "attempt_base": 0,
+        "tried_targets": [],
+        "pressure_base_confirmed": 0,
+        "pressure_base_floor": 0
+      }
+    ]
+  },
+  "statistics": {
+    "visited": 15586,
+    "terminal": 22,
+    "deadlock": 0,
+    "floor_lowering_transitions": 0,
+    "seconds": 0.8783293140004389,
+    "complete": true
+  },
+  "verdicts": {
+    "J1": null,
+    "J2": null,
+    "J3": null
+  },
+  "counterexample": null,
+  "violation_kinds": {
+    "J1": [],
+    "J2": [],
+    "J3": []
+  },
+  "witness": {
+    "reached": true,
+    "steps": [
+      {
+        "thread": "T",
+        "operation": "read",
+        "version": "A20",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "request_pressure",
+        "version": "T",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_start",
+        "version": "61",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_rts",
+        "version": "A20",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_check",
+        "version": "A20",
+        "fault": "UG3"
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_pass",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_commit",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "T",
+        "operation": "pressure_publish",
+        "version": "",
+        "fault": ""
+      },
+      {
+        "thread": "U",
+        "operation": "read",
+        "version": "A20",
+        "fault": ""
+      },
+      {
+        "thread": "GC",
+        "operation": "read_floor",
+        "version": "",
+        "fault": ""
+      }
+    ]
+  },
+  "danger": null,
+  "effects": {
+    "waiting_states": 1518,
+    "max_B": {
+      "value": 62,
+      "snapshot": {
+        "B": 62,
+        "reclaimed": 0,
+        "reclaimable": 1,
+        "freed": 1
+      },
+      "steps": [
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "T",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "U",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_start",
+          "version": "61",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_start",
+          "version": "62",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "end_wait",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validate_read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "release_refs",
+          "version": "",
+          "fault": ""
+        }
+      ]
+    },
+    "max_freed": {
+      "value": 1,
+      "snapshot": {
+        "B": 61,
+        "reclaimed": 0,
+        "reclaimable": 1,
+        "freed": 1
+      },
+      "steps": [
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "T",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_start",
+          "version": "61",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "U",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_start",
+          "version": "62",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        }
+      ]
+    },
+    "simultaneous": {
+      "snapshot": {
+        "B": 62,
+        "reclaimed": 0,
+        "reclaimable": 1,
+        "freed": 1
+      },
+      "steps": [
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "T",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "U",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_start",
+          "version": "61",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_start",
+          "version": "62",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "end_wait",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validate_read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "release_refs",
+          "version": "",
+          "fault": ""
+        }
+      ]
+    },
+    "attributable": {
+      "delta_B": 17,
+      "delta_freed": 1,
+      "before": {
+        "B": 45,
+        "reclaimed": 0,
+        "reclaimable": 0,
+        "freed": 0
+      },
+      "after": {
+        "B": 62,
+        "reclaimed": 0,
+        "reclaimable": 1,
+        "freed": 1
+      },
+      "steps": [
+        {
+          "thread": "T",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "T",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "GC",
+          "operation": "request_pressure",
+          "version": "U",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_start",
+          "version": "61",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_start",
+          "version": "62",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_check",
+          "version": "A20",
+          "fault": "UG3"
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "end_wait",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "begin_commit",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "fix_timestamp",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "installed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_rts",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validate_read",
+          "version": "A20",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "validation_pass",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "writes_checked",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "decide_committed",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "U",
+          "operation": "release_refs",
+          "version": "",
+          "fault": ""
+        },
+        {
+          "thread": "T",
+          "operation": "pressure_publish",
+          "version": "",
+          "fault": ""
+        }
+      ]
+    },
+    "g2": {
+      "T_only": {
+        "snapshot": {
+          "B": 35,
+          "reclaimed": 0,
+          "reclaimable": 0,
+          "freed": 0
+        },
+        "steps": [
+          {
+            "thread": "T",
+            "operation": "read",
+            "version": "A20",
+            "fault": ""
+          },
+          {
+            "thread": "GC",
+            "operation": "request_pressure",
+            "version": "T",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_start",
+            "version": "61",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_rts",
+            "version": "A20",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_check",
+            "version": "A20",
+            "fault": "UG3"
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_commit",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_publish",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "read",
+            "version": "A20",
+            "fault": ""
+          }
+        ]
+      },
+      "both": {
+        "snapshot": {
+          "B": 61,
+          "reclaimed": 0,
+          "reclaimable": 1,
+          "freed": 1
+        },
+        "steps": [
+          {
+            "thread": "T",
+            "operation": "read",
+            "version": "A20",
+            "fault": ""
+          },
+          {
+            "thread": "GC",
+            "operation": "request_pressure",
+            "version": "T",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_start",
+            "version": "61",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_rts",
+            "version": "A20",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_check",
+            "version": "A20",
+            "fault": "UG3"
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_commit",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "T",
+            "operation": "pressure_publish",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "read",
+            "version": "A20",
+            "fault": ""
+          },
+          {
+            "thread": "GC",
+            "operation": "request_pressure",
+            "version": "U",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_start",
+            "version": "62",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_rts",
+            "version": "A20",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_check",
+            "version": "A20",
+            "fault": "UG3"
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_pass",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_commit",
+            "version": "",
+            "fault": ""
+          },
+          {
+            "thread": "U",
+            "operation": "pressure_publish",
+            "version": "",
+            "fault": ""
+          }
+        ]
+      }
+    }
+  }
+}

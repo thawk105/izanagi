@@ -1,0 +1,3641 @@
+{
+  "note": "索引 × 式ごとの状態と hit。要旨・生応答は含めない (生応答は repo 外 /work/1/SFC/tanab/tmp/vhash-novelty-2026-09-29/search*/)。OpenAlex の N08〜N10 は再走 (search-r2) の page。判定は judgements.tsv。",
+  "cells": {
+    "openalex:N01": {
+      "state": "complete",
+      "declared_count": 5,
+      "retrieved_count": 5,
+      "pages": [
+        {
+          "file": "N01_p0.a1.json",
+          "sha256": "e2853e1081387fb57084d3fbaa427c9e4dc1562c2af5ff09044420a58189aca6",
+          "retrieved_utc": "2026-09-29T00:49:38.591403+00:00",
+          "status": 429
+        },
+        {
+          "file": "N01_p0.a2.json",
+          "sha256": "fa665c3355876e26a52b9bac9497abf468deec7fb8f0eb40d28ad092964d9084",
+          "retrieved_utc": "2026-09-29T00:50:16.899581+00:00",
+          "status": 429
+        },
+        {
+          "file": "N01_p0.a3.json",
+          "sha256": "5020e2f3d9d86ab38508c67342fe11c4720a8e85ec2098730a215be6b58f6b13",
+          "retrieved_utc": "2026-09-29T00:51:01.181002+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W3105733461",
+        "openalex:https://openalex.org/W7203695018",
+        "openalex:https://openalex.org/W7203684722",
+        "openalex:https://openalex.org/W7213620875",
+        "openalex:https://openalex.org/W7214107640"
+      ]
+    },
+    "openalex:N02": {
+      "state": "complete",
+      "declared_count": 17,
+      "retrieved_count": 17,
+      "pages": [
+        {
+          "file": "N02_p0.a1.json",
+          "sha256": "96197e453da746fbfca3a8fc80d52723b1a6f680e429cbdfc26ef1a199099f13",
+          "retrieved_utc": "2026-09-29T00:51:06.240419+00:00",
+          "status": 429
+        },
+        {
+          "file": "N02_p0.a2.json",
+          "sha256": "e2853e1081387fb57084d3fbaa427c9e4dc1562c2af5ff09044420a58189aca6",
+          "retrieved_utc": "2026-09-29T00:51:45.597467+00:00",
+          "status": 429
+        },
+        {
+          "file": "N02_p0.a3.json",
+          "sha256": "0c39b3707c73030b7e4c773ba7655728fb13f0d16067f9e23eb3c926f27dbec2",
+          "retrieved_utc": "2026-09-29T00:52:24.632390+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W2441046553",
+        "openalex:https://openalex.org/W3161353204",
+        "openalex:https://openalex.org/W2012098586",
+        "openalex:https://openalex.org/W105746118",
+        "openalex:https://openalex.org/W2120462664",
+        "openalex:https://openalex.org/W4312585367",
+        "openalex:https://openalex.org/W1588087802",
+        "openalex:https://openalex.org/W2369847330",
+        "openalex:https://openalex.org/W2103252867",
+        "openalex:https://openalex.org/W4410165809",
+        "openalex:https://openalex.org/W7166178822",
+        "openalex:https://openalex.org/W1561168897",
+        "openalex:https://openalex.org/W7141709571",
+        "openalex:https://openalex.org/W7141244902",
+        "openalex:https://openalex.org/W4206415463",
+        "openalex:https://openalex.org/W7214107640",
+        "openalex:https://openalex.org/W7213620875"
+      ]
+    },
+    "openalex:N03": {
+      "state": "complete",
+      "declared_count": 20,
+      "retrieved_count": 20,
+      "pages": [
+        {
+          "file": "N03_p0.a1.json",
+          "sha256": "ca191e93e6dced1e1fab9843ea6a963ab58a2cdee9f135d9b0c99b865bc5b1ac",
+          "retrieved_utc": "2026-09-29T00:52:30.598167+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W3032843849",
+        "openalex:https://openalex.org/W2612369081",
+        "openalex:https://openalex.org/W4414267088",
+        "openalex:https://openalex.org/W2290562659",
+        "openalex:https://openalex.org/W2011395086",
+        "openalex:https://openalex.org/W4232576131",
+        "openalex:https://openalex.org/W1571391756",
+        "openalex:https://openalex.org/W2948526913",
+        "openalex:https://openalex.org/W4226096483",
+        "openalex:https://openalex.org/W3094958164",
+        "openalex:https://openalex.org/W2376790310",
+        "openalex:https://openalex.org/W76927187",
+        "openalex:https://openalex.org/W2951675988",
+        "openalex:https://openalex.org/W1488581316",
+        "openalex:https://openalex.org/W4416949789",
+        "openalex:https://openalex.org/W4407357343",
+        "openalex:https://openalex.org/W3141978534",
+        "openalex:https://openalex.org/W4231526937",
+        "openalex:https://openalex.org/W3088413096",
+        "openalex:https://openalex.org/W2763260107"
+      ]
+    },
+    "openalex:N04": {
+      "state": "complete",
+      "declared_count": 5,
+      "retrieved_count": 5,
+      "pages": [
+        {
+          "file": "N04_p0.a1.json",
+          "sha256": "0e6c28b8ca41a4bd9036e69205e470eb446e5f52ddd6513d37c06f7fdbf430d4",
+          "retrieved_utc": "2026-09-29T00:52:35.961763+00:00",
+          "status": 429
+        },
+        {
+          "file": "N04_p0.a2.json",
+          "sha256": "8c5670a29a921e382e8992873ce88fe83e82d67af7571b6525fed41749d7fba3",
+          "retrieved_utc": "2026-09-29T00:53:17.257585+00:00",
+          "status": 429
+        },
+        {
+          "file": "N04_p0.a3.json",
+          "sha256": "936465afb154a5f93ccd529cc7d3cfdef10e28690609668837225e9cf16e3e3e",
+          "retrieved_utc": "2026-09-29T00:53:59.549509+00:00",
+          "status": 429
+        },
+        {
+          "file": "N04_p0.a4.json",
+          "sha256": "041e48ae2c774b449122d472f92339ab3d5d34c81929e79885141bbe7c0d51f3",
+          "retrieved_utc": "2026-09-29T00:54:37.867262+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W3032843849",
+        "openalex:https://openalex.org/W3094958164",
+        "openalex:https://openalex.org/W1887663709",
+        "openalex:https://openalex.org/W3088413096",
+        "openalex:https://openalex.org/W3141978534"
+      ]
+    },
+    "openalex:N05": {
+      "state": "complete",
+      "declared_count": 77,
+      "retrieved_count": 77,
+      "pages": [
+        {
+          "file": "N05_p0.a1.json",
+          "sha256": "936465afb154a5f93ccd529cc7d3cfdef10e28690609668837225e9cf16e3e3e",
+          "retrieved_utc": "2026-09-29T00:54:42.870746+00:00",
+          "status": 429
+        },
+        {
+          "file": "N05_p0.a2.json",
+          "sha256": "96197e453da746fbfca3a8fc80d52723b1a6f680e429cbdfc26ef1a199099f13",
+          "retrieved_utc": "2026-09-29T00:55:20.166826+00:00",
+          "status": 429
+        },
+        {
+          "file": "N05_p0.a3.json",
+          "sha256": "e2df1d1e5a392082c43f59eb8094ced4da7e1e1c8cdd7e685cec9c0084fe942b",
+          "retrieved_utc": "2026-09-29T00:55:59.452292+00:00",
+          "status": 429
+        },
+        {
+          "file": "N05_p0.a4.json",
+          "sha256": "0f999e6fbf4038126ded360ba3e46f89b66d18ea24743143598944d5ea9ac685",
+          "retrieved_utc": "2026-09-29T00:56:41.740369+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W2982402713",
+        "openalex:https://openalex.org/W2604961016",
+        "openalex:https://openalex.org/W2441046553",
+        "openalex:https://openalex.org/W2112163169",
+        "openalex:https://openalex.org/W2144457445",
+        "openalex:https://openalex.org/W2156774110",
+        "openalex:https://openalex.org/W2151467437",
+        "openalex:https://openalex.org/W105746118",
+        "openalex:https://openalex.org/W2184750174",
+        "openalex:https://openalex.org/W2949215527",
+        "openalex:https://openalex.org/W185983079",
+        "openalex:https://openalex.org/W4248334423",
+        "openalex:https://openalex.org/W2911883845",
+        "openalex:https://openalex.org/W4281786663",
+        "openalex:https://openalex.org/W4396642831",
+        "openalex:https://openalex.org/W2011948425",
+        "openalex:https://openalex.org/W3191976396",
+        "openalex:https://openalex.org/W4243593691",
+        "openalex:https://openalex.org/W4318256799",
+        "openalex:https://openalex.org/W4380433263",
+        "openalex:https://openalex.org/W1978014939",
+        "openalex:https://openalex.org/W2974753923",
+        "openalex:https://openalex.org/W4319781280",
+        "openalex:https://openalex.org/W4321446056",
+        "openalex:https://openalex.org/W4313305215",
+        "openalex:https://openalex.org/W2054644843",
+        "openalex:https://openalex.org/W2138900633",
+        "openalex:https://openalex.org/W1964093362",
+        "openalex:https://openalex.org/W1588087802",
+        "openalex:https://openalex.org/W2735433327",
+        "openalex:https://openalex.org/W2752237977",
+        "openalex:https://openalex.org/W2106721551",
+        "openalex:https://openalex.org/W3032843849",
+        "openalex:https://openalex.org/W4307933049",
+        "openalex:https://openalex.org/W3148454316",
+        "openalex:https://openalex.org/W2965145891",
+        "openalex:https://openalex.org/W2779812931",
+        "openalex:https://openalex.org/W4210431493",
+        "openalex:https://openalex.org/W3094958164",
+        "openalex:https://openalex.org/W7140861658",
+        "openalex:https://openalex.org/W7140664505",
+        "openalex:https://openalex.org/W4366660200",
+        "openalex:https://openalex.org/W2934940564",
+        "openalex:https://openalex.org/W4238182976",
+        "openalex:https://openalex.org/W7125768695",
+        "openalex:https://openalex.org/W7164069675",
+        "openalex:https://openalex.org/W4401375619",
+        "openalex:https://openalex.org/W4410565267",
+        "openalex:https://openalex.org/W7133038948",
+        "openalex:https://openalex.org/W4404099742",
+        "openalex:https://openalex.org/W2923392890",
+        "openalex:https://openalex.org/W4285053347",
+        "openalex:https://openalex.org/W4230890328",
+        "openalex:https://openalex.org/W3141978534",
+        "openalex:https://openalex.org/W3136241347",
+        "openalex:https://openalex.org/W2789480159",
+        "openalex:https://openalex.org/W2950697863",
+        "openalex:https://openalex.org/W4312585367",
+        "openalex:https://openalex.org/W3025161147",
+        "openalex:https://openalex.org/W3143695264",
+        "openalex:https://openalex.org/W3088413096",
+        "openalex:https://openalex.org/W4396703747",
+        "openalex:https://openalex.org/W4410165809",
+        "openalex:https://openalex.org/W4413371885",
+        "openalex:https://openalex.org/W4404569355",
+        "openalex:https://openalex.org/W7141709571",
+        "openalex:https://openalex.org/W7141244902",
+        "openalex:https://openalex.org/W4309969205",
+        "openalex:https://openalex.org/W4407692299",
+        "openalex:https://openalex.org/W3111035323",
+        "openalex:https://openalex.org/W3181252368",
+        "openalex:https://openalex.org/W2212204050",
+        "openalex:https://openalex.org/W179708265",
+        "openalex:https://openalex.org/W7162200876",
+        "openalex:https://openalex.org/W7162212150",
+        "openalex:https://openalex.org/W2196946741",
+        "openalex:https://openalex.org/W3137937555"
+      ]
+    },
+    "openalex:N06": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N06_p0.a1.json",
+          "sha256": "f24faf9a7a752fec62a5c78e5b97eba36f4c09a1034c85cf161dbe5c806b8256",
+          "retrieved_utc": "2026-09-29T00:56:46.480966+00:00",
+          "status": 200
+        }
+      ],
+      "hits": []
+    },
+    "openalex:N07": {
+      "state": "complete",
+      "declared_count": 23,
+      "retrieved_count": 23,
+      "pages": [
+        {
+          "file": "N07_p0.a1.json",
+          "sha256": "e2df1d1e5a392082c43f59eb8094ced4da7e1e1c8cdd7e685cec9c0084fe942b",
+          "retrieved_utc": "2026-09-29T00:56:51.806311+00:00",
+          "status": 429
+        },
+        {
+          "file": "N07_p0.a2.json",
+          "sha256": "aef6f67d9fb952150ada288c7cbb286b5f65bf40220e9dfd8545a0f1d0d6773e",
+          "retrieved_utc": "2026-09-29T00:57:32.096374+00:00",
+          "status": 429
+        },
+        {
+          "file": "N07_p0.a3.json",
+          "sha256": "aef6f67d9fb952150ada288c7cbb286b5f65bf40220e9dfd8545a0f1d0d6773e",
+          "retrieved_utc": "2026-09-29T00:58:07.383378+00:00",
+          "status": 429
+        },
+        {
+          "file": "N07_p0.a4.json",
+          "sha256": "26f95941c4dfd50e64ad6203e07b47a975026206206b261b64602b3951cb4127",
+          "retrieved_utc": "2026-09-29T00:58:43.784274+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W2441046553",
+        "openalex:https://openalex.org/W2980468259",
+        "openalex:https://openalex.org/W3014009825",
+        "openalex:https://openalex.org/W7214536697",
+        "openalex:https://openalex.org/W7214543125",
+        "openalex:https://openalex.org/W7167923977",
+        "openalex:https://openalex.org/W7167570603",
+        "openalex:https://openalex.org/W7164907471",
+        "openalex:https://openalex.org/W7206205310",
+        "openalex:https://openalex.org/W7169686446",
+        "openalex:https://openalex.org/W7202270615",
+        "openalex:https://openalex.org/W7168091720",
+        "openalex:https://openalex.org/W7170083742",
+        "openalex:https://openalex.org/W7171993511",
+        "openalex:https://openalex.org/W7170196929",
+        "openalex:https://openalex.org/W7169718899",
+        "openalex:https://openalex.org/W7204924991",
+        "openalex:https://openalex.org/W7168394655",
+        "openalex:https://openalex.org/W7168035841",
+        "openalex:https://openalex.org/W7169502126",
+        "openalex:https://openalex.org/W7168160247",
+        "openalex:https://openalex.org/W7130614376",
+        "openalex:https://openalex.org/W7124596282"
+      ]
+    },
+    "openalex:N08": {
+      "state": "complete",
+      "declared_count": 19,
+      "retrieved_count": 19,
+      "pages": [
+        {
+          "file": "N08_p0.a1.json",
+          "sha256": "4fccbe8307e89b5987778801e70277153e0249945d178ad3cb93b83b402555ae",
+          "retrieved_utc": "2026-09-29T01:18:13.315619+00:00",
+          "status": 429
+        },
+        {
+          "file": "N08_p0.a2.json",
+          "sha256": "63d834f3853f32db1867979922b4eb490214098c94c4e271cae29210cb39fe70",
+          "retrieved_utc": "2026-09-29T01:18:59.988453+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W3175782024",
+        "openalex:https://openalex.org/W2988657817",
+        "openalex:https://openalex.org/W2735433327",
+        "openalex:https://openalex.org/W4236776329",
+        "openalex:https://openalex.org/W3094958164",
+        "openalex:https://openalex.org/W4392821717",
+        "openalex:https://openalex.org/W4380433263",
+        "openalex:https://openalex.org/W2946712038",
+        "openalex:https://openalex.org/W2934940564",
+        "openalex:https://openalex.org/W3204403191",
+        "openalex:https://openalex.org/W4312390758",
+        "openalex:https://openalex.org/W7133038948",
+        "openalex:https://openalex.org/W3088413096",
+        "openalex:https://openalex.org/W4392968147",
+        "openalex:https://openalex.org/W4404133399",
+        "openalex:https://openalex.org/W7151275752",
+        "openalex:https://openalex.org/W2241060065",
+        "openalex:https://openalex.org/W7159656484",
+        "openalex:https://openalex.org/W7170483959"
+      ]
+    },
+    "openalex:N09": {
+      "state": "complete",
+      "declared_count": 10,
+      "retrieved_count": 10,
+      "pages": [
+        {
+          "file": "N09_p0.a1.json",
+          "sha256": "f730c7df2197af2c267bf34c3b607544628fbc625550a349e18e4c16b1fd52a6",
+          "retrieved_utc": "2026-09-29T01:19:02.432107+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W1517870510",
+        "openalex:https://openalex.org/W2172207436",
+        "openalex:https://openalex.org/W2019580476",
+        "openalex:https://openalex.org/W4309852610",
+        "openalex:https://openalex.org/W7147007188",
+        "openalex:https://openalex.org/W3216379161",
+        "openalex:https://openalex.org/W7162460778",
+        "openalex:https://openalex.org/W7214355386",
+        "openalex:https://openalex.org/W7214394735",
+        "openalex:https://openalex.org/W7207695936"
+      ]
+    },
+    "openalex:N10": {
+      "state": "complete",
+      "declared_count": 172,
+      "retrieved_count": 172,
+      "pages": [
+        {
+          "file": "N10_p0.a1.json",
+          "sha256": "936465afb154a5f93ccd529cc7d3cfdef10e28690609668837225e9cf16e3e3e",
+          "retrieved_utc": "2026-09-29T01:19:02.728255+00:00",
+          "status": 429
+        },
+        {
+          "file": "N10_p0.a2.json",
+          "sha256": "e2df1d1e5a392082c43f59eb8094ced4da7e1e1c8cdd7e685cec9c0084fe942b",
+          "retrieved_utc": "2026-09-29T01:19:40.028373+00:00",
+          "status": 429
+        },
+        {
+          "file": "N10_p0.a3.json",
+          "sha256": "e3f3e5eea25793fdfee136a67e6e2420bd642e74e13be75036ff1aa7c957dc34",
+          "retrieved_utc": "2026-09-29T01:20:22.468244+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "openalex:https://openalex.org/W2121941088",
+        "openalex:https://openalex.org/W2104731798",
+        "openalex:https://openalex.org/W2137825655",
+        "openalex:https://openalex.org/W2022436301",
+        "openalex:https://openalex.org/W2011395086",
+        "openalex:https://openalex.org/W4232743681",
+        "openalex:https://openalex.org/W65972224",
+        "openalex:https://openalex.org/W2162477579",
+        "openalex:https://openalex.org/W1837813942",
+        "openalex:https://openalex.org/W1987844293",
+        "openalex:https://openalex.org/W2112969934",
+        "openalex:https://openalex.org/W2114913558",
+        "openalex:https://openalex.org/W2103184997",
+        "openalex:https://openalex.org/W1517870510",
+        "openalex:https://openalex.org/W2165620568",
+        "openalex:https://openalex.org/W2069413900",
+        "openalex:https://openalex.org/W2328249030",
+        "openalex:https://openalex.org/W1978569500",
+        "openalex:https://openalex.org/W2348172073",
+        "openalex:https://openalex.org/W1562569843",
+        "openalex:https://openalex.org/W2101059883",
+        "openalex:https://openalex.org/W2123145425",
+        "openalex:https://openalex.org/W1572558145",
+        "openalex:https://openalex.org/W2463790585",
+        "openalex:https://openalex.org/W1567707405",
+        "openalex:https://openalex.org/W2039732738",
+        "openalex:https://openalex.org/W2151335884",
+        "openalex:https://openalex.org/W1977800003",
+        "openalex:https://openalex.org/W2141367638",
+        "openalex:https://openalex.org/W4388545212",
+        "openalex:https://openalex.org/W2370259841",
+        "openalex:https://openalex.org/W1979642600",
+        "openalex:https://openalex.org/W2383536052",
+        "openalex:https://openalex.org/W2889707287",
+        "openalex:https://openalex.org/W2141424706",
+        "openalex:https://openalex.org/W1752060354",
+        "openalex:https://openalex.org/W49793530",
+        "openalex:https://openalex.org/W1505106752",
+        "openalex:https://openalex.org/W2104674241",
+        "openalex:https://openalex.org/W1979776771",
+        "openalex:https://openalex.org/W2096330195",
+        "openalex:https://openalex.org/W2144099193",
+        "openalex:https://openalex.org/W2074001027",
+        "openalex:https://openalex.org/W2167689506",
+        "openalex:https://openalex.org/W2078035797",
+        "openalex:https://openalex.org/W1807730651",
+        "openalex:https://openalex.org/W4381329190",
+        "openalex:https://openalex.org/W2998577050",
+        "openalex:https://openalex.org/W2055614504",
+        "openalex:https://openalex.org/W634037861",
+        "openalex:https://openalex.org/W2091638338",
+        "openalex:https://openalex.org/W2951675988",
+        "openalex:https://openalex.org/W1984217250",
+        "openalex:https://openalex.org/W2172207436",
+        "openalex:https://openalex.org/W1537187615",
+        "openalex:https://openalex.org/W2137699024",
+        "openalex:https://openalex.org/W2163077369",
+        "openalex:https://openalex.org/W1566490931",
+        "openalex:https://openalex.org/W2181271464",
+        "openalex:https://openalex.org/W2112234480",
+        "openalex:https://openalex.org/W2160069339",
+        "openalex:https://openalex.org/W2100678869",
+        "openalex:https://openalex.org/W1959689746",
+        "openalex:https://openalex.org/W2146331671",
+        "openalex:https://openalex.org/W4394923485",
+        "openalex:https://openalex.org/W2027606690",
+        "openalex:https://openalex.org/W2103519358",
+        "openalex:https://openalex.org/W2910367303",
+        "openalex:https://openalex.org/W2016706552",
+        "openalex:https://openalex.org/W2124996927",
+        "openalex:https://openalex.org/W2141759833",
+        "openalex:https://openalex.org/W2561771637",
+        "openalex:https://openalex.org/W1972925764",
+        "openalex:https://openalex.org/W4414799010",
+        "openalex:https://openalex.org/W2078820050",
+        "openalex:https://openalex.org/W2100294438",
+        "openalex:https://openalex.org/W2540963611",
+        "openalex:https://openalex.org/W2134312720",
+        "openalex:https://openalex.org/W1518330464",
+        "openalex:https://openalex.org/W2154690823",
+        "openalex:https://openalex.org/W1521914264",
+        "openalex:https://openalex.org/W2134155667",
+        "openalex:https://openalex.org/W2109671695",
+        "openalex:https://openalex.org/W2145122772",
+        "openalex:https://openalex.org/W2255398527",
+        "openalex:https://openalex.org/W1573550411",
+        "openalex:https://openalex.org/W2485697469",
+        "openalex:https://openalex.org/W2150070317",
+        "openalex:https://openalex.org/W2981574289",
+        "openalex:https://openalex.org/W2881874088",
+        "openalex:https://openalex.org/W3016024602",
+        "openalex:https://openalex.org/W1508825393",
+        "openalex:https://openalex.org/W2101242158",
+        "openalex:https://openalex.org/W7204635131",
+        "openalex:https://openalex.org/W2062027862",
+        "openalex:https://openalex.org/W7204634983",
+        "openalex:https://openalex.org/W3008451085",
+        "openalex:https://openalex.org/W2890747251",
+        "openalex:https://openalex.org/W7204663841",
+        "openalex:https://openalex.org/W2561368256",
+        "openalex:https://openalex.org/W2102682774",
+        "openalex:https://openalex.org/W2056859914",
+        "openalex:https://openalex.org/W2353330372",
+        "openalex:https://openalex.org/W2019580476",
+        "openalex:https://openalex.org/W2896866600",
+        "openalex:https://openalex.org/W2794226707",
+        "openalex:https://openalex.org/W2965024626",
+        "openalex:https://openalex.org/W2337194003",
+        "openalex:https://openalex.org/W82926969",
+        "openalex:https://openalex.org/W2131846228",
+        "openalex:https://openalex.org/W2160037888",
+        "openalex:https://openalex.org/W2375978871",
+        "openalex:https://openalex.org/W2355488623",
+        "openalex:https://openalex.org/W1580867976",
+        "openalex:https://openalex.org/W2379188747",
+        "openalex:https://openalex.org/W2379597573",
+        "openalex:https://openalex.org/W1554995778",
+        "openalex:https://openalex.org/W2054131432",
+        "openalex:https://openalex.org/W130502531",
+        "openalex:https://openalex.org/W2081265490",
+        "openalex:https://openalex.org/W2547283679",
+        "openalex:https://openalex.org/W2377879823",
+        "openalex:https://openalex.org/W3107888082",
+        "openalex:https://openalex.org/W4243564818",
+        "openalex:https://openalex.org/W2348124185",
+        "openalex:https://openalex.org/W2901607274",
+        "openalex:https://openalex.org/W1570537129",
+        "openalex:https://openalex.org/W2905311136",
+        "openalex:https://openalex.org/W2350454553",
+        "openalex:https://openalex.org/W2050420169",
+        "openalex:https://openalex.org/W2402025198",
+        "openalex:https://openalex.org/W2388763418",
+        "openalex:https://openalex.org/W2053471922",
+        "openalex:https://openalex.org/W2349790884",
+        "openalex:https://openalex.org/W2374998066",
+        "openalex:https://openalex.org/W193935917",
+        "openalex:https://openalex.org/W2350669281",
+        "openalex:https://openalex.org/W7164896787",
+        "openalex:https://openalex.org/W2154804789",
+        "openalex:https://openalex.org/W4288637309",
+        "openalex:https://openalex.org/W7135028353",
+        "openalex:https://openalex.org/W4244082722",
+        "openalex:https://openalex.org/W3013630513",
+        "openalex:https://openalex.org/W4415985562",
+        "openalex:https://openalex.org/W2801064489",
+        "openalex:https://openalex.org/W4247661662",
+        "openalex:https://openalex.org/W2348443056",
+        "openalex:https://openalex.org/W4235373374",
+        "openalex:https://openalex.org/W2596483311",
+        "openalex:https://openalex.org/W4393323456",
+        "openalex:https://openalex.org/W4231846816",
+        "openalex:https://openalex.org/W2123554556",
+        "openalex:https://openalex.org/W4254752718",
+        "openalex:https://openalex.org/W2203012675",
+        "openalex:https://openalex.org/W2157551386",
+        "openalex:https://openalex.org/W2261846664",
+        "openalex:https://openalex.org/W7162987711",
+        "openalex:https://openalex.org/W4250568605",
+        "openalex:https://openalex.org/W7213662685",
+        "openalex:https://openalex.org/W4407273810",
+        "openalex:https://openalex.org/W4413968267",
+        "openalex:https://openalex.org/W4406840994",
+        "openalex:https://openalex.org/W7167225715",
+        "openalex:https://openalex.org/W7160311911",
+        "openalex:https://openalex.org/W7170967484",
+        "openalex:https://openalex.org/W7212321692",
+        "openalex:https://openalex.org/W7171794867",
+        "openalex:https://openalex.org/W2948197446",
+        "openalex:https://openalex.org/W2806581568",
+        "openalex:https://openalex.org/W589814810",
+        "openalex:https://openalex.org/W7135004135",
+        "openalex:https://openalex.org/W207326370"
+      ]
+    },
+    "arxiv:N01": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N01_p0.a1.json",
+          "sha256": "d60339c5062db7bfcd56b09dd19b74e02fb21f4bda59c9b58611dbf06fbbe476",
+          "retrieved_utc": "2026-09-29T00:49:39.142968+00:00",
+          "status": 200
+        }
+      ],
+      "hits": []
+    },
+    "arxiv:N02": {
+      "state": "complete",
+      "declared_count": 2,
+      "retrieved_count": 2,
+      "pages": [
+        {
+          "file": "N02_p0.a1.json",
+          "sha256": "9ec493550f5eba49903d104adbc919409557ca136d85cd40ea15d7b337b0fc77",
+          "retrieved_utc": "2026-09-29T00:49:42.530657+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/1305.6624v1",
+        "arxiv:http://arxiv.org/abs/2606.27250v1"
+      ]
+    },
+    "arxiv:N03": {
+      "state": "complete",
+      "declared_count": 4,
+      "retrieved_count": 4,
+      "pages": [
+        {
+          "file": "N03_p0.a1.json",
+          "sha256": "60bd14b82665c5973936194f0736b1da9a71e08c038a6e059c3ff9cde7de1851",
+          "retrieved_utc": "2026-09-29T00:49:46.183697+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/1201.0228v1",
+        "arxiv:http://arxiv.org/abs/1603.00542v1",
+        "arxiv:http://arxiv.org/abs/2009.11558v2",
+        "arxiv:http://arxiv.org/abs/2511.22956v1"
+      ]
+    },
+    "arxiv:N04": {
+      "state": "complete",
+      "declared_count": 1,
+      "retrieved_count": 1,
+      "pages": [
+        {
+          "file": "N04_p0.a1.json",
+          "sha256": "43bbc1aef6b1a23f407c22d7a13c1505702870a8d743fdb42b2536178758ed7c",
+          "retrieved_utc": "2026-09-29T00:49:49.673616+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/2009.11558v2"
+      ]
+    },
+    "arxiv:N05": {
+      "state": "complete",
+      "declared_count": 11,
+      "retrieved_count": 11,
+      "pages": [
+        {
+          "file": "N05_p0.a1.json",
+          "sha256": "27c7eba82b8053327515df83f3d4e6fe943f57cba73443b1fb0ab961481ea726",
+          "retrieved_utc": "2026-09-29T00:49:53.445261+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/1305.6624v1",
+        "arxiv:http://arxiv.org/abs/1709.01033v5",
+        "arxiv:http://arxiv.org/abs/1712.09803v6",
+        "arxiv:http://arxiv.org/abs/1803.08617v3",
+        "arxiv:http://arxiv.org/abs/2009.11558v2",
+        "arxiv:http://arxiv.org/abs/2108.02775v3",
+        "arxiv:http://arxiv.org/abs/2206.05821v1",
+        "arxiv:http://arxiv.org/abs/2210.17086v1",
+        "arxiv:http://arxiv.org/abs/2212.13557v2",
+        "arxiv:http://arxiv.org/abs/2411.10005v1",
+        "arxiv:http://arxiv.org/abs/2606.09133v1"
+      ]
+    },
+    "arxiv:N06": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N06_p0.a1.json",
+          "sha256": "6e3a7d30b6f7f7ab0633bed0383c7c203384558e8ce6eab52e5b43aa89a07e35",
+          "retrieved_utc": "2026-09-29T00:49:56.966303+00:00",
+          "status": 200
+        }
+      ],
+      "hits": []
+    },
+    "arxiv:N07": {
+      "state": "complete",
+      "declared_count": 1,
+      "retrieved_count": 1,
+      "pages": [
+        {
+          "file": "N07_p0.a1.json",
+          "sha256": "ae2a302667e12eab5eb02bbef6108ed9d0ad6acb3aa9c50be3eda5cbc6e3247d",
+          "retrieved_utc": "2026-09-29T00:50:00.347300+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/1910.08023v1"
+      ]
+    },
+    "arxiv:N08": {
+      "state": "complete",
+      "declared_count": 2,
+      "retrieved_count": 2,
+      "pages": [
+        {
+          "file": "N08_p0.a1.json",
+          "sha256": "c568bd9abad56d5c9f736e15bf36d9f812002a59c8a1d3f52c0c009bae805eb8",
+          "retrieved_utc": "2026-09-29T00:50:03.871932+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/1805.04463v1",
+        "arxiv:http://arxiv.org/abs/2009.11558v2"
+      ]
+    },
+    "arxiv:N09": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N09_p0.a1.json",
+          "sha256": "80f48c2db344bb4440515f42449e686cbea93a2b16f9f47e325342d78eb0c10a",
+          "retrieved_utc": "2026-09-29T00:50:07.299092+00:00",
+          "status": 200
+        }
+      ],
+      "hits": []
+    },
+    "arxiv:N10": {
+      "state": "complete",
+      "declared_count": 9,
+      "retrieved_count": 9,
+      "pages": [
+        {
+          "file": "N10_p0.a1.json",
+          "sha256": "7a558e4f320276cc9c79f203769f5315d55648eeeb9441f17a34e5ca3ed0967d",
+          "retrieved_utc": "2026-09-29T00:50:10.743221+00:00",
+          "status": 200
+        }
+      ],
+      "hits": [
+        "arxiv:http://arxiv.org/abs/1106.5256v1",
+        "arxiv:http://arxiv.org/abs/1201.0228v1",
+        "arxiv:http://arxiv.org/abs/1611.05557v1",
+        "arxiv:http://arxiv.org/abs/1612.07702v1",
+        "arxiv:http://arxiv.org/abs/1901.03772v1",
+        "arxiv:http://arxiv.org/abs/1901.06491v1",
+        "arxiv:http://arxiv.org/abs/1907.00736v2",
+        "arxiv:http://arxiv.org/abs/2606.15376v1",
+        "arxiv:http://arxiv.org/abs/2609.20261v1"
+      ]
+    },
+    "dblp:N01": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N01.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N02": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N02.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N03": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N03.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N04": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N04.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N05": {
+      "state": "complete",
+      "declared_count": 10,
+      "retrieved_count": 10,
+      "pages": [
+        {
+          "file": "N05.hits.json",
+          "sha256": "36b71de3e4033566b6221a0c76c68da39ad0f89d84f45be01241f84b6daf74b2",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": [
+        "dblp:conf/date/LamWCHHPZ14",
+        "dblp:conf/sigmod/LeeSPKNCSH16",
+        "dblp:conf/spaa/Ben-DavidB0W19",
+        "dblp:conf/wdag/Ben-DavidBFRSW21",
+        "dblp:conf/ppopp/WeiBFR23",
+        "dblp:journals/pvldb/BottcherL0K19",
+        "dblp:journals/todaes/HuangCLWH14",
+        "dblp:journals/jsa/LamZCHHPW14",
+        "dblp:journals/corr/abs-2108-02775",
+        "dblp:journals/corr/abs-2212-13557"
+      ]
+    },
+    "dblp:N06": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N06.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N07": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N07.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N08": {
+      "state": "complete",
+      "declared_count": 1,
+      "retrieved_count": 1,
+      "pages": [
+        {
+          "file": "N08.hits.json",
+          "sha256": "08854d06845d1f5036245af877aec4bf18fb5c606575ace59f96fe19311cce6d",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": [
+        "dblp:phd/basesearch/Jin17a"
+      ]
+    },
+    "dblp:N09": {
+      "state": "complete",
+      "declared_count": 0,
+      "retrieved_count": 0,
+      "pages": [
+        {
+          "file": "N09.hits.json",
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": []
+    },
+    "dblp:N10": {
+      "state": "complete",
+      "declared_count": 13,
+      "retrieved_count": 13,
+      "pages": [
+        {
+          "file": "N10.hits.json",
+          "sha256": "e0a98704f122348d3df2fff04f453336c0589da7ca167debcb5d192757b11eba",
+          "retrieved_utc": null,
+          "status": null
+        }
+      ],
+      "hits": [
+        "dblp:conf/rtcsa/LindstromR99",
+        "dblp:conf/IEEEcloud/AroraBMAAXZZ18",
+        "dblp:conf/rtas/LamLH95",
+        "dblp:conf/icde/DaudjeeS06",
+        "dblp:conf/icde/LometFWW12",
+        "dblp:conf/rtss/LeeS93",
+        "dblp:conf/rtss/LinS90",
+        "dblp:conf/rtdb/YoonP97",
+        "dblp:conf/adbis/LeeH02",
+        "dblp:conf/ddb/BayerEHR82",
+        "dblp:journals/ipl/KonanaLR97",
+        "dblp:journals/is/ONeilO16",
+        "dblp:journals/rts/SonLL92"
+      ]
+    }
+  },
+  "records": {
+    "openalex:https://openalex.org/W3105733461": {
+      "id": "https://openalex.org/W3105733461",
+      "doi": "https://doi.org/10.1145/3416014.3424601",
+      "title": "Trustworthy Traffic Information Sharing Secured via Blockchain in VANETs",
+      "year": 2020,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7203695018": {
+      "id": "https://openalex.org/W7203695018",
+      "doi": "https://doi.org/10.5281/zenodo.22001698",
+      "title": "Rule Engine Core: a declarative complex event processing runtime with deterministic replay and at-least-once delivery",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7203684722": {
+      "id": "https://openalex.org/W7203684722",
+      "doi": "https://doi.org/10.5281/zenodo.22003237",
+      "title": "Rule Engine Core: a declarative complex event processing runtime with deterministic replay and at-least-once delivery",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7213620875": {
+      "id": "https://openalex.org/W7213620875",
+      "doi": "https://doi.org/10.5281/zenodo.22846474",
+      "title": "Autonomous Agents as First-Class Operating System Entities: Formal Architecture, Deterministic Protocols, and Self-Regulating Runtimes",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7214107640": {
+      "id": "https://openalex.org/W7214107640",
+      "doi": "https://doi.org/10.5281/zenodo.22920332",
+      "title": "Autonomous Agents as First-Class Operating System Entities: Formal Architecture, Deterministic Protocols, and Self-Regulating Runtimes",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W2441046553": {
+      "id": "https://openalex.org/W2441046553",
+      "doi": "https://doi.org/10.1145/2882903.2903734",
+      "title": "Hybrid Garbage Collection for Multi-Version Concurrency Control in SAP HANA",
+      "year": 2016,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W3161353204": {
+      "id": "https://openalex.org/W3161353204",
+      "doi": "https://doi.org/10.1145/74878.74883",
+      "title": "Incremental distribution of timestamp packets: a new approach to distributed garbage collection",
+      "year": 1989,
+      "venue": "ACM SIGPLAN Notices"
+    },
+    "openalex:https://openalex.org/W2012098586": {
+      "id": "https://openalex.org/W2012098586",
+      "doi": "https://doi.org/10.1145/74877.74883",
+      "title": "Incremental distribution of timestamp packets: a new approach to distributed garbage collection",
+      "year": 1989,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W105746118": {
+      "id": "https://openalex.org/W105746118",
+      "doi": "https://doi.org/10.1007/978-3-642-45249-9_14",
+      "title": "A TimeStamp Based Multi-version STM Algorithm",
+      "year": 2014,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2120462664": {
+      "id": "https://openalex.org/W2120462664",
+      "doi": "https://doi.org/10.1109/tpds.2006.138",
+      "title": "Distributed Garbage Collection Algorithms for Timestamped Data",
+      "year": 2006,
+      "venue": "IEEE Transactions on Parallel and Distributed Systems"
+    },
+    "openalex:https://openalex.org/W4312585367": {
+      "id": "https://openalex.org/W4312585367",
+      "doi": "https://doi.org/10.14778/3551793.3551802",
+      "title": "In-page shadowing and two-version timestamp ordering for mobile DBMSs",
+      "year": 2022,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W1588087802": {
+      "id": "https://openalex.org/W1588087802",
+      "doi": "https://doi.org/10.48550/arxiv.1305.6624",
+      "title": "A TimeStamp based Multi-version STM Protocol that satisfies Opacity and Multi-Version Permissiveness",
+      "year": 2013,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2369847330": {
+      "id": "https://openalex.org/W2369847330",
+      "doi": null,
+      "title": "Hybrid Garbage Collection of Reference Counting and Timestamp",
+      "year": 2010,
+      "venue": "Dianzi Ke-ji Daxue xuebao"
+    },
+    "openalex:https://openalex.org/W2103252867": {
+      "id": "https://openalex.org/W2103252867",
+      "doi": "https://doi.org/10.1109/ecmdd.1999.776409",
+      "title": "Consistency maintenance in Web-based real-time group editors",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4410165809": {
+      "id": "https://openalex.org/W4410165809",
+      "doi": "https://doi.org/10.71097/ijsat.v15.i2.4755",
+      "title": "Storage Optimization in Distributed Environments using Optimistic Concurrency Control",
+      "year": 2024,
+      "venue": "International Journal on Science and Technology"
+    },
+    "openalex:https://openalex.org/W7166178822": {
+      "id": "https://openalex.org/W7166178822",
+      "doi": "https://doi.org/10.48550/arxiv.2606.27250",
+      "title": "Tilikum: Transaction Fair Ordering on a DAG without Weak Edges",
+      "year": 2026,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W1561168897": {
+      "id": "https://openalex.org/W1561168897",
+      "doi": null,
+      "title": "A semantics and implementation of a causal logic programming language",
+      "year": 2009,
+      "venue": "Research Commons (University of Waikato)"
+    },
+    "openalex:https://openalex.org/W7141709571": {
+      "id": "https://openalex.org/W7141709571",
+      "doi": "https://doi.org/10.5281/zenodo.19242889",
+      "title": "Time-Travel Queries with Multi-Modal AS OF Clause for Embedded Databases",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7141244902": {
+      "id": "https://openalex.org/W7141244902",
+      "doi": "https://doi.org/10.5281/zenodo.19242888",
+      "title": "Time-Travel Queries with Multi-Modal AS OF Clause for Embedded Databases",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W4206415463": {
+      "id": "https://openalex.org/W4206415463",
+      "doi": "https://doi.org/10.1007/978-1-4302-0057-4_21",
+      "title": "Preventing Data Loss",
+      "year": 2006,
+      "venue": "Apress eBooks"
+    },
+    "openalex:https://openalex.org/W3032843849": {
+      "id": "https://openalex.org/W3032843849",
+      "doi": "https://doi.org/10.1145/3318464.3389714",
+      "title": "Long-lived Transactions Made Less Harmful",
+      "year": 2020,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2612369081": {
+      "id": "https://openalex.org/W2612369081",
+      "doi": "https://doi.org/10.1145/3035918.3035919",
+      "title": "Transaction Repair for Multi-Version Concurrency Control",
+      "year": 2017,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4414267088": {
+      "id": "https://openalex.org/W4414267088",
+      "doi": "https://doi.org/10.14778/3750601.3750603",
+      "title": "TuskFlow: An Efficient Graph Database for Long-Running Transactions",
+      "year": 2025,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W2290562659": {
+      "id": "https://openalex.org/W2290562659",
+      "doi": "https://doi.org/10.48550/arxiv.1603.00542",
+      "title": "Repairing Conflicts among MVCC Transactions",
+      "year": 2016,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2011395086": {
+      "id": "https://openalex.org/W2011395086",
+      "doi": "https://doi.org/10.14778/2095686.2095689",
+      "title": "High-performance concurrency control mechanisms for main-memory databases",
+      "year": 2011,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W4232576131": {
+      "id": "https://openalex.org/W4232576131",
+      "doi": "https://doi.org/10.35940/ijitee.l3162.1081219",
+      "title": "Effective Correctness Criteria for Serializability in Multiversion Concurrency Control Technique",
+      "year": 2019,
+      "venue": "International Journal of Innovative Technology and Exploring Engineering"
+    },
+    "openalex:https://openalex.org/W1571391756": {
+      "id": "https://openalex.org/W1571391756",
+      "doi": null,
+      "title": "Snapshot Isolation for Software Transactional Memory",
+      "year": 2006,
+      "venue": "reroDoc Digital Library"
+    },
+    "openalex:https://openalex.org/W2948526913": {
+      "id": "https://openalex.org/W2948526913",
+      "doi": "https://doi.org/10.14778/3352063.3352131",
+      "title": "Constant time recovery in Azure SQL database",
+      "year": 2019,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W4226096483": {
+      "id": "https://openalex.org/W4226096483",
+      "doi": "https://doi.org/10.1007/s00778-022-00737-1",
+      "title": "Zen+: a robust NUMA-aware OLTP engine optimized for non-volatile main memory",
+      "year": 2022,
+      "venue": "The VLDB Journal"
+    },
+    "openalex:https://openalex.org/W3094958164": {
+      "id": "https://openalex.org/W3094958164",
+      "doi": "https://doi.org/10.14778/3424573.3424575",
+      "title": "An analysis of concurrency control protocols for in-memory databases with CCBench",
+      "year": 2020,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W2376790310": {
+      "id": "https://openalex.org/W2376790310",
+      "doi": null,
+      "title": "A solution for concurrency control and long transaction management in SDBMS",
+      "year": 2004,
+      "venue": "Journal of Chongqing University of Posts and Telecommunications"
+    },
+    "openalex:https://openalex.org/W76927187": {
+      "id": "https://openalex.org/W76927187",
+      "doi": null,
+      "title": "A solution for concurrency control and long transaction management in SDBMS",
+      "year": 2004,
+      "venue": "Acta Scientiarum Naturalium Universitatis Sunyatseni"
+    },
+    "openalex:https://openalex.org/W2951675988": {
+      "id": "https://openalex.org/W2951675988",
+      "doi": "https://doi.org/10.48550/arxiv.1201.0228",
+      "title": "High-Performance Concurrency Control Mechanisms for Main-Memory Databases",
+      "year": 2011,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W1488581316": {
+      "id": "https://openalex.org/W1488581316",
+      "doi": null,
+      "title": "Application of snapshot isolation protocol to concurrent processing of long transactions",
+      "year": 2006,
+      "venue": "Research Online (University of Wollongong)"
+    },
+    "openalex:https://openalex.org/W4416949789": {
+      "id": "https://openalex.org/W4416949789",
+      "doi": "https://doi.org/10.48550/arxiv.2511.22956",
+      "title": "Extended Serial Safety Net: A Refined Serializability Criterion for Multiversion Concurrency Control",
+      "year": 2025,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4407357343": {
+      "id": "https://openalex.org/W4407357343",
+      "doi": "https://doi.org/10.1145/3709667",
+      "title": "Boosting OLTP Performance with Per-Page Logging on NVDIMM",
+      "year": 2025,
+      "venue": "Proceedings of the ACM on Management of Data"
+    },
+    "openalex:https://openalex.org/W3141978534": {
+      "id": "https://openalex.org/W3141978534",
+      "doi": null,
+      "title": "Exploring Progress Guarantees in Multi-Version Software Transactional Memory Systems",
+      "year": 2020,
+      "venue": "Research Archive of Indian Institute of Technology Hyderabad (Indian Institute of Technology Hyderabad)"
+    },
+    "openalex:https://openalex.org/W4231526937": {
+      "id": "https://openalex.org/W4231526937",
+      "doi": "https://doi.org/10.1145/3140659.3080204",
+      "title": "Accelerating GPU Hardware Transactional Memory with Snapshot Isolation",
+      "year": 2017,
+      "venue": "ACM SIGARCH Computer Architecture News"
+    },
+    "openalex:https://openalex.org/W3088413096": {
+      "id": "https://openalex.org/W3088413096",
+      "doi": "https://doi.org/10.48550/arxiv.2009.11558",
+      "title": "An Analysis of Concurrency Control Protocols for In-Memory Databases with CCBench (Extended Version)",
+      "year": 2020,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2763260107": {
+      "id": "https://openalex.org/W2763260107",
+      "doi": "https://doi.org/10.5075/epfl-thesis-8023",
+      "title": "Program Analysis and Compilation Techniques for Speeding up Transactional Database Workloads",
+      "year": 2017,
+      "venue": "Infoscience (Ecole Polytechnique Fédérale de Lausanne)"
+    },
+    "openalex:https://openalex.org/W1887663709": {
+      "id": "https://openalex.org/W1887663709",
+      "doi": "https://doi.org/10.1007/bfb0034693",
+      "title": "Formal specification, object oriented design, and implementation of an ephemeral logger for database systems",
+      "year": 1996,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2982402713": {
+      "id": "https://openalex.org/W2982402713",
+      "doi": "https://doi.org/10.14778/3364324.3364328",
+      "title": "Scalable garbage collection for in-memory MVCC systems",
+      "year": 2019,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W2604961016": {
+      "id": "https://openalex.org/W2604961016",
+      "doi": "https://doi.org/10.14778/3067421.3067427",
+      "title": "An empirical evaluation of in-memory multi-version concurrency control",
+      "year": 2017,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W2112163169": {
+      "id": "https://openalex.org/W2112163169",
+      "doi": "https://doi.org/10.1109/icde.1992.213155",
+      "title": "On mixing queries and transactions via multiversion locking",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2144457445": {
+      "id": "https://openalex.org/W2144457445",
+      "doi": "https://doi.org/10.1145/1941553.1941579",
+      "title": "Lock-free and scalable multi-version software transactional memory",
+      "year": 2011,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2156774110": {
+      "id": "https://openalex.org/W2156774110",
+      "doi": "https://doi.org/10.1145/2611757",
+      "title": "Garbage Collection for Multiversion Index in Flash-Based Embedded Databases",
+      "year": 2014,
+      "venue": "ACM Transactions on Design Automation of Electronic Systems"
+    },
+    "openalex:https://openalex.org/W2151467437": {
+      "id": "https://openalex.org/W2151467437",
+      "doi": "https://doi.org/10.1007/978-3-642-24100-0_9",
+      "title": "SMV: Selective Multi-Versioning STM",
+      "year": 2011,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2184750174": {
+      "id": "https://openalex.org/W2184750174",
+      "doi": "https://doi.org/10.1007/978-3-642-41527-2_10",
+      "title": "Generic Multiversion STM",
+      "year": 2013,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2949215527": {
+      "id": "https://openalex.org/W2949215527",
+      "doi": "https://doi.org/10.1145/3323165.3323185",
+      "title": "Multiversion Concurrency with Bounded Delay and Precise Garbage Collection",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W185983079": {
+      "id": "https://openalex.org/W185983079",
+      "doi": "https://doi.org/10.1007/978-3-319-14720-8_7",
+      "title": "Multi-versioning in Transactional Memory",
+      "year": 2014,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W4248334423": {
+      "id": "https://openalex.org/W4248334423",
+      "doi": "https://doi.org/10.7873/date.2014.070",
+      "title": "Garbage collection for multi-version index on flash memory",
+      "year": 2014,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2911883845": {
+      "id": "https://openalex.org/W2911883845",
+      "doi": "https://doi.org/10.1049/sej.1990.0021",
+      "title": "Software reclamation",
+      "year": 1990,
+      "venue": "Software Engineering Journal"
+    },
+    "openalex:https://openalex.org/W4281786663": {
+      "id": "https://openalex.org/W4281786663",
+      "doi": "https://doi.org/10.1145/3514221.3526135",
+      "title": "Diva: Making MVCC Systems HTAP-Friendly",
+      "year": 2022,
+      "venue": "Proceedings of the 2022 International Conference on Management of Data"
+    },
+    "openalex:https://openalex.org/W4396642831": {
+      "id": "https://openalex.org/W4396642831",
+      "doi": "https://doi.org/10.1002/cpe.8134",
+      "title": "EPO‐R: An efficient garbage collection scheme for long‐term transactions",
+      "year": 2024,
+      "venue": "Concurrency and Computation Practice and Experience"
+    },
+    "openalex:https://openalex.org/W2011948425": {
+      "id": "https://openalex.org/W2011948425",
+      "doi": "https://doi.org/10.1016/j.sysarc.2014.06.004",
+      "title": "Garbage collection of multi-version indexed data on flash memory",
+      "year": 2014,
+      "venue": "Journal of Systems Architecture"
+    },
+    "openalex:https://openalex.org/W3191976396": {
+      "id": "https://openalex.org/W3191976396",
+      "doi": "https://doi.org/10.4230/lipics.disc.2021.12",
+      "title": "Space and Time Bounded Multiversion Garbage Collection",
+      "year": 2021,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4243593691": {
+      "id": "https://openalex.org/W4243593691",
+      "doi": "https://doi.org/10.1145/2038037.1941579",
+      "title": "Lock-free and scalable multi-version software transactional memory",
+      "year": 2011,
+      "venue": "ACM SIGPLAN Notices"
+    },
+    "openalex:https://openalex.org/W4318256799": {
+      "id": "https://openalex.org/W4318256799",
+      "doi": "https://doi.org/10.1145/3559009.3569681",
+      "title": "A GPU Multiversion B-Tree",
+      "year": 2022,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4380433263": {
+      "id": "https://openalex.org/W4380433263",
+      "doi": "https://doi.org/10.1145/3588699",
+      "title": "One-shot Garbage Collection for In-memory OLTP through Temporality-aware Version Storage",
+      "year": 2023,
+      "venue": "Proceedings of the ACM on Management of Data"
+    },
+    "openalex:https://openalex.org/W1978014939": {
+      "id": "https://openalex.org/W1978014939",
+      "doi": "https://doi.org/10.1109/tc.2014.2308213",
+      "title": "Block-Based Multi-Version B$^+$-Tree for Flash-Based Embedded Database Systems",
+      "year": 2014,
+      "venue": "IEEE Transactions on Computers"
+    },
+    "openalex:https://openalex.org/W2974753923": {
+      "id": "https://openalex.org/W2974753923",
+      "doi": "https://doi.org/10.1007/978-3-030-31277-0_20",
+      "title": "Achieving Starvation-Freedom in Multi-version Transactional Memory Systems",
+      "year": 2019,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W4319781280": {
+      "id": "https://openalex.org/W4319781280",
+      "doi": "https://doi.org/10.1109/candar57322.2022.00027",
+      "title": "EPO-R: An Efficient Garbage Collection Scheme for Long-Term Transactions",
+      "year": 2022,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4321446056": {
+      "id": "https://openalex.org/W4321446056",
+      "doi": "https://doi.org/10.1145/3572848.3577508",
+      "title": "Practically and Theoretically Efficient Garbage Collection for Multiversioning",
+      "year": 2023,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4313305215": {
+      "id": "https://openalex.org/W4313305215",
+      "doi": "https://doi.org/10.48550/arxiv.2212.13557",
+      "title": "Practically and Theoretically Efficient Garbage Collection for Multiversioning",
+      "year": 2022,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2054644843": {
+      "id": "https://openalex.org/W2054644843",
+      "doi": "https://doi.org/10.1145/130283.130306",
+      "title": "Efficient and flexible methods for transient versioning of records to avoid locking by read-only transactions",
+      "year": 1992,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2138900633": {
+      "id": "https://openalex.org/W2138900633",
+      "doi": "https://doi.org/10.1145/2168836.2168862",
+      "title": "Delta-FTL",
+      "year": 2012,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1964093362": {
+      "id": "https://openalex.org/W1964093362",
+      "doi": "https://doi.org/10.1145/582353.582386",
+      "title": "The implementation of an integrated concurrency control and recovery scheme",
+      "year": 1982,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2735433327": {
+      "id": "https://openalex.org/W2735433327",
+      "doi": "https://doi.org/10.1007/978-981-10-3373-5_47",
+      "title": "CMS: Checkpoint-Based Multi-versioning System for Software Transactional Memory",
+      "year": 2017,
+      "venue": "Advances in intelligent systems and computing"
+    },
+    "openalex:https://openalex.org/W2752237977": {
+      "id": "https://openalex.org/W2752237977",
+      "doi": null,
+      "title": "Starvation Freedom in Multi-Version Transactional Memory Systems",
+      "year": 2017,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2106721551": {
+      "id": "https://openalex.org/W2106721551",
+      "doi": "https://doi.org/10.1109/nas.2009.14",
+      "title": "Virtual Disk Image Reclamation for Software Updates in Virtual Machine Environments",
+      "year": 2009,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4307933049": {
+      "id": "https://openalex.org/W4307933049",
+      "doi": "https://doi.org/10.4230/lipics.opodis.2022.5",
+      "title": "EEMARQ: Efficient Lock-Free Range Queries with Memory Reclamation",
+      "year": 2022,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W3148454316": {
+      "id": "https://openalex.org/W3148454316",
+      "doi": "https://doi.org/10.1145/141484.130306",
+      "title": "Efficient and flexible methods for transient versioning of records to avoid locking by read-only transactions",
+      "year": 1992,
+      "venue": "ACM SIGMOD Record"
+    },
+    "openalex:https://openalex.org/W2965145891": {
+      "id": "https://openalex.org/W2965145891",
+      "doi": "https://doi.org/10.1007/978-3-030-34992-9_17",
+      "title": "Achieving Starvation-Freedom with Greater Concurrency in Multi-Version Object-based Transactional Memory Systems",
+      "year": 2019,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2779812931": {
+      "id": "https://openalex.org/W2779812931",
+      "doi": null,
+      "title": "An Innovative Approach for Achieving Composability in Concurrent Systems using Multi-Version Object Based STMs.",
+      "year": 2017,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4210431493": {
+      "id": "https://openalex.org/W4210431493",
+      "doi": "https://doi.org/10.7873/date2014.070",
+      "title": "Garbage collection for multi-version index on flash memory",
+      "year": 2014,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7140861658": {
+      "id": "https://openalex.org/W7140861658",
+      "doi": "https://doi.org/10.5281/zenodo.19242033",
+      "title": "Branch-Aware MVCC Garbage Collection with Hierarchical Visibility and LSM Compaction Integration",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7140664505": {
+      "id": "https://openalex.org/W7140664505",
+      "doi": "https://doi.org/10.5281/zenodo.19242034",
+      "title": "Branch-Aware MVCC Garbage Collection with Hierarchical Visibility and LSM Compaction Integration",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W4366660200": {
+      "id": "https://openalex.org/W4366660200",
+      "doi": "https://doi.org/10.14778/3583140.3583157",
+      "title": "Scalable and Robust Snapshot Isolation for High-Performance Storage Engines",
+      "year": 2023,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W2934940564": {
+      "id": "https://openalex.org/W2934940564",
+      "doi": "https://doi.org/10.1145/3297858.3304040",
+      "title": "MV-RLU",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4238182976": {
+      "id": "https://openalex.org/W4238182976",
+      "doi": "https://doi.org/10.1145/582383.582386",
+      "title": "The implementation of an integrated concurrency control and recovery scheme",
+      "year": 1982,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7125768695": {
+      "id": "https://openalex.org/W7125768695",
+      "doi": "https://doi.org/10.70315/uloap.ulirs.2026.0301003",
+      "title": "State Management in Distributed Systems Using the Example of Multi-Version Concurrency Control (MVCC)",
+      "year": 2026,
+      "venue": "Universal Library of Innovative Research and Studies"
+    },
+    "openalex:https://openalex.org/W7164069675": {
+      "id": "https://openalex.org/W7164069675",
+      "doi": "https://doi.org/10.48550/arxiv.2606.09133",
+      "title": "Multiversion Concurrency Control for Multiversion B-Trees",
+      "year": 2026,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4401375619": {
+      "id": "https://openalex.org/W4401375619",
+      "doi": "https://doi.org/10.2139/ssrn.4917256",
+      "title": "Tb-Collect: Efficient Garbage Collection for Non-Volatile Memory Oltp Engines",
+      "year": 2024,
+      "venue": "SSRN Electronic Journal"
+    },
+    "openalex:https://openalex.org/W4410565267": {
+      "id": "https://openalex.org/W4410565267",
+      "doi": "https://doi.org/10.3390/electronics14102080",
+      "title": "TB-Collect: Efficient Garbage Collection for Non-Volatile Memory Online Transaction Processing Engines",
+      "year": 2025,
+      "venue": "Electronics"
+    },
+    "openalex:https://openalex.org/W7133038948": {
+      "id": "https://openalex.org/W7133038948",
+      "doi": null,
+      "title": "Massively Parallel Multi-Versioned Transaction Processing",
+      "year": 2024,
+      "venue": "TSpace (University of Toronto)"
+    },
+    "openalex:https://openalex.org/W4404099742": {
+      "id": "https://openalex.org/W4404099742",
+      "doi": "https://doi.org/10.1109/clusterworkshops61563.2024.00053",
+      "title": "Cheetah: An Efficient Deterministic Concurrency Control Scheme with Non-Visible Write Elimination and Re-Designed Garbage Collection",
+      "year": 2024,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2923392890": {
+      "id": "https://openalex.org/W2923392890",
+      "doi": "https://doi.org/10.1007/s00607-021-00994-y",
+      "title": "Achieving starvation-freedom in multi-version transactional memory systems",
+      "year": 2022,
+      "venue": "Computing"
+    },
+    "openalex:https://openalex.org/W4285053347": {
+      "id": "https://openalex.org/W4285053347",
+      "doi": "https://doi.org/10.48550/arxiv.1709.01033",
+      "title": "Achieving Starvation-Freedom in Multi-Version Transactional Memory Systems",
+      "year": 2017,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4230890328": {
+      "id": "https://openalex.org/W4230890328",
+      "doi": "https://doi.org/10.1145/1272998.1273018",
+      "title": "Secure file system versioning at the block level",
+      "year": 2007,
+      "venue": "ACM SIGOPS Operating Systems Review"
+    },
+    "openalex:https://openalex.org/W3136241347": {
+      "id": "https://openalex.org/W3136241347",
+      "doi": "https://doi.org/10.35567/1999-4508-2016-5-6",
+      "title": "Water-efficient Technique for Drainage Systems’ Operations Planning.",
+      "year": 2016,
+      "venue": "Water sector of Russia problems technologies management"
+    },
+    "openalex:https://openalex.org/W2789480159": {
+      "id": "https://openalex.org/W2789480159",
+      "doi": null,
+      "title": "Efficient Single Writer Concurrency.",
+      "year": 2018,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2950697863": {
+      "id": "https://openalex.org/W2950697863",
+      "doi": "https://doi.org/10.48550/arxiv.1712.09803",
+      "title": "An Innovative Approach to Achieve Compositionality Efficiently using Multi-Version Object Based Transactional Systems",
+      "year": 2017,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W3025161147": {
+      "id": "https://openalex.org/W3025161147",
+      "doi": "https://doi.org/10.7939/r3-36pd-y672",
+      "title": "Portable Software Update: A Framework for Dynamic Software Updates in C-Language Programs",
+      "year": 2019,
+      "venue": "ERA: Education and Research Archive (University of Alberta)"
+    },
+    "openalex:https://openalex.org/W3143695264": {
+      "id": "https://openalex.org/W3143695264",
+      "doi": "https://doi.org/10.14288/1.0051515",
+      "title": "Secure file system versioning at the block level",
+      "year": 2010,
+      "venue": "Open Collections"
+    },
+    "openalex:https://openalex.org/W4396703747": {
+      "id": "https://openalex.org/W4396703747",
+      "doi": "https://doi.org/10.1117/12.3026103",
+      "title": "Research on data recovery technology based on YAFFS2 file system's hash linked list and time series analysis",
+      "year": 2024,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4413371885": {
+      "id": "https://openalex.org/W4413371885",
+      "doi": "https://doi.org/10.1109/icde65448.2025.00327",
+      "title": "SylphDB: An Active and Adaptive LSM Engine for Update-Intensive Workloads",
+      "year": 2025,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4404569355": {
+      "id": "https://openalex.org/W4404569355",
+      "doi": "https://doi.org/10.48550/arxiv.2411.10005",
+      "title": "Analyzing Performance Characteristics of PostgreSQL and MariaDB on NVMeVirt",
+      "year": 2024,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4309969205": {
+      "id": "https://openalex.org/W4309969205",
+      "doi": "https://doi.org/10.48550/arxiv.2206.05821",
+      "title": "RSSD: Defend against Ransomware with Hardware-Isolated Network-Storage Codesign and Post-Attack Analysis",
+      "year": 2022,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4407692299": {
+      "id": "https://openalex.org/W4407692299",
+      "doi": "https://doi.org/10.1109/iceic64972.2025.10879685",
+      "title": "Defense and Recovery Strategies for Flash-Based Storage Under Ransomware Attacks: A Survey",
+      "year": 2025,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W3111035323": {
+      "id": "https://openalex.org/W3111035323",
+      "doi": "https://doi.org/10.5296/jpag.v10i4.18031",
+      "title": "Prospects and Challenges in Creating Metro-Governments: The Case of Metro-Vigan Initiative in the Philippines",
+      "year": 2020,
+      "venue": "Journal of Public Administration and Governance"
+    },
+    "openalex:https://openalex.org/W3181252368": {
+      "id": "https://openalex.org/W3181252368",
+      "doi": null,
+      "title": "Multicore Scalability Through Asynchronous Work",
+      "year": 2020,
+      "venue": "VTechWorks (Virginia Tech)"
+    },
+    "openalex:https://openalex.org/W2212204050": {
+      "id": "https://openalex.org/W2212204050",
+      "doi": null,
+      "title": "트랜잭션의 동시성제어를 위해 갱신전 이미지를 이용한 일시적 버전 제어 기법",
+      "year": 2002,
+      "venue": "한국정보과학회 학술발표논문집"
+    },
+    "openalex:https://openalex.org/W179708265": {
+      "id": "https://openalex.org/W179708265",
+      "doi": null,
+      "title": "Re-visionary fantasies: Feminism, fairy tales, and myth",
+      "year": 2007,
+      "venue": "Scholarly Commons (University of Pennsylvania)"
+    },
+    "openalex:https://openalex.org/W7162200876": {
+      "id": "https://openalex.org/W7162200876",
+      "doi": "https://doi.org/10.5281/zenodo.20355228",
+      "title": "GalaxDB: A Unified AI-Native Storage Engine for Transactional, Analytical, and Vector Workloads",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7162212150": {
+      "id": "https://openalex.org/W7162212150",
+      "doi": "https://doi.org/10.5281/zenodo.20355229",
+      "title": "GalaxDB: A Unified AI-Native Storage Engine for Transactional, Analytical, and Vector Workloads",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W2196946741": {
+      "id": "https://openalex.org/W2196946741",
+      "doi": null,
+      "title": "A Look at Lua",
+      "year": 2007,
+      "venue": "Linux journal"
+    },
+    "openalex:https://openalex.org/W3137937555": {
+      "id": "https://openalex.org/W3137937555",
+      "doi": null,
+      "title": "Design and Implementation of Efficient Techniques toAchieve Compositionality using Object-based SoftwareTransactional Memory Systems",
+      "year": 2020,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2980468259": {
+      "id": "https://openalex.org/W2980468259",
+      "doi": "https://doi.org/10.48550/arxiv.1910.08023",
+      "title": "MV-PBT: Multi-Version Index for Large Datasets and HTAP Workloads",
+      "year": 2019,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W3014009825": {
+      "id": "https://openalex.org/W3014009825",
+      "doi": "https://doi.org/10.5441/002/edbt.2020.20",
+      "title": "MV-PBT: Multi-Version Indexing for Large Datasets and HTAP Workloads",
+      "year": 2020,
+      "venue": "Reutlingen University Academic Bibliography (Reutlingen University)"
+    },
+    "openalex:https://openalex.org/W7214536697": {
+      "id": "https://openalex.org/W7214536697",
+      "doi": "https://doi.org/10.5281/zenodo.23003641",
+      "title": "🈶/🈚 Field Information Ontology: A Unified Framework with Self-Reference as the Sole Primitive (🈶/🈚场信息本体论:以自指为唯一原语的统一框架)",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7214543125": {
+      "id": "https://openalex.org/W7214543125",
+      "doi": "https://doi.org/10.5281/zenodo.23003642",
+      "title": "🈶/🈚 Field Information Ontology: A Unified Framework with Self-Reference as the Sole Primitive (🈶/🈚场信息本体论:以自指为唯一原语的统一框架)",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7167923977": {
+      "id": "https://openalex.org/W7167923977",
+      "doi": "https://doi.org/10.5281/zenodo.21291608",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7167570603": {
+      "id": "https://openalex.org/W7167570603",
+      "doi": "https://doi.org/10.5281/zenodo.21237855",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7164907471": {
+      "id": "https://openalex.org/W7164907471",
+      "doi": "https://doi.org/10.5281/zenodo.20723594",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7206205310": {
+      "id": "https://openalex.org/W7206205310",
+      "doi": "https://doi.org/10.5281/zenodo.22240282",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7169686446": {
+      "id": "https://openalex.org/W7169686446",
+      "doi": "https://doi.org/10.5281/zenodo.21431336",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7202270615": {
+      "id": "https://openalex.org/W7202270615",
+      "doi": "https://doi.org/10.5281/zenodo.21905193",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7168091720": {
+      "id": "https://openalex.org/W7168091720",
+      "doi": "https://doi.org/10.5281/zenodo.21323522",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7170083742": {
+      "id": "https://openalex.org/W7170083742",
+      "doi": "https://doi.org/10.5281/zenodo.21487289",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7171993511": {
+      "id": "https://openalex.org/W7171993511",
+      "doi": "https://doi.org/10.5281/zenodo.21719842",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7170196929": {
+      "id": "https://openalex.org/W7170196929",
+      "doi": "https://doi.org/10.5281/zenodo.21505670",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7169718899": {
+      "id": "https://openalex.org/W7169718899",
+      "doi": "https://doi.org/10.5281/zenodo.21436139",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7204924991": {
+      "id": "https://openalex.org/W7204924991",
+      "doi": "https://doi.org/10.5281/zenodo.22231736",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7168394655": {
+      "id": "https://openalex.org/W7168394655",
+      "doi": "https://doi.org/10.5281/zenodo.21367768",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7168035841": {
+      "id": "https://openalex.org/W7168035841",
+      "doi": "https://doi.org/10.5281/zenodo.21305302",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7169502126": {
+      "id": "https://openalex.org/W7169502126",
+      "doi": "https://doi.org/10.5281/zenodo.21406080",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7168160247": {
+      "id": "https://openalex.org/W7168160247",
+      "doi": "https://doi.org/10.5281/zenodo.21331892",
+      "title": "Ultimate Unification of Four Fundamental Interactions via SO(11) Embedding in 5D Thick Domain-Wall Geometry",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7130614376": {
+      "id": "https://openalex.org/W7130614376",
+      "doi": "https://doi.org/10.5281/zenodo.18696018",
+      "title": "Cryptographic Revolution™ Master Forensic Package HDAA™ The Ghost In The Code (EST. 2017) SCHROEDER FINAL 2017 V01_a❦",
+      "year": 2017,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7124596282": {
+      "id": "https://openalex.org/W7124596282",
+      "doi": "https://doi.org/10.5281/zenodo.18276979",
+      "title": "Cryptographic Revolution™ Master Forensic Package HDAA™ The Ghost In The Code (EST. 2017) SCHROEDER FINAL 2017 V01_a❦",
+      "year": 2017,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W3175782024": {
+      "id": "https://openalex.org/W3175782024",
+      "doi": "https://doi.org/10.1145/3448016.3452783",
+      "title": "Rethink the Scan in MVCC Databases",
+      "year": 2021,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2988657817": {
+      "id": "https://openalex.org/W2988657817",
+      "doi": "https://doi.org/10.1109/fpl.2019.00058",
+      "title": "A Low-Latency Multi-Version Key-Value Store Using B-Tree on an FPGA-CPU Platform",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4236776329": {
+      "id": "https://openalex.org/W4236776329",
+      "doi": "https://doi.org/10.35940/ijeat.a9526.109119",
+      "title": "Multi-Version-PulsatingSTM: A Multi-Version Optimistic Concurrency Control Scheme for Highly Parallel in-Memory Workload in a Multi Core Environment",
+      "year": 2019,
+      "venue": "International Journal of Engineering and Advanced Technology"
+    },
+    "openalex:https://openalex.org/W4392821717": {
+      "id": "https://openalex.org/W4392821717",
+      "doi": "https://doi.org/10.1016/j.future.2024.03.012",
+      "title": "A prefetching indexing scheme for in-memory database systems",
+      "year": 2024,
+      "venue": "Future Generation Computer Systems"
+    },
+    "openalex:https://openalex.org/W2946712038": {
+      "id": "https://openalex.org/W2946712038",
+      "doi": null,
+      "title": "Multi-Version Search and Cache-Conscious Ranking Optimization",
+      "year": 2017,
+      "venue": "eScholarship (California Digital Library)"
+    },
+    "openalex:https://openalex.org/W3204403191": {
+      "id": "https://openalex.org/W3204403191",
+      "doi": "https://doi.org/10.1109/tcc.2021.3116516",
+      "title": "RDMA-Enabled Concurrency Control Protocols for Transactions in the Cloud Era",
+      "year": 2021,
+      "venue": "IEEE Transactions on Cloud Computing"
+    },
+    "openalex:https://openalex.org/W4312390758": {
+      "id": "https://openalex.org/W4312390758",
+      "doi": "https://doi.org/10.14778/3551793.3551813",
+      "title": "G-tran",
+      "year": 2022,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W4392968147": {
+      "id": "https://openalex.org/W4392968147",
+      "doi": "https://doi.org/10.21203/rs.3.rs-4105094/v1",
+      "title": "A Version-aware Data Layout for Heterogeneous Workloads in In-Memory Database Systems",
+      "year": 2024,
+      "venue": "Research Square"
+    },
+    "openalex:https://openalex.org/W4404133399": {
+      "id": "https://openalex.org/W4404133399",
+      "doi": "https://doi.org/10.1109/cluster59578.2024.00031",
+      "title": "Seastar: A Cache-Efficient and Load-Balanced Key-Value Store on Disaggregated Memory",
+      "year": 2024,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7151275752": {
+      "id": "https://openalex.org/W7151275752",
+      "doi": "https://doi.org/10.1145/3786664",
+      "title": "LiveBin: A Localized and Version-Aware Binned Scan Index",
+      "year": 2026,
+      "venue": "Proceedings of the ACM on Management of Data"
+    },
+    "openalex:https://openalex.org/W2241060065": {
+      "id": "https://openalex.org/W2241060065",
+      "doi": "https://doi.org/10.1109/icpads.2015.71",
+      "title": "Versioning Architectures for Local and Global Memory",
+      "year": 2015,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7159656484": {
+      "id": "https://openalex.org/W7159656484",
+      "doi": "https://doi.org/10.5281/zenodo.19953776",
+      "title": "Active Memory Persistence in Field-Theory",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7170483959": {
+      "id": "https://openalex.org/W7170483959",
+      "doi": "https://doi.org/10.5281/zenodo.21538536",
+      "title": "Active Memory Persistence in Field-Theory",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W1517870510": {
+      "id": "https://openalex.org/W1517870510",
+      "doi": "https://doi.org/10.1109/icde.2006.162",
+      "title": "Transaction Time Support Inside a Database Engine",
+      "year": 2006,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2172207436": {
+      "id": "https://openalex.org/W2172207436",
+      "doi": "https://doi.org/10.1145/1066157.1066295",
+      "title": "Immortal DB",
+      "year": 2005,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2019580476": {
+      "id": "https://openalex.org/W2019580476",
+      "doi": "https://doi.org/10.1109/iccet.2010.5485883",
+      "title": "Freezing as a correctness measure for Multiversion Timestamp Ordering protocol",
+      "year": 2010,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4309852610": {
+      "id": "https://openalex.org/W4309852610",
+      "doi": "https://doi.org/10.1093/eurheartj/ehac665",
+      "title": "Preprints: a game changer in scientific publications?",
+      "year": 2022,
+      "venue": "European Heart Journal"
+    },
+    "openalex:https://openalex.org/W7147007188": {
+      "id": "https://openalex.org/W7147007188",
+      "doi": "https://doi.org/10.5281/zenodo.19351028",
+      "title": "On the Failure of the Gaussian Correlation Inequality for Non-Centered Distributions",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W3216379161": {
+      "id": "https://openalex.org/W3216379161",
+      "doi": "https://doi.org/10.5281/zenodo.1183518",
+      "title": "CppTransport 2018.1",
+      "year": 2018,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7162460778": {
+      "id": "https://openalex.org/W7162460778",
+      "doi": "https://doi.org/10.5281/zenodo.20397999",
+      "title": "OpenSTEF/openstef",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7214355386": {
+      "id": "https://openalex.org/W7214355386",
+      "doi": "https://doi.org/10.5281/zenodo.22966924",
+      "title": "Bans that never blocked: data and analysis code for measuring silent enforcement failure",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7214394735": {
+      "id": "https://openalex.org/W7214394735",
+      "doi": "https://doi.org/10.5281/zenodo.22967447",
+      "title": "Bans that never blocked: data and analysis code for measuring silent enforcement failure",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7207695936": {
+      "id": "https://openalex.org/W7207695936",
+      "doi": "https://doi.org/10.5281/zenodo.22256689",
+      "title": "Bans that never blocked: data and analysis code for measuring silent enforcement failure",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W2121941088": {
+      "id": "https://openalex.org/W2121941088",
+      "doi": "https://doi.org/10.1109/real.1990.128735",
+      "title": "Concurrency control in real-time databases by dynamic adjustment of serialization order",
+      "year": 1990,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2104731798": {
+      "id": "https://openalex.org/W2104731798",
+      "doi": "https://doi.org/10.1109/real.1993.393514",
+      "title": "Using dynamic adjustment of serialization order for real-time database systems",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2137825655": {
+      "id": "https://openalex.org/W2137825655",
+      "doi": "https://doi.org/10.1109/icde.1991.131479",
+      "title": "On serializability of multidatabase transactions through forced local conflicts",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2022436301": {
+      "id": "https://openalex.org/W2022436301",
+      "doi": "https://doi.org/10.1007/bf00365314",
+      "title": "Hybrid protocols using dynamic adjustment of serialization order for real-time concurrency control",
+      "year": 1992,
+      "venue": "Real-Time Systems"
+    },
+    "openalex:https://openalex.org/W4232743681": {
+      "id": "https://openalex.org/W4232743681",
+      "doi": "https://doi.org/10.21236/ada466196",
+      "title": "Using Dynamic Adjustment of Serialization Order for Real-Time Database Systems",
+      "year": 1993,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W65972224": {
+      "id": "https://openalex.org/W65972224",
+      "doi": null,
+      "title": "Dynamic Timestamp Allocation for Transactions in Database Systems.",
+      "year": 1982,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2162477579": {
+      "id": "https://openalex.org/W2162477579",
+      "doi": "https://doi.org/10.1109/rttas.1995.516214",
+      "title": "Real-time optimistic concurrency control protocol with dynamic adjustment of serialization order",
+      "year": 2002,
+      "venue": "Proceedings - Real-Time Technology and Applications Symposium"
+    },
+    "openalex:https://openalex.org/W1837813942": {
+      "id": "https://openalex.org/W1837813942",
+      "doi": "https://doi.org/10.1109/rtcsa.1999.811188",
+      "title": "Dynamic adjustment of serialization order using time-stamp intervals in real-time databases",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1987844293": {
+      "id": "https://openalex.org/W1987844293",
+      "doi": "https://doi.org/10.1109/icde.2012.10",
+      "title": "Multi-version Concurrency via Timestamp Range Conflict Management",
+      "year": 2012,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2112969934": {
+      "id": "https://openalex.org/W2112969934",
+      "doi": "https://doi.org/10.1109/icde.1997.582024",
+      "title": "A priority ceiling protocol with dynamic adjustment of serialization order",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2114913558": {
+      "id": "https://openalex.org/W2114913558",
+      "doi": "https://doi.org/10.1109/icde.2006.82",
+      "title": "Inferring a Serialization Order for Distributed Transactions",
+      "year": 2006,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2103184997": {
+      "id": "https://openalex.org/W2103184997",
+      "doi": "https://doi.org/10.1109/32.92915",
+      "title": "On rigorous transaction scheduling",
+      "year": 1991,
+      "venue": "IEEE Transactions on Software Engineering"
+    },
+    "openalex:https://openalex.org/W2165620568": {
+      "id": "https://openalex.org/W2165620568",
+      "doi": null,
+      "title": "TRANSACTION TIME STAMPING IN (TEMPORAL) DATABASES",
+      "year": 2001,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2069413900": {
+      "id": "https://openalex.org/W2069413900",
+      "doi": "https://doi.org/10.1016/s0020-0190(97)00121-x",
+      "title": "Updating timestamp interval for dynamic adjustment of serialization order in Optimistic Concurrency Control-Time Interval (OCCTI) protocol",
+      "year": 1997,
+      "venue": "Information Processing Letters"
+    },
+    "openalex:https://openalex.org/W2328249030": {
+      "id": "https://openalex.org/W2328249030",
+      "doi": "https://doi.org/10.1016/j.is.2016.02.001",
+      "title": "Determining serialization order for serializable snapshot isolation",
+      "year": 2016,
+      "venue": "Information Systems"
+    },
+    "openalex:https://openalex.org/W1978569500": {
+      "id": "https://openalex.org/W1978569500",
+      "doi": "https://doi.org/10.1109/tc.2002.1017702",
+      "title": "Concurrency control for mixed transactions in real-time databases",
+      "year": 2002,
+      "venue": "IEEE Transactions on Computers"
+    },
+    "openalex:https://openalex.org/W2348172073": {
+      "id": "https://openalex.org/W2348172073",
+      "doi": null,
+      "title": "Concurrency control algorithm of dynamic adjustment of serialization order for distributed database based on transactions",
+      "year": 2010,
+      "venue": "Computer Engineering and Applications Journal"
+    },
+    "openalex:https://openalex.org/W1562569843": {
+      "id": "https://openalex.org/W1562569843",
+      "doi": "https://doi.org/10.1007/11751588_83",
+      "title": "A Timestamp-Based Optimistic Concurrency Control for Handling Mobile Transactions",
+      "year": 2006,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2101059883": {
+      "id": "https://openalex.org/W2101059883",
+      "doi": "https://doi.org/10.1109/icdcs.1992.235053",
+      "title": "A decentralized deadlock-free concurrency control method for multidatabase transactions",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2123145425": {
+      "id": "https://openalex.org/W2123145425",
+      "doi": "https://doi.org/10.1145/1073970.1074009",
+      "title": "Concurrent cache-oblivious b-trees",
+      "year": 2005,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1572558145": {
+      "id": "https://openalex.org/W1572558145",
+      "doi": "https://doi.org/10.1007/978-1-4615-6069-2_12",
+      "title": "Enhancement of Alternative Version Concurrency Control Using Dynamic Adjustment of Serialization Order",
+      "year": 1997,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2463790585": {
+      "id": "https://openalex.org/W2463790585",
+      "doi": null,
+      "title": "Transaction management in multidatabase systems",
+      "year": 1991,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1567707405": {
+      "id": "https://openalex.org/W1567707405",
+      "doi": "https://doi.org/10.1007/978-1-4471-1486-4_3",
+      "title": "Optimistic Concurrency Control Algorithm with Dynamic Serialization Adjustment for Firm Deadline Real-Time Database Systems",
+      "year": 1996,
+      "venue": "Workshops in computing"
+    },
+    "openalex:https://openalex.org/W2039732738": {
+      "id": "https://openalex.org/W2039732738",
+      "doi": "https://doi.org/10.1145/308386.308440",
+      "title": "Hybrid concurrency control for abstract data types",
+      "year": 1988,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2151335884": {
+      "id": "https://openalex.org/W2151335884",
+      "doi": "https://doi.org/10.1007/bf01228674",
+      "title": "A theory of global concurrency control in multidatabase systems",
+      "year": 1993,
+      "venue": "The VLDB Journal"
+    },
+    "openalex:https://openalex.org/W1977800003": {
+      "id": "https://openalex.org/W1977800003",
+      "doi": "https://doi.org/10.1016/j.jpdc.2009.06.008",
+      "title": "Concurrency control in mobile distributed real-time database systems",
+      "year": 2009,
+      "venue": "Journal of Parallel and Distributed Computing"
+    },
+    "openalex:https://openalex.org/W2141367638": {
+      "id": "https://openalex.org/W2141367638",
+      "doi": "https://doi.org/10.1109/rtcsa.2000.896427",
+      "title": "Using importance of transactions and optimistic concurrency control in firm real-time databases",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4388545212": {
+      "id": "https://openalex.org/W4388545212",
+      "doi": "https://doi.org/10.1109/tkde.2023.3277969",
+      "title": "Efficiently Supporting Multi-Level Serializability in Decentralized Database Systems",
+      "year": 2023,
+      "venue": "IEEE Transactions on Knowledge and Data Engineering"
+    },
+    "openalex:https://openalex.org/W2370259841": {
+      "id": "https://openalex.org/W2370259841",
+      "doi": null,
+      "title": "Improved Algorithm of Dynamic Adjustment of Serialization Order",
+      "year": 2008,
+      "venue": "Jisuanji gongcheng"
+    },
+    "openalex:https://openalex.org/W1979642600": {
+      "id": "https://openalex.org/W1979642600",
+      "doi": "https://doi.org/10.1016/j.jcss.2013.07.006",
+      "title": "On speculative replication of transactional systems",
+      "year": 2013,
+      "venue": "Journal of Computer and System Sciences"
+    },
+    "openalex:https://openalex.org/W2383536052": {
+      "id": "https://openalex.org/W2383536052",
+      "doi": null,
+      "title": "A Real-time Concurrency Control Protocol Using Dynamical Adjustment of Serialization Order",
+      "year": 2013,
+      "venue": "Journal of Chinese Computer Systems"
+    },
+    "openalex:https://openalex.org/W2889707287": {
+      "id": "https://openalex.org/W2889707287",
+      "doi": "https://doi.org/10.1109/cloud.2018.00041",
+      "title": "Dynamic Timestamp Allocation for Reducing Transaction Aborts",
+      "year": 2018,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2141424706": {
+      "id": "https://openalex.org/W2141424706",
+      "doi": "https://doi.org/10.1109/nca.2010.10",
+      "title": "AGGRO: Boosting STM Replication via Aggressively Optimistic Transaction Processing",
+      "year": 2010,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1752060354": {
+      "id": "https://openalex.org/W1752060354",
+      "doi": null,
+      "title": "Mixed concurrency control: Dealing with heterogeneity in distributed database systems",
+      "year": 1988,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W49793530": {
+      "id": "https://openalex.org/W49793530",
+      "doi": "https://doi.org/10.1007/3-540-45710-0_10",
+      "title": "Optimistic Concurrency Control Based on Timestamp Interval for Broadcast Environment",
+      "year": 2002,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W1505106752": {
+      "id": "https://openalex.org/W1505106752",
+      "doi": "https://doi.org/10.1007/978-1-4471-3080-2_13",
+      "title": "An Efficient Real-Time Optimistic Concurrency Control Protocol",
+      "year": 1996,
+      "venue": "Workshops in computing"
+    },
+    "openalex:https://openalex.org/W2104674241": {
+      "id": "https://openalex.org/W2104674241",
+      "doi": "https://doi.org/10.1109/real.1998.739730",
+      "title": "Using separate algorithms to process read-only transactions in real-time systems",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1979776771": {
+      "id": "https://openalex.org/W1979776771",
+      "doi": "https://doi.org/10.1016/s0164-1212(96)00115-x",
+      "title": "Optimistic concurrency control protocol for real-time databases",
+      "year": 1997,
+      "venue": "Journal of Systems and Software"
+    },
+    "openalex:https://openalex.org/W2096330195": {
+      "id": "https://openalex.org/W2096330195",
+      "doi": "https://doi.org/10.1109/tse.1987.232878",
+      "title": "Multidimensional Timestamp Protocols for Concurrency Control",
+      "year": 1987,
+      "venue": "IEEE Transactions on Software Engineering"
+    },
+    "openalex:https://openalex.org/W2144099193": {
+      "id": "https://openalex.org/W2144099193",
+      "doi": "https://doi.org/10.1109/icde.1986.7266255",
+      "title": "Multidimensional timestamp protocols for concurrency control",
+      "year": 1986,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2074001027": {
+      "id": "https://openalex.org/W2074001027",
+      "doi": "https://doi.org/10.1093/comjnl/45.4.410",
+      "title": "Concurrency Control Using Timestamp Ordering in Broadcast Environments",
+      "year": 2002,
+      "venue": "The Computer Journal"
+    },
+    "openalex:https://openalex.org/W2167689506": {
+      "id": "https://openalex.org/W2167689506",
+      "doi": "https://doi.org/10.1109/icde.1991.131475",
+      "title": "Request order linked list (ROLL): a concurrency control object for centralized and distributed database systems",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2078035797": {
+      "id": "https://openalex.org/W2078035797",
+      "doi": "https://doi.org/10.1145/582318.582331",
+      "title": "Performance evaluation of two concurrency control mechanisms in a distributed database system",
+      "year": 1981,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1807730651": {
+      "id": "https://openalex.org/W1807730651",
+      "doi": "https://doi.org/10.1109/wpdrts.1996.557642",
+      "title": "Distributed real-time optimistic concurrency control protocol",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4381329190": {
+      "id": "https://openalex.org/W4381329190",
+      "doi": "https://doi.org/10.1145/3589774",
+      "title": "VeDB: A Software and Hardware Enabled Trusted Relational Database",
+      "year": 2023,
+      "venue": "Proceedings of the ACM on Management of Data"
+    },
+    "openalex:https://openalex.org/W2998577050": {
+      "id": "https://openalex.org/W2998577050",
+      "doi": "https://doi.org/10.1109/iccad45719.2019.8942154",
+      "title": "Multiversion Concurrency Control on Intermittent Systems",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2055614504": {
+      "id": "https://openalex.org/W2055614504",
+      "doi": "https://doi.org/10.1016/0950-5849(94)90042-6",
+      "title": "Optimistic priority-based concurrency control protocol for firm real-time database systems",
+      "year": 1994,
+      "venue": "Information and Software Technology"
+    },
+    "openalex:https://openalex.org/W634037861": {
+      "id": "https://openalex.org/W634037861",
+      "doi": "https://doi.org/10.1007/978-1-4615-6069-2",
+      "title": "Real-Time Database and Information Systems: Research Advances",
+      "year": 1997,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2091638338": {
+      "id": "https://openalex.org/W2091638338",
+      "doi": "https://doi.org/10.1016/s0164-1212(98)10011-0",
+      "title": "Transaction management mechanisms for active and real-time databases: A comprehensive protocol and a performance study",
+      "year": 1998,
+      "venue": "Journal of Systems and Software"
+    },
+    "openalex:https://openalex.org/W1984217250": {
+      "id": "https://openalex.org/W1984217250",
+      "doi": "https://doi.org/10.1145/77600.77616",
+      "title": "Concurrency and availability as dual properties of replicated atomic data",
+      "year": 1990,
+      "venue": "Journal of the ACM"
+    },
+    "openalex:https://openalex.org/W1537187615": {
+      "id": "https://openalex.org/W1537187615",
+      "doi": null,
+      "title": "Certification by Intervals of Timestamps in Distributed Database Systems",
+      "year": 1984,
+      "venue": "Very Large Data Bases"
+    },
+    "openalex:https://openalex.org/W2137699024": {
+      "id": "https://openalex.org/W2137699024",
+      "doi": "https://doi.org/10.1109/rtcsa.2000.896378",
+      "title": "Extensions to optimistic concurrency control with time intervals",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2163077369": {
+      "id": "https://openalex.org/W2163077369",
+      "doi": "https://doi.org/10.1109/wicom.2008.2654",
+      "title": "Timestamp Vector Based Optimistic Concurrency Control Protocol for Real-Time Databases",
+      "year": 2008,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1566490931": {
+      "id": "https://openalex.org/W1566490931",
+      "doi": "https://doi.org/10.1007/978-1-4615-2271-3_8",
+      "title": "Speculative Algorithms for Concurrency Control in Responsive Databases",
+      "year": 1995,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2181271464": {
+      "id": "https://openalex.org/W2181271464",
+      "doi": "https://doi.org/10.1016/b978-1-4832-1313-2.50014-7",
+      "title": "A dynamic and integrated concurrency control for distributed databases",
+      "year": 1988,
+      "venue": "Elsevier eBooks"
+    },
+    "openalex:https://openalex.org/W2112234480": {
+      "id": "https://openalex.org/W2112234480",
+      "doi": "https://doi.org/10.1109/pdis.1993.253063",
+      "title": "On global transaction scheduling criteria in multidatabase systems",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2160069339": {
+      "id": "https://openalex.org/W2160069339",
+      "doi": "https://doi.org/10.1109/ride.1992.227409",
+      "title": "Strong recoverability in multidatabase systems",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2100678869": {
+      "id": "https://openalex.org/W2100678869",
+      "doi": "https://doi.org/10.21236/ada465532",
+      "title": "A New Approach to Real-Time Transaction Scheduling",
+      "year": 1992,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1959689746": {
+      "id": "https://openalex.org/W1959689746",
+      "doi": "https://doi.org/10.1109/real.1991.160377",
+      "title": "Enhancing real-time DBMS performance with multiversion data and priority based disk scheduling",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2146331671": {
+      "id": "https://openalex.org/W2146331671",
+      "doi": "https://doi.org/10.1007/s11771-008-0103-y",
+      "title": "Scheduling transactions in mobile distributed real-time database systems",
+      "year": 2008,
+      "venue": "Journal of Central South University of Technology"
+    },
+    "openalex:https://openalex.org/W4394923485": {
+      "id": "https://openalex.org/W4394923485",
+      "doi": "https://doi.org/10.1145/3627703.3650080",
+      "title": "Validating Database System Isolation Level Implementations with Version Certificate Recovery",
+      "year": 2024,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2027606690": {
+      "id": "https://openalex.org/W2027606690",
+      "doi": "https://doi.org/10.1145/988598.988601",
+      "title": "A method for concurrency control in distributed DBMSs",
+      "year": 1987,
+      "venue": "ACM SIGMOD Record"
+    },
+    "openalex:https://openalex.org/W2103519358": {
+      "id": "https://openalex.org/W2103519358",
+      "doi": "https://doi.org/10.1109/emwrt.1992.637490",
+      "title": "A New Approach To Real-time Transaction",
+      "year": 1992,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2910367303": {
+      "id": "https://openalex.org/W2910367303",
+      "doi": "https://doi.org/10.1109/icdcs.2019.00065",
+      "title": "SSS: Scalable Key-Value Store with External Consistent and Abort-free Read-only Transactions",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2016706552": {
+      "id": "https://openalex.org/W2016706552",
+      "doi": "https://doi.org/10.1145/1516241.1516248",
+      "title": "Two-phase mobile transaction validation in wireless broadcast environments",
+      "year": 2009,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2124996927": {
+      "id": "https://openalex.org/W2124996927",
+      "doi": "https://doi.org/10.1109/49.16869",
+      "title": "A dynamic and integrated concurrency control for distributed databases",
+      "year": 1989,
+      "venue": "IEEE Journal on Selected Areas in Communications"
+    },
+    "openalex:https://openalex.org/W2141759833": {
+      "id": "https://openalex.org/W2141759833",
+      "doi": "https://doi.org/10.1109/ipdps.2004.1303028",
+      "title": "Dynamic adjustment of execution order in real-time databases",
+      "year": 2004,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2561771637": {
+      "id": "https://openalex.org/W2561771637",
+      "doi": "https://doi.org/10.5120/ijca2016912260",
+      "title": "An Aggressive Concurrency Control Protocol for Main Memory Databases",
+      "year": 2016,
+      "venue": "International Journal of Computer Applications"
+    },
+    "openalex:https://openalex.org/W1972925764": {
+      "id": "https://openalex.org/W1972925764",
+      "doi": "https://doi.org/10.1109/nca.2012.45",
+      "title": "ASAP: An Aggressive SpeculAtive Protocol for Actively Replicated Transactional Systems",
+      "year": 2012,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4414799010": {
+      "id": "https://openalex.org/W4414799010",
+      "doi": "https://doi.org/10.1109/tgrs.2025.3617326",
+      "title": "Grid Point Serialized Transformer for LiDAR Point Cloud Semantic Segmentation in Various Densities and Heights Scenes",
+      "year": 2025,
+      "venue": "IEEE Transactions on Geoscience and Remote Sensing"
+    },
+    "openalex:https://openalex.org/W2078820050": {
+      "id": "https://openalex.org/W2078820050",
+      "doi": "https://doi.org/10.1016/s0020-0190(96)00205-0",
+      "title": "Resolving data conflicts with multiple versions and precedence relationships in real-time databases",
+      "year": 1997,
+      "venue": "Information Processing Letters"
+    },
+    "openalex:https://openalex.org/W2100294438": {
+      "id": "https://openalex.org/W2100294438",
+      "doi": "https://doi.org/10.3844/jcssp.2005.471.476",
+      "title": "Real-time Optimistic Concurrency Control based on Transaction Finish Degree",
+      "year": 2005,
+      "venue": "Journal of Computer Science"
+    },
+    "openalex:https://openalex.org/W2540963611": {
+      "id": "https://openalex.org/W2540963611",
+      "doi": "https://doi.org/10.1109/ici.2011.60",
+      "title": "Conflicting Management of Transactions in Real Time Database System",
+      "year": 2011,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2134312720": {
+      "id": "https://openalex.org/W2134312720",
+      "doi": "https://doi.org/10.1109/icycs.2008.308",
+      "title": "Scheduling Real-Time Nested Transactions in Mobile Broadcast Environments",
+      "year": 2008,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W1518330464": {
+      "id": "https://openalex.org/W1518330464",
+      "doi": null,
+      "title": "Scalable database replication through dynamic multiversioning",
+      "year": 2005,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2154690823": {
+      "id": "https://openalex.org/W2154690823",
+      "doi": "https://doi.org/10.5120/54-648",
+      "title": "Analysis of Real-Time Multiversion Concurrency Control Algorithms using Serialisability Graphs",
+      "year": 2010,
+      "venue": "International Journal of Computer Applications"
+    },
+    "openalex:https://openalex.org/W1521914264": {
+      "id": "https://openalex.org/W1521914264",
+      "doi": "https://doi.org/10.1109/wicom.2007.748",
+      "title": "Distributed Multiversion Optimistic Concurrency Control for Mobile Real-Time Database Systems",
+      "year": 2007,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2134155667": {
+      "id": "https://openalex.org/W2134155667",
+      "doi": "https://doi.org/10.1109/ideas.2005.53",
+      "title": "Using the Lock Manager to Choose Timestamps",
+      "year": 2006,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2109671695": {
+      "id": "https://openalex.org/W2109671695",
+      "doi": "https://doi.org/10.1613/jair.1146",
+      "title": "Structure and Complexity in Planning with Unary Operators",
+      "year": 2003,
+      "venue": "Journal of Artificial Intelligence Research"
+    },
+    "openalex:https://openalex.org/W2145122772": {
+      "id": "https://openalex.org/W2145122772",
+      "doi": "https://doi.org/10.1109/pdcat.2008.69",
+      "title": "A Parallel Recovery Scheme for Update Intensive Main Memory Database Systems",
+      "year": 2008,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2255398527": {
+      "id": "https://openalex.org/W2255398527",
+      "doi": null,
+      "title": "Transaction management in mobile multidatabases",
+      "year": 1999,
+      "venue": "SHAREOK (University of Oklahoma; Oklahoma State University; Central Oklahoma University)"
+    },
+    "openalex:https://openalex.org/W1573550411": {
+      "id": "https://openalex.org/W1573550411",
+      "doi": "https://doi.org/10.1007/3-540-45140-4_31",
+      "title": "Temporally Faithful Execution of Business Transactions",
+      "year": 2000,
+      "venue": "Notes on numerical fluid mechanics and multidisciplinary design"
+    },
+    "openalex:https://openalex.org/W2485697469": {
+      "id": "https://openalex.org/W2485697469",
+      "doi": "https://doi.org/10.1109/hicss.1990.205221",
+      "title": "An optimistic multi-level concurrency control for nested typed objects",
+      "year": 2002,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2150070317": {
+      "id": "https://openalex.org/W2150070317",
+      "doi": "https://doi.org/10.1109/rtcsa.1999.811190",
+      "title": "Maintaining data consistency using timestamp ordering in real-time broadcast environments",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2981574289": {
+      "id": "https://openalex.org/W2981574289",
+      "doi": null,
+      "title": "Executing requests concurrently in state machine replication",
+      "year": 2019,
+      "venue": "New University of Lisbon's Repository (New University of Lisbon)"
+    },
+    "openalex:https://openalex.org/W2881874088": {
+      "id": "https://openalex.org/W2881874088",
+      "doi": null,
+      "title": "Optimistic Concurrency Control Using Dynamic Adjustment of Serialization Order for RTDBs",
+      "year": 2002,
+      "venue": "Computer Engineering and Applications Journal"
+    },
+    "openalex:https://openalex.org/W3016024602": {
+      "id": "https://openalex.org/W3016024602",
+      "doi": null,
+      "title": "Concurrency Control with Dynamic Adjustment of Serialization Order in Multilevel Secure DBMS",
+      "year": 1999,
+      "venue": "Information Security and Cryptology"
+    },
+    "openalex:https://openalex.org/W1508825393": {
+      "id": "https://openalex.org/W1508825393",
+      "doi": "https://doi.org/10.1007/978-3-540-24767-8_73",
+      "title": "Global Concurrency Control Using Message Ordering of Group Communication in Multidatabase Systems",
+      "year": 2004,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2101242158": {
+      "id": "https://openalex.org/W2101242158",
+      "doi": "https://doi.org/10.1145/75104.75106",
+      "title": "Using histories to implement atomic objects",
+      "year": 1989,
+      "venue": "ACM Transactions on Computer Systems"
+    },
+    "openalex:https://openalex.org/W7204635131": {
+      "id": "https://openalex.org/W7204635131",
+      "doi": "https://doi.org/10.5281/zenodo.22150450",
+      "title": "Serialization Order Confounds Attention Analysis in MeshXL",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W2062027862": {
+      "id": "https://openalex.org/W2062027862",
+      "doi": "https://doi.org/10.1109/itsim.2010.5561478",
+      "title": "OS-MDASO: An algorithm that guarantees correctness for P2P object-oriented database systems in a wireless local area network environment",
+      "year": 2010,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7204634983": {
+      "id": "https://openalex.org/W7204634983",
+      "doi": "https://doi.org/10.5281/zenodo.22150449",
+      "title": "Serialization Order Confounds Attention Analysis in MeshXL",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W3008451085": {
+      "id": "https://openalex.org/W3008451085",
+      "doi": "https://doi.org/10.1109/bigdata47090.2019.9006519",
+      "title": "WiSer: A Highly Available HTAP DBMS for IoT Applications",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2890747251": {
+      "id": "https://openalex.org/W2890747251",
+      "doi": null,
+      "title": "Hybrid Protocols Using Dynamic Adjustment of Serialization Order",
+      "year": 2012,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W7204663841": {
+      "id": "https://openalex.org/W7204663841",
+      "doi": "https://doi.org/10.5281/zenodo.22149960",
+      "title": "meshlens: Serialization Order Confounds Attention Analysis in MeshXL",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W2561368256": {
+      "id": "https://openalex.org/W2561368256",
+      "doi": "https://doi.org/10.1145/3017993",
+      "title": "Pot",
+      "year": 2016,
+      "venue": "ACM Transactions on Architecture and Code Optimization"
+    },
+    "openalex:https://openalex.org/W2102682774": {
+      "id": "https://openalex.org/W2102682774",
+      "doi": "https://doi.org/10.1145/1376616.1376743",
+      "title": "SEMMO",
+      "year": 2008,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2056859914": {
+      "id": "https://openalex.org/W2056859914",
+      "doi": "https://doi.org/10.1016/0165-6074(92)90351-7",
+      "title": "Transaction management for global serializability and local autonomy in multidatabase systems",
+      "year": 1992,
+      "venue": "Microprocessing and Microprogramming"
+    },
+    "openalex:https://openalex.org/W2353330372": {
+      "id": "https://openalex.org/W2353330372",
+      "doi": null,
+      "title": "A multilevel transaction schedule algorithm based on 2PL and serialization graph",
+      "year": 2006,
+      "venue": "Harbin Gongcheng Daxue Xuebao/Journal of Harbin Engineering University"
+    },
+    "openalex:https://openalex.org/W2896866600": {
+      "id": "https://openalex.org/W2896866600",
+      "doi": "https://doi.org/10.7763/ijcte.2017.v9.1104",
+      "title": "Dynamic Timestamps Ordering for Controlling Concurrency",
+      "year": 2017,
+      "venue": "International Journal of Computer Theory and Engineering"
+    },
+    "openalex:https://openalex.org/W2794226707": {
+      "id": "https://openalex.org/W2794226707",
+      "doi": "https://doi.org/10.1145/3173162.3173192",
+      "title": "SOFRITAS",
+      "year": 2018,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2965024626": {
+      "id": "https://openalex.org/W2965024626",
+      "doi": "https://doi.org/10.48550/arxiv.1908.01908",
+      "title": "WiSer: A Highly Available HTAP DBMS for IoT Applications",
+      "year": 2019,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2337194003": {
+      "id": "https://openalex.org/W2337194003",
+      "doi": null,
+      "title": "Concurrency control for mobile transactions",
+      "year": 2011,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W82926969": {
+      "id": "https://openalex.org/W82926969",
+      "doi": "https://doi.org/10.1007/978-3-642-25255-6_42",
+      "title": "Grid Transaction-Level Concurrency Control Protocol",
+      "year": 2011,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2131846228": {
+      "id": "https://openalex.org/W2131846228",
+      "doi": "https://doi.org/10.1109/wisew.2003.1286784",
+      "title": "Fast indexing and updating method for moving objects on road networks",
+      "year": 2004,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2160037888": {
+      "id": "https://openalex.org/W2160037888",
+      "doi": "https://doi.org/10.1007/11603771_53",
+      "title": "Optimistic Concurrency Control in Firm Real-Time Databases",
+      "year": 2005,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2375978871": {
+      "id": "https://openalex.org/W2375978871",
+      "doi": null,
+      "title": "New optimistic concurrency control protocol for real-time database",
+      "year": 2004,
+      "venue": "Jisuanji gongcheng"
+    },
+    "openalex:https://openalex.org/W2355488623": {
+      "id": "https://openalex.org/W2355488623",
+      "doi": null,
+      "title": "Transaction processing in mobile distributed real-time database systems",
+      "year": 2007,
+      "venue": "Journal of Central South University(Science and Technology)"
+    },
+    "openalex:https://openalex.org/W1580867976": {
+      "id": "https://openalex.org/W1580867976",
+      "doi": null,
+      "title": "A Family of Speculative Concurrency Control Algorithms for Real-Time Databases∗",
+      "year": 2007,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2379188747": {
+      "id": "https://openalex.org/W2379188747",
+      "doi": null,
+      "title": "Concurrency Control Strategy of Embedded Mobile Real-time Database",
+      "year": 2009,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2379597573": {
+      "id": "https://openalex.org/W2379597573",
+      "doi": null,
+      "title": "Real-time Transaction Processing in Mobile Distributed Database Systems",
+      "year": 2007,
+      "venue": "Jisuanji gongcheng"
+    },
+    "openalex:https://openalex.org/W1554995778": {
+      "id": "https://openalex.org/W1554995778",
+      "doi": null,
+      "title": "Combined Locking Approach for Scheduling Hard Real-Time Transactions in Real-Time Databases.",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2054131432": {
+      "id": "https://openalex.org/W2054131432",
+      "doi": "https://doi.org/10.1007/bf02242735",
+      "title": "A class of high performance Maekawa-type algorithms for distributed systems under heavy demand",
+      "year": 1995,
+      "venue": "Distributed Computing"
+    },
+    "openalex:https://openalex.org/W130502531": {
+      "id": "https://openalex.org/W130502531",
+      "doi": null,
+      "title": "Optimistic Concurrency Control Using Time-stamp Ordering in Mobile Databases",
+      "year": 2006,
+      "venue": "Journal of Internet Computing and services"
+    },
+    "openalex:https://openalex.org/W2081265490": {
+      "id": "https://openalex.org/W2081265490",
+      "doi": "https://doi.org/10.3745/kipstd.2002.9d.2.185",
+      "title": "Optimistic Concurrency Control with Update Transaction First for Broadcast Environment : OCC/UTF",
+      "year": 2002,
+      "venue": "The KIPS Transactions PartD"
+    },
+    "openalex:https://openalex.org/W2547283679": {
+      "id": "https://openalex.org/W2547283679",
+      "doi": "https://doi.org/10.5121/ijdms.2016.8501",
+      "title": "A Prudent-Precedence Concurrency Control Protocol for High Data Contention Database Enviornments",
+      "year": 2016,
+      "venue": "International Journal of Database Management Systems"
+    },
+    "openalex:https://openalex.org/W2377879823": {
+      "id": "https://openalex.org/W2377879823",
+      "doi": null,
+      "title": "Research of Concurrency Control Protocol for Real-Time Nested Transactions in Mobile Computing Environments",
+      "year": 2007,
+      "venue": "Mini-micro Systems"
+    },
+    "openalex:https://openalex.org/W3107888082": {
+      "id": "https://openalex.org/W3107888082",
+      "doi": "https://doi.org/10.1371/journal.pone.0243173",
+      "title": "Agent-based simulation for reconstructing social structure by observing collective movements with special reference to single-file movement",
+      "year": 2020,
+      "venue": "PLoS ONE"
+    },
+    "openalex:https://openalex.org/W4243564818": {
+      "id": "https://openalex.org/W4243564818",
+      "doi": "https://doi.org/10.1145/3296957.3173192",
+      "title": "SOFRITAS",
+      "year": 2018,
+      "venue": "ACM SIGPLAN Notices"
+    },
+    "openalex:https://openalex.org/W2348124185": {
+      "id": "https://openalex.org/W2348124185",
+      "doi": null,
+      "title": "A Fault Tolerant Transaction Management in Multidatabase Systems",
+      "year": 1994,
+      "venue": "The Transactions of the Korea Information Processing Society"
+    },
+    "openalex:https://openalex.org/W2901607274": {
+      "id": "https://openalex.org/W2901607274",
+      "doi": null,
+      "title": "A FAMILY OF HIERARCHICAL CONCURRENCY CONTROL PROTOCOLS",
+      "year": 2018,
+      "venue": "OpenSIUC (Southern Illinois University Carbondale)"
+    },
+    "openalex:https://openalex.org/W1570537129": {
+      "id": "https://openalex.org/W1570537129",
+      "doi": null,
+      "title": "Real-Time Multiversion Concurrency Control Using Precedence Relationship",
+      "year": 1995,
+      "venue": "Database Systems for Advanced Applications"
+    },
+    "openalex:https://openalex.org/W2905311136": {
+      "id": "https://openalex.org/W2905311136",
+      "doi": "https://doi.org/10.1007/978-3-030-05998-9_10",
+      "title": "Classes of Arbitrary Kind",
+      "year": 2018,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W2350454553": {
+      "id": "https://openalex.org/W2350454553",
+      "doi": null,
+      "title": "Research of Concurrency Control Protocol in Mobile Computing Environments",
+      "year": 2005,
+      "venue": "Jisuanji gongcheng"
+    },
+    "openalex:https://openalex.org/W2050420169": {
+      "id": "https://openalex.org/W2050420169",
+      "doi": "https://doi.org/10.1016/s1383-7621(97)00005-2",
+      "title": "A real-time concurrency control algorithm: Use of multiversion and precedence relationships",
+      "year": 1997,
+      "venue": "Journal of Systems Architecture"
+    },
+    "openalex:https://openalex.org/W2402025198": {
+      "id": "https://openalex.org/W2402025198",
+      "doi": null,
+      "title": "A Real-Time Multiversion Concurrency Control Scheme with Precedence elationship",
+      "year": 1997,
+      "venue": "Jeongbo gwahaghoe nonmunji. so'peuteuweeo mich eung'yong"
+    },
+    "openalex:https://openalex.org/W2388763418": {
+      "id": "https://openalex.org/W2388763418",
+      "doi": null,
+      "title": "Two-Stage Real-Time Transaction Processing in Mobile Broadcast Environments",
+      "year": 2008,
+      "venue": "Jisuanji fangzhen"
+    },
+    "openalex:https://openalex.org/W2053471922": {
+      "id": "https://openalex.org/W2053471922",
+      "doi": "https://doi.org/10.1109/bigdata.2014.7004206",
+      "title": "BASIC: An alternative to BASE for large-scale data management system",
+      "year": 2014,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2349790884": {
+      "id": "https://openalex.org/W2349790884",
+      "doi": null,
+      "title": "Research on performance of real-time transaction processing in mobile broadcast environments",
+      "year": 2007,
+      "venue": "Computer Engineering and Applications Journal"
+    },
+    "openalex:https://openalex.org/W2374998066": {
+      "id": "https://openalex.org/W2374998066",
+      "doi": null,
+      "title": "Efficient real-time processing for read-only transaction in mobile broadcast environments",
+      "year": 2007,
+      "venue": "Journal of Computer Applications"
+    },
+    "openalex:https://openalex.org/W193935917": {
+      "id": "https://openalex.org/W193935917",
+      "doi": null,
+      "title": "Efficient Concurrency Control for Libraries of Typed Objects",
+      "year": 1986,
+      "venue": "eCommons (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2350669281": {
+      "id": "https://openalex.org/W2350669281",
+      "doi": null,
+      "title": "Distributed Real-time Concurrency Control Protocol Based on Time Interval",
+      "year": 2011,
+      "venue": "Jisuanji gongcheng"
+    },
+    "openalex:https://openalex.org/W7164896787": {
+      "id": "https://openalex.org/W7164896787",
+      "doi": "https://doi.org/10.48550/arxiv.2606.15376",
+      "title": "CoAgent: Concurrency Control for Multi-Agent Systems",
+      "year": 2026,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W2154804789": {
+      "id": "https://openalex.org/W2154804789",
+      "doi": "https://doi.org/10.1007/3-540-63792-3_13",
+      "title": "Exploiting semantic of typed objects under an optimistic control in the transactional deferred update model: A promising approach",
+      "year": 1997,
+      "venue": "Lecture notes in computer science"
+    },
+    "openalex:https://openalex.org/W4288637309": {
+      "id": "https://openalex.org/W4288637309",
+      "doi": "https://doi.org/10.48550/arxiv.1901.03772",
+      "title": "SSS: Scalable Key-Value Store with External Consistent and Abort-free\\n Read-only Transactions",
+      "year": 2019,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W7135028353": {
+      "id": "https://openalex.org/W7135028353",
+      "doi": "https://doi.org/10.1145/3797871",
+      "title": "Bringing Order to Practical Validation of Database Isolation Levels",
+      "year": 2026,
+      "venue": "ACM Transactions on Computer Systems"
+    },
+    "openalex:https://openalex.org/W4244082722": {
+      "id": "https://openalex.org/W4244082722",
+      "doi": "https://doi.org/10.1145/67387.67436",
+      "title": "Two models of concurrent objects",
+      "year": 1988,
+      "venue": "ACM SIGPLAN Notices"
+    },
+    "openalex:https://openalex.org/W3013630513": {
+      "id": "https://openalex.org/W3013630513",
+      "doi": "https://doi.org/10.1101/2020.03.25.007500",
+      "title": "Agent-based simulation for reconstructing social structure by observing collective movements with special reference to single-file movement",
+      "year": 2020,
+      "venue": "bioRxiv (Cold Spring Harbor Laboratory)"
+    },
+    "openalex:https://openalex.org/W4415985562": {
+      "id": "https://openalex.org/W4415985562",
+      "doi": "https://doi.org/10.21203/rs.3.rs-7288034/v1",
+      "title": "GraphSOS: Graph Sampling and Order Selection to Help LLMs Understand Graphs Better",
+      "year": 2025,
+      "venue": "Research Square"
+    },
+    "openalex:https://openalex.org/W2801064489": {
+      "id": "https://openalex.org/W2801064489",
+      "doi": "https://doi.org/10.7939/r38911z75",
+      "title": "Staged Grid NewSQL Database System for OLTP and Big Data Applications",
+      "year": 2016,
+      "venue": "ERA: Education and Research Archive (University of Alberta)"
+    },
+    "openalex:https://openalex.org/W4247661662": {
+      "id": "https://openalex.org/W4247661662",
+      "doi": "https://doi.org/10.1016/s0164-1212(04)00192-x",
+      "title": "Contents",
+      "year": 2004,
+      "venue": "Journal of Systems and Software"
+    },
+    "openalex:https://openalex.org/W2348443056": {
+      "id": "https://openalex.org/W2348443056",
+      "doi": null,
+      "title": "The method for data-copy consistent in DDBS",
+      "year": 2005,
+      "venue": "Applied science and technology"
+    },
+    "openalex:https://openalex.org/W4235373374": {
+      "id": "https://openalex.org/W4235373374",
+      "doi": "https://doi.org/10.1016/b978-0-444-70409-2.50012-5",
+      "title": "Timestamp Ordering Method",
+      "year": 1988,
+      "venue": "Studies in computer science and artificial intelligence"
+    },
+    "openalex:https://openalex.org/W2596483311": {
+      "id": "https://openalex.org/W2596483311",
+      "doi": null,
+      "title": "Validation of Graded Math List for Children with Learning Disabilities",
+      "year": 2014,
+      "venue": "Journal of the Indian Academy of Applied Psychology"
+    },
+    "openalex:https://openalex.org/W4393323456": {
+      "id": "https://openalex.org/W4393323456",
+      "doi": "https://doi.org/10.21655/ijsi.1673-7288.00322",
+      "title": "Multimodal Data Encoding and Compression in Apache IoTDB",
+      "year": 2024,
+      "venue": "International Journal of Software and Informatics"
+    },
+    "openalex:https://openalex.org/W4231846816": {
+      "id": "https://openalex.org/W4231846816",
+      "doi": "https://doi.org/10.21236/ada278201",
+      "title": "The Starlite Project - Prototyping Real-Time Software.",
+      "year": 1994,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2123554556": {
+      "id": "https://openalex.org/W2123554556",
+      "doi": "https://doi.org/10.1109/iske.2008.4731141",
+      "title": "Research on timestamp in HDDBMS",
+      "year": 2008,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4254752718": {
+      "id": "https://openalex.org/W4254752718",
+      "doi": "https://doi.org/10.1007/bf00355300",
+      "title": "Erratum",
+      "year": 1992,
+      "venue": "Real-Time Systems"
+    },
+    "openalex:https://openalex.org/W2203012675": {
+      "id": "https://openalex.org/W2203012675",
+      "doi": "https://doi.org/10.1007/978-3-642-35864-7_74",
+      "title": "Cache Oblivious B-tree and Sorting Using Sequential Accessing",
+      "year": 2013,
+      "venue": "Communications in computer and information science"
+    },
+    "openalex:https://openalex.org/W2157551386": {
+      "id": "https://openalex.org/W2157551386",
+      "doi": "https://doi.org/10.1109/cmpsac.1992.217573",
+      "title": "Highly available atomic objects",
+      "year": 2003,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W2261846664": {
+      "id": "https://openalex.org/W2261846664",
+      "doi": null,
+      "title": "중복 다단계 보안 데이타베이스 시스템에서 타임스탬프 순서화를 기반으로 상향적 일치성을 보장하는 병행수행 제어 방법",
+      "year": 1997,
+      "venue": "한국정보과학회 학술발표논문집"
+    },
+    "openalex:https://openalex.org/W7162987711": {
+      "id": "https://openalex.org/W7162987711",
+      "doi": "https://doi.org/10.48550/arxiv.2605.30972",
+      "title": "BiSegMamba: Efficient Bidirectional Tri-Oriented Mamba for 3D Medical Image Segmentation",
+      "year": 2026,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W4250568605": {
+      "id": "https://openalex.org/W4250568605",
+      "doi": "https://doi.org/10.1016/b978-0-444-70409-2.50017-4",
+      "title": "Multiversion Timestamp Ordering Method",
+      "year": 1988,
+      "venue": "Studies in computer science and artificial intelligence"
+    },
+    "openalex:https://openalex.org/W7213662685": {
+      "id": "https://openalex.org/W7213662685",
+      "doi": "https://doi.org/10.5281/zenodo.22844345",
+      "title": "dkpro-cassis",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W4407273810": {
+      "id": "https://openalex.org/W4407273810",
+      "doi": "https://doi.org/10.12794/metadc1538655",
+      "title": "A Behavioral Analysis of the Stroop Effect",
+      "year": 2019,
+      "venue": null
+    },
+    "openalex:https://openalex.org/W4413968267": {
+      "id": "https://openalex.org/W4413968267",
+      "doi": "https://doi.org/10.14778/3746405.3746437",
+      "title": "ArrayMorph: Optimizing Hyperslab Queries on the Cloud for Machine Learning Pipelines",
+      "year": 2025,
+      "venue": "Proceedings of the VLDB Endowment"
+    },
+    "openalex:https://openalex.org/W4406840994": {
+      "id": "https://openalex.org/W4406840994",
+      "doi": "https://doi.org/10.48550/arxiv.2501.14427",
+      "title": "GraphSOS: Graph Sampling and Order Selection to Help LLMs Understand Graphs Better",
+      "year": 2025,
+      "venue": "arXiv (Cornell University)"
+    },
+    "openalex:https://openalex.org/W7167225715": {
+      "id": "https://openalex.org/W7167225715",
+      "doi": "https://doi.org/10.3390/telecom7040086",
+      "title": "IoT Monitoring Framework with Physics-Based Energy Loss Modeling for Smart Microgrids: Architecture and Benchmarks",
+      "year": 2026,
+      "venue": "Telecom"
+    },
+    "openalex:https://openalex.org/W7160311911": {
+      "id": "https://openalex.org/W7160311911",
+      "doi": "https://doi.org/10.20944/preprints202605.0016.v1",
+      "title": "Open-Source IoT Monitoring Framework with Physics-Based Energy Loss Modeling for Smart Microgrids: Architecture and Benchmarks",
+      "year": 2026,
+      "venue": "Preprints.org"
+    },
+    "openalex:https://openalex.org/W7170967484": {
+      "id": "https://openalex.org/W7170967484",
+      "doi": "https://doi.org/10.1109/tip.2026.3714851",
+      "title": "Multi-View Single-Scan Visual State-Space Network for Efficient Image Super-Resolution",
+      "year": 2026,
+      "venue": "IEEE Transactions on Image Processing"
+    },
+    "openalex:https://openalex.org/W7212321692": {
+      "id": "https://openalex.org/W7212321692",
+      "doi": "https://doi.org/10.5281/zenodo.22712567",
+      "title": "pydap/pydap: v3.5.11",
+      "year": 2026,
+      "venue": "Zenodo (CERN European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7171794867": {
+      "id": "https://openalex.org/W7171794867",
+      "doi": "https://doi.org/10.1016/j.eswa.2026.133829",
+      "title": "Autoregressive pre-training for heterogeneous mmWave radar perception using Mamba",
+      "year": 2026,
+      "venue": "Expert Systems with Applications"
+    },
+    "openalex:https://openalex.org/W2948197446": {
+      "id": "https://openalex.org/W2948197446",
+      "doi": null,
+      "title": "Data Management Solutions for Tackling Big Data Variety",
+      "year": 2018,
+      "venue": "eScholarship (California Digital Library)"
+    },
+    "openalex:https://openalex.org/W2806581568": {
+      "id": "https://openalex.org/W2806581568",
+      "doi": "https://doi.org/10.1007/978-981-10-8657-1_48",
+      "title": "Dynamic Processing and Analysis of Continuous Streaming Stock Market Data Using MBCQ Tree Approach",
+      "year": 2018,
+      "venue": "Communications in computer and information science"
+    },
+    "openalex:https://openalex.org/W589814810": {
+      "id": "https://openalex.org/W589814810",
+      "doi": null,
+      "title": "Oracle SQL by Example",
+      "year": 2004,
+      "venue": "CERN Document Server (European Organization for Nuclear Research)"
+    },
+    "openalex:https://openalex.org/W7135004135": {
+      "id": "https://openalex.org/W7135004135",
+      "doi": null,
+      "title": "Laajojen kielimallien käyttö kontekstilla avustettuna teollisuusjärjestelmissä",
+      "year": 2026,
+      "venue": "Aaltodoc (Aalto University)"
+    },
+    "openalex:https://openalex.org/W207326370": {
+      "id": "https://openalex.org/W207326370",
+      "doi": null,
+      "title": "Oracle SQL by Example, Third Edition",
+      "year": 2004,
+      "venue": "Prentice Hall PTR eBooks"
+    },
+    "arxiv:http://arxiv.org/abs/1305.6624v1": {
+      "id": "http://arxiv.org/abs/1305.6624v1",
+      "doi": null,
+      "title": "A TimeStamp based Multi-version STM Protocol that satisfies Opacity and Multi-Version Permissiveness",
+      "year": "2013",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2606.27250v1": {
+      "id": "http://arxiv.org/abs/2606.27250v1",
+      "doi": null,
+      "title": "Tilikum: Transaction Fair Ordering on a DAG without Weak Edges",
+      "year": "2026",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1201.0228v1": {
+      "id": "http://arxiv.org/abs/1201.0228v1",
+      "doi": null,
+      "title": "High-Performance Concurrency Control Mechanisms for Main-Memory Databases",
+      "year": "2011",
+      "venue": "Proceedings of the VLDB Endowment (PVLDB), Vol. 5, No. 4, pp. 298-309 (2011)"
+    },
+    "arxiv:http://arxiv.org/abs/1603.00542v1": {
+      "id": "http://arxiv.org/abs/1603.00542v1",
+      "doi": null,
+      "title": "Repairing Conflicts among MVCC Transactions",
+      "year": "2016",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2009.11558v2": {
+      "id": "http://arxiv.org/abs/2009.11558v2",
+      "doi": null,
+      "title": "An Analysis of Concurrency Control Protocols for In-Memory Databases with CCBench (Extended Version)",
+      "year": "2020",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2511.22956v1": {
+      "id": "http://arxiv.org/abs/2511.22956v1",
+      "doi": null,
+      "title": "Extended Serial Safety Net: A Refined Serializability Criterion for Multiversion Concurrency Control",
+      "year": "2025",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1709.01033v5": {
+      "id": "http://arxiv.org/abs/1709.01033v5",
+      "doi": null,
+      "title": "Achieving Starvation-Freedom in Multi-Version Transactional Memory Systems",
+      "year": "2017",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1712.09803v6": {
+      "id": "http://arxiv.org/abs/1712.09803v6",
+      "doi": null,
+      "title": "An Innovative Approach to Achieve Compositionality Efficiently using Multi-Version Object Based Transactional Systems",
+      "year": "2017",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1803.08617v3": {
+      "id": "http://arxiv.org/abs/1803.08617v3",
+      "doi": "10.1145/3323165.3323185",
+      "title": "Multiversion Concurrency with Bounded Delay and Precise Garbage Collection",
+      "year": "2018",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2108.02775v3": {
+      "id": "http://arxiv.org/abs/2108.02775v3",
+      "doi": "10.4230/LIPIcs.DISC.2021.12",
+      "title": "Space and Time Bounded Multiversion Garbage Collection",
+      "year": "2021",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2206.05821v1": {
+      "id": "http://arxiv.org/abs/2206.05821v1",
+      "doi": null,
+      "title": "RSSD: Defend against Ransomware with Hardware-Isolated Network-Storage Codesign and Post-Attack Analysis",
+      "year": "2022",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2210.17086v1": {
+      "id": "http://arxiv.org/abs/2210.17086v1",
+      "doi": null,
+      "title": "EEMARQ: Efficient Lock-Free Range Queries with Memory Reclamation",
+      "year": "2022",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2212.13557v2": {
+      "id": "http://arxiv.org/abs/2212.13557v2",
+      "doi": null,
+      "title": "Practically and Theoretically Efficient Garbage Collection for Multiversioning",
+      "year": "2022",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2411.10005v1": {
+      "id": "http://arxiv.org/abs/2411.10005v1",
+      "doi": null,
+      "title": "Analyzing Performance Characteristics of PostgreSQL and MariaDB on NVMeVirt",
+      "year": "2024",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2606.09133v1": {
+      "id": "http://arxiv.org/abs/2606.09133v1",
+      "doi": null,
+      "title": "Multiversion Concurrency Control for Multiversion B-Trees",
+      "year": "2026",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1910.08023v1": {
+      "id": "http://arxiv.org/abs/1910.08023v1",
+      "doi": null,
+      "title": "MV-PBT: Multi-Version Index for Large Datasets and HTAP Workloads",
+      "year": "2019",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1805.04463v1": {
+      "id": "http://arxiv.org/abs/1805.04463v1",
+      "doi": null,
+      "title": "High Performance Algorithms for Quantum Gravity and Cosmology",
+      "year": "2018",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1106.5256v1": {
+      "id": "http://arxiv.org/abs/1106.5256v1",
+      "doi": "10.1613/jair.1146",
+      "title": "Structure and Complexity in Planning with Unary Operators",
+      "year": "2011",
+      "venue": "Journal Of Artificial Intelligence Research, Volume 18, pages 315-349, 2003"
+    },
+    "arxiv:http://arxiv.org/abs/1611.05557v1": {
+      "id": "http://arxiv.org/abs/1611.05557v1",
+      "doi": "10.5121/ijdms.2016.8501",
+      "title": "A Prudent-Precedence Concurrency Control Protocol for High Data Contention Database Enviornments",
+      "year": "2016",
+      "venue": "International Journal of Database Management Systems (IJDMS), 8(5), 1-14 (2016)"
+    },
+    "arxiv:http://arxiv.org/abs/1612.07702v1": {
+      "id": "http://arxiv.org/abs/1612.07702v1",
+      "doi": "10.1145/3017993",
+      "title": "Pot: Deterministic transactional execution",
+      "year": "2016",
+      "venue": "ACM Trans. Archit. Code Optim. 13, 4, Article 52 (December 2016)"
+    },
+    "arxiv:http://arxiv.org/abs/1901.03772v1": {
+      "id": "http://arxiv.org/abs/1901.03772v1",
+      "doi": null,
+      "title": "SSS: Scalable Key-Value Store with External Consistent and Abort-free Read-only Transactions",
+      "year": "2019",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1901.06491v1": {
+      "id": "http://arxiv.org/abs/1901.06491v1",
+      "doi": null,
+      "title": "Guaranteeing Recoverability via Partially Constrained Transaction Logs",
+      "year": "2019",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/1907.00736v2": {
+      "id": "http://arxiv.org/abs/1907.00736v2",
+      "doi": null,
+      "title": "TRIDENT: A load-balancing Clos-network Packet Switch with Queues between Input and Central Stages and In-Order Forwarding",
+      "year": "2019",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2606.15376v1": {
+      "id": "http://arxiv.org/abs/2606.15376v1",
+      "doi": null,
+      "title": "CoAgent: Concurrency Control for Multi-Agent Systems",
+      "year": "2026",
+      "venue": null
+    },
+    "arxiv:http://arxiv.org/abs/2609.20261v1": {
+      "id": "http://arxiv.org/abs/2609.20261v1",
+      "doi": null,
+      "title": "When AI Agents Commit: Cognitive Serializability Across Data, Evidence, Policy, and Authority",
+      "year": "2026",
+      "venue": null
+    },
+    "dblp:conf/date/LamWCHHPZ14": {
+      "id": "conf/date/LamWCHHPZ14",
+      "doi": "https://doi.org/10.7873/DATE.2014.070",
+      "title": "Garbage collection for multi-version index on flash memory.",
+      "year": "2014",
+      "venue": "DATE"
+    },
+    "dblp:conf/sigmod/LeeSPKNCSH16": {
+      "id": "conf/sigmod/LeeSPKNCSH16",
+      "doi": "https://doi.org/10.1145/2882903.2903734",
+      "title": "Hybrid Garbage Collection for Multi-Version Concurrency Control in SAP HANA.",
+      "year": "2016",
+      "venue": "SIGMOD Conference"
+    },
+    "dblp:conf/spaa/Ben-DavidB0W19": {
+      "id": "conf/spaa/Ben-DavidB0W19",
+      "doi": "https://doi.org/10.1145/3323165.3323185",
+      "title": "Multiversion Concurrency with Bounded Delay and Precise Garbage Collection.",
+      "year": "2019",
+      "venue": "SPAA"
+    },
+    "dblp:conf/wdag/Ben-DavidBFRSW21": {
+      "id": "conf/wdag/Ben-DavidBFRSW21",
+      "doi": "https://doi.org/10.4230/LIPIcs.DISC.2021.12",
+      "title": "Space and Time Bounded Multiversion Garbage Collection.",
+      "year": "2021",
+      "venue": "DISC"
+    },
+    "dblp:conf/ppopp/WeiBFR23": {
+      "id": "conf/ppopp/WeiBFR23",
+      "doi": "https://doi.org/10.1145/3572848.3577508",
+      "title": "Practically and Theoretically Efficient Garbage Collection for Multiversioning.",
+      "year": "2023",
+      "venue": "PPoPP"
+    },
+    "dblp:journals/pvldb/BottcherL0K19": {
+      "id": "journals/pvldb/BottcherL0K19",
+      "doi": "https://doi.org/10.14778/3364324.3364328",
+      "title": "Scalable Garbage Collection for In-Memory MVCC Systems.",
+      "year": "2019",
+      "venue": "Proc. VLDB Endow."
+    },
+    "dblp:journals/todaes/HuangCLWH14": {
+      "id": "journals/todaes/HuangCLWH14",
+      "doi": "https://doi.org/10.1145/2611757",
+      "title": "Garbage Collection for Multiversion Index in Flash-Based Embedded Databases.",
+      "year": "2014",
+      "venue": "ACM Trans. Design Autom. Electr. Syst."
+    },
+    "dblp:journals/jsa/LamZCHHPW14": {
+      "id": "journals/jsa/LamZCHHPW14",
+      "doi": "https://doi.org/10.1016/j.sysarc.2014.06.004",
+      "title": "Garbage collection of multi-version indexed data on flash memory.",
+      "year": "2014",
+      "venue": "J. Syst. Archit."
+    },
+    "dblp:journals/corr/abs-2108-02775": {
+      "id": "journals/corr/abs-2108-02775",
+      "doi": null,
+      "title": "Space and Time Bounded Multiversion Garbage Collection.",
+      "year": "2021",
+      "venue": "CoRR"
+    },
+    "dblp:journals/corr/abs-2212-13557": {
+      "id": "journals/corr/abs-2212-13557",
+      "doi": "https://doi.org/10.48550/arXiv.2212.13557",
+      "title": "Practically and Theoretically Efficient Garbage Collection for Multiversioning.",
+      "year": "2022",
+      "venue": "CoRR"
+    },
+    "dblp:phd/basesearch/Jin17a": {
+      "id": "phd/basesearch/Jin17a",
+      "doi": null,
+      "title": "Multi-Version Search and Cache-Conscious Ranking Optimization.",
+      "year": "2017",
+      "venue": null
+    },
+    "dblp:conf/rtcsa/LindstromR99": {
+      "id": "conf/rtcsa/LindstromR99",
+      "doi": "https://doi.org/10.1109/RTCSA.1999.811188",
+      "title": "Dynamic Adjustment of Serialization Order Using Timestamp Intervals in Real-Time Databases.",
+      "year": "1999",
+      "venue": "RTCSA"
+    },
+    "dblp:conf/IEEEcloud/AroraBMAAXZZ18": {
+      "id": "conf/IEEEcloud/AroraBMAAXZZ18",
+      "doi": "https://doi.org/10.1109/CLOUD.2018.00041",
+      "title": "Dynamic Timestamp Allocation for Reducing Transaction Aborts.",
+      "year": "2018",
+      "venue": "IEEE CLOUD"
+    },
+    "dblp:conf/rtas/LamLH95": {
+      "id": "conf/rtas/LamLH95",
+      "doi": "https://doi.org/10.1109/RTTAS.1995.516214",
+      "title": "Real-time optimistic concurrency control protocol with dynamic adjustment of serialization order.",
+      "year": "1995",
+      "venue": "IEEE Real Time Technology and Applications Symposium"
+    },
+    "dblp:conf/icde/DaudjeeS06": {
+      "id": "conf/icde/DaudjeeS06",
+      "doi": "https://doi.org/10.1109/ICDE.2006.82",
+      "title": "Inferring a Serialization Order for Distributed Transactions.",
+      "year": "2006",
+      "venue": "ICDE"
+    },
+    "dblp:conf/icde/LometFWW12": {
+      "id": "conf/icde/LometFWW12",
+      "doi": "https://doi.org/10.1109/ICDE.2012.10",
+      "title": "Multi-version Concurrency via Timestamp Range Conflict Management.",
+      "year": "2012",
+      "venue": "ICDE"
+    },
+    "dblp:conf/rtss/LeeS93": {
+      "id": "conf/rtss/LeeS93",
+      "doi": "https://doi.org/10.1109/REAL.1993.393514",
+      "title": "Using Dynamic Adjustment of Serialization Order for Real-Time Database Systems.",
+      "year": "1993",
+      "venue": "RTSS"
+    },
+    "dblp:conf/rtss/LinS90": {
+      "id": "conf/rtss/LinS90",
+      "doi": "https://doi.org/10.1109/REAL.1990.128735",
+      "title": "Concurrency Control in Real-Time Databases by Dynamic Adjustment of Serialization Order.",
+      "year": "1990",
+      "venue": "RTSS"
+    },
+    "dblp:conf/rtdb/YoonP97": {
+      "id": "conf/rtdb/YoonP97",
+      "doi": null,
+      "title": "Enhancement of Alternative Version Concurrency Control Using Dynamic Adjustment of Serialization Order.",
+      "year": "1997",
+      "venue": "RTDB"
+    },
+    "dblp:conf/adbis/LeeH02": {
+      "id": "conf/adbis/LeeH02",
+      "doi": "https://doi.org/10.1007/3-540-45710-0_10",
+      "title": "Optimistic Concurrency Control Based on Timestamp Interval for Broadcast Environment.",
+      "year": "2002",
+      "venue": "ADBIS"
+    },
+    "dblp:conf/ddb/BayerEHR82": {
+      "id": "conf/ddb/BayerEHR82",
+      "doi": null,
+      "title": "Dynamic Timestamp Allocation for Transactions in Database Systems.",
+      "year": "1982",
+      "venue": "DDB"
+    },
+    "dblp:journals/ipl/KonanaLR97": {
+      "id": "journals/ipl/KonanaLR97",
+      "doi": "https://doi.org/10.1016/S0020-0190(97)00121-X",
+      "title": "Updating Timestamp Interval for Dynamic Adjustment of Serialization Order in Optimistic Concurrency Control-Time Interval (OCCTI) Protocol.",
+      "year": "1997",
+      "venue": "Inf. Process. Lett."
+    },
+    "dblp:journals/is/ONeilO16": {
+      "id": "journals/is/ONeilO16",
+      "doi": "https://doi.org/10.1016/j.is.2016.02.001",
+      "title": "Determining serialization order for serializable snapshot isolation.",
+      "year": "2016",
+      "venue": "Inf. Syst."
+    },
+    "dblp:journals/rts/SonLL92": {
+      "id": "journals/rts/SonLL92",
+      "doi": "https://doi.org/10.1007/BF00365314",
+      "title": "Hybrid Protocols Using Dynamic Adjustment of serialization Order for Real-Time Concurrency Control.",
+      "year": "1992",
+      "venue": "Real Time Syst."
+    }
+  },
+  "positive_controls": [
+    {
+      "control": "Lomet ほか 2012 \"Multi-version Concurrency via Timestamp Range Conflict Management\"",
+      "index": "OpenAlex",
+      "queries": [
+        "N10"
+      ],
+      "found_ids": [
+        "https://openalex.org/W1987844293"
+      ]
+    },
+    {
+      "control": "Lomet ほか 2012 \"Multi-version Concurrency via Timestamp Range Conflict Management\"",
+      "index": "DBLP",
+      "queries": [
+        "N10"
+      ],
+      "found_ids": [
+        "conf/icde/LometFWW12"
+      ]
+    },
+    {
+      "control": "Böttcher ほか 2019 Steam \"Scalable Garbage Collection for In-Memory MVCC Systems\"",
+      "index": "OpenAlex",
+      "queries": [
+        "N05"
+      ],
+      "found_ids": [
+        "https://openalex.org/W2982402713"
+      ]
+    },
+    {
+      "control": "Böttcher ほか 2019 Steam \"Scalable Garbage Collection for In-Memory MVCC Systems\"",
+      "index": "DBLP",
+      "queries": [
+        "N05"
+      ],
+      "found_ids": [
+        "journals/pvldb/BottcherL0K19"
+      ]
+    },
+    {
+      "control": "Lee ほか 2016 SAP HANA \"Hybrid Garbage Collection for Multi-Version Concurrency Control in SAP HANA\"",
+      "index": "OpenAlex",
+      "queries": [
+        "N05"
+      ],
+      "found_ids": [
+        "https://openalex.org/W2441046553"
+      ]
+    },
+    {
+      "control": "Lee ほか 2016 SAP HANA \"Hybrid Garbage Collection for Multi-Version Concurrency Control in SAP HANA\"",
+      "index": "DBLP",
+      "queries": [
+        "N05"
+      ],
+      "found_ids": [
+        "conf/sigmod/LeeSPKNCSH16"
+      ]
+    },
+    {
+      "control": "Bayer ほか 1982 \"Dynamic Timestamp Allocation for Transactions in Database Systems\"",
+      "index": "OpenAlex",
+      "queries": [
+        "N10"
+      ],
+      "found_ids": [
+        "https://openalex.org/W65972224"
+      ]
+    },
+    {
+      "control": "Bayer ほか 1982 \"Dynamic Timestamp Allocation for Transactions in Database Systems\"",
+      "index": "DBLP",
+      "queries": [
+        "N10"
+      ],
+      "found_ids": [
+        "conf/ddb/BayerEHR82"
+      ]
+    },
+    {
+      "control": "Konana ほか 1997 OCC-TI \"Updating timestamp interval for dynamic adjustment of serialization order ...\"",
+      "index": "OpenAlex",
+      "queries": [
+        "N10"
+      ],
+      "found_ids": [
+        "https://openalex.org/W2069413900"
+      ]
+    },
+    {
+      "control": "Konana ほか 1997 OCC-TI \"Updating timestamp interval for dynamic adjustment of serialization order ...\"",
+      "index": "DBLP",
+      "queries": [
+        "N10"
+      ],
+      "found_ids": [
+        "journals/ipl/KonanaLR97"
+      ]
+    },
+    {
+      "control": "Kim ほか 2020 vDriver \"Long-lived Transactions Made Less Harmful\"",
+      "index": "OpenAlex",
+      "queries": [
+        "N03"
+      ],
+      "found_ids": [
+        "https://openalex.org/W3032843849"
+      ]
+    },
+    {
+      "control": "Tanabe ほか Shirakami (arXiv 2303.18142)",
+      "index": "arXiv",
+      "queries": [
+        "N03",
+        "N10"
+      ],
+      "found_ids": []
+    }
+  ]
+}

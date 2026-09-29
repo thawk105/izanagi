@@ -1,0 +1,653 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............................                                             [100%]\n28 passed in 8.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "1a201d683178b3dee7a051c399bcb71c84a2b211c0bd744fd10f1a682871d9ab"
+    },
+    "artifact_error": null,
+    "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+    "duration_s": 9.543,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "42ea7a02976c1d655609a7fb99555a063a8eb13697ad04d72d2ba4ef643fa90f",
+    "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+    "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+    "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+    "status": "PASSED",
+    "test_output_sha256": "1a201d683178b3dee7a051c399bcb71c84a2b211c0bd744fd10f1a682871d9ab",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+  },
+  "date": "2026-09-29T02:58:07.239297+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............FF........F.F.F.                                             [100%]\n=================================== FAILURES ===================================\n________________ test_sound_g1_to_g6_fixed_scenarios_invariants ________________\n[gw23] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_sound_g1_to_g6_fixed_scenarios_invariants():\n        for name in (\"G1\", \"G2\", \"G3\", \"G4\", \"G5\", \"G6\"):\n            for revert in ((False, True) if name in (\"G1\", \"G3\", \"G6\") else (False,)):\n                _, result = _search(name, revert=revert)\n                assert result[\"statistics\"][\"complete\"], (name, revert)\n>               assert result[\"witness\"][\"reached\"], (name, revert)\nE               AssertionError: ('G1', False)\nE               assert False\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:187: AssertionError\n______________________ test_g1_effects_and_waiting_bounds ______________________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g1_effects_and_waiting_bounds():\n        initial, off = _search(\"G1\", pressure=\"off\")\n        _, on = _search(\"G1\")\n        assert off[\"effects\"][\"max_B\"][\"value\"] == 45\n>       assert on[\"effects\"][\"max_B\"][\"value\"] == 61\nE       assert 45 == 61\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:43: AssertionError\n__________________ test_g2_one_waiter_does_not_move_boundary ___________________\n[gw18] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g2_one_waiter_does_not_move_boundary():\n        _, result = _search(\"G2\")\n        assert danger_witness(\"G2\") is None\n>       assert result[\"witness\"][\"reached\"]\nE       assert False\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:63: AssertionError\n________________ test_g6_rollback_j3_positive_and_safe_negative ________________\n[gw21] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g6_rollback_j3_positive_and_safe_negative():\n        initial, _ = scenario(\"G6\")\n        _, unsafe = _search(\"G6\", \"UF1\")\n        steps = unsafe[\"danger\"][\"steps\"]\n        before = replay(initial, steps[:-1], pressure=\"self\")\n>       after, safe_step = next((n, x) for n, x in enabled_steps(before, pressure=\"self\")\n                                if x.thread == \"T\" and x.operation == \"pressure_fallback\")\nE       StopIteration\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:158: StopIteration\n____________ test_g3_to_g6_unsafe_faults_have_real_shortest_replays ____________\n[gw19] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():\n        for name, fault, o1, expected, version in (\n            (\"G3\", \"UG1\", False, \"J3\", \"B40\"),\n            (\"G4\", \"UG2\", False, \"J3\", \"B60\"),\n            (\"G5\", \"UG3\", True, \"J1\", \"\"),\n            (\"G6\", \"UF1\", False, \"J3\", \"B40\"),\n        ):\n            initial, result = _search(name, fault, o1=o1)\n>           assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"], name\nE           AssertionError: G6\nE           assert (False)\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:82: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\n5 failed, 23 passed in 8.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=636 retained_bytes=636 omitted_bytes=0 rendered_excerpt_bytes=667 sha256=8c72ff79cea915892d23d446f3afca0dafdc6c38c624b64d7449d84bee1583b4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():\n>         for name, fault, o1, expected, version in (\n>             (\"G3\", \"UG1\", False, \"J3\", \"B40\"),\n>             (\"G4\", \"UG2\", False, \"J3\", \"B60\"),\n>             (\"G5\", \"UG3\", True, \"J1\", \"\"),\n>             (\"G6\", \"UF1\", False, \"J3\", \"B40\"),\n>         ):\n>             initial, result = _search(name, fault, o1=o1)\n> >           assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"], name\n> E           AssertionError: G6\n> E           assert (False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:82: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=597 retained_bytes=597 omitted_bytes=0 rendered_excerpt_bytes=622 sha256=cf27bd06edd26ebe43542179813ee4ef291088e17c3ac8c263815ec1ca388c79\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_sound_g1_to_g6_fixed_scenarios_invariants():\n>         for name in (\"G1\", \"G2\", \"G3\", \"G4\", \"G5\", \"G6\"):\n>             for revert in ((False, True) if name in (\"G1\", \"G3\", \"G6\") else (False,)):\n>                 _, result = _search(name, revert=revert)\n>                 assert result[\"statistics\"][\"complete\"], (name, revert)\n> >               assert result[\"witness\"][\"reached\"], (name, revert)\n> E               AssertionError: ('G1', False)\n> E               assert False\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:187: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=563 retained_bytes=563 omitted_bytes=0 rendered_excerpt_bytes=588 sha256=c9d7411ac73939b82695398ce989386bcf8636d01ce0aa8f4fc3f7e3eebaa97d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g6_rollback_j3_positive_and_safe_negative():\n>         initial, _ = scenario(\"G6\")\n>         _, unsafe = _search(\"G6\", \"UF1\")\n>         steps = unsafe[\"danger\"][\"steps\"]\n>         before = replay(initial, steps[:-1], pressure=\"self\")\n> >       after, safe_step = next((n, x) for n, x in enabled_steps(before, pressure=\"self\")\n>                                 if x.thread == \"T\" and x.operation == \"pressure_fallback\")\n> E       StopIteration\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:158: StopIteration\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=381 retained_bytes=381 omitted_bytes=0 rendered_excerpt_bytes=402 sha256=52832094db8318259052c3864d9bcc709ccf77059731a42b13db72e8a4f5f986\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g1_effects_and_waiting_bounds():\n>         initial, off = _search(\"G1\", pressure=\"off\")\n>         _, on = _search(\"G1\")\n>         assert off[\"effects\"][\"max_B\"][\"value\"] == 45\n> >       assert on[\"effects\"][\"max_B\"][\"value\"] == 61\n> E       assert 45 == 61\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:43: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=317 retained_bytes=317 omitted_bytes=0 rendered_excerpt_bytes=336 sha256=95d84000bdcc1913b0d2efe46d14764b132c6203e338bd3e62bc5c759ea9136e\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g2_one_waiter_does_not_move_boundary():\n>         _, result = _search(\"G2\")\n>         assert danger_witness(\"G2\") is None\n> >       assert result[\"witness\"][\"reached\"]\n> E       assert False\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:63: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=2494 retained_bytes=2494 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5081 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "21f913c7c815507e5988e970ff881a7a87ac2f10377ddec6b61b6ffeb0b2bf8c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.436,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+      ],
+      "hang_risk": false,
+      "id": "mg1-no-publish",
+      "injection_diff_sha256": "58141f16666e5aa88278dae01682a87dc13270f57e5c9a39c5a0b8aa127ea012",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "61583d58d1f197acf368c932e945233b7df42755c127c0591345048c7fea70d6",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        nt = replace(t, gc_floor=t.gc_floor, phase=\"ops\",  # MG1\n",
+          "old": "        nt = replace(t, gc_floor=max(t.gc_floor, t.cand_ts) if \"UG2\" not in faults else t.gc_floor, phase=\"ops\",\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "21f913c7c815507e5988e970ff881a7a87ac2f10377ddec6b61b6ffeb0b2bf8c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F.F..                                             [100%]\n=================================== FAILURES ===================================\n________________ test_g6_rollback_j3_positive_and_safe_negative ________________\n[gw21] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g6_rollback_j3_positive_and_safe_negative():\n        initial, _ = scenario(\"G6\")\n        _, unsafe = _search(\"G6\", \"UF1\")\n        steps = unsafe[\"danger\"][\"steps\"]\n        before = replay(initial, steps[:-1], pressure=\"self\")\n>       after, safe_step = next((n, x) for n, x in enabled_steps(before, pressure=\"self\")\n                                if x.thread == \"T\" and x.operation == \"pressure_fallback\")\nE       StopIteration\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:158: StopIteration\n____________ test_g3_to_g6_unsafe_faults_have_real_shortest_replays ____________\n[gw19] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():\n        for name, fault, o1, expected, version in (\n            (\"G3\", \"UG1\", False, \"J3\", \"B40\"),\n            (\"G4\", \"UG2\", False, \"J3\", \"B60\"),\n            (\"G5\", \"UG3\", True, \"J1\", \"\"),\n            (\"G6\", \"UF1\", False, \"J3\", \"B40\"),\n        ):\n            initial, result = _search(name, fault, o1=o1)\n>           assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"], name\nE           AssertionError: G6\nE           assert (True and False)\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:82: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\n2 failed, 26 passed in 8.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=645 retained_bytes=645 omitted_bytes=0 rendered_excerpt_bytes=676 sha256=cdab9a9755e3ea2fbbf926d905306104f0782679ca4bee27c79827f309dd3975\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():\n>         for name, fault, o1, expected, version in (\n>             (\"G3\", \"UG1\", False, \"J3\", \"B40\"),\n>             (\"G4\", \"UG2\", False, \"J3\", \"B60\"),\n>             (\"G5\", \"UG3\", True, \"J1\", \"\"),\n>             (\"G6\", \"UF1\", False, \"J3\", \"B40\"),\n>         ):\n>             initial, result = _search(name, fault, o1=o1)\n> >           assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"], name\n> E           AssertionError: G6\n> E           assert (True and False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:82: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=563 retained_bytes=563 omitted_bytes=0 rendered_excerpt_bytes=588 sha256=c9d7411ac73939b82695398ce989386bcf8636d01ce0aa8f4fc3f7e3eebaa97d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g6_rollback_j3_positive_and_safe_negative():\n>         initial, _ = scenario(\"G6\")\n>         _, unsafe = _search(\"G6\", \"UF1\")\n>         steps = unsafe[\"danger\"][\"steps\"]\n>         before = replay(initial, steps[:-1], pressure=\"self\")\n> >       after, safe_step = next((n, x) for n, x in enabled_steps(before, pressure=\"self\")\n>                                 if x.thread == \"T\" and x.operation == \"pressure_fallback\")\n> E       StopIteration\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:158: StopIteration\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1208 retained_bytes=1208 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2435 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4d2195861aa4069838222eebeeb02fb7727e99eae86605132577c82409a11f6c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.774,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+      ],
+      "hang_risk": false,
+      "id": "mg2-no-rollback-judge",
+      "injection_diff_sha256": "5c75f68e461b260f8b5e87e3bb723f3cc366a8d125b93617eb2852eb94567b1b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4c7ef7798dffbabd813305bae44784e85ccce8ffc531d2b958329411e16db5f1",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/judge.py",
+          "new": "                if False and v.reclaimed and _needed_future(after, new, v):  # MG2\n",
+          "old": "                if v.reclaimed and _needed_future(after, new, v):\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "4d2195861aa4069838222eebeeb02fb7727e99eae86605132577c82409a11f6c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................F...                                             [100%]\n=================================== FAILURES ===================================\n____________ test_g3_to_g6_unsafe_faults_have_real_shortest_replays ____________\n[gw19] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():\n        for name, fault, o1, expected, version in (\n            (\"G3\", \"UG1\", False, \"J3\", \"B40\"),\n            (\"G4\", \"UG2\", False, \"J3\", \"B60\"),\n            (\"G5\", \"UG3\", True, \"J1\", \"\"),\n            (\"G6\", \"UF1\", False, \"J3\", \"B40\"),\n        ):\n            initial, result = _search(name, fault, o1=o1)\n            assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"], name\n            counter = result[\"counterexample\"]\n            assert counter and counter[\"judge\"] == expected, name\n            steps = counter[\"steps\"]\n            assert changed_step_in_trace(steps, fault), name\n            at = next(i for i, x in enumerate(steps) if x.fault == fault)\n            fault_before = replay(initial, steps[:at], \"v1\", fault, o1, \"self\")\n            fault_after = replay(initial, steps[:at + 1], \"v1\", fault, o1, \"self\")\n            old_t = next(t for t in fault_before.txns if t.id == \"T\")\n            new_t = next(t for t in fault_after.txns if t.id == \"T\")\n            if fault == \"UG1\":\n                assert steps[at].operation == \"pressure_start\"\n                assert old_t.gc_floor == old_t.cand_ts == old_t.start\n                assert new_t.gc_floor == new_t.target > old_t.gc_floor\n                assert new_t.cand_ts == old_t.start\n            elif fault == \"UG2\":\n                assert steps[at].operation == \"pressure_commit\"\n                assert old_t.gc_floor < 10**9 and new_t.gc_floor == 10**9\n            elif fault == \"UF1\":\n                assert steps[at].operation == \"pressure_fallback\"\n                assert old_t.gc_floor > old_t.start and old_t.cand_ts > old_t.start\n                assert new_t.cand_ts == old_t.start and new_t.gc_floor == old_t.gc_floor\n            else:\n                assert steps[at].operation == \"pressure_check\"\n                read = next(v for v in fault_before.versions if v.id == steps[at].version)\n                selected = visible(fault_before, read.key, old_t.target)\n>               assert selected and selected.id != read.id\nE               AssertionError: assert (Version(id='A10', key='A', wts=10, rts=10, status='COMMITTED', owner='initial', reclaimed=False) and 'A10' != 'A10')\nE                +  where 'A10' = Version(id='A10', key='A', wts=10, rts=10, status='COMMITTED', owner='initial', reclaimed=False).id\nE                +  and   'A10' = Version(id='A10', key='A', wts=10, rts=10, status='COMMITTED', owner='initial', reclaimed=False).id\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:108: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\n1 failed, 27 passed in 8.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2625 retained_bytes=2625 omitted_bytes=0 rendered_excerpt_bytes=2710 sha256=eadee75a9ceee5fd5d69c6585bf690242353c47ef8b9acbbbdb087f50f8be881\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g3_to_g6_unsafe_faults_have_real_shortest_replays():\n>         for name, fault, o1, expected, version in (\n>             (\"G3\", \"UG1\", False, \"J3\", \"B40\"),\n>             (\"G4\", \"UG2\", False, \"J3\", \"B60\"),\n>             (\"G5\", \"UG3\", True, \"J1\", \"\"),\n>             (\"G6\", \"UF1\", False, \"J3\", \"B40\"),\n>         ):\n>             initial, result = _search(name, fault, o1=o1)\n>             assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"], name\n>             counter = result[\"counterexample\"]\n>             assert counter and counter[\"judge\"] == expected, name\n>             steps = counter[\"steps\"]\n>             assert changed_step_in_trace(steps, fault), name\n>             at = next(i for i, x in enumerate(steps) if x.fault == fault)\n>             fault_before = replay(initial, steps[:at], \"v1\", fault, o1, \"self\")\n>             fault_after = replay(initial, steps[:at + 1], \"v1\", fault, o1, \"self\")\n>             old_t = next(t for t in fault_before.txns if t.id == \"T\")\n>             new_t = next(t for t in fault_after.txns if t.id == \"T\")\n>             if fault == \"UG1\":\n>                 assert steps[at].operation == \"pressure_start\"\n>                 assert old_t.gc_floor == old_t.cand_ts == old_t.start\n>                 assert new_t.gc_floor == new_t.target > old_t.gc_floor\n>                 assert new_t.cand_ts == old_t.start\n>             elif fault == \"UG2\":\n>                 assert steps[at].operation == \"pressure_commit\"\n>                 assert old_t.gc_floor < 10**9 and new_t.gc_floor == 10**9\n>             elif fault == \"UF1\":\n>                 assert steps[at].operation == \"pressure_fallback\"\n>                 assert old_t.gc_floor > old_t.start and old_t.cand_ts > old_t.start\n>                 assert new_t.cand_ts == old_t.start and new_t.gc_floor == old_t.gc_floor\n>             else:\n>                 assert steps[at].operation == \"pressure_check\"\n>                 read = next(v for v in fault_before.versions if v.id == steps[at].version)\n>                 selected = visible(fault_before, read.key, old_t.target)\n> >               assert selected and selected.id != read.id\n> E               AssertionError: assert (Version(id='A10', key='A', wts=10, rts=10, status='COMMITTED', owner='initial', reclaimed=False) and 'A10' != 'A10')\n> E                +  where 'A10' = Version(id='A10', key='A', wts=10, rts=10, status='COMMITTED', owner='initial', reclaimed=False).id\n> E                +  and   'A10' = Version(id='A10', key='A', wts=10, rts=10, status='COMMITTED', owner='initial', reclaimed=False).id\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:108: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2625 retained_bytes=2625 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3446 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f803d9963d5a44a33e55018271f64bc7e012fe67fb333e7786ae971279a91c5d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.573,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+      ],
+      "hang_risk": false,
+      "id": "mg3-no-pressure-rts",
+      "injection_diff_sha256": "fcf647333b7176432e530a25d2a7ba21c9afa878ab2883cddebd18a839d8516c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c56ee9dad06d9d6f3b205cb30c2d21a5d61d27946500017a5006aa91c396ce64",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            ns = s  # MG3\n            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, \"pressure_rts\", vid)\n",
+          "old": "            ns = _put_version(s, replace(v, rts=max(v.rts, t.target)))\n            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, \"pressure_rts\", vid)\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "f803d9963d5a44a33e55018271f64bc7e012fe67fb333e7786ae971279a91c5d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F..F.                                             [100%]\n=================================== FAILURES ===================================\n________________ test_g6_rollback_j3_positive_and_safe_negative ________________\n[gw21] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g6_rollback_j3_positive_and_safe_negative():\n        initial, _ = scenario(\"G6\")\n        _, unsafe = _search(\"G6\", \"UF1\")\n        steps = unsafe[\"danger\"][\"steps\"]\n        before = replay(initial, steps[:-1], pressure=\"self\")\n        after, safe_step = next((n, x) for n, x in enabled_steps(before, pressure=\"self\")\n                                if x.thread == \"T\" and x.operation == \"pressure_fallback\")\n        assert next(t for t in after.txns if t.id == \"T\").gc_floor > 45\n        check_timestamp_uniqueness(before)\n        check_timestamp_uniqueness(after)\n>       assert j3(before, after, safe_step) is None\nE       AssertionError: assert {'version': 'B40', 'txn': 'T', 'reason': 'rollback', 'cand_ts': 45, ...} is None\nE        +  where {'version': 'B40', 'txn': 'T', 'reason': 'rollback', 'cand_ts': 45, ...} = j3(State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...e_request=False, attempt_base=0, tried_targets=(), pressure_base_confirmed=0, pressure_base_floor=0)), k=1, gc_seen=61), State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...e_request=False, attempt_base=0, tried_targets=(), pressure_base_confirmed=0, pressure_base_floor=0)), k=1, gc_seen=61), Step(thread='T', operation='pressure_fallback', version='', fault='UF1'))\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:163: AssertionError\n________________ test_sound_g1_to_g6_fixed_scenarios_invariants ________________\n[gw23] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_sound_g1_to_g6_fixed_scenarios_invariants():\n        for name in (\"G1\", \"G2\", \"G3\", \"G4\", \"G5\", \"G6\"):\n            for revert in ((False, True) if name in (\"G1\", \"G3\", \"G6\") else (False,)):\n>               _, result = _search(name, revert=revert)\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:185: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_gc.py:30: in _search\n    result = explore(initial, \"v1\", fault, window, o1=o1, pressure=pressure,\ntools/vhash_forwarding_model/model.py:551: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A10', key='A', wts=10, rts=28, status='COMMITTED', owner='initial', reclaimed=False), Vers...request=False, attempt_base=0, tried_targets=(), pressure_base_confirmed=0, pressure_base_floor=0)), k=1, gc_seen=None)\n\n    def sound(state):\n>       assert all(t.cand_ts >= t.gc_floor for t in state.txns)\nE       assert False\nE        +  where False = all(<generator object _search.<locals>.sound.<locals>.<genexpr> at 0x153b5a8e25e0>)\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:29: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants\n2 failed, 26 passed in 8.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1517 retained_bytes=1517 omitted_bytes=0 rendered_excerpt_bytes=1552 sha256=62d5f6037c5e2fc353e326ba16fa9667bd8979adc752af1d351aaf7948d105b7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g6_rollback_j3_positive_and_safe_negative():\n>         initial, _ = scenario(\"G6\")\n>         _, unsafe = _search(\"G6\", \"UF1\")\n>         steps = unsafe[\"danger\"][\"steps\"]\n>         before = replay(initial, steps[:-1], pressure=\"self\")\n>         after, safe_step = next((n, x) for n, x in enabled_steps(before, pressure=\"self\")\n>                                 if x.thread == \"T\" and x.operation == \"pressure_fallback\")\n>         assert next(t for t in after.txns if t.id == \"T\").gc_floor > 45\n>         check_timestamp_uniqueness(before)\n>         check_timestamp_uniqueness(after)\n> >       assert j3(before, after, safe_step) is None\n> E       AssertionError: assert {'version': 'B40', 'txn': 'T', 'reason': 'rollback', 'cand_ts': 45, ...} is None\n> E        +  where {'version': 'B40', 'txn': 'T', 'reason': 'rollback', 'cand_ts': 45, ...} = j3(State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...e_request=False, attempt_base=0, tried_targets=(), pressure_base_confirmed=0, pressure_base_floor=0)), k=1, gc_seen=61), State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...e_request=False, attempt_base=0, tried_targets=(), pressure_base_confirmed=0, pressure_base_floor=0)), k=1, gc_seen=61), Step(thread='T', operation='pressure_fallback', version='', fault='UF1'))\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:163: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1294 retained_bytes=1294 omitted_bytes=0 rendered_excerpt_bytes=1341 sha256=31a454d3c593949e7ea1eeb3c99328c2a230b702b08a6345f7f39be85d84e735\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_sound_g1_to_g6_fixed_scenarios_invariants():\n>         for name in (\"G1\", \"G2\", \"G3\", \"G4\", \"G5\", \"G6\"):\n>             for revert in ((False, True) if name in (\"G1\", \"G3\", \"G6\") else (False,)):\n> >               _, result = _search(name, revert=revert)\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:185: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:30: in _search\n>     result = explore(initial, \"v1\", fault, window, o1=o1, pressure=pressure,\n> tools/vhash_forwarding_model/model.py:551: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A10', key='A', wts=10, rts=28, status='COMMITTED', owner='initial', reclaimed=False), Vers...request=False, attempt_base=0, tried_targets=(), pressure_base_confirmed=0, pressure_base_floor=0)), k=1, gc_seen=None)\n> \n>     def sound(state):\n> >       assert all(t.cand_ts >= t.gc_floor for t in state.txns)\n> E       assert False\n> E        +  where False = all(<generator object _search.<locals>.sound.<locals>.<genexpr> at 0x153b5a8e25e0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:29: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2811 retained_bytes=2811 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4062 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18ecf4bba874c1ee0439251a83be8d2582c28386f53b3f11a3d5fcd28064f6e2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.441,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+      ],
+      "hang_risk": false,
+      "id": "mg4-sound-fallback-to-start",
+      "injection_diff_sha256": "2fd1b09bcd05fd0406f1bac2cebf4d51ba515a62414f2df5189c936af26ae7fa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4964d469e1beb64cd7784f9f34061825b8f104f67a2c6da19d0dad785f7f71f0",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            base = t.start  # MG4\n",
+          "old": "            base = t.start if \"UF1\" in faults and t.gc_floor > t.start else t.attempt_base\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "18ecf4bba874c1ee0439251a83be8d2582c28386f53b3f11a3d5fcd28064f6e2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........F...................                                             [100%]\n=================================== FAILURES ===================================\n_______________ test_refs_are_counted_and_pressure_stays_in_wait _______________\n[gw22] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_refs_are_counted_and_pressure_stays_in_wait():\n        versions = (Version(\"B40\", \"B\", 40, 40), Version(\"B60\", \"B\", 60, 60))\n        t = Txn(\"T\", 45, ((\"R\", \"B\"), (\"WAIT\", \"\")), gc_floor=61,\n                refs=(\"B40\",))\n        state = State(versions, (t,))\n>       assert effect_snapshot(state)[\"reclaimable\"] == 0\nE       assert 1 == 0\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:176: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait\n1 failed, 27 passed in 8.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=475 retained_bytes=475 omitted_bytes=0 rendered_excerpt_bytes=498 sha256=fb0ea82d824b2b139d76f8663318d32074949a0409d1dd69eb5a42610b9ced08\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_refs_are_counted_and_pressure_stays_in_wait():\n>         versions = (Version(\"B40\", \"B\", 40, 40), Version(\"B60\", \"B\", 60, 60))\n>         t = Txn(\"T\", 45, ((\"R\", \"B\"), (\"WAIT\", \"\")), gc_floor=61,\n>                 refs=(\"B40\",))\n>         state = State(versions, (t,))\n> >       assert effect_snapshot(state)[\"reclaimable\"] == 0\n> E       assert 1 == 0\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:176: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=475 retained_bytes=475 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1223 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3a4a6b246690e8642a308ee8a3c02fdc3f0db5bd43388a254e697b7ca3cbdcf3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.69,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+      ],
+      "hang_risk": false,
+      "id": "mg5-reclaimable-ignores-refs",
+      "injection_diff_sha256": "174037a204ffce5d0ee55d2928699eb11c38b2a5949b6fcb2a88aa17070212c0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8fe981b7c05f0e0d2a5bd8dc01ff041dad962b1638d444f2944f64c9e6bd5699",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/gc_connection.py",
+          "new": "                 if not v.reclaimed and v.status != \"PENDING\"  # MG5\n",
+          "old": "                 if not v.reclaimed and v.status != \"PENDING\" and v.id not in refs\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "3a4a6b246690e8642a308ee8a3c02fdc3f0db5bd43388a254e697b7ca3cbdcf3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........F...........F.......                                             [100%]\n=================================== FAILURES ===================================\n_______________ test_refs_are_counted_and_pressure_stays_in_wait _______________\n[gw22] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_refs_are_counted_and_pressure_stays_in_wait():\n        versions = (Version(\"B40\", \"B\", 40, 40), Version(\"B60\", \"B\", 60, 60))\n        t = Txn(\"T\", 45, ((\"R\", \"B\"), (\"WAIT\", \"\")), gc_floor=61,\n                refs=(\"B40\",))\n        state = State(versions, (t,))\n        assert effect_snapshot(state)[\"reclaimable\"] == 0\n        assert effect_snapshot(replace(state, txns=(replace(t, refs=()),)))[\"reclaimable\"] == 1\n>       assert not any(step.operation in (\"request_pressure\", \"pressure_start\")\n                       for _, step in enabled_steps(state, pressure=\"self\"))\nE       assert not True\nE        +  where True = any(<generator object test_refs_are_counted_and_pressure_stays_in_wait.<locals>.<genexpr> at 0x145569b39a10>)\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:178: AssertionError\n______________________ test_g1_effects_and_waiting_bounds ______________________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g1_effects_and_waiting_bounds():\n        initial, off = _search(\"G1\", pressure=\"off\")\n        _, on = _search(\"G1\")\n        assert off[\"effects\"][\"max_B\"][\"value\"] == 45\n>       assert on[\"effects\"][\"max_B\"][\"value\"] == 61\nE       assert 63 == 61\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:43: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\n2 failed, 26 passed in 559.76s (0:09:19)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=865 retained_bytes=865 omitted_bytes=0 rendered_excerpt_bytes=896 sha256=f4ab1d19d9bef9be04fe5692f1fe34ce3b1e2d7db8b4c10b821e9c9687f1c9f5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_refs_are_counted_and_pressure_stays_in_wait():\n>         versions = (Version(\"B40\", \"B\", 40, 40), Version(\"B60\", \"B\", 60, 60))\n>         t = Txn(\"T\", 45, ((\"R\", \"B\"), (\"WAIT\", \"\")), gc_floor=61,\n>                 refs=(\"B40\",))\n>         state = State(versions, (t,))\n>         assert effect_snapshot(state)[\"reclaimable\"] == 0\n>         assert effect_snapshot(replace(state, txns=(replace(t, refs=()),)))[\"reclaimable\"] == 1\n> >       assert not any(step.operation in (\"request_pressure\", \"pressure_start\")\n>                        for _, step in enabled_steps(state, pressure=\"self\"))\n> E       assert not True\n> E        +  where True = any(<generator object test_refs_are_counted_and_pressure_stays_in_wait.<locals>.<genexpr> at 0x145569b39a10>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:178: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=381 retained_bytes=381 omitted_bytes=0 rendered_excerpt_bytes=402 sha256=ba14ec78d3388815a11b411c1602666a2d7c7e5a0fd41f12c01a3ba2af3acd49\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g1_effects_and_waiting_bounds():\n>         initial, off = _search(\"G1\", pressure=\"off\")\n>         _, on = _search(\"G1\")\n>         assert off[\"effects\"][\"max_B\"][\"value\"] == 45\n> >       assert on[\"effects\"][\"max_B\"][\"value\"] == 61\n> E       assert 63 == 61\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:43: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1246 retained_bytes=1246 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2450 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0da1fece2169dac419718e405bc0d0ac51444844fb0f67aea30bb3637ad4bbf6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 560.669,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds"
+      ],
+      "hang_risk": false,
+      "id": "mg6-pressure-outside-wait",
+      "injection_diff_sha256": "e5c8606ea2e943016edd01756d0b6a3f5f5b3775a75ca292c32fc41c27a89e6f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e4c493863893098b2fc4f3ceeb98abe2a1677a49206b751a6086817577a7f111",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops):  # MG6\n",
+          "old": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "0da1fece2169dac419718e405bc0d0ac51444844fb0f67aea30bb3637ad4bbf6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n..............F.............                                             [100%]\n=================================== FAILURES ===================================\n______________________ test_g1_effects_and_waiting_bounds ______________________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g1_effects_and_waiting_bounds():\n        initial, off = _search(\"G1\", pressure=\"off\")\n        _, on = _search(\"G1\")\n>       assert off[\"effects\"][\"max_B\"][\"value\"] == 45\nE       assert 61 == 45\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:42: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\n1 failed, 27 passed in 8.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=328 retained_bytes=328 omitted_bytes=0 rendered_excerpt_bytes=347 sha256=bf59a472a7a40849dbbe7cff5442e8c01d08298f7ee5fb801353bfb5d1f710fd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g1_effects_and_waiting_bounds():\n>         initial, off = _search(\"G1\", pressure=\"off\")\n>         _, on = _search(\"G1\")\n> >       assert off[\"effects\"][\"max_B\"][\"value\"] == 45\n> E       assert 61 == 45\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:42: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=328 retained_bytes=328 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1057 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0c6e4d28658d015501c4a0d50624cfe96b1c7fc607fb6f21105c84cdd7b0bf79"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.694,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds"
+      ],
+      "hang_risk": false,
+      "id": "mg7-pressure-leaks-into-off",
+      "injection_diff_sha256": "114036c6afbf98185b477a559b3c93d114da2795f8560564c80c599411ba27f0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7005ce282fde39c56f638089d3330158f82446a6daf63ecb5680aa1eba493396",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        if t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):  # MG7\n",
+          "old": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "0c6e4d28658d015501c4a0d50624cfe96b1c7fc607fb6f21105c84cdd7b0bf79",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................F...                                             [100%]\n=================================== FAILURES ===================================\n__________________ test_g2_one_waiter_does_not_move_boundary ___________________\n[gw18] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_g2_one_waiter_does_not_move_boundary():\n        _, result = _search(\"G2\")\n        assert danger_witness(\"G2\") is None\n        assert result[\"witness\"][\"reached\"]\n        only = result[\"effects\"][\"g2\"][\"T_only\"]\n        both = result[\"effects\"][\"g2\"][\"both\"]\n        assert only and both\n>       assert only[\"snapshot\"][\"B\"] == 35\nE       assert 61 == 35\n\norchestrator/tests/test_vhash_forwarding_model_gc.py:67: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary\n1 failed, 27 passed in 8.83s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=488 retained_bytes=488 omitted_bytes=0 rendered_excerpt_bytes=515 sha256=0aaa55a3d28a541a4818994250533a5a83cbf82438a15c89a6501762a1514b6d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_g2_one_waiter_does_not_move_boundary():\n>         _, result = _search(\"G2\")\n>         assert danger_witness(\"G2\") is None\n>         assert result[\"witness\"][\"reached\"]\n>         only = result[\"effects\"][\"g2\"][\"T_only\"]\n>         both = result[\"effects\"][\"g2\"][\"both\"]\n>         assert only and both\n> >       assert only[\"snapshot\"][\"B\"] == 35\n> E       assert 61 == 35\n> \n> orchestrator/tests/test_vhash_forwarding_model_gc.py:67: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=488 retained_bytes=488 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1232 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18041a833bfbe8e2b9044c3637e39ccc226fe6670984a77ffcb70b557b646e9c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "de5cb51f44c721216b7b3c95a53a5fc77fefdfabc6b98779dcadf4fa5e487f42",
+      "duration_s": 9.682,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary"
+      ],
+      "hang_risk": false,
+      "id": "mg8-g2-without-both-wait",
+      "injection_diff_sha256": "3aa809b24e32108a1092670c0f5335cc3217d14b16bb57ede83c44df650b5ece",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "700a739ff8a4306e55c4976b17dc65ab97edd4041d690e692519cb519b0a51c6",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "                    both_wait = True  # MG8\n",
+          "old": "                    both_wait = u.phase == \"ops\" and u.pc < len(u.ops) and u.ops[u.pc] == (\"WAIT\", \"\")\n"
+        }
+      ],
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "KILLED",
+      "test_output_sha256": "18041a833bfbe8e2b9044c3637e39ccc226fe6670984a77ffcb70b557b646e9c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\norchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative\norchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative\norchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\norchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\norchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable\norchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\norchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\norchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read\norchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\norchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition\norchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts\norchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\norchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes\norchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation\norchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort\norchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\norchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_ug2r_and_ug3_without_o1\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_floor_lowering_counter_positive_and_representative_zero\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_explore_counts_one_added_floor_lowering_edge\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_restricted_judgment_matches_reference_gc\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_old_representative_pins\n\n28 tests collected in 0.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "0f7f319729aa46f8f1dd97a0715ae59bddd03689007bb76c40c3e2d008b39db8"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_ug2r_and_ug3_without_o1",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_floor_lowering_counter_positive_and_representative_zero",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_explore_counts_one_added_floor_lowering_edge",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_restricted_judgment_matches_reference_gc",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_old_representative_pins"
+      ],
+      "duration_s": 1.412,
+      "rc": 0,
+      "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+      "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+      "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+      "status": "PASSED",
+      "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "mg1-no-publish": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "58141f16666e5aa88278dae01682a87dc13270f57e5c9a39c5a0b8aa127ea012",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        nt = replace(t, gc_floor=t.gc_floor, phase=\"ops\",  # MG1\n",
+            "old": "        nt = replace(t, gc_floor=max(t.gc_floor, t.cand_ts) if \"UG2\" not in faults else t.gc_floor, phase=\"ops\",\n"
+          }
+        ]
+      },
+      "mg2-no-rollback-judge": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c75f68e461b260f8b5e87e3bb723f3cc366a8d125b93617eb2852eb94567b1b",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/judge.py",
+            "new": "                if False and v.reclaimed and _needed_future(after, new, v):  # MG2\n",
+            "old": "                if v.reclaimed and _needed_future(after, new, v):\n"
+          }
+        ]
+      },
+      "mg3-no-pressure-rts": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fcf647333b7176432e530a25d2a7ba21c9afa878ab2883cddebd18a839d8516c",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            ns = s  # MG3\n            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, \"pressure_rts\", vid)\n",
+            "old": "            ns = _put_version(s, replace(v, rts=max(v.rts, t.target)))\n            return _put_txn(ns, replace(t, index=t.index + 1)), Step(t.id, \"pressure_rts\", vid)\n"
+          }
+        ]
+      },
+      "mg4-sound-fallback-to-start": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2fd1b09bcd05fd0406f1bac2cebf4d51ba515a62414f2df5189c936af26ae7fa",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            base = t.start  # MG4\n",
+            "old": "            base = t.start if \"UF1\" in faults and t.gc_floor > t.start else t.attempt_base\n"
+          }
+        ]
+      },
+      "mg5-reclaimable-ignores-refs": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "174037a204ffce5d0ee55d2928699eb11c38b2a5949b6fcb2a88aa17070212c0",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/gc_connection.py",
+            "new": "                 if not v.reclaimed and v.status != \"PENDING\"  # MG5\n",
+            "old": "                 if not v.reclaimed and v.status != \"PENDING\" and v.id not in refs\n"
+          }
+        ]
+      },
+      "mg6-pressure-outside-wait": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e5c8606ea2e943016edd01756d0b6a3f5f5b3775a75ca292c32fc41c27a89e6f",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops):  # MG6\n",
+            "old": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):\n"
+          }
+        ]
+      },
+      "mg7-pressure-leaks-into-off": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "114036c6afbf98185b477a559b3c93d114da2795f8560564c80c599411ba27f0",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        if t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):  # MG7\n",
+            "old": "        if pressure == \"self\" and t.phase == \"ops\" and t.pc < len(t.ops) and t.ops[t.pc] == (\"WAIT\", \"\"):\n"
+          }
+        ]
+      },
+      "mg8-g2-without-both-wait": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3aa809b24e32108a1092670c0f5335cc3217d14b16bb57ede83c44df650b5ece",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "                    both_wait = True  # MG8\n",
+            "old": "                    both_wait = u.phase == \"ops\" and u.pc < len(u.ops) and u.ops[u.pc] == (\"WAIT\", \"\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "42ea7a02976c1d655609a7fb99555a063a8eb13697ad04d72d2ba4ef643fa90f",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_forwarding_model.py",
+      "orchestrator/tests/test_vhash_forwarding_model_gc.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 14400.0
+  },
+  "repo_head": "28873adbdb7fb90461e0c77a7e15346202f85930",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_forwarding_model.py",
+      "orchestrator/tests/test_vhash_forwarding_model_gc.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-gc-connection-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ccbd3d091f53c9630ef48c960848ecf87fb0e2db",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "d2b30b0e7823a600c1e2087522f22c7b2813b52dc78378d7749281edd94d6785",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f9d9d683512031ee5f19c47b32f86bc32235d3ed9c13c687dcdb1b6b2d407381",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-gc-connection-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "2eaf9ed3b9998769c6d9d2e1249d5263cb687633a41bd5d563033759ad388f90",
+  "updated_at": "2026-09-29T03:09:40.796496+00:00"
+}

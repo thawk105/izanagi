@@ -668,6 +668,18 @@ def test_screening_condition_requests_cover_exact_define_specs():
     assert set(screening_driver._CONDITION_DEFAULTS) == set(
         condition_meaning_gate.DEFINE_SPECS
     )
+    assert {
+        macro: screening_driver._CONDITION_DEFAULTS[macro]
+        for macro in (
+            "CICADA_FWD_ENABLE",
+            "CICADA_FWD_COUNT",
+            "CICADA_LONGTX",
+        )
+    } == {
+        "CICADA_FWD_ENABLE": 0,
+        "CICADA_FWD_COUNT": 0,
+        "CICADA_LONGTX": 0,
+    }
     assert [request.macro for request in requests] == sorted(
         condition_meaning_gate.DEFINE_SPECS
     )

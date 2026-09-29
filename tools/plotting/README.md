@@ -536,6 +536,24 @@ python3 tools/plotting/plot_p2_5_search_cost.py [--summary PATH] [--output-root 
 と lock の `ccbench_commit` から取り、read 比以外が 3 campaign で一致することを要求して caption に書く。出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json`
 (provenance schema `izanagi-p2-5-search-cost-figure-provenance/v1`)。図の形・caption・再現コマンド・proof chain は `docs/paper-story/figures/README.md` の fig1b 節を正本とする。
 
+## VHash hot block 配置の微小計測 (版選択 3 方式・深さ・書き込み費用) figure
+
+`plot_vhash_hot_block.py` は、`tools/vhash_microbench/run_hot_block.py` (計算ノードで 1 shard を回す driver) が書く生出力
+(schema `izanagi-vhash-hot-block-microbench/v2`、1 job = 1 JSON) から、1 キーの版選択を連結リスト (散在 / 局所)・連続配置 scalar・
+連続配置 AVX2 で比べる図を作る。計測は依存連鎖下の 1 thread・固定 core の latency であり、並行更新の正しさは扱わない。
+
+```bash
+python3 tools/plotting/plot_vhash_hot_block.py {k,depth,write} OUT_PREFIX RAW_JSON [RAW_JSON ...]
+```
+
+`k` は K (hot の容量 1〜16) × 3 方式 (+局所 linked) を newest / cold 深さ × keyset (L2 内 / LLC 外) の 2 × 2 panel に、`depth` は K=8 の
+深さ 0〜12 を、`write` は shift・ring・block 差し替えの挿入費用を linked 先頭挿入の参照線と並べて描く。中央値と反復 8 回の percentile
+bootstrap 95% 区間 (反復変動の記述) は生の反復値からその場で再計算する。失敗 raw・schema 違い・perf event の欠落や多重化・checksum の
+不一致・binary / CPU / compiler の不一致・格子の欠落のいずれでも成果物を出さない。保存前に layout 検査を fail-closed で通す。出力は
+`OUT_PREFIX.png`、`.pdf`、`.provenance.json`、`.summary.json` (全 group の cell × arm の中央値・区間・perf の 1 op 当たり値)。
+既存の出力先へ出し直すと、置換の途中で失敗したときに新旧が混在しうるので、毎回新しい prefix に出す。一次資料は
+`output/insights/2026-09-29/vhash-hot-block-microbench/README.md`。
+
 ## Cicada baseline tuning の診断図
 
 計測機の外で、J1/J2 の `runs.jsonl` と `analyze` の summary JSON から再生成する。

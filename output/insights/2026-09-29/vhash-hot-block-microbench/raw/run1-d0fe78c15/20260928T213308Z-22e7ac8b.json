@@ -1,0 +1,100 @@
+{
+  "build": {
+    "argv": [
+      "/usr/bin/g++-12",
+      "-O3",
+      "-DNDEBUG",
+      "-std=c++20",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fno-tree-vectorize",
+      "-mavx2",
+      "-mbmi",
+      "-mbmi2",
+      "-mpopcnt",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-vhash-hot-block-microbench/tools/vhash_microbench/hot_block_bench.cc",
+      "-o",
+      "/tmp/vhash-hot-block-yrznurd_/hot_block_bench"
+    ],
+    "binary_sha256": "9c946abc4ea04695c36c69f1e8cbbc9eba7eba315a2476dc1397b15e0aff1239",
+    "compiler_path": "/usr/bin/g++-12",
+    "compiler_version": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+    "objdump_check": {
+      "passed": true,
+      "scalar_vector_ops": 0,
+      "simd_cmp_ops": 1,
+      "simd_mask_ops": 1
+    }
+  },
+  "cells": [],
+  "env": {
+    "avx2": true,
+    "avx512f": true,
+    "core": 0,
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8468",
+    "l2_bytes": 2097152,
+    "llc_bytes": 110100480,
+    "mem_available_bytes": 128758689792,
+    "path": "/usr/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+    "perf_candidates_tried": [
+      "/usr/lib/linux-tools/5.15.0-135-generic/perf: perf events missing: L1-dcache-load-misses:u,dTLB-load-misses:u",
+      "/usr/lib/linux-tools/5.15.0-100-generic/perf: perf events missing: L1-dcache-load-misses:u,dTLB-load-misses:u",
+      "/usr/bin/perf: perf control failed: WARNING: perf not found for kernel 5.15.0-173\n\n  You may need to install the following packages for this specific kernel:\n    linux-tools-5.15.0-173-generic\n    linux-cloud-tools-"
+    ],
+    "perf_control_ok": false,
+    "perf_event_paranoid": 0,
+    "perf_known_work_ratio": null,
+    "perf_path": "",
+    "python": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+    "python_path": "/usr/bin/python3",
+    "single_tenant": {
+      "competitors": [],
+      "ok": true
+    }
+  },
+  "failure": "no perf candidate passed smoke",
+  "finished_utc": "2026-09-28T21:33:15.735793+00:00",
+  "host": "bnode068",
+  "keyset_multiple": null,
+  "pilot_ref": null,
+  "run_id": "20260928T213308Z-22e7ac8b",
+  "schema": "izanagi-vhash-hot-block-microbench/v2",
+  "selfcheck": {
+    "failures": [],
+    "passed": true,
+    "random_cases": 256,
+    "vectors": [
+      "newest_committed",
+      "hot_tail_committed",
+      "first_cold_committed",
+      "deep_cold_committed",
+      "all_newer_than_ts",
+      "candidate_pending",
+      "pending_newer_than_ts_skipped",
+      "pending_between_committed",
+      "aborted_then_committed",
+      "hot_all_aborted_then_cold_committed",
+      "aborted_then_cold_pending",
+      "aborted_then_cold_deleted",
+      "candidate_deleted",
+      "equal_ts",
+      "hot_does_not_read_cold_slot",
+      "k_boundary_each_K",
+      "write_version_ids",
+      "write_value_bytes",
+      "state_cell_candidate_pending",
+      "state_cell_pending_newer_than_ts",
+      "state_cell_aborted_then_committed",
+      "state_cell_candidate_deleted"
+    ]
+  },
+  "shard": "pilot",
+  "source": {
+    "bench_cc_sha256": "e30f3025aec8790b01090bd493d87148f6868c237533fee982887c03a913f933",
+    "driver_sha256": "3f9f69253749e21484d177d8afff2ecbfd52b6f051cd5bd1cccf84c91a4d4215",
+    "repo_head": "49ec152d13aa2d1ce21ffb6e04f715731d8d7774"
+  },
+  "started_utc": "2026-09-28T21:33:08.111625+00:00",
+  "wall_s": 7.631918537001184
+}

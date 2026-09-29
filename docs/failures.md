@@ -377,6 +377,8 @@
 - **再発: 2026-09-26 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-26 版の wave で発見)** — 2026-09-23 版 §1 は機序を言語化する仮説層 (v3) について「K2 2 巡目で初めて適用され 3 巡目でも同型に適用されたが、生まれた材料は 2 巡分の非 certifying の二次 view」と書いたが、K2 4 巡目の還流 (entry 1832、材料レポート v3 の `mechanism_hypotheses` 1 件) は同版の起点 `65fd1422f` に着地済みで、同版自身の §8 B-9 は「3 巡分」と書いていた (版内の不一致)。同版の親・段 6 の Codex レビュー・焦点再レビューはいずれも拾わなかった。2026-09-26 版の §1 担当の子が段 5 で見つけ、2026-09-26 版は訂正 1 件として冒頭・§10・`docs/paper-story/README.md` に記録した (凍結物の 2026-09-23 版は書き換えない)。版の再導出で同じ事実を複数の節が書くときは、件数・巡数を節ごとに一次資料 (entry) へ再照合し、節どうしの値を突き合わせる (2026-09-20 版の追記と同型)。
 
 - **再発: 2026-09-27 (凍結物に残った執筆時点の誤り、論文ストーリー 2026-09-27 版の wave で発見)** — 2026-09-26 版 §6・§7 は認定較正 record の現物を「計 8 record」「現物は 8 record」と現在形で書いたが、MOCC の動作点を pin C で較正した 3 件 (`f72ad2c52`、2026-09-26 14:12 JST、D2248) は同版の起点 `6d198ca8a` の祖先で、起点の `output/env/pegasus/calibration/registered/` は 11 file だった (2026-09-23 版の起点 `65fd1422f` では 8 file で真)。前版から運んだ件数の文を、起点の現物の件数と照合せずに運んだのが原因。2026-09-27 版の §7 担当の子が起点の tree を数えて見つけ、同版の冒頭・§6・§7・§10 と README で訂正した。版の再導出では、運ぶ件数の文を起点の現物 (tree の file 数) で数え直す。
+
+- **再発: 2026-09-29** — gen-opt md_2 wave の親が、検索の事前登録 file の改訂 1・2 と handoff に書いた時刻 (09:52・10:40・10:45) を `date` で測らず推定で書き、実時刻 (改訂 1 は 09:49〜09:50、改訂 2 は 10:06、handoff の該当時点は 10:01) と最大 39 分ずれた。file の mtime で気づき、登録 file は本文を書き換えず末尾へ訂正を追記した。恒久対応は既存どおり、時刻を書く 1 回ごとに `date` か mtime を取る。事前登録の改訂のように後から書き換えない記録には、`date` の出力を同じ command で埋め込むのが安い。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -2378,6 +2380,8 @@
   fix 1 巡分を計画に入れる (memory `closure-and-search-discipline` に追記)。
 
 - **再発: 2026-09-26** — [T-2853] (1') wave で、`orchestrator/campaign/pipeline.py` の保全口に git の `subprocess.run` を 2 か所足したのに、段 1 brief の変更面の表と段 5 の実装子の所有 path に、production を静的走査して起動箇所を台帳に持つ `orchestrator/tests/test_ccbench_spawn_sites.py` (review 済み起動箇所の 2 つの登録簿) を入れなかった。親が統合 commit の後に起動箇所の登録を静的に確かめて焦点走に加え、焦点走 1 回目で 2 赤 (`('campaign/pipeline.py', '<module>._preserve_trace_directory'): 2` 未登録) として検出した (land 前、実害なし)。fix で git の起動を 1 helper (`_archive_git`) に寄せて登録した。同じ型は [T-2851] (受入 1 回目の赤 3 件、worklog のみに記録) に続く独立 2 例目。恒久対応は F39 の運用 (production の行・起動箇所を変える wave は、production を静的走査して位置を台帳に持つ test を閉包と焦点走に入れる) から変えない。
+
+- **再発: 2026-09-29** — [T-2879] (VHash md_6) wave で、新 patch の 3 macro を条件 gate の許可ドメインへ登録した段 5 の単位 B2 に、先例 3867e6ec5 の足跡のうち `orchestrator/campaign/screening_driver.py` の `_CONDITION_DEFAULTS` (鍵集合が DEFINE_SPECS と完全一致) と `orchestrator/tests/test_screening_driver.py` を渡さなかった。親の登録関連の焦点走にも test_screening_driver.py を入れていなかった。並行 wave (md_2) の受入実測をマネージャーが共有して判明し、受入前に fix で足した (land 前、実害なし)。恒久対応は F39 の運用 (位置・鍵を台帳に持つ test を閉包と焦点走に入れる) から変えない。先例 commit の変更 file 一覧を閉包の起点にすれば防げた。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -2578,6 +2582,8 @@
 
 - **再発: 2026-09-27** — [T-2854] (1) の段 5 実装子は DW-S05-C の「制約 meta-test を自ら洗い出して走らせる」を受けていたが、`check()` を `report = {...}; return report` に変え、`orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract` (辞書 literal の return がちょうど 1 つであることを AST で固定) を赤にした。親の焦点走 (計算ノード、31845.nqsv) で検出し、既存 test を変えず fix 3 で実装を戻した。型は 2026-07-27 (26) で広げた「変更が meta-test (横断検査) の契約を落とす」で、production の変更が既存の検査 test を破った 2026-08-28・2026-09-10 の再発と同じ位置にある。今回は焦点走の集合に consumer test を入れていたので受入の前に出た。
 - **再発: 2026-09-27 (同じ wave の 2 件目)** — 同じ wave で新設した `orchestrator/tests/test_check_trace0_header_rule.py` (pytest の `tmp_path` fixture に依存) が自走入口も pytest 専用 allowlist の記載も持たず、最終受入 1 回目 (27,954 collected、27,879 passed / 74 skipped) を `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` の 1 件赤にした。親は `DW-O26` の「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」を段 9 前に読んでいたが、焦点走の集合に入れなかった (2026-09-07・09-20・09-26 と同じ位置)。`orchestrator/tests/README.md` の allowlist に 1 行足し、同メタテストの自走 3 件緑を確かめて閉じた。費用は受入 1 回分 (3 shard の Elapse 計 848 秒)。
+
+- **再発: 2026-09-29** — [T-2879] wave で新規 `orchestrator/tests/test_vhash_forwarding_prototype.py` (pytest 専用) を `orchestrator/tests/README.md` の pytest 専用 allowlist に載せずに統合した。受入前の DW-O26 焦点走で `test_plain_runner_coverage.py` を含める段で気づき、allowlist に足した (受入全走の前、実害なし)。恒久対応は F42 のまま。
 ### F43. codex 子が exit 0 のまま最終メッセージへ推敲断片だけを残し、レビュー本文が失われた [手順漏れ]
 - 事象: [T-147] の敵対レビュー B (2026-07-28) が 168k tokens・exec 31 回の実検証を行いながら、
   `-o` の最終メッセージに出力書式の推敲メモ断片 194 bytes だけを残して exit 0 で終了した。
@@ -6571,6 +6577,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-22** — silo-function-policy 軸の診断 driver (`orchestrator/campaign/silo_policy_coverage.py`) を計算ノードで走らせると、実走のたびに実機の前提の欠陥が 1 件ずつ出た。(1) 依存物を一度も build しないまま condition gate を掛け、masstree の `config.h` (build 時生成) が無く owner TU の前処理が失敗、(2) silo の `transaction.cc` が WORKLOADS 4 実行体へ compile されて `compile_commands.json` の行が 4 本あり、owner 行の 1 本前提で停止。いずれも既存 driver (`s3_lock_coverage.py`・`s3_mocc_lock_coverage.py`) は踏まない形で、机上レビュー 2 本も見落とした。4 巡目の fix で「全 case の外部との交点を既存 driver と CCBench に照合した表」を実装子に作らせてから、残る実行時の欠陥が出なくなった。記録 = `output/insights/2026-09-22/t2857-silo-policy-stage-c/README.md` §4。
+
+- **再発: 2026-09-29** — [T-2875] の Cicada 診断 driver (`orchestrator/campaign/vhash_cicada_vlife.py`) を計算ノードで走らせると、実機の前提の欠陥が 1 回に 1 件ずつ出た。(1) smoke1 (33792.nqsv): Cicada の `transaction.cc` も WORKLOADS 4 実行体へ compile されるので `compile_commands.json` の行が 4 本あり、1 本前提の行選択で停止 (2026-09-22 の再発 (2) と同じ形)。(2) smoke2 (33926.nqsv): condition gate の meaning 検査は owner TU (`transaction.cc`) の前処理だけで分岐の目印を数えるので、別 TU (`util.cc`・`ycsb_cicada.cc`) に置いた計器分岐と `#if SINGLE_EXEC` (既定 0) の内側の分岐を観測できず、宣言 44 に対し観測 38 で拒否。login の在庫 test (宣言件数と patch の `#if` 件数の一致) は緑のままだった。机上の plan・相談・レビュー 4 本はどちらも挙げなかった。2026-09-22 の再発で効いた「全 case の外部との交点を既存 driver と CCBench に照合した表を実装子に作らせる」を段 5 の prompt に入れていなかった。分岐を owner TU と、それが include する header だけに集めて smoke3 以降は通った。記録 = `output/insights/2026-09-29/vhash-cicada-version-measure/README.md` §5・§9、裁定 = 同 `verbatim/s6-fix3-ruling.md`・`s6-fix4-ruling.md`。
+
+- **再発: 2026-09-29** — [T-2879] wave で、静的レビューと login の pytest を通った計測 driver が計算ノードの smoke で 6 回止まった: Cicada は 4 target で同じ TU を compile し compile entry が 4 件、masstree の config.h は build 時にしか生成されず configure だけの木と gate の前処理で 2 回、gate へ渡す configure 引数に検査対象 macro の CXX_FLAGS が入り重複 define、patch の行挿入で `__LINE__` がずれ inert 比較が不一致、検査木に gate 登録が無い。どれも先例 (silo_policy_coverage の `_prepare_build_dependencies` と gate 呼び出し、instr-mocc-lock-coverage の `#line`) に既に答えがあった。smoke は 1 回 20〜100 秒と安く、実害は時間だけ。恒久対応は F139 のまま (実機の書式・生成物は先例の実装か最安の生死確認で確かめてから driver に書く)。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
@@ -10193,6 +10203,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「同一 worktree の dispatch は全種直列」を 1 文で足した (入口と重複していた読み込み契約の 1 文を削って予算内に収めた)。
 
 - **再発: 2026-09-19** — T-2724/T-2776の修復後受入tip `2027fd428`、8967.nqsv/bnode074/gw17で `test_sigterm_ignoring_child_is_killed` のcommunicateが10秒TimeoutExpiredとなりreceiptは未発行。全体は25251 passed /69 skipped /1 failed、当該launcher/test sourceは未変更。同tipの正規runner単独node走（既存設定NPROC=1）は1 passed/70.36秒。負荷の個別因果は未分離とし、検査・timeout・holdを変えず、既存の並列度設定16による全受入再走へ進む。一次資料は回収jobのacceptance-2.child.log、acceptance-2-shards、launcher-single.logと同insight README。
+
+- **再発: 2026-09-29** — VHash GC 接続の小モデル wave (dev-wave-vhash-gc-connection) で、親が fix3 の commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と、新 test file の所要計測の run_tests dispatch を同一 worktree からほぼ同時に投入し、監査の qsub 中の pending orphan hold (`phase: pending-qsub`) を所要計測が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。監査は request 34686.nqsv で走り切り rc=0、hold は監査の終端で自然に解除、所要計測は単独の再投入で 28 passed。qdel も hold の手動削除もしていない。既存恒久対応に修正すべき新事実はない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -28605,3 +28617,31 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 空き時刻の計算が、他 txn が forwarding 候補として選んでまだ確定していない時刻を「使用中」に数えなかった。時刻の一意性 (仕様 R1) は `State` の生成時に初期版と開始時刻だけで assert しており、到達状態では検査していなかった。初期状態で成り立つ不変条件を、並行して値を選ぶ操作のあるモデルで全状態の保証と見なした。
 - 恒久対応: 空き時刻の計算に候補時刻を含め、探索器が全到達状態で `check_timestamp_uniqueness` を実行して破れたら例外で止める (`tools/vhash_forwarding_model/model.py`)。旧挙動で発火することを `orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness` が固定し、検査を外す変異 MU10b がこの test で KILLED になることを確かめた (`output/insights/2026-09-29/vhash-forwarding-model/README.md` §8・§9)。D2282 の決定 5 (「反例なし」は範囲付きでのみ書く) と合わせ、反例は列の中身 (時刻と持ち主) を読んでから結論にする。
 - 再発検知: 探索中の `TimestampCollisionError` (fail-closed)。モデル検査器を新設する wave は、仕様の不変条件を初期状態の assert でなく全到達状態の検査として実装しているかを段 6 レビューのレンズに入れる。
+
+### F1061. 前 wave から写した計測の有効性条件 E1 (3 shard 割付の完全一致) が、自 wave の新設 test による受入 shard 分割の変化で構造的に不成立になり、系列の途中で erratum が要った [手順漏れ] [テスト代表性]
+
+- 事象: [T-2273] (b) の隣接対の実受入で、事前登録は前 wave (a) の計測 probe と E1 「A/B 共通 node の 3 shard 割付の完全一致」をそのまま使った。01-A・02-B の後、03-B の投入前検査が E1 不成立で系列を止めた。新設 8 node が所要時間台帳に無く B の shard-1 に入り、shard-1 / 2 の間で分割が変わっていた (shard-0 の共通 node 4,302 件は一致)。A/B の木で決まる決定的な性質なので残る対も必ず不成立になり、W を見る前に割付一致を shard-0 に限定する erratum E1' を codex の賛否相談を経て固定した (D2284)。
+- 根本原因: 前 wave では新設 1 node で分割が変わらず E1 が成立したため、E1 が「新設 test の数・重みによらず成り立つ」と暗黙に仮定した。shard 割付は所要時間台帳の重みによる決定的な分割で、系列を投げる前に login collection から計算できたのに、段 4 で確かめなかった。
+- 恒久対応: 手順。隣接対の計測で E1 相当の割付一致を事前登録するときは、系列の前に A/B の login collection と受入と同じ割付で各 shard の共通 node 集合を比べ、成立を確かめてから登録する。不成立なら、判定量に必要な shard だけの一致に登録段階で絞るか、分割を揃えた B を作る。gate・検査は足さない。
+- 再発検知: 系列投入前の検査 (集計器の E1) が 1 対目の後に止める (今回と同じ)。
+
+### F1062. 微小計測の依存連鎖のキー列が固定増分の線形合同列で短周期になり、「LLC 外」の作業集合が意図より桁違いに小さかった [計測汚染] [テスト代表性]
+
+- 事象: VHash の hot block 微小計測 (`tools/vhash_microbench/hot_block_bench.cc`) の読み側の計時 loop は、次のキーを `(idx × 1664525 + 選んだ版 ID + 1013904223) mod n` で決めていた。同じ深さの cell では版 ID が全キー共通の定数なので、これは固定増分の線形合同列になり、周期が n より大幅に短かった。同じ式で 300 万歩辿って数えると、n=1,775,815 の cell で 45 キー、他の「LLC 外」の cell でも 6,145〜393,216 キーしか訪れない。計算ノードの本走 4 shard (約 0.87 node 時間) の読み側の値は、作業集合の一部が cache に乗った状態の値で、図と結論に使えなかった。親が値を表にしたときの違和感 (LLC 外の external 16 B が 15 ns、pilot が 8×LLC まで飽和しない、cache-misses/op が条件間で不規則) から検算して見つけた。敵対レビュー 2 本・焦点再レビュー 2 巡は挙げなかった。
+- 根本原因: 「依存連鎖を作る」ために結果を次の添字の式に混ぜたが、その結果が条件内で定数になりうることと、法 n が 2 のべき乗でないと線形合同列が全周期にならないことを検査していなかった。selfcheck と checksum の照合は「4 方式が同じ答えを返すか」を見ており、「計測がどの作業集合を触ったか」は見ていなかった (正しさの検査が通っても、条件の名前どおりの負荷かは別)。
+- 恒久対応: キー列を 2 のべき乗を法とする全周期列から n 以上の値を飛ばす固定列にし、結果は計時外に得た不透明な 0 を介して依存だけを残した (commit 375e15a42)。bench のテスト `orchestrator/tests/test_vhash_hot_block_bench.py::test_read_key_sequence_full_period` が n 歩で全キーを 1 回ずつ訪れることを実際の n で検査し、旧い式に戻す変異で赤になる (45 キー訪問を再現)。読み側は取り直した (一次資料 `output/insights/2026-09-29/vhash-hot-block-microbench/README.md` §7)。
+- 再発検知: 微小計測・合成負荷の生成器を足すときは、キー列の周期と実際に訪れる要素数を条件の名前 (「LLC 外」など) と照合する検査を置く。値を表にして条件間の不規則さ (飽和しない、miss 数が単調でない) を見たら、生成器の作業集合を先に数える。
+
+### F1063. generic dispatch の全体時間上限は RUN 観測まで待ち行列の時間を含み、混雑時に queue-wait-timeout より先に取り消される [手順漏れ]
+
+- 事象: 2026-09-29 に `tools/pegasus/dispatch_compute.py --task generic --walltime 00:30:00 --queue-wait-timeout 3600` で投げた pilot (request 33801.nqsv) が、35 分 QUE のまま `overall-timeout` (rc=16、`child_started: true` だが子の rc は無し) で終わり、dispatcher が qdel した。子は一度も走らなかった。
+- 根本原因: 全体時間上限は「投入時刻 + walltime + `--overall-grace` (既定 300 秒)」で、RUN を観測したときにだけ起点が付け替わる (`tools/pegasus/dispatch_compute.py` の `total_deadline`)。待ち上限 (3600 秒) を広げても、walltime + 300 秒を超えて待つと先に全体上限へ達する。**初出は 2026-08-04 の [T-425] (受入 dispatch が 55 分 QUE のまま overall-timeout) で、その知識は AI の記憶だけにあり、failures 台帳と runbook に無かった。** 今回は記憶を引かずに投入して再発した。
+- 恒久対応: `docs/pegasus-runbook.md` の generic task 節に「`--overall-grace` を `--queue-wait-timeout` 以上にする」を追記した。本 wave の再投入は `--overall-grace 3900` で通った。
+- 再発検知: `IZANAGI_DISPATCH_OUTCOME_V1` に `"reason":"overall-timeout"` が出て、receipt の `state_history` が全部 `QUE` なら本項である。
+
+### F1064. 原典読みの子が論文の公開 source を第三者の fork から取った (near miss) [手順漏れ]
+
+- 事象: 2026-09-29 の文献カード wave (gen-opt md_2) で、Polaris (SIGMOD 2023) の本文を取れなかった子が公開 source に切り替え、原典 repo (`chenhao-ye/polaris`) ではなく 2026-09-18 作成の第三者の fork (`ssya23/polaris`) から README と source 2 file を取ってカードを書いた。親が GitHub API の `fork`・`parent` で気づき、原典 repo の同じ 3 file と SHA-256 が一致することを確かめてカードの出典を直した (中身は同一で実害なし)。
+- 根本原因: 子への指示が「公開 source を読む」だけで、repo が原典かどうかを確かめる手順を持たなかった。検索で先に現れた repo をそのまま使った。
+- 恒久対応: memory `paper-source-must-come-from-upstream-repo` (子の prompt に原典 repo の指定と fork 判定を書く、親が API の `fork`・`parent`・`pushed_at` を見て SHA-256 を照合する)。
+- 再発検知: 子の報告に GitHub repo 名が出たら、親が API の `fork` を 1 回確かめる (記録は insight の取得記録)。
