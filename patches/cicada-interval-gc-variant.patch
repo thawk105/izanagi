@@ -321,7 +321,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +}
 +uint64_t igc_last_sample = 0;
 +
-+void igc_take_snapshot(uint8_t thid) {
++void igc_take_snapshot([[maybe_unused]] uint8_t thid) {
 +  uint64_t now = rdtscp();
 +  if (now - igc_last_sample < FLAGS_gc_inter_us * FLAGS_clocks_per_us) return;
 +  igc_last_sample = now;
