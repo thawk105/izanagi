@@ -1,0 +1,104 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "P0",
+      "category": "positive",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "受理文法に anchor や lookaround はなく",
+         "new": "受理文法に anchor や lookaround は無く"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "min(len(text), position + width),",
+         "new": "min(len(text), position + width - 1),"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "max(0, position + len(literal) - width),",
+         "new": "max(0, position),"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "position = text.find(literal, position + 1)",
+         "new": "position = text.find(literal, position + len(literal))"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "    while position != -1:\n",
+         "new": "    return bool(pattern.search(text))\n    while position != -1:\n"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "cache_key = (required_literal, rel)",
+         "new": "cache_key = rel"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "contains_cache[cache_key] = cached",
+         "new": "cached = cached"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {"file": "orchestrator/campaign/s8b_holdout_freeze.py",
+         "old": "if cached is None or cached[0] is not text:",
+         "new": "if cached is None:"}
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

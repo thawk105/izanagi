@@ -1,0 +1,5 @@
+series: jobs=24 elapse_s=7031 (1.95 node h)
+mutation: jobs=20 elapse_s=287 (0.08 node h)
+wave-tree dispatch (profile・focus・provenance・warm B): jobs=9 elapse_s=764 (0.21 node h)
+A-tree dispatch (warm A): jobs=1 elapse_s=55 (0.02 node h)
+total jobs=54 elapse_s=8137 (2.26 node h)
