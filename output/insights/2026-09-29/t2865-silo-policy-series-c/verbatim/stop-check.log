@@ -1,0 +1,2 @@
+start_wall 2026-09-29T10:09:25.081198+09:00 iteration 4
+now 2026-09-29T11:10:54.511144+09:00 elapsed_s 3689 MAX_WALLTIME_S 3600 MAX_ITER 10 check_stop StopDecision(stop=True, reason='budget-walltime')

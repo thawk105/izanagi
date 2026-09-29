@@ -1,0 +1,1 @@
+{"outcome": "rejected", "variant": "diffq-98edf626b87d", "digest": {"rejection_type": "diff-quarantine", "subtype": "policy-grammar", "reason": "policy-grammar", "diff_region": "cc/silo/transaction.cc", "template_diff_id": "silo-function-policy", "evidence": "decl.local", "rule_id": "decl.local"}, "stop_reason": "continue", "iteration": 1, "ran": true}
