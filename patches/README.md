@@ -535,6 +535,27 @@ SIGSEGV・停止が実測で分かっている実験用)。blind write の insta
 - **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `abort-run --job s06|s08|s09|s095|focus|backoff [--smoke]` / `abort-aggregate --raw ...`。既存の subcommand は変えていない。比較の Cicada 設定は md_11 の観測最良 (backoff job の対照だけ BACK_OFF=1)。
 - **一次資料:** `output/insights/2026-09-30/vhash-early-abort-policy/README.md`。
 
+## cicada-forwarding-wscan-cap.patch / cicada-forwarding-wscan-cap-broken.patch / cicada-forwarding-wscan-probe.patch — 構成 E の書き込み検査の走査中の回収を閉じる公開値の上限、その壊し正例、走査中の回収を数える計器 (合成 variant, D18 第 4 類, VHash 論文 md_39)
+
+md_36 §3.2 の列 (長い tx T の commit の書き込み検査が走査中に保存した版が、T の設置後に置かれた確定版を根に回収される) を、一般の構成 E で閉じる規則の試作と、その再現の計器。
+`cicada-forwarding-variant.patch` → `-gc.patch` → `-target.patch` の**上に重ねる**。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない。この patch を使った値は「未検証の診断値」として扱う** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` に variant → gc → target を当てた木。変更は `cc/cicada/transaction.cc` だけで、既存の patch は変えない。
+  適用順: 計数・性能 = [V,G,T,cap]、再現 = [V,G,T,probe] / [V,G,T,probe,cap] / [V,G,T,probe,cap,broken]、trace = [instr-cicada-trace,V,G,T,cap]。全て fuzz なしで当たる。
+- **macro:** 新設なし。修理は既存 `#if CICADA_GC_SAFEPOINT` の内側、計数は複合条件 `#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT` の内側、計器は `#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE` の内側だけ。
+  条件 gate が数える exact な `#if` 行数 (transaction.cc の FWD_ENABLE 11・FWD_COUNT 4・GC_SAFEPOINT 3・GC_COUNT 7、ycsb_cicada.cc の GC_WAIT 2・LONGTX 4) は全ての適用順で不変。挿入の後は `#line` で行番号を戻す。全 macro 未定義の前処理は V・G・T の木と一致する。
+- **修理 `cicada-forwarding-wscan-cap.patch` (実行時 flag なし、当てれば常に有効):** 前進の成功時の公開を `gc_publish_rts(thid, min(t′−1, cap))` にする。cap は各書き込み key の `forward_visible(key, t′)` の wts の最小 (RMW も同じ関数で取り直し、conflict・deleted は前進を失敗にする)。
+  計器入り build では別行 `CICADA_WSCAN_CAP_V1` (公開回数・上限が効いた回数・下げ幅・公開値がその時点の Rts を越えなかった回数) を出す。既存の `CICADA_GC_V1`/`V2` 行は変えない。
+- **壊し正例 `cicada-forwarding-wscan-cap-broken.patch`:** 修理の上 (計器の後) に重ねる無マクロの無条件 patch で、公開の引数だけを `target - 1` に戻す。検査専用 (md_39 の再現走では、事前登録の条件で発火しなかった)。
+- **計器 `cicada-forwarding-wscan-probe.patch`:** 実行時 flag `--cicada_wscan_delay_us` (既定 0)、`--cicada_wscan_k1` / `--cicada_wscan_k1_key` (長い tx の update key を揃える)、`--cicada_wscan_k2` (遅延中に自分の GC flag を立て直す模擬)。
+  E の前進に成功した tx の書き込み検査の走査に遅延を掛け、保存した版と GC の切り離しを mutex 下で照合し、終了時に `CICADA_WSCAN_V1` 行を出す。遅延 0 では GC の経路の mutex を取らない。計器入り build 専用で、性能 build には入らない。
+- **登録:** 条件 gate の登録簿は不変。`orchestrator/tests/test_ccbench_spawn_sites.py` の `_OVERLAY_BASE_DEFINE_INTERFACES` の `cicada-forwarding-gc.patch` の項に `CICADA_GC_COUNT` を足し (複合条件が文脈に入るため、期待件数は不変)、`_DIRECT_CCBENCH_DIAGNOSTIC_SITES` に起動器の bounded な診断起動 1 件を登録した。
+  **`patches/ledger.json` には登録しない** (D2288 と同じ理由。依頼は ledger の entry を求めたが、同 ledger は silo_ladder_rung1 専用。食い違いは一次資料 §10)。
+- **driver:** `orchestrator/campaign/vhash_econn_wscan.py` の `build --job repro|count --variant pre|fix|broken` / `run --job repro|count --shard i --shards N [--extra]` / `aggregate --raw ...`。既存 `vhash_forwarding_prototype._build_variant` の既存 kind (`gc-dependency`・`gc-e-count`) を使う。
+  trace 検査は repo 外の派生起動器 (一次資料 §5.4)。比較の Cicada 設定は md_11 の観測最良。
+- **一次資料:** `output/insights/2026-09-30/vhash-econn-wscan-fix/README.md`。
+
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
 段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の
