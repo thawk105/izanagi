@@ -2774,7 +2774,7 @@ def test_dev_wave_layer_budget_contract_is_literal():
         "docs/dev-wave/operations.md",
     }
     assert check_docs.DEV_WAVE_L1_BYTES_MAX == 10_625
-    assert check_docs.DEV_WAVE_L1_5_BYTES_MAX == 9_788
+    assert check_docs.DEV_WAVE_L1_5_BYTES_MAX == 9_696
     assert check_docs.DEV_WAVE_L2_SECTION_BYTES_MAX == 1_000
     assert check_docs.DEV_WAVE_STAGE_DISPATCH_LEGEND == (
         "種別は U=無条件、C=条件 dispatch 成立時。"
@@ -3478,7 +3478,7 @@ def test_dev_wave_layer_budget_rejects_plus_one(target_layer):
         if target_layer == "l1":
             _grow_test_layer_to(root, "L1", 10_626)
         elif target_layer == "l1_5":
-            _grow_test_layer_to(root, "L1.5", 9_789)
+            _grow_test_layer_to(root, "L1.5", 9_697)
         else:
             _, slices = _test_reference_slices(
                 root, "docs/dev-wave/operations.md"
@@ -3495,13 +3495,13 @@ def test_dev_wave_layer_budget_rejects_plus_one(target_layer):
         layers = _test_layer_bytes(root)
         expected = {
             "l1": ("L1", 10_626, "L1 unique footprint 10626 bytes"),
-            "l1_5": ("L1.5", 9_789, "L1.5 unique footprint 9789 bytes"),
+            "l1_5": ("L1.5", 9_697, "L1.5 unique footprint 9697 bytes"),
             "l2_section": ("L2", None, "L2 節 DW-O04 が 1001 bytes"),
         }[target_layer]
         if expected[1] is not None:
             assert layers[expected[0]] == expected[1]
         assert layers["L1" if target_layer != "l1" else "L1.5"] < (
-            10_625 if target_layer != "l1" else 9_788
+            10_625 if target_layer != "l1" else 9_696
         )
         for rel, old_cap in _OLD_DEV_WAVE_FILE_CAPS.items():
             assert len(_read(root, rel).encode()) <= old_cap
@@ -4014,7 +4014,7 @@ def test_dev_wave_l2_accepts_dw_o20_plus_154_bytes():
         assert after_file_bytes > legacy_cap
         layers = _test_layer_bytes(root)
         assert layers["L1"] <= 10_625
-        assert layers["L1.5"] <= 9_788
+        assert layers["L1.5"] <= 9_696
         result = _run_check(root)
         assert result.returncode == 0, result.stdout
     finally:
