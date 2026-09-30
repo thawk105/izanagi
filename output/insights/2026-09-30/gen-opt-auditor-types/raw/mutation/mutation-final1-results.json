@@ -1,0 +1,281 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 13.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "8a185c2c27b3654c5ab12283b13b89911d48482f4503f8e19dd1a0a047ceb03c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "7785d43088fe8baf8e144264bedde34c4baec20a6e3ba6efee4eb53e42fb3c0b",
+    "duration_s": 13.832,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "dc1b756b926422ea2c2b47847207a9846e320508d9ac222550119d27afa37b83",
+    "repo_head": "97f699961aacdd4a980ead48a921e10e9d61c6fa",
+    "runner_sha256": "68ffcc238b7179aea21d828ecf6ddca5ee82dfecf68e8cc7b052f9822af68649",
+    "spec_sha256": "e6c7306bcb473ed30d9182a2cabcc092ea5371b7909099c9016db3990e11b5c1",
+    "status": "PASSED",
+    "test_output_sha256": "8a185c2c27b3654c5ab12283b13b89911d48482f4503f8e19dd1a0a047ceb03c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2996e8613c17acf26a2763959886f513aef7eaa3d827588683ce2b1b7526e41a"
+  },
+  "date": "2026-09-30T15:18:36.201199+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 13.07s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "95fc86e7f13b49e463f40d2a4ed72f35bf7e9bdcef3aea1d82ec50fcf30319e3"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "7785d43088fe8baf8e144264bedde34c4baec20a6e3ba6efee4eb53e42fb3c0b",
+      "duration_s": 13.731,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-ledger-comment-only",
+      "injection_diff_sha256": "b1c0e6703ea00cfa99bfdcb1b6dfb2d9bac0800a9da1bdcbd0b95e5ddd740852",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "6480a3b7f51d60a2ba65233e6a54e70af372bb0aaf0df17383487bc720f19794",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/review_ledger.py",
+          "new": "# Reviewed 2026-09-30: T-2890 fix; gen-opt 監査の入力の欠落を uncertain に追加。 M0",
+          "old": "# Reviewed 2026-09-30: T-2890 fix; gen-opt 監査の入力の中身の欠落と source の読めなさを uncertain に追加。"
+        }
+      ],
+      "repo_head": "97f699961aacdd4a980ead48a921e10e9d61c6fa",
+      "runner_sha256": "68ffcc238b7179aea21d828ecf6ddca5ee82dfecf68e8cc7b052f9822af68649",
+      "spec_sha256": "e6c7306bcb473ed30d9182a2cabcc092ea5371b7909099c9016db3990e11b5c1",
+      "status": "SURVIVED",
+      "test_output_sha256": "95fc86e7f13b49e463f40d2a4ed72f35bf7e9bdcef3aea1d82ec50fcf30319e3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2996e8613c17acf26a2763959886f513aef7eaa3d827588683ce2b1b7526e41a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n................................................F                        [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw2/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b2c7c24b20>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 384 identical items, use -vv to show\nE         Differing items:\nE         {'reports/*/cells/*/generations/*/roles/auditor/provenance/role_file_sha256': [['2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14', 6]]} != {'reports/*/cells/*/generations/*/roles/auditor/provenance/role_file_sha256': [['c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6', 6]]}\nE         {'journals/*/*/provenance/role_file_sha256': [['a2e01d52bb4d6399c40a5e1ae280ec9e7c64201e79a4a365f00734d006d3eb55', 1],...9e7c64201e79a4a365f00734d006d3eb55', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1473: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n1 failed, 48 passed in 12.94s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4848 retained_bytes=3945 omitted_bytes=903 rendered_excerpt_bytes=4096 sha256=52530bea18da0c2abdb5ba43f1fce3d38d0f513de7d83a26c8620fb4e155efc3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 384 identical items, use -vv to show\n> E         Differing items:\n> E         {'reports/*/cells/*/generations/*/roles/auditor/provenance/role_file_sha256': [['2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14', 6]]} != {'reports/*/cells/*/generations/*/roles/auditor/provenance/role_file_sha256': [['c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6', 6]]}\n> E         {'journals/*/*/provenance/role_file_sha256': [['a2e01d52bb4d6399c40a5e1ae280ec9e7c64201e79a4a365f00734d006d3eb55', 1],...9e7c64201e79a4a365f00734d006d3eb55', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1473: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4848 retained_bytes=3945 omitted_bytes=903 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "86d597a72c3cf454a84fc50beb784b210e61140b6bee6c25e08b432fdf71aceb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7785d43088fe8baf8e144264bedde34c4baec20a6e3ba6efee4eb53e42fb3c0b",
+      "duration_s": 13.639,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "m2-reflux-baseline-stale",
+      "injection_diff_sha256": "5dbb2c1ce397400c66b0628c11d9edb54844a10f63465e65cbbb9a18d4b392da",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "11e1fbbfc17d59118192120fe303ac309e4c0a453f367a7cca619f345ebc62d8",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "    new = \"c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6\"",
+          "old": "    new = \"2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14\""
+        }
+      ],
+      "repo_head": "97f699961aacdd4a980ead48a921e10e9d61c6fa",
+      "runner_sha256": "68ffcc238b7179aea21d828ecf6ddca5ee82dfecf68e8cc7b052f9822af68649",
+      "spec_sha256": "e6c7306bcb473ed30d9182a2cabcc092ea5371b7909099c9016db3990e11b5c1",
+      "status": "KILLED",
+      "test_output_sha256": "86d597a72c3cf454a84fc50beb784b210e61140b6bee6c25e08b432fdf71aceb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2996e8613c17acf26a2763959886f513aef7eaa3d827588683ce2b1b7526e41a"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\norchestrator/tests/test_codex_agents.py::test_policy_has_zero_native_and_sixteen_static_dormant_adapters\norchestrator/tests/test_codex_agents.py::test_review_ledger_independently_pins_all_sixteen_sources_and_io_contracts\norchestrator/tests/test_codex_agents.py::test_policy_coder_roles_have_closed_five_key_input_and_proposal_only_output\norchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\norchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation\norchestrator/tests/test_codex_agents.py::test_source_body_is_embedded_exactly_once_before_product_override\norchestrator/tests/test_codex_agents.py::test_claude_tool_capabilities_are_lowered_without_runtime_tool_claim\norchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected\norchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed\norchestrator/tests/test_codex_agents.py::test_write_mode_does_not_create_native_or_adapter_files\norchestrator/tests/test_codex_agents.py::test_adapter_inventory_missing_extra_and_symlink_are_rejected\norchestrator/tests/test_codex_agents.py::test_adapter_byte_drift_and_runtime_claim_injection_are_rejected\norchestrator/tests/test_codex_agents.py::test_claude_body_or_description_drift_requires_independent_ledger_review\norchestrator/tests/test_codex_agents.py::test_claude_tools_model_and_effort_must_match_manifest\norchestrator/tests/test_codex_agents.py::test_unquoted_and_leading_hash_description_are_rejected\norchestrator/tests/test_codex_agents.py::test_manifest_and_claude_role_inventory_must_be_bijective\norchestrator/tests/test_codex_agents.py::test_capability_mapping_omission_and_wrong_lowering_are_rejected\norchestrator/tests/test_codex_agents.py::test_codex_model_and_effort_cannot_be_omitted_or_inherited\norchestrator/tests/test_codex_agents.py::test_verifier_codex_mapping_is_explicitly_pinned\norchestrator/tests/test_codex_agents.py::test_full_role_manifest_pin_rejects_semantic_contract_weakening\norchestrator/tests/test_codex_agents.py::test_shared_developer_instruction_template_has_independent_pin\norchestrator/tests/test_codex_agents.py::test_runtime_activation_is_blocked_on_uncontrollable_additional_tools\norchestrator/tests/test_codex_agents.py::test_recursive_forbidden_key_aliases_are_role_specific_and_fail_closed\norchestrator/tests/test_codex_agents.py::test_opaque_string_is_not_misrepresented_as_recursively_inspected\norchestrator/tests/test_codex_agents.py::test_selector_8b_policy_pins_catalog_order_and_nonempty_single_choice\norchestrator/tests/test_codex_agents.py::test_auditor_input_digest_is_sha256_of_utf8_working_diff\norchestrator/tests/test_codex_agents.py::test_auditor_output_verdict_and_structured_feedback_are_consistent\norchestrator/tests/test_codex_agents.py::test_calibrator_records_are_positive_unique_and_selected_from_measurements\norchestrator/tests/test_codex_agents.py::test_axis_planner_and_coder_semantic_policy_negative_cases\norchestrator/tests/test_codex_agents.py::test_coder_v4_output_semantics_requires_literal_only_single_statement_value_match\norchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use0]\norchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use1]\norchestrator/tests/test_codex_agents.py::test_coder_v4_k2_input_schema_accepts_empty_sources\norchestrator/tests/test_codex_agents.py::test_backoff_literal_only_contract_has_role_manifest_adapter_parity\norchestrator/tests/test_codex_agents.py::test_trigger_gating_semantic_literal_has_four_surface_parity\norchestrator/tests/test_codex_agents.py::test_trigger_gating_output_semantics_require_exact_wire_and_reject_implementation\norchestrator/tests/test_codex_agents.py::test_critic_profiler_and_verifier_semantic_policy_negative_cases\norchestrator/tests/test_codex_agents.py::test_auditor_output_schema_requires_diff_digest_for_consumer\norchestrator/tests/test_codex_agents.py::test_all_role_manifest_schema_and_adapter_weakening_hits_independent_ledgers\norchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast\norchestrator/tests/test_codex_agents.py::test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced\norchestrator/tests/test_codex_agents.py::test_axis_proposer_source_output_shape_parity_covers_nested_arrays\norchestrator/tests/test_codex_agents.py::test_direct_role_source_input_shape_parity_covers_top_and_nested_fields\norchestrator/tests/test_codex_agents.py::test_duplicate_manifest_key_is_rejected\norchestrator/tests/test_codex_agents.py::test_nonfinite_manifest_json_constants_are_rejected\norchestrator/tests/test_codex_agents.py::test_direct_role_coverage_drift_raises_clean_profile_error\norchestrator/tests/test_codex_agents.py::test_lockstep_role_deletion_is_rejected_by_absolute_count_floor\norchestrator/tests/test_reflux_originless_compatibility.py::test_originless_harness_rebuild_is_deterministic_control\norchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n\n49 tests collected in 1.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "27c2e687f0f37c8dd540f791d87af7f1a91c6409bb190f39cbf3069450083640"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_policy_has_zero_native_and_sixteen_static_dormant_adapters",
+        "orchestrator/tests/test_codex_agents.py::test_review_ledger_independently_pins_all_sixteen_sources_and_io_contracts",
+        "orchestrator/tests/test_codex_agents.py::test_policy_coder_roles_have_closed_five_key_input_and_proposal_only_output",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation",
+        "orchestrator/tests/test_codex_agents.py::test_source_body_is_embedded_exactly_once_before_product_override",
+        "orchestrator/tests/test_codex_agents.py::test_claude_tool_capabilities_are_lowered_without_runtime_tool_claim",
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_write_mode_does_not_create_native_or_adapter_files",
+        "orchestrator/tests/test_codex_agents.py::test_adapter_inventory_missing_extra_and_symlink_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_adapter_byte_drift_and_runtime_claim_injection_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_claude_body_or_description_drift_requires_independent_ledger_review",
+        "orchestrator/tests/test_codex_agents.py::test_claude_tools_model_and_effort_must_match_manifest",
+        "orchestrator/tests/test_codex_agents.py::test_unquoted_and_leading_hash_description_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_manifest_and_claude_role_inventory_must_be_bijective",
+        "orchestrator/tests/test_codex_agents.py::test_capability_mapping_omission_and_wrong_lowering_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_codex_model_and_effort_cannot_be_omitted_or_inherited",
+        "orchestrator/tests/test_codex_agents.py::test_verifier_codex_mapping_is_explicitly_pinned",
+        "orchestrator/tests/test_codex_agents.py::test_full_role_manifest_pin_rejects_semantic_contract_weakening",
+        "orchestrator/tests/test_codex_agents.py::test_shared_developer_instruction_template_has_independent_pin",
+        "orchestrator/tests/test_codex_agents.py::test_runtime_activation_is_blocked_on_uncontrollable_additional_tools",
+        "orchestrator/tests/test_codex_agents.py::test_recursive_forbidden_key_aliases_are_role_specific_and_fail_closed",
+        "orchestrator/tests/test_codex_agents.py::test_opaque_string_is_not_misrepresented_as_recursively_inspected",
+        "orchestrator/tests/test_codex_agents.py::test_selector_8b_policy_pins_catalog_order_and_nonempty_single_choice",
+        "orchestrator/tests/test_codex_agents.py::test_auditor_input_digest_is_sha256_of_utf8_working_diff",
+        "orchestrator/tests/test_codex_agents.py::test_auditor_output_verdict_and_structured_feedback_are_consistent",
+        "orchestrator/tests/test_codex_agents.py::test_calibrator_records_are_positive_unique_and_selected_from_measurements",
+        "orchestrator/tests/test_codex_agents.py::test_axis_planner_and_coder_semantic_policy_negative_cases",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_output_semantics_requires_literal_only_single_statement_value_match",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use0]",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use1]",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_input_schema_accepts_empty_sources",
+        "orchestrator/tests/test_codex_agents.py::test_backoff_literal_only_contract_has_role_manifest_adapter_parity",
+        "orchestrator/tests/test_codex_agents.py::test_trigger_gating_semantic_literal_has_four_surface_parity",
+        "orchestrator/tests/test_codex_agents.py::test_trigger_gating_output_semantics_require_exact_wire_and_reject_implementation",
+        "orchestrator/tests/test_codex_agents.py::test_critic_profiler_and_verifier_semantic_policy_negative_cases",
+        "orchestrator/tests/test_codex_agents.py::test_auditor_output_schema_requires_diff_digest_for_consumer",
+        "orchestrator/tests/test_codex_agents.py::test_all_role_manifest_schema_and_adapter_weakening_hits_independent_ledgers",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced",
+        "orchestrator/tests/test_codex_agents.py::test_axis_proposer_source_output_shape_parity_covers_nested_arrays",
+        "orchestrator/tests/test_codex_agents.py::test_direct_role_source_input_shape_parity_covers_top_and_nested_fields",
+        "orchestrator/tests/test_codex_agents.py::test_duplicate_manifest_key_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_nonfinite_manifest_json_constants_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_direct_role_coverage_drift_raises_clean_profile_error",
+        "orchestrator/tests/test_codex_agents.py::test_lockstep_role_deletion_is_rejected_by_absolute_count_floor",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_harness_rebuild_is_deterministic_control",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "duration_s": 2.721,
+      "rc": 0,
+      "repo_head": "97f699961aacdd4a980ead48a921e10e9d61c6fa",
+      "runner_sha256": "68ffcc238b7179aea21d828ecf6ddca5ee82dfecf68e8cc7b052f9822af68649",
+      "spec_sha256": "e6c7306bcb473ed30d9182a2cabcc092ea5371b7909099c9016db3990e11b5c1",
+      "status": "PASSED",
+      "tool_sha256": "2996e8613c17acf26a2763959886f513aef7eaa3d827588683ce2b1b7526e41a"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-ledger-comment-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b1c0e6703ea00cfa99bfdcb1b6dfb2d9bac0800a9da1bdcbd0b95e5ddd740852",
+        "replacements": [
+          {
+            "file": "orchestrator/codex_roles/review_ledger.py",
+            "new": "# Reviewed 2026-09-30: T-2890 fix; gen-opt 監査の入力の欠落を uncertain に追加。 M0",
+            "old": "# Reviewed 2026-09-30: T-2890 fix; gen-opt 監査の入力の中身の欠落と source の読めなさを uncertain に追加。"
+          }
+        ]
+      },
+      "m2-reflux-baseline-stale": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5dbb2c1ce397400c66b0628c11d9edb54844a10f63465e65cbbb9a18d4b392da",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "    new = \"c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6\"",
+            "old": "    new = \"2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14\""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "dc1b756b926422ea2c2b47847207a9846e320508d9ac222550119d27afa37b83",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_codex_agents.py",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3000.0
+  },
+  "repo_head": "97f699961aacdd4a980ead48a921e10e9d61c6fa",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_codex_agents.py",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-md22-auditor-types/mutation-scratch-final1/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "fdaee35d64af30536d52da94ffe228c9d0740293",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "68ffcc238b7179aea21d828ecf6ddca5ee82dfecf68e8cc7b052f9822af68649",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e6c7306bcb473ed30d9182a2cabcc092ea5371b7909099c9016db3990e11b5c1",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-md22-auditor-types/mutation-scratch-final1/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "2996e8613c17acf26a2763959886f513aef7eaa3d827588683ce2b1b7526e41a",
+  "updated_at": "2026-09-30T15:19:35.337768+00:00"
+}

@@ -1,0 +1,52 @@
+{
+  "N0": {
+    "verdict": "pass",
+    "violation_types": [],
+    "gate_path": "grammar"
+  },
+  "M": {
+    "verdict": "uncertain",
+    "violation_types": [],
+    "gate_path": "grammar"
+  },
+  "F": {
+    "verdict": "uncertain",
+    "violation_types": [],
+    "gate_path": "grammar"
+  },
+  "B27": {
+    "verdict": "reject",
+    "violation_types": [
+      27
+    ],
+    "gate_path": "text-only"
+  },
+  "B28": {
+    "verdict": "reject",
+    "violation_types": [
+      28
+    ],
+    "gate_path": "text-only"
+  },
+  "B29": {
+    "verdict": "reject",
+    "violation_types": [
+      29
+    ],
+    "gate_path": "text-only"
+  },
+  "B30r": {
+    "verdict": "reject",
+    "violation_types": [
+      30
+    ],
+    "gate_path": "grammar"
+  },
+  "B30q": {
+    "verdict": "reject",
+    "violation_types": [
+      30
+    ],
+    "gate_path": "text-only"
+  }
+}
