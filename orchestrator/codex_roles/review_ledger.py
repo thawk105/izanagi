@@ -17,7 +17,8 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-08-20: T-1356 fix; 型17-21の具体的な境界条件を削除し、verifier_blind_spot への事後報告へ移管。
     # Reviewed 2026-09-02: T-2145; verified sort IR の監査境界と残余リスクを追記。
     # Reviewed 2026-09-26: T-2865; 方策軸の型22〜26と免除範囲を追加。
-    "auditor": "1780945a475cdd036a1fccf52d179f69500c18d0b45d2cf8c5b8969aad54495b",
+    # Reviewed 2026-09-30: T-2890; gen-opt の入力 3 つと型27〜30 を追加 (Codex 射影の型上限26・入力 schema は不変)。
+    "auditor": "c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6",
     "axis-proposer": "8b33fafbf95d530903f0e56a104147beab98151ed06c7d2fd6b2c3ebb6222be0",
     "calibrator": "dbe696286856738afb79369e772998bfad97bbdaccbcef5a8e0d1773f6c35b62",
     # Reviewed 2026-08-26: T-1690 fix; backoff hole の suffix-free literal 1個・1文制約を汎用 coder に軸限定で追記。
