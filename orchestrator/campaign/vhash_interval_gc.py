@@ -16,6 +16,7 @@ import shlex
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -673,9 +674,10 @@ def aggregate(records, *, no_gen_perf=False, require_parts=False):
                 key = lambda r: (r.get('cell'), r.get('thread'), r.get('arm'))
             if len(actual) != len(planned) or {key(r) for r in actual} != {key(r) for r in planned}:
                 raise ValueError(f'incomplete or duplicate part records: {part}')
-        if not any(r.get('cell') == 'ronly_wait' and
-                   r.get('classification') == '期待した経路で検出' for r in records):
-            raise ValueError('overprune positive control not attributed')
+    verification = aggregate_verification(records) if require_parts else None
+    if verification and verification['status'] != 'passed':
+        raise ValueError('correctness verification failed: ' +
+                         json.dumps(verification, ensure_ascii=False, sort_keys=True))
     planned = set(CELLS)
     cells = {}
     for record in records:
@@ -708,7 +710,8 @@ def aggregate(records, *, no_gen_perf=False, require_parts=False):
                 raise ValueError(f'missing count {key}/{arm}')
         result[key] = {'perf_median_tps': medians, 'count': cell['count']}
     return {'schema': 'vhash-interval-gc-aggregate/v1', 'cells': result,
-            'complete': True, 'perf_status': '未検証の診断値'}
+            'verification': verification, 'complete': True,
+            'perf_status': '未検証の診断値'}
 
 
 def bench_argv(binary, cell, extime, thread=None, count=False):
@@ -942,10 +945,53 @@ def verify_binary(binary, source, spec, receipts, hashes, raw_dir):
 def classify_broken(broken, stock):
     if stock['total_cycles'] != 0 or stock['verdict'] != 'indeterminate':
         return '対照異常'
+    if broken['overprune']['fired'] == 0:
+        return '発火 0'
     if (broken['verdict'] == 'non-serializable' and broken['total_cycles'] > 0
-            and broken.get('attributed_edges') and broken['overprune']['fired'] > 0):
+            and broken.get('attributed_edges')
+            and all(broken.get('integrity', {}).get(key) == 0 for key in INTEGRITY_NUMERIC)
+            and broken.get('trace_counts', {}).get('C') == broken.get('commit_count')):
         return '期待した経路で検出'
     return '未検出または帰属不能'
+
+
+def aggregate_verification(records):
+    """Summarize every correctness cell and enforce the S8 positive control."""
+    verify = [r for r in records if r.get('arm') in (*ARMS, 'broken')
+              and 'thread' in r]
+    by_cell = {(r['cell'], r['thread'], r['arm']): r for r in verify}
+    controls = []
+    broken_rows = []
+    for cell, thread in sorted({(r['cell'], r['thread']) for r in verify}):
+        stock = by_cell[cell, thread, 'stock']
+        for arm in ARMS:
+            record = by_cell[cell, thread, arm]
+            reasons = []
+            if record.get('total_cycles') != 0:
+                reasons.append('cycles')
+            if any(record.get('integrity', {}).get(key) != 0 for key in INTEGRITY_NUMERIC):
+                reasons.append('integrity')
+            if record.get('trace_counts', {}).get('C') != record.get('commit_count'):
+                reasons.append('commit_rows')
+            controls.append({'cell': cell, 'thread': thread, 'arm': arm,
+                             'cycles': record.get('total_cycles'),
+                             'integrity': record.get('integrity'),
+                             'disqualified': bool(reasons), 'reasons': reasons})
+        broken = by_cell[cell, thread, 'broken']
+        classification = classify_broken(broken, stock)
+        broken_rows.append({'cell': cell, 'thread': thread,
+                            'classification': classification,
+                            'cycles': broken.get('total_cycles'),
+                            'fired': broken.get('overprune', {}).get('fired', 0),
+                            'attributed_witnesses': len(broken.get('attributed_edges', [])),
+                            'integrity': broken.get('integrity'),
+                            'commit_rows_match': broken.get('trace_counts', {}).get('C') ==
+                                                 broken.get('commit_count')})
+    positives = [r for r in broken_rows if r['classification'] == '期待した経路で検出']
+    disqualified = [r for r in controls if r['disqualified']]
+    return {'status': 'passed' if positives and not disqualified else 'failed',
+            'positive_count': len(positives), 'disqualified': disqualified,
+            'controls': controls, 'broken': broken_rows}
 
 
 def write_x(path, data):
@@ -1070,6 +1116,7 @@ def build_bundle(args):
                         target = out / 'binaries' / name
                         with target.open('xb') as handle:
                             handle.write(binary.read_bytes())
+                        target.chmod(stat.S_IMODE(binary.stat().st_mode))
                         entry['sha256'] = sha_file(target)
                     return result
                 one('dependency', source, 'stock', 'perf', dependency=True)
@@ -1120,6 +1167,8 @@ def execute_part(args):
         for spec in part_specs(args.part):
             kind = spec.get('build_kind', 'trace')
             binary, receipts = bundle_binary(args.binaries, bundle, spec['arm'], kind)
+            if not os.access(binary, os.X_OK):
+                raise PermissionError(f'bundled binary is not executable: {binary}')
             if args.command == 'run-part':
                 record = run_binary(binary, spec, receipts, bundle['patches'], out / 'raw')
             else:

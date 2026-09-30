@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -242,6 +244,7 @@ def test_bundle_sha_and_part_does_not_build():
         assert d.bundle_binary(shared, manifest, 'stock', 'perf')[0] == binary
         binary.write_bytes(b'corrupt')
         raises(ValueError, d.bundle_binary, shared, manifest, 'stock', 'perf')
+        binary.chmod(0o755)
         args = SimpleNamespace(part='run-rr50-wait1-gc10-perf', command='run-part',
                                binaries=shared, output=root / 'out')
         with patch.object(d.socket, 'gethostname', return_value='compute-node'), \
@@ -257,6 +260,79 @@ def test_bundle_sha_and_part_does_not_build():
             d.execute_part(args)
         assert run.call_count == 9
         assert len((root / 'out' / 'raw.jsonl').read_text().splitlines()) == 9
+
+
+def test_bundle_build_preserves_executable_mode_and_sha():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / 'scratch').mkdir()
+        source = root / 'source'
+        source.mkdir()
+
+        @contextmanager
+        def checkout(_pin):
+            yield source
+
+        def fake_build(_source, build, _deps, _toolchain, _arm, _kind,
+                       *, dependency=False, build_log=None, diag=False):
+            binary = build / 'cc/cicada/ycsb_cicada.exe'
+            binary.parent.mkdir(parents=True)
+            binary.write_bytes(b'executable payload')
+            binary.chmod(0o755)
+            (build / 'compile_commands.json').write_text('[]')
+            return binary, []
+
+        def fake_attempt(manifest, _out, name, source, build, deps, toolchain,
+                         arm, kind, *, dependency=False):
+            result = fake_build(source, build, deps, toolchain, arm, kind,
+                                dependency=dependency)
+            manifest['builds'][name] = {'ok': True, 'sha256': d.digest(result[0].read_bytes()),
+                                        'gate_receipts': []}
+            return result
+
+        args = SimpleNamespace(output=root / 'shared', scratch_root=root / 'scratch',
+                               third_party_cache=root)
+        with patch.object(d.socket, 'gethostname', return_value='compute'), \
+             patch.object(d, 'assert_solo'), \
+             patch.object(d.compute, '_load_policy', return_value={}), \
+             patch.object(d.compute, '_resolve_toolchain', return_value={}), \
+             patch.object(d.compute, '_prepare_dependencies', return_value={}), \
+             patch.object(d.patchharness, 'checkout', checkout), \
+             patch.object(d, 'attempt_build', side_effect=fake_attempt), \
+             patch.object(d, 'inert_receipt', return_value={'matched': True}), \
+             patch.object(d, 'apply_patches'), \
+             patch.object(d, 'sha_file', side_effect=lambda p: d.digest(Path(p).read_bytes())
+                          if Path(p).exists() else 'stub-patch'):
+            d.build_bundle(args)
+        manifest = json.loads((args.output / 'manifest.json').read_text())
+        for name, entry in manifest['builds'].items():
+            if name == 'dependency':
+                continue
+            binary = args.output / 'binaries' / name
+            assert stat.S_IMODE(binary.stat().st_mode) == 0o755
+            assert os.access(binary, os.X_OK)
+            assert entry['sha256'] == d.digest(b'executable payload')
+
+
+def test_part_rejects_non_executable_binary_before_spawn():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        binary = root / 'binary'
+        binary.write_bytes(b'payload')
+        binary.chmod(0o644)
+        shared = root / 'shared'
+        shared.mkdir()
+        (shared / 'manifest.json').write_text('{}')
+        for command, part in (('run-part', 'run-rr50-wait1-gc10-perf'),
+                              ('verify-part', 'verify-K')):
+            args = SimpleNamespace(command=command, part=part, binaries=shared,
+                                   output=root / command)
+            with patch.object(d.socket, 'gethostname', return_value='compute'), \
+                 patch.object(d, 'load_bundle', return_value={'patches': {}}), \
+                 patch.object(d, 'bundle_binary', return_value=(binary, [])), \
+                 patch.object(d, 'run_binary', side_effect=AssertionError('spawned')), \
+                 patch.object(d, 'verify_binary', side_effect=AssertionError('spawned')):
+                raises(PermissionError, d.execute_part, args)
 
 
 def test_aggregate_requires_all_part_ids():
@@ -361,10 +437,83 @@ def test_broken_classification_positive_negative():
     stock = {'total_cycles': 0, 'verdict': 'indeterminate'}
     broken = {'verdict': 'non-serializable', 'total_cycles': 1,
               'attributed_edges': [{'edge': {'from': 7}}],
-              'overprune': {'fired': 1}}
+              'overprune': {'fired': 1}, 'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
+              'trace_counts': {'C': 5}, 'commit_count': 5}
     assert d.classify_broken(broken, stock) == '期待した経路で検出'
     assert d.classify_broken({**broken, 'attributed_edges': []}, stock) != '期待した経路で検出'
     assert d.classify_broken(broken, {**stock, 'total_cycles': 1}) == '対照異常'
+    assert d.classify_broken({**broken, 'overprune': {'fired': 0}}, stock) == '発火 0'
+    assert d.classify_broken({**broken, 'trace_counts': {'C': 4}}, stock) != '期待した経路で検出'
+
+
+def test_aggregate_verification_positive_and_disqualification():
+    records = []
+    for cell in d.VERIFY_CELLS:
+        for thread in (4, 8):
+            for arm in (*d.ARMS, 'broken'):
+                detected = arm == 'broken' and cell in ('K', 'R')
+                fired = 1 if arm == 'broken' and cell != 'ronly_wait' else 0
+                records.append({'cell': cell, 'thread': thread, 'arm': arm,
+                                'verdict': 'non-serializable' if detected else 'indeterminate',
+                                'total_cycles': 1 if detected else 0,
+                                'overprune': {'fired': fired},
+                                'attributed_edges': [{'edge': {}}] if detected else [],
+                                'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
+                                'trace_counts': {'C': 5}, 'commit_count': 5})
+    summary = d.aggregate_verification(records)
+    assert summary['status'] == 'passed' and summary['positive_count'] == 4
+    classified = {(r['cell'], r['thread']): r for r in summary['broken']}
+    assert classified['K', 4]['classification'] == '期待した経路で検出'
+    assert classified['W', 8]['classification'] == '未検出または帰属不能'
+    assert classified['ronly_wait', 4]['classification'] == '発火 0'
+    assert classified['K', 4]['fired'] == classified['K', 4]['attributed_witnesses'] == 1
+    undetected = [{**r, 'verdict': 'indeterminate', 'total_cycles': 0,
+                   'attributed_edges': []} if r['arm'] == 'broken' else r for r in records]
+    assert d.aggregate_verification(undetected)['status'] == 'failed'
+    assert d.aggregate_verification(undetected)['positive_count'] == 0
+    for arm in ('stock', 'min'):
+        changed = [{**r, 'total_cycles': 1} if r['cell'] == 'K' and r['thread'] == 4
+                   and r['arm'] == arm else r for r in records]
+        failed = d.aggregate_verification(changed)
+        assert failed['status'] == 'failed'
+        assert failed['disqualified'][0]['arm'] == arm
+    changed = [{**r, 'integrity': {**r['integrity'], d.INTEGRITY_NUMERIC[0]: 1}}
+               if r['cell'] == 'K' and r['thread'] == 4 and r['arm'] == 'gen' else r
+               for r in records]
+    assert d.aggregate_verification(changed)['disqualified'][0]['arm'] == 'gen'
+
+
+def test_aggregate_full_parts_enforces_positive_and_controls():
+    records = []
+    for part, plan in d.plan_parts().items():
+        for spec in d.part_specs(part):
+            if plan['command'] == 'run-part':
+                arm = spec['arm']
+                record = {**spec, 'part_id': part, 'valid': True,
+                          'perf_eligible': spec['build_kind'] == 'perf'}
+                if spec['build_kind'] == 'perf':
+                    record['throughput_tps'] = 100
+                else:
+                    record['interval_counter'], record['longtx_counter'] = \
+                        d.parse_counters(REAL_COUNT_LINES[arm], 'count')
+            else:
+                detected = spec['arm'] == 'broken' and spec['cell'] == 'K'
+                record = {**spec, 'part_id': part,
+                          'verdict': 'non-serializable' if detected else 'indeterminate',
+                          'total_cycles': 1 if detected else 0,
+                          'overprune': {'fired': int(detected)},
+                          'attributed_edges': [{'edge': {}}] if detected else [],
+                          'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
+                          'trace_counts': {'C': 5}, 'commit_count': 5}
+            records.append(record)
+    assert d.aggregate(records, require_parts=True)['verification']['positive_count'] == 2
+    undetected = [{**r, 'verdict': 'indeterminate', 'total_cycles': 0,
+                   'attributed_edges': []} if r['arm'] == 'broken' else r for r in records]
+    raises(ValueError, d.aggregate, undetected, require_parts=True)
+    for arm in ('stock', 'min'):
+        changed = [{**r, 'total_cycles': 1} if r.get('thread') == 4 and r['cell'] == 'K'
+                   and r['arm'] == arm else r for r in records]
+        raises(ValueError, d.aggregate, changed, require_parts=True)
 
 
 def test_aggregate_missing_cells_rejected():
