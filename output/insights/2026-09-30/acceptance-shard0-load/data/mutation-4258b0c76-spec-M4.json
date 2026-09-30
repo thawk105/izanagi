@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "M4",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            if error is not None:\n                raise error\n",
+          "new": "            if error is not None:\n                pass\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/output/pegasus-dispatch/1637962111d0625ae074bca3c613b93b/izdw-1637962111.o38421",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/output/pegasus-dispatch/1637962111d0625ae074bca3c613b93b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................                                     [100%]\n36 passed in 55.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "adb5e4d07cee4c771c4abefa0ae0a794a40085bb5a2d6ba09abf4c6ef0dc1fdb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "18cf0aef118bd638eabc493d063d474167884261c2ec9a88b2865f318ea4a7f4",
+    "duration_s": 508.673,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "e1a27350b42ca81ebfb7177065481dbbef6eea87bd031b6d73c9b806067d72d5",
+    "repo_head": "4258b0c769e975f3e1f427dde157a47b306d1f4e",
+    "runner_sha256": "01b1a7abe14f42122978b68a2a823a21dcdcb70d9eb33534eb2446109e7489aa",
+    "spec_sha256": "23fe58ada27b588b164975f4a403a60bfa4b308852eba31f009860b3af756a1f",
+    "status": "PASSED",
+    "test_output_sha256": "adb5e4d07cee4c771c4abefa0ae0a794a40085bb5a2d6ba09abf4c6ef0dc1fdb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "14b824b13876339e080d0f656c5f54fb3eb34b21b895fdeed548e31cac0ecc08"
+  },
+  "date": "2026-09-30T07:21:25.660176+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/output/pegasus-dispatch/01cde2e50cb1aa72de3a59699b4283d6/izdw-01cde2e50c.o38500",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/output/pegasus-dispatch/01cde2e50cb1aa72de3a59699b4283d6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................FFF.............                                     [100%]\n=================================== FAILURES ===================================\n________ test_t080_shared_base_returns_independent_repos_and_documents _________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_t080_shared_base_returns_0')\nt080_shared_cache_probe = (<function _t080_stub_free_e2e_repo at 0x147379a18700>, <test_s8b_oracle_driver._T080SharedBases object at 0x1473790cae30>)\nt080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22486184658256'>\n\n    def test_t080_shared_base_returns_independent_repos_and_documents(\n            tmp_path, t080_shared_cache_probe, t080_small_cache_builder):\n        repo, bases = t080_shared_cache_probe\n        first, _, first_doc = repo(tmp_path / \"first\")\n        second, _, second_doc = repo(tmp_path / \"second\")\n        base, base_doc = bases.get((\"AI-Agent: none\", False, True, False))\n>       assert len({(p / \"payload\").stat().st_ino for p in (first, second, base)}) == 3\nE       assert 1 == 3\nE        +  where 1 = len({54548433})\n\norchestrator/tests/test_s8b_oracle_driver.py:1528: AssertionError\n_____ test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity _____\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_t080_shared_base_separate0')\nt080_shared_cache_probe = (<function _t080_stub_free_e2e_repo at 0x1476c3174700>, <test_s8b_oracle_driver._T080SharedBases object at 0x1476c3ab92a0>)\nt080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22500321495840'>\n\n    def test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity(\n            tmp_path, t080_shared_cache_probe, t080_small_cache_builder):\n        repo, bases = t080_shared_cache_probe\n        legacy_key = (\"AI-Agent: none\", False, True, False)\n        legacy_root, legacy_doc = bases.get(legacy_key)\n        assert bases.get((*legacy_key, False)) == (legacy_root, legacy_doc)\n        assert legacy_root.parent.name == hashlib.sha256(\n            json.dumps(legacy_key).encode(\"utf-8\"),\n        ).hexdigest()\n        first, _, first_doc = repo(tmp_path / \"active-first\", active_v2_base=True)\n        second, _, second_doc = repo(tmp_path / \"active-second\", active_v2_base=True)\n        _, _, bad_trailer_doc = repo(\n            tmp_path / \"active-bad-trailer\", active_v2_base=True,\n            r_trailer=\"AI-Agent: fixture\",\n        )\n        assert first_doc == second_doc == {\n            \"arguments\": {**legacy_doc[\"arguments\"], \"active_v2_base\": True},\n        }\n        assert bad_trailer_doc == {\n            \"arguments\": {**first_doc[\"arguments\"], \"r_trailer\": \"AI-Agent: fixture\"},\n        }\n        (first / \"payload\").write_bytes(b\"changed\\n\")\n>       assert (second / \"payload\").read_bytes() == b\"original\\n\"\nE       AssertionError: assert b'changed\\n' == b'original\\n'\nE         \nE         At index 0 diff: b'c' != b'o'\nE         Use -v to get more diff\n\norchestrator/tests/test_s8b_oracle_driver.py:1660: AssertionError\n________ test_t080_shared_base_unchanged_after_consumers_mutate_copies _________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_t080_shared_base_unchange0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14797f44c340>\n\n    def test_t080_shared_base_unchanged_after_consumers_mutate_copies(\n            tmp_path, monkeypatch):\n        def build(parent, **kwargs):\n            root = parent / \"repo\"\n            root.mkdir()\n            _run_git(root, \"init\", \"-q\")\n            _run_git(root, \"config\", \"user.email\", \"test@example.invalid\")\n            _run_git(root, \"config\", \"user.name\", \"Test\")\n            (root / \"tracked\").write_bytes(b\"original\")\n            (root / \"tracked\").chmod(0o750)\n            (root / \"link\").symlink_to(\"tracked\")\n            _run_git(root, \"add\", \".\")\n            _run_git(root, \"commit\", \"-qm\", \"base\")\n            return root, root / migration.RECEIPT_REL, {\"kind\": \"small-git\"}\n        def manifest(root):\n            return {\n                path.relative_to(root).as_posix(): (\n                    path.read_bytes() if path.is_file() else None,\n                    stat.S_IMODE(path.lstat().st_mode),\n                    os.readlink(path) if path.is_symlink() else None,\n                ) for path in root.rglob(\"*\") if not path.is_dir()\n            }, _run_git(root, \"rev-parse\", \"HEAD\")\n        with mock.patch.object(sys.modules[__name__], \"_build_t080_stub_free_e2e_repo\", side_effect=build):\n            bases = _T080SharedBases(tmp_path / \"bases\")\n            monkeypatch.setattr(sys.modules[__name__], \"_T080_SHARED_BASES\", bases)\n            try:\n                base, _ = bases.get(_t080_shared_base_key())\n                before = manifest(base)\n                consumer = _t080_stub_free_e2e_repo\n                for index in range(2):\n                    copy_root, _, _ = consumer(tmp_path / f\"consumer-{index}\")\n                    (copy_root / \"tracked\").write_bytes(f\"changed-{index}\".encode())\n                    _run_git(copy_root, \"add\", \".\")\n                    _run_git(copy_root, \"commit\", \"-qm\", f\"consumer-{index}\")\n                    (copy_root / \"new\").write_bytes(b\"untracked\")\n>               assert manifest(base) == before\nE               assert ({'tracked': ...5dfa94ae2f78') == ({'tracked': ...5c40d9729fb3')\nE                 \nE                 At index 0 diff: {'tracked': (b'changed-1', 488, None), 'link': (b'changed-1', 511, 'tracked'), 'new': (b'untracked', 420, None), '.git/description': (b\"Unnamed repository; edit this file 'description' to name the repository.\\n\", 420, None), '.git/HEAD': (b'ref: refs/heads/master\\n', 420, None), '.git/config': (b'[core]\\n\\trepositoryformatversion = 0\\n\\tfilemode = true\\n\\tbare = false\\n\\tlogallrefupdates = true\\n[user]\\n\\temail = test@example.invalid\\n\\tname = Test\\n', 420, None), '.git/index': (b'DIRC\\x00\\x00\\x00\\x02\\x00\\x00\\x00\\x03j\\xbc\\xbb!\\x1c\\xa0adj\\xbc\\xbb!\\x1c\\xa...\nE                 \nE                 ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_s8b_oracle_driver.py:1517: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies\n3 failed, 33 passed in 56.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=3063 retained_bytes=3063 omitted_bytes=0 rendered_excerpt_bytes=3256 sha256=63e6863443de71bf3d7e45625b94a77f27cb7ab7a6c7fc99b8aea31861306986\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_t080_shared_base_unchange0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14797f44c340>\n> \n>     def test_t080_shared_base_unchanged_after_consumers_mutate_copies(\n>             tmp_path, monkeypatch):\n>         def build(parent, **kwargs):\n>             root = parent / \"repo\"\n>             root.mkdir()\n>             _run_git(root, \"init\", \"-q\")\n>             _run_git(root, \"config\", \"user.email\", \"test@example.invalid\")\n>             _run_git(root, \"config\", \"user.name\", \"Test\")\n>             (root / \"tracked\").write_bytes(b\"original\")\n>             (root / \"tracked\").chmod(0o750)\n>             (root / \"link\").symlink_to(\"tracked\")\n>             _run_git(root, \"add\", \".\")\n>             _run_git(root, \"commit\", \"-qm\", \"base\")\n>             return root, root / migration.RECEIPT_REL, {\"kind\": \"small-git\"}\n>         def manifest(root):\n>             return {\n>                 path.relative_to(root).as_posix(): (\n>                     path.read_bytes() if path.is_file() else None,\n>                     stat.S_IMODE(path.lstat().st_mode),\n>                     os.readlink(path) if path.is_symlink() else None,\n>                 ) for path in root.rglob(\"*\") if not path.is_dir()\n>             }, _run_git(root, \"rev-parse\", \"HEAD\")\n>         with mock.patch.object(sys.modules[__name__], \"_build_t080_stub_free_e2e_repo\", side_effect=build):\n>             bases = _T080SharedBases(tmp_path / \"bases\")\n>             monkeypatch.setattr(sys.modules[__name__], \"_T080_SHARED_BASES\", bases)\n>             try:\n>                 base, _ = bases.get(_t080_shared_base_key())\n>                 before = manifest(base)\n>                 consumer = _t080_stub_free_e2e_repo\n>                 for index in range(2):\n>                     copy_root, _, _ = consumer(tmp_path / f\"consumer-{index}\")\n>                     (copy_root / \"tracked\").write_bytes(f\"changed-{index}\".encode())\n>                     _run_git(copy_root, \"add\", \".\")\n>                     _run_git(copy_root, \"commit\", \"-qm\", f\"consumer-{index}\")\n>                     (copy_root / \"new\").write_bytes(b\"untracked\")\n> >               assert manifest(base) == before\n> E               assert ({'tracked': ...5dfa94ae2f78') == ({'tracked': ...5c40d9729fb3')\n> E                 \n> E                 At index 0 diff: {'tracked': (b'changed-1', 488, None), 'link': (b'changed-1', 511, 'tracked'), 'new': (b'untracked', 420, None), '.git/description': (b\"Unnamed repository; edit this file 'description' to name the repository.\\x5cn\", 420, None), '.git/HEAD': (b'ref: refs/heads/master\\x5cn', 420, None), '.git/config': (b'[core]\\x5cn\\x5ctrepositoryformatversion = 0\\x5cn\\x5ctfilemode = true\\x5cn\\x5ctbare = false\\x5cn\\x5ctlogallrefupdates = true\\x5cn[user]\\x5cn\\x5ctemail = test@example.invalid\\x5cn\\x5ctname = Test\\x5cn', 420, None), '.git/index': (b'DIRC\\x5cx00\\x5cx00\\x5cx00\\x5cx02\\x5cx00\\x5cx00\\x5cx00\\x5cx03j\\x5cxbc\\x5cxbb!\\x5cx1c\\x5cxa0adj\\x5cxbc\\x5cxbb!\\x5cx1c\\x5cxa...\n> E                 \n> E                 ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1517: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1836 retained_bytes=1836 omitted_bytes=0 rendered_excerpt_bytes=1919 sha256=f89d66b6b6aa0259ecb7d285a99734e84190e791ea9bdf44ea554c340a26b444\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_t080_shared_base_separate0')\n> t080_shared_cache_probe = (<function _t080_stub_free_e2e_repo at 0x1476c3174700>, <test_s8b_oracle_driver._T080SharedBases object at 0x1476c3ab92a0>)\n> t080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22500321495840'>\n> \n>     def test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity(\n>             tmp_path, t080_shared_cache_probe, t080_small_cache_builder):\n>         repo, bases = t080_shared_cache_probe\n>         legacy_key = (\"AI-Agent: none\", False, True, False)\n>         legacy_root, legacy_doc = bases.get(legacy_key)\n>         assert bases.get((*legacy_key, False)) == (legacy_root, legacy_doc)\n>         assert legacy_root.parent.name == hashlib.sha256(\n>             json.dumps(legacy_key).encode(\"utf-8\"),\n>         ).hexdigest()\n>         first, _, first_doc = repo(tmp_path / \"active-first\", active_v2_base=True)\n>         second, _, second_doc = repo(tmp_path / \"active-second\", active_v2_base=True)\n>         _, _, bad_trailer_doc = repo(\n>             tmp_path / \"active-bad-trailer\", active_v2_base=True,\n>             r_trailer=\"AI-Agent: fixture\",\n>         )\n>         assert first_doc == second_doc == {\n>             \"arguments\": {**legacy_doc[\"arguments\"], \"active_v2_base\": True},\n>         }\n>         assert bad_trailer_doc == {\n>             \"arguments\": {**first_doc[\"arguments\"], \"r_trailer\": \"AI-Agent: fixture\"},\n>         }\n>         (first / \"payload\").write_bytes(b\"changed\\x5cn\")\n> >       assert (second / \"payload\").read_bytes() == b\"original\\x5cn\"\n> E       AssertionError: assert b'changed\\x5cn' == b'original\\x5cn'\n> E         \n> E         At index 0 diff: b'c' != b'o'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1660: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 rendered_excerpt_bytes=1019 sha256=586975b0c63203c35033f696d64e2ddea5efecb24a1bc7bc9614a1b7a020a054\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_t080_shared_base_returns_0')\n> t080_shared_cache_probe = (<function _t080_stub_free_e2e_repo at 0x147379a18700>, <test_s8b_oracle_driver._T080SharedBases object at 0x1473790cae30>)\n> t080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22486184658256'>\n> \n>     def test_t080_shared_base_returns_independent_repos_and_documents(\n>             tmp_path, t080_shared_cache_probe, t080_small_cache_builder):\n>         repo, bases = t080_shared_cache_probe\n>         first, _, first_doc = repo(tmp_path / \"first\")\n>         second, _, second_doc = repo(tmp_path / \"second\")\n>         base, base_doc = bases.get((\"AI-Agent: none\", False, True, False))\n> >       assert len({(p / \"payload\").stat().st_ino for p in (first, second, base)}) == 3\n> E       assert 1 == 3\n> E        +  where 1 = len({54548433})\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1528: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5883 retained_bytes=5883 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7830 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5c4d30cc953738efda95bfeaeef8134816a050c663aeac89b8326d2fd2c432aa"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "18cf0aef118bd638eabc493d063d474167884261c2ec9a88b2865f318ea4a7f4",
+      "duration_s": 151.577,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "6feedd3b06b356da9ce33e795f3f4e1bbf146d6628be85af9e788fcc7986d536",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "75e1c7df6321069334dcdf1622f5326767a6c816c0620d4091f4ffa3c67476ff",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "new": "    root = base_root\n    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)\n",
+          "old": "    root = tmp_path / base_root.name\n    shutil.copytree(base_root, root, symlinks=True)\n    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)\n"
+        }
+      ],
+      "repo_head": "4258b0c769e975f3e1f427dde157a47b306d1f4e",
+      "runner_sha256": "01b1a7abe14f42122978b68a2a823a21dcdcb70d9eb33534eb2446109e7489aa",
+      "spec_sha256": "23fe58ada27b588b164975f4a403a60bfa4b308852eba31f009860b3af756a1f",
+      "status": "KILLED",
+      "test_output_sha256": "5c4d30cc953738efda95bfeaeef8134816a050c663aeac89b8326d2fd2c432aa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "14b824b13876339e080d0f656c5f54fb3eb34b21b895fdeed548e31cac0ecc08"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/output/pegasus-dispatch/c2f92bd45f0635f6b5ca9b37f3a1110a/izdw-c2f92bd45f.o38399",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/output/pegasus-dispatch/c2f92bd45f0635f6b5ca9b37f3a1110a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_publishes_both_keys_before_consumers\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_stop_before_snapshot_is_quiet\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_not_started_when_unselected\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_join_timeout_raises\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[False]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[True]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_without_completion_marker_is_rebuilt\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_waits_for_builder_lock\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_missing_session_uses_process_memo\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_keeps_all_four_key_fields_separate\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_only_last_participant_removes_tree\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[False]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[True]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[13]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[5]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[39]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_exhausted_disappearance_is_error\norchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":6,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n36/370 tests collected (334 deselected) in 2.55s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3d2f4dd37d93496b8758701227f64d38dbd5ec37fd081dfda683399a536ee98c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_publishes_both_keys_before_consumers",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_stop_before_snapshot_is_quiet",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_not_started_when_unselected",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_join_timeout_raises",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[False]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[True]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_without_completion_marker_is_rebuilt",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_waits_for_builder_lock",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_missing_session_uses_process_memo",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_keeps_all_four_key_fields_separate",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_only_last_participant_removes_tree",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[False]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[True]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[13]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[5]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[39]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_exhausted_disappearance_is_error",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 171.316,
+      "rc": 0,
+      "repo_head": "4258b0c769e975f3e1f427dde157a47b306d1f4e",
+      "runner_sha256": "01b1a7abe14f42122978b68a2a823a21dcdcb70d9eb33534eb2446109e7489aa",
+      "spec_sha256": "23fe58ada27b588b164975f4a403a60bfa4b308852eba31f009860b3af756a1f",
+      "status": "PASSED",
+      "tool_sha256": "14b824b13876339e080d0f656c5f54fb3eb34b21b895fdeed548e31cac0ecc08"
+    },
+    "hang_timeout_seconds": 12600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents",
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6feedd3b06b356da9ce33e795f3f4e1bbf146d6628be85af9e788fcc7986d536",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+            "new": "    root = base_root\n    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)\n",
+            "old": "    root = tmp_path / base_root.name\n    shutil.copytree(base_root, root, symlinks=True)\n    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "e1a27350b42ca81ebfb7177065481dbbef6eea87bd031b6d73c9b806067d72d5",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py",
+      "orchestrator/tests/test_acceptance_schedule_order.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "-k",
+      "(t080_shared_base or t080_visible_output or configure_node or early_memo) and not real_builder_once",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 12600.0
+  },
+  "repo_head": "4258b0c769e975f3e1f427dde157a47b306d1f4e",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py",
+      "orchestrator/tests/test_acceptance_schedule_order.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "-k",
+      "(t080_shared_base or t080_visible_output or configure_node or early_memo) and not real_builder_once",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3b2aa3b3fbc0fc91fb4f1908b68535b1a3ded6d2",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "01b1a7abe14f42122978b68a2a823a21dcdcb70d9eb33534eb2446109e7489aa",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "23fe58ada27b588b164975f4a403a60bfa4b308852eba31f009860b3af756a1f",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc6/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "14b824b13876339e080d0f656c5f54fb3eb34b21b895fdeed548e31cac0ecc08",
+  "updated_at": "2026-09-30T07:33:55.212373+00:00"
+}
