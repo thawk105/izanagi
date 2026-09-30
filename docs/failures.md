@@ -28947,3 +28947,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: `#else` の直後に `#line N` を置くと、N は次の物理行 (= `#endif` 行) の番号になり、`#endif` の次の source 行は N+1 になる。M の `#line` は「次の source 行が N」と数えて書かれていた。
 - 恒久対応: 同 wave で、M 適用前後の source を TRACE=0 側だけ残して `#line` を適用した実効行番号で全行照合する検査を Codex の fix 子が scratch で走らせ、42 本の `#line` を stock と E-max の両 stack で不一致 0 にした。repo 外起動器の TRACE=0 同一性 (命令列・relocation 付き逆アセンブル・前処理・`nm`・`strings`) が計算ノードで fail-closed に拒否する (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cicada-certified-m/launcher/launch_cicada_m.py` の IDENT)。記録 = `output/insights/2026-09-30/cicada-certified-m/README.md` §8 の 9。
 - 再発検知: TRACE=0 同一性の比較 (定数として展開される `__LINE__` の差が命令列に出る)。`ERR` など `__LINE__` を使う macro が `#line` の後ろに無い file では命令列に出ないので、実効行番号の全行照合を併用する。
+
+### F1089. 実装子 prompt の「失敗したら止まれ」が子の既知の試験不能 (rc=16) にも掛かり、段 5 の実装子 2 本が同時に途中停止した [手順漏れ]
+
+- 事象: md_20 wave ([T-2888]・[T-2946]) の段 5 で、並列の実装子 2 本 (判定器・pipeline 側と driver・関門側) が、実装の途中で `tools/run_tests.py` を試し、
+  子の sandbox から計算ノードの状態確認 (`qstat -Q`) ができずに rc=16 になった時点で、prompt の「失敗したら推測で進めず、その時点の事実を書いて止まれ」に従って停止した
+  (投入 2026-09-30 22:52、停止 23:05 前後。production 追加 105 行・447 行の途中、試験は 0 件)。継続子に「試験は走らせず未実走で完成させる」と明記して出し直し、2 本とも完了した。
+- 根本原因: 子が `tools/run_tests.py` も `python -m pytest` も走らせられないことは既知 (/rulings 第 30 回項 8: 子に自走の実走を指示しない、報告は「実装済み・未実走」、赤の実測は親の焦点走) だが、
+  親の prompt は「自走できるものは走らせる」「失敗したら止まれ」を並べて書き、試験の不能がその停止規則に当たらないことを書かなかった。`DW-S05-C` の「実走不能なら『実装済み・未実走』と書く」と
+  停止規則の優先関係は、どこにも書かれていない。
+- 恒久対応: memory `codex-child-discipline` の節「sandbox-children-use-self-run-harness-not-pytest」(子は run_tests.py・pytest を走らせられない、prompt に書く) を段 5 の prompt を書く前に引く。
+  実装子・fix 子の prompt に「試験は走らせず、直し終えて『実装済み・未実走』と報告せよ。試験を走らせられないことを理由に止まらない」の 1 文を入れる (本 wave の継続子・fix 子 4 本はこの 1 文で全件完了した)。
+- 再発検知: 実装子の報告が「test 起動が失敗したため停止」「実装途中」を含み、`.done` の rc が 0 のもの。受理検査 (`check_codex_output.py`) は通るので、親が報告の総括を読んで判定する。
