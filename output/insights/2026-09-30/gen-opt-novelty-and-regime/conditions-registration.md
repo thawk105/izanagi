@@ -86,4 +86,11 @@
 
 ## 改訂
 
-(なし)
+- 改訂 1 (2026-09-30 21 時台 JST、smoke を含む性能測定を 1 本も投入する前、driver の読み合わせで判明): R3 の BoMB の起動形を固定する。
+  - 理由: BoMB の mixed mode (`-bomb_mixed_mode=true`) は、別の dispatcher thread が要求を一定の率 (`bomb_mixed_short_rate` 既定 500、既定は毎分) で待ち行列に入れる
+    開いた系の負荷であり (`include/bomb.hh` の `request_dispatcher`・`decideType`)、最大 throughput の測定にならない。non-mixed mode は thread ごとに取引型を固定する閉じた系で、
+    既定の thread 数 (L1 1・S1 1・S2 1・残りは S5 = ChangeProductQuantity) は §1 の「短い取引の種類と割合は BoMB の既定」の「割合」(`bomb_perc_s1` 50・`bomb_perc_s2` 50、S3〜S5 は 0) と一致しない。
+  - 固定する形: non-mixed mode。短い取引の thread を既定の割合 50:50 で S1 (UpdateMaterialCostMaster) と S2 (IssueJournalVoucher) に分ける。
+    R3-mixed = `thread_num` 48、L1 1、S1 24、S2 23、S3・S4・S5 は 0。R3-short-only = `thread_num` 47、L1 0、S1 24、S2 23。R3-long-only = `thread_num` 1、L1 1、短い取引 0。
+    他の BoMB 引数は既定。S1 は L1 が読む材料原価を更新するので、L1 と短い取引の競合はこの形で生じる。
+  - 変種ごとに、出力に現れるべき取引型だけを要求する (short-only に L1 は無く、long-only に短い取引は無い)。
