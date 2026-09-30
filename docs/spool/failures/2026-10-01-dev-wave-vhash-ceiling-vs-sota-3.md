@@ -15,6 +15,16 @@ seq: 3
 - 恒久対応: memory `fix-ruling-enumerate-dependent-expectations` (fix 裁定で、変える対象の直後に従属して変わる期待を列挙し、許可する期待と変えてはならない期待を分けて書く)。land 調整役が手順の改修提案 (md_2) に「対象 test 関数の全 assert を裁定に逐語で並べて可否を付ける」を集約する。
 - 再発検知: fix 子の報告が「既存テストの期待値と衝突」で止まったら、次の fix を投げる前に、衝突した test 関数の全 assert を裁定へ並べ直す。同じ根で 2 回止まったら 3 回目の前に land 調整役へ FAIL-2 を送る (2026-10-01 のユーザー指示)。
 
+### {{F:acceptance-flaky-b7-plot-and-b5-wait-loop}}. 受入全走で main 側の 2 本の test が単独では再現しない赤を出し、受入を 2 回食った [計測汚染] [near miss]
+
+- 事象: md_42 (dev-wave-vhash-ceiling-vs-sota) の受入で、本 wave が触れていない 2 本の test が 1 回ずつ赤になり、どちらも計算ノードの単独再走では再現しなかった。
+  1. `orchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_figure_passes_layout_check` — 受入 1 回目 (2026-10-01 05:02〜05:31、shard-1、bnode014) で `FigureLayoutError: text bbox overlap: '+30.0000%' / 'no regression'` (作図の文字の重なり検査)。同 file の単独再走は 42 passed。
+  2. `orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate` — 受入 3 回目 (06:24〜06:32、shard-1) で `Failed: first evaluation did not finish` (driver の tick を 5,000 回回す待ちのループが、並列の受入負荷の下で 1 回目の評価を終えない)。同 file の単独再走は 65 passed。
+  受入を合計 2 回食った (1 回あたり約 30 分)。
+- 根本原因: 未確定。1 は作図の文字配置が描画環境 (フォント・負荷) に依存する可能性、2 は壁時計ではなく tick 回数で待つループが、受入の並列負荷で背景の thread pool の進行に追いつかない可能性 (T-2797 で時間依存を一度除いた test)。どちらも本 wave と無関係の既存 test。
+- 恒久対応: 未実施。直す wave の材料として land 調整役が集約する (2026-10-01 の依頼)。本 wave では DW-O18 に従い、単独再走の非再現を確かめてから受入を取り直した (worklog fragment に判定を記録)。
+- 再発検知: 受入の赤がこの 2 本のどちらかなら、この F を引いて単独再走で確かめる。同じ test が別の wave の受入でも落ちたら、この F に再発として追記する。
+
 ## 再発
 
 ### F383
