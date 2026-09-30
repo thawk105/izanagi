@@ -7505,6 +7505,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同型は `type(...) is not ...` を持つ production 関数へテストが直接値を渡す箇所で
   起きる。fix 3 巡目で同型の全走査を子に要求し、取り残しゼロを静的に確認した。
 
+
+- **再発: 2026-09-30** — md_6 wave の新設 test が `sys.modules[__name__]` (pytest が読み込んだ test module) の builder を差し替えたが、conftest の prewarm は `importlib.import_module("orchestrator.tests.test_s8b_oracle_driver")` で別の module object を引くので差し替えが静かに空振りし、本物の builder が走って新設 4 本が赤になった (焦点走 1)。同じ理由で「写しを待つ」test は待ちを外す変異でも緑になりえた (検出力なし)。fix で conftest が使う module object の builder も差し替える fixture を足し、変異 M2 が当該 test を赤にすることを確かめた。
 ### F172. wave 途中で codex のサブスクリプションログインが失効し、実装面の続行が不能になった [観測] [手順漏れ]
 
 - 事象: 段 6 の fix 5 巡目を投入した瞬間に codex が 401 Unauthorized を返し、
@@ -28838,6 +28840,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-30** — dev-wave-lock-order-axis の fix 子 (fix-f-2) の終了直後 13:29 JST に、子木の gitdir `.git/worktrees/lock-order-f/index.lock` が 0 byte で残った。起動器は残差を commit できていた (cf50faedd) が、続く待ち手の `--commit-worktree` が rc=70 `worktree-commit failed reason=add-all`、同じ木で後から起動した 2 つの子 (変異準備・件数の fix) の起動器の終端 commit も rc=3 で同じ理由で落ち、成果は未 commit のまま木に残った (親が所有 path 限定の diff で取り出した)。親が F 木を cmdline・cwd に持つ process が 0 件であることを確かめて lock を消した。同じ wave の他の子木 3 本には lock は無かった。lock を作った process は未特定 (2 例目、どちらも同じ producer の終端 commit の直後)。
+
+- **再発: 2026-09-30** — md_6 wave の計測 runner 用の子木 (`as0-u2`) で、Codex 子の終了後に gitdir の `index.lock` が 0 byte で残り、起動器の終端 commit が `worktree-commit: failed reason=add-all` (起動器 rc=3) で 3 回とも落ちた (子自体は natural_exit、出力検査 rc=0)。成果物は repo に入れない計測 runner なので commit せず job dir へ退避した。同じ wave の別の子木 (`as0-u1`) では 3 回とも commit できた。
 ### F1079. 2 つの wave が同じ件数 pin を同じ値へ書き換え、git の 3-way 合成が衝突なしで 1 回分の加算だけを残した [手順漏れ] [near miss]
 
 - 事象: 2026-09-30、[T-2911] VHash md_22 wave の受入前に local main 17995a4fe (VHash hot block wave が着地) を取り込むと、登録簿 7 file が衝突した。衝突は「同じ位置へ別の項目を足した」型で和集合にすれば解けるが、衝突の外で、両 wave がそれぞれ新 macro 3 件を足したことに伴う件数 pin (`_COMPILE_TIME_BRANCH_MACROS` 51→54、`MEANING_SUPPORTED_MACROS` 52→55、交差表の `proven-unreachable` 55→58・65→68、s8b sink の `covered` 69→72 など) を**同じ新値へ**書き換えていた。git は両側が同一の変更をしたと見て衝突なしで 1 回分だけを残すので、合成結果の pin は両 wave の追加の合算 (+6) でなく +3 のままになる。登録項目の衝突だけを解いて commit すると受入で赤になり、合算がたまたま別の変更と打ち消し合えば誤った件数で緑になりうる。
@@ -28876,3 +28880,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 観測した genome が 2 つの軸 (OPT と PROMO) を同時に 1 にしており、異常の帰属先を後から付いた軸 (promotion の build が初めて通った) に置いた。「その軸だけを外した genome (OPT=1・PROMO=0) でも起きるか」の対照を置かず、送出点の backtrace も取らないまま、切り分けの対象を計装の有無と前 wave の自分の変更 (重複登録の除去) に限った。
 - 恒久対応: 異常を genome の軸へ帰属させる記録は、(a) 送出点・最初の報告 (gdb の catch throw、ASan) と、(b) 疑う軸だけを外した genome の対照の両方を取ってから書く。md_32 の一次資料 (`output/insights/2026-09-30/ccbench-cicada-promotion-uaf-fix/README.md` §4) で帰属を訂正し、段 4 の事前登録 (追補 1) に「T0p (OPT=1・PROMO=0) も落ちる」を採否条件として置いた。memory `hub-evidence-and-check-design` に 1 行を足す。
 - 再発検知: 段 3 の相談で「帰属先の軸だけを外した対照があるか」を正しさ境界レンズの確認項目にする (DW-S03 の「親自身の実測値とその一般化」の具体例)。
+
+### F1083. 受入 controller の先行構築が consumer 側の待ち上限を写し、consumer の無い shard を終了処理で赤にした [手順漏れ] [テスト代表性]
+
+- 事象: md_6 wave で、controller が collection 中に T-080 共有 base を先に組む prewarm を入れた。prewarm thread は可視 output の写しの完成を、worker の consumer が使う既存上限 `_T080_VISIBLE_OUTPUT_WAIT_S` (180 秒) で待ち、超えたら例外を記録して session 終了時に送出した。同時刻対照の 2 走 (親が 12 shard job と変異 job を同時に流し Lustre が混んだ) で、T-080 consumer を持たない shard-2 の写しが 180 秒を超え、子 rc 1 と report の pytest_rc 0 が食い違って受入全体が `report-invalid` になった。段 3 相談の所見 3 (consumer の無い shard に新しい失敗経路を作る) を段 4 で real と裁定し、構築の失敗・hang は扱ったが、写しを待つ段の上限を consumer の値のまま残した。単体 test (小 builder・写しを即公開) と焦点走では写しが遅い状況を作らず、検出したのは実受入の対照だった。
+- 根本原因: 性能のための先行処理に、consumer が「間に合わなければ自分の test を赤にする」ための上限を流用した。consumer 側では上限超過はその test の赤で済むが、prewarm は consumer の有無にかかわらず全 shard で走るので、同じ上限が受入全体の赤に化けた。
+- 恒久対応: memory `prewarm-must-not-fail-consumerless-shards` (先行処理は前提の遅延・失敗では静かに終え停止 event で止める、consumer の無い shard で赤にならないことを test と混雑条件の実受入で確かめる)。実装側の修正は branch `worktree-dev-wave-acceptance-shard0-load` の commit 4258b0c76 (prewarm は写しを finish の停止 event まで待ち、遅延・失敗では構築しない。正例 `test_t080_shared_base_prewarm_stop_before_snapshot_is_quiet`) にあるが、実装自体は同時刻対照で land 条件を満たさず main へ入れていない (D2328)。
+- 再発検知: 受入の shard が `report-invalid` で落ち、dispatcher.log の traceback が session 終了処理 (`_finish_*`) を指すとき。先行処理を足す wave は、consumer の無い shard で先行処理が遅延・失敗しても session が赤にならないことを test で固定する。
