@@ -118,4 +118,12 @@
 
 ## 改訂
 
-(なし)
+- 改訂 1 (2026-09-30 21:4x JST、run1 の直後、hit を 1 件も判定する前): run1 (21:3x〜21:41) で OpenAlex の QL1〜QL6 は全部 1 page 目が HTTP 503、本文
+  `{"error":"Search temporarily unavailable","message":"Anonymous search is paused while the search cluster recovers from heavy load. ..."}` で `invalid` になった
+  (arXiv の A1〜A4 は完走)。§3.1 は 429 の再試行と再走だけを定めていたので、**503 の「一時的に利用不可」も 429 と同じ扱い**にする: run1 の QL1〜QL6 は無効とし 1 件も判定しない。
+  式は変えず、同じ ID の run2 として 10 分以上あけて 1 式ずつ再走する。run2 も取れなければ OpenAlex の枝は `未完走` で確定し、N4・N5 は arXiv の範囲だけで書く。
+  API key は使わない (利用者の登録を要し、本 wave では作らない)。
+- 改訂 2 (2026-09-30 21:5x JST、run2 の直後、OpenAlex の hit を 1 件も判定する前): run2 (21:54、QL1〜QL6) は各式の 1 page 目で 503 を受けた後、取得 script が
+  改訂 1 の「503 も 429 と同じく再試行」を実装しておらず 1 秒で `invalid` にした (台帳 `ledger-run2-QL*.json`)。これは索引の不可用ではなく取得 script の欠陥なので、
+  run2 を無効とし「未完走の確定」には使わない。script を直した後 (Codex fix、503 と 429 を合算 5 試行・retryAfter+5 秒)、同じ式を run3 として 1 式ずつ走らせる。
+  run3 で取れなかった式は `未完走` で確定する。
