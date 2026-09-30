@@ -1134,6 +1134,10 @@
 - **再発: 2026-09-30** — dev-wave-lock-order-axis の fix 用子木の `git worktree add -b` が checkout の途中で「cannot create directory …: システムコール割り込み」(EINTR) により rc=128 で終了し、作りかけの木は消えて branch だけが残った。既存 branch を指定した `git worktree add <path> <branch>` の単独の再実行で成功した。
 
 - **再発: 2026-10-01** — 作成側の再発 (2026-09-02 の kill 形)。[T-2865] の R2 再測定で submit checkout を repo 外の job dir に 1 本ずつ直列に作る script (`git worktree add --detach` → submodule 初期化 → `git worktree lock` → hydrate) を背景 command で回したところ、4 本目 (`trees/c3r2`) の `git worktree add` が 03:26 に作業ツリーの展開まで進んだまま戻らず、背景 command の 30 分上限で kill された (前の 3 本は各 2 分前後で完了)。その後は `.git/worktrees/c3r2` が無く `git worktree list` に現れず、dir の中身は 04:02 以後に減り続けた。管理 dir と中身を消した主体 (中断された add 自身の後始末か別の主体か) は確かめていない。lock を add の後に掛ける順序だと、add が戻らない間は無防備な中途状態が残る。作り直しは `git worktree add --lock --reason ...` で追加と lock を同時に行い、別名 (`trees/c3r2b`) で 2 分で完了した。孤児 dir には触れていない。記録 `output/insights/2026-10-01/t2865-r2-replay/README.md` §4。
+
+- **再発: 2026-09-30** — 生成器対照の本走 wave ([T-2867]) で、submit checkout 16 本を 4 本ずつ並行の `git worktree add --detach` で作り、c03・c06・c11 の 3 本が rc=128 で落ちた
+  (stderr を捨てていたので理由は未記録。login は他 wave の worktree 操作が並走)。作りかけは残らなかった。3 本を 1 本ずつ直列に作り直すと全部 1 回目で成功した。
+  次からは作成側も 1 本ずつ直列にし、stderr を log に残す (2026-09-29 の再発が記した `--no-checkout` → lock → `reset --hard` の形も候補)。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -10263,6 +10267,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — md_23 wave で、親が同じ detached 計測木から本走 6 job (perf 3・count 1・trace 2) を detach script で同時に投げ、1 本目の pending orphan hold を検知して 5 本が rc 16 (`child_started=false`、`reason=orphan-hold`) になった (親の操作ミス)。1 本目 (36631.nqsv) は走り切り、残り 5 本は同じ木から 1 本ずつ流す chain で通した。qdel も hold の手動削除もしていない。`DW-C00` の「同一 worktree の dispatch は全種直列」の読み落としで、既存の恒久対応に直すべき新事実はない。並列にしたい計測は、計測木を job の数だけ作ってから投げる。
 
 - **再発: 2026-09-30** — VHash md_31 で、親が fix1 commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と焦点走 2 を同一 worktree からほぼ同時に投入し、焦点走 2 の qsub 中の pending orphan hold を監査が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。焦点走 2 は request 37897 で走り切り、hold はその終端で自然に解除、監査は単独の再投入 (37907) で rc=0。qdel も hold の手動削除もしていない。既存の恒久対応に直すべき新事実はない。
+
+- **再発: 2026-09-30** — 同じ wave で、親が driver 修正の commit 後に焦点走の `run_tests` dispatch と全史 provenance 監査を同一 worktree からほぼ同時に投入し、
+  監査が焦点走の pending orphan hold (`phase: pending-qsub`) を検知して rc=16 (`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。
+  焦点走 (37868.nqsv) は走り切って hold も自然に解除され、監査は単独の再投入で rc=0。qdel も hold の手動削除もしていない。既存恒久対応に直すべき新事実はない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -24439,6 +24447,9 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`DW-S01`) に反している。
 - 追加の再発検知: 段 8 の候補を routing する前に、候補の**主題語**で `docs/failures.md` を引き、
   **hit 件数を数えてから全 hit の F 見出しを確認する**。先頭だけを読んで同型なしと判断しない。
+
+- **再発: 2026-09-30** — 同じ wave で、codex の dry-run のために Bash tool で `cd <子 worktree> && python3 tools/dev_wave_codex.py … --dry-run` を打ち、永続 shell の cwd が子の worktree へ移って
+  次の Bash が拒否された。`EnterWorktree({path: <自分の wave worktree>})` で即座に戻した (空転 1 回)。以後の dry-run は launcher と同じく job dir の `.sh` 経由にした。
 ### F860. node の所要時間を wall の増減として数えた [計測汚染]
 
 - 事象: 受入高速化 wave で親が同じ取り違えを 2 回した。(1) collection の per-item
@@ -28982,3 +28993,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 未確定。1 は作図の文字配置が描画環境 (フォント・負荷) に依存する可能性、2 は壁時計ではなく tick 回数で待つループが、受入の並列負荷で背景の thread pool の進行に追いつかない可能性 (T-2797 で時間依存を一度除いた test)。どちらも本 wave と無関係の既存 test。
 - 恒久対応: 未実施。直す wave の材料として land 調整役が集約する (2026-10-01 の依頼)。本 wave では DW-O18 に従い、単独再走の非再現を確かめてから受入を取り直した (worklog fragment に判定を記録)。
 - 再発検知: 受入の赤がこの 2 本のどちらかなら、この F を引いて単独再走で確かめる。同じ test が別の wave の受入でも落ちたら、この F に再発として追記する。
+
+### F1092. 隔離 session の Bash guard が計算値の引数・複合コマンドを拒否する型を、同じ wave で約 10 回踏んだ [手順漏れ]
+
+- 事象: 2026-09-30 の生成器対照の本走 wave ([T-2867]) で、親が `J=<dir>; python3 $J/…`、`for n in …; do … $n …; done`、`sed -i … $J/…`、`bash $J/….sh` のように
+  shell 変数や loop 変数で組み立てたコマンドを Bash tool へ書き、隔離 session の guard に「値が実行時に計算されるので git でないと示せない」として約 10 回拒否された。
+  毎回、引数を逐語の絶対 path に書き直すか、処理を job dir の `.sh`・`python3 -c` の本文へ移して通した。同じものを投げ直してはおらず、実害は tool 呼出しの空転だけ。
+- 根本原因: 拒否の型 (計算値の argv、`git` を名指しうる複合コマンド、heredoc) は記憶 `git-and-guard-discipline` の 2026-09-20 追記に書かれていたが、
+  wave の途中で読み返さず、長い監視の合間に書いた一回限りのコマンドで同じ型を繰り返した。
+- 恒久対応: 新しい防壁は足さない (guard は正しく拒否している)。親は Bash tool のコマンドに shell 変数・loop・`$()` を置かず、path を逐語で書く。
+  繰り返す処理は job dir の `.sh` に path を固定して書き、`bash <絶対 path>.sh <逐語の引数>` の 1 行で呼ぶ。
+- 再発検知: 同じ session で guard の拒否文言 (「computed at runtime」「too complex to verify」) が 2 回目に出たら、以後のコマンドをすべて逐語 path 形に切り替える。
