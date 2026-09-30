@@ -1,0 +1,6379 @@
+{
+  "schema": "unreachable-20260930-plan-v1",
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup",
+  "job": "/work/SFC/tanab/tmp/unreachable-cleanup-2026-09-30",
+  "items": [
+    {
+      "oid": "012af146ca8470b19c4b3cd9765c231a131c8fd5",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T14:25:47+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_confirm.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "059d3b0f0bda351c0be599858846ac679b4ad2de",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:11:38+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 12,
+        "suppressed": 0,
+        "inmain": 1,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 11
+      },
+      "paths": [
+        "genopt_gl_scratch/fmt_check.py",
+        "genopt_gl_scratch/gate_check.py",
+        "genopt_gl_scratch/launch_gate_liveness.py",
+        "genopt_gl_scratch/make_patches.py",
+        "genopt_gl_scratch/mutation_check.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "genopt_gl_scratch/fmt-result.json",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/fmt_check.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/gate_check.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/launch_gate_liveness.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/make_patches.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/mutation_check.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/patch-check.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/patches/broken-silo-b1-unregistered-first-read.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/patches/fix-silo-intra-txn-values.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/patches/instr-silo-gate-witness.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/test_gate_check.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/verify_patches.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "0935923842c40de33bfc2e53a07a26a309f87e07",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T07:37:21+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "probe-t2273is/t2273is_ab_analyze.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "probe-t2273is/t2273is_ab_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "09ef9a61ed7b2859dba24d31a2a23d2bb66ed4cd",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T12:44:40+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 5,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        "wave-probe/README.md",
+        "wave-probe/bench_abab.py",
+        "wave-probe/equiv_fixtures.py",
+        "wave-probe/equiv_plugin.py",
+        "wave-probe/equiv_real.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "wave-probe/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "wave-probe/bench_abab.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "wave-probe/equiv_fixtures.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "wave-probe/equiv_plugin.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "wave-probe/equiv_real.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "0e6d41d30395fd163024877546401b5eb48e2a76",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T00:01:49+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "verify-target/launch_cicada_run_target.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "verify-target/launch_cicada_run_target.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "0eaf6c6dabf0e9bd04bf070b4ed1324d5d2b04a0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T12:52:30+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 6,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 6
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/diag-counters.patch",
+        "md32-scratch/launch_promo_diag.py",
+        "md32-scratch/v-ronly-nopromo.patch",
+        "md32-scratch/v-uaf-reorder.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/diag-counters.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_diag.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/v-ronly-nopromo.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/v-uaf-reorder.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/v-update-keep.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "0ee32397703b029fe04f0b24d6dd15f608140690",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T00:01:41+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch/t2797-v2-mutation/README.md",
+        "scratch/t2797-v2-mutation/spec-probe.json"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2797-v2-mutation/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2797-v2-mutation/spec-probe.json",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "0f40207b090ee37125fedad79b62f36b9256e1de",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:09:41+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/gate_wait_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/gate_wait_probe.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "0f75362db6bdf89d9056a980ce37e38c71bcdb98",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T00:14:17+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".gcfix-ci/run_ci_build.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".gcfix-ci/run_ci_build.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "134d7856c49ead14d4ecd107b022f183f2c54add",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:47:50+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-verifier-ext/launch_cicada_run.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "13589a0d9c8a80c4e3cb26b8f9c7097fb9d890c4",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T23:15:57+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 5,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        ".gcfix-ci/run_ci_build.sh",
+        ".gcfix-launcher/launch_gcfix_run.py",
+        ".gcfix-work/count-gcfix-skips.patch",
+        ".gcfix-work/diag-cicada-gc-records.patch",
+        ".gcfix-work/onelevel-cicada-gc-records.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".gcfix-ci/run_ci_build.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".gcfix-launcher/launch_gcfix_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".gcfix-work/count-gcfix-skips.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".gcfix-work/diag-cicada-gc-records.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".gcfix-work/onelevel-cicada-gc-records.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "13cafb065c7e57492cd874f147d348b008d576b1",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:55:42+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2851_anchor_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2851_anchor_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "15eccc8675c9a0597e7ade12338efa7db8e326c7",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T15:44:21+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "probe-t2273pi/t2273pi_ab_analyze.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-precopy-impl/probe/t2273pi_ab_analyze.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "17f0e5e73eb085d9eebfab5078f1ee2c1144a2c0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:08:09+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "185f209cd9f4b41c8c29d464d9ecdd97b7b8bab5",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-28T08:34:42+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 5,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        "probe-t2273is/t2273is_ab_analyze.py",
+        "probe-t2273is/t2273is_gate.conf",
+        "probe-t2273is/t2273is_run_measure.sh",
+        "probe-t2273is/t2273is_run_series.sh",
+        "probe-t2273is/t2273is_run_warm.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "probe-t2273is/t2273is_ab_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "probe-t2273is/t2273is_gate.conf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "probe-t2273is/t2273is_run_measure.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "probe-t2273is/t2273is_run_series.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "probe-t2273is/t2273is_run_warm.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "199c8a67a200ae762dcec74d0e22a48fc7ff99d5",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T23:48:25+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 1,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/strip_claude_session_trailers.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/strip_claude_session_trailers.sh",
+          "kind": "deletion",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "19b48b83dffb03117aaa224cadbd1a055b089f5a",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T04:09:33+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "1a3f5fb0eb3b97775dd3e386d9aed64c179bc00e",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:25:05+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "1afb16c97fcabd98102256c7ba9aca1dd29fc0c2",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T23:04:02+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "1bd414c07a2b5e0416f8ff5c4691f9c3c1c5fd95",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:09:22+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "1df428f4011b6b46c2053da5c81fa61e06974640",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T20:47:53+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 2,
+        "suppressed": 1,
+        "inmain": 2,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2826_modify_timing_aggregate.py",
+        "tools/t2826_probe_plugin.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2826-resume/probe/t2826_modify_timing_probe.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2826_modify_timing_aggregate.py",
+          "kind": "inmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2826_probe_plugin.py",
+          "kind": "inmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "21ff9c31f4fe6d402bb407154915180c8a76c788",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T15:42:20+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_confirm.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2277c8236e14e23954d529e20d963e79cea8ade0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-19T21:54:05+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 4,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 4
+      },
+      "paths": [
+        "t2786_probe/mutations.json",
+        "t2786_probe/t2786_probe_analyze.py",
+        "t2786_probe/t2786_probe_plugin.py",
+        "t2786_probe/test_t2786_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2786_probe/mutations.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/t2786_probe_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/t2786_probe_plugin.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/test_t2786_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "22e361d9cb1c35fb5b5f55b3c989c000cc7d350c",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T09:16:40+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_runner.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe-r2b/t2273_replica_runner.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "23a1f90848178ad8b704618d68650c93600e8341",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:33:31+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 6,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 6
+      },
+      "paths": [
+        "scratch/t2850-glue/README.md",
+        "scratch/t2850-glue/parent-launch.sh",
+        "scratch/t2850-glue/parent_watch.py",
+        "scratch/t2850-glue/schedule.py",
+        "scratch/t2850-glue/submit.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/job_costs.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-glue/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/parent-launch.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/parent_watch.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/schedule.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/submit.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/test_glue.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "278a3ada5db9adaf5503cc0b47ab2e96134f7ca4",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T09:11:39+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 1,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "ir-check.json"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "ir-check.json",
+          "kind": "inmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "278ec3bd73b8c5efa5f72063b8014e1b71870015",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T00:02:58+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "scratch-acp/SELFCHECK.md",
+        "scratch-acp/aggregate.py",
+        "scratch-acp/run-pair.sh"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/_shared-templates/run-acceptance-gated.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-acp/SELFCHECK.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-acp/aggregate.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-acp/run-pair.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2998ac8161096b14f1fe85f195b96ced77588a4d",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T20:40:46+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2866_tpcc_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2866_tpcc_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2a1b8333993291bcc226b878d7ec12f2d67babd2",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T20:43:21+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 3,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_analyze.py",
+        "tools/t2273_replica_plugin.py",
+        "tools/t2273_replica_runner.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2273_replica_analyze.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2273_replica_plugin.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2273_replica_runner.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2d5049c5ba928ae92e19ca5ef31706f3ebd1bc14",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T00:17:14+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "scratch-acp/SELFCHECK.md",
+        "scratch-acp/aggregate.py",
+        "scratch-acp/run-pair.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-acp/SELFCHECK.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-acp/aggregate.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-acp/run-pair.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2ebf25e246e7a6b6ad1c6c06507afc18120f8c89",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T20:32:17+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 3,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_analyze.py",
+        "tools/t2273_replica_plugin.py",
+        "tools/t2273_replica_runner.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2273_replica_analyze.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2273_replica_plugin.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2273_replica_runner.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2ee2c8be5c0a000e047a2e1de9dea002890cc3e8",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T14:20:43+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch/t2850-vprobe/README.md",
+        "scratch/t2850-vprobe/probe_verify_parallel.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-vprobe/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-vprobe/probe_verify_parallel.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2f01c8501be42dcdf4ad3ea04149ab918d019a71",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T18:21:09+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 4,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "scratch/t2850-glue-v3/README.md",
+        "scratch/t2850-glue-v3/submit.py",
+        "scratch/t2850-glue-v3/test_glue.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/job_costs.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/parent_driver.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-v2-followup/glue-v4/prepare_submit_tree.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-glue-v3/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue-v3/submit.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue-v3/test_glue.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "2f82c6e68f5f6e47c99eeb8bf74345339e8dc116",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T21:36:04+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 6,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "probe-fig15/.mplconfig/fontlist-v390.json",
+        "probe-fig15/fig15_mocc_witlight_four_arm.pdf",
+        "probe-fig15/fig15_mocc_witlight_four_arm.png",
+        "probe-fig15/fig15_mocc_witlight_four_arm.provenance.json",
+        "probe-fig15/inspection.json"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig15/.mplconfig/fontlist-v390.json",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig15/fig15_mocc_witlight_four_arm.pdf",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig15/fig15_mocc_witlight_four_arm.png"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "2fd6b5f4ba745df1280d0cfdc8b39a0d62e5c6b7",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:55:44+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 11,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2825-author-l/coverage.log",
+        "t2825-author-l/determinism.log",
+        "t2825-author-l/input-sha256.json",
+        "t2825-author-l/ledger-before.json",
+        "t2825-author-l/main-nodeids.txt"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/mutation-source/output/insights/2026-09-21/t2825-ledger-refresh-ab/ledger-evidence/coverage.log",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/mutation-source/output/insights/2026-09-21/t2825-ledger-refresh-ab/ledger-evidence/determinism.log",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/mutation-source/output/insights/2026-09-21/t2825-ledger-refresh-ab/ledger-evidence/input-sha256.json"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2825-ledger"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2825-ledger": "2fd6b5f4ba745df1280d0cfdc8b39a0d62e5c6b7"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "305d0c16f6422f40c418cef92024e8941e4da6c3",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:12:11+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "verify-scratch/launch_cicada_run_early_abort.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "verify-scratch/launch_cicada_run_early_abort.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "3108b492b288f256ab2b9c9af9d524879a4e3f90",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T09:41:43+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2847_capacity/launch_capacity.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-verifier-capacity/launch_capacity.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "31894443efd6c662f9e257d1055a0da0d15ca375",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T14:33:42+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 3,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2826_modify_timing_aggregate.py",
+        "tools/t2826_modify_timing_probe.sh",
+        "tools/t2826_probe_plugin.py"
+      ],
+      "external_paths": [],
+      "source_refs": [
+        "refs/heads/author-t2826-probe"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2826-probe": "31894443efd6c662f9e257d1055a0da0d15ca375"
+      },
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2826_modify_timing_aggregate.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2826_modify_timing_probe.sh",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/t2826_probe_plugin.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "31d753fb89897afe388f0e2998b7b8d202296c1d",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T20:35:47+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2866_tpcc_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2866_tpcc_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "34429b82475a85af76a31703bd76be43db43a3df",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:45:51+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "tmp-verify/launch_cicada_run_gc.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tmp-verify/launch_cicada_run_gc.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "351998e406502769f8a4ed1f9939c3d9b22f42be",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T22:05:22+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 3,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "scratch/t2850-glue/README.md",
+        "scratch/t2850-glue/schedule.py",
+        "scratch/t2850-glue/test_glue.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/README.md",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/schedule.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/test_glue.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "38ba4a4bba332e053e146eeaa5a515c7cb701b62",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:17:57+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "md7-probe/liveness_vhash_s8.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md7-probe/liveness_vhash_s8.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "3b8692053d836dcd08f19c7efadbbf4847f45249",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T12:50:32+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "verify-scratch/launch_cicada_run_early_abort.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "verify-scratch/launch_cicada_run_early_abort.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "3bd7d41accc936d15cee7545b27565f5423e486f",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T15:09:20+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_confirm.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "3dfa82090fb49f1953df5cd5937d43a0f567fe99",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:37:20+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 3,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2825-probe/run-measure.sh",
+        "t2825-probe/run-series.sh",
+        "t2825-probe/t2825_ab_analyze.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/probe/run-measure.sh",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/probe/run-series.sh",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/probe/t2825_ab_analyze.py"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2825-probe-fix1"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2825-probe-fix1": "3dfa82090fb49f1953df5cd5937d43a0f567fe99"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "40639c173656760305400fa0b95c4fe4c5caed8c",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:25:03+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "t2825-probe/run-measure.sh",
+        "t2825-probe/run-series.sh",
+        "t2825-probe/t2825_ab_analyze.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2825-probe/run-measure.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2825-probe/run-series.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2825-probe/t2825_ab_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "42eb19feea3c60a7bffea79d71c3b0e2605364bc",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T21:35:27+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 9,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "probe-fig14/.mplconfig/fontlist-v390.json",
+        "probe-fig14/a1-self-run.log",
+        "probe-fig14/fig14_a1_balanced5_sized_attempt2.pdf",
+        "probe-fig14/fig14_a1_balanced5_sized_attempt2.png",
+        "probe-fig14/fig14_a1_balanced5_sized_attempt2.provenance.json"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig14/.mplconfig/fontlist-v390.json",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig14/a1-self-run.log",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig14/fig14_a1_balanced5_sized_attempt2.pdf"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "43637fe41ff9dce0b0eb260abddb24814b18cb0d",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T19:39:04+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch/t2850-vprobe-v3/README.md",
+        "scratch/t2850-vprobe-v3/probe_verify_parallel.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-vprobe-v3/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-vprobe-v3/probe_verify_parallel.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "450199aeb24d333b2ab88a85e3d166820d70e4ef",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T05:16:53+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-cicada-verifier/launch_cicada_run.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "47b6426a61cc900d83bb9c1709e8073f7ba30227",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:33:22+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 4,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 4,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/llm_parent_driver.py",
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/setup_submit_tree.sh",
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/submit_registered.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/llm_parent_driver.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/setup_submit_tree.sh",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/submit_registered.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "4cea7c808a19064c016f9cd7939036d635dc9a2e",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:00:48+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2825-mutation/make_mutation_spec.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/probe/make_mutation_spec.py"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2825-mutation"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2825-mutation": "4cea7c808a19064c016f9cd7939036d635dc9a2e"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "524237344ca0a37d96f04085e40f3cfed0d92259",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:35:36+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".t2847-launcher/launch_mutation_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".t2847-launcher/launch_mutation_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "54cf40bc6ceb84ca841ffeabfbdb0bc70f7f764c",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T16:09:31+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "md32-scratch/launch_promo_confirm.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "578599e5e12965b6e210435d76e8c476eecd5228",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:52:58+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 4,
+        "suppressed": 2,
+        "inmain": 0,
+        "deletion": 2,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch/t2850-glue/README.md",
+        "scratch/t2850-glue/test_glue.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/parent_driver.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/prepare_submit_tree.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-glue/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/parent-launch.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/parent_watch.py",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/test_glue.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "57e3e1c967d552aeb9962b7751820e0a73ba810c",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:34:45+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 4,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273lc_ab_analyze.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/probe/t2273lc_gate.conf",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/probe/t2273lc_run_measure.sh",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/probe/t2273lc_run_series.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2273lc_ab_analyze.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "58c35f73af1594d53cba34e56b15a1e744ed4175",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T02:37:16+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 17,
+        "suppressed": 0,
+        "inmain": 4,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 13
+      },
+      "paths": [
+        "scratch/out/fig8_original_positive_control.pdf",
+        "scratch/out/fig8_original_positive_control.provenance.json",
+        "scratch/out/fig8_r2a_b10_static_tail.pdf",
+        "scratch/out/fig8_r2a_b10_static_tail.provenance.json",
+        "scratch/out/fig8_r2b_b10_static_tail.pdf"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/out/fig8_original_positive_control.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_original_positive_control.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_original_positive_control.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_r2a_b10_static_tail.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_r2a_b10_static_tail.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_r2a_b10_static_tail.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_r2b_b10_static_tail.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_r2b_b10_static_tail.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8_r2b_b10_static_tail.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_control_recheck.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_control_recheck.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_control_recheck.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_original_as_r2_recheck.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_original_as_r2_recheck.png",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_original_as_r2_recheck.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/four_group_recheck.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2853_r2_fig8b_plot.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "5a4cec319046a7d0383a7968461c5220e34a6fd6",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:35:18+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        ".t2847-launcher/launch_mutation_run.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-mutation-run/launch_mutation_run.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "6165799b4c4b54e23b76d94601e627b3bde6489e",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T15:08:00+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 5,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "probe-t2273pi/t2273pi_ab_analyze.py",
+        "probe-t2273pi/t2273pi_gate.conf",
+        "probe-t2273pi/t2273pi_run_measure.sh",
+        "probe-t2273pi/t2273pi_run_series.sh",
+        "probe-t2273pi/t2273pi_run_warm.sh"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-precopy-impl/probe-v1/t2273pi_ab_analyze.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-precopy-impl/probe-v1/t2273pi_gate.conf",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-precopy-impl/probe-v1/t2273pi_run_measure.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "62261c224d90e2a674eafe9801a00faf2036caec",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:29:31+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 5,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        "genopt_gl_scratch/gate_check.py",
+        "genopt_gl_scratch/launch_gate_liveness.py",
+        "genopt_gl_scratch/make_patches.py",
+        "genopt_gl_scratch/patches/instr-silo-gate-witness.patch",
+        "genopt_gl_scratch/test_gate_check.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "genopt_gl_scratch/gate_check.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/launch_gate_liveness.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/make_patches.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/patches/instr-silo-gate-witness.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/test_gate_check.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6337dcef5ba1634a354a0c2ce1da122deaa23837",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T09:02:57+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2847_capacity/launch_capacity.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2847_capacity/launch_capacity.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "665dd49245b4ac4aa999ee410827ca0d2a7e1011",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:17:04+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "wave-probe/equiv_real.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "wave-probe/equiv_real.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "66691d13c00bebabd6d6ab82edd95e62abc45e01",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T15:05:47+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 6,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2850-glue-v4/README.md"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/job_costs.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/parent_driver.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-v2-followup/glue-v4/prepare_submit_tree.sh"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-glue-v4/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6676f7c54d12516855e6b5a6ff7edb4030410741",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:08:27+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".t2847-launcher/launch_mutation_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".t2847-launcher/launch_mutation_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6791cec22f86539d362aaf7892300423a190a035",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T10:26:38+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2851_anchor_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2851_anchor_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6807376d6212320d99f30f01096bd6970ab91c67",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T22:48:31+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "verify-target/launch_cicada_run_target.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "verify-target/launch_cicada_run_target.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "68af68ed24ef90548943fa73f075b7b75e3967a9",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:21:31+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 6,
+        "suppressed": 188,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 6
+      },
+      "paths": [
+        "t2872_probe/arms-t2872.json",
+        "t2872_probe/mocc-g2-probe.patch",
+        "t2872_probe/scratch/probed/cc/mocc/transaction.cc",
+        "t2872_probe/scratch/transaction.base.cc",
+        "t2872_probe/scratch/transaction.cc"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/scratch-clone-min/CMakeLists.txt",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/scratch-clone-min/cc/mocc/CMakeLists.txt",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-xp-pin-candidate/probe/scratch-clone-min/cc/mocc/README.md"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2872_probe/arms-t2872.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/mocc-g2-probe.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/transaction.cc",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/transaction.base.cc",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/transaction.cc",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/t2872_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6c28c08f147bc869a2b478caee4f666be89f9d03",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:45:00+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "tmp-verify/launch_cicada_run_gc.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tmp-verify/launch_cicada_run_gc.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6ca101451d87755a8fe1745c3bd44fd3e6b64d28",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:32:51+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 193,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 191,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "t2872_probe/mocc-g2-probe.patch",
+        "t2872_probe/t2872_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2872_probe/mocc-g2-probe.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/CMakeLists.txt",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/CMakeLists.txt",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/README.md",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/bomb_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/atomic_tool.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/common.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/lock.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/mocc_op_element.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/result.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/scan_callback.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/transaction.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/tuple.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/include/util.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/lock.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/pseudo_mql.txt",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/sbomb_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/test_cache_ana.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/test_t1k.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/test_t1m.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/test_t200.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/tst200-1k-1m.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsb-xope.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsb-xrratio.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsb-xrs.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsb-xskew.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsb-xth.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsb-xval.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsbA-xrs-cache.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsbA.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsbB.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/script/ycsbC.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/tpcc_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/transaction.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/util.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cc/mocc/ycsb_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/CompileOptions.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/Findgflags.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/Findglog.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/MicrobenchHelpers.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/Options.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/ProtocolHelpers.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/cmake/ThirdParty.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/common/result.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/common/runner.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/common/util.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/atomic_wrapper.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/backoff.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/bomb.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/bomb_pessimistic.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/bomb_static.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/cache_line_size.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/check.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/compiler.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/config.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/cpu.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/dbomb_deterministic.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/debug.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/delay.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/fence.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/fileio.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/heap_object.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/inline.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/int64byte.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/lock.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/masstree_wrapper.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/op_element.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/procedure.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/queue.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/random.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/result.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/rwlock.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/sbomb_deterministic.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/status.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/string.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_common.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_initializer.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_query.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_tables.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_tx_delivery.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_tx_neworder.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_tx_orderstatus.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_tx_payment.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_tx_stocklevel.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tpcc/tpcc_util.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/trace.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/transaction_status.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tsc.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tuple_body.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/tx_executor_concept.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/util.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/workload.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/ycsb.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/base/include/zipf.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/cc/mocc/transaction.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/CMakeLists.txt",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/CMakeLists.txt",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/README.md",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/bomb_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/atomic_tool.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/common.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/lock.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/mocc_op_element.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/result.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/scan_callback.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/transaction.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/tuple.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/include/util.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/lock.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/pseudo_mql.txt",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/sbomb_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/test_cache_ana.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/test_t1k.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/test_t1m.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/test_t200.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/tst200-1k-1m.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsb-xope.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsb-xrratio.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsb-xrs.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsb-xskew.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsb-xth.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsb-xval.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsbA-xrs-cache.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsbA.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsbB.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/script/ycsbC.sh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/tpcc_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/transaction.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/util.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cc/mocc/ycsb_mocc.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/CompileOptions.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/Findgflags.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/Findglog.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/MicrobenchHelpers.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/Options.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/ProtocolHelpers.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/cmake/ThirdParty.cmake",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/common/result.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/common/runner.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/common/util.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/atomic_wrapper.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/backoff.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/bomb.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/bomb_pessimistic.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/bomb_static.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/cache_line_size.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/check.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/compiler.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/config.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/cpu.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/dbomb_deterministic.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/debug.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/delay.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/fence.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/fileio.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/heap_object.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/inline.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/int64byte.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/lock.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/masstree_wrapper.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/op_element.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/procedure.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/queue.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/random.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/result.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/rwlock.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/sbomb_deterministic.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/status.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/string.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_common.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_initializer.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_query.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_tables.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_tx_delivery.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_tx_neworder.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_tx_orderstatus.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_tx_payment.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_tx_stocklevel.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tpcc/tpcc_util.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/trace.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/transaction_status.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tsc.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tuple_body.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/tx_executor_concept.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/util.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/workload.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/ycsb.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/probed/include/zipf.hh",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/transaction.base.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/scratch/transaction.cc",
+          "kind": "deletion",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/t2872_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "6ed1056e41b4597c9635a1cdcd5f41375c32676a",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T08:21:29+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2847_launch/launch_patch_verify.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-patch-verify/launch_patch_verify.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "7105f35eaaa2f0e468d60008ba4a7fcbd1402af0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:37:47+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/gate_wait_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/gate_wait_probe.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "782cf34424db6033a78560d1fe5f82c7ec10b10c",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:38:41+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_diag.py",
+        "md32-scratch/v-init-ver.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_diag.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/v-init-ver.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7b6f2af364b1848210fde955de1ba643aa851a25",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T17:38:56+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "tmp-verify/launch_cicada_run_gc.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tmp-verify/launch_cicada_run_gc.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7ba7290b535070dd985e93b788faf8a441fa7a38",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:14:22+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2872_probe/t2872_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2872_probe/t2872_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7c46f68065b66cdaa2d095dee0163fa30b143408",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:55:16+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2812_old_series_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [
+        "refs/heads/dev-wave-t2812-probe-author"
+      ],
+      "source_tips": {
+        "refs/heads/dev-wave-t2812-probe-author": "7c46f68065b66cdaa2d095dee0163fa30b143408"
+      },
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2812_old_series_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7c8ace5fc998c95ee5f92bc6042e22cb513b3acc",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:43:30+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2851_anchor_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2851_anchor_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7d36ae58164230c8b8443a689ac46c77168b0112",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:15:37+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2847_launch/launch_sort_nonswo.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2847_launch/launch_sort_nonswo.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7d54d2e35288f66df4d9c1fc0adc54edd7f5b9cf",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:38:31+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/llm_parent_driver.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/llm_parent_driver.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7db3767a3d345296fd6c87df0d337eee5cf0569b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:36:27+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 4,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 4
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_confirm.py",
+        "md32-scratch/promo_diag_support.py",
+        "md32-scratch/run_ci_image.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/promo_diag_support.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/run_ci_image.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7eee705503199062751e345804ef237232614598",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:39:33+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "genopt_gl_scratch/launch_gate_liveness.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "genopt_gl_scratch/launch_gate_liveness.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "7f38ac7fdab5cde1744f41ce67f0fae95b839b27",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T09:24:39+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_runner.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe-r2c/t2273_replica_runner.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "7fa426d337b1213cc36e19c3ba2e5185d209660a",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:43:45+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 4,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 4
+      },
+      "paths": [
+        "scratch/t2850-glue/README.md",
+        "scratch/t2850-glue/parent_watch.py",
+        "scratch/t2850-glue/prepare_submit_tree.sh",
+        "scratch/t2850-glue/test_glue.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2850-trial-run/glue/submit.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-glue/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/parent_watch.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/prepare_submit_tree.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-glue/test_glue.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "80a06a102780d509d4392cc7d52f6fb6802b3771",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:57:14+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "tmp-verify/launch_cicada_run_gc.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tmp-verify/launch_cicada_run_gc.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "80ee30b77f456e4b993c50eaa23876418fe6c574",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:40:05+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2872_probe/mocc-g2-probe.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2872_probe/mocc-g2-probe.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "817bfdec8d6792b0662dc570663572063b19a0de",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:42:09+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "89335134f0d11199b597bc466c63f1dc0800bde5",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T14:10:29+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_diag.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_diag.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "89ff3d12ec274ab6012eb7cb6a4c15abbfb0b1a2",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T23:51:02+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        ".gcfix-launcher/launch_gcfix_run.py",
+        ".gcfix-work/asan-abort-uaf-workaround.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".gcfix-launcher/launch_gcfix_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".gcfix-work/asan-abort-uaf-workaround.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "8ac3261423fb02094affa86a1961a05bc9e550fe",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T22:28:35+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 1,
+        "suppressed": 1,
+        "inmain": 1,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "scratch/t2797-v2-vprobe/README.md"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2797-b5-v2-prep/vprobe/probe_verify_parallel.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2797-v2-vprobe/README.md",
+          "kind": "inmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "8b96e539dfa52b3edb75c271131449534b539382",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T14:21:31+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".t2847-launcher/launch_mocc_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".t2847-launcher/launch_mocc_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "8dcd287b9313db4eb76be79c4d4b109788f71699",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:35:13+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2847_launch/launch_sort_nonswo.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-sort-nonswo/launch_sort_nonswo.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "8e6cd5b278f0c81a030278cac05dc75d60add919",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:43:23+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "8f988879c00a3276cccf430fbdfe51f60eef5dad",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T08:19:30+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "probe/launch_cicada_run_base.py",
+        "probe/launch_cicada_run_multi.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "probe/launch_cicada_run_base.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "probe/launch_cicada_run_multi.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "9280f66dab0f2800b30e1956cd7916fd4e16bccd",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T22:17:16+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        ".gcfix-launcher/launch_gcfix_run.py",
+        ".gcfix-work/diag-cicada-gc-records.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".gcfix-launcher/launch_gcfix_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".gcfix-work/diag-cicada-gc-records.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "92d81dde6b3affbb21d15de75d5ecd7bd65983c4",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:46:56+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "t2872_probe/mocc-g2-probe.patch",
+        "t2872_probe/t2872_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2872_probe/mocc-g2-probe.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/t2872_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "9c5d35ad8cab5fd13bd1d564b885e593e2ea0824",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:46:28+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/gate_wait_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/gate_wait_probe.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "9db4916c7ec9ac2fe05ab4d75d544faf41c0682c",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:00:09+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "t2872_probe/mocc-g2-probe.patch",
+        "t2872_probe/t2872_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2872_probe/mocc-g2-probe.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2872_probe/t2872_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "9ebadfc365c12feec75d77341e4517922e916e0b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T14:59:17+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch/t2850-vprobe/README.md",
+        "scratch/t2850-vprobe/probe_verify_parallel.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2850-vprobe/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2850-vprobe/probe_verify_parallel.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "9f1c6d969914a4157a216f75c334ebc5ba58e8f4",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T04:43:46+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "a028857a6fafe3f8a4e8c366d2493b175ffc4603",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T01:48:16+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2817_probe_plugin.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_probe_plugin.py"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2817-probe-a-fix1"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2817-probe-a-fix1": "a028857a6fafe3f8a4e8c366d2493b175ffc4603"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "a11aad1ac404b815cd4def7f73059cb1844fca85",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T19:14:45+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".t2847-launcher/launch_si_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".t2847-launcher/launch_si_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "a21b8f61292fbd2c29d3bdf30c61c64e5568625a",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:21:29+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2851_anchor_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2851_anchor_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "a4fc9b51b9433a452e2f684bbea9001350bffea2",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:10:19+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/diag-counters.patch",
+        "md32-scratch/launch_promo_diag.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/diag-counters.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_diag.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "a9d08b699137c885318a1ece3eff765c0a6e5c4f",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:47:27+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 4,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 4
+      },
+      "paths": [
+        "scratch-output-pruning/classify.py",
+        "scratch-output-pruning/config.example.json",
+        "scratch-output-pruning/scan_refs.py",
+        "scratch-output-pruning/selftest.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-output-pruning/classify.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/config.example.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/scan_refs.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/selftest.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "acd299a39432f23ace0a23b0a3d8a58471d47417",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:56:11+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_diag.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_diag.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "aee09255a9ddb30488b89ce802de6b5200b618bb",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:09:37+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 12,
+        "suppressed": 0,
+        "inmain": 2,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 10
+      },
+      "paths": [
+        "scratch/out/fig6_comparison.md",
+        "scratch/out/fig6_comparison.wrapper.json",
+        "scratch/out/fig6_control_artist.pdf",
+        "scratch/out/fig6_control_artist.provenance.json",
+        "scratch/out/fig6_control_artist.wrapper.json"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/out/fig6_comparison.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_comparison.wrapper.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_artist.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_artist.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_artist.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_artist.wrapper.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_draw.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_draw.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_draw.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig6_control_draw.wrapper.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2853_r2_fig6_plot.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/tmp/certification-one-byte.json",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "b1355ea04a31369aef32dfba06cb4253e92ba242",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T20:46:19+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2866_tpcc_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2866_tpcc_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "b36ee273171ac885b82c6bf93795fde99c2b46c4",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-19T07:52:14+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 4,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 4
+      },
+      "paths": [
+        "t2786_probe/conftest.py",
+        "t2786_probe/mutations.json",
+        "t2786_probe/t2786_probe_analyze.py",
+        "t2786_probe/test_t2786_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2786_probe/conftest.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/mutations.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/t2786_probe_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/test_t2786_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "b3de31e09ed06321d881fdb704878be99198dded",
+      "subject": "docs(t2344): 段 7 記録 — insight (実測・裁定・レビュー対応・変異台帳・逐語 20 本) と spool fragment (worklog 1 / decisions 2)",
+      "committed_at": "2026-09-21T11:09:25+09:00",
+      "category": "discard-extra",
+      "counts": {
+        "full": 0,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": "T-2840 が追記対象に指定した T-2344 の amend 前の reflog 専用版。変更 path はすべて main に既存のため監査は報告しない。後継 ae0764eae が main に在り、38 file 中 33 が同一・2 件は fold 済み fragment・3 件は着地版が後の修正を含む差 (T-2840 の記載)"
+    },
+    {
+      "oid": "b5120e8f6d8c4c873b2de7b14e8ff3dfff9904c8",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T17:55:30+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "tmp-verify/launch_cicada_run_gc.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tmp-verify/launch_cicada_run_gc.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "b6911273bb63b93bf49c096e10d4e8d87bc45979",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:14:32+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 5,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        "scratch-output-pruning/build_index.py",
+        "scratch-output-pruning/classify.py",
+        "scratch-output-pruning/config.example.json",
+        "scratch-output-pruning/scan_refs.py",
+        "scratch-output-pruning/selftest.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-output-pruning/build_index.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/classify.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/config.example.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/scan_refs.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/selftest.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "b82e3a924ba1576758dec60068709f6f6edd2541",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-19T07:40:12+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 5,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        "t2786_probe/mutations.json",
+        "t2786_probe/t2786_probe_analyze.py",
+        "t2786_probe/t2786_probe_plugin.py",
+        "t2786_probe/t2786_probe_runner.py",
+        "t2786_probe/test_t2786_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2786_probe/mutations.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/t2786_probe_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/t2786_probe_plugin.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/t2786_probe_runner.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2786_probe/test_t2786_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "bb3c3ebb0099644e3bcb838a35f0bf977584070b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T20:29:04+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2866_tpcc_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2866_tpcc_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "bcab331af85805d939dee4b79c91b58bbb6ae283",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T19:43:23+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        ".t2847-launcher/launch_si_run.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2847-si-v2/launch_si_run.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "c101068efaef8fc6566b5e993548e967b0370216",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:49:33+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "genopt_gl_scratch/make_patches.py",
+        "genopt_gl_scratch/patches/broken-silo-b1-unregistered-first-read.patch"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "genopt_gl_scratch/make_patches.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "genopt_gl_scratch/patches/broken-silo-b1-unregistered-first-read.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "c4cca0b009d23ee61f4bd48aa9ead80b70a29381",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:02:10+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 7,
+        "suppressed": 0,
+        "inmain": 2,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 5
+      },
+      "paths": [
+        "scratch/out/fig11_control.pdf",
+        "scratch/out/fig11_control.provenance.json",
+        "scratch/out/fig11_r2_actual.pdf",
+        "scratch/out/fig11_r2_actual.provenance.json",
+        "scratch/t2853_r2_fig11_plot.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/out/fig11_comparison.md",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_control.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_control.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_r2_actual.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_r2_actual.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_r2_actual.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2853_r2_fig11_plot.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "c626b527d2791f49b9af8cf86ce56055794f67d2",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:58:23+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 2,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/login_check_event_ledger.py",
+        "tools/login_check_receipt_replay.py"
+      ],
+      "external_paths": [],
+      "source_refs": [
+        "refs/heads/author-login-check-probe"
+      ],
+      "source_tips": {
+        "refs/heads/author-login-check-probe": "c626b527d2791f49b9af8cf86ce56055794f67d2"
+      },
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/login_check_event_ledger.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/login_check_receipt_replay.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "c671553f34ec05b7c4edae2b7194a4ca374e4ff4",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T20:12:41+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2866_tpcc_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2866_tpcc_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "c6b14f96da92b31427e08bc0bfa7633ed8158217",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:26:15+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/dev-wave-probe/t2858_shape_probe_job.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/dev-wave-probe/t2858_shape_probe_job.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "c7793e51f7317124f29fcacc8136513eb2559c9d",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T08:20:05+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 3,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_analyze.py",
+        "tools/t2273_replica_plugin.py",
+        "tools/t2273_replica_runner.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe/t2273_replica_analyze.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe/t2273_replica_plugin.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe/t2273_replica_runner.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "c84ab8c711e4abea6c1c1fff565da0a4cf89fdda",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:25:22+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 2,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/login_check_event_ledger.py",
+        "tools/login_check_receipt_replay.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-login-check-wall/probe/login_check_event_ledger.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-login-check-wall/probe/login_check_receipt_replay.py"
+      ],
+      "source_refs": [
+        "refs/heads/author-login-check-probe-fix2"
+      ],
+      "source_tips": {
+        "refs/heads/author-login-check-probe-fix2": "c84ab8c711e4abea6c1c1fff565da0a4cf89fdda"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "c962d9e928340075a667ac86146e759b9e61739e",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T08:49:41+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 3,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_analyze.py",
+        "tools/t2273_replica_plugin.py",
+        "tools/t2273_replica_runner.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe-r2/t2273_replica_analyze.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe-r2/t2273_replica_plugin.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-acceptance-bottleneck-diag/probe-r2/t2273_replica_runner.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "ca6cf051acd1359fd4336dbcf6e878608b868e58",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T14:13:45+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "md32-scratch/README.md",
+        "md32-scratch/launch_promo_confirm.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/README.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "cb241cf43d1d1d5aba16b6933fd5bcf515610c8f",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-28T08:21:35+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 8,
+        "suppressed": 0,
+        "inmain": 1,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 7
+      },
+      "paths": [
+        "scratch/out/fig8b_control.pdf",
+        "scratch/out/fig8b_control.provenance.json",
+        "scratch/out/fig8b_four_group_table.md",
+        "scratch/out/fig8b_r2.pdf",
+        "scratch/out/fig8b_r2.png"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/out/fig8b_control.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_control.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_control.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_four_group_table.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_r2.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_r2.png",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig8b_r2.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2853_r2_fig8b_plot.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "cc5bc88e8fd07e7c59d0a8c620729cc8eaba46c0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:59:17+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch-output-pruning/scan_refs.py",
+        "scratch-output-pruning/selftest.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-output-pruning/scan_refs.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/selftest.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "cc97f6662ee15bdf8877084366b0b5a71b74210b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T16:05:19+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch-output-pruning/measure_pair.sh",
+        "scratch-output-pruning/summarize_measure.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-output-pruning/measure_pair.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/summarize_measure.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "cef14d312aa39b836a83010ec33268250cd27b55",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:27:03+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2847_launch/launch_sort_nonswo.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2847_launch/launch_sort_nonswo.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "cf9fa1d9a594b6da3e4c6e820d47d19d10817527",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:03:53+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2812_old_series_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2812_old_series_probe.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "d16f13781d65a7183dd7d29a0a5f195bf56064be",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:01:22+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273lc_ab_analyze.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/probe/t2273lc_ab_analyze.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "d688aaf5591d913a70d8bf5ae9d32c4e2aafc225",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T21:59:30+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "probe-fig15-fix/fig15_mocc_witlight_four_arm.pdf",
+        "probe-fig15-fix/fig15_mocc_witlight_four_arm.provenance.json"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-results-figures/probes/probe-fig15/fig15_mocc_witlight_four_arm.png"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "probe-fig15-fix/fig15_mocc_witlight_four_arm.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "probe-fig15-fix/fig15_mocc_witlight_four_arm.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "d86ec8f4842065802226ecaa3ff285c3611d257b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-27T19:48:09+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2868_probe/t2868_recheck.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2868_probe/t2868_recheck.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "dd1c10467e4975d88242d6eb177f3b2d63ebfdc2",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T14:35:35+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "merge-result/test_ccbench_spawn_sites.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/mutation-source/orchestrator/tests/test_ccbench_spawn_sites.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "de1d5272346b10a4fd9fc7100bd7d04c4c03e251",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T04:24:57+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "df916199dbf5c1f8b07ed9ecf5963d4c920f3e3e",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:18:16+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 2,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/login_check_event_ledger.py",
+        "tools/login_check_receipt_replay.py"
+      ],
+      "external_paths": [],
+      "source_refs": [
+        "refs/heads/author-login-check-probe-fix1"
+      ],
+      "source_tips": {
+        "refs/heads/author-login-check-probe-fix1": "df916199dbf5c1f8b07ed9ecf5963d4c920f3e3e"
+      },
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/login_check_event_ledger.py",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/login_check_receipt_replay.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "dfe1cef273cc18adab56a8e9cf3786c539ee0b2f",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T22:17:50+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2851_anchor_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2851_anchor_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "e21e80816392f5a7bf7add4d1cfa2dcdbbbcc0e0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T09:07:41+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 3,
+        "suppressed": 2,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 3
+      },
+      "paths": [
+        "t2825-probe/run-measure.sh",
+        "t2825-probe/run-series.sh",
+        "t2825-probe/t2825_ab_analyze.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/probe/gate.conf",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2825-ledger-refresh-ab/probe/run-warm.sh"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2825-probe"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2825-probe": "e21e80816392f5a7bf7add4d1cfa2dcdbbbcc0e0"
+      },
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2825-probe/run-measure.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2825-probe/run-series.sh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "t2825-probe/t2825_ab_analyze.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "e21f84c1c39050183230a1553d429637454c4780",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T02:52:37+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch/t2853_r2_fig8b_plot.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/t2853_r2_fig8b_plot.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "e46b290acb8cde18361ea127051512ec7928db9f",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T13:40:59+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 10,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2825-author-l-fix1/check.log",
+        "t2825-author-l-fix1/dropped-t2344.txt",
+        "t2825-author-l-fix1/dropped.txt",
+        "t2825-author-l-fix1/input-check.json",
+        "t2825-author-l-fix1/main-ledger.json"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/mutation-source/output/insights/2026-09-21/t2825-ledger-refresh-ab/ledger-evidence-land/check.log",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/mutation-source/output/insights/2026-09-21/t2825-ledger-refresh-ab/ledger-evidence-land/dropped-t2344.txt",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2104-flock-scope/mutation-source/output/insights/2026-09-21/t2825-ledger-refresh-ab/ledger-evidence-land/dropped.txt"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2825-ledger-fix1"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2825-ledger-fix1": "e46b290acb8cde18361ea127051512ec7928db9f"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "e4c4942cecfb82cdd3760480f3997b0f9af05fdd",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T13:55:59+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 2,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/pegasus/silo_policy_recon_job.sh",
+        "tools/pegasus/submit_silo_policy_recon.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/pegasus/silo_policy_recon_job.sh",
+          "kind": "notmain",
+          "location": "body"
+        },
+        {
+          "path": "tools/pegasus/submit_silo_policy_recon.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "e914cc49ac9abfa2d4577e3a989ea6687a67ecd0",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T10:12:46+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2851_anchor_smoke.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2851_anchor_smoke.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "e9fb2611846a1427299ef48e3abd9ec1a7aa4a6a",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T15:37:16+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 9,
+        "suppressed": 0,
+        "inmain": 2,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 7
+      },
+      "paths": [
+        "scratch/out/fig11_comparison.md",
+        "scratch/out/fig11_control.pdf",
+        "scratch/out/fig11_control.provenance.json",
+        "scratch/out/fig11_r2_surrogate.pdf",
+        "scratch/out/fig11_r2_surrogate.provenance.json"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch/out/fig11_comparison.md",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_control.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_control.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_control.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_r2_surrogate.pdf",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_r2_surrogate.png",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/fig11_r2_surrogate.provenance.json",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/out/r2-run.log",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch/t2853_r2_fig11_plot.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "ec6744e78a342f14adafd634cc5672c9cae08632",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:04:07+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "ed461aa4fd55547b6398c3c2df2cf8d6b7c2bdf9",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T01:38:44+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 3,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2817_replica_analyze.py",
+        "tools/t2817_replica_plugin.py",
+        "tools/t2817_replica_runner.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_replica_analyze.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_replica_plugin.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_replica_runner.py"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2817-probe-b"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2817-probe-b": "ed461aa4fd55547b6398c3c2df2cf8d6b7c2bdf9"
+      },
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "ed832c62ef2ee48f4a45565788259cb04092c49b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T17:33:47+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        "scratch-output-pruning/classify.py",
+        "scratch-output-pruning/selftest.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-output-pruning/classify.py",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "scratch-output-pruning/selftest.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "ef7a3c587527633d6982312c8be688a01c0d5f62",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T20:48:30+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "f044a8c316b597f9cf8459fab2e8001a66629a2a",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T20:23:20+09:00",
+      "category": "discard-landed",
+      "counts": {
+        "full": 0,
+        "suppressed": 1,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "t2865-recheck-probe/recheck_aggregate.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-known-best-recheck/agg/recheck_aggregate.py"
+      ],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [],
+      "extra_reason": null
+    },
+    {
+      "oid": "f0f67bbe67ba85ca8ad12b7d8a03c9639a2a3f84",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:48:00+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "verify-scratch/launch_cicada_run_early_abort.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "verify-scratch/launch_cicada_run_early_abort.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "f13bdd0427311ec21aa30f51082e081a91666b1b",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-29T22:45:14+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 2,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 2
+      },
+      "paths": [
+        ".cicada-launcher/diag-cicada-inline-fidelity.patch",
+        ".cicada-launcher/launch_cicada_run.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": ".cicada-launcher/diag-cicada-inline-fidelity.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": ".cicada-launcher/launch_cicada_run.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "f168a8ba6ced4fc5c741b32641a498152b012700",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-26T21:09:02+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2273_replica_analyze.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2273_replica_analyze.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "f197eae4a653f621799c241c802815608a690d17",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T14:43:23+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "md32-scratch/launch_promo_confirm.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/launch_promo_confirm.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "f1a1e8eb003cee1d02db90f56f485a28832f78e1",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T01:41:51+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 3,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/t2817_probe_plugin.py"
+      ],
+      "external_paths": [
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_collection_stage_aggregate.py",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_collection_stage_probe.sh",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2817-acceptance-bottleneck-3/probe/t2817_ledger_model.py"
+      ],
+      "source_refs": [
+        "refs/heads/author-t2817-probe-a"
+      ],
+      "source_tips": {
+        "refs/heads/author-t2817-probe-a": "f1a1e8eb003cee1d02db90f56f485a28832f78e1"
+      },
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/t2817_probe_plugin.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "fa707b5f4c7ad8baa8bb01a4356b89dc30efd631",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T09:07:37+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "t2847_capacity/launch_capacity.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "t2847_capacity/launch_capacity.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "fa79a320f1219a5eb890e14d174b4021422a9c41",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-23T21:39:28+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "fb93e2e8d465053d9d5c720b7dc3ad611f40291e",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:22:59+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/gate_wait_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/gate_wait_probe.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "fdafb4c2b52f82d86178471fe2383afb84304c6f",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-21T08:54:02+09:00",
+      "category": "rescue-body",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 1,
+        "notmain_scratch": 0
+      },
+      "paths": [
+        "tools/gate_wait_probe.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "tools/gate_wait_probe.py",
+          "kind": "notmain",
+          "location": "body"
+        }
+      ],
+      "extra_reason": null
+    }
+  ]
+}
