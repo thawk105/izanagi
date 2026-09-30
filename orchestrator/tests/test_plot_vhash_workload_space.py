@@ -59,13 +59,18 @@ def _run(point, payload, genome="default"):
         "ycsb_zipf_skew": c["ycsb_zipf_skew"], "gc_inter_us": c["gc_inter_us"],
         "izanagi_ronly_pct": c["izanagi_ronly_pct"],
         "izanagi_long_kind": c["izanagi_long_kind"],
-        "thread_num": c["thread_num"], "batch_th_num": c["batch_th_num"]}.items()]
+        "thread_num": c["thread_num"], "batch_th_num": c["batch_th_num"],
+        "extime": 3}.items()]
     stdout = P.V.PREFIX + json.dumps(payload)
+    summary = P.V.summarize(payload)
+    summary["logical_live_versions"] = c["records"] + summary["logical_version_delta"]
+    summary["update_commits_per_s"] = summary["update_commits"] / 3
+    summary["install_per_s"] = summary["install"] / 3
     return {"argv": ["binary", *flags], "rc": 0, "wall_s": 1.0,
             "stdout": stdout, "stderr": "", "vlife_json_line": stdout,
             "build_key": {"genome": genome, "val_size": point["val"]},
             "parsed": payload, "parse_error": None,
-            "summary": P.V.summarize(payload), "maxrss_kb": 123456,
+            "summary": summary, "maxrss_kb": 123456,
             "throughput_interpretation": "diagnostic, not performance"}
 
 
@@ -227,8 +232,8 @@ def test_s6_all_points_site_depth_candidate_bytes_and_chains(tmp_path):
     assert float(record["blind_write_position_ge8_rate_mean"]) == .25
     assert float(record["read_update_beyond_k2_rate_mean"]) == 0
     assert record["candidate_k4_count_rep1"] == "50"
-    assert record["candidate_k4_denominator_rep1"] == "10000"
-    assert float(record["candidate_k4_rate_mean"]) == .005
+    assert record["candidate_k4_denominator_rep1"] == "500"
+    assert float(record["candidate_k4_rate_mean"]) == .1
     assert float(record["live_bytes_estimate_mean"]) == (point["records"] + 120000) * 144
     assert record["maxrss_kb_mean"] == "123456"
     assert record["hot_chain_max_rep1"] == "9"
@@ -245,6 +250,9 @@ def test_mb5_driver_shaped_measure_raw_reaches_outputs(tmp_path, monkeypatch):
         payload = _parsed(point)
         payload["build"]["inline_version_opt"] = int(genome == "tuned")
         run = _run(point, payload, genome)
+        assert run["summary"]["logical_live_versions"] == point["records"] + run["summary"]["logical_version_delta"]
+        assert run["summary"]["update_commits_per_s"] == run["summary"]["update_commits"] / 3
+        assert run["summary"]["install_per_s"] == run["summary"]["install"] / 3
         runs[cid] = [run, run]
     raw = {"schema_version": 1, "command": "measure", "ccbench_commit": P.V.PIN,
            "patch_sha256": "fixture", "throughput_interpretation": "diagnostic, not performance",
@@ -253,13 +261,40 @@ def test_mb5_driver_shaped_measure_raw_reaches_outputs(tmp_path, monkeypatch):
            "builds": {"fixture": {}}, "dependency_stock_build": {}}
     path = tmp_path/"raw.json"
     path.write_text(json.dumps(raw))
-    monkeypatch.setattr(P, "draw_skew", lambda *args: None)
-    monkeypatch.setattr(P, "draw_axes", lambda *args: None)
     output = tmp_path/"out"
+    import matplotlib
+    matplotlib.use("Agg")
     assert P.main([str(path), "--output", str(output)]) == 0
     with (output/"all_points.csv").open(newline="") as stream:
-        assert len(list(csv.DictReader(stream))) == 2
+        reader = csv.DictReader(stream)
+        assert set(reader.fieldnames) == {"id", "layer", "genome", *P.FACTORS,
+                                          *P.PREDICATES, "H4", "n_valid",
+                                          "repetitions", *(f"{key}_mean" for key in P.METRIC_COLUMNS),
+                                          *(f"{key}_rep{i}" for i in (1, 2) for key in P.METRIC_COLUMNS)}
+        assert len(list(reader)) == 2
     assert (output/"provenance.json").exists()
+    assert len(list(output.glob("*.png"))) == 7
+    assert len(list(output.glob("*.pdf"))) == 7
+
+
+def test_all_points_incomplete_repetition_and_empty_columns(tmp_path):
+    point = _point()
+    payload = _parsed(point, deep=0, candidate=0)
+    valid = P._validated_run(_run(point, payload), point, "default")
+    invalid = {"valid": False, "error": "timeout"}
+    row = {"id": _cid(point), "point": point, "genome": "default",
+           "reps": [valid, invalid]}
+    P.evaluate({"sample": row})
+    P.write_tables({"sample": row}, [], True, tmp_path, [])
+    with (tmp_path/"all_points.csv").open(newline="") as stream:
+        record = next(csv.DictReader(stream))
+    assert record["n_valid"] == "1"
+    assert record["candidate_k4_denominator_rep1"] == "0"
+    assert record["candidate_k4_rate_rep1"] == ""
+    assert record["candidate_k4_rate_mean"] == ""
+    assert record["read_update_position_ge8_rate_mean"] == ""
+    assert record["maxrss_kb_rep1"] == "123456"
+    assert record["maxrss_kb_mean"] == ""
 
 
 def test_s6_h4_region_ranks_censored_lag_before_live_ratio():

@@ -31,6 +31,23 @@ FACTORS = {
 }
 SKEWS = (.5, .6, .7, .8, .9, .95, .97, .99)
 PREDICATES = ("H1", "H2", "H4-lag", "H4-live")
+SITE_DEPTH_COLUMNS = tuple(
+    f"{site}_position_ge{depth}_rate"
+    for site in V.SITES for depth in (1, 4, 8))
+READ_DEPTH_COLUMNS = tuple(
+    f"{site}_beyond_k{depth}_rate"
+    for site in ("read_update", "read_ronly") for depth in (1, 2, 4, 8))
+CANDIDATE_COLUMNS = tuple(
+    f"candidate_k{depth}_{field}"
+    for depth in (1, 2, 4, 8) for field in ("count", "denominator", "rate"))
+METRIC_COLUMNS = (
+    "h1", "u1", "depth8", "h2", "abort_rate", "update_commits",
+    "candidates", "reads", "update_reads", "lag_us", "publications",
+    "live_versions", "live_ratio", "local_flag_opportunity", "maxrss_kb",
+    "hot_scan_us", *SITE_DEPTH_COLUMNS, *READ_DEPTH_COLUMNS,
+    *CANDIDATE_COLUMNS, "live_bytes_estimate", "hot_chain_max",
+    "hot_chain_median",
+)
 THRESHOLDS = {"h1": .10, "u1": .05, "reads": 10000,
               "h2": .01, "candidates": 100, "update_commits": 1000,
               "lag_us": 1024, "live_factor": 1.1}
@@ -227,9 +244,10 @@ def metrics(rep, records):
                     sum(positions[depth:]), sum(positions))
     for depth, index in ((1, 0), (2, 1), (4, 3), (8, 4)):
         count = sum(w["candidate"][index] for w in workers)
+        denominator = s["deep"][index]
         out[f"candidate_k{depth}_count"] = count
-        out[f"candidate_k{depth}_denominator"] = sum(update)
-        out[f"candidate_k{depth}_rate"] = _ratio(count, sum(update))
+        out[f"candidate_k{depth}_denominator"] = denominator
+        out[f"candidate_k{depth}_rate"] = _ratio(count, denominator)
     out["live_bytes_estimate"] = live * (
         p["build"]["sizeof_version"] + p["build"]["sizeof_ycsb"])
     chain_lengths = [chain["length"] for chain in rep["chains"]
@@ -516,16 +534,16 @@ def write_tables(rows, candidates, insufficient, output, inputs):
         p = row["point"]
         base = {"id": row["id"], "layer": p["layer"], "genome": row["genome"],
                 **{k: p[k] for k in FACTORS}}
-        numeric_keys = sorted({k for v in row["values"] for k, value in v.items()
-                               if type(value) in (int, float) and k not in PREDICATES})
-        averages = {f"{k}_mean": statistics.mean(v[k] for v in row["values"]
-                     if type(v.get(k)) in (int, float)) for k in numeric_keys
-                    if any(type(v.get(k)) in (int, float) for v in row["values"])}
-        repetitions = {f"{k}_rep{i}": value for i, values in enumerate(row["values"], 1)
+        n_valid = sum(rep["valid"] for rep in row["reps"])
+        complete = n_valid == len(row["reps"]) and len(row["reps"]) >= 2
+        averages = {f"{k}_mean": statistics.mean(v[k] for v in row["values"])
+                    for k in METRIC_COLUMNS if complete and all(
+                        type(v.get(k)) in (int, float) for v in row["values"])}
+        repetitions = {f"{k}_rep{i}": value for i, values in enumerate(row["values"][:2], 1)
                        for k, value in values.items()
-                       if type(value) in (int, float) or value is None and k in numeric_keys}
+                       if k in METRIC_COLUMNS and type(value) in (int, float)}
         full.append({**base, **{h: row["states"][h] for h in (*PREDICATES, "H4")},
-                     **averages, **repetitions,
+                     "n_valid": n_valid, **averages, **repetitions,
                      "repetitions": json.dumps(row["values"], ensure_ascii=False,
                                                sort_keys=True)})
         norm_key = (p["records"], p["skew"])
@@ -552,10 +570,10 @@ def write_tables(rows, candidates, insufficient, output, inputs):
             for reason, sides in rep["reasons"].items():
                 abort.append({**base, "repetition": i+1, "reason": reason,
                               **sides, "total": sum(sides.values())})
-    mean_fields = sorted({key for record in full for key in record if key.endswith("_mean")})
-    rep_fields = sorted({key for record in full for key in record if "_rep" in key})
-    fields = ["id", "layer", "genome", *FACTORS, *PREDICATES, "H4", *mean_fields,
-              *rep_fields,
+    mean_fields = [f"{key}_mean" for key in METRIC_COLUMNS]
+    rep_fields = [f"{key}_rep{i}" for i in (1, 2) for key in METRIC_COLUMNS]
+    fields = ["id", "layer", "genome", *FACTORS, *PREDICATES, "H4", "n_valid",
+              *mean_fields, *rep_fields,
               "repetitions"]
     _csv(output/"all_points.csv", full, fields)
     _md(output/"all_points.md", full, fields)
