@@ -151,7 +151,7 @@ index efcf02d75..58fd9db69 100644
  
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -25,6 +39,644 @@
+@@ -25,6 +39,649 @@
  using namespace std;
  
  #define MSK_TID 0b11111111
@@ -183,6 +183,7 @@ index efcf02d75..58fd9db69 100644
 +  uint64_t prune_age[64] = {}, stock_age[64] = {};
 +};
 +std::array<IGCCounts, 256> igc_counts;
++int igc_runtime_mode = -1; // -1 means the stock arm has no GC debug mode.
 +uint64_t igc_last_boundary = 0;
 +void igc_count_boundary(uint8_t thid) {
 +  uint64_t minr = MinRts.load(std::memory_order_acquire);
@@ -232,8 +233,9 @@ index efcf02d75..58fd9db69 100644
 +    uint64_t initial = FLAGS_ycsb_tuple_num;
 +    uint64_t initial_bytes =
 +        initial * (sizeof(Version) + igc_initial_body_bytes.load());
-+    std::cout << "CICADA_INTERVAL_V1 {\"schema\":1,\"version_bytes\":"
-+              << sizeof(Version) << ",\"body_bytes\":\"owned HeapObject::size\""
++    std::cout << "CICADA_INTERVAL_V1 {\"schema\":1,\"debug_mode\":"
++              << igc_runtime_mode << ",\"version_bytes\":" << sizeof(Version)
++              << ",\"body_bytes\":\"owned HeapObject::size\""
 +              << ",\"chain_scope\":\"committed\""
 +              << ",\"chain_versions\":" << initial + installed - removed
 +              << ",\"chain_bytes\":"
@@ -357,6 +359,7 @@ index efcf02d75..58fd9db69 100644
 +    ++igc_counts[id].retire_age[igc_bucket(age)];                              \
 +  } while (false)
 +#define IGC_COUNT_MODE_CALL(id, mode) igc_count_mode_call(id, mode)
++#define IGC_COUNT_SET_MODE(mode) (igc_runtime_mode = static_cast<int>(mode))
 +#define IGC_INSTALL_WAIT_START() rdtscp()
 +#define IGC_COUNT_INSTALL_WAIT(id, spins, start)                               \
 +  do {                                                                         \
@@ -374,15 +377,17 @@ index efcf02d75..58fd9db69 100644
 +#define IGC_COUNT_RETIRE(id, v) ((void) 0)
 +#define IGC_COUNT_UNRETIRE(id, v, age) ((void) 0)
 +#define IGC_COUNT_MODE_CALL(id, mode) ((void) 0)
++#define IGC_COUNT_SET_MODE(mode) ((void) 0)
 +#define IGC_INSTALL_WAIT_START() 0
 +#define IGC_COUNT_INSTALL_WAIT(id, spins, start) ((void) 0)
 +#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) ((void) 0)
 +#endif
 +
 +#if CICADA_INTERVAL_GC
-+DEFINE_uint64(cicada_igc_debug_mode, 0,
-+              "0 normal, 1 leak detached versions, 2 count without unlink, 3 "
-+              "skip pruning.");
++DEFINE_uint64(cicada_igc_debug_mode, 1,
++              "0 unsafe experimental reuse via retire queue after stock "
++              "pop (SIGSEGV/hang observed); 1 default: unlink, never reuse; "
++              "2 do not unlink; 3 skip pruning.");
 +namespace {
 +// assert() erases all read-path bookkeeping from performance builds.
 +thread_local std::unordered_map<Version*, uint64_t> igc_read_wts;
@@ -796,7 +801,7 @@ index efcf02d75..58fd9db69 100644
  
  /**
   * @brief Initialize function of transaction.
-@@ -32,6 +684,13 @@
+@@ -32,6 +689,13 @@
   * @return void
   */
  void TxExecutor::begin() {
@@ -810,7 +815,7 @@ index efcf02d75..58fd9db69 100644
    /**
     * Allocate timestamp in read phase.
     */
-@@ -41,6 +700,10 @@
+@@ -41,6 +705,10 @@
                     __ATOMIC_RELEASE);
    this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
    __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
@@ -821,7 +826,7 @@ index efcf02d75..58fd9db69 100644
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -101,6 +764,16 @@
+@@ -101,6 +769,16 @@
     */
    ver = tuple->ldAcqLatest();
    while (ver->ldAcqWts() > trts) {
@@ -838,7 +843,7 @@ index efcf02d75..58fd9db69 100644
      later_ver = ver;
      ver = ver->ldAcqNext();
      if (ver == nullptr) return nullptr;
-@@ -123,6 +796,8 @@
+@@ -123,6 +801,8 @@
      return nullptr;
    }
  
@@ -847,7 +852,7 @@ index efcf02d75..58fd9db69 100644
    read_set_.emplace_back(s, key, tuple, later_ver, ver);
  
  #if INLINE_VERSION_OPT
-@@ -267,6 +942,10 @@
+@@ -267,6 +947,10 @@
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
@@ -858,7 +863,7 @@ index efcf02d75..58fd9db69 100644
      }
    }
  
-@@ -298,6 +977,10 @@
+@@ -298,6 +982,10 @@
  }
  
  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
@@ -869,7 +874,7 @@ index efcf02d75..58fd9db69 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -346,6 +1029,10 @@
+@@ -346,6 +1034,10 @@
  }
  
  Status TxExecutor::delete_record(Storage s, std::string_view key) {
@@ -880,7 +885,7 @@ index efcf02d75..58fd9db69 100644
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -417,6 +1104,10 @@
+@@ -417,6 +1109,10 @@
                          bool l_exclusive, std::string_view right_key,
                          bool r_exclusive, std::vector<TupleBody*>& result,
                          int64_t limit) {
@@ -891,7 +896,7 @@ index efcf02d75..58fd9db69 100644
    result.clear();
    auto rset_init_size = read_set_.size();
  
-@@ -485,6 +1176,50 @@
+@@ -485,6 +1181,50 @@
      // prove that across the (op != RMW && op != DELETE && !WRITE_LATEST_ONLY
      // && ver != expected) condition. Initialize to silence -Wmaybe-uninitialized
      // without changing runtime behavior.
@@ -942,7 +947,7 @@ index efcf02d75..58fd9db69 100644
      Version *expected(nullptr), *ver, *pre_ver = nullptr;
      for (;;) {
        if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
-@@ -520,6 +1255,8 @@
+@@ -520,6 +1260,8 @@
          }
        } else {
          (*itr).new_ver_->strRelNext(ver);
@@ -951,7 +956,7 @@ index efcf02d75..58fd9db69 100644
          if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
                                                     memory_order_acq_rel,
                                                     memory_order_acquire)) {
-@@ -547,17 +1284,34 @@
+@@ -547,17 +1289,34 @@
      else
        ver = (*itr).rcdptr_->ldAcqLatest();
  
@@ -986,7 +991,7 @@ index efcf02d75..58fd9db69 100644
      /**
       * This part is different from the original.
       * Checking that view is not broken.
-@@ -576,13 +1330,27 @@
+@@ -576,13 +1335,27 @@
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
      Version* ver = (*itr).new_ver_->ldAcqNext();
@@ -1014,7 +1019,7 @@ index efcf02d75..58fd9db69 100644
      }
  
      if (ver->ldAcqRts() > this->wts_.ts_ ||
-@@ -716,6 +1484,22 @@
+@@ -716,6 +1489,22 @@
      }
      gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
                                  (*itr).new_ver_, this->wts_.ts_));
@@ -1037,7 +1042,7 @@ index efcf02d75..58fd9db69 100644
      ++(*itr).rcdptr_->continuing_commit_;
    }
  }
-@@ -754,6 +1538,11 @@
+@@ -754,6 +1543,11 @@
    writeSetClean();
    read_set_.clear();
    node_map_.clear();
@@ -1049,7 +1054,7 @@ index efcf02d75..58fd9db69 100644
  
    if (FLAGS_group_commit) { chkGcpvTimeout(); }
  
-@@ -804,6 +1593,32 @@
+@@ -804,6 +1598,32 @@
  }
  
  void TxExecutor::gc_versions() {
@@ -1082,7 +1087,7 @@ index efcf02d75..58fd9db69 100644
    while (!gcq_.empty()) {
      if (gcq_.front().wts_ >= MinRts.load(memory_order_acquire)) break;
  
-@@ -813,12 +1628,51 @@
+@@ -813,12 +1633,52 @@
        * so, if we get right by id 0, other worker thread can't detect.
        */
      if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
@@ -1117,7 +1122,8 @@ index efcf02d75..58fd9db69 100644
 +                        MinRts.load(std::memory_order_acquire),
 +                        static_cast<void*>(tuple->ldAcqLatest())),
 +           false));
-+      // Mode 1 intentionally leaks the detached version to isolate reuse.
++      // Default mode 1 leaves detached versions unreused during this run.
++      // Experimental mode 0 reuse has caused SIGSEGV and hangs.
 +      if (FLAGS_cicada_igc_debug_mode != 1) {
 +        // Keep next intact until every tx active at pop has ended.
 +        igc_retired_versions_.push_back(
@@ -1134,7 +1140,7 @@ index efcf02d75..58fd9db69 100644
      // (b) v.wts > record.min_wts
      if (gcq_.front().wts_ <= tuple->min_wts_) {
        // releases the lock
-@@ -826,15 +1680,50 @@
+@@ -826,15 +1686,50 @@
        gcq_.pop_front();
        continue;
      }
@@ -1185,7 +1191,7 @@ index efcf02d75..58fd9db69 100644
      gcAfterThisVersion(tuple, delTarget);
      // releases the lock
      tuple->returnGCRight();
-@@ -911,12 +1800,26 @@
+@@ -911,12 +1806,26 @@
    read_set_.clear();
    write_set_.clear();
    node_map_.clear();
@@ -1212,11 +1218,12 @@ index efcf02d75..58fd9db69 100644
    /**
     * Tanabe Optimization for analysis
     */
-@@ -961,6 +1864,13 @@
+@@ -961,6 +1870,14 @@
  
  void TxExecutor::leaderWork() {
    cicadaLeaderWork();
 +#if CICADA_INTERVAL_GC
++  IGC_COUNT_SET_MODE(FLAGS_cicada_igc_debug_mode);
 +  igc_take_snapshot(thid_);
 +#endif
 +#if CICADA_INTERVAL_COUNT
