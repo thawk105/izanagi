@@ -3785,7 +3785,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 24
+    ) == 25
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
     ) == 51
