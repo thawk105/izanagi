@@ -1,0 +1,29 @@
+{
+ "note": "probe: expected_nodes を集めるための初回 (DW-M08 login self-run)。KILLED_NODE_MISMATCH は期待 node 未登録の意味",
+ "mutations": [
+  {"id": "m0-equivalent-comment", "expected_status": "SURVIVED",
+   "replacements": [{"file": "tools/dev_waves/effort_levels.py", "old": "    \"ultra\",\n", "new": "    \"ultra\",  # equivalent mutation marker\n"}],
+   "targets": ["orchestrator/tests/test_effort_levels.py"]},
+  {"id": "m1-checkdocs-literal-sol", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/check_docs.py", "old": "    \"`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。\"\n", "new": "    \"`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\"\n"}],
+   "targets": ["orchestrator/tests/test_check_docs.py", "orchestrator/tests/test_dev_wave_launch_authority.py"]},
+  {"id": "m2-checkdocs-s05a-expected-medium", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/check_docs.py", "old": "            \"DW-S05-A\",\n            \"ultra\",\n", "new": "            \"DW-S05-A\",\n            \"medium\",\n"}],
+   "targets": ["orchestrator/tests/test_check_docs.py"]},
+  {"id": "m3-effort-levels-drop-ultra", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/dev_waves/effort_levels.py", "old": "    \"ultra\",\n", "new": ""}],
+   "targets": ["orchestrator/tests/test_effort_levels.py", "orchestrator/tests/test_dev_wave_codex.py", "orchestrator/tests/test_codex_worker_launch.py"]},
+  {"id": "m4-detect-always-false", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/codex_worker_launch.py", "old": "        and payload.get(\"name\") == \"spawn_agent\"\n", "new": "        and payload.get(\"name\") == \"spawn_agent\"\n        and False\n"}],
+   "targets": ["orchestrator/tests/test_codex_worker_launch.py"]},
+  {"id": "m5-sealed-skip-spawn", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/codex_worker_launch.py", "old": "                continue\n            _consume_rollout_event(\n", "new": "                continue\n            if _is_delegation_event(event):\n                continue\n            _consume_rollout_event(\n"}],
+   "targets": ["orchestrator/tests/test_codex_worker_launch.py"]},
+  {"id": "m6-detect-whole-namespace", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/codex_worker_launch.py", "old": "        and payload.get(\"name\") == \"spawn_agent\"\n", "new": "        and payload.get(\"namespace\") == \"collaboration\"\n"}],
+   "targets": ["orchestrator/tests/test_codex_worker_launch.py"]},
+  {"id": "m7-l15-budget-minus-one", "expected_status": "KILLED",
+   "replacements": [{"file": "tools/check_docs.py", "old": "DEV_WAVE_L1_5_BYTES_MAX = 9_788\n", "new": "DEV_WAVE_L1_5_BYTES_MAX = 9_787\n"}],
+   "targets": ["orchestrator/tests/test_check_docs.py"]}
+ ]
+}

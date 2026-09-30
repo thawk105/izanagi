@@ -1,0 +1,302 @@
+audit_dangling_commits: 進捗 root 検証 開始
+audit_dangling_commits: 進捗 root 検証 完了 elapsed_seconds=0.634 requested=0 accepted=0
+audit_dangling_commits: 進捗 fsck 開始
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=15.059
+audit_dangling_commits: 進捗 fsck 完了 elapsed_seconds=26.878 commits=1663
+audit_dangling_commits: 進捗 bulk log 開始
+audit_dangling_commits: 進捗 bulk log 完了 elapsed_seconds=8.840 commits=1663 changed_pairs=11481
+audit_dangling_commits: 進捗 main・tip tree 開始
+audit_dangling_commits: 進捗 main・tip tree 完了 elapsed_seconds=4.347 tips=33 finding_commits=71 finding_pairs=205
+audit_dangling_commits: 進捗 blob metadata 開始
+audit_dangling_commits: 進捗 blob metadata 完了 elapsed_seconds=0.000 candidates=0
+audit_dangling_commits: 進捗 repo 外走査の列挙 開始
+audit_dangling_commits: 進捗 repo 外走査の列挙 完了 elapsed_seconds=0.000 scan_performed=false
+audit_dangling_commits: 進捗 候補比較 開始
+audit_dangling_commits: 進捗 候補比較 完了 elapsed_seconds=0.000 candidate_oids=0 matched_keys=0 external_files=0 external_matches=0 max_matches_per_key=0
+audit_dangling_commits: 進捗 landed 参照 開始
+audit_dangling_commits: 進捗 landed 参照 完了 elapsed_seconds=0.000 matches=0 match_keys=0 external_matches=0 patterns=0 generated_patterns=0 grep_batches=0 metadata_batches=0 contents_read=0 bytes_read=0
+audit_dangling_commits: 進捗 抑止集約 開始
+audit_dangling_commits: 進捗 抑止集約 完了 elapsed_seconds=0.000 suppressions=0
+audit_dangling_commits: 進捗 最終報告 開始
+audit_dangling_commits: 再生成可能物として除外 0 (commit, path) 対
+audit_dangling_commits: repo 外走査は明示 off(IZANAGI_DEV_WAVE_JOBS_DIR の指定も無視);repo 外の同一実体は未確認のため、findings は full なら抑止されうる (commit, path) 対を含みうる。救出 triage は --offrepo-scan full --offrepo-root <root> を指定して単独実行する
+audit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対
+audit_dangling_commits: 要確認の到達不能変更 71 commit
+  commit 02acaa92198d53d4315c139ff579e4761639cda1 ([T-2630] probe fix: 実 site 判定で compiler を選ぶ (F6-1))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit 0a35b5d0c9617c4968e5576d3b8d8c6ce2eb29a3 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+  commit 0b013f11dffe09bc024e3ef6e78453e0e312ff95 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verifier_profile_probe.py
+  commit 0b6ec27034dc855c437e9e5e449c3f0b474ecd7e (wip(t2304 unit scaffold): probe を job dir へ退避 (not for land))
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_masstree_shape_probe.py
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit 0c935ff5fa408d8e907eeba016969eba604e58c9 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2700/t2700_history_estimate.py
+  commit 0d294fbf50fc8a17e22d579895742e3a88534211 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2484_receipt_segments.py
+  commit 19fab3d7998dd007b35b412b06ce0d6d581d973a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_campaign.py
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_p3_s4_loop.py
+  commit 222c83c2c13ee7d6dc7dfa08f6063802d99d2583 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit 22e46c4fe83015bbac529b4bf5521e796db5669c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2610/document-crosscheck.json
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.pdf
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.png
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.provenance.json
+    main・全 local branch tip に不在: probe-t2610/pytest.log
+    main・全 local branch tip に不在: probe-t2610/self-run.log
+  commit 2839fbc16575788482e8cb46bff72620c70a2244 ([T-2630] probe: 走査境界の到達実測 test (probe branch のみ、land しない))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit 2c5b2195cdba41297533299659662815cdb59f36 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/test_t2737_live_probe.py
+  commit 2dc133b5ae13d8fd6796e5352d4ccbde72755175 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766/t2766_ab_analyze.py
+  commit 2f1dbe5814228259c68f2acd17aa04405cee16cf ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: _t2724_probe_refusals.py
+  commit 353b473e7f8a4e5e4edc18fab989c0b099fe66fe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.pdf
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.png
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.provenance.json
+  commit 368c10092b3b02e4f83f3062221417553b4eefc5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verifier_profile_probe.py
+  commit 39585d2fc27f819ed675f7b26849977f1dcc98c2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2629-selfrun/probe.json
+    main・全 local branch tip に不在: tools/t2629_legacy_compiler_reach_probe.py
+  commit 3d0e79de9d0e8a9e8399bde31dee6ce9107b45d2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.json
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.md
+    main・全 local branch tip に不在: t_inv_scanner/scan_tests.py
+    main・全 local branch tip に不在: t_inv_scanner/test_scan_tests.py
+  commit 3ec30125f543430dca3dc4ae042fdac807bac993 (precheck: [T-2288] placeholder 値の floor-pair-spec/v3 を 3 本置く (捨て branch、land しない))
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-rr5.json
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-rr50.json
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-rr95.json
+  commit 46878b2e344d5ba7890b92eaa6f53e0b0812ec9b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766-adopt/t2766_adopt_analyze.py
+  commit 471ee22628f89d1c36a6bcf39b52d72a143854c5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/dispatch.sh
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/interpreter_probe.py
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/receipt.json
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/request.json
+    main・全 local branch tip に不在: probe-fig3b/meta-test-results.txt
+    main・全 local branch tip に不在: probe-fig3b/out/fig3b_arc_status_2026-09-20.pdf
+    main・全 local branch tip に不在: probe-fig3b/out/fig3b_arc_status_2026-09-20.png
+    main・全 local branch tip に不在: probe-fig3b/out/fig3b_arc_status_2026-09-20.provenance.json
+    main・全 local branch tip に不在: probe-fig3b/run_tests_direct.py
+    main・全 local branch tip に不在: probe-fig3b/test-results.txt
+  commit 48be9d7470124a8245f3fa9aed0fb891e4786bfd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: author-result.md
+  commit 4e46a3b8bd7983f157ae44b4a21ba394ca82c91a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.pdf
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.png
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.provenance.json
+  commit 5180a3acdf1cccf55adda5af15473068c83b677a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/run-measure.sh
+  commit 58f95933e1d63592fcb30158614edfe2f8a2fe31 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2243_collection_contention_aggregate.py
+    main・全 local branch tip に不在: tools/t2243_collection_contention_probe.sh
+  commit 5aff58fe4ee0d3e2f9a76e340c10a3b842c94986 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.pdf
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.png
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.provenance.json
+  commit 5b68f93135abe479b4464ab04982a8fa1057da3b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.pdf
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.png
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.provenance.json
+  commit 5edea543b18beccedff83a263002f7780251d8e0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit 638378530bf26b5a7fe41b9dab6e277995e2dcf6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.pdf
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.png
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.provenance.json
+  commit 703a3fb031dcf791cd56fd231480bcf0bd5c2acb ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit 74595432bda11389681cd82a074898b6ebcb9160 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.json
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.md
+    main・全 local branch tip に不在: t_inv_scanner/scan_tests.py
+    main・全 local branch tip に不在: t_inv_scanner/test_scan_tests.py
+  commit 7ce180a5e8c09ba5b435beb9faa0db02734895bf ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+  commit 7e5695e1f81e1b37f2346f50aa9d8867e6471ed2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/run-measure.sh
+    main・全 local branch tip に不在: probe-t2802/run-series.sh
+    main・全 local branch tip に不在: probe-t2802/run-warm.sh
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2802/t2802_diff_probe.py
+  commit 7eaad2d74712355e04f476623bcc03473792ef53 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig3b/out-fix1/fig3b_arc_status_2026-09-20.pdf
+    main・全 local branch tip に不在: probe-fig3b/out-fix1/fig3b_arc_status_2026-09-20.png
+    main・全 local branch tip に不在: probe-fig3b/out-fix1/fig3b_arc_status_2026-09-20.provenance.json
+  commit 810622cacf04765b427fb1bcbb6f3ea751478dbe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.pdf
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.provenance.json
+  commit 89b253ea96707f6449cbf8351f2f34326b8238b0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t_witlight/W.patch
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node1.json
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node2.json
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node3.json
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node4.json
+    main・全 local branch tip に不在: tools/t_witlight/scratch/W-XP/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/W/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/XP-witlight/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/XP/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/check_wrapper.py
+    main・全 local branch tip に不在: tools/t_witlight/scratch/left.stripped.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/right.stripped.cc
+    main・全 local branch tip に不在: tools/t_witlight/smoke_capture.py
+    main・全 local branch tip に不在: tools/t_witlight/witlight.patch
+  commit 8a0c109f0c7477358fa315ac4e22b522a3a61a66 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/default-preprocessed-normalized.diff
+    main・全 local branch tip に不在: md32-scratch/default-preprocessed.diff
+    main・全 local branch tip に不在: md32-scratch/files/cc/cicada/include/cicada_op_element.hh
+    main・全 local branch tip に不在: md32-scratch/files/cc/cicada/include/transaction.hh
+    main・全 local branch tip に不在: md32-scratch/files/cc/cicada/transaction.cc
+    main・全 local branch tip に不在: md32-scratch/fix1-promotion-ronly.patch
+    main・全 local branch tip に不在: md32-scratch/fix1.msg
+    main・全 local branch tip に不在: md32-scratch/fix2-promotion-update-body.patch
+    main・全 local branch tip に不在: md32-scratch/fix2.msg
+    main・全 local branch tip に不在: md32-scratch/fix3-abort-insert-uaf.patch
+    main・全 local branch tip に不在: md32-scratch/fix3.msg
+    main・全 local branch tip に不在: md32-scratch/opt1_promo0-preprocessed-normalized.diff
+    main・全 local branch tip に不在: md32-scratch/opt1_promo0-preprocessed.diff
+  commit 8f6aee197b795414fdc6a894daf8b182796365e0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: orchestrator/campaign/p2_5.py
+    main・全 local branch tip に不在: orchestrator/campaign/s6_amendment_20260713_fence.py
+    main・全 local branch tip に不在: orchestrator/campaign/s6_canary_rename.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_capdrop_probe.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_readonly_snapshot_liveness.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_rootview_probe.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_seccomp_probe.py
+    main・全 local branch tip に不在: orchestrator/tests/test_insights_date_layout.py
+    main・全 local branch tip に不在: orchestrator/tests/test_migrate_output_gzip.py
+    main・全 local branch tip に不在: orchestrator/tests/test_plot_t2266_tail_mechanism.py
+    main・全 local branch tip に不在: tools/insights_date_layout.py
+    main・全 local branch tip に不在: tools/migrate_output_gzip.py
+    main・全 local branch tip に不在: tools/plotting/plot_t2266_tail_mechanism.py
+  commit 90085b16cfd3e1c5fe888e77ca958657a03ede60 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2710/t2710_probe_analyze.py
+    main・全 local branch tip に不在: probe-t2710/t2710_probe_plugin.py
+    main・全 local branch tip に不在: probe-t2710/t2710_probe_runner.py
+  commit 91a316c795c057aebad45a22fc135b2976948458 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-liveness/launch_lock_order_liveness.py
+  commit 926c33f94a3d731c89563e1662dce0df4c93322a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit 98674b34211f29186106756d84a5c21e2805d908 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-liveness/launch_lock_order_liveness.py
+  commit 9a2a525504fb840de737fdb6f2f362ed2b7bd7a9 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/arms-t2779.json
+    main・全 local branch tip に不在: probe/t2779_probe.py
+  commit 9bd4077f1f1c590292f6d34f73837cdb7aa731e2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/test_t2737_live_probe.py
+  commit 9d2d1396d61fb3d5bd6dbc28199ae83bede5aba2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.pdf
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.png
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.provenance.json
+  commit 9fae49a5104a52bc60f3324bbce7e70b8aad054e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2709_blob_transfer_probe.py
+  commit a3dae7793f9f07aa3c4e6a3d8d43d4878c2b64fe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766/t2766_ab_analyze.py
+  commit a519a7560a4ba3499b01acd136f6a3600cb8e2ae ([T-2630] probe: 走査境界の到達実測 test (probe branch のみ、land しない))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit aa85ee7d973e2fc3396c09707c09eb6f03eef32f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit ae816441cd80822f5fe10f2f91534f4e587d52e5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/test_t2737_live_probe.py
+  commit b45891d3f3bb72afb76fa20526d43a883ab439f6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.pdf
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.png
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.provenance.json
+    main・全 local branch tip に不在: probe-fig13/fix1-mutations.txt
+    main・全 local branch tip に不在: probe-fig13/fix1-test-results.txt
+  commit b84275b6ed691a6da17d3d074e3173f1f4fd652d (precheck: [T-2288] 負対照 (c') 用の spec — source_commit が HEAD の祖先でない (捨て branch、land しない))
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-negative-c-nonancestor.json
+  commit baa59bf082f28f271feb7485c6ee00a3fbb4cf4d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/pegasus/probes/t2153_witness_candidates_probe.py
+  commit c2627ba699e63183cc78fdd9ad5fcf5b46e54a43 (wip(t2304 unit scaffold): 退避済みの merge-out / probe を子木から外す (not for land))
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_campaign.py
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_p3_s4_loop.py
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit c5affb156ba141aee64b5d66dc48db3de5abae1f ([T-2731] probe: 再走の証拠出力先を本 wave の job dir へ変える (probe branch のみ、land しない))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit c5bfe9e8249634236ac267e4114044433a64490c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2489_lock_probe.pbs
+    main・全 local branch tip に不在: t2489_lock_probe.py
+  commit cd886a7f3ff69632d0c126dd30989e01d1c05fed ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766/t2766_ab_analyze.py
+  commit d2a662bf8e098be86f7a59b07f6a0ba6b392fb97 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: _t2724_write_approval.py
+    main・全 local branch tip に不在: _t2724_write_pointer.py
+  commit d35fa1da87ed8b7bd0c202bbdc049e341bb676e6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: fix-result.md
+  commit d3a1f249b502e3e12a05c9febbff0bef783325f4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/scratch-t2790/junit_scan_survey.py
+    main・全 local branch tip に不在: output/scratch-t2790/scan_sampler.py
+  commit d587547b68e70bed29694af435c5957295d203d7 (precheck: [T-2288] 負対照 (e) 用の spec — 出力 relpath の parent dir が checkout に無い (捨て branch、land しない))
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-negative-e-missing-outdir.json
+  commit e18c37f58998509d71b45e3e706b279ffe28d67e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/run-measure.sh
+    main・全 local branch tip に不在: probe-t2802/run-series.sh
+    main・全 local branch tip に不在: probe-t2802/run-warm.sh
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2802/t2802_diff_probe.py
+  commit e2d611bccfcea68a0b0746c81037a2f2f167f6b4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+  commit e35fb7c4e931842133020874162d232a4213b393 ([T-2630] probe fix: 実 site 判定で compiler を選ぶ (F6-1))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit e47ef81bab7e0a8ed3830d61ae18d88c5a8b0bfd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verifier_cli_timing_probe.py
+  commit e9dd450df96f88388c9ef3c6ad40f3678bb79736 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/default-fix4-only-preprocessed.diff
+    main・全 local branch tip に不在: md32-scratch/files/cc/cicada/include/transaction.hh
+    main・全 local branch tip に不在: md32-scratch/files/cc/cicada/include/tuple.hh
+    main・全 local branch tip に不在: md32-scratch/fix2-promotion-update-body.patch
+    main・全 local branch tip に不在: md32-scratch/fix3.msg
+    main・全 local branch tip に不在: md32-scratch/fix4-inline-insert-init.patch
+    main・全 local branch tip に不在: md32-scratch/fix4.msg
+    main・全 local branch tip に不在: md32-scratch/opt1_promo0-fix4-only-preprocessed.diff
+    main・全 local branch tip に不在: md32-scratch/opt1_promo0-preprocessed-normalized.diff
+    main・全 local branch tip に不在: md32-scratch/opt1_promo0-preprocessed.diff
+  commit ec17af5dc154ab527516448a619ff98fe341ba99 (docs(insights): [T-2515] 投入経路の開放と認証経路の 3 週間分の故障、BACKOFF_FIXED で止まった事実を記録する)
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988653-rr95-condition-gate.stderr
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988653-rr95-failure.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988706-rr95-condition-gate.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988706-rr95-failure.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988706-rr95-submit-receipt.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988708-rr5-condition-gate.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988708-rr5-failure.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-report-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-report-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-spec-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s1-brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s3-consult-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s3-consult-b.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s4-ruling-addendum.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s4-ruling.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s5-author.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-fix1.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-fix2.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-fix3.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-refocus.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-review-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-review-b.md
+  commit f0d88b49dc4a2f79c2f5ebf66f5f3a95dea53bf3 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit f2e3c6c05f75d87181378513d33f624fe01f355d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+  commit fa7f85e7fcfa5c0b3f7951bd2eef38d716b65435 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2700/t2700_history_estimate.py
+  commit fdb0e184e6ca557992f05eb4a8f99d89a931dbfd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_masstree_shape_probe.py
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit fe816b7b5ad920df4c3c3c9c0dee4172441c1444 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+audit_dangling_commits: 進捗 最終報告 完了 elapsed_seconds=0.000
+audit_dangling_commits: elapsed_seconds=40.710

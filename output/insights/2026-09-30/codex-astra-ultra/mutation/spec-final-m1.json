@@ -1,0 +1,25 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 12600,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "m1-checkdocs-literal-sol",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    \"`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。\"\n",
+     "new": "    \"`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_contract_is_time_invariant",
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_model_pin_rejects_dw_o01_authority_drift"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
