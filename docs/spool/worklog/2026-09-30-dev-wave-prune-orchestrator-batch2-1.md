@@ -16,6 +16,13 @@ title: 不要コードの整理 第 2 束 — 使われていない提出 gate �
 - 受入 attempt 1 の赤の判定 (DW-O18): 記録 commit fb571fe95 に local main 51765ae6c を post-claim merge した木 49e071812 で 28,403 passed / 74 skipped / 赤 1 件 —
   `orchestrator/tests/test_codex_worker_launch.py::test_t2620_orphan_zombie_is_rejected` (`residual_observation` が期待 `final_count: 1` に対し `final_count: None`・`final_unknown_source: proc_stat_read_error`、`process_group_residual` が期待 1 に対し None。launcher の /proc 走査が一時的な読み取り失敗に当たった)。
   **非帰属**: 本 wave の変更は insight と spool fragment だけで、test も対象 `tools/codex_worker_launch.py` もこれらを読まない。同じ木で当該 node を計算ノードで単独再走して 1 passed (6.47 s) で非再現。受入を投げ直す。
+- 受入 attempt 2 の赤の判定 (DW-O18): 474693d67 に local main fb02637e4 を post-claim merge した木 41475e5dd で 28,401 passed / 赤 3 件 —
+  `orchestrator/tests/test_env_contract_activation.py` の `test_historical_calibration_is_verified_only_when_resolved_in_source_stage[missing]`・`[modified]` と
+  `test_import_performs_no_open_or_stat_io_in_worktree_or_archive_source_stage`。3 件とも test 本体の `git archive --format=tar ... HEAD` が 30 秒で `TimeoutExpired`
+  (既知の非帰属型、2026-09-14・09-21 に同 test で記録あり)。同じ木の単独再走 (計算ノード) でも 3 件とも同じ timeout で再現した。
+  **非帰属**: 同じ worktree で main の木 fb02637e4 と wave の木 41475e5dd を login で交互に 2 回ずつ tar 化すると、どちらも 1.16 GB (差 82 KB) で
+  main 8.6 s / 18.1 s、wave 5.8 s / 12.0 s と同程度。本 wave の追加 (insight・fragment) は archive の所要を変えず、30 秒上限を超えるのは計算ノード側の I/O 負荷による。
+  同一 tip の受入は 1 回だけなので、この記録 commit を新しい tip として当該 node の単独再走を確かめてから受入を投げ直す。
 - セッション異常: submodule 初期化 tool の 1 回目が `update-no-fetch` (既知の tool 内 30 秒上限型)、同じ引数の再走で rc=0。候補 hash の検索を needle ごとの `git grep` 76 回で始めて 1 回 30 秒前後かかり、`-e` を並べた 1 回走査へ切り替えた。記録レビューの待ち手を誤って 2 本張り、後の 1 本を止めた。
 - 工数: Codex gpt-6-sol / medium 2 本 (段 2 plan 1・記録レビュー 1)。
 
