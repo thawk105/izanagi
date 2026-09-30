@@ -187,6 +187,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_screening_driver.py
 - test_screening_opt_in.py
 - test_t419_probe_causality.py
+- test_verifier_gate_witness.py
 - test_vhash_forwarding_prototype.py
 - test_vhash_cicada_hot_block.py
 - test_vhash_ro_gc_publish.py
