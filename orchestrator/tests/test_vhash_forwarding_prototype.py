@@ -131,6 +131,74 @@ def test_dependency_build_precedes_gate_and_failure_stops(monkeypatch, tmp_path,
     job = json.loads(next(tmp_path.glob("raw-smoke-*.json")).read_text())
     assert ("dependency" in job["builds"]) is not fail_dependency and (fail_dependency or job["builds"]["dependency"]["seconds"] == 1.25)
 
+
+@pytest.mark.parametrize("job_name", ("s09", "backoff"))
+def test_abort_builds_finish_before_first_run(monkeypatch, tmp_path, job_name):
+    monkeypatch.setattr(driver.socket, "gethostname", lambda: "bnode017")
+    monkeypatch.setattr(driver, "checked", lambda *a, **k: SimpleNamespace(stdout=b"head\n"))
+    monkeypatch.setattr(driver, "_probe", lambda: {})
+    for name in ("_load_policy", "_resolve_toolchain", "_prepare_dependencies"):
+        monkeypatch.setattr(driver.compute, name, lambda *a, **k: {})
+    monkeypatch.setattr(driver.patchharness, "checkout", lambda *a: nullcontext(tmp_path))
+    monkeypatch.setattr(driver.patchharness, "apply_patch", lambda *a: None)
+    binary = tmp_path / "ycsb_cicada.exe"
+    binary.write_bytes(b"fake")
+    events = []
+    def build(source, directory, kind, dependencies, toolchain, **kwargs):
+        events.append(("build", directory.name, kind))
+        assert (kind == "gc-dependency") == ("genome" not in kwargs)
+        if kind != "gc-dependency":
+            events.append(("gate", directory.name, kind))
+        return binary, [], 1.25
+    def run(binary, spec, common, gates):
+        events.append(("run", spec["build_id"], spec["build_kind"]))
+        return {**spec, "valid": True}
+    monkeypatch.setattr(driver, "_build_variant", build)
+    monkeypatch.setattr(driver, "_run_binary", run)
+    assert driver.main(["abort-run", "--job", job_name, "--smoke",
+        "--third-party-cache", str(tmp_path), "--output", str(tmp_path)]) == 0
+    specs = driver.abort_plan_runs(job_name, smoke=True)
+    build_ids = list(dict.fromkeys(spec["build_id"] for spec in specs))
+    assert events[0] == ("build", "build-abort-gc-dependency", "gc-dependency")
+    assert events[1][0] == "build" and events[2][0] == "gate"
+    assert [event[1] for event in events if event[0] == "build"][1:] == [
+        "build-abort-" + build_id for build_id in build_ids]
+    first_run = next(i for i, event in enumerate(events) if event[0] == "run")
+    assert all(event[0] != "build" for event in events[first_run:])
+    assert [event[1] for event in events[first_run:]] == [spec["build_id"] for spec in specs]
+    if job_name == "backoff":
+        assert any(build_id.endswith("-bo1") for build_id in build_ids)
+    raw = json.loads(next(tmp_path.glob("raw-abort-*.json")).read_text())
+    assert raw["all_pass"] and list(raw["builds"]) == ["gc-dependency", *build_ids]
+
+
+@pytest.mark.parametrize("failed_build", ("gc-dependency", "gc-stock-count"))
+def test_abort_build_failure_stops_before_run(monkeypatch, tmp_path, failed_build):
+    monkeypatch.setattr(driver.socket, "gethostname", lambda: "bnode017")
+    monkeypatch.setattr(driver, "checked", lambda *a, **k: SimpleNamespace(stdout=b"head\n"))
+    monkeypatch.setattr(driver, "_probe", lambda: {})
+    for name in ("_load_policy", "_resolve_toolchain", "_prepare_dependencies"):
+        monkeypatch.setattr(driver.compute, name, lambda *a, **k: {})
+    monkeypatch.setattr(driver.patchharness, "checkout", lambda *a: nullcontext(tmp_path))
+    monkeypatch.setattr(driver.patchharness, "apply_patch", lambda *a: None)
+    binary = tmp_path / "ycsb_cicada.exe"
+    binary.write_bytes(b"fake")
+    events = []
+    def build(source, directory, kind, dependencies, toolchain, **kwargs):
+        events.append(kind)
+        if kind == failed_build:
+            raise RuntimeError("build stopped")
+        return binary, [], 1.25
+    monkeypatch.setattr(driver, "_build_variant", build)
+    monkeypatch.setattr(driver, "_run_binary", lambda *a: pytest.fail("run after build failure"))
+    assert driver.main(["abort-run", "--job", "s09", "--smoke",
+        "--third-party-cache", str(tmp_path), "--output", str(tmp_path)]) == 1
+    raw = json.loads(next(tmp_path.glob("raw-abort-*.json")).read_text())
+    assert events[0] == "gc-dependency"
+    assert events[-1] == failed_build
+    assert not raw["records"] and not raw["all_pass"]
+    assert raw["error"] == "RuntimeError: build stopped"
+
 def test_figure_full_shape():
     import matplotlib
     matplotlib.use("Agg")

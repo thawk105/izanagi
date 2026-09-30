@@ -143,7 +143,7 @@
 +    const uint64_t elapsed =
 +        now >= state.hold_start ? now - state.hold_start : 0;
 +    ABORT_ADD(tx.thid_, detect_clock_sum, elapsed);
-+    ABORT_DETECT(tx.thid_, elapsed);
++    ABORT_DETECT(tx.thid_, elapsed / FLAGS_clocks_per_us);
 +  }
 +  return true;
 +}

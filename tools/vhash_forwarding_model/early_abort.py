@@ -134,8 +134,12 @@ def _read_candidate(s: State, tx: Tx, key: str) -> tuple[str, str] | None:
             continue
         if version.status == PENDING:
             return None
-        if version.status in FINAL:
-            return (vid, later) if version.status == COMMITTED else None
+        if version.status == ABORTED:
+            continue
+        if version.status == DELETED:
+            return None
+        if version.status == COMMITTED:
+            return vid, later
     return None
 
 

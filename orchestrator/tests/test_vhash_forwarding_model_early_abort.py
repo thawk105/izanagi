@@ -46,6 +46,22 @@ def test_three_tx_fixed_abort_then_committed_witness():
     assert finished.txs[0].phase == "done"
 
 
+def test_read_skips_aborted_writer_version():
+    state = m.replay(("W1.install_A=pending", "W1.aborted", "R.read_A=a0"))
+    read = state.txs[0].reads[0]
+    assert read.version == "a0" and read.wts == m.stamp(10, 0)
+    assert read.later == ""
+    assert not m.detect_d(state)
+    assert m.validation_reads(state) is True
+
+
+def test_read_waits_for_pending_and_stops_at_deleted():
+    pending = m.replay(("W1.install_A=pending",))
+    assert all(edge.label != "R.read_A=a0" for _, edge in m.transitions(pending))
+    deleted = m.replay(("W1.install_A=pending", "W1.deleted"))
+    assert all(edge.label != "R.read_A=a0" for _, edge in m.transitions(deleted))
+
+
 def test_deleted_version_is_a_witness():
     state = m.replay(("R.read_A=a0", "W1.install_A=pending", "W1.deleted"))
     assert m.detect_d(state)

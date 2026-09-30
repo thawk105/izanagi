@@ -1621,18 +1621,24 @@ def abort_main(args, parser) -> int:
                 for patch in ABORT_STACK:
                     patchharness.apply_patch(str(patch), str(source))
                 binaries = {}
+                binary_specs = {spec["build_id"]: spec for spec in specs}
+                binary, gates, seconds = _build_variant(source, scratch / "build-abort-gc-dependency",
+                    "gc-dependency", deps, toolchain)
+                binaries["gc-dependency"] = (binary, gates)
+                job["builds"]["gc-dependency"] = {"binary_sha256": sha_file(binary),
+                    "seconds": seconds, "gate_receipts": gates}
+                for build_id, spec in binary_specs.items():
+                    binary, gates, seconds = _build_variant(source, scratch / ("build-abort-" + build_id),
+                        spec["build_kind"], deps, toolchain, genome=spec["genome"])
+                    binaries[build_id] = (binary, gates)
+                    job["builds"][build_id] = {"binary_sha256": sha_file(binary),
+                        "seconds": seconds, "gate_receipts": gates,
+                        "genome": spec["genome"], "build_macros": list(MACROS[spec["build_kind"]])}
+                common = {"job_id": job["job_id"], "ccbench_pin": pin.CURRENT_PIN,
+                    "patch_sha256": job["patch_sha256"]}
                 for spec in specs:
                     build_id = spec["build_id"]
-                    if build_id not in binaries:
-                        binary, gates, seconds = _build_variant(source, scratch / ("build-abort-" + build_id),
-                            spec["build_kind"], deps, toolchain, genome=spec["genome"])
-                        binaries[build_id] = (binary, gates)
-                        job["builds"][build_id] = {"binary_sha256": sha_file(binary),
-                            "seconds": seconds, "gate_receipts": gates,
-                            "genome": spec["genome"], "build_macros": list(MACROS[spec["build_kind"]])}
                     binary, gates = binaries[build_id]
-                    common = {"job_id": job["job_id"], "ccbench_pin": pin.CURRENT_PIN,
-                        "patch_sha256": job["patch_sha256"]}
                     record = _run_binary(binary, spec, common, gates)
                     job["records"].append(record)
                     _write(output, job)
