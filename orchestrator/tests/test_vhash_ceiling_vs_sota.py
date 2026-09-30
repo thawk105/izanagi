@@ -39,7 +39,7 @@ class CeilingTests(unittest.TestCase):
         for bad in ("", line+"\n"+line, line.replace("100", "-1", 1),
                     line.replace('"batch_commits": 2', '"batch_commits": 2, "batch_commits": 3'),
                     line.replace('"normal_commits": 100, ', "")):
-            with self.subTest(bad=bad[:30]), self.assertRaises(ValueError):
+            with self.assertRaises(ValueError):
                 C.parse_workload(bad)
         with self.assertRaises(ValueError):
             C.parse_workload(line, {"thread_num": 48, "batch_th_num": 1,
@@ -63,7 +63,7 @@ class CeilingTests(unittest.TestCase):
         for macro in ("CICADA_VHASH_COUNT", "IZANAGI_CICADA_VLIFE", "UNRELATED_DEFINE"):
             bad = copy.deepcopy(rows)
             bad[0]["command"] += f" -D{macro}=1"
-            with self.subTest(macro=macro), self.assertRaises(ValueError):
+            with self.assertRaises(ValueError):
                 C.check_perf_defines(bad, "hot8")
 
     def test_m19_measured_perf_defines_exact(self):
@@ -106,7 +106,7 @@ class CeilingTests(unittest.TestCase):
                 for key, replacement in (("patches", list(reversed(manifest["patches"]))),
                                          ("macros", []), ("pin", "wrong")):
                     bad = {**manifest, key: replacement}
-                    with self.subTest(key=key), self.assertRaises(ValueError):
+                    with self.assertRaises(ValueError):
                         C.check_manifest(bad, binary, "base", "R")
             finally:
                 C.TREE_PATCHES["base"] = old
@@ -118,7 +118,7 @@ class CeilingTests(unittest.TestCase):
                        {"gc_inter_us": 100}):
             bad = copy.deepcopy(good)
             bad[1].update(change)
-            with self.subTest(change=change), self.assertRaises(ValueError):
+            with self.assertRaises(ValueError):
                 C.paired(bad, "hot1", "P2", 10, "prelim")
 
     def test_m3_gc_only_R(self):
