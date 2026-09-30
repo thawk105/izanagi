@@ -1,0 +1,90 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -208,6 +208,9 @@
+   uint64_t early_publishes = 0, early_publish_then_fail = 0;
+   uint64_t no_room = 0, once_skipped = 0, uncapped = 0;
+ #line 40
++  uint64_t cap_publishes = 0, cap_limited = 0;
++  uint64_t cap_delta_clock_sum = 0, cap_no_raise = 0;
++#line 40
+   std::atomic<uint64_t> installs{0}, detaches{0};
+ };
+ struct HeldVersion {
+@@ -346,6 +349,17 @@
+         retention_hist[b] += slot.retention_hist[b];
+       }
+     }
++    std::cout << "CICADA_WSCAN_CAP_V1 {\"schema\":\"CICADA_WSCAN_CAP_V1\",\"threads\":[";
++    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& x = gc_slots[i].c;
++      if (i) std::cout << ',';
++      std::cout << "{\"thid\":" << i << ",\"publishes\":" << x.cap_publishes
++                << ",\"cap_limited\":" << x.cap_limited
++                << ",\"cap_delta_clock_sum\":" << x.cap_delta_clock_sum
++                << ",\"cap_no_raise\":" << x.cap_no_raise << '}';
++    }
++    std::cout << "]}" << std::endl;
++#line 178
+     const bool v2 = std::string(GC_TARGET_TEXT) != "now" || GC_ONCE_BOOL;
+     std::cout << (v2 ? "CICADA_GC_V2 {\"schema\":2,\"mode\":\""
+                      : "CICADA_GC_V1 {\"schema\":1,\"mode\":\"");
+@@ -539,6 +553,8 @@
+   }
+ #line 333
+   GC_INC(thid, attempts);
++  [[maybe_unused]] uint64_t cap_wts = std::numeric_limits<uint64_t>::max();
++#line 334
+   ForwardCheck check = ForwardCheck::ok;
+   for (auto& r : tx.read_set_) {
+     bool conflict = false;
+@@ -559,14 +575,18 @@
+         break;
+       }
+       Version* latest = w.rcdptr_->ldAcqLatest();
++      bool conflict = false;
++      Version* visible = forward_visible(w.rcdptr_, target, conflict);
+       if (w.op_ == OpType::RMW) {
+-        if (latest->ldAcqStatus() == VersionStatus::pending)
++        if (conflict)
++          check = ForwardCheck::conflict;
++        else if (latest->ldAcqStatus() == VersionStatus::pending)
+           check = ForwardCheck::conflict;
+         else if (latest->ldAcqWts() >= target)
+           check = ForwardCheck::write_constraint;
++        else if (visible->ldAcqStatus() == VersionStatus::deleted)
++          check = ForwardCheck::write_constraint;
+       } else {
+-        bool conflict = false;
+-        Version* visible = forward_visible(w.rcdptr_, target, conflict);
+         if (conflict)
+           check = ForwardCheck::conflict;
+         else if (visible->ldAcqRts() > target ||
+@@ -574,6 +594,8 @@
+           check = ForwardCheck::write_constraint;
+       }
+       if (check != ForwardCheck::ok) break;
++      cap_wts = std::min(cap_wts, visible->ldAcqWts());
++#line 369
+     }
+   }
+   if (check == ForwardCheck::ok) {
+@@ -615,7 +637,17 @@
+   // Publish only after the local transaction state has been finalized.
+   __atomic_store_n(&ThreadWtsArray[thid].obj_, target, __ATOMIC_RELEASE);
+   GC_INC(thid, publishes);
+-  gc_publish_rts(thid, target - 1);
++  GC_INC(thid, cap_publishes);
++  const uint64_t cap_floor = std::min(target - 1, cap_wts);
++  if (cap_floor < target - 1) {
++    GC_INC(thid, cap_limited);
++    GC_ADD(thid, cap_delta_clock_sum, (target - 1 - cap_floor) >> 8);
++  }
++  if (cap_floor <= __atomic_load_n(&ThreadRtsArray[thid].obj_,
++                                    __ATOMIC_ACQUIRE))
++    GC_INC(thid, cap_no_raise);
++  gc_publish_rts(thid, cap_floor);
++#line 411
+   return true;
+ }
+ } // namespace
