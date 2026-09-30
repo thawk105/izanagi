@@ -1,0 +1,151 @@
+{
+  "builds": [
+    {
+      "binary_sha256": "65b78fbe059f5e510ec3fc93208af5e2e62ea975d9a7324240d01ed6f42eea87",
+      "build_jobs": 24,
+      "build_log": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cfl-m1/output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y5-j2-0/build-b54b22730f88.build.log",
+      "build_log_sha256": "6a20285bc954503d40acfab016b4f6db9b240e986aa50c3aee08de62d8e155f4",
+      "build_rc": 0,
+      "build_seconds": 14.210595184995327,
+      "compile_command_binding": {
+        "checked_tus": [
+          "/tmp/izanagi_wt_930ksdf1/wt/cc/cicada/ycsb_cicada.cc",
+          "/tmp/izanagi_wt_930ksdf1/wt/cc/cicada/transaction.cc",
+          "/tmp/izanagi_wt_930ksdf1/wt/cc/cicada/util.cc"
+        ],
+        "expected_defines": {
+          "ADD_ANALYSIS": 0,
+          "BACK_OFF": 0,
+          "INLINE_VERSION_OPT": 1,
+          "INLINE_VERSION_PROMOTION": 0,
+          "REUSE_VERSION": 1,
+          "TRACE": 0,
+          "WORKER1_INSERT_DELAY_RPHASE": 0,
+          "WRITE_LATEST_ONLY": 0
+        },
+        "valid": true
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/tmp/izanagi_wt_930ksdf1/wt",
+        "-B",
+        "/tmp/cicada-a7kkm0qm/build-b54b22730f88",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/tmp/cicada-a7kkm0qm/gflags-install;/tmp/cicada-a7kkm0qm/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/cicada-a7kkm0qm/masstree-b54b22730f88",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/cicada-a7kkm0qm/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/cicada-a7kkm0qm/thirdparty-src/googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure_log": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cfl-m1/output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y5-j2-0/build-b54b22730f88.configure.log",
+      "configure_log_sha256": "cc04c5a49c752bbf18d7db1bc75923957643a5960c62523114ebccd5d9712453",
+      "configure_rc": 0,
+      "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "label": "b54b22730f88",
+      "masstree_source": "/tmp/cicada-a7kkm0qm/masstree-b54b22730f88",
+      "wait": false
+    },
+    {
+      "binary_sha256": "708a781019ae3c8c0495662be65c2f80b526520573cd9f5192888acf98e97803",
+      "build_jobs": 24,
+      "build_log": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cfl-m1/output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y5-j2-0/build-5c578803a2f9.build.log",
+      "build_log_sha256": "4a71e41cdb27115199021253ff00a46674393783e1839f712deb3f755766bc3b",
+      "build_rc": 0,
+      "build_seconds": 14.263973256020108,
+      "compile_command_binding": {
+        "checked_tus": [
+          "/tmp/izanagi_wt_930ksdf1/wt/cc/cicada/ycsb_cicada.cc",
+          "/tmp/izanagi_wt_930ksdf1/wt/cc/cicada/transaction.cc",
+          "/tmp/izanagi_wt_930ksdf1/wt/cc/cicada/util.cc"
+        ],
+        "expected_defines": {
+          "ADD_ANALYSIS": 0,
+          "BACK_OFF": 1,
+          "INLINE_VERSION_OPT": 0,
+          "INLINE_VERSION_PROMOTION": 0,
+          "REUSE_VERSION": 1,
+          "TRACE": 0,
+          "WORKER1_INSERT_DELAY_RPHASE": 0,
+          "WRITE_LATEST_ONLY": 0
+        },
+        "valid": true
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/tmp/izanagi_wt_930ksdf1/wt",
+        "-B",
+        "/tmp/cicada-a7kkm0qm/build-5c578803a2f9",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/tmp/cicada-a7kkm0qm/gflags-install;/tmp/cicada-a7kkm0qm/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/cicada-a7kkm0qm/masstree-5c578803a2f9",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/cicada-a7kkm0qm/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/cicada-a7kkm0qm/thirdparty-src/googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure_log": "/work/1/SFC/tanab/izanagi/.codex/worktrees/cfl-m1/output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y5-j2-0/build-5c578803a2f9.configure.log",
+      "configure_log_sha256": "cba3f0149dd3e8bb456bc37c10ab1af0029b1e4f6ecfebed5df93b831640a3a1",
+      "configure_rc": 0,
+      "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+      "label": "5c578803a2f9",
+      "masstree_source": "/tmp/cicada-a7kkm0qm/masstree-5c578803a2f9",
+      "wait": false
+    }
+  ],
+  "ccbench_head": "68106660686232781bca3be792a750d3e19d7a8a",
+  "dependencies_seconds": 11.34571054999833,
+  "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+  "host": "bnode021",
+  "job_id": "cfloor-w3-y5-j2-0",
+  "schema": "vhash-cicada-diagnostic/v1",
+  "settle": {
+    "load1": 3.12158203125,
+    "settled": true,
+    "threshold": 4.0
+  },
+  "spec_sha256": "7d55d3663ed353cda683565b825bf298a8e215afad07233a8cd42fbb4e710133",
+  "stage": "j2",
+  "started_utc": "2026-09-30T08:19:19.069706+00:00",
+  "status": "complete",
+  "toolchain": {
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "version_body_sha256": {
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    }
+  }
+}
