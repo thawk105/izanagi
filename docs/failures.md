@@ -10241,6 +10241,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — VHash GC 接続の小モデル wave (dev-wave-vhash-gc-connection) で、親が fix3 の commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と、新 test file の所要計測の run_tests dispatch を同一 worktree からほぼ同時に投入し、監査の qsub 中の pending orphan hold (`phase: pending-qsub`) を所要計測が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。監査は request 34686.nqsv で走り切り rc=0、hold は監査の終端で自然に解除、所要計測は単独の再投入で 28 passed。qdel も hold の手動削除もしていない。既存恒久対応に修正すべき新事実はない。
 
 - **再発: 2026-09-29** — md_23 wave で、親が同じ detached 計測木から本走 6 job (perf 3・count 1・trace 2) を detach script で同時に投げ、1 本目の pending orphan hold を検知して 5 本が rc 16 (`child_started=false`、`reason=orphan-hold`) になった (親の操作ミス)。1 本目 (36631.nqsv) は走り切り、残り 5 本は同じ木から 1 本ずつ流す chain で通した。qdel も hold の手動削除もしていない。`DW-C00` の「同一 worktree の dispatch は全種直列」の読み落としで、既存の恒久対応に直すべき新事実はない。並列にしたい計測は、計測木を job の数だけ作ってから投げる。
+
+- **再発: 2026-09-30** — VHash md_31 で、親が fix1 commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と焦点走 2 を同一 worktree からほぼ同時に投入し、焦点走 2 の qsub 中の pending orphan hold を監査が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。焦点走 2 は request 37897 で走り切り、hold はその終端で自然に解除、監査は単独の再投入 (37907) で rc=0。qdel も hold の手動削除もしていない。既存の恒久対応に直すべき新事実はない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -21574,6 +21576,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-29** — VHash md_21 で、C++ の計数行を新しく読む driver の解析を、実装子が推測で組んだ fixture だけで検査した。実物との食い違いが smoke 1 (`CICADA_LONGTX_V1` の top-level key に `schema` があった) と fix 後の焦点再レビュー (SAFEPOINT の無い build の GC 行の mode は `"none"`、driver は `"off"` を要求) で 1 巡に 1 件ずつ出て、fix を 2 巡追加した。どちらも login のテストと段 6 のレビュー 2 本では捕まらなかった。直した後は実 stdout の行を写した回帰テストと、build の macro 集合から期待を導く形にした。
+
+- **再発: 2026-09-30** — VHash md_31 で、実装子が推測で組んだ fixture と login のテスト・段 6 のレビュー 2 本では捕まらない欠陥が、実機で 1 巡に 1 件ずつ 3 件出た。smoke 1 で新 subcommand の起動枠が target-run の流れを写さず依存物 build を抜かし、条件 gate の前処理が `config.h` 無しで停止 (レビュー B は「起動枠の再記述」を nit として挙げていた)。smoke 2 で計器なし build の計数専用の変数が未使用になり `-Werror` で停止 (子の環境には gflags と生成 config.h が無く、構文検査が走らなかった)。検査 1 で repo 外起動器が hb の腕の GC V1 行 (`no_room` を持たない) にも `no_room` の分割照合を当てて落ちた。直した後、abort-run の順序を検査するテストを足し、変数と macro の組の表を子に出させた。md_21 の再発と同じく、新しく build・解析する経路は smoke を最初の fix 巡の前に出すのが最も安い。
 ### F723. 親が「逐語」と称した射影資料を省略記号で切り、子の fixture に同じ穴が空いた [テスト代表性] [手順漏れ]
 
 - 事象: 実 build の逐語を job dir へ射影する際、`.o.d` の中身を `...` で省略した。実装子は
