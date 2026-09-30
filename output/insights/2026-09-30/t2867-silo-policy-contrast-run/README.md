@@ -14,9 +14,10 @@
 1. **結果:** 4 arm × 12 系列を登録どおり完走し (51 項目すべて `b-complete`、欠測・fallback・anomaly 0)、report の判定は **4 比較とも「同等 (観測差が比較 floor 内)」**。
    どの LLM 構成も、登録した条件付き優越 (族ごとに Holm 補正後に有意、かつ median(d) > δ = 0.0296) を満たさなかった。本書の失敗条件 (c) の成立で、正当な negative の結末として報告する。
    族 B (LLM×C++ 対 非 LLM) の raw p は 0.042・0.045 で最も小さいが、Holm の初段 0.025 に届かず、median(d) も 0.011〜0.018 で δ 以下。
-2. **arm の姿:** score の median はどの arm も約 3.93 M tps (静的 10 µs 比 約 0.99、stock 比 約 2.9)。LLM の 2 arm の最良の系列 (1.06〜1.11 倍) は非 LLM の最良より大きいが、登録した比較には効かなかった。
+2. **arm の姿:** score の median はどの arm も約 3.93 M tps (静的 10 µs 比 約 0.99、stock 比 約 2.9)。観測した 12 系列の最大値は LLM の 2 arm (静的 10 µs 比 1.06〜1.11) が非 LLM の 2 arm より大きいが、
+   最大値どうしは登録した比較ではなく、登録した 4 比較の median(d) はいずれも floor 内だった。
    endpoint が初期点のままだった系列は random 10/12・LLM×IR 7/12・LLM×C++ 5/12・進化 3/12。
-3. **公平性の目視:** worker を恒常的に駐車させる endpoint は無い。上限のある偏りの懸念 (中 3 本) は LLM の arm にだけ出た。
+3. **公平性の目視:** 本文の目視では、特定の worker を恒常的に駐車させる明示的な構造は見つからなかった (実走の偏り・飢餓は観測点が無く未計測)。上限のある偏りの懸念 (中 3 本) は LLM の arm にだけ出た。
 4. **本走の前に見つけて直した欠陥 2 件:** 静的 10 µs の参照 slot で condition gate が落ちる driver の欠陥 (commit `1da88472b`)、駆動 loop の再起動が拒否される欠陥 (fix 2)。どちらも v1 の外の前走で見つけた。
 5. **費用:** 計算 579 job・63.5 node 時間 (見積り 61〜70 の範囲)、LLM 249 機会 (直列 45.1 時間、同時 4 親で暦 約 16 時間、うち 429 の保留 1 回 47 分と利用上限の一旦停止 2.4 時間)。
 
@@ -78,7 +79,8 @@
 | **計** | **579** | | | **63.53** |
 
   承認の見積り (約 61〜70 node 時間、D2305 項 1) の範囲。前走 (試験版) と試験の計算は別に約 3 node 時間。
-- slot の結果: 894 件すべて certified・品質正常 (anomaly 0、品質欠測 0、機械故障 0)。判定器の版は全件 `campaign_verifier_epoch` = `E1:aec05476f07c426820098705d96c70835de5be21be0aa812a6326d9ead3a512c`。
+- slot の結果: 894 件すべて certified・品質正常 (anomaly 0、品質欠測 0、機械故障 0)。判定器の版 (`campaign_verifier_epoch`) を記録しているのは候補と初期点の 576 件 (初期点 96 + 評価 480) で、
+  すべて `E1:aec05476f07c426820098705d96c70835de5be21be0aa812a6326d9ead3a512c`。残る 318 件 (系列開始 stock 48・score 240・参照 30) の slot 結果はこの field を持たず、版は照合していない。
 - LLM の親: 249 機会 (LLM×C++ 121・LLM×IR 128)、すべて rc=0 (proposed 240・rejected 9)。1 機会の所要は中央値 545 s、90% 点 754 s、最長 4,326 s (429 の保留を含む)、直列の合計 45.1 時間。
 - 429 (利用上限) の保留: 16 件 = 4 機会 × 各 4 回 (llm-cpp-6 a5・llm-ir-5 a8・llm-ir-8 a2・llm-cpp-7 a4、2026-09-30 20:10〜20:57 JST)。本書 §5.5 のとおり同じ a で 15 分おきに再開し、A・B を消費せず欠測にもならなかった。
   親の起動は計 265 回で、429 を返した起動は 17 回。16 回は上の保留、残る 1 回 (llm-cpp-5 a8、20:11:02 JST) は finalize が台帳に `proposed` を書いた 1 秒後に親の最終応答が 429 になったもので、
@@ -115,13 +117,15 @@
 | 進化×IR | 3,934,752 | 3,849,903〜4,019,139 | 0.993 | 3/12 | 9/12 | 120 |
 
   stock (適応 backoff) 比はどの arm も約 2.8〜3.2 倍。既知最良の静的 10 µs (元の適用方法、参照 job の median 約 3.96 M tps) にはどの arm の median も届かず約 0.99 倍。
-  各 arm の最良の系列は、LLM×IR が 4.40 M (静的 10 µs 比 1.112)、LLM×C++ が 4.21 M (1.063)、進化×IR が 4.02 M、random×IR が 3.96 M で、LLM の 2 arm の最良は非 LLM の最良より大きいが、
-  median と対差では差が floor 内に収まった (最良の 1 系列どうしの比較は登録した比較ではない)。
+  観測した 12 系列の最大値は、LLM×IR が 4.40 M (静的 10 µs 比 1.112)、LLM×C++ が 4.21 M (1.063)、進化×IR が 4.02 M、random×IR が 3.96 M。
+  最大値どうしの大小は登録した比較ではなく、生成器の優越を意味しない。登録した 4 比較の対差の中央値 median(d) は、いずれも floor 内だった
+  (個々の対差には |d| > δ の対が表の順に 2/12・3/12・5/12・5/12 ある。例: LLM×IR 対 random×IR の r = 11 は d = 0.118)。
 
 ### 6.1 公平性の目視 (本書 §6 末尾)
 
 score の確定後・報告の前に role `auditor` が 48 本の endpoint 本文を目視した (逐語 `verbatim/auditor-fairness.md`)。所見は score・判定・系列を変えない。
-- 特定の worker を恒常的に優先・駐車させる構造は 48 本とも無い (API は thread 番号を渡さず、状態は thread_local で全 worker に同じ規則)。
+- 本文の目視では、特定の worker を恒常的に優先・駐車させる明示的な構造は 48 本とも見つからなかった (API は thread 番号を渡さず、状態は thread_local で全 worker に同じ規則)。
+  これは構造の目視であり、実走の偏り・飢餓は未計測。
 - 上限のある一時的な偏りの懸念が 2 型: 連続 abort で待ちを伸ばし commit で戻す型 (勝った worker が勝ち続けやすい)、lock 競合で待ち 0 の再試行を続ける型 (backoff を実質切る、prefix lock を握ったまま周回)。
   重さ「中」は llm-ir-3・llm-ir-2・llm-ir-11 の 3 本、「低〜中」は llm-cpp-10、「低」は llm-cpp-1・6・7・12、llm-ir-4・7。abort 後の待ちの最大は約 64 µs、lock 再試行の待ちは全員 0 µs。
 - arm の傾向: random×IR と進化×IR の endpoint は対称な定数 backoff の範囲に留まり懸念なし。LLM の 2 arm は状態を持つ適応型へ動き、懸念はそこに集まる (LLM×IR は乱数なし・長い再試行に寄る)。
@@ -140,6 +144,8 @@ score の確定後・報告の前に role `auditor` が 48 本の endpoint 本�
   結論は「登録した独立性の仮定の下で」であり、対差の独立性と符号対称性は検定していない。族 B の差は表現 (policy-C++ v1 と IR) と探索法を合わせた差。
   random と進化の支持集合は定数の分布で狭められている。段階 D の二値と射程文、auditor は LLM の arm にだけ掛かる。
 - certified の射程: 観測した有限の trace の判定であり、verify と perf で同じ分岐を踏んだとは言えない。
+- numactl: 本書 §5.2 は「性能構成 verify と bench は numactl interleave」と書くが、Pegasus の環境契約は numactl が空で、bench は prefix なしで走った
+  (WAL の `bench_done.payload.run_cmd`)。1 CPU・1 NUMA ノードなので割り当ては変わらず、全 slot・全 arm が同じ条件。本書に Erratum 16.1 として追記した。
 - 対象 commit と main の差: 本走は `1da88472b` (main `4f412c67b` + driver の最小修正 1 commit)。この差は本 wave の land で main に入る。
 - 駆動 loop は repo の外の道具で、LLM 親の割当ては待ち時間順でなく schedule 順 (早い系列が先に親を得る)。台帳の規則には関わらない。
 - 同等の判定は「観測差が floor 内」であって、母集団の等価性の証明ではない。stock に対する利得 (約 2.8〜3.2 倍) は全 arm に共通で、生成器間の差とは別物。
@@ -147,5 +153,6 @@ score の確定後・報告の前に role `auditor` が 48 本の endpoint 本�
 ## 8. 確かめたこと / 確かめていないこと
 
 - 確かめた: 51 項目の終了理由 (`done.json`)、894 slot の結果の内訳、579 job の Elapse の和 (scheduler 記録を grep で合計)、429 の 16 件 (台帳の `opportunity-end` の outcome)、
-  LLM 親 249 機会の rc と outcome (loop の `actions.jsonl`)、親の起動 265 回の `modelUsage` と 429 (`rounds/*/a*/attempt-*/out.json`)、report の 4 比較の判定と数値 (`report-v1.json`)、判定器の版が 1 種類であること。
-- 確かめていない: report の統計計算の独立な再計算 (report の実装は前 wave の試験と変異で確かめた道具をそのまま使った。段 6 の記録 review で抜き取り照合する)、trace 保全の完全性。
+  LLM 親 249 機会の rc と outcome (loop の `actions.jsonl`)、親の起動 265 回の `modelUsage` と 429 (`rounds/*/a*/attempt-*/out.json`)、report の 4 比較の判定と数値 (`report-v1.json`)、版を記録した 576 slot で判定器の版が 1 種類であること。
+- 確かめていない: stock・score・参照の 318 slot の判定器の版 (slot 結果に field が無い)、trace 保全の完全性。
+  report の統計計算は、段 6 の記録 review (Codex、1 回目は委任検出で不受理、`verbatim/codex-review-2-unaccepted.md`) が 4,096 通りの符号反転で独立に再計算して一致したと報告した。

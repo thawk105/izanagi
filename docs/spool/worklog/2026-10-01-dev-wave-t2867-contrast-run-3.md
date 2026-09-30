@@ -22,6 +22,12 @@ title: [T-2867] 関数方策の軸の生成器対照を発効させ 4 arm × 12 
 - 二重担当: 同じ本走の引き継ぎとして md_24 の session が 2026-09-30 21:47 JST に起動し、md_11 の続行を確かめて何も書かずに譲った。
 - 親の誤り: 子 worktree への `cd` (F859 再発)、同一 worktree の並行 dispatch による orphan hold (F273 再発)、並行 `worktree add` の rc=128 (F26 再発)、焦点走の最中に未 commit の fragment を書いて
   `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` を 1 件赤にした (コード非帰属)、公平性の目視に渡した射影に探索時の性能値を入れていた (auditor が本文の構造だけから所見を出したと明記)。
+- 親の誤り (続き): main の取り込み (D2335 = Codex 子を gpt-6-astra・ultra へ改訂し、ultra の委任を prompt で禁じる) の後、codex の起動前に DW-O01 を読み直さず、
+  1 回目の記録 review が委任して launcher に不受理 (`delegation_detected`) にされた。取り直しでは委任禁止を明記して受理された。
+  同じ理由で、review の所見を反映した 2 commit の trailer に reviewer を `gpt-6-sol`・`medium` と誤記した (receipt の実値は `gpt-6-astra`・`ultra`)。
+  2 commit は local の wave branch にしか無かったので、land 前に 1 commit へまとめ直して正しい trailer を付けた (元の tip は ref `t2867-backup-wrong-trailer-4d50f2db8` に退避)。
+- 記録 review の裁定 (一次資料 `verbatim/s6-ruling-3-records.md`): 1 回目の所見 5 件と取り直しの残り 3 件をすべて real として直し、3 巡目は投げず親の照合で閉じた。
+  その過程で、事前登録 §5.2 の「numactl interleave」が Pegasus では prefix なしで走った食い違いを見つけ、本書の Erratum 16.1 に追記した (1 NUMA ノードで全 slot 同条件、判定は変わらない)。
 - 計算ノード: 本走 579 job・63.53 node 時間 (見積り 61〜70)。前走・自己試験・焦点走・変異で約 3 node 時間。LLM は 249 機会 (直列 45.1 時間)。
 - 子の工数: Codex author 2 (駆動 loop・driver 修正)、review 1、fix 2、焦点再レビュー 1。Claude role `auditor` 1 (公平性の目視)。
 

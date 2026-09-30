@@ -21,7 +21,7 @@ seq: 1
    - CCBench の PIN: `axis_silo_function_policy.PIN` = `pin.CURRENT_PIN` = `6810666` (submodule `68106660686232781bca3be792a750d3e19d7a8a`、D2305 項 1 のとおり C に固定。Silo の取引内の値の修正は含まない)。
    - 動作点・引数: write-heavy の較正動作点 (`p3_s4_loop.calibrated_perf("write-heavy")`、本書 §5.2)。compiler は GNU 11.4.0 (計算ノードの job 記録)。
      correctness・bench の経路と引数は job body `tools/pegasus/p3_s4_loop_pegasus.sh` の `contrast` mode と driver の `--contrast-run-unit` (対象 commit の bytes) が決める。
-     判定器の版は各候補 slot の結果の `campaign_verifier_epoch` として台帳に残り、本走の記録 insight に最初の値を写す。
+     判定器の版は各候補 slot の結果の `campaign_verifier_epoch` として台帳に残る (実値は下の補記)。
    - 生成器: `orchestrator/campaign/silo_policy_contrast_generators.py` の SHA-256 `6060f13767700c5d57cc55c31ee3d0832d2c3e284fd352e4fdb79972d5d5b0a3` (本書 §4.4・§4.5 の確率・重みの実値はこの file の定数)。
      版文字列 `silo-policy-generator-contrast-v1` (cohort 名 `silo-policy-contrast-v1`)。v1 の preimage で引いた値は発効の前に誰も見ていない (前走と生死確認は試験版 `silo-policy-contrast-test-2026-09-29`)。
    - LLM: `claude -p --model claude-opus-5-5 --output-format json`、settings は空の JSON、1 原提案ごとに新しい session (resume しない)、サブスクのログインだけ (API キー・代替 provider なし)。
@@ -31,6 +31,25 @@ seq: 1
    - schedule: 組 r の 4 系列の開始順は基本順 (LLM×C++・LLM×IR・random×IR・進化×IR) を (r − 1) mod 4 だけ左へ巡回した順。組を r 順に開き、
      実行 batch b (r = 4b−3〜4b) の最初の組の前に参照 job b を開く。同時に進める系列は 16 (参照を含む)、同時に動く LLM 親は 4 (本書 §7.1 の推奨、D2216)。
    - walltime (本書 §11.0 の案): job 1 = 1,800 秒、評価 job = 900 秒、score job = 2,700 秒、参照 job = 3,600 秒。
+   - **補記 (2026-10-01、本走の完了後。実行条件の記録だけで、規則・値は変えていない):** 記録 review の指摘で、本書 §12 が求める実値のうち次を補った。
+     walltime の根拠 (実測の最大所要への倍率、walltime の値は変えていない): job 1 は生死確認の実測最大 759 秒の 2.37 倍、評価 job は生死確認の実測最大 289 秒の 3.11 倍
+     (見積りの上側 300 秒の 3 倍)、score job は前走の実測 1,207 秒の 2.24 倍、参照 job は前走の実測 2,135 秒の 1.69 倍 (score・参照は草稿 §11.0 では換算値で、実測は下の 7 の前走)。
+     生成器の確率・重みの採用値は本書 §4.4・§4.5 の本文どおりで、親が生成器 file の定数と照合した: 整数定数が 0 になる確率 1/8、それ以外は `b5_generator_contrast.weights_table()` の
+     1..1000 の log-uniform 重み、状態の field 数 {0,…,4} と型 {u32,u64,bool} は一様、`next_state` の省略 1/2、深さ 4 未満の node が葉になる確率 1/2 (深さ 4 は葉)、
+     shift 量は型の幅未満で一様、bool・abort 要因・action は一様、引き直しは 1 原提案あたり 1,000 回まで、進化の field 追加 1/5 (field 4 個なら 0)・置き換え 4/5。
+     較正 record = write-heavy (rratio 5) の登録済み較正 `output/env/pegasus/calibration/registered/calibration-4b8329b42bb47c65.json`
+     (SHA-256 `4b8329b42bb47c65a36d6cd77643cf8b619f2a77e42cb54e8a8241c9afaba2bd`、MOCC・pin C・records 1,000,000、`p3_s4_loop.calibrated_perf` の注記どおり)。
+     correctness・bench の exact 引数: job body `tools/pegasus/p3_s4_loop_pegasus.sh` の contrast mode が driver を
+     `python3 -B -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-env pegasus --fetchcontent-prebuild-receipt <job の receipt> --allow-coder-derived-build --contrast-run-unit <単位 file>`
+     で起こす。bench の実行時の引数は campaign の WAL (`runs/wal.jsonl` の `bench_done.payload.run_cmd`、例 llm-cpp-1 の評価 slot) に
+     `<build した ycsb_silo.exe> -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10` と残る。
+     環境契約 `pegasus` の numactl は空 (launch prefix なし) で、本書 §5.2 の「numactl interleave」とは食い違う (本書の Erratum 16.1)。
+     verify は WAL の `commit.payload.verify_configs` = `legacy`・`performance` の 2 構成で、slot ごとに legacy 1 本 + performance 5 本 (`verify_done.payload.workload.tag`)。
+     verify の実行時の引数そのものは WAL に残らず、対象 commit の driver と `p3_s4_loop` の bytes が決める。判定器の版 = 候補と初期点の slot 結果 576 件が記録した `campaign_verifier_epoch`
+     `E1:aec05476f07c426820098705d96c70835de5be21be0aa812a6326d9ead3a512c` (1 種類。stock・score・参照の slot 結果はこの field を持たない)。
+     役割の入力の形 = 対象 commit の `orchestrator/campaign/p3_s4_loop_policy.py` (SHA-256 `a22ac95f45b8a40c503b2904372539a3a6874738d332847e2cab4d542cabe21c`、
+     `--emit-coder-input` と critic digest を作る) と `tools/silo_policy_contrast_round.py` (SHA-256 `d38c26f09475f9257a374f0bdb9b624f30ecf9332267293b282f269c279d6067`)。
+     入力の形に独立の版文字列は無く、この 2 file の bytes で固定される。
    - 駆動 loop: repo の外の `contrast_runner.py` (SHA-256 `d12eb6cd32bdb14a22abafb47d9ac112a5e2f3f588ff3d7dafd16b44f31b12f2`、Codex author、本走 wave の段 5・6)。
      起動器 `tools/pegasus/silo_policy_contrast_launch.py` の `init`・`status`・`submit`・`generate` と親 `tools/pegasus/silo_policy_contrast_parent.py` を呼ぶだけで、台帳・driver に書かない。
      逐語は本走の記録 insight の `verbatim/` に置く。
