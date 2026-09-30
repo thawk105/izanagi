@@ -1,0 +1,1409 @@
+{
+  "builds": {
+    "control": {
+      "binary_sha256": "bb319bb55612a6fbe192eec49ee173b6cd63f49a2701b77e173bd682fba885b0",
+      "build": {
+        "build": {
+          "argv": [
+            "cmake",
+            "--build",
+            "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/trace-build",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "rc": 0,
+          "seconds": 4.319
+        },
+        "build_log_tail": [
+          "[  0%] Built target masstree_build",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+          "[ 85%] Linking C static library libmimalloc.a",
+          "[ 85%] Built target mimalloc-static",
+          "[ 85%] Linking CXX static library libccbench_common.a",
+          "[ 85%] Built target ccbench_common",
+          "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "[100%] Linking CXX executable ycsb_silo.exe",
+          "[100%] Built target ycsb_silo.exe"
+        ],
+        "configure": {
+          "argv": [
+            "cmake",
+            "-S",
+            "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/ccbench",
+            "-B",
+            "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/trace-build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DCCBENCH_TRACE=1",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_WAL=0",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/thirdparty-src/masstree",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/thirdparty-src/mimalloc",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/thirdparty-src/googletest"
+          ],
+          "rc": 0,
+          "seconds": 2.051
+        },
+        "configure_log_tail": [
+          "-- The CXX compiler identification is GNU 11.4.0",
+          "-- Detecting CXX compiler ABI info",
+          "-- Detecting CXX compiler ABI info - done",
+          "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+          "-- Detecting CXX compile features",
+          "-- Detecting CXX compile features - done",
+          "-- Looking for C++ include pthread.h",
+          "-- Looking for C++ include pthread.h - found",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+          "-- Found Threads: TRUE  ",
+          "-- Found gflags: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/gflags-install/lib/libgflags.a  ",
+          "-- Found glog: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/glog-install/lib/libglog.a  ",
+          "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+          "-- The C compiler identification is GNU 11.4.0",
+          "-- Detecting C compiler ABI info",
+          "-- Detecting C compiler ABI info - done",
+          "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+          "-- Detecting C compile features",
+          "-- Detecting C compile features - done",
+          "-- Found Git: /usr/bin/git (found version \"2.34.1\") ",
+          "-- ",
+          "-- Architecture: x64",
+          "-- Performing Test mi_has_libpthread",
+          "-- Performing Test mi_has_libpthread - Success",
+          "-- Performing Test mi_has_librt",
+          "-- Performing Test mi_has_librt - Success",
+          "-- Performing Test mi_has_libatomic",
+          "-- Performing Test mi_has_libatomic - Success",
+          "-- ",
+          "-- Library name     : mimalloc",
+          "-- Version          : 2.3.2",
+          "-- Build type       : release",
+          "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+          "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+          "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+          "-- Link libraries   : pthread;rt;atomic",
+          "-- Build targets    : static",
+          "-- ",
+          "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+          "-- Wrote protocol×workload matrix to /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/trace-build/PROTOCOL_MATRIX.md",
+          "-- Configuring done",
+          "-- Generating done",
+          "-- Build files have been written to: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/trace-build"
+        ]
+      },
+      "oid": "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+      "prereg": {
+        "W-blind": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 1496,
+                "sample": [
+                  52,
+                  112,
+                  275,
+                  572,
+                  594,
+                  644,
+                  783,
+                  1262,
+                  1627,
+                  1650,
+                  1664,
+                  1753,
+                  1872,
+                  2025,
+                  2106,
+                  2157,
+                  2226,
+                  2346,
+                  2384,
+                  2720
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 16625,
+                "sample": [
+                  3,
+                  35,
+                  52,
+                  60,
+                  70,
+                  103,
+                  112,
+                  113,
+                  122,
+                  126,
+                  144,
+                  147,
+                  149,
+                  154,
+                  170,
+                  254,
+                  255,
+                  267,
+                  275,
+                  283
+                ],
+                "status": "violation"
+              }
+            },
+            "active_D2b_conditions": [
+              "i",
+              "ii"
+            ],
+            "commits": 218488,
+            "conditions": {
+              "i": 16894,
+              "ii": 211693
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1465340,
+                "keys": 200,
+                "reads": 511877,
+                "txns": 218488,
+                "writes": 529220
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/trace",
+              "verdict": "serializable"
+            },
+            "verifier_rc": 0
+          },
+          "status": "match"
+        },
+        "W-rmw": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 28064,
+                "sample": [
+                  4,
+                  30,
+                  31,
+                  42,
+                  43,
+                  46,
+                  52,
+                  57,
+                  74,
+                  87,
+                  91,
+                  104,
+                  108,
+                  116,
+                  122,
+                  125,
+                  127,
+                  128,
+                  151,
+                  168
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 14926,
+                "sample": [
+                  4,
+                  31,
+                  42,
+                  43,
+                  57,
+                  104,
+                  108,
+                  125,
+                  128,
+                  190,
+                  204,
+                  213,
+                  214,
+                  216,
+                  250,
+                  255,
+                  267,
+                  275,
+                  284,
+                  294
+                ],
+                "status": "violation"
+              }
+            },
+            "active_D2b_conditions": [
+              "i",
+              "ii"
+            ],
+            "commits": 191212,
+            "conditions": {
+              "i": 28064,
+              "ii": 185364
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1281084,
+                "keys": 200,
+                "reads": 896427,
+                "txns": 191212,
+                "writes": 463025
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/trace",
+              "verdict": "serializable"
+            },
+            "verifier_rc": 0
+          },
+          "status": "match"
+        }
+      },
+      "runs": {
+        "W-blind": {
+          "aborts": 9738,
+          "commits": 218488,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 1496,
+                "sample": [
+                  52,
+                  112,
+                  275,
+                  572,
+                  594,
+                  644,
+                  783,
+                  1262,
+                  1627,
+                  1650,
+                  1664,
+                  1753,
+                  1872,
+                  2025,
+                  2106,
+                  2157,
+                  2226,
+                  2346,
+                  2384,
+                  2720
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 16625,
+                "sample": [
+                  3,
+                  35,
+                  52,
+                  60,
+                  70,
+                  103,
+                  112,
+                  113,
+                  122,
+                  126,
+                  144,
+                  147,
+                  149,
+                  154,
+                  170,
+                  254,
+                  255,
+                  267,
+                  275,
+                  283
+                ],
+                "status": "violation"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 0,
+              "R_R_occurrences": 16686,
+              "R_R_transactions": 15809,
+              "R_W_R_occurrences": 747,
+              "R_W_R_transactions": 747,
+              "W_R_occurrences": 17069,
+              "W_R_transactions": 16894,
+              "W_W_occurrences": 16789,
+              "W_W_transactions": 15883,
+              "own_write_read_transactions": 16894,
+              "read_only_transactions": 6795,
+              "repeated_key_transactions": 59175,
+              "transactions": 218488,
+              "write_write_occurrences": 17588,
+              "write_write_transactions": 16625,
+              "written_transactions": 211693
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/review/scripts/gate_check.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.codex/worktrees/silo-line-a",
+              "--out",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.367,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=false",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.006,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t0\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t9738\nbatch_abort_counts_:\t0\ncommit_counts_:\t218488\nbatch_commit_counts_:\t0\nmaxrss:\t56304 kB\nabort_rate:\t0.0427\nbatch_abort_rate:\t-nan\nlatency[ns]:\t18307.6416\nthroughput[tps]:\t218488\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/trace.tar.gz",
+          "trace_archive_sha256": "6fc566917dcc099b6a4f0dce3275c4b18292da4d9deed7610d61ad35f7af87c2",
+          "trace_files_bytes": {
+            "gate_0.log": 17116062,
+            "gate_1.log": 15669107,
+            "gate_2.log": 16306558,
+            "gate_3.log": 16413026,
+            "trace_0.log": 11047904,
+            "trace_1.log": 10119052,
+            "trace_2.log": 10519616,
+            "trace_3.log": 10398394
+          },
+          "verifier": {
+            "rc": 0,
+            "record": {
+              "certified_serializable": 1,
+              "indeterminate": 0,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": true,
+                  "integrity": {
+                    "clean": true,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1465340,
+                    "keys": 200,
+                    "reads": 511877,
+                    "txns": 218488,
+                    "writes": 529220
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/trace",
+                  "verdict": "serializable"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "\tCommand being timed: \"/usr/bin/python3.10 -m verifier /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/trace --json --quiet --protocol silo --ccbench-root /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/ccbench --expected-commits 218488\"\n\tUser time (seconds): 7.38\n\tSystem time (seconds): 0.53\n\tPercent of CPU this job got: 212%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:03.73\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 368164\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 288532\n\tVoluntary context switches: 1046\n\tInvoluntary context switches: 36\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-blind/trace\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 218488,\n        \"reads\": 511877,\n        \"writes\": 529220,\n        \"keys\": 200,\n        \"edges\": 1465340,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": []\n    }\n  ]\n}\n"
+          }
+        },
+        "W-rmw": {
+          "aborts": 8527,
+          "commits": 191212,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 28064,
+                "sample": [
+                  4,
+                  30,
+                  31,
+                  42,
+                  43,
+                  46,
+                  52,
+                  57,
+                  74,
+                  87,
+                  91,
+                  104,
+                  108,
+                  116,
+                  122,
+                  125,
+                  127,
+                  128,
+                  151,
+                  168
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 14926,
+                "sample": [
+                  4,
+                  31,
+                  42,
+                  43,
+                  57,
+                  104,
+                  108,
+                  125,
+                  128,
+                  190,
+                  204,
+                  213,
+                  214,
+                  216,
+                  250,
+                  255,
+                  267,
+                  275,
+                  284,
+                  294
+                ],
+                "status": "violation"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 15148,
+              "M_M_transactions": 14293,
+              "R_R_occurrences": 14745,
+              "R_R_transactions": 13998,
+              "R_W_R_occurrences": 15555,
+              "R_W_R_transactions": 14740,
+              "W_R_occurrences": 0,
+              "W_W_occurrences": 0,
+              "own_write_read_transactions": 28064,
+              "read_only_transactions": 5848,
+              "repeated_key_transactions": 52219,
+              "transactions": 191212,
+              "write_write_occurrences": 15822,
+              "write_write_transactions": 14926,
+              "written_transactions": 185364
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/review/scripts/gate_check.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.codex/worktrees/silo-line-a",
+              "--out",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.271,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=true",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.008,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t1\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t8527\nbatch_abort_counts_:\t0\ncommit_counts_:\t191212\nbatch_commit_counts_:\t0\nmaxrss:\t42524 kB\nabort_rate:\t0.0427\nbatch_abort_rate:\t-nan\nlatency[ns]:\t20919.1892\nthroughput[tps]:\t191212\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/trace.tar.gz",
+          "trace_archive_sha256": "53c6b059a89f5625fcb051dd3f10687acf5cdf085d6b5caa2ad16aa087ae9e8c",
+          "trace_files_bytes": {
+            "gate_0.log": 15306962,
+            "gate_1.log": 16178150,
+            "gate_2.log": 16480518,
+            "gate_3.log": 16130894,
+            "trace_0.log": 12354956,
+            "trace_1.log": 13021479,
+            "trace_2.log": 13277046,
+            "trace_3.log": 12790054
+          },
+          "verifier": {
+            "rc": 0,
+            "record": {
+              "certified_serializable": 1,
+              "indeterminate": 0,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": true,
+                  "integrity": {
+                    "clean": true,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1281084,
+                    "keys": 200,
+                    "reads": 896427,
+                    "txns": 191212,
+                    "writes": 463025
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/trace",
+                  "verdict": "serializable"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "\tCommand being timed: \"/usr/bin/python3.10 -m verifier /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/trace --json --quiet --protocol silo --ccbench-root /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/ccbench --expected-commits 191212\"\n\tUser time (seconds): 8.82\n\tSystem time (seconds): 0.55\n\tPercent of CPU this job got: 238%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:03.93\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 341356\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 315852\n\tVoluntary context switches: 1188\n\tInvoluntary context switches: 18\n\tSwaps: 0\n\tFile system inputs: 24\n\tFile system outputs: 8\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/control/W-rmw/trace\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 191212,\n        \"reads\": 896427,\n        \"writes\": 463025,\n        \"keys\": 200,\n        \"edges\": 1281084,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": []\n    }\n  ]\n}\n"
+          }
+        }
+      },
+      "source_sha256": {
+        "cc/silo/transaction.cc": "bec0bf2b8a381c1a732c2f1f2ce9f5f10187e3d5c4a6d318d408d831a80a78a1",
+        "include/trace.hh": "fae838b12c44fdbfde3d9d494bb0fe6172807a67edeb82540b0f2898f4c4b6c3",
+        "include/ycsb.hh": "e66bbf591e9feaabf5ba4605ec36db5e2c9b6a3a6a5477be19f6778e69af9c17"
+      }
+    },
+    "fix": {
+      "binary_sha256": "a47e3a19c395d7f50cc69a506f68174a41daee4a02f65bf71284d292c47160f8",
+      "build": {
+        "build": {
+          "argv": [
+            "cmake",
+            "--build",
+            "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/trace-build",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "rc": 0,
+          "seconds": 4.334
+        },
+        "build_log_tail": [
+          "[  0%] Built target masstree_build",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+          "[ 85%] Linking C static library libmimalloc.a",
+          "[ 85%] Built target mimalloc-static",
+          "[ 85%] Linking CXX static library libccbench_common.a",
+          "[ 85%] Built target ccbench_common",
+          "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "[100%] Linking CXX executable ycsb_silo.exe",
+          "[100%] Built target ycsb_silo.exe"
+        ],
+        "configure": {
+          "argv": [
+            "cmake",
+            "-S",
+            "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/ccbench",
+            "-B",
+            "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/trace-build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DCCBENCH_TRACE=1",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_WAL=0",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/thirdparty-src/masstree",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/thirdparty-src/mimalloc",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/thirdparty-src/googletest"
+          ],
+          "rc": 0,
+          "seconds": 1.981
+        },
+        "configure_log_tail": [
+          "-- The CXX compiler identification is GNU 11.4.0",
+          "-- Detecting CXX compiler ABI info",
+          "-- Detecting CXX compiler ABI info - done",
+          "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+          "-- Detecting CXX compile features",
+          "-- Detecting CXX compile features - done",
+          "-- Looking for C++ include pthread.h",
+          "-- Looking for C++ include pthread.h - found",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+          "-- Found Threads: TRUE  ",
+          "-- Found gflags: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/gflags-install/lib/libgflags.a  ",
+          "-- Found glog: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/dependencies/glog-install/lib/libglog.a  ",
+          "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+          "-- The C compiler identification is GNU 11.4.0",
+          "-- Detecting C compiler ABI info",
+          "-- Detecting C compiler ABI info - done",
+          "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+          "-- Detecting C compile features",
+          "-- Detecting C compile features - done",
+          "-- Found Git: /usr/bin/git (found version \"2.34.1\") ",
+          "-- ",
+          "-- Architecture: x64",
+          "-- Performing Test mi_has_libpthread",
+          "-- Performing Test mi_has_libpthread - Success",
+          "-- Performing Test mi_has_librt",
+          "-- Performing Test mi_has_librt - Success",
+          "-- Performing Test mi_has_libatomic",
+          "-- Performing Test mi_has_libatomic - Success",
+          "-- ",
+          "-- Library name     : mimalloc",
+          "-- Version          : 2.3.2",
+          "-- Build type       : release",
+          "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+          "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+          "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+          "-- Link libraries   : pthread;rt;atomic",
+          "-- Build targets    : static",
+          "-- ",
+          "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+          "-- Wrote protocol×workload matrix to /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/trace-build/PROTOCOL_MATRIX.md",
+          "-- Configuring done",
+          "-- Generating done",
+          "-- Build files have been written to: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/trace-build"
+        ]
+      },
+      "oid": "dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43",
+      "prereg": {
+        "W-blind": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "active_D2b_conditions": [
+              "i",
+              "ii"
+            ],
+            "commits": 217984,
+            "conditions": {
+              "i": 16615,
+              "ii": 211164
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1462378,
+                "keys": 200,
+                "reads": 511304,
+                "txns": 217984,
+                "writes": 527367
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/trace",
+              "verdict": "serializable"
+            },
+            "verifier_rc": 0
+          },
+          "status": "match"
+        },
+        "W-rmw": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "active_D2b_conditions": [
+              "i",
+              "ii"
+            ],
+            "commits": 191604,
+            "conditions": {
+              "i": 27509,
+              "ii": 185746
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1284387,
+                "keys": 200,
+                "reads": 898939,
+                "txns": 191604,
+                "writes": 464053
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/trace",
+              "verdict": "serializable"
+            },
+            "verifier_rc": 0
+          },
+          "status": "match"
+        }
+      },
+      "runs": {
+        "W-blind": {
+          "aborts": 9692,
+          "commits": 217984,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 0,
+              "R_R_occurrences": 16939,
+              "R_R_transactions": 16036,
+              "R_W_R_occurrences": 745,
+              "R_W_R_transactions": 745,
+              "W_R_occurrences": 16788,
+              "W_R_transactions": 16615,
+              "W_W_occurrences": 16827,
+              "W_W_transactions": 15903,
+              "own_write_read_transactions": 16615,
+              "read_only_transactions": 6820,
+              "repeated_key_transactions": 59122,
+              "transactions": 217984,
+              "write_write_occurrences": 17522,
+              "write_write_transactions": 16549,
+              "written_transactions": 211164
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/review/scripts/gate_check.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.codex/worktrees/silo-line-a",
+              "--out",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.307,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=false",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.006,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t0\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t9692\nbatch_abort_counts_:\t0\ncommit_counts_:\t217984\nbatch_commit_counts_:\t0\nmaxrss:\t76108 kB\nabort_rate:\t0.0426\nbatch_abort_rate:\t-nan\nlatency[ns]:\t18349.9706\nthroughput[tps]:\t217984\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/trace.tar.gz",
+          "trace_archive_sha256": "87b42cb458fdc05f34b0d529228cdc152daf40e30d9df5519cf3d30dae048ca3",
+          "trace_files_bytes": {
+            "gate_0.log": 16934255,
+            "gate_1.log": 16104727,
+            "gate_2.log": 15646401,
+            "gate_3.log": 16648751,
+            "trace_0.log": 10923448,
+            "trace_1.log": 10394395,
+            "trace_2.log": 10115410,
+            "trace_3.log": 10547852
+          },
+          "verifier": {
+            "rc": 0,
+            "record": {
+              "certified_serializable": 1,
+              "indeterminate": 0,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": true,
+                  "integrity": {
+                    "clean": true,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1462378,
+                    "keys": 200,
+                    "reads": 511304,
+                    "txns": 217984,
+                    "writes": 527367
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/trace",
+                  "verdict": "serializable"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "\tCommand being timed: \"/usr/bin/python3.10 -m verifier /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/trace --json --quiet --protocol silo --ccbench-root /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/ccbench --expected-commits 217984\"\n\tUser time (seconds): 7.40\n\tSystem time (seconds): 0.46\n\tPercent of CPU this job got: 211%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:03.72\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 367920\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 289625\n\tVoluntary context switches: 1109\n\tInvoluntary context switches: 11\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-blind/trace\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 217984,\n        \"reads\": 511304,\n        \"writes\": 527367,\n        \"keys\": 200,\n        \"edges\": 1462378,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": []\n    }\n  ]\n}\n"
+          }
+        },
+        "W-rmw": {
+          "aborts": 8349,
+          "commits": 191604,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 14773,
+              "M_M_transactions": 13978,
+              "R_R_occurrences": 14874,
+              "R_R_transactions": 14086,
+              "R_W_R_occurrences": 15296,
+              "R_W_R_transactions": 14457,
+              "W_R_occurrences": 0,
+              "W_W_occurrences": 0,
+              "own_write_read_transactions": 27509,
+              "read_only_transactions": 5858,
+              "repeated_key_transactions": 51795,
+              "transactions": 191604,
+              "write_write_occurrences": 15444,
+              "write_write_transactions": 14606,
+              "written_transactions": 185746
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/review/scripts/gate_check.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.codex/worktrees/silo-line-a",
+              "--out",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.229,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=true",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.006,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t1\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t8349\nbatch_abort_counts_:\t0\ncommit_counts_:\t191604\nbatch_commit_counts_:\t0\nmaxrss:\t59212 kB\nabort_rate:\t0.0418\nbatch_abort_rate:\t-nan\nlatency[ns]:\t20876.3909\nthroughput[tps]:\t191604\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/trace.tar.gz",
+          "trace_archive_sha256": "75ca1c6a31a59149fc47d482dd7f5e1f27c834c89f6c35cd9d033ac227e3980d",
+          "trace_files_bytes": {
+            "gate_0.log": 16163614,
+            "gate_1.log": 15913598,
+            "gate_2.log": 16101349,
+            "gate_3.log": 16044776,
+            "trace_0.log": 13044405,
+            "trace_1.log": 12844566,
+            "trace_2.log": 12994946,
+            "trace_3.log": 12691866
+          },
+          "verifier": {
+            "rc": 0,
+            "record": {
+              "certified_serializable": 1,
+              "indeterminate": 0,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": true,
+                  "integrity": {
+                    "clean": true,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1284387,
+                    "keys": 200,
+                    "reads": 898939,
+                    "txns": 191604,
+                    "writes": 464053
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/trace",
+                  "verdict": "serializable"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "\tCommand being timed: \"/usr/bin/python3.10 -m verifier /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/trace --json --quiet --protocol silo --ccbench-root /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/ccbench --expected-commits 191604\"\n\tUser time (seconds): 8.72\n\tSystem time (seconds): 0.55\n\tPercent of CPU this job got: 237%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:03.90\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 342784\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 313651\n\tVoluntary context switches: 1196\n\tInvoluntary context switches: 10\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 8\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/runs/trace-1/fix/W-rmw/trace\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 191604,\n        \"reads\": 898939,\n        \"writes\": 464053,\n        \"keys\": 200,\n        \"edges\": 1284387,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": []\n    }\n  ]\n}\n"
+          }
+        }
+      },
+      "source_sha256": {
+        "cc/silo/transaction.cc": "a024d397c8e15f0c483ba2d190a29c605a084172e0aad5f31d312cee2bf0d0dd",
+        "include/trace.hh": "fae838b12c44fdbfde3d9d494bb0fe6172807a67edeb82540b0f2898f4c4b6c3",
+        "include/ycsb.hh": "e66bbf591e9feaabf5ba4605ec36db5e2c9b6a3a6a5477be19f6778e69af9c17"
+      }
+    }
+  },
+  "control_oid": "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+  "control_patch_sha256": "76a4234dc0f76518b2ee8b124d7d4c2eeacc3f6a063fdf420714a09afc458cd6",
+  "errors": [],
+  "finished": "2026-09-30T03:46:30.814950+00:00",
+  "fix_oid": "dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43",
+  "fix_parent_oid": "7e5fa528037805dfc0459c742e4a21d6114c9799",
+  "fix_patch_sha256": "edaad46302a09d6311004c7c695a009a2ed36828a572afd85620a5386cfb1297",
+  "host": "bnode001",
+  "started": "2026-09-30T03:43:21.215835+00:00"
+}

@@ -1,0 +1,28 @@
+start 2026-09-30 12:42:17 JST host=pegasus02 tip=dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 base=7e5fa528037805dfc0459c742e4a21d6114c9799
+script sha256: 1f9b26821a6aaee9a192b22a4302d8ec91c67e03809a1537f00bfede22d9d911 sif sha256: 64132a2f3006ce8981c3181d6cc1e393a69067faee5b550ed4d7203484ff167e
+login clang-format: Ubuntu clang-format version 14.0.0-1ubuntu1.1
+warning: remote HEAD refers to nonexistent ref, unable to checkout.
+
+== tip checkout HEAD=dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 clean
+-- login clang-format
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+rc_login_tip=0
+-- image :latest clang-format
+Ubuntu clang-format version 14.0.6
+format files=213
+format rc=0
+rc_image_tip=0
+== base checkout HEAD=7e5fa528037805dfc0459c742e4a21d6114c9799 clean
+-- login clang-format
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+rc_login_base=0
+-- image :latest clang-format
+Ubuntu clang-format version 14.0.6
+format files=213
+format rc=0
+rc_image_base=0
+end 2026-09-30 12:43:05 JST fail=0
