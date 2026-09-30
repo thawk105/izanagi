@@ -1,0 +1,398 @@
+[  0%] masstree: bootstrap + configure + make + ar
+[  0%] Building CXX object _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.o
+[  1%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o
+[  2%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o
+[  3%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o
+[  4%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o
+[  4%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o
+[  5%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o
+[  5%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o
+[  6%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o
+[  6%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o
+[  7%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o
+[  8%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o
+[  8%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o
+[  9%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o
+[  9%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o
+[ 10%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o
+[ 10%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o
+[ 12%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o
+[ 12%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o
+Building masstree (libkohler_masstree_json.a)
+[ 12%] Linking C static library libmimalloc.a
+[ 12%] Built target mimalloc-static
+[ 12%] Linking CXX static library libccbench_common.a
+[ 12%] Built target ccbench_common
+configure.ac:14: warning: The macro `AC_LANG_CPLUSPLUS' is obsolete.
+configure.ac:14: You should run autoupdate.
+./lib/autoconf/c.m4:262: AC_LANG_CPLUSPLUS is expanded from...
+configure.ac:14: the top level
+Now, run ./configure.
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables...
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to enable C11 features... none needed
+checking for g++... g++
+checking whether the compiler supports GNU C++... yes
+checking whether g++ accepts -g... yes
+checking for g++ option to enable C++11 features... none needed
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking whether byte ordering is bigendian... no
+checking for sys/epoll.h... yes
+checking for numa.h... no
+checking for library containing numa_available... no
+checking for __builtin_clz builtin... yes
+checking for __builtin_clzl builtin... yes
+checking for __builtin_clzll builtin... yes
+checking for __builtin_ctz builtin... yes
+checking for __builtin_ctzl builtin... yes
+checking for __builtin_ctzll builtin... yes
+checking for __sync_synchronize builtin... yes
+checking for __sync_fetch_and_add builtin... yes
+checking for __sync_add_and_fetch builtin... yes
+checking for __sync_fetch_and_add_8 builtin... yes
+checking for __sync_add_and_fetch_8 builtin... yes
+checking for __sync_fetch_and_or builtin... yes
+checking for __sync_or_and_fetch builtin... yes
+checking for __sync_fetch_and_or_8 builtin... yes
+checking for __sync_or_and_fetch_8 builtin... yes
+checking for __sync_bool_compare_and_swap builtin... yes
+checking for __sync_bool_compare_and_swap_8 builtin... yes
+checking for __sync_val_compare_and_swap builtin... yes
+checking for __sync_val_compare_and_swap_8 builtin... yes
+checking for __sync_lock_test_and_set builtin... yes
+checking for __sync_lock_test_and_set_val builtin... yes
+checking for __sync_lock_release_set builtin... yes
+checking whether the C++ compiler understands 'auto'... yes
+checking whether the C++ compiler understands constexpr... yes
+checking whether the C++ compiler understands static_assert... yes
+checking whether the C++ compiler understands rvalue references... yes
+checking whether the C++ compiler understands template alias... yes
+checking for type_traits... yes
+checking for std::hash... yes
+checking for __has_trivial_copy... yes
+checking for __has_trivial_destructor... yes
+checking for std::move... yes
+checking for std::is_trivially_copyable... yes
+checking for std::is_trivially_destructible... yes
+checking for std::is_rvalue_reference... yes
+checking for malloc in -lflow... no
+checking for mallctl in -ljemalloc... no
+checking for tc_malloc in -ltcmalloc_minimal... no
+checking for _Z16getMainHoardHeapv in -lhoard... no
+checking for malloc library... malloc
+checking for malloc library... default
+checking whether off_t and long are the same type... yes
+checking whether off_t and long long are the same type... no
+checking whether int64_t and long are the same type... yes
+checking whether int64_t and long long are the same type... no
+checking whether size_t and unsigned are the same type... no
+checking whether size_t and unsigned long are the same type... yes
+checking whether size_t and unsigned long long are the same type... no
+checking for long long... yes
+checking size of short... 2
+checking size of int... 4
+checking size of long... 8
+checking size of long long... 8
+checking size of void *... 8
+checking for g++ options needed to detect all undeclared functions... none needed
+checking whether getline is declared... yes
+checking for time.h... yes
+checking for execinfo.h... yes
+checking whether clock_gettime is declared... yes
+checking for library containing clock_gettime... none required
+checking for clock_gettime... yes
+checking for library containing backtrace... none required
+checking whether MADV_HUGEPAGE is supported... checking how to run the C++ preprocessor... g++ -E
+yes
+checking whether MAP_HUGETLB is supported... yes
+configure: creating ./config.status
+config.status: creating GNUmakefile
+config.status: creating config.h
+make[3]: warning: -j0 forced in submake: resetting jobserver mode.
+config.status: creating config.h
+config.status: config.h is unchanged
+kvthread.cc: In constructor 'threadinfo::threadinfo(int, int)':
+kvthread.cc:33:11: warning: 'void* memset(void*, int, size_t)' clearing an object of type 'class threadinfo' with no trivial copy-assignment [-Wclass-memaccess]
+   33 |     memset(this, 0, sizeof(*this));
+      |     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+In file included from kvthread.cc:16:
+kvthread.hh:94:7: note: 'class threadinfo' declared here
+   94 | class threadinfo {
+      |       ^~~~~~~~~~
+json.cc: In member function 'void lcdf::Json::ObjectJson::grow(bool)':
+json.cc:117:19: warning: 'void* memcpy(void*, const void*, size_t)' writing to an object of type 'struct lcdf::Json::ObjectItem' with no trivial copy-assignment; use copy-initialization instead [-Wclass-memaccess]
+  117 |             memcpy(oi, ob, sizeof(ObjectItem));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:436:14: note: 'struct lcdf::Json::ObjectItem' declared here
+  436 | struct Json::ObjectItem {
+      |              ^~~~~~~~~~
+json.cc: In member function 'void lcdf::Json::hard_uniqueify_array(bool, int)':
+json.cc:250:15: warning: 'void* memcpy(void*, const void*, size_t)' writing to an object of type 'class lcdf::Json' with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  250 |         memcpy(u_.a.x->a, old_u.a.x->a, sizeof(Json) * u_.a.x->size);
+      |         ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+json.hh:44:7: note: 'class lcdf::Json' declared here
+   44 | class Json {
+      |       ^~~~
+json.cc:268:27: warning: 'void* memset(void*, int, size_t)' clearing an object of type 'class lcdf::Json' with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  268 |                     memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (i + 1 - u_.a.x->size));
+      |                     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+json.hh:44:7: note: 'class lcdf::Json' declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function 'void* lcdf::Json::uniqueify_array_insert(bool, size_type)':
+json.cc:343:16: warning: 'void* memmove(void*, const void*, size_t)' writing to an object of type 'class lcdf::Json' with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  343 |         memmove(&u_.a.x->a[pos + 1], &u_.a.x->a[pos], (size - pos) * sizeof(Json));
+      |         ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+json.hh:44:7: note: 'class lcdf::Json' declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function 'lcdf::Json::array_iterator lcdf::Json::erase(array_iterator, array_iterator)':
+json.cc:357:20: warning: 'void* memmove(void*, const void*, size_t)' writing to an object of type 'class lcdf::Json' with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  357 |             memmove(&u_.a.x->a[fpos], &u_.a.x->a[lpos],
+      |             ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  358 |                     (size - lpos) * sizeof(Json));
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+json.hh:44:7: note: 'class lcdf::Json' declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function 'lcdf::Json& lcdf::Json::hard_get_insert(size_type)':
+json.cc:534:19: warning: 'void* memset(void*, int, size_t)' clearing an object of type 'class lcdf::Json' with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  534 |             memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (x + 1 - u_.a.x->size));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+json.hh:44:7: note: 'class lcdf::Json' declared here
+   44 | class Json {
+      |       ^~~~
+log.cc: In static member function 'static logset* logset::make(int)':
+log.cc:165:15: warning: array subscript -1 is below array bounds of 'loginfo [0]' [-Warray-bounds=]
+  165 |     ls->li_[-1].lsi_.size_ = size;
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing 'logset::li_'
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:166:15: warning: array subscript -1 is below array bounds of 'loginfo [0]' [-Warray-bounds=]
+  166 |     ls->li_[-1].lsi_.allocation_offset_ = (int) (x - ls_pos);
+      |     ~~~~~~~~~~^
+log.hh:114:13: note: while referencing 'logset::li_'
+  114 |     loginfo li_[0];
+      |             ^~~
+In member function 'int logset::size() const',
+    inlined from 'static void logset::free(logset*)' at log.cc:173:34:
+log.hh:194:18: warning: array subscript -1 is below array bounds of 'const loginfo [0]' [-Warray-bounds=]
+  194 |     return li_[-1].lsi_.size_;
+      |            ~~~~~~^
+log.hh: In static member function 'static void logset::free(logset*)':
+log.hh:114:13: note: while referencing 'logset::li_'
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:175:55: warning: array subscript -1 is below array bounds of 'loginfo [0]' [-Warray-bounds=]
+  175 |     delete[] (reinterpret_cast<char*>(ls) + ls->li_[-1].lsi_.allocation_offset_);
+      |                                             ~~~~~~~~~~^
+log.hh:114:13: note: while referencing 'logset::li_'
+  114 |     loginfo li_[0];
+      |             ^~~
+ar: `u' modifier ignored since `D' is the default (see `U')
+[ 13%] Linking CXX static library ../../../lib/libgtest.a
+[ 13%] Built target gtest
+[ 13%] Building CXX object _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o
+[ 14%] Linking CXX static library ../../../lib/libgtest_main.a
+[ 14%] Built target gtest_main
+[ 14%] Built target masstree_build
+[ 15%] Building CXX object cc/cicada/CMakeFiles/ycsb_cicada.exe.dir/ycsb_cicada.cc.o
+[ 16%] Building CXX object cc/cicada/CMakeFiles/tpcc_cicada.exe.dir/transaction.cc.o
+[ 16%] Building CXX object cc/cicada/CMakeFiles/tpcc_cicada.exe.dir/tpcc_cicada.cc.o
+[ 16%] Building CXX object cc/cicada/CMakeFiles/bomb_cicada.exe.dir/bomb_cicada.cc.o
+[ 16%] Building CXX object cc/cicada/CMakeFiles/ycsb_cicada.exe.dir/transaction.cc.o
+[ 17%] Building CXX object cc/cicada/CMakeFiles/ycsb_cicada.exe.dir/util.cc.o
+[ 18%] Building CXX object cc/cicada/CMakeFiles/bomb_cicada.exe.dir/transaction.cc.o
+[ 18%] Building CXX object cc/cicada/CMakeFiles/sbomb_cicada.exe.dir/transaction.cc.o
+[ 18%] Building CXX object cc/cicada/CMakeFiles/bomb_cicada.exe.dir/util.cc.o
+[ 18%] Building CXX object cc/d2pl/CMakeFiles/sbomb_d2pl.exe.dir/sbomb_d2pl.cc.o
+[ 19%] Building CXX object cc/cicada/CMakeFiles/tpcc_cicada.exe.dir/util.cc.o
+[ 21%] Building CXX object cc/cicada/CMakeFiles/sbomb_cicada.exe.dir/util.cc.o
+[ 21%] Building CXX object cc/cicada/CMakeFiles/sbomb_cicada.exe.dir/sbomb_cicada.cc.o
+[ 22%] Building CXX object cc/d2pl/CMakeFiles/sbomb_d2pl.exe.dir/transaction.cc.o
+[ 23%] Building CXX object cc/d2pl/CMakeFiles/sbomb_d2pl.exe.dir/util.cc.o
+[ 23%] Building CXX object cc/d2pl/CMakeFiles/dbomb_d2pl.exe.dir/dbomb_d2pl.cc.o
+[ 24%] Building CXX object cc/ermia/CMakeFiles/ycsb_ermia.exe.dir/ycsb_ermia.cc.o
+[ 24%] Building CXX object cc/d2pl/CMakeFiles/dbomb_d2pl.exe.dir/transaction.cc.o
+[ 25%] Building CXX object cc/ermia/CMakeFiles/tpcc_ermia.exe.dir/tpcc_ermia.cc.o
+[ 26%] Building CXX object cc/ermia/CMakeFiles/tpcc_ermia.exe.dir/transaction.cc.o
+[ 26%] Building CXX object cc/ermia/CMakeFiles/sbomb_ermia.exe.dir/sbomb_ermia.cc.o
+[ 27%] Building CXX object cc/d2pl/CMakeFiles/dbomb_d2pl.exe.dir/util.cc.o
+[ 27%] Building CXX object cc/ermia/CMakeFiles/bomb_ermia.exe.dir/bomb_ermia.cc.o
+[ 28%] Building CXX object cc/mocc/CMakeFiles/ycsb_mocc.exe.dir/ycsb_mocc.cc.o
+[ 29%] Building CXX object cc/ermia/CMakeFiles/bomb_ermia.exe.dir/transaction.cc.o
+[ 30%] Building CXX object cc/ermia/CMakeFiles/sbomb_ermia.exe.dir/transaction.cc.o
+[ 31%] Building CXX object cc/ermia/CMakeFiles/tpcc_ermia.exe.dir/util.cc.o
+[ 31%] Building CXX object cc/ermia/CMakeFiles/tpcc_ermia.exe.dir/garbage_collection.cc.o
+[ 31%] Building CXX object cc/ermia/CMakeFiles/ycsb_ermia.exe.dir/util.cc.o
+[ 32%] Building CXX object cc/mocc/CMakeFiles/tpcc_mocc.exe.dir/tpcc_mocc.cc.o
+[ 33%] Building CXX object cc/ermia/CMakeFiles/ycsb_ermia.exe.dir/transaction.cc.o
+[ 34%] Building CXX object cc/ermia/CMakeFiles/ycsb_ermia.exe.dir/garbage_collection.cc.o
+[ 34%] Building CXX object cc/mocc/CMakeFiles/bomb_mocc.exe.dir/bomb_mocc.cc.o
+[ 34%] Building CXX object cc/mocc/CMakeFiles/sbomb_mocc.exe.dir/sbomb_mocc.cc.o
+[ 34%] Building CXX object cc/mvto/CMakeFiles/bomb_mvto.exe.dir/bomb_mvto.cc.o
+[ 35%] Building CXX object cc/mvto/CMakeFiles/tpcc_mvto.exe.dir/tpcc_mvto.cc.o
+[ 36%] Building CXX object cc/oze/CMakeFiles/ycsb_oze.exe.dir/ycsb_oze.cc.o
+[ 37%] Building CXX object cc/oze/CMakeFiles/tpcc_oze.exe.dir/tpcc_oze.cc.o
+[ 38%] Building CXX object cc/oze/CMakeFiles/bomb_oze.exe.dir/bomb_oze.cc.o
+[ 38%] Building CXX object cc/si/CMakeFiles/tpcc_si.exe.dir/tpcc_si.cc.o
+[ 38%] Building CXX object cc/si/CMakeFiles/bomb_si.exe.dir/bomb_si.cc.o
+[ 39%] Building CXX object cc/si/CMakeFiles/ycsb_si.exe.dir/ycsb_si.cc.o
+[ 39%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o
+[ 40%] Building CXX object cc/silo/CMakeFiles/tpcc_silo.exe.dir/tpcc_silo.cc.o
+[ 40%] Building CXX object cc/si/CMakeFiles/sbomb_si.exe.dir/sbomb_si.cc.o
+[ 40%] Building CXX object cc/silo/CMakeFiles/bomb_silo.exe.dir/bomb_silo.cc.o
+[ 41%] Building CXX object cc/silo/CMakeFiles/replay_test.exe.dir/replayTest.cc.o
+[ 41%] Building CXX object cc/silo/CMakeFiles/sbomb_silo.exe.dir/sbomb_silo.cc.o
+[ 42%] Building CXX object cc/silo/CMakeFiles/sbomb_silo.exe.dir/transaction.cc.o
+[ 42%] Building CXX object cc/silo/CMakeFiles/sbomb_silo.exe.dir/util.cc.o
+[ 43%] Building CXX object cc/mocc/CMakeFiles/sbomb_mocc.exe.dir/transaction.cc.o
+[ 44%] Building CXX object cc/mocc/CMakeFiles/sbomb_mocc.exe.dir/util.cc.o
+[ 44%] Linking CXX executable replay_test.exe
+[ 44%] Built target replay_test.exe
+[ 44%] Building CXX object cc/ss2pl/CMakeFiles/bomb_ss2pl.exe.dir/bomb_ss2pl.cc.o
+[ 45%] Building CXX object cc/ss2pl/CMakeFiles/bomb_ss2pl.exe.dir/transaction.cc.o
+[ 46%] Building CXX object cc/ss2pl/CMakeFiles/bomb_ss2pl.exe.dir/util.cc.o
+[ 47%] Building CXX object cc/si/CMakeFiles/sbomb_si.exe.dir/transaction.cc.o
+[ 47%] Building CXX object cc/si/CMakeFiles/sbomb_si.exe.dir/util.cc.o
+[ 48%] Building CXX object cc/si/CMakeFiles/sbomb_si.exe.dir/garbage_collection.cc.o
+[ 48%] Building CXX object cc/mvto/CMakeFiles/tpcc_mvto.exe.dir/transaction.cc.o
+[ 48%] Building CXX object cc/mocc/CMakeFiles/ycsb_mocc.exe.dir/transaction.cc.o
+[ 48%] Building CXX object cc/mocc/CMakeFiles/sbomb_mocc.exe.dir/lock.cc.o
+[ 49%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+[ 50%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[ 51%] Building CXX object cc/oze/CMakeFiles/bomb_oze.exe.dir/transaction.cc.o
+[ 51%] Building CXX object cc/si/CMakeFiles/ycsb_si.exe.dir/transaction.cc.o
+[ 52%] Building CXX object cc/mocc/CMakeFiles/bomb_mocc.exe.dir/transaction.cc.o
+[ 53%] Building CXX object cc/si/CMakeFiles/ycsb_si.exe.dir/util.cc.o
+[ 53%] Building CXX object cc/oze/CMakeFiles/ycsb_oze.exe.dir/transaction.cc.o
+[ 54%] Building CXX object cc/oze/CMakeFiles/ycsb_oze.exe.dir/util.cc.o
+[ 55%] Building CXX object cc/mvto/CMakeFiles/bomb_mvto.exe.dir/transaction.cc.o
+[ 55%] Building CXX object cc/mvto/CMakeFiles/bomb_mvto.exe.dir/util.cc.o
+[ 55%] Building CXX object cc/si/CMakeFiles/ycsb_si.exe.dir/garbage_collection.cc.o
+[ 55%] Linking CXX executable ycsb_ermia.exe
+[ 56%] Building CXX object cc/oze/CMakeFiles/bomb_oze.exe.dir/util.cc.o
+[ 57%] Building CXX object cc/ermia/CMakeFiles/bomb_ermia.exe.dir/util.cc.o
+[ 57%] Building CXX object cc/ermia/CMakeFiles/bomb_ermia.exe.dir/garbage_collection.cc.o
+[ 57%] Building CXX object cc/mocc/CMakeFiles/bomb_mocc.exe.dir/util.cc.o
+[ 58%] Building CXX object cc/mocc/CMakeFiles/bomb_mocc.exe.dir/lock.cc.o
+[ 59%] Building CXX object cc/ermia/CMakeFiles/sbomb_ermia.exe.dir/util.cc.o
+[ 59%] Building CXX object cc/ermia/CMakeFiles/sbomb_ermia.exe.dir/garbage_collection.cc.o
+[ 60%] Building CXX object cc/oze/CMakeFiles/tpcc_oze.exe.dir/transaction.cc.o
+[ 60%] Building CXX object cc/mocc/CMakeFiles/tpcc_mocc.exe.dir/transaction.cc.o
+[ 60%] Built target ycsb_ermia.exe
+[ 61%] Building CXX object cc/mvto/CMakeFiles/tpcc_mvto.exe.dir/util.cc.o
+[ 61%] Building CXX object cc/ss2pl/CMakeFiles/tpcc_ss2pl.exe.dir/tpcc_ss2pl.cc.o
+[ 61%] Linking CXX executable ycsb_cicada.exe
+[ 61%] Building CXX object cc/oze/CMakeFiles/tpcc_oze.exe.dir/util.cc.o
+[ 62%] Building CXX object cc/oze/CMakeFiles/tpcc_oze.exe.dir/debug.cc.o
+[ 63%] Building CXX object cc/mocc/CMakeFiles/ycsb_mocc.exe.dir/util.cc.o
+[ 64%] Building CXX object cc/mocc/CMakeFiles/ycsb_mocc.exe.dir/lock.cc.o
+[ 65%] Building CXX object cc/mocc/CMakeFiles/tpcc_mocc.exe.dir/util.cc.o
+[ 65%] Built target ycsb_cicada.exe
+[ 66%] Building CXX object cc/si/CMakeFiles/bomb_si.exe.dir/transaction.cc.o
+[ 66%] Building CXX object cc/si/CMakeFiles/bomb_si.exe.dir/util.cc.o
+[ 66%] Building CXX object cc/silo/CMakeFiles/tpcc_silo.exe.dir/transaction.cc.o
+[ 67%] Linking CXX executable sbomb_ermia.exe
+[ 68%] Linking CXX executable sbomb_d2pl.exe
+[ 68%] Building CXX object cc/oze/CMakeFiles/ycsb_oze.exe.dir/debug.cc.o
+[ 68%] Building CXX object cc/oze/CMakeFiles/bomb_oze.exe.dir/debug.cc.o
+[ 69%] Linking CXX executable sbomb_cicada.exe
+[ 70%] Building CXX object cc/tictoc/CMakeFiles/ycsb_tictoc.exe.dir/ycsb_tictoc.cc.o
+[ 70%] Linking CXX executable tpcc_ermia.exe
+[ 70%] Built target sbomb_d2pl.exe
+[ 70%] Built target sbomb_ermia.exe
+[ 71%] Building CXX object cc/silo/CMakeFiles/bomb_silo.exe.dir/transaction.cc.o
+[ 71%] Building CXX object cc/tictoc/CMakeFiles/tpcc_tictoc.exe.dir/tpcc_tictoc.cc.o
+[ 71%] Built target sbomb_cicada.exe
+[ 72%] Building CXX object cc/tictoc/CMakeFiles/tpcc_tictoc.exe.dir/transaction.cc.o
+[ 73%] Building CXX object cc/tictoc/CMakeFiles/tpcc_tictoc.exe.dir/util.cc.o
+[ 73%] Linking CXX executable tpcc_cicada.exe
+[ 74%] Building CXX object cc/silo/CMakeFiles/tpcc_silo.exe.dir/util.cc.o
+[ 74%] Built target tpcc_ermia.exe
+[ 74%] Building CXX object cc/si/CMakeFiles/tpcc_si.exe.dir/transaction.cc.o
+[ 75%] Building CXX object cc/tictoc/CMakeFiles/bomb_tictoc.exe.dir/bomb_tictoc.cc.o
+[ 75%] Building CXX object cc/tictoc/CMakeFiles/sbomb_tictoc.exe.dir/sbomb_tictoc.cc.o
+[ 76%] Building CXX object cc/tictoc/CMakeFiles/sbomb_tictoc.exe.dir/transaction.cc.o
+[ 77%] Building CXX object cc/tictoc/CMakeFiles/sbomb_tictoc.exe.dir/util.cc.o
+[ 77%] Built target tpcc_cicada.exe
+[ 77%] Building CXX object cc/tictoc/CMakeFiles/bomb_tictoc.exe.dir/transaction.cc.o
+[ 78%] Building CXX object cc/tictoc/CMakeFiles/bomb_tictoc.exe.dir/util.cc.o
+[ 79%] Building CXX object cc/si/CMakeFiles/bomb_si.exe.dir/garbage_collection.cc.o
+[ 80%] Building CXX object cc/mocc/CMakeFiles/tpcc_mocc.exe.dir/lock.cc.o
+[ 81%] Linking CXX executable dbomb_d2pl.exe
+[ 82%] Building CXX object cc/si/CMakeFiles/tpcc_si.exe.dir/util.cc.o
+[ 83%] Building CXX object cc/si/CMakeFiles/tpcc_si.exe.dir/garbage_collection.cc.o
+[ 84%] Building CXX object cc/ss2pl/CMakeFiles/tpcc_ss2pl.exe.dir/transaction.cc.o
+[ 84%] Building CXX object cc/ss2pl/CMakeFiles/tpcc_ss2pl.exe.dir/util.cc.o
+[ 84%] Building CXX object cc/silo/CMakeFiles/bomb_silo.exe.dir/util.cc.o
+[ 84%] Building CXX object cc/tictoc/CMakeFiles/ycsb_tictoc.exe.dir/transaction.cc.o
+[ 85%] Building CXX object cc/tictoc/CMakeFiles/ycsb_tictoc.exe.dir/util.cc.o
+[ 85%] Built target dbomb_d2pl.exe
+[ 86%] Linking CXX executable bomb_cicada.exe
+[ 87%] Linking CXX executable bomb_ermia.exe
+[ 87%] Built target bomb_cicada.exe
+[ 87%] Built target bomb_ermia.exe
+[ 88%] Linking CXX executable sbomb_silo.exe
+[ 88%] Built target sbomb_silo.exe
+[ 89%] Linking CXX executable sbomb_si.exe
+[ 89%] Linking CXX executable tpcc_mvto.exe
+[ 89%] Built target sbomb_si.exe
+[ 89%] Linking CXX executable bomb_ss2pl.exe
+[ 90%] Linking CXX executable sbomb_mocc.exe
+[ 90%] Built target tpcc_mvto.exe
+[ 90%] Built target bomb_ss2pl.exe
+[ 90%] Built target sbomb_mocc.exe
+[ 91%] Linking CXX executable ycsb_si.exe
+[ 91%] Built target ycsb_si.exe
+[ 92%] Linking CXX executable bomb_mvto.exe
+[ 92%] Built target bomb_mvto.exe
+[ 92%] Linking CXX executable ycsb_silo.exe
+[ 92%] Linking CXX executable ycsb_mocc.exe
+[ 92%] Built target ycsb_silo.exe
+[ 92%] Built target ycsb_mocc.exe
+[ 93%] Linking CXX executable bomb_si.exe
+[ 93%] Built target bomb_si.exe
+[ 93%] Linking CXX executable tpcc_si.exe
+[ 94%] Linking CXX executable bomb_mocc.exe
+[ 94%] Built target tpcc_si.exe
+[ 94%] Built target bomb_mocc.exe
+[ 95%] Linking CXX executable tpcc_ss2pl.exe
+[ 95%] Built target tpcc_ss2pl.exe
+[ 95%] Linking CXX executable tpcc_mocc.exe
+[ 95%] Linking CXX executable tpcc_tictoc.exe
+[ 95%] Built target tpcc_mocc.exe
+[ 95%] Built target tpcc_tictoc.exe
+[ 96%] Linking CXX executable tpcc_silo.exe
+[ 96%] Linking CXX executable sbomb_tictoc.exe
+[ 97%] Linking CXX executable bomb_silo.exe
+[ 97%] Linking CXX executable bomb_tictoc.exe
+[ 97%] Built target tpcc_silo.exe
+[ 97%] Built target sbomb_tictoc.exe
+[ 97%] Built target bomb_silo.exe
+[ 97%] Built target bomb_tictoc.exe
+[ 98%] Linking CXX executable bomb_oze.exe
+[ 99%] Linking CXX executable ycsb_tictoc.exe
+[ 99%] Built target bomb_oze.exe
+[ 99%] Built target ycsb_tictoc.exe
+[100%] Linking CXX executable ycsb_oze.exe
+[100%] Built target ycsb_oze.exe
+[100%] Linking CXX executable tpcc_oze.exe
+[100%] Built target tpcc_oze.exe
