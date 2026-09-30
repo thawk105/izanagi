@@ -56,6 +56,8 @@ branch `worktree-dev-wave-unreachable-cleanup`。台帳正本は `docs/unreachab
 - real・nit: 初版で救出した 23 件は `pending` を経ずに `rescued` で追記された。最終の台帳値は同じで、成果物影響が無いので直さない。
 - refuted: D2065 違反 (AI 判断の `accepted-loss`)、台帳の field 破損、P1 (複製での full 監査)・P2 (T-2829・T-2840 の同時実行) の食い違い、
   件数・sha256 の食い違い、入力内の指示めいた文字列。
+- 焦点再レビュー (read-only 1 本、`evidence/stage6-focus-review.md`): 所見 1・2 の解消、遷移が 4 field 限定であること、件数の一致は refuted。
+  real 1 件 = 後発 4 行の `assessment_reason` が実施していない「full 監査」を根拠に書いていた。「off 監査 (repo 外走査なし…)」へ直した。
 
 ## 救出した 65 件 (価値あり・判断不能)
 
