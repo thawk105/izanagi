@@ -369,7 +369,7 @@ CODEX_DEV_WAVE_STAGE9_LAND_LITERAL = (
     "Codex 固有の取り込み手順を重ねない。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL = (
-    "`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。"
+    "`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。"
 )
 DEV_WAVE_DW_O01_MODEL_AUTHORITY_FINDING = (
     "docs/dev-wave/operations.md: DW-O01 の可視本文に model 権威行が "
@@ -510,39 +510,39 @@ DEV_WAVE_MODEL_SLUG_RE = re.compile(
     r"(?<![A-Za-z0-9._-])gpt-[0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?"
     r"(?![A-Za-z0-9._-])"
 )
-DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL = "`reasoning=medium`"
-DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL = "`reasoning=medium`"
-DEV_WAVE_DW_S06_A_REASONING_XHIGH_LITERAL = "`reasoning=medium`"
-DEV_WAVE_DW_S06_C_REASONING_XHIGH_LITERAL = "`reasoning=medium`"
+DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL = "`reasoning=ultra`"
+DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL = "`reasoning=ultra`"
+DEV_WAVE_DW_S06_A_REASONING_XHIGH_LITERAL = "`reasoning=ultra`"
+DEV_WAVE_DW_S06_C_REASONING_XHIGH_LITERAL = "`reasoning=ultra`"
 DEV_WAVE_DW_S06_A_REASONING_XHIGH_SENTENCE = (
-    "実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。"
+    "実装 wave は異なるレンズの敵対レビューを `reasoning=ultra` で必ず 2 本並列で行う。"
 )
 DEV_WAVE_DW_S06_C_REASONING_XHIGH_SENTENCE = (
-    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。"
+    "並列 fix の統合後、焦点再レビューは全体へ `reasoning=ultra` で 1 本でよい。"
 )
 DEV_WAVE_DW_S05_A_REASONING_XHIGH_SENTENCE = (
-    "codex は `reasoning=medium`、`sandbox=workspace-write` とする。"
+    "codex は `reasoning=ultra`、`sandbox=workspace-write` とする。"
 )
 DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S02 の `reasoning=medium` は"
+    "docs/dev-wave/workers.md: DW-S02 の `reasoning=ultra` は"
     "現行 adoption pin と不一致 — "
     "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
 )
 DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S03 の `reasoning=medium` は"
+    "docs/dev-wave/workers.md: DW-S03 の `reasoning=ultra` は"
     "現行 adoption pin と不一致 — "
     "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
 )
 DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=medium` は段 6 敵対レビューの"
+    "docs/dev-wave/workers.md: DW-S06-A の `reasoning=ultra` は段 6 敵対レビューの"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=medium` は段 6 焦点再レビューの"
+    "docs/dev-wave/workers.md: DW-S06-C の `reasoning=ultra` は段 6 焦点再レビューの"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_DW_S05_A_REASONING_XHIGH_FINDING = (
-    "docs/dev-wave/workers.md: DW-S05-A の `reasoning=medium` は段 5 実装子の"
+    "docs/dev-wave/workers.md: DW-S05-A の `reasoning=ultra` は段 5 実装子の"
     "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
 )
 DEV_WAVE_DW_O16_REASONING_EFFORT_FINDING = (
@@ -5831,31 +5831,31 @@ def _check_dev_wave_reasoning_effort_pins(
     for section_id, expected, required_text, finding in (
         (
             "DW-S02",
-            "medium",
+            "ultra",
             DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL,
             DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S03",
-            "medium",
+            "ultra",
             DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL,
             DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S06-A",
-            "medium",
+            "ultra",
             DEV_WAVE_DW_S06_A_REASONING_XHIGH_SENTENCE,
             DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S06-C",
-            "medium",
+            "ultra",
             DEV_WAVE_DW_S06_C_REASONING_XHIGH_SENTENCE,
             DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING,
         ),
         (
             "DW-S05-A",
-            "medium",
+            "ultra",
             DEV_WAVE_DW_S05_A_REASONING_XHIGH_SENTENCE,
             DEV_WAVE_DW_S05_A_REASONING_XHIGH_FINDING,
         ),

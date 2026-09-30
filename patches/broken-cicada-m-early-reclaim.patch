@@ -1,0 +1,48 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index e3693fd..935c578 100644
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -1134,2 +1134,43 @@ bool TxExecutor::commit() {
+     cicada_m::tick(thid_, cicada_m::tx_commit_ronly);
++    struct BreakStats {
++      std::atomic<unsigned long long> reached{0}, changed{0}, committed{0}, rts_raised{0}, gcflag_set{0};
++      ~BreakStats() {
++        std::fprintf(stderr, "CICADA_BREAK_FIRED slug=m-early-reclaim reached=%llu changed=%llu committed=%llu rts_raised=%llu gcflag_set=%llu\n",
++            reached.load(), changed.load(), committed.load(),
++            rts_raised.load(), gcflag_set.load());
++      }
++    };
++    static BreakStats break_stats;
++    if (!read_set_.empty() && trace_seq_ % 64 == 1) {
++      ++break_stats.reached;
++      auto& victim = read_set_.front();
++      const auto before = MinRts.load(std::memory_order_acquire);
++      bool raised = false;
++      for (unsigned wait = 0; wait < 100; ++wait) {
++        const auto elevated = MinWts.load(std::memory_order_acquire) - 1;
++        auto current = __atomic_load_n(&ThreadRtsArray[thid_].obj_, __ATOMIC_ACQUIRE);
++        while (current < elevated &&
++               !__atomic_compare_exchange_n(&ThreadRtsArray[thid_].obj_,
++                                            &current, elevated, false,
++                                            __ATOMIC_RELEASE, __ATOMIC_ACQUIRE)) {}
++        raised |= current < elevated;
++        storeRelease(GCFlag[thid_].obj_, 1);
++        const uint64_t spin_start = rdtscp();
++        while (rdtscp() - spin_start < 50 * FLAGS_clocks_per_us) {}
++      }
++      if (raised) {
++        ++break_stats.changed;
++        ++break_stats.rts_raised;
++      }
++      ++break_stats.gcflag_set;
++      const auto after = MinRts.load(std::memory_order_acquire);
++      auto key_hex = izanagi_trace::key_to_hex(victim.key_);
++      std::fprintf(stderr,
++          "CICADA_BREAK_EVENT slug=m-early-reclaim thid=%u tx_seq=%llu tx_wts=%llu key=%s ver=%p rts_raised=%u gcflag_set=1 minrts_before=%llu minrts_after=%llu\n",
++          unsigned(thid_), (unsigned long long)trace_seq_,
++          (unsigned long long)wts_.ts_, key_hex.c_str(),
++          static_cast<void*>(victim.ver_), unsigned(raised),
++          (unsigned long long)before, (unsigned long long)after);
++      ++break_stats.committed;
++    }
+     if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);

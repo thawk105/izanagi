@@ -1,0 +1,10 @@
+01a0f108-9dd7 root 1a0f108-9dd7-75d3-bd97-a4118e3398f2 calls 1 in 14185 cached 12288 out 6 reason 0 total 14191
+01a0f109-8530 root 1a0f109-8530-7910-8c0e-e99685287eb1 calls 6 in 87656 cached 82048 out 415 reason 27 total 88071
+01a0f109-8530 child 1a0f109-a29d-72a2-908a-36d95c1786d5 calls 4 in 60874 cached 56832 out 599 reason 306 total 61473
+01a0f111-6e2e root 1a0f111-6e2e-7893-ae62-da3a04781f16 calls 3 in 42911 cached 40448 out 81 reason 0 total 42992
+01a0f111-6e2e child 1a0f111-8377-75e0-9a1b-8d3c87228410 calls 1 in 14670 cached 12032 out 5 reason 0 total 14675
+01a0f112-22b7 root 1a0f112-22b7-7223-a876-602e77e9d73c calls 3 in 42917 cached 40448 out 81 reason 0 total 42998
+01a0f112-22b7 child 1a0f112-39fd-72a1-a772-8b60d15fd497 calls 1 in 14672 cached 12032 out 5 reason 0 total 14677
+01a0f11d-bb41 root 1a0f11d-bb41-7213-a2e1-a62d7e5b93b1 calls 3 in 42926 cached 38656 out 75 reason 0 total 43001
+01a0f11d-bb41 child 1a0f11d-d7ed-7f23-9d9d-421c214778e6 calls 1 in 15203 cached 12032 out 38 reason 31 total 15241
+01a0f140-1ca5 root 1a0f140-1ca5-75f2-a1c1-415e8d371f16 calls 10 in 364811 cached 310144 out 2958 reason 1296 total 367769
