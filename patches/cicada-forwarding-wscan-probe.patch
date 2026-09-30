@@ -100,7 +100,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    this->status_ = TransactionStatus::inflight;
    this->wts_.generateTimeStamp(thid_);
    __atomic_store_n(&(ThreadWtsArray[thid_].obj_), this->wts_.ts_,
-@@ -1486,7 +1564,53 @@
+@@ -1486,7 +1564,54 @@
     */
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
@@ -148,59 +148,49 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +        result = false;
 +        goto FINISH_VALIDATION;
 +      }
++      wscan_scan_lock.unlock();
 +    }
 +#endif
 +#line 579
      while (ver->ldAcqStatus() == VersionStatus::pending)
        ;
      while (ver->ldAcqStatus() != VersionStatus::committed &&
-@@ -1496,13 +1620,43 @@
+@@ -1496,13 +1621,32 @@
          ;
      }
  
 +#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
-+    if (wscan_scan_lock.owns_lock()) {
++    if (wscan_eligible && FLAGS_cicada_wscan_delay_us != 0) {
++      wscan_scan_lock.lock();
 +      if (ws.hit) {
 +        ++ws.post_scan_detached;
 +        ++ws.probe_aborts;
-+        result = false;
 +        ws.watch = nullptr;
 +        --wscan_active;
 +        wscan_scan_lock.unlock();
++        result = false;
 +        goto FINISH_VALIDATION;
 +      }
-+    }
-+#endif
-+#line 588
-     if (ver->ldAcqRts() > this->wts_.ts_ ||
-         ver->ldAcqStatus() == VersionStatus::deleted) {
-+#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
-+      if (wscan_scan_lock.owns_lock()) {
-+        ws.watch = nullptr;
-+        --wscan_active;
-+        wscan_scan_lock.unlock();
-+      }
-+#endif
-+#line 590
-       result = false;
-       goto FINISH_VALIDATION;
-     }
--  }
--
-+#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
-+    if (wscan_scan_lock.owns_lock()) {
 +      ws.watch = nullptr;
 +      --wscan_active;
 +      wscan_scan_lock.unlock();
 +    }
 +#endif
++#line 588
+     if (ver->ldAcqRts() > this->wts_.ts_ ||
+         ver->ldAcqStatus() == VersionStatus::deleted) {
+       result = false;
+       goto FINISH_VALIDATION;
+     }
+-  }
+-
 +  }
 +
 +#line 595
    // validate the node set
    for (auto it : node_map_) {
      auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
-@@ -1745,6 +1899,12 @@
+@@ -1745,6 +1889,12 @@
      }
      // this pointer may be dangling.
  
@@ -213,7 +203,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      Version* delTarget =
          gcq_.front().ver_->next_.load(std::memory_order_acquire);
  
-@@ -1755,6 +1915,24 @@
+@@ -1755,6 +1905,24 @@
      for (Version* v = delTarget; v; v = v->ldAcqNext()) ++detached_count;
      gc_report.detached(thid_, rdtscp(), gcq_.front().ver_, delTarget);
      GC_DETACH(thid_, detached_count);
@@ -238,7 +228,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #endif
  #line 836
      // updates record.min_wts
-@@ -1898,6 +2076,11 @@
+@@ -1898,6 +2066,11 @@
  #if CICADA_GC_COUNT
    uint64_t now = rdtscp();
    if (before && loadAcquire(GCFlag[0].obj_) == 0) gc_report.published(now);

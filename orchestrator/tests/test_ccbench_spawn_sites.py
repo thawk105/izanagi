@@ -80,6 +80,9 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
     # Diagnostic interval GC perf and trace binaries use bounded wait4 launches.
     ("campaign/vhash_interval_gc.py", "<module>.run_measured"): 1,
+    # Fixed rr50 instrumented diagnosis uses a mandatory 180-second timeout;
+    # the bounded binary launch records GC and write-scan probe counters.
+    ("campaign/vhash_econn_wscan.py", "<module>.run"): 1,
     # Verify delegates its trace binary argv to run_measured.
     ("campaign/vhash_interval_gc.py", "<module>.verify_binary"): 1,
     # Exploratory Cicada hot-block runs use a bounded wait4 loop and trace gate.

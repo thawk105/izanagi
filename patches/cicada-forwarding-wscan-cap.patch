@@ -69,13 +69,14 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      }
    }
    if (check == ForwardCheck::ok) {
-@@ -615,7 +637,17 @@
+@@ -615,7 +637,19 @@
    // Publish only after the local transaction state has been finalized.
    __atomic_store_n(&ThreadWtsArray[thid].obj_, target, __ATOMIC_RELEASE);
    GC_INC(thid, publishes);
 -  gc_publish_rts(thid, target - 1);
-+  GC_INC(thid, cap_publishes);
 +  const uint64_t cap_floor = std::min(target - 1, cap_wts);
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT
++  GC_INC(thid, cap_publishes);
 +  if (cap_floor < target - 1) {
 +    GC_INC(thid, cap_limited);
 +    GC_ADD(thid, cap_delta_clock_sum, (target - 1 - cap_floor) >> 8);
@@ -83,6 +84,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  if (cap_floor <= __atomic_load_n(&ThreadRtsArray[thid].obj_,
 +                                    __ATOMIC_ACQUIRE))
 +    GC_INC(thid, cap_no_raise);
++#endif
 +  gc_publish_rts(thid, cap_floor);
 +#line 411
    return true;
