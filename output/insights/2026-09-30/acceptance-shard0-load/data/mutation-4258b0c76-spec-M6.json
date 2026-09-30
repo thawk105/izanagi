@@ -1,0 +1,26 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "M6",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "    root = tmp_path / base_root.name\n    shutil.copytree(base_root, root, symlinks=True)\n    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)\n",
+          "new": "    root = base_root\n    return root, root / migration.RECEIPT_REL, copy.deepcopy(document)\n"
+        }
+      ]
+    }
+  ]
+}

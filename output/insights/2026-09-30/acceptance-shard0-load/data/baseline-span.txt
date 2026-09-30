@@ -1,0 +1,38 @@
+4a5c92fa s0 maxspan gw44 span=261.8 occ=261.7 items=11 lockhold=0.0(0) | maxocc gw44 occ=261.7 span=261.8 | last_finisher gw44 last=261.8 occ=261.7
+4a5c92fa s1 maxspan gw0 span=161.5 occ=161.5 items=50 lockhold=0.0(0) | maxocc gw0 occ=161.5 span=161.5 | last_finisher gw0 last=161.7 occ=161.5
+4a5c92fa s2 maxspan gw1 span=156.2 occ=156.2 items=2 lockhold=0.0(0) | maxocc gw1 occ=156.2 span=156.2 | last_finisher gw1 last=156.3 occ=156.2
+eca9f7d7 s0 maxspan gw24 span=219.3 occ=138.7 items=12 lockhold=15.6(2) | maxocc gw34 occ=218.0 span=218.4 | last_finisher gw24 last=219.3 occ=138.7
+eca9f7d7 s1 maxspan gw0 span=157.4 occ=157.3 items=50 lockhold=0.0(0) | maxocc gw0 occ=157.3 span=157.4 | last_finisher gw0 last=157.4 occ=157.3
+eca9f7d7 s2 maxspan gw2 span=203.0 occ=203.0 items=2 lockhold=0.0(0) | maxocc gw2 occ=203.0 span=203.0 | last_finisher gw2 last=203.7 occ=203.0
+cef04a9d s0 maxspan gw39 span=270.4 occ=92.0 items=7 lockhold=52.4(3) | maxocc gw41 occ=254.4 span=254.5 | last_finisher gw39 last=270.7 occ=92.0
+cef04a9d s1 maxspan gw0 span=158.3 occ=158.2 items=50 lockhold=0.0(0) | maxocc gw0 occ=158.2 span=158.3 | last_finisher gw0 last=158.5 occ=158.2
+cef04a9d s2 maxspan gw1 span=198.7 occ=198.7 items=2 lockhold=0.0(0) | maxocc gw1 occ=198.7 span=198.7 | last_finisher gw1 last=199.4 occ=198.7
+304bbc7a s0 maxspan gw37 span=246.8 occ=189.7 items=5 lockhold=177.5(3) | maxocc gw21 occ=202.0 span=202.1 | last_finisher gw37 last=246.9 occ=189.7
+304bbc7a s1 maxspan gw3 span=161.9 occ=161.9 items=2 lockhold=0.0(0) | maxocc gw3 occ=161.9 span=161.9 | last_finisher gw3 last=162.1 occ=161.9
+304bbc7a s2 maxspan gw13 span=160.4 occ=160.3 items=2 lockhold=0.0(0) | maxocc gw13 occ=160.3 span=160.4 | last_finisher gw13 last=160.5 occ=160.3
+8286b42c s0 maxspan gw20 span=206.6 occ=146.0 items=6 lockhold=18.4(2) | maxocc gw5 occ=154.8 span=181.1 | last_finisher gw20 last=206.8 occ=146.0
+8286b42c s1 maxspan gw0 span=157.3 occ=157.3 items=50 lockhold=0.0(0) | maxocc gw0 occ=157.3 span=157.3 | last_finisher gw0 last=157.8 occ=157.3
+8286b42c s2 maxspan gw1 span=158.4 occ=158.4 items=2 lockhold=0.0(0) | maxocc gw1 occ=158.4 span=158.4 | last_finisher gw1 last=158.5 occ=158.4
+95f55907 s0 maxspan gw21 span=195.8 occ=195.8 items=5 lockhold=0.0(1) | maxocc gw21 occ=195.8 span=195.8 | last_finisher gw21 last=195.8 occ=195.8
+95f55907 s1 maxspan gw0 span=162.7 occ=162.7 items=50 lockhold=0.0(0) | maxocc gw0 occ=162.7 span=162.7 | last_finisher gw0 last=162.8 occ=162.7
+95f55907 s2 maxspan gw1 span=156.7 occ=156.7 items=2 lockhold=0.0(0) | maxocc gw1 occ=156.7 span=156.7 | last_finisher gw1 last=156.8 occ=156.7
+07de511d s0 maxspan gw1 span=189.1 occ=160.7 items=11 lockhold=34.3(1) | maxocc gw7 occ=163.0 span=183.0 | last_finisher gw1 last=189.2 occ=160.7
+07de511d s1 maxspan gw0 span=156.3 occ=156.2 items=50 lockhold=0.0(0) | maxocc gw0 occ=156.2 span=156.3 | last_finisher gw0 last=156.4 occ=156.2
+07de511d s2 maxspan gw1 span=155.1 occ=155.1 items=2 lockhold=0.0(0) | maxocc gw1 occ=155.1 span=155.1 | last_finisher gw1 last=155.4 occ=155.1
+034e88f9 s0 maxspan gw17 span=359.2 occ=280.4 items=14 lockhold=0.0(1) | maxocc gw39 occ=308.9 span=309.1 | last_finisher gw17 last=359.3 occ=280.4
+034e88f9 s1 maxspan gw2 span=183.4 occ=183.4 items=2 lockhold=0.0(0) | maxocc gw2 occ=183.4 span=183.4 | last_finisher gw2 last=184.0 occ=183.4
+034e88f9 s2 maxspan gw1 span=167.3 occ=167.3 items=2 lockhold=0.0(0) | maxocc gw1 occ=167.3 span=167.3 | last_finisher gw1 last=167.8 occ=167.3
+46bbd9aa s0 maxspan gw1 span=194.7 occ=141.7 items=12 lockhold=16.7(1) | maxocc gw37 occ=166.3 span=166.5 | last_finisher gw1 last=194.7 occ=141.7
+46bbd9aa s1 maxspan gw0 span=158.6 occ=158.6 items=50 lockhold=0.0(0) | maxocc gw0 occ=158.6 span=158.6 | last_finisher gw0 last=159.2 occ=158.6
+46bbd9aa s2 maxspan gw1 span=160.9 occ=160.9 items=2 lockhold=0.0(0) | maxocc gw1 occ=160.9 span=160.9 | last_finisher gw1 last=161.4 occ=160.9
+43ba29da s0 maxspan gw8 span=206.8 occ=110.0 items=11 lockhold=14.1(2) | maxocc gw20 occ=200.5 span=200.6 | last_finisher gw8 last=206.8 occ=110.0
+43ba29da s1 maxspan gw3 span=172.1 occ=172.1 items=2 lockhold=0.0(0) | maxocc gw3 occ=172.1 span=172.1 | last_finisher gw3 last=172.2 occ=172.1
+43ba29da s2 maxspan gw1 span=162.3 occ=162.3 items=2 lockhold=0.0(0) | maxocc gw1 occ=162.3 span=162.3 | last_finisher gw1 last=162.3 occ=162.3
+
+shard0: median maxspan 213.1, median max-occ 201.3, median last-finish offset 213.1, max-span worker == max-occ worker in 2/10, last-finisher==max-occ worker 2/10, median occ of max-span worker 153.3
+shard1: median maxspan 160.1, median max-occ 160.0, median last-finish offset 160.4, max-span worker == max-occ worker in 10/10, last-finisher==max-occ worker 10/10, median occ of max-span worker 160.0
+shard2: median maxspan 160.6, median max-occ 160.6, median last-finish offset 160.9, max-span worker == max-occ worker in 10/10, last-finisher==max-occ worker 10/10, median occ of max-span worker 160.6
+
+-- shard 0, all 10 runs: distribution of (span - occ) over workers
+n 480 min 0.0 p25 33.2 med 60.5 p75 85.7 max 229.0
+negative gaps 0

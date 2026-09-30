@@ -1,0 +1,79 @@
+start 2026-09-30 12:20:04
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-bba555d2f7)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/output/pegasus-dispatch/orphan-holds/unknown-5424b8fd4c298ac1f970c058.json
+[Pegasus dispatch] request ID 37679.nqsv を受理しました
+[Pegasus dispatch] request 37679.nqsv の状態: QUE
+[Pegasus dispatch] request 37679.nqsv の状態: RUN
+[Pegasus dispatch] request 37679.nqsv の状態: END
+[Pegasus dispatch] request 37679.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/output/pegasus-dispatch/orphan-holds/unknown-5424b8fd4c298ac1f970c058.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/output/pegasus-dispatch/bba555d2f7ac9b108c25369001ab392c/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 37679.nqsv child stdout begin
+| ============================= test session starts ==============================
+| platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /bin/python3.10
+| hypothesis profile 'default'
+| rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load
+| configfile: pytest.ini
+| plugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2
+| collecting ... collected 8 items
+|
+| orchestrator/tests/test_s8b_floor_campaign.py::test_official_fresh_issues_certificate_and_binds_wall_ledger PASSED [ 12%]
+| orchestrator/tests/test_s8b_floor_campaign.py::test_official_scan_rejection_has_zero_filesystem_side_effects PASSED [ 25%]
+| orchestrator/tests/test_s8b_floor_campaign.py::test_official_build_failure_leaves_durable_launch_start PASSED [ 37%]
+| orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_extra_launch_start_key PASSED [ 50%]
+| orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5 PASSED [ 62%]
+| orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28 PASSED [ 75%]
+| orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt PASSED [ 87%]
+| orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid PASSED [100%]
+|
+| - generated xml file: /work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/probe1/junit.xml -
+| ============================== slowest durations ===============================
+| 157.19s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt
+| 153.57s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid
+| 137.63s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+| 133.54s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+| 67.44s call     orchestrator/tests/test_s8b_floor_campaign.py::test_official_fresh_issues_certificate_and_binds_wall_ledger
+| 31.62s call     orchestrator/tests/test_s8b_floor_campaign.py::test_official_build_failure_leaves_durable_launch_start
+| 30.47s call     orchestrator/tests/test_s8b_floor_campaign.py::test_official_scan_rejection_has_zero_filesystem_side_effects
+| 0.10s call     orchestrator/tests/test_s8b_floor_campaign.py::test_official_resume_rejects_extra_launch_start_key
+|
+| (16 durations < 0.005s hidden.  Use -vv to show these durations.)
+| ======================== 8 passed in 714.56s (0:11:54) =========================
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}
+[Pegasus dispatch] request 37679.nqsv child stdout end
+[Pegasus dispatch] request 37679.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1631887, "time_ns": 1790738415097036168}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1631908, "event": "direct-child-wait-start", "pid": 1631894, "time_ns": 1790738415125393068}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1631908, "event": "direct-child-wait-complete", "pid": 1631894, "time_ns": 1790739133026182604}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1631894, "rc": 0, "time_ns": 1790739133026274276}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1631887, "rc": 0, "time_ns": 1790739133030855223}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1631887}, {"comm": "bash", "pid": 1631868}, {"comm": "nqs_shpd", "pid": 1631867}, {"comm": "nqs_shpd", "pid": 1631666}, {"comm": "nqs_shpd", "pid": 2417}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1631887, "sid": 1631867, "time_ns": 1790739133031278190}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 49.106574995676056, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 1631887, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1790739133080423135, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1631887, "time_ns": 1790739133085050448}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1631887, "time_ns": 1790739133117442697}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1631887, "time_ns": 1790739133119142933}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1631887, "time_ns": 1790739133119154092}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1631887, "time_ns": 1790739133124909218}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1631887, "time_ns": 1790739133124917200}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1631887, "rc": 0, "time_ns": 1790739133124926768}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1631887, "rc": 0, "time_ns": 1790739133124944776}
+|
+| ============================================================
+| Request ID:             37679.nqsv
+| Request Name:           izdw-bba555d2f7
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Wed Sep 30 12:20:07 2026
+| Started Request Time:   Wed Sep 30 12:20:14 2026
+| Ended Request Time:     Wed Sep 30 12:32:13 2026
+| Resources Information:
+|   Elapse:               723S
+|   Remaining Elapse:     2877S
+| ============================================================
+[Pegasus dispatch] request 37679.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+end 2026-09-30 12:32:27
