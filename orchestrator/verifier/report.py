@@ -94,7 +94,7 @@ def _permutation_violation_details_to_dict(
 
 
 def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
-    return {
+    result = {
         "trace_dir": res.trace_dir,
         "verdict": res.verdict,              # serializable | indeterminate | non-serializable
         "certified": res.certified,          # ゲート通過とみなしてよい唯一の信号
@@ -135,6 +135,28 @@ def result_to_dict(res: VerifyResult) -> Dict[str, Any]:
         "total_cycles": res.total_cycles,
         "anomalies": [_anomaly_to_dict(a) for a in res.anomalies],
     }
+    if res.integrity.gate_witness_enabled:
+        from .model import MEANING_VERSION
+        ig = res.integrity
+        result["gate_witness"] = {
+            "meaning_version": MEANING_VERSION,
+            "required": ig.gate_witness_required,
+            "counts": {
+                "unreachable": ig.gate_unreachable,
+                "D1a": ig.gate_d1a, "D1b1": ig.gate_d1b1,
+                "D1b2": ig.gate_d1b2, "D1c": ig.gate_d1c,
+                "D2a": ig.gate_d2a, "D2b_i": ig.gate_d2b_i,
+                "D2b_ii": ig.gate_d2b_ii,
+            },
+            "occurrence": {
+                "own_write_read_transactions": ig.gate_own_write_read_transactions,
+                "written_transactions": ig.gate_written_transactions,
+                "repeated_write_key_transactions": ig.gate_repeated_write_key_transactions,
+                "external_reads_checked": ig.gate_external_reads_checked,
+            },
+            "D5": ig.gate_d5,
+        }
+    return result
 
 
 def _fmt_ver(v) -> str:

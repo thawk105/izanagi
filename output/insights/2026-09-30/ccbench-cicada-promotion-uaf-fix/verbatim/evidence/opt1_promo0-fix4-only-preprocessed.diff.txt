@@ -1,0 +1,13 @@
+--- after-fix3
++++ after-fix4
+@@ -95790,8 +95790,8 @@
+     min_wts_ = initial_wts;
+     gc_lock_.store(0, std::memory_order_release);
+     continuing_commit_.store(0, std::memory_order_release);
+-    latest_ = &inline_ver_;
+-    body_ = std::ref(inline_ver_.body_);
++    latest_ = ver;
++    body_ = std::ref(ver->body_);
+   }
+ };
+ namespace google {

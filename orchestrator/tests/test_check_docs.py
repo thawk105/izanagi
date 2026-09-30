@@ -8238,7 +8238,7 @@ def _replace_workers_section_literal(text, section_id, replacement):
     literal = {
         "DW-S02": check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL,
         "DW-S03": check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL,
-        "DW-S05-A": "`reasoning=medium`",
+        "DW-S05-A": "`reasoning=ultra`",
         "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_LITERAL,
         "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_LITERAL,
     }[section_id]
@@ -8422,13 +8422,29 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_high():
         shutil.rmtree(root, ignore_errors=True)
 
 
+@pytest.mark.parametrize("section_id, finding", [
+    ("DW-S02", check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING),
+    ("DW-S03", check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING),
+    ("DW-S05-A", check_docs.DEV_WAVE_DW_S05_A_REASONING_XHIGH_FINDING),
+    ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING),
+    ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING),
+], ids=["DW-S02", "DW-S03", "DW-S05-A", "DW-S06-A", "DW-S06-C"])
+def test_dev_wave_reasoning_effort_pin_rejects_previous_medium(section_id, finding):
+    root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+    try:
+        text = _mutated_workers_text(root, section_id, "`reasoning=medium`")
+        assert _reasoning_effort_pin_findings(text) == [finding]
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _assert_reasoning_effort_decoys_rejected(section_id, finding):
     replacements = (
-        "`reasoning=high` <!-- `reasoning=medium` -->",
-        "`reasoning=high`\n\n```\n`reasoning=medium`\n```\ncontinuation",
-        "`reasoning=high`\n\n> `reasoning=medium`\n\ncontinuation",
-        "`reasoning=medium` and `reasoning=high`",
-        "`reasoning=medium` and `reasoning=medium`",
+        "`reasoning=high` <!-- `reasoning=ultra` -->",
+        "`reasoning=high`\n\n```\n`reasoning=ultra`\n```\ncontinuation",
+        "`reasoning=high`\n\n> `reasoning=ultra`\n\ncontinuation",
+        "`reasoning=ultra` and `reasoning=high`",
+        "`reasoning=ultra` and `reasoning=ultra`",
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8456,10 +8472,10 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates():
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_decoys_and_duplicates():
     finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING
     replacements = (
-        "`reasoning=high` <!-- `reasoning=medium` -->",
-        "`reasoning=high`\n\n```\n`reasoning=medium`\n```\ncontinuation",
-        "`reasoning=medium` and `reasoning=high`",
-        "`reasoning=medium` and `reasoning=medium`",
+        "`reasoning=high` <!-- `reasoning=ultra` -->",
+        "`reasoning=high`\n\n```\n`reasoning=ultra`\n```\ncontinuation",
+        "`reasoning=ultra` and `reasoning=high`",
+        "`reasoning=ultra` and `reasoning=ultra`",
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8479,12 +8495,12 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_decoys_and_duplicates():
 
 def _assert_reasoning_effort_real_keys_and_quotes_rejected(section_id, finding):
     replacements = (
-        '`model_reasoning_effort="high"`（例: `reasoning=medium`）',
+        '`model_reasoning_effort="high"`（例: `reasoning=ultra`）',
         '`model_reasoning_effort="high"`',
         "`model_reasoning_effort='high'`",
-        '`reasoning_effort=high` and `reasoning=medium`',
-        '`reasoning=medium`\n\n> `reasoning=high`\n\ncontinuation',
-        '`model_reasoning_effort="high"` <!-- `reasoning=medium` -->',
+        '`reasoning_effort=high` and `reasoning=ultra`',
+        '`reasoning=ultra`\n\n> `reasoning=high`\n\ncontinuation',
+        '`model_reasoning_effort="high"` <!-- `reasoning=ultra` -->',
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8515,8 +8531,8 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_real_keys_and_quotes():
         "`reasoning_effort=high`",
         '`model_reasoning_effort="high"`',
         "`model_reasoning_effort='high'`",
-        '`reasoning_effort="medium"` and `reasoning=high`',
-        '`model_reasoning_effort="medium"` <!-- `reasoning=high` -->',
+        '`reasoning_effort="ultra"` and `reasoning=high`',
+        '`model_reasoning_effort="ultra"` <!-- `reasoning=high` -->',
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8856,7 +8872,7 @@ def _assert_s06_extra_visible_effort_rejected(section_id, finding):
             _append_reference_section_text(
                 _read(root, rel),
                 section_id,
-                "\n`reasoning=medium`\n",
+                "\n`reasoning=ultra`\n",
             ),
         )
         res = _run_check(root)
@@ -8996,7 +9012,7 @@ def _assert_reasoning_effort_real_key_production_path_rejects(
             _replace_workers_section_literal(
                 _read(root, rel),
                 section_id,
-                '`model_reasoning_effort="high"`（例: `reasoning=medium`）',
+                '`model_reasoning_effort="high"`（例: `reasoning=ultra`）',
             ),
         )
         res = _run_check(root)
@@ -9022,28 +9038,28 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key()
 
 def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
     assert check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S02 の `reasoning=medium` は"
+        "docs/dev-wave/workers.md: DW-S02 の `reasoning=ultra` は"
         "現行 adoption pin と不一致 — "
         "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S03 の `reasoning=medium` は"
+        "docs/dev-wave/workers.md: DW-S03 の `reasoning=ultra` は"
         "現行 adoption pin と不一致 — "
         "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=medium` は段 6 敵対レビューの"
+        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=ultra` は段 6 敵対レビューの"
         "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=medium` は段 6 焦点再レビューの"
+        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=ultra` は段 6 焦点再レビューの"
         "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_SENTENCE == (
-        "実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。"
+        "実装 wave は異なるレンズの敵対レビューを `reasoning=ultra` で必ず 2 本並列で行う。"
     )
     assert check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_SENTENCE == (
-        "並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。"
+        "並列 fix の統合後、焦点再レビューは全体へ `reasoning=ultra` で 1 本でよい。"
     )
 
 
@@ -9135,7 +9151,7 @@ def test_dev_wave_model_pin_rejects_dw_o01_authority_drift():
     try:
         rel = "docs/dev-wave/operations.md"
         text = _read(root, rel)
-        changed = text.replace("gpt-6-sol", "gpt-5.6-terra", 1)
+        changed = text.replace("gpt-6-astra", "gpt-5.6-terra", 1)
         assert changed != text
         _write(root, rel, changed)
         _assert_findings(
@@ -9421,7 +9437,7 @@ def test_dev_wave_model_pins_accept_current_docs_contract():
 
 def test_dev_wave_model_pin_contract_is_time_invariant():
     assert check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL == (
-        "`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。"
+        "`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。"
     )
     assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
         "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"
@@ -12852,6 +12868,12 @@ def _run():
     for fn in fns:
         if fn is test_command_docs_guard_positive_controls:
             calls = [(case, (case,)) for case in _COMMAND_GUARD_CASES]
+        elif fn is test_speed_transition_sink_uses_whole_entry_body:
+            calls = [
+                (f"{boundary}-{sink_has_body_id}", (boundary, sink_has_body_id))
+                for boundary in ("current", "archive_pair", "archive_current")
+                for sink_has_body_id in (True, False)
+            ]
         else:
             calls = [(fn.__name__, ())]
         for label, args in calls:
@@ -12872,6 +12894,210 @@ def _run():
     print(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0
 
+
+# check_docs speed changes: the reference bodies below are verbatim from
+# 4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037:tools/check_docs.py.
+def _speed_reference_raw_slice(body: str, item_offset: int) -> str:
+    """list marker から継続物理行の終端までの raw slice を返す。"""
+
+    assert 0 <= item_offset < len(body)
+    line_end = item_offset
+    while line_end < len(body) and body[line_end] not in "\r\n":
+        line_end += 1
+    raw_end = line_end
+    cursor = line_end
+    while cursor < len(body):
+        if body[cursor] == "\r":
+            cursor += 1
+            if cursor < len(body) and body[cursor] == "\n":
+                cursor += 1
+        elif body[cursor] == "\n":
+            cursor += 1
+        continuation_end = cursor
+        while (
+            continuation_end < len(body)
+            and body[continuation_end] not in "\r\n"
+        ):
+            continuation_end += 1
+        continuation = body[cursor:continuation_end]
+        if not continuation.startswith((" ", "\t")):
+            break
+        raw_end = continuation_end
+        cursor = continuation_end
+    return body[item_offset:raw_end]
+
+
+def _speed_reference_visible_lines(text: str) -> list[tuple[str, int, str]]:
+    """code fence / HTML comment 外の可視行と offset・改行を返す。"""
+
+    FENCE_OPEN_RE = check_docs.FENCE_OPEN_RE
+    _mask_html_comments = check_docs._mask_html_comments
+    lines: list[tuple[str, int, str]] = []
+    in_comment = False
+    fence: tuple[str, int] | None = None
+    offset = 0
+    for raw_line in text.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        newline = raw_line[len(line):]
+        if fence is not None:
+            marker_char, marker_len = fence
+            stripped = line.lstrip(" \t")
+            indent = len(line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        # fence opener の info string 内にある `<!--` は comment 開始ではない。
+        # comment 継続中でない行は opener を先に判定する。
+        if not in_comment:
+            fence_match = FENCE_OPEN_RE.fullmatch(line)
+            if fence_match is not None:
+                marker = fence_match.group("marker")
+                fence = (marker[0], len(marker))
+                lines.append(("", offset, newline))
+                offset += len(raw_line)
+                continue
+
+        visible, in_comment = _mask_html_comments(line, in_comment)
+        fence_match = FENCE_OPEN_RE.fullmatch(visible)
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        lines.append((visible, offset, newline))
+        offset += len(raw_line)
+    return lines
+
+
+def test_speed_line_number_matches_count_boundaries():
+    from itertools import product
+
+    for length in range(8):
+        for chars in product("a\n\r", repeat=length):
+            body = "".join(chars)
+            for offset in range(-length - 2, length + 3):
+                assert check_docs._line_number(body, offset) == body.count("\n", 0, offset) + 1
+
+
+def test_speed_raw_slice_matches_reference_exhaustively():
+    from itertools import product
+
+    alphabet = "-x \t\r\n"
+    for length in range(1, 7):
+        for chars in product(alphabet, repeat=length):
+            body = "".join(chars)
+            for offset in range(-1, length + 1):
+                try:
+                    expected = _speed_reference_raw_slice(body, offset)
+                except AssertionError:
+                    with pytest.raises(AssertionError):
+                        check_docs._top_level_item_raw_slice(body, offset)
+                else:
+                    assert check_docs._top_level_item_raw_slice(body, offset) == expected
+    with pytest.raises(AssertionError):
+        check_docs._top_level_item_raw_slice("", 0)
+
+
+def test_speed_visible_lines_matches_reference():
+    cases = (
+        "", "plain", "plain\r", "plain\r\nnext\n", "<!-- start\ninside\nend -->visible\n",
+        "before <!-- hidden --> after\n", "<!-- unclosed\rinside\r\nend -->\n",
+        "``` info <!-- ignored\ninside\n```\nafter\n",
+        "<!-- hidden\n```\n-->\n``` info <!-- ignored\n```\n",
+        "~~~<!-- opener\r\ninside\r\n~~~\r\n",
+        "x\r\n<!-- a -->\ry\n<!-- b\r\nc -->z",
+    )
+    for body in cases:
+        assert check_docs._visible_markdown_lines(body) == _speed_reference_visible_lines(body)
+
+
+@pytest.mark.parametrize("boundary", ("current", "archive_pair", "archive_current"))
+@pytest.mark.parametrize("sink_has_body_id", (True, False))
+def test_speed_transition_sink_uses_whole_entry_body(boundary, sink_has_body_id):
+    root = _build_min_repo()
+    try:
+        sink_item = "- [T-001] consumed\n\n" if sink_has_body_id else "本文。\n\n"
+        if boundary == "current":
+            current = (
+                "# current\n\n## ローテーション\n\n"
+                "## 2026-09-01 (1) — source\n\n"
+                "### 次の一手\n1. [T-001] carried\n\n"
+                "## 2026-09-02 (2) — sink\n\n"
+                + sink_item + "### 次の一手\n1. [T-002] latest\n"
+            )
+            _write_backlog_docs(root, worklog_text=current)
+        else:
+            current = (
+                "# current\n\n## ローテーション\n\n"
+                "## 2026-09-03 (3) — current\n\n"
+                + (sink_item if boundary == "archive_current" else "- [T-002] consumed\n\n")
+                + "### 次の一手\n1. [T-003] latest\n"
+            )
+            first_name = "worklog-first.md"
+            first = (
+                "# first\n\n## 2026-09-01 (1) — first\n\n"
+                "### 次の一手\n1. [T-001] carried\n"
+            )
+            _write_backlog_docs(root, worklog_text=current)
+            _write(root, f"docs/archive/{first_name}", first)
+            names = [first_name]
+            if boundary == "archive_pair":
+                second_name = "worklog-second.md"
+                second = (
+                    "# second\n\n## 2026-09-02 (2) — second\n\n"
+                    + sink_item + "### 次の一手\n1. [T-002] carried\n"
+                )
+                _write(root, f"docs/archive/{second_name}", second)
+                names.append(second_name)
+            _write(root, "docs/archive/README.md", _archive_readme(*names))
+        result = _run_check(root)
+        if sink_has_body_id:
+            assert result.returncode == 0, result.stdout
+            assert "違反なし" in result.stdout, result.stdout
+        else:
+            assert result.returncode == 1, result.stdout
+            assert "次の一手 ID [T-001]" in result.stdout, result.stdout
+            assert "見送り台帳にもない" in result.stdout, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_speed_archive_order_uses_last_entry_of_left_archive():
+    root = _build_min_repo()
+    try:
+        current = (
+            "# current\n\n## ローテーション\n\n"
+            "## 2026-09-04 (4) — current\n\n"
+            "- [T-002] consumed\n\n### 次の一手\n1. [T-003] latest\n"
+        )
+        first = (
+            "# first\n\n## 2026-09-01 (1) — early\n\n"
+            "### 次の一手\n\n"
+            "## 2026-09-03 (3) — late\n\n"
+            "### 次の一手\n1. [T-001] carried\n"
+        )
+        second = (
+            "# second\n\n## 2026-09-02 (2) — middle\n\n"
+            "- [T-001] consumed\n\n"
+            "### 次の一手\n1. [T-002] carried\n"
+        )
+        names = ("worklog-first.md", "worklog-second.md")
+        _write_backlog_docs(root, worklog_text=current)
+        for name, content in zip(names, (first, second)):
+            _write(root, f"docs/archive/{name}", content)
+        _write(root, "docs/archive/README.md", _archive_readme(*names))
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert "archive worklog の順序を一意に決定できない" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 enforce_held_functions(globals(), __file__, plain_runner="manual")

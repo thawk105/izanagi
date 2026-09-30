@@ -1,0 +1,200 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "MA1-w-flags-use-smoke-records",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "    if condition_id.startswith(\"W\"):\n        records = condition[\"records\"]\n",
+     "new": "    if condition_id.startswith(\"W\"):\n        records = records\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MA2-legacy-max-ope-changes",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "            \"max_ope\": condition[\"ycsb_max_ope\"] if condition_id.startswith(\"W\") else 10,\n",
+     "new": "            \"max_ope\": condition[\"ycsb_max_ope\"] if condition_id.startswith(\"W\") else 100,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MA3-drop-abort-reason-sum-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "        if schema == 3 and (sum(worker[\"abort_reasons\"]) != sum(worker[\"aborts\"])):\n",
+     "new": "        if False and schema == 3 and (sum(worker[\"abort_reasons\"]) != sum(worker[\"aborts\"])):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MA4-drop-val-size-compile-binding",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "        if val_size is not None and definitions.get(\"VAL_SIZE\") != val_size:\n",
+     "new": "        if False and val_size is not None and definitions.get(\"VAL_SIZE\") != val_size:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MA5-best100-args-equal-tuned",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+     "old": "(TUNED_GENOME if genome == \"tuned\" else BEST100_GENOME).items()]",
+     "new": "(TUNED_GENOME if genome in (\"tuned\", \"best100\") else BEST100_GENOME).items()]"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB1-drop-reparse-parsed-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "    if parsed != run.get(\"parsed\"):\n",
+     "new": "    if False and parsed != run.get(\"parsed\"):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB2-one-repetition-suffices",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "    if passed == len(values):\n",
+     "new": "    if passed >= 1:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB3-stop-counts-as-fail",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "    passed = sum(v is True or v == \"停止\" for v in values)\n",
+     "new": "    passed = sum(v is True for v in values)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB4-region-ignores-default-genome",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "                for side in (\"default\", \"best\"):\n",
+     "new": "                for side in (\"best\",):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB5-raw-requires-schema-3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "        if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 1:\n",
+     "new": "        if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point",
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points",
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB6-own-abort-reason-names",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "ABORT_REASONS = V.ABORT_REASONS\n",
+     "new": "ABORT_REASONS = (\"early_wts\", \"early_rts\", \"precheck\", \"rmw_delete_latest\", \"read_match\", \"write_rts_deleted\", \"node_set\", \"node_insert\", \"other\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "MB4b-region-ignores-best-genome",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_workload_space.py",
+     "old": "                for side in (\"default\", \"best\"):\n",
+     "new": "                for side in (\"default\",):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+ "head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+ "baseline": {
+  "orchestrator/tests/test_plot_vhash_workload_space.py": {
+   "rc": 0,
+   "failed": [],
+   "seconds": 26.3
+  }
+ },
+ "mutations": [
+  {
+   "id": "MB4b-region-ignores-best-genome",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes"
+   ],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 24.4
+  }
+ ]
+}

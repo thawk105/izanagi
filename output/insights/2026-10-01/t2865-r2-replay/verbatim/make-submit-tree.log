@@ -1,0 +1,77 @@
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r1 2026-10-01 03:16:39 JST
+add rc=0
+submodule init rc=0
+submodule update rc=0
+lock rc=0
+hydrate rc=0
+head 74029b18f04509974db555e72e7835000da8036a
+ccbench 68106660686232781bca3be792a750d3e19d7a8a
+dirty 0
+skeleton-sha256 9cb545520fe6d27a852ccb406f321924ee61d17ff86bf1b74eeafc54b9db2904
+claims 0
+done 2026-10-01 03:18:23 JST
+rc=0
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r1 2026-10-01 03:20:15 JST
+add rc=0
+submodule init rc=0
+submodule update rc=0
+lock rc=0
+hydrate rc=0
+head 74029b18f04509974db555e72e7835000da8036a
+ccbench 68106660686232781bca3be792a750d3e19d7a8a
+dirty 0
+skeleton-sha256 9cb545520fe6d27a852ccb406f321924ee61d17ff86bf1b74eeafc54b9db2904
+claims 0
+done 2026-10-01 03:22:31 JST
+rc=0
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r1 2026-10-01 03:22:31 JST
+add rc=0
+submodule init rc=0
+submodule update rc=0
+lock rc=0
+hydrate rc=0
+head 74029b18f04509974db555e72e7835000da8036a
+ccbench 68106660686232781bca3be792a750d3e19d7a8a
+dirty 0
+skeleton-sha256 9cb545520fe6d27a852ccb406f321924ee61d17ff86bf1b74eeafc54b9db2904
+claims 0
+done 2026-10-01 03:24:09 JST
+rc=0
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r2 2026-10-01 03:24:09 JST
+add rc=0
+submodule init rc=0
+submodule update rc=0
+lock rc=0
+hydrate rc=0
+head 74029b18f04509974db555e72e7835000da8036a
+ccbench 68106660686232781bca3be792a750d3e19d7a8a
+dirty 0
+skeleton-sha256 9cb545520fe6d27a852ccb406f321924ee61d17ff86bf1b74eeafc54b9db2904
+claims 0
+done 2026-10-01 03:26:17 JST
+rc=0
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2 2026-10-01 03:26:17 JST
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2b 2026-10-01 04:04:52 JST
+add+lock rc=0
+submodule init rc=0
+submodule update rc=0
+hydrate rc=0
+head 74029b18f04509974db555e72e7835000da8036a
+ccbench 68106660686232781bca3be792a750d3e19d7a8a
+dirty 0
+skeleton-sha256 9cb545520fe6d27a852ccb406f321924ee61d17ff86bf1b74eeafc54b9db2904
+claims 0
+done 2026-10-01 04:06:49 JST
+rc=0
+== /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r2 2026-10-01 04:06:49 JST
+add+lock rc=0
+submodule init rc=0
+submodule update rc=0
+hydrate rc=0
+head 74029b18f04509974db555e72e7835000da8036a
+ccbench 68106660686232781bca3be792a750d3e19d7a8a
+dirty 0
+skeleton-sha256 9cb545520fe6d27a852ccb406f321924ee61d17ff86bf1b74eeafc54b9db2904
+claims 0
+done 2026-10-01 04:08:29 JST
+rc=0

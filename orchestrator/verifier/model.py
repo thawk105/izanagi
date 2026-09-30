@@ -8,6 +8,8 @@ isolation)。verifier の入力は trace、commit witness、protocol/source cont
 """
 from __future__ import annotations
 
+MEANING_VERSION = 2
+
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
@@ -187,17 +189,50 @@ class CompiledProtocolSourceSnapshot:
     protocol: str
     ccbench_root: str
     normalized_sources: Optional[Tuple[str, ...]]
+    gate_d5_sources: Optional[Tuple[str, str, str, bool]] = None
 
 
 def capture_compiled_protocol_source_snapshot(
-        protocol: str, ccbench_root: Path | str,
+        protocol: str, ccbench_root: Path | str, *,
+        require_gate_witness: bool = False,
 ) -> CompiledProtocolSourceSnapshot:
     """Capture the exact normalized source texts consumed by later assessment."""
     root = os.path.realpath(os.path.abspath(os.fspath(ccbench_root)))
+    if type(require_gate_witness) is not bool:
+        raise TypeError("require_gate_witness must be bool")
+    gate_sources = None
+    if require_gate_witness:
+        root_path = Path(root)
+        try:
+            ycsb = _normalize_compiled_source_text(
+                (root_path / "include/ycsb.hh").read_text())
+            transaction = _normalize_compiled_source_text(
+                (root_path / "cc/silo/transaction.cc").read_text())
+            driver = _normalize_compiled_source_text(
+                (root_path / "cc/silo/ycsb_silo.cc").read_text())
+            expected = (root_path / "include/ycsb.hh").resolve()
+            includes_ycsb = False
+            for match in re.finditer(
+                    r'^[ \t]*#[ \t]*include[ \t]*"([^"\r\n]+)"[ \t]*$',
+                    driver, re.M):
+                include_path = Path(match.group(1))
+                if include_path.is_absolute():
+                    continue
+                try:
+                    if ((root_path / "cc/silo" / include_path).resolve(strict=True)
+                            == expected):
+                        includes_ycsb = True
+                        break
+                except (OSError, RuntimeError):
+                    continue
+            gate_sources = (ycsb, transaction, driver, includes_ycsb)
+        except (OSError, UnicodeError):
+            pass
     return CompiledProtocolSourceSnapshot(
         protocol=protocol,
         ccbench_root=root,
         normalized_sources=compiled_protocol_source_texts(protocol, root),
+        gate_d5_sources=gate_sources,
     )
 
 
@@ -490,6 +525,21 @@ class Integrity:
     expected_commits: Optional[int] = None  # trace 外 counter の期待 commit 数
     observed_commits: Optional[int] = None  # dedup 後の trace committed txn 数
     notes: List[str] = field(default_factory=list)
+    gate_witness_enabled: bool = False
+    gate_witness_required: bool = False
+    gate_unreachable: int = 0
+    gate_d1a: int = 0
+    gate_d1b1: int = 0
+    gate_d1b2: int = 0
+    gate_d1c: int = 0
+    gate_d2a: int = 0
+    gate_d2b_i: int = 0
+    gate_d2b_ii: int = 0
+    gate_d5: str = "not-required"
+    gate_own_write_read_transactions: int = 0
+    gate_written_transactions: int = 0
+    gate_repeated_write_key_transactions: int = 0
+    gate_external_reads_checked: int = 0
     # 非 wire field。result_to_dict() と receipt schema には投影しない。
     proof_surfaces: ProofSurfaceAssessment = field(
         default_factory=ProofSurfaceAssessment,
@@ -516,6 +566,11 @@ class Integrity:
                 and self.permutation_violations == 0
                 and self.proof_surfaces.certification_gate_satisfied()
                 and self.existence_violations == 0
+                and self.gate_unreachable == 0
+                and self.gate_d1a == self.gate_d1b1 == self.gate_d1b2 == 0
+                and self.gate_d1c == self.gate_d2a == 0
+                and self.gate_d2b_i == self.gate_d2b_ii == 0
+                and (not self.gate_witness_required or self.gate_d5 == "pass")
                 and commit_witness_clean)
 
 

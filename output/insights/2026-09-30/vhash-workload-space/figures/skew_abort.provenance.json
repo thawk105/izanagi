@@ -1,0 +1,1187 @@
+{
+  "campaign": "vhash-workload-space",
+  "conditions": "S layer, each rr/long/genome; two repetitions",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m0.json",
+      "sha256": "9b34da584261bfd7718ed8d6f720799bac1d5fd1b7b91e61c47cfe55ac0f4d6c"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m1.json",
+      "sha256": "72fc6f864d1baa1a41208f9376c899568ed700b717796f4e057e1e9bbb637a0b"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m2.json",
+      "sha256": "25eef1d2a7dbcfd706f443898201482a891c8f6dba3955a5590adc485b750e52"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m3.json",
+      "sha256": "e94f360223a3edcf14e9c93683eb19d95f83105e64ae9f300ab6806632092856"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m4.json",
+      "sha256": "e99272ddb8904a9b5cf30d7e8791baf484c299033a3b11212cf6dd76329ce667"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m5.json",
+      "sha256": "3e812d813f7ec944db15f3dbcd4146d770358fe137260ed83174a42d666878a3"
+    }
+  ],
+  "metric": [
+    "abort_rate"
+  ],
+  "plotted": [
+    {
+      "id": "WS-01-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.00035541618256423305,
+        0.0003555349462839595
+      ]
+    },
+    {
+      "id": "WS-10-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0012345040546785202,
+        0.0012391639446236
+      ]
+    },
+    {
+      "id": "WS-19-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.006021245468418405,
+        0.006089454545236141
+      ]
+    },
+    {
+      "id": "WS-28-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.023971764436804814,
+        0.024307725750560737
+      ]
+    },
+    {
+      "id": "WS-37-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.06469845232887889,
+        0.06608212121175339
+      ]
+    },
+    {
+      "id": "WS-46-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.09240627989387112,
+        0.0946745408988175
+      ]
+    },
+    {
+      "id": "WS-55-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.10561027133640286,
+        0.10477520671684204
+      ]
+    },
+    {
+      "id": "WS-64-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.12250964448790594,
+        0.11729969434066587
+      ]
+    },
+    {
+      "id": "WS-01-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0003786400311687981,
+        0.00036503779502556147
+      ]
+    },
+    {
+      "id": "WS-10-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0014903252202802168,
+        0.0014778679108263402
+      ]
+    },
+    {
+      "id": "WS-19-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.008945577577234064,
+        0.009105075426738917
+      ]
+    },
+    {
+      "id": "WS-28-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.059117918206397536,
+        0.059183916056268854
+      ]
+    },
+    {
+      "id": "WS-37-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.19815670354600554,
+        0.1984983920722523
+      ]
+    },
+    {
+      "id": "WS-46-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.29503989057038604,
+        0.29621553604596973
+      ]
+    },
+    {
+      "id": "WS-55-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.3413957986306827,
+        0.3436369191154414
+      ]
+    },
+    {
+      "id": "WS-64-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.3936468676992115,
+        0.39310582700604796
+      ]
+    },
+    {
+      "id": "WS-02-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0005873847343527381,
+        0.0005749154402549528
+      ]
+    },
+    {
+      "id": "WS-11-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0015359896400016686,
+        0.0015764482739406176
+      ]
+    },
+    {
+      "id": "WS-20-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.006509868567664872,
+        0.00652576832269086
+      ]
+    },
+    {
+      "id": "WS-29-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.024789346631386985,
+        0.025489417091399486
+      ]
+    },
+    {
+      "id": "WS-38-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.06674461234205506,
+        0.06613180896095998
+      ]
+    },
+    {
+      "id": "WS-47-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.09763552869522552,
+        0.09590032360486979
+      ]
+    },
+    {
+      "id": "WS-56-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1030160721594176,
+        0.11093275947929146
+      ]
+    },
+    {
+      "id": "WS-65-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.11989577296157115,
+        0.11604153356751415
+      ]
+    },
+    {
+      "id": "WS-02-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0006706678068798928,
+        0.0006955635496331086
+      ]
+    },
+    {
+      "id": "WS-11-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0020021653178503946,
+        0.0021683704193111836
+      ]
+    },
+    {
+      "id": "WS-20-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.009991504589776939,
+        0.010746909650486894
+      ]
+    },
+    {
+      "id": "WS-29-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.06057229867227547,
+        0.06116827000960356
+      ]
+    },
+    {
+      "id": "WS-38-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1967862442962435,
+        0.2012528822740034
+      ]
+    },
+    {
+      "id": "WS-47-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2958041781625673,
+        0.2950892082040382
+      ]
+    },
+    {
+      "id": "WS-56-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.34175326277479934,
+        0.34041587306800986
+      ]
+    },
+    {
+      "id": "WS-65-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.39469030473309985,
+        0.39331472009098156
+      ]
+    },
+    {
+      "id": "WS-03-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0004448029169908033,
+        0.0004196040550843145
+      ]
+    },
+    {
+      "id": "WS-12-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0015641519544657987,
+        0.0015621672203156908
+      ]
+    },
+    {
+      "id": "WS-21-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.006453999875071474,
+        0.006483789569905119
+      ]
+    },
+    {
+      "id": "WS-30-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.022922027178988696,
+        0.022747996625297202
+      ]
+    },
+    {
+      "id": "WS-39-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.06776066351682616,
+        0.06947076703021635
+      ]
+    },
+    {
+      "id": "WS-48-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.09999369860152114,
+        0.10082703007032379
+      ]
+    },
+    {
+      "id": "WS-57-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.11628645093743495,
+        0.1130874253855269
+      ]
+    },
+    {
+      "id": "WS-66-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.12800881978723264,
+        0.1222369331488184
+      ]
+    },
+    {
+      "id": "WS-03-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.00044587114519461396,
+        0.00046200001732500065
+      ]
+    },
+    {
+      "id": "WS-12-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.001560997659461178,
+        0.0015518527621239176
+      ]
+    },
+    {
+      "id": "WS-21-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.006568134996875073,
+        0.006498327921291135
+      ]
+    },
+    {
+      "id": "WS-30-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.023876708940779,
+        0.024023309861061163
+      ]
+    },
+    {
+      "id": "WS-39-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.07963603753362934,
+        0.08021566252095706
+      ]
+    },
+    {
+      "id": "WS-48-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.13710251225781447,
+        0.13649805847712604
+      ]
+    },
+    {
+      "id": "WS-57-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.17198676822266468,
+        0.16986809107830222
+      ]
+    },
+    {
+      "id": "WS-66-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.21718083931613072,
+        0.2165815084336432
+      ]
+    },
+    {
+      "id": "WS-04-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0017916344134709524,
+        0.0017879300549817326
+      ]
+    },
+    {
+      "id": "WS-13-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.005599830815620131,
+        0.005543589915813873
+      ]
+    },
+    {
+      "id": "WS-22-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.01946542277405681,
+        0.01975666738600402
+      ]
+    },
+    {
+      "id": "WS-31-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0568166562534114,
+        0.056976097702386215
+      ]
+    },
+    {
+      "id": "WS-40-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.13861807022643305,
+        0.13239941198142327
+      ]
+    },
+    {
+      "id": "WS-49-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2197006931702701,
+        0.2120055880912092
+      ]
+    },
+    {
+      "id": "WS-58-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2591993736446929,
+        0.2373628249392881
+      ]
+    },
+    {
+      "id": "WS-67-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.32149487850602715,
+        0.3315618486336333
+      ]
+    },
+    {
+      "id": "WS-04-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.002079436456502982,
+        0.002082161540245407
+      ]
+    },
+    {
+      "id": "WS-13-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.007688974785835103,
+        0.007688346643326481
+      ]
+    },
+    {
+      "id": "WS-22-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.03872322397179681,
+        0.03896741325118774
+      ]
+    },
+    {
+      "id": "WS-31-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.15596037063269974,
+        0.1554670912163616
+      ]
+    },
+    {
+      "id": "WS-40-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.41713403666113374,
+        0.41638076083250236
+      ]
+    },
+    {
+      "id": "WS-49-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.6195959008204515,
+        0.6186446541836091
+      ]
+    },
+    {
+      "id": "WS-58-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.7089895070511493,
+        0.71306654110256
+      ]
+    },
+    {
+      "id": "WS-67-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.7789009879746644,
+        0.7870021511647747
+      ]
+    },
+    {
+      "id": "WS-05-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.002172996165767353,
+        0.002144217509900449
+      ]
+    },
+    {
+      "id": "WS-14-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0060828846064832675,
+        0.005978615342948754
+      ]
+    },
+    {
+      "id": "WS-23-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.020401588366783036,
+        0.019924649414510078
+      ]
+    },
+    {
+      "id": "WS-32-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.05611608138631274,
+        0.05749483829502644
+      ]
+    },
+    {
+      "id": "WS-41-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1436008309379935,
+        0.1364450966411164
+      ]
+    },
+    {
+      "id": "WS-50-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.22045954059928066,
+        0.22111585978634882
+      ]
+    },
+    {
+      "id": "WS-59-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2543778101625146,
+        0.272621896102515
+      ]
+    },
+    {
+      "id": "WS-68-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.3158976129359162,
+        0.31563780132700603
+      ]
+    },
+    {
+      "id": "WS-05-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.003002175042641748,
+        0.0030759302843452207
+      ]
+    },
+    {
+      "id": "WS-14-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.009482777978645404,
+        0.009134012401870142
+      ]
+    },
+    {
+      "id": "WS-23-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.04240150102613608,
+        0.041848983177071
+      ]
+    },
+    {
+      "id": "WS-32-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1584706831443092,
+        0.1604233768294182
+      ]
+    },
+    {
+      "id": "WS-41-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.4185930205121733,
+        0.4189167866302919
+      ]
+    },
+    {
+      "id": "WS-50-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.6134186913847394,
+        0.6148571699954984
+      ]
+    },
+    {
+      "id": "WS-59-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.7008018582899648,
+        0.7091327277739411
+      ]
+    },
+    {
+      "id": "WS-68-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.7737237057926234,
+        0.7781999242947404
+      ]
+    },
+    {
+      "id": "WS-06-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0021676973005510577,
+        0.002195915548443891
+      ]
+    },
+    {
+      "id": "WS-15-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.006881420407442567,
+        0.006964188546615722
+      ]
+    },
+    {
+      "id": "WS-24-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.024152457244464486,
+        0.024072101217547312
+      ]
+    },
+    {
+      "id": "WS-33-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.06379041024132491,
+        0.06288189317792135
+      ]
+    },
+    {
+      "id": "WS-42-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.146870990778485,
+        0.1387046544325421
+      ]
+    },
+    {
+      "id": "WS-51-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.20672073682937078,
+        0.20213142100777864
+      ]
+    },
+    {
+      "id": "WS-60-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2581488229556338,
+        0.24825932191303246
+      ]
+    },
+    {
+      "id": "WS-69-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2955499170488924,
+        0.2865515626204353
+      ]
+    },
+    {
+      "id": "WS-06-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.002204693211251389,
+        0.002234705013484092
+      ]
+    },
+    {
+      "id": "WS-15-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.00733800655749337,
+        0.007251209934804819
+      ]
+    },
+    {
+      "id": "WS-24-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.026676535797807564,
+        0.026935752759015844
+      ]
+    },
+    {
+      "id": "WS-33-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.08544757612479734,
+        0.08552318654141013
+      ]
+    },
+    {
+      "id": "WS-42-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2276781084261084,
+        0.2283159810458849
+      ]
+    },
+    {
+      "id": "WS-51-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.3541351965792331,
+        0.35418481648807587
+      ]
+    },
+    {
+      "id": "WS-60-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.4184023985437413,
+        0.418997268618269
+      ]
+    },
+    {
+      "id": "WS-69-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.49178125182003757,
+        0.4914548959763036
+      ]
+    },
+    {
+      "id": "WS-07-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0006511530517314198,
+        0.0006604596942388834
+      ]
+    },
+    {
+      "id": "WS-16-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.002161375071979206,
+        0.002187186182381224
+      ]
+    },
+    {
+      "id": "WS-25-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.008089080543111794,
+        0.0080254106103629
+      ]
+    },
+    {
+      "id": "WS-34-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.02411601071619769,
+        0.02396313182520568
+      ]
+    },
+    {
+      "id": "WS-43-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.05768528594389941,
+        0.05688838647035956
+      ]
+    },
+    {
+      "id": "WS-52-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.08625449388212647,
+        0.08429870259510629
+      ]
+    },
+    {
+      "id": "WS-61-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.10751098505516328,
+        0.10315615602723792
+      ]
+    },
+    {
+      "id": "WS-70-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1251426376236559,
+        0.12378544340881298
+      ]
+    },
+    {
+      "id": "WS-07-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0006804059464799786,
+        0.0006695721789821397
+      ]
+    },
+    {
+      "id": "WS-16-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0024946540280820608,
+        0.002470477719755457
+      ]
+    },
+    {
+      "id": "WS-25-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.012360318818805373,
+        0.01240781671457855
+      ]
+    },
+    {
+      "id": "WS-34-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.05431400667695551,
+        0.054212235189701016
+      ]
+    },
+    {
+      "id": "WS-43-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.15709767243634815,
+        0.15730066248099447
+      ]
+    },
+    {
+      "id": "WS-52-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.25500500966027323,
+        0.2565419326588394
+      ]
+    },
+    {
+      "id": "WS-61-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.3153450949065963,
+        0.31321816885179915
+      ]
+    },
+    {
+      "id": "WS-70-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.38961373174774505,
+        0.39292290552873427
+      ]
+    },
+    {
+      "id": "WS-08-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0007960230244592779,
+        0.0008042769502293295
+      ]
+    },
+    {
+      "id": "WS-17-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.002407321318073384,
+        0.0024424818468375886
+      ]
+    },
+    {
+      "id": "WS-26-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.008202682597769653,
+        0.008172287662534488
+      ]
+    },
+    {
+      "id": "WS-35-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.024453525495015907,
+        0.024088816151684688
+      ]
+    },
+    {
+      "id": "WS-44-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.05724658889771571,
+        0.055981547505760676
+      ]
+    },
+    {
+      "id": "WS-53-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.08429287926415982,
+        0.08751558302395518
+      ]
+    },
+    {
+      "id": "WS-62-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.10373392569037838,
+        0.10229564040900978
+      ]
+    },
+    {
+      "id": "WS-71-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1208144876079904,
+        0.12316703674992445
+      ]
+    },
+    {
+      "id": "WS-08-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0009134209730190732,
+        0.0008919731513571871
+      ]
+    },
+    {
+      "id": "WS-17-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0027195394614463572,
+        0.0027929034541781146
+      ]
+    },
+    {
+      "id": "WS-26-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.013420528366323443,
+        0.013883101483193609
+      ]
+    },
+    {
+      "id": "WS-35-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.056728620328941715,
+        0.05506981132426583
+      ]
+    },
+    {
+      "id": "WS-44-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.15792514158523785,
+        0.15650554270457284
+      ]
+    },
+    {
+      "id": "WS-53-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.25935604867589857,
+        0.25390136131204716
+      ]
+    },
+    {
+      "id": "WS-62-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.313284678086928,
+        0.31262418501598205
+      ]
+    },
+    {
+      "id": "WS-71-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.3913291816030117,
+        0.3891504340037279
+      ]
+    },
+    {
+      "id": "WS-09-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0006974250285133212,
+        0.0006937779690594857
+      ]
+    },
+    {
+      "id": "WS-18-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.002178545778503393,
+        0.0021748425397556284
+      ]
+    },
+    {
+      "id": "WS-27-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.007611658828910535,
+        0.007583648699124295
+      ]
+    },
+    {
+      "id": "WS-36-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.02246170861755843,
+        0.023019909914226845
+      ]
+    },
+    {
+      "id": "WS-45-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.05702990133193963,
+        0.05781380853199403
+      ]
+    },
+    {
+      "id": "WS-54-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.085267630141244,
+        0.08997833775570953
+      ]
+    },
+    {
+      "id": "WS-63-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1062315320338539,
+        0.10547776268752244
+      ]
+    },
+    {
+      "id": "WS-72-default",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.12185169633902539,
+        0.12749879385009566
+      ]
+    },
+    {
+      "id": "WS-09-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0007112320414393895,
+        0.000712979104533095
+      ]
+    },
+    {
+      "id": "WS-18-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.00233974014975866,
+        0.0023360333929847233
+      ]
+    },
+    {
+      "id": "WS-27-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.00934021546166454,
+        0.009429506121473752
+      ]
+    },
+    {
+      "id": "WS-36-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.0366578558567453,
+        0.036406142873701225
+      ]
+    },
+    {
+      "id": "WS-45-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.1070146128584338,
+        0.10728697492280986
+      ]
+    },
+    {
+      "id": "WS-54-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.16359759286657197,
+        0.1636021586338457
+      ]
+    },
+    {
+      "id": "WS-63-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.19160917239991443,
+        0.1909602963687779
+      ]
+    },
+    {
+      "id": "WS-72-tuned",
+      "metric": "abort_rate",
+      "repetitions": [
+        0.2233015485757725,
+        0.22401328348154717
+      ]
+    }
+  ]
+}

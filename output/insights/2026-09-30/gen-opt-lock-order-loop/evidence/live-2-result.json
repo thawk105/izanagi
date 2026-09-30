@@ -1,0 +1,985 @@
+{
+  "M": {
+    "build_count": 0,
+    "finished": "2026-09-30T15:29:08.696661+00:00",
+    "history": {
+      "axis": "silo-lock-order-policy",
+      "counterexamples": [],
+      "iteration": 0,
+      "measurement_campaign_id": null,
+      "model_evidence_kind": "unregistered",
+      "model_scenario_ids": [],
+      "model_specification_digest": null,
+      "outcome": "rejected",
+      "proposal_digest": "sha256:67086684c6a16dd3cccfa62042db1407866ced6c75870c61d50aba3ef826508f",
+      "reject_code": "model-unregistered",
+      "schema": "silo-lock-order-history/1",
+      "variant_id": null,
+      "verifier_digest": {
+        "D5": "unavailable",
+        "certified": false,
+        "gate_counts": null,
+        "verdict": "indeterminate"
+      }
+    },
+    "model": {
+      "passed": false,
+      "reject_code": "model-unregistered"
+    },
+    "named_control": "version_desc",
+    "origin": "initial",
+    "started": "2026-09-30T15:29:08.696635+00:00"
+  },
+  "conditions": {
+    "S": {
+      "build": {
+        "binary_sha256": "b579216c51acede37bda85c40d58351b171cd488978b31dce6ae54ad57069b68",
+        "build_log_tail": [
+          "[  0%] Built target masstree_build",
+          "[  7%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+          "[ 21%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+          "[ 21%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+          "[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+          "[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+          "[ 85%] Linking C static library libmimalloc.a",
+          "[ 85%] Built target mimalloc-static",
+          "[ 85%] Linking CXX static library libccbench_common.a",
+          "[ 85%] Built target ccbench_common",
+          "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+          "[100%] Linking CXX executable ycsb_silo.exe",
+          "[100%] Built target ycsb_silo.exe"
+        ],
+        "configure_log_tail": [
+          "-- The CXX compiler identification is GNU 11.4.0",
+          "-- Detecting CXX compiler ABI info",
+          "-- Detecting CXX compiler ABI info - done",
+          "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+          "-- Detecting CXX compile features",
+          "-- Detecting CXX compile features - done",
+          "-- Looking for C++ include pthread.h",
+          "-- Looking for C++ include pthread.h - found",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+          "-- Found Threads: TRUE  ",
+          "-- Found gflags: /tmp/md20-live-W804t2/md20-irs0ua4i/dependencies/gflags-install/lib/libgflags.a  ",
+          "-- Found glog: /tmp/md20-live-W804t2/md20-irs0ua4i/dependencies/glog-install/lib/libglog.a  ",
+          "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+          "-- The C compiler identification is GNU 11.4.0",
+          "-- Detecting C compiler ABI info",
+          "-- Detecting C compiler ABI info - done",
+          "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+          "-- Detecting C compile features",
+          "-- Detecting C compile features - done",
+          "-- Found Git: /usr/bin/git (found version \"2.34.1\") ",
+          "-- ",
+          "-- Architecture: x64",
+          "-- Performing Test mi_has_libpthread",
+          "-- Performing Test mi_has_libpthread - Success",
+          "-- Performing Test mi_has_librt",
+          "-- Performing Test mi_has_librt - Success",
+          "-- Performing Test mi_has_libatomic",
+          "-- Performing Test mi_has_libatomic - Success",
+          "-- ",
+          "-- Library name     : mimalloc",
+          "-- Version          : 2.3.2",
+          "-- Build type       : release",
+          "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+          "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+          "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+          "-- Link libraries   : pthread;rt;atomic",
+          "-- Build targets    : static",
+          "-- ",
+          "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+          "-- Wrote protocol×workload matrix to /tmp/md20-live-W804t2/md20-irs0ua4i/S/trace-build/PROTOCOL_MATRIX.md",
+          "-- Configuring done",
+          "-- Generating done",
+          "-- Build files have been written to: /tmp/md20-live-W804t2/md20-irs0ua4i/S/trace-build"
+        ],
+        "configure_rc": 0,
+        "configure_seconds": 0.776,
+        "rc": 0,
+        "seconds": 4.193,
+        "trace_symbols_present": true
+      },
+      "checkout_sha": "dcb9a41f3e538744298b0e5c42dc37349bac114e",
+      "finished": "2026-09-30T15:31:43.389522+00:00",
+      "gate": {
+        "preview": {
+          "digest": null,
+          "passed": true
+        },
+        "write": {
+          "digest": null,
+          "passed": true
+        }
+      },
+      "model": {
+        "evidence_kind": "fixture",
+        "passed": true,
+        "reject_code": null,
+        "scenario_ids": [
+          "fixture-lock-order"
+        ],
+        "specification_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "patches": {
+        "skeleton": {
+          "apply": {
+            "rc": 0,
+            "stderr": "Checking patch cc/silo/transaction.cc...\nHunk #7 succeeded at 540 (offset 4 lines).\nHunk #8 succeeded at 603 (offset 4 lines).\nHunk #9 succeeded at 618 (offset 4 lines).\nHunk #10 succeeded at 632 (offset 4 lines).\nHunk #11 succeeded at 921 (offset 63 lines).\nHunk #12 succeeded at 955 (offset 63 lines).\nChecking patch cmake/Options.cmake...\nApplied patch cc/silo/transaction.cc cleanly.\nApplied patch cmake/Options.cmake cleanly.\n",
+            "stdout": ""
+          },
+          "check": {
+            "rc": 0,
+            "stderr": "",
+            "stdout": ""
+          },
+          "sha256": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d"
+        }
+      },
+      "runs": {
+        "W-blind": {
+          "aborts": 9903,
+          "archive": {
+            "members": {
+              "gate_0.log": "518121c6f658fc74478700a476bcde531cdfed09b7e1b19967a19adf19d97d39",
+              "gate_1.log": "414c1f9b608c0116dc1ecfe45f916aff58e02ad64831a0e88528599b38af95f5",
+              "gate_2.log": "024d05ce7802b1d1359106cd425a8e5b129ad6f2802801291baa3ef627e35f76",
+              "gate_3.log": "e1989e366784a60d0f345725215466490d777510ba299c3260359f2753b07b94",
+              "trace_0.log": "96c9c7ca14a2da26d7579e4fa9a85c49469081fadea938da2f4f6a94f5a439ad",
+              "trace_1.log": "550156c127f40fa4d39cb15a8bd21ec3663b15dd40b8f344296ad82dea9ed78c",
+              "trace_2.log": "bcc9d7bf2a127fb0d5d39943a7bb17c284f4d1a3a705721bae9bed0386121af2",
+              "trace_3.log": "c51088c04fb4cecdac1c41850a69e279ab6aa461dab4782161735e6f407adf86"
+            },
+            "path": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_20-lock-order-loop/runs/live-2/S-W-blind/trace-and-gate.tar.gz",
+            "sha256": "551f5bbff6a1db67f3a0f2cff7e3afb156820837d7eeec12fc3f2e768fc09dd9"
+          },
+          "batch_commits": 0,
+          "capability_unavailable": {
+            "message": "direct fixture build has no pipeline-issued SourceEvidence/BuildAdmission",
+            "type": "not-issued"
+          },
+          "commits": 227656,
+          "finished": "2026-09-30T15:31:43.389511+00:00",
+          "history": {
+            "axis": "silo-lock-order-policy",
+            "counterexamples": [],
+            "iteration": 0,
+            "measurement_campaign_id": null,
+            "model_evidence_kind": "fixture",
+            "model_scenario_ids": [
+              "fixture-lock-order"
+            ],
+            "model_specification_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "outcome": "rejected",
+            "proposal_digest": "sha256:67086684c6a16dd3cccfa62042db1407866ced6c75870c61d50aba3ef826508f",
+            "reject_code": "verifier-not-certified",
+            "schema": "silo-lock-order-history/1",
+            "variant_id": "md20-s-w-blind",
+            "verifier_digest": {
+              "D5": "pass",
+              "certified": false,
+              "gate_counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 1565,
+                "D2b_ii": 17643,
+                "unreachable": 0
+              },
+              "verdict": "indeterminate"
+            }
+          },
+          "run": {
+            "rc": 0,
+            "seconds": 1.004,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout_sha256": "042a02a8f3789710967ca685a016d1642d5997a0ce0d6a0c69a7899628c6e900"
+          },
+          "started": "2026-09-30T15:31:16.048001+00:00",
+          "verification": {
+            "certified": false,
+            "gate": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 1565,
+                "D2b_ii": 17643,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 550598,
+                "own_write_read_transactions": 17436,
+                "repeated_write_key_transactions": 17468,
+                "written_transactions": 220606
+              },
+              "required": true
+            },
+            "integrity": {
+              "clean": false,
+              "dup_txids": 0,
+              "framing_violation_details": [],
+              "framing_violations": 0,
+              "genesis_commits": 0,
+              "lock_coverage_violations": 0,
+              "malformed_keys": 0,
+              "missing_txids": 0,
+              "notes": [
+                "check=D2b.ii thid=0 txid=43 key=0000000000000002 expected=281474976710680 observed=281474976710679",
+                "check=D2b.ii thid=0 txid=234 key=0000000000000000 expected=281474976710821 observed=281474976710819",
+                "check=D2b.ii thid=0 txid=400 key=0000000000000022 expected=281474976710847 observed=281474976710844",
+                "check=D2b.i thid=0 txid=410 key=0000000000000000 expected=281474976710860 observed=281474976710859",
+                "check=D2b.ii thid=0 txid=410 key=0000000000000000 expected=281474976710860 observed=281474976710859",
+                "check=D2b.ii thid=0 txid=419 key=0000000000000000 expected=281474976710888 observed=281474976710886",
+                "check=D2b.ii thid=0 txid=472 key=0000000000000000 expected=281474976711016 observed=281474976711013",
+                "check=D2b.ii thid=0 txid=495 key=0000000000000004 expected=281474976711069 observed=281474976711067",
+                "check=D2b.ii thid=0 txid=502 key=0000000000000005 expected=281474976711083 observed=281474976711082",
+                "check=D2b.ii thid=0 txid=506 key=0000000000000000 expected=281474976711096 observed=281474976711095",
+                "check=D2b.ii thid=0 txid=507 key=0000000000000002 expected=281474976711099 observed=281474976711098",
+                "check=D2b.ii thid=0 txid=772 key=0000000000000000 expected=281474976711129 observed=281474976711127"
+              ],
+              "orphan_reads": 0,
+              "permutation_violation_details": {
+                "counts": {
+                  "rcdptr-set-changed": 0,
+                  "size-changed": 0,
+                  "unknown": 0
+                },
+                "sample": [],
+                "unknown_reason_sample": []
+              },
+              "permutation_violations": 0,
+              "version_dups": 0,
+              "write_intent_violations": 0,
+              "write_version_mismatch": 0
+            },
+            "stats": {
+              "abort_reasons": {},
+              "edges": 1525996,
+              "keys": 200,
+              "reads": 533624,
+              "txns": 227656,
+              "writes": 550900
+            },
+            "total_cycles": 0,
+            "verdict": "indeterminate"
+          },
+          "verification_finished": "2026-09-30T15:31:28.195513+00:00",
+          "verification_path": "verify_trace_dir(snapshot)",
+          "verification_seconds": 11.128,
+          "verification_started": "2026-09-30T15:31:17.067662+00:00",
+          "workload": {
+            "extime": 1,
+            "thread_num": 4,
+            "ycsb_max_ope": 5,
+            "ycsb_rmw": false,
+            "ycsb_rratio": 50,
+            "ycsb_tuple_num": 200,
+            "ycsb_zipf_skew": 0.9
+          }
+        },
+        "W-rmw": {
+          "aborts": 8068,
+          "archive": {
+            "members": {
+              "gate_0.log": "87ac1163bf7b53eba14a25b3ed8312aa589875f490407d46116dbe6e6df3257a",
+              "gate_1.log": "89e0f40b5dcb80d2c5cd3d43efb1b99558644db054eb289dbcc7a612ab4c92c9",
+              "gate_2.log": "85e4385fd4a9ad555b3ecf1aac46d170f72ce66a47f3759c2105ab893db955ea",
+              "gate_3.log": "0e449f0159130ee5288955cad1bd5dad64a88ce7237d6146f90bd0ce4e8e1271",
+              "trace_0.log": "e5707120cf46b95abaceac779820fa03a7fafa768c7c173165d279e1f22d93e2",
+              "trace_1.log": "8237f3f274d7faedbfbba3af1614d4d1837721d69f3f458ea3c20f697cfa0dd3",
+              "trace_2.log": "c088f5948385a7e65eed963efc8bff4c89a890cb3249680d26e40e9f96b0c117",
+              "trace_3.log": "a4753f1849fa65518962fea55926f91772edb06eb975ed11a408fcb3b1e6ed96"
+            },
+            "path": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_20-lock-order-loop/runs/live-2/S-W-rmw/trace-and-gate.tar.gz",
+            "sha256": "f8b5c5d642199c32c6370733e92f0969518899dcf9bdbe1756e33a2b015f2f79"
+          },
+          "batch_commits": 0,
+          "capability_unavailable": {
+            "message": "direct fixture build has no pipeline-issued SourceEvidence/BuildAdmission",
+            "type": "not-issued"
+          },
+          "commits": 194978,
+          "finished": "2026-09-30T15:31:16.047991+00:00",
+          "history": {
+            "axis": "silo-lock-order-policy",
+            "counterexamples": [],
+            "iteration": 0,
+            "measurement_campaign_id": null,
+            "model_evidence_kind": "fixture",
+            "model_scenario_ids": [
+              "fixture-lock-order"
+            ],
+            "model_specification_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "outcome": "rejected",
+            "proposal_digest": "sha256:67086684c6a16dd3cccfa62042db1407866ced6c75870c61d50aba3ef826508f",
+            "reject_code": "verifier-not-certified",
+            "schema": "silo-lock-order-history/1",
+            "variant_id": "md20-s-w-rmw",
+            "verifier_digest": {
+              "D5": "pass",
+              "certified": false,
+              "gate_counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 31498,
+                "D2b_ii": 15125,
+                "unreachable": 0
+              },
+              "verdict": "indeterminate"
+            }
+          },
+          "run": {
+            "rc": 0,
+            "seconds": 1.003,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout_sha256": "67be19786083650098adea53ef52fbfdabc6f22f18d3c74f4e9426320c2567cc"
+          },
+          "started": "2026-09-30T15:30:44.781051+00:00",
+          "verification": {
+            "certified": false,
+            "gate": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 31498,
+                "D2b_ii": 15125,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 943392,
+                "own_write_read_transactions": 28254,
+                "repeated_write_key_transactions": 14990,
+                "written_transactions": 188805
+              },
+              "required": true
+            },
+            "integrity": {
+              "clean": false,
+              "dup_txids": 0,
+              "framing_violation_details": [],
+              "framing_violations": 0,
+              "genesis_commits": 0,
+              "lock_coverage_violations": 0,
+              "malformed_keys": 0,
+              "missing_txids": 0,
+              "notes": [
+                "check=D2b.i thid=0 txid=21 key=0000000000000000 expected=281474976710666 observed=562949953421323",
+                "check=D2b.i thid=0 txid=260 key=0000000000000001 expected=281474976710756 observed=844424930132142",
+                "check=D2b.i thid=0 txid=371 key=0000000000000000 expected=281474976710828 observed=1125899906843008",
+                "check=D2b.i thid=0 txid=375 key=0000000000000000 expected=281474976710831 observed=562949953421545",
+                "check=D2b.i thid=0 txid=384 key=0000000000000002 expected=281474976710840 observed=562949953421554",
+                "check=D2b.ii thid=0 txid=384 key=0000000000000002 expected=281474976710841 observed=281474976710840",
+                "check=D2b.i thid=0 txid=386 key=0000000000000001 expected=281474976710843 observed=281474976710835",
+                "check=D2b.i thid=0 txid=390 key=0000000000000000 expected=281474976710849 observed=281474976710847",
+                "check=D2b.ii thid=0 txid=390 key=0000000000000000 expected=281474976710850 observed=281474976710849",
+                "check=D2b.i thid=0 txid=405 key=0000000000000000 expected=281474976710869 observed=562949953421573",
+                "check=D2b.i thid=0 txid=504 key=0000000000000003 expected=281474976710944 observed=281474976710940",
+                "check=D2b.ii thid=0 txid=504 key=0000000000000003 expected=281474976710945 observed=281474976710944"
+              ],
+              "orphan_reads": 0,
+              "permutation_violation_details": {
+                "counts": {
+                  "rcdptr-set-changed": 0,
+                  "size-changed": 0,
+                  "unknown": 0
+                },
+                "sample": [],
+                "unknown_reason_sample": []
+              },
+              "permutation_violations": 0,
+              "version_dups": 0,
+              "write_intent_violations": 0,
+              "write_version_mismatch": 0
+            },
+            "stats": {
+              "abort_reasons": {},
+              "edges": 1308347,
+              "keys": 200,
+              "reads": 914533,
+              "txns": 194978,
+              "writes": 470977
+            },
+            "total_cycles": 0,
+            "verdict": "indeterminate"
+          },
+          "verification_finished": "2026-09-30T15:30:57.462076+00:00",
+          "verification_path": "verify_trace_dir(snapshot)",
+          "verification_seconds": 11.661,
+          "verification_started": "2026-09-30T15:30:45.800707+00:00",
+          "workload": {
+            "extime": 1,
+            "thread_num": 4,
+            "ycsb_max_ope": 5,
+            "ycsb_rmw": true,
+            "ycsb_rratio": 50,
+            "ycsb_tuple_num": 200,
+            "ycsb_zipf_skew": 0.9
+          }
+        }
+      },
+      "source_snapshot": {
+        "captured": "2026-09-30T15:30:39.795321+00:00",
+        "gate_d5_sources_present": true,
+        "normalized_source_count": 2
+      },
+      "started": "2026-09-30T15:30:39.221604+00:00",
+      "status": {
+        "checkout": "",
+        "hole_written": " M cc/silo/transaction.cc\n M cmake/Options.cmake",
+        "skeleton": " M cc/silo/transaction.cc\n M cmake/Options.cmake"
+      },
+      "transaction_cc_sha256": "2c2ae86707960358107a8ec6d39a035366d5899d2ab82b2c2b1f508e0d832695"
+    },
+    "X": {
+      "build": {
+        "binary_sha256": "ba4c027d05b145c2f57f0172bd02afd094f56508906e2d58aebfe47a2eb67e63",
+        "build_log_tail": [
+          "[  0%] Built target masstree_build",
+          "[ 14%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+          "[ 21%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+          "[ 21%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+          "[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+          "[ 28%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+          "[ 71%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+          "[ 85%] Linking C static library libmimalloc.a",
+          "[ 85%] Built target mimalloc-static",
+          "[ 85%] Linking CXX static library libccbench_common.a",
+          "[ 85%] Built target ccbench_common",
+          "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+          "[100%] Linking CXX executable ycsb_silo.exe",
+          "[100%] Built target ycsb_silo.exe"
+        ],
+        "configure_log_tail": [
+          "-- The CXX compiler identification is GNU 11.4.0",
+          "-- Detecting CXX compiler ABI info",
+          "-- Detecting CXX compiler ABI info - done",
+          "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+          "-- Detecting CXX compile features",
+          "-- Detecting CXX compile features - done",
+          "-- Looking for C++ include pthread.h",
+          "-- Looking for C++ include pthread.h - found",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+          "-- Found Threads: TRUE  ",
+          "-- Found gflags: /tmp/md20-live-W804t2/md20-irs0ua4i/dependencies/gflags-install/lib/libgflags.a  ",
+          "-- Found glog: /tmp/md20-live-W804t2/md20-irs0ua4i/dependencies/glog-install/lib/libglog.a  ",
+          "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+          "-- The C compiler identification is GNU 11.4.0",
+          "-- Detecting C compiler ABI info",
+          "-- Detecting C compiler ABI info - done",
+          "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+          "-- Detecting C compile features",
+          "-- Detecting C compile features - done",
+          "-- Found Git: /usr/bin/git (found version \"2.34.1\") ",
+          "-- ",
+          "-- Architecture: x64",
+          "-- Performing Test mi_has_libpthread",
+          "-- Performing Test mi_has_libpthread - Success",
+          "-- Performing Test mi_has_librt",
+          "-- Performing Test mi_has_librt - Success",
+          "-- Performing Test mi_has_libatomic",
+          "-- Performing Test mi_has_libatomic - Success",
+          "-- ",
+          "-- Library name     : mimalloc",
+          "-- Version          : 2.3.2",
+          "-- Build type       : release",
+          "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+          "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+          "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+          "-- Link libraries   : pthread;rt;atomic",
+          "-- Build targets    : static",
+          "-- ",
+          "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+          "-- Wrote protocol×workload matrix to /tmp/md20-live-W804t2/md20-irs0ua4i/X/trace-build/PROTOCOL_MATRIX.md",
+          "-- Configuring done",
+          "-- Generating done",
+          "-- Build files have been written to: /tmp/md20-live-W804t2/md20-irs0ua4i/X/trace-build"
+        ],
+        "configure_rc": 0,
+        "configure_seconds": 0.814,
+        "rc": 0,
+        "seconds": 4.18,
+        "trace_symbols_present": true
+      },
+      "checkout_sha": "dcb9a41f3e538744298b0e5c42dc37349bac114e",
+      "finished": "2026-09-30T15:30:39.219454+00:00",
+      "gate": {
+        "preview": {
+          "digest": null,
+          "passed": true
+        },
+        "write": {
+          "digest": null,
+          "passed": true
+        }
+      },
+      "model": {
+        "evidence_kind": "fixture",
+        "passed": true,
+        "reject_code": null,
+        "scenario_ids": [
+          "fixture-lock-order"
+        ],
+        "specification_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "patches": {
+        "silo_fix": {
+          "apply": {
+            "rc": 0,
+            "stderr": "Checking patch cc/silo/transaction.cc...\nHunk #2 succeeded at 530 (offset 4 lines).\nApplied patch cc/silo/transaction.cc cleanly.\n",
+            "stdout": ""
+          },
+          "check": {
+            "rc": 0,
+            "stderr": "",
+            "stdout": ""
+          },
+          "sha256": "2fca96512edab25ed5d097fb201b2d975782a7c8ef607e0adc50fba4f8618c3b"
+        },
+        "skeleton": {
+          "apply": {
+            "rc": 0,
+            "stderr": "Checking patch cc/silo/transaction.cc...\nHunk #7 succeeded at 540 (offset 4 lines).\nHunk #8 succeeded at 603 (offset 4 lines).\nHunk #9 succeeded at 618 (offset 4 lines).\nHunk #10 succeeded at 632 (offset 4 lines).\nHunk #11 succeeded at 924 (offset 66 lines).\nHunk #12 succeeded at 958 (offset 66 lines).\nChecking patch cmake/Options.cmake...\nApplied patch cc/silo/transaction.cc cleanly.\nApplied patch cmake/Options.cmake cleanly.\n",
+            "stdout": ""
+          },
+          "check": {
+            "rc": 0,
+            "stderr": "",
+            "stdout": ""
+          },
+          "sha256": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d"
+        }
+      },
+      "runs": {
+        "W-blind": {
+          "aborts": 9698,
+          "archive": {
+            "members": {
+              "gate_0.log": "44f0066ae4fc4db9ff40320a5771883054ed82ed4e6ee8fbf5daf52597dc56fb",
+              "gate_1.log": "4f5f464e8742166afe984f412fae6bfbbab461eccda4852857453af265dad14e",
+              "gate_2.log": "5f87c9c7483d1ba69704f92b91e80eeefc1f80e0f13eedb246a83db976ea402f",
+              "gate_3.log": "1ae8609abfa322f22b3b7682c82739231d03218f76022e5732eccc508f4dca0c",
+              "trace_0.log": "18c984f1f6c299bd9722b66ba722a2eeaea57204b1c338259e52ae3c4e32abfd",
+              "trace_1.log": "71ccd02084a8d48128b2611d7352a4a8aad0f4bce4757901402197d59b91899c",
+              "trace_2.log": "1e7b6bde6fdfd10d717d90d5919a4eea52b8d13e6d789966b7ac9f2f9093668c",
+              "trace_3.log": "72c1964d7cf478899e142c67eecea535987bea788ed91f6d10786cc4493e0912"
+            },
+            "path": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_20-lock-order-loop/runs/live-2/X-W-blind/trace-and-gate.tar.gz",
+            "sha256": "e4bfef6b9d512de88b4a6f6d707f9bd0fdafe20c58d6daa0538174d6a9ce1e26"
+          },
+          "batch_commits": 0,
+          "capability_unavailable": {
+            "message": "direct fixture build has no pipeline-issued SourceEvidence/BuildAdmission",
+            "type": "not-issued"
+          },
+          "commits": 228386,
+          "finished": "2026-09-30T15:30:39.219444+00:00",
+          "history": {
+            "axis": "silo-lock-order-policy",
+            "counterexamples": [],
+            "iteration": 0,
+            "measurement_campaign_id": null,
+            "model_evidence_kind": "fixture",
+            "model_scenario_ids": [
+              "fixture-lock-order"
+            ],
+            "model_specification_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "outcome": "certified",
+            "proposal_digest": "sha256:67086684c6a16dd3cccfa62042db1407866ced6c75870c61d50aba3ef826508f",
+            "reject_code": null,
+            "schema": "silo-lock-order-history/1",
+            "variant_id": "md20-x-w-blind",
+            "verifier_digest": {
+              "D5": "pass",
+              "certified": true,
+              "gate_counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 0,
+                "D2b_ii": 0,
+                "unreachable": 0
+              },
+              "verdict": "serializable"
+            }
+          },
+          "run": {
+            "rc": 0,
+            "seconds": 1.004,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout_sha256": "a5615853eabe671d0778a3b9def8884443b3f528daec63e7ee42411e30f198b8"
+          },
+          "started": "2026-09-30T15:30:11.851447+00:00",
+          "verification": {
+            "certified": true,
+            "gate": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 0,
+                "D2b_ii": 0,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 553309,
+                "own_write_read_transactions": 17385,
+                "repeated_write_key_transactions": 17330,
+                "written_transactions": 221138
+              },
+              "required": true
+            },
+            "integrity": {
+              "clean": true,
+              "dup_txids": 0,
+              "framing_violation_details": [],
+              "framing_violations": 0,
+              "genesis_commits": 0,
+              "lock_coverage_violations": 0,
+              "malformed_keys": 0,
+              "missing_txids": 0,
+              "notes": [],
+              "orphan_reads": 0,
+              "permutation_violation_details": {
+                "counts": {
+                  "rcdptr-set-changed": 0,
+                  "size-changed": 0,
+                  "unknown": 0
+                },
+                "sample": [],
+                "unknown_reason_sample": []
+              },
+              "permutation_violations": 0,
+              "version_dups": 0,
+              "write_intent_violations": 0,
+              "write_version_mismatch": 0
+            },
+            "stats": {
+              "abort_reasons": {},
+              "edges": 1532683,
+              "keys": 200,
+              "reads": 536460,
+              "txns": 228386,
+              "writes": 551925
+            },
+            "total_cycles": 0,
+            "verdict": "serializable"
+          },
+          "verification_finished": "2026-09-30T15:30:24.010543+00:00",
+          "verification_path": "verify_trace_dir(snapshot)",
+          "verification_seconds": 11.146,
+          "verification_started": "2026-09-30T15:30:12.864436+00:00",
+          "workload": {
+            "extime": 1,
+            "thread_num": 4,
+            "ycsb_max_ope": 5,
+            "ycsb_rmw": false,
+            "ycsb_rratio": 50,
+            "ycsb_tuple_num": 200,
+            "ycsb_zipf_skew": 0.9
+          }
+        },
+        "W-rmw": {
+          "aborts": 8447,
+          "archive": {
+            "members": {
+              "gate_0.log": "84e1f75a5ce4b09d449bffd239ba848fb8e55ad9955283f999cd4f08581a7689",
+              "gate_1.log": "eab63b5bf153494b17717584dd56b8976d916ba70ce761dca10c30cfccc53262",
+              "gate_2.log": "faa76f583e881a0861d83897c91c641e9908671305e781c605a30cbdac77c13c",
+              "gate_3.log": "20697f45a3b1fea55e4ebfddd84b38717cfc68ba58c5c48b90cc587da2b2c162",
+              "trace_0.log": "b84cc553b791895baa49b2068cabd5258417c03cdbbde2d4a7aa5d23f028aeaf",
+              "trace_1.log": "df304f1891d94b5b31ecc10d895b085fc5305c7ec755883329daa52faf356545",
+              "trace_2.log": "afa1fe92f41fe5c13aa23f3a07dc36d266b221e48bec756312d45ac86322663e",
+              "trace_3.log": "5f3dd78698463c834a386c3f178289b350c6b6bddcd3fa623b12855b450d460d"
+            },
+            "path": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_20-lock-order-loop/runs/live-2/X-W-rmw/trace-and-gate.tar.gz",
+            "sha256": "bf5d933ec4e18028e7c72fcbe8f225103f7793a3792788838ea7aff958d8969b"
+          },
+          "batch_commits": 0,
+          "capability_unavailable": {
+            "message": "direct fixture build has no pipeline-issued SourceEvidence/BuildAdmission",
+            "type": "not-issued"
+          },
+          "commits": 194803,
+          "finished": "2026-09-30T15:30:11.851437+00:00",
+          "history": {
+            "axis": "silo-lock-order-policy",
+            "counterexamples": [],
+            "iteration": 0,
+            "measurement_campaign_id": null,
+            "model_evidence_kind": "fixture",
+            "model_scenario_ids": [
+              "fixture-lock-order"
+            ],
+            "model_specification_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "outcome": "certified",
+            "proposal_digest": "sha256:67086684c6a16dd3cccfa62042db1407866ced6c75870c61d50aba3ef826508f",
+            "reject_code": null,
+            "schema": "silo-lock-order-history/1",
+            "variant_id": "md20-x-w-rmw",
+            "verifier_digest": {
+              "D5": "pass",
+              "certified": true,
+              "gate_counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 0,
+                "D2b_ii": 0,
+                "unreachable": 0
+              },
+              "verdict": "serializable"
+            }
+          },
+          "run": {
+            "rc": 0,
+            "seconds": 1.003,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdout_sha256": "d8509ea2f22b4dbcef76d1d09bc403fb1bbfdd9853d2083b294e4dc3672d4ac0"
+          },
+          "started": "2026-09-30T15:29:40.748357+00:00",
+          "verification": {
+            "certified": true,
+            "gate": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 0,
+                "D2b_ii": 0,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 942289,
+                "own_write_read_transactions": 28374,
+                "repeated_write_key_transactions": 14843,
+                "written_transactions": 188567
+              },
+              "required": true
+            },
+            "integrity": {
+              "clean": true,
+              "dup_txids": 0,
+              "framing_violation_details": [],
+              "framing_violations": 0,
+              "genesis_commits": 0,
+              "lock_coverage_violations": 0,
+              "malformed_keys": 0,
+              "missing_txids": 0,
+              "notes": [],
+              "orphan_reads": 0,
+              "permutation_violation_details": {
+                "counts": {
+                  "rcdptr-set-changed": 0,
+                  "size-changed": 0,
+                  "unknown": 0
+                },
+                "sample": [],
+                "unknown_reason_sample": []
+              },
+              "permutation_violations": 0,
+              "version_dups": 0,
+              "write_intent_violations": 0,
+              "write_version_mismatch": 0
+            },
+            "stats": {
+              "abort_reasons": {},
+              "edges": 1305424,
+              "keys": 200,
+              "reads": 913288,
+              "txns": 194803,
+              "writes": 471196
+            },
+            "total_cycles": 0,
+            "verdict": "serializable"
+          },
+          "verification_finished": "2026-09-30T15:29:53.256110+00:00",
+          "verification_path": "verify_trace_dir(snapshot)",
+          "verification_seconds": 11.498,
+          "verification_started": "2026-09-30T15:29:41.758434+00:00",
+          "workload": {
+            "extime": 1,
+            "thread_num": 4,
+            "ycsb_max_ope": 5,
+            "ycsb_rmw": true,
+            "ycsb_rratio": 50,
+            "ycsb_tuple_num": 200,
+            "ycsb_zipf_skew": 0.9
+          }
+        }
+      },
+      "source_snapshot": {
+        "captured": "2026-09-30T15:29:35.742195+00:00",
+        "gate_d5_sources_present": true,
+        "normalized_source_count": 2
+      },
+      "started": "2026-09-30T15:29:35.147172+00:00",
+      "status": {
+        "checkout": "",
+        "hole_written": " M cc/silo/transaction.cc\n M cmake/Options.cmake",
+        "silo_fix": " M cc/silo/transaction.cc",
+        "skeleton": " M cc/silo/transaction.cc\n M cmake/Options.cmake"
+      },
+      "transaction_cc_sha256": "7a9e50b13a91f64b30e66b136726cacb65c79c2aa37966badc320ca1fdc82727"
+    }
+  },
+  "counts_planned": {
+    "builds": 2,
+    "runs": 4,
+    "verifications": 4
+  },
+  "errors": [],
+  "finished": "2026-09-30T15:31:43.492333+00:00",
+  "fixture": {
+    "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "kind": "fixture",
+    "result_sha256": "1407d917d6b106179d2f4824c66425dec6b05d6f696306a1e0375d592df5a31b",
+    "scope": "structural gate wiring only"
+  },
+  "genome": "silo|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,SILO_ORDER_VARIANT=1,WAL=0",
+  "host": "bnode058",
+  "inputs": {
+    "bundle": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1.bundle",
+    "bundle_sha256": "570fd53966162bb565f241bf22bcdc49dc8048b419a62a31254748c076031ea6",
+    "pin_sha": "68106660686232781bca3be792a750d3e19d7a8a",
+    "repo_head": "c33afae78081156e4fa0cd3a8f15a9a7e1f18fee",
+    "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-md20-lock-order-loop",
+    "silo_patch": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/patches/fix-silo-intra-txn-values.patch",
+    "silo_patch_sha256": "2fca96512edab25ed5d097fb201b2d975782a7c8ef607e0adc50fba4f8618c3b",
+    "skeleton_patch": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-md20-lock-order-loop/patches/silo-lock-order-variant.patch",
+    "skeleton_patch_sha256": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d",
+    "third_party_cache": "/work/1/SFC/tanab/izanagi-thirdparty-cache",
+    "u1_oid": "dcb9a41f3e538744298b0e5c42dc37349bac114e"
+  },
+  "outcome": "fixture-liveness",
+  "schema": "md20-fixture-liveness/1",
+  "seconds": 155.639,
+  "stages": {
+    "S.W-blind": {
+      "finished": "2026-09-30T15:31:43.385356+00:00",
+      "seconds": 27.335,
+      "started": "2026-09-30T15:31:16.048009+00:00"
+    },
+    "S.W-rmw": {
+      "finished": "2026-09-30T15:31:16.045237+00:00",
+      "seconds": 31.262,
+      "started": "2026-09-30T15:30:44.781068+00:00"
+    },
+    "S.admission": {
+      "finished": "2026-09-30T15:30:39.795341+00:00",
+      "seconds": 0.377,
+      "started": "2026-09-30T15:30:39.415399+00:00"
+    },
+    "S.build": {
+      "finished": "2026-09-30T15:30:44.778459+00:00",
+      "seconds": 4.977,
+      "started": "2026-09-30T15:30:39.799866+00:00"
+    },
+    "S.checkout": {
+      "finished": "2026-09-30T15:30:39.413101+00:00",
+      "seconds": 0.19,
+      "started": "2026-09-30T15:30:39.221685+00:00"
+    },
+    "X.W-blind": {
+      "finished": "2026-09-30T15:30:39.217266+00:00",
+      "seconds": 27.363,
+      "started": "2026-09-30T15:30:11.851455+00:00"
+    },
+    "X.W-rmw": {
+      "finished": "2026-09-30T15:30:11.849148+00:00",
+      "seconds": 31.099,
+      "started": "2026-09-30T15:29:40.748373+00:00"
+    },
+    "X.admission": {
+      "finished": "2026-09-30T15:29:35.742216+00:00",
+      "seconds": 0.37,
+      "started": "2026-09-30T15:29:35.370411+00:00"
+    },
+    "X.build": {
+      "finished": "2026-09-30T15:29:40.745925+00:00",
+      "seconds": 5.0,
+      "started": "2026-09-30T15:29:35.744283+00:00"
+    },
+    "X.checkout": {
+      "finished": "2026-09-30T15:29:35.368740+00:00",
+      "seconds": 0.22,
+      "started": "2026-09-30T15:29:35.147279+00:00"
+    },
+    "dependencies": {
+      "finished": "2026-09-30T15:29:35.145276+00:00",
+      "seconds": 26.421,
+      "started": "2026-09-30T15:29:08.723148+00:00"
+    },
+    "preflight": {
+      "finished": "2026-09-30T15:29:08.720348+00:00",
+      "seconds": 0.867,
+      "started": "2026-09-30T15:29:07.851092+00:00"
+    }
+  },
+  "started": "2026-09-30T15:29:07.851077+00:00",
+  "toolchain": {
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "version_body_sha256": {
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    }
+  }
+}

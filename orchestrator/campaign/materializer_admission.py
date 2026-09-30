@@ -125,6 +125,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "VHash forwarding smoke and measurement builds are diagnostic only and ineligible for certified selection",
         ),
+    "orchestrator.campaign.vhash_interval_gc._build_variant":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "VHash interval GC smoke, measurement, and trace builds are diagnostic only and ineligible for certified selection",
+        ),
     "orchestrator.campaign.s8a_trigger_coverage._build":
         MaterializerRegistration(
             ADMITTED_GATEWAY,
@@ -190,6 +195,12 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
         MaterializerRegistration(
             ADMITTED_GATEWAY,
             "registered Silo policy exploration CLI coder-authority issuer",
+            CODER_ENTRYPOINT,
+        ),
+    "orchestrator.campaign.p3_s4_loop_lock_order.main":
+        MaterializerRegistration(
+            ADMITTED_GATEWAY,
+            "registered Silo lock order exploration CLI coder-authority issuer",
             CODER_ENTRYPOINT,
         ),
     "orchestrator.campaign.p3_s4_loop_trigger_gating.main":

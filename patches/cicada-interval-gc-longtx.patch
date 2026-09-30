@@ -1,0 +1,166 @@
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
+index 6c5184886..e6565cdd2 100644
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -18,8 +18,161 @@
+ 
+ #include "../../common/runner.hh"
+ 
++#if CICADA_INTERVAL_LONGTX
++#include <cstdint>
++#include <cstdlib>
++#include <iostream>
++#include <string>
++#endif
++#line 21
+ using namespace std;
+ 
++
++#if CICADA_INTERVAL_LONGTX
++DEFINE_uint64(cicada_igc_long_threads, 0,
++              "Long worker count (excluding leader).");
++DEFINE_string(cicada_igc_long_kind, "wait_after_reads",
++              "wait_after_reads, many_ops, or ronly_wait.");
++DEFINE_uint64(cicada_igc_long_ops, 1000, "Operations in many_ops.");
++DEFINE_uint64(cicada_igc_long_rratio, 90, "Read percent in many_ops.");
++DEFINE_uint64(cicada_igc_long_wait_us, 1000,
++              "Wait after reads in microseconds.");
++DEFINE_uint64(cicada_igc_wait_reads, 10, "Reads before wait.");
++
++namespace {
++struct alignas(CACHE_LINE_SIZE) LongSlot {
++  uint64_t attempts = 0;
++  uint64_t commits = 0;
++  uint64_t aborts = 0;
++  uint64_t residence_cycles_sum = 0;
++  uint64_t residence_cycles_max = 0;
++};
++LongSlot long_slots[256];
++
++struct LongReport {
++  ~LongReport() {
++    uint64_t attempts = 0, commits = 0, aborts = 0, sum = 0, maximum = 0;
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& s = long_slots[i];
++      attempts += s.attempts;
++      commits += s.commits;
++      aborts += s.aborts;
++      sum += s.residence_cycles_sum;
++      if (maximum < s.residence_cycles_max) maximum = s.residence_cycles_max;
++    }
++    cout << "CICADA_IGC_LONGTX_V1 {\"schema\":1,\"attempts\":" << attempts
++         << ",\"commits\":" << commits << ",\"aborts\":" << aborts
++         << ",\"residence_cycles_sum\":" << sum
++         << ",\"residence_cycles_max\":" << maximum
++         << ",\"clocks_per_us\":" << FLAGS_clocks_per_us << "}" << endl;
++  }
++};
++LongReport long_report;
++
++class IntervalLongWorkload : public YcsbWorkload {
++public:
++  IntervalLongWorkload() {
++    if (FLAGS_cicada_igc_long_threads >=
++            FLAGS_thread_num + FLAGS_batch_th_num ||
++        FLAGS_thread_num + FLAGS_batch_th_num > 256 ||
++        FLAGS_cicada_igc_long_ops == 0 || FLAGS_cicada_igc_long_rratio > 100 ||
++        FLAGS_cicada_igc_wait_reads == 0 ||
++        (FLAGS_cicada_igc_long_kind != "wait_after_reads" &&
++         FLAGS_cicada_igc_long_kind != "many_ops" &&
++         FLAGS_cicada_igc_long_kind != "ronly_wait")) {
++      cerr << "Invalid Cicada interval long transaction flags" << endl;
++      std::abort();
++    }
++  }
++  template <typename Tx, typename TransactionStatus>
++  void run(Tx& tx) {
++    const bool is_long =
++        tx.thid_ != 0 && FLAGS_cicada_igc_long_threads != 0 &&
++        tx.thid_ >= TotalThreadNum - FLAGS_cicada_igc_long_threads;
++    if (!is_long) {
++      YcsbWorkload::run<Tx, TransactionStatus>(tx);
++      return;
++    }
++    auto& slot = long_slots[tx.thid_];
++    tx.pro_set_.clear();
++    const bool ronly = FLAGS_cicada_igc_long_kind == "ronly_wait";
++    if (FLAGS_cicada_igc_long_kind == "many_ops") {
++      for (uint64_t i = 0; i < FLAGS_cicada_igc_long_ops; ++i) {
++        const bool read =
++            i + 1 < FLAGS_cicada_igc_long_ops &&
++            (i == 0 || rnd_.next() % 100 < FLAGS_cicada_igc_long_rratio);
++        tx.pro_set_.emplace_back(read ? Ope::READ : Ope::WRITE,
++                                 zipf_() % FLAGS_ycsb_tuple_num);
++      }
++    } else {
++      for (uint64_t i = 0; i < FLAGS_cicada_igc_wait_reads; ++i)
++        tx.pro_set_.emplace_back(Ope::READ, zipf_() % FLAGS_ycsb_tuple_num);
++      if (!ronly)
++        tx.pro_set_.emplace_back(Ope::WRITE, zipf_() % FLAGS_ycsb_tuple_num);
++    }
++    // Cicada begin/read/commit use is_ronly_; the stock workload derives it
++    // from the first Procedure's ronly_ bit, so keep both in agreement.
++    tx.pro_set_.front().ronly_ = ronly;
++    tx.pro_set_.front().wonly_ = false;
++    tx.is_ronly_ = ronly;
++  RETRY:
++    if (tx.isLeader()) tx.leaderWork();
++    if (loadAcquire(tx.quit_)) return;
++    ++slot.attempts;
++    tx.begin();
++    const uint64_t begun = rdtscp();
++    for (auto& pro : tx.pro_set_) {
++      SimpleKey<8> key;
++      YCSB::CreateKey(pro.key_, key.ptr());
++      if (pro.ope_ == Ope::READ) {
++        TupleBody* body = nullptr;
++        tx.read(Storage::YCSB, key.view(), &body);
++        if (tx.status_ != TransactionStatus::aborted && body) {
++          [[maybe_unused]] YCSB& value = body->get_value().cast_to<YCSB>();
++        }
++      } else {
++        HeapObject obj;
++        obj.template allocate<YCSB>();
++        [[maybe_unused]] YCSB& value = obj.ref();
++        tx.update(Storage::YCSB, key.view(),
++                  TupleBody(key.view(), std::move(obj)));
++      }
++      if (tx.status_ == TransactionStatus::aborted) {
++        const uint64_t elapsed = rdtscp() - begun;
++        slot.residence_cycles_sum += elapsed;
++        if (slot.residence_cycles_max < elapsed)
++          slot.residence_cycles_max = elapsed;
++        tx.abort();
++        ++tx.result_->local_abort_counts_;
++        ++slot.aborts;
++        goto RETRY;
++      }
++    }
++    if (FLAGS_cicada_igc_long_kind != "many_ops") {
++      const uint64_t until =
++          rdtscp() + FLAGS_cicada_igc_long_wait_us * FLAGS_clocks_per_us;
++      while (rdtscp() < until) {}
++    }
++    const bool committed = tx.commit();
++    const uint64_t elapsed = rdtscp() - begun;
++    slot.residence_cycles_sum += elapsed;
++    if (slot.residence_cycles_max < elapsed)
++      slot.residence_cycles_max = elapsed;
++    if (!committed) {
++      tx.abort();
++      ++tx.result_->local_abort_counts_;
++      ++slot.aborts;
++      goto RETRY;
++    }
++    storeRelease(tx.result_->local_commit_counts_,
++                 loadAcquire(tx.result_->local_commit_counts_) + 1);
++    ++slot.commits;
++  }
++};
++} // namespace
++#define YcsbWorkload IntervalLongWorkload
++#endif
++#line 23
+ int main(int argc, char* argv[]) try {
+   gflags::SetUsageMessage("YCSB Cicada benchmark.");
+   gflags::ParseCommandLineFlags(&argc, &argv, true);

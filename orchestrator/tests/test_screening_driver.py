@@ -683,6 +683,10 @@ def test_screening_condition_requests_cover_exact_define_specs():
             "CICADA_GC_SAFEPOINT",
             "CICADA_GC_WAIT",
             "CICADA_GC_COUNT",
+            "CICADA_INTERVAL_GC",
+            "CICADA_INTERVAL_GC_GENERAL",
+            "CICADA_INTERVAL_COUNT",
+            "CICADA_INTERVAL_LONGTX",
         )
     } == {
         "CICADA_FWD_ENABLE": 0,
@@ -697,6 +701,10 @@ def test_screening_condition_requests_cover_exact_define_specs():
         "CICADA_GC_SAFEPOINT": 0,
         "CICADA_GC_WAIT": 0,
         "CICADA_GC_COUNT": 0,
+        "CICADA_INTERVAL_GC": 0,
+        "CICADA_INTERVAL_GC_GENERAL": 0,
+        "CICADA_INTERVAL_COUNT": 0,
+        "CICADA_INTERVAL_LONGTX": 0,
     }
     assert [request.macro for request in requests] == sorted(
         condition_meaning_gate.DEFINE_SPECS

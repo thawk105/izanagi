@@ -1,0 +1,276 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "M0-comment-only",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+     "old": "    \"\"\"Accept extra scenarios, but reject counterexamples in every scenario.\"\"\"\n",
+     "new": "    \"\"\"Accept extra scenarios, but reject counterexamples in every scenario. M0\"\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-pipeline-flag-force",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    require_gate_witness = effective_gate_witness_requirement(\n        genome, require_gate_witness)\n",
+     "new": "    require_gate_witness = require_gate_witness  # M1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m1_flag_forces_required_evaluate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-loop-evaluate-keyword",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/loop.py",
+     "old": "                    if require_gate_witness:\n                        evaluate_options[\"require_gate_witness\"] = True\n                    r = evaluate(\n",
+     "new": "                    if False:  # M2\n                        evaluate_options[\"require_gate_witness\"] = True\n                    r = evaluate(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-capability-forward",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            **verify_options,\n",
+     "new": "            # M3\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m3_required_capability_rejects_absent_gate_file",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_required_repetition_reaches_capability",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m1_flag_forces_required_evaluate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-d5-disk",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "else _gate_d5_sources(_proof_source_snapshot.gate_d5_sources)",
+     "new": "else _gate_d5(ccbench_root)  # M4"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m4_required_d5_uses_snapshot_not_disk",
+    "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m3_required_capability_rejects_absent_gate_file",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-serialize-always",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "old": "    if snapshot.gate_d5_sources is not None:\n        body[\"gate_d5_sources\"] = list(snapshot.gate_d5_sources)\n",
+     "new": "    body[\"gate_d5_sources\"] = (None if snapshot.gate_d5_sources is None  # M5\n                               else list(snapshot.gate_d5_sources))\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m5_unrequested_snapshot_legacy_bytes",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-unregistered",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+     "old": "    if not _registered(registry):\n        return ModelDecision(False, 'model-unregistered', None)\n",
+     "new": "    if False:  # M6\n        return ModelDecision(False, 'model-unregistered', None)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m6_unregistered_registry_rejected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-digest-from-result",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+     "old": "    if data['axis'] != AXIS or data['specification_digest'] != digest:\n",
+     "new": "    if data['axis'] != AXIS:  # M7\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m7_result_digest_cannot_supply_expectation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-stop-reason",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+     "old": "        if not found['complete'] or found['stop_reason'] != 'exhausted':\n",
+     "new": "        if not found['complete']:  # M8\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m8_complete_max_states_is_incomplete"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-scenario-missing",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+     "old": "    if any(sid not in scenarios for sid in registry.scenarios):\n        return reject('model-scenario-missing')\n    for sid, requirement in registry.scenarios.items():\n        found = scenarios[sid]\n",
+     "new": "    for sid, requirement in registry.scenarios.items():  # M9\n        if sid not in scenarios:\n            continue\n        found = scenarios[sid]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m9_required_scenario_missing"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-counterexample",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+     "old": "    if evidence:\n        return reject('model-counterexample')\n",
+     "new": "    if False:  # M10\n        return reject('model-counterexample')\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m10_counterexample_rejected",
+    "orchestrator/tests/test_silo_lock_order_model_gate.py::test_unregistered_scenario_exists_but_its_counterexample_rejects"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11-projection-extra-field",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_lock_order.py",
+     "old": "             'rule_ids': list(item.rule_ids[:8])}\n",
+     "new": "             'rule_ids': list(item.rule_ids[:8]), 'extra': 1}  # M11\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m11_counterexample_projection_has_exact_keys"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12-required",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_lock_order.py",
+     "old": "    elif gate.get('required') is not True:\n",
+     "new": "    elif False:  # M12\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m15_second_verify_record_required_false_rejects",
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m12_required_false_cannot_certify",
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_driver_uses_all_matching_wal_verify_records"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13b-buildcache-exit-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/buildcache.py",
+     "old": "        actual = source_digest.resolve_evidence(\n            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,\n            **({\"require_gate_witness\": True}\n               if effective_gate_witness_requirement(\n                   genome, require_gate_witness) else {}),\n",
+     "new": "        actual = source_digest.resolve_evidence(\n            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,  # M13b\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-payload-gate",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/pipeline.py",
+     "old": "    if require_gate_witness:\n        verify_payload[\"gate_witness\"] = result_to_dict(verify_result)[\"gate_witness\"]\n",
+     "new": "    if False:  # M14\n        verify_payload[\"gate_witness\"] = result_to_dict(verify_result)[\"gate_witness\"]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_required_repetition_reaches_capability",
+    "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15-all-records",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_s4_loop_lock_order.py",
+     "old": "    failure = next((item['reject_code'] for item in projected\n                    if item['reject_code'] is not None), None)\n",
+     "new": "    failure = projected[0]['reject_code']  # M15\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m14_missing_gate_section_in_wal_rejects",
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m15_second_verify_record_required_false_rejects",
+    "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_driver_uses_all_matching_wal_verify_records"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

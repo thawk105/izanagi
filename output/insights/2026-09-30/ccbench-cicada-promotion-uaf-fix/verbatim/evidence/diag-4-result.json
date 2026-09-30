@@ -1,0 +1,3900 @@
+{
+  "builds": {
+    "ASAN": {
+      "binary_sha256": "c5038b5858aec938c04f46d1d896b93ab35a1a374a4eeb28af327e4530431568",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-ASAN",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-ASAN",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DENABLE_SANITIZER=ON",
+        "-DCMAKE_CXX_FLAGS_DEBUG=-g -O0",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Debug",
+      "patches": [],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "ASAN-T5": {
+      "binary_sha256": "93455d54ba1b0e64764bc3f021be27f3820873c6327f1158c8f9217069e1b264",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-ASAN-T5",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-ASAN-T5",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DENABLE_SANITIZER=ON",
+        "-DCMAKE_CXX_FLAGS_DEBUG=-g -O0",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Debug",
+      "patches": [
+        "init_ver",
+        "uaf"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "ASAN-T6": {
+      "binary_sha256": "27f6e6732f1d6b27e11397134cc6449aba7f23c14965a5fb6a613d1a1096ea95",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-ASAN-T6",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-ASAN-T6",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DENABLE_SANITIZER=ON",
+        "-DCMAKE_CXX_FLAGS_DEBUG=-g -O0",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Debug",
+      "patches": [
+        "init_ver",
+        "uaf",
+        "update"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "DBG": {
+      "binary_sha256": "5a65eded5844b362acdc9e3dab49f57e627654830a1b4ea6586d294a2d6c111b",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-DBG",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-DBG",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_CXX_FLAGS_DEBUG=-g -O0",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Debug",
+      "patches": [],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T0": {
+      "binary_sha256": "29f36bd08775f37a582a9bb14cb1be2fc2994a841df2ce01ec1781c352a03bc7",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T0",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T0",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T0p": {
+      "binary_sha256": "7c8c514e0877e7e69e1c30f6b6169b852a21d00a26c6e798ad9ee7adaddfb2c2",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T0p",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T0p",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T1": {
+      "binary_sha256": "24788fb3b5cdcb1a5914824ce78341b717178bc964141c05f8e3deac0c952de2",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T1",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T1",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "uaf"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T2": {
+      "binary_sha256": "cc7dabb55c1b4b03d561b91a5efe585069e688f1cf48edeb6cb97f14cb7eea1b",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T2",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T2",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "update"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T3": {
+      "binary_sha256": "13a582d57b5f24df6c49fc94ac59048785452da9f0b02ea6406081aa7925a656",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T3",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T3",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "ronly"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T4": {
+      "binary_sha256": "1b03cedf6e82276e7286171c003edc154edba8e254740066f318c9aa7c2d5b98",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T4",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T4",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "init_ver"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T4p": {
+      "binary_sha256": "b8b0265546332d401056255735571fa53b70dccdbb29c762c30da540fcf0318f",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T4p",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T4p",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "init_ver"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T5": {
+      "binary_sha256": "18b5180415f0f0a5cde342a12d3a1fe6056ac035088c858b435f67e179b6ab89",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T5",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T5",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "init_ver",
+        "uaf"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    },
+    "T6": {
+      "binary_sha256": "2a7a0ed7b90818dd5a68ba4b4f089d33ada5a71666e4466f8b7b660917db8d6a",
+      "compile_defines": {
+        "tpcc_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-promo-acq0_njc/source-T6",
+        "-B",
+        "/scr/md32-promo-acq0_njc/build-T6",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-promo-acq0_njc/gflags-install;/scr/md32-promo-acq0_njc/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-promo-acq0_njc/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-promo-acq0_njc/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-promo-acq0_njc/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "kind": "Release",
+      "patches": [
+        "init_ver",
+        "uaf",
+        "update"
+      ],
+      "target": "tpcc_cicada",
+      "trace": 0
+    }
+  },
+  "competitors": [],
+  "errors": [],
+  "hostname": "bnode050",
+  "identity": {
+    "base_oid": "aa8e36f1669001e75a6d6da9609287dcc9f9d29b",
+    "bundle": "/work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/base.bundle",
+    "bundle_sha256": "5273d8c7779c17f90628261ebd07f37b5d02b8285d6cd600d406aaaafc05585f",
+    "patch_sha256": {
+      "counters": "50bd69ffa91b855e5e52dab4d29db58204737f9769224880b3488102d798e7fb",
+      "init_ver": "4bb557bd5426b78f6b9c1674c69f736c8d29efb14f14355926656ba5257ea85c",
+      "promotion_diag": "feaab9b6a98baf4be13cdb93e4cc7478ae5eeaf41aa3830a247dd5bfd8c1b3a3",
+      "ronly": "b974c2b987b092a7b866fcc648aa77ce99b839cc0aa5a2aee785ee326c79e162",
+      "tpcc": "3ff97f05c458e804ba401d5eb3a850c42bc0c02155584a34dad1d4110b0acda4",
+      "uaf": "ddf3a01ad9d73534debf41cb21b1f44203f47b1c9f72e7321b3dce33ad9f3535",
+      "update": "634234eefb2b844c793cbeb35fbadbc4bfcda4126491c31f0ec98066268befd8"
+    },
+    "verifier_files_sha256": {
+      "orchestrator/verifier/__init__.py": "56c7fb4ca9b54425422cdabe41f3c454dc977d3ac02cd177e9d4738f4fe948bd",
+      "orchestrator/verifier/__main__.py": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701",
+      "orchestrator/verifier/cli.py": "c2988de81bbf257dbdd277e8a0461e56a1a005fd4c6c08e42c735b1a6bde04c6",
+      "orchestrator/verifier/commit_receipt.py": "106e0dcc4e10a9664869b0244c92c25094cd126c1cd5952f973c27e9aba0ba7f",
+      "orchestrator/verifier/core.py": "1f35ca18b8f5a1158ce065cfa6c8f22ae615dd15d81542ee2af7d67017d65bae",
+      "orchestrator/verifier/dsg.py": "0aec522c5288c745ccfa7df82e5d156170a38cb7f79c01a9cc63db4d26c4e20b",
+      "orchestrator/verifier/model.py": "4aa4511b328812c32d5492598cc7a41e02476f5790aa931b436caedfc334468a",
+      "orchestrator/verifier/parse.py": "9f65a240ec518a1e91d37120618b85e587e530206307d0c11b16ba391fe5e157",
+      "orchestrator/verifier/report.py": "e68e31a0c8ac5315bd0134be741241e7dd142d69e33e4f986f7674e6d3f27dbd"
+    },
+    "verifier_head": "4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037"
+  },
+  "parts": "tpcc",
+  "patch_sequences": {
+    "ASAN": [],
+    "ASAN-T5": [
+      "init_ver",
+      "uaf"
+    ],
+    "ASAN-T6": [
+      "init_ver",
+      "uaf",
+      "update"
+    ],
+    "DBG": [],
+    "T0": [],
+    "T0p": [],
+    "T1": [
+      "uaf"
+    ],
+    "T2": [
+      "update"
+    ],
+    "T3": [
+      "ronly"
+    ],
+    "T4": [
+      "init_ver"
+    ],
+    "T4p": [
+      "init_ver"
+    ],
+    "T5": [
+      "init_ver",
+      "uaf"
+    ],
+    "T6": [
+      "init_ver",
+      "uaf",
+      "update"
+    ],
+    "Y0": [
+      "promotion_diag",
+      "tpcc",
+      "counters"
+    ],
+    "Y1": [
+      "promotion_diag",
+      "tpcc",
+      "ronly",
+      "counters"
+    ]
+  },
+  "runs": [
+    {
+      "argv": [
+        "gdb",
+        "-batch",
+        "-ex",
+        "catch throw",
+        "-ex",
+        "run",
+        "-ex",
+        "bt 30",
+        "--args",
+        "/scr/md32-promo-acq0_njc/build-DBG/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "gdb_output": true
+      },
+      "name": "DBG",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 2.0312746060080826,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "1930861e47ff6f605b771771d370ed3859001fd8a7e9d387ec466aa238ff196f"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": 1,
+      "asan_head": [
+        "==2835914==ERROR: AddressSanitizer: heap-use-after-free on address 0x51200f572050 at pc 0x559aec9974c4 bp 0x14dffef98350 sp 0x14dffef98340",
+        "WRITE of size 8 at 0x51200f572050 thread T6",
+        "    #0 0x559aec9974c3 in std::__atomic_base<unsigned long>::store(unsigned long, std::memory_order) /usr/include/c++/11/bits/atomic_base.h:464",
+        "    #1 0x559aec9974c3 in TxExecutor::writeSetClean() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/include/transaction.hh:345",
+        "    #2 0x559aec992f46 in TxExecutor::abort() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:756",
+        "    #3 0x559aec959ee7 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ee7)",
+        "    #4 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193",
+        "    #5 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283",
+        "    #6 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61",
+        "    #7 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96",
+        "    #8 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259",
+        "    #9 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266",
+        "    #10 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211",
+        "    #11 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)",
+        "    #12 0x14e00244aac2 in start_thread nptl/pthread_create.c:442",
+        "    #13 0x14e0024dc8cf  (/lib/x86_64-linux-gnu/libc.so.6+0x1268cf)",
+        "",
+        "0x51200f572050 is located 144 bytes inside of 256-byte region [0x51200f571fc0,0x51200f5720c0)",
+        "freed by thread T6 here:",
+        "    #0 0x14e002a7aa9c in operator delete(void*, unsigned long, std::align_val_t) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:190",
+        "    #1 0x559aec992ee6 in TxExecutor::abort() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:752",
+        "    #2 0x559aec959ee7 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ee7)",
+        "    #3 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193",
+        "    #4 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283",
+        "    #5 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61",
+        "    #6 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96",
+        "    #7 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259",
+        "    #8 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266",
+        "    #9 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211",
+        "    #10 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)",
+        "",
+        "previously allocated by thread T6 here:",
+        "    #0 0x14e002a79777 in operator new(unsigned long, std::align_val_t) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:111",
+        "    #1 0x559aec98e2fb in TxExecutor::insert(Storage, std::basic_string_view<char, std::char_traits<char> >, TupleBody&&) /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:313",
+        "    #2 0x559aec9687e9 in bool insert_neworder<TxExecutor, TransactionStatus>(TxExecutor&, unsigned int, unsigned char, unsigned short) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x427e9)",
+        "    #3 0x559aec9608dc in bool run_new_order<TxExecutor, TransactionStatus>(TxExecutor&, TPCCQuery::NewOrder*) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x3a8dc)",
+        "    #4 0x559aec959ab5 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ab5)",
+        "    #5 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193",
+        "    #6 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283",
+        "    #7 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61"
+      ],
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": 1,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "ASAN",
+      "rc": 1,
+      "repeat": 1,
+      "seconds": 2.5009544649801683,
+      "signal": null,
+      "stderr_head": [
+        "=================================================================",
+        "==2835914==ERROR: AddressSanitizer: heap-use-after-free on address 0x51200f572050 at pc 0x559aec9974c4 bp 0x14dffef98350 sp 0x14dffef98340",
+        "WRITE of size 8 at 0x51200f572050 thread T6",
+        "    #0 0x559aec9974c3 in std::__atomic_base<unsigned long>::store(unsigned long, std::memory_order) /usr/include/c++/11/bits/atomic_base.h:464",
+        "    #1 0x559aec9974c3 in TxExecutor::writeSetClean() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/include/transaction.hh:345",
+        "    #2 0x559aec992f46 in TxExecutor::abort() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:756",
+        "    #3 0x559aec959ee7 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ee7)",
+        "    #4 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193",
+        "    #5 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283",
+        "    #6 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61",
+        "    #7 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96",
+        "    #8 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259",
+        "    #9 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266",
+        "    #10 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211",
+        "    #11 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)",
+        "    #12 0x14e00244aac2 in start_thread nptl/pthread_create.c:442",
+        "    #13 0x14e0024dc8cf  (/lib/x86_64-linux-gnu/libc.so.6+0x1268cf)",
+        "",
+        "0x51200f572050 is located 144 bytes inside of 256-byte region [0x51200f571fc0,0x51200f5720c0)",
+        "freed by thread T6 here:",
+        "    #0 0x14e002a7aa9c in operator delete(void*, unsigned long, std::align_val_t) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:190",
+        "    #1 0x559aec992ee6 in TxExecutor::abort() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:752",
+        "    #2 0x559aec959ee7 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ee7)",
+        "    #3 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193",
+        "    #4 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283",
+        "    #5 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61",
+        "    #6 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96",
+        "    #7 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259",
+        "    #8 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266",
+        "    #9 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211",
+        "    #10 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)",
+        "",
+        "previously allocated by thread T6 here:",
+        "    #0 0x14e002a79777 in operator new(unsigned long, std::align_val_t) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:111",
+        "    #1 0x559aec98e2fb in TxExecutor::insert(Storage, std::basic_string_view<char, std::char_traits<char> >, TupleBody&&) /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:313",
+        "    #2 0x559aec9687e9 in bool insert_neworder<TxExecutor, TransactionStatus>(TxExecutor&, unsigned int, unsigned char, unsigned short) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x427e9)",
+        "    #3 0x559aec9608dc in bool run_new_order<TxExecutor, TransactionStatus>(TxExecutor&, TPCCQuery::NewOrder*) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x3a8dc)",
+        "    #4 0x559aec959ab5 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ab5)",
+        "    #5 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193",
+        "    #6 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283"
+      ],
+      "stderr_sha256": "81c9a0bc9d43f7d09bb6be2776cb2c656f52478c46f1fa5177636efe752c3d88",
+      "stdout_failed_line_counts": {
+        "insert order failed": 4
+      },
+      "stdout_sha256": "8bbf0b92d1814d79db44a8893d42d8abc3848fd869f30e59995bc6149602877d"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-ASAN-T5/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": 0,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "ASAN-T5",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 3.398314359015785,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 124702
+      },
+      "stdout_sha256": "79aa3d8ada354084b17800c8557e4b1c6a7808420dc0dfd07577f72c29ef635d"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-ASAN-T6/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": 0,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "ASAN-T6",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 3.352909636014374,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 4931
+      },
+      "stdout_sha256": "248d90065a3a2b81ee1345915491d43b80ff22c5ff805bfe33fb546fade7f183"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7379189679923002,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "bfd32179b7fcf76a498ce3f2e298754b660f894bc0ef186892d2ec40cd722f0a",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T1/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T1",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7404667439986952,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively",
+        "terminate called after throwing an instance of '"
+      ],
+      "stderr_sha256": "20dd80b42e60ffd0b888d04598fa3dab70a7b6371b417ee1a33945946b2121d8",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T2/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T2",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7284989899781067,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "ca67f22bf1c7852ebeaced5c0f233bc631d4e698de2e7740c56208a6ee5ce899",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T3/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T3",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7327112630009651,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively",
+        "terminate called recursively",
+        "terminate called after throwing an instance of '"
+      ],
+      "stderr_sha256": "f94a930f7e5035bde2cd6316759af2de14c224378a17435281e0df3163a4dd11",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.5615097599802539,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 313180
+      },
+      "stdout_sha256": "33c6f7b1ef3a6542bc838d1ded291bc5eee9cc32d5b40e83aa5a0745fb8fb920"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T5/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T5",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.5657468620047439,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 299312
+      },
+      "stdout_sha256": "80ff4b75d6de8da8f5699ffaf31e241f949d98c1e30f8e5d45a8283319d5f9df"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T6/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T6",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.5307916499732528,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 18802
+      },
+      "stdout_sha256": "2d6f5da7b1570e7330bf477d72675b76d666499ad9073f702e9ad5db10e23d41"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0p",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7432927899935748,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'"
+      ],
+      "stderr_sha256": "6decd209d9d665030046b8e3296353bc6442ce366a4a491a034c8c2a9e94d3b1",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4p",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.5002195259730797,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 19260
+      },
+      "stdout_sha256": "7c7dff2d69cc40a3b1637f6086ff98bd7ef338c3c9bedcbd1155692626f640d0"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7364538820111193,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'"
+      ],
+      "stderr_sha256": "c5c06e0724a6d47c236a7c5a53ce1eba2702083b4edecf380845d26df6f2e5c6",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T1/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T1",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.738601513003232,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "ca67f22bf1c7852ebeaced5c0f233bc631d4e698de2e7740c56208a6ee5ce899",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T2/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T2",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7214386420091614,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "ca67f22bf1c7852ebeaced5c0f233bc631d4e698de2e7740c56208a6ee5ce899",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T3/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T3",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7220142330043018,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "ca67f22bf1c7852ebeaced5c0f233bc631d4e698de2e7740c56208a6ee5ce899",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.4852983829914592,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 28175
+      },
+      "stdout_sha256": "5ac5e002d865bb47bd42eabb91df0f6d400b925f3a8526ed7c496e798fb1dae9"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T5/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T5",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.4917891459772363,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 29289
+      },
+      "stdout_sha256": "670413813d58c1280e546f7518f8666947cc0587f32d53a76767f083865267e5"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T6/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T6",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.488016933988547,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 1007
+      },
+      "stdout_sha256": "81212224615838e3147dbde97468be9fd9947305e400703293c12eeed04e7c28"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0p",
+      "rc": -6,
+      "repeat": 1,
+      "seconds": 0.7326932759897318,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "ca67f22bf1c7852ebeaced5c0f233bc631d4e698de2e7740c56208a6ee5ce899",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4p",
+      "rc": 0,
+      "repeat": 1,
+      "seconds": 1.4846642229822464,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 1383
+      },
+      "stdout_sha256": "a0145fce8c79aed2e7bb03089a99118d9efc2fdde12251c6a3f3756c0ea70977"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4p",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.514931298996089,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 19076
+      },
+      "stdout_sha256": "40eede918458e30da5dedcc6752467c0d888c906d3b9f740687fd94a8ef5a1cd"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0p",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7406085709808394,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'terminate called recursively"
+      ],
+      "stderr_sha256": "bb5fe3e58f1ce396a54454c3e6b378ff69e5a80ca18c349ddb6119cd7528e4d7",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T6/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T6",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.5097530449857004,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 18511
+      },
+      "stdout_sha256": "05b73fd4aad2f68036099981370fe6e6545f0addff6826061067eb6e9069a6e0"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T5/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T5",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.5634660469950177,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 320051
+      },
+      "stdout_sha256": "9d4dcb420c5e00964ccbf4af98bf87ae416a4f213778c1635da60f9fc9201da8"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "0",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "0"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.5531279499991797,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 298560
+      },
+      "stdout_sha256": "ef4346113f8ddabde10b255201ddccd2faf23fa21d4b16ef5c39904efe8b7039"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T3/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T3",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7456655490095727,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "d113eadb31a90dca50eb3115adcdbd5929cf5321a4100ab400fb4c8503f54e34",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T2/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T2",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7310994820145424,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "bfd32179b7fcf76a498ce3f2e298754b660f894bc0ef186892d2ec40cd722f0a",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T1/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T1",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7292186479899101,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "d113eadb31a90dca50eb3115adcdbd5929cf5321a4100ab400fb4c8503f54e34",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=0",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=0",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "M",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7345868519914802,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'"
+      ],
+      "stderr_sha256": "6decd209d9d665030046b8e3296353bc6442ce366a4a491a034c8c2a9e94d3b1",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4p",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.4880317380011547,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 1385
+      },
+      "stdout_sha256": "464bcae7cc039f6bb5b05ff098e82a623e12960838f98f7d9519393df111fc06"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0p/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0p",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7410208389919717,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "e59c9ff63614875ac3447665bdce7673a2f9c57391422b610e9ad08a00a4032c",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T6/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T6",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.4900056880142074,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 1078
+      },
+      "stdout_sha256": "84d82930e2e2cd13141d01f2404f098d485cf6815d784a9a78d1ccf139750b7a"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T5/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T5",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.4925001520023216,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 30736
+      },
+      "stdout_sha256": "84ce57f6561bd8b62501d6136948a6391e3531895511d05527e7b6f92852c91b"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T4/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": false,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "argv_only": {
+          "tpcc_interactive_ms": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_num_wh": {
+            "status": "not-displayed; bound by argv",
+            "value": "1"
+          },
+          "tpcc_perc_delivery": {
+            "status": "not-displayed; bound by argv",
+            "value": "0"
+          },
+          "tpcc_perc_order_status": {
+            "status": "not-displayed; bound by argv",
+            "value": "4"
+          },
+          "tpcc_perc_payment": {
+            "status": "not-displayed; bound by argv",
+            "value": "43"
+          },
+          "tpcc_perc_stock_level": {
+            "status": "not-displayed; bound by argv",
+            "value": "20"
+          }
+        },
+        "errors": [],
+        "expected": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "tpcc_interactive_ms": "0",
+          "tpcc_num_wh": "1",
+          "tpcc_perc_delivery": "0",
+          "tpcc_perc_order_status": "4",
+          "tpcc_perc_payment": "43",
+          "tpcc_perc_stock_level": "20"
+        },
+        "printed": {
+          "clocks_per_us": [
+            "2100"
+          ],
+          "extime": [
+            "1"
+          ],
+          "gc_inter_us": [
+            "10"
+          ],
+          "group_commit": [
+            "0"
+          ],
+          "group_commit_timeout_us": [
+            "2"
+          ],
+          "io_time_ns": [
+            "5"
+          ],
+          "p_wal": [
+            "0"
+          ],
+          "pre_reserve_version": [
+            "10000"
+          ],
+          "s_wal": [
+            "0"
+          ],
+          "thread_num": [
+            "4"
+          ],
+          "worker1_insert_delay_rphase_us": [
+            "0"
+          ],
+          "ycsb": [
+            "1"
+          ]
+        }
+      },
+      "name": "T4",
+      "rc": 0,
+      "repeat": 2,
+      "seconds": 1.4825149280077312,
+      "signal": null,
+      "stderr_head": [],
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_failed_line_counts": {
+        "insert order failed": 30980
+      },
+      "stdout_sha256": "2ee2b1f82d2963c76f8175114fe8c98c5cd8cbf694c364195437e1bde8941783"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T3/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T3",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7298416009871289,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'",
+        "terminate called recursively"
+      ],
+      "stderr_sha256": "ca67f22bf1c7852ebeaced5c0f233bc631d4e698de2e7740c56208a6ee5ce899",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T2/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T2",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.727053277019877,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'"
+      ],
+      "stderr_sha256": "6decd209d9d665030046b8e3296353bc6442ce366a4a491a034c8c2a9e94d3b1",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T1/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T1",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.7269631480157841,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'"
+      ],
+      "stderr_sha256": "6decd209d9d665030046b8e3296353bc6442ce366a4a491a034c8c2a9e94d3b1",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    },
+    {
+      "argv": [
+        "/scr/md32-promo-acq0_njc/build-T0/cc/cicada/tpcc_cicada.exe",
+        "-tpcc_num_wh=1",
+        "-tpcc_perc_payment=43",
+        "-tpcc_perc_order_status=4",
+        "-tpcc_perc_delivery=0",
+        "-tpcc_perc_stock_level=20",
+        "-tpcc_interactive_ms=0",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_error_count": null,
+      "asan_head": null,
+      "bad_alloc": true,
+      "cell": "R2",
+      "diag_summary": null,
+      "diag_summary_lines": [],
+      "flag_binding": {
+        "rc": -6,
+        "status": "not-emitted-abnormal-exit"
+      },
+      "name": "T0",
+      "rc": -6,
+      "repeat": 2,
+      "seconds": 0.724625710019609,
+      "signal": 6,
+      "stderr_head": [
+        "terminate called recursively",
+        "terminate called after throwing an instance of 'std::bad_alloc'"
+      ],
+      "stderr_sha256": "6decd209d9d665030046b8e3296353bc6442ce366a4a491a034c8c2a9e94d3b1",
+      "stdout_failed_line_counts": {},
+      "stdout_sha256": "237cf3d59e9ee70196d785e8428519d4672dad71d867e8d2cb5021960f2b0678"
+    }
+  ],
+  "status": "observed"
+}

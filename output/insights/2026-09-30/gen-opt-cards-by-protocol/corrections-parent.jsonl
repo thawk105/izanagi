@@ -1,0 +1,24 @@
+{"card_id": "abyss-ts-alloc-mutex", "cc": "cicada", "rule": "T", "reasons": ["ts-scheme"], "why": "begin 時の timestamp の出所を thread local clock から共有 counter に替える。定義 §2 の timestamp の決め方の変更 (段 6 レビュー R1)。"}
+{"card_id": "abyss-ts-alloc-mutex", "cc": "mvto", "rule": "T", "reasons": ["ts-scheme"], "why": "begin 時の timestamp の出所を thread local clock から共有 counter に替える。定義 §2 の timestamp の決め方の変更 (段 6 レビュー R1)。"}
+{"card_id": "abyss-ts-alloc-atomic-add", "cc": "cicada", "rule": "T", "reasons": ["ts-scheme"], "why": "begin 時の timestamp の出所を thread local clock から大域 atomic counter に替える。規則 T を R1 と同じく当てた。"}
+{"card_id": "abyss-ts-alloc-atomic-add", "cc": "mvto", "rule": "T", "reasons": ["ts-scheme"], "why": "begin 時の timestamp の出所を thread local clock から大域 atomic counter に替える。規則 T を R1 と同じく当てた。"}
+{"card_id": "abyss-ts-alloc-batched-atomic", "cc": "cicada", "rule": "T", "reasons": ["ts-scheme"], "why": "begin 時の timestamp を共有 counter から batch で取る形に替える。定義 §2 の timestamp の決め方の変更 (段 6 レビュー R1)。"}
+{"card_id": "abyss-ts-alloc-batched-atomic", "cc": "mvto", "rule": "T", "reasons": ["ts-scheme"], "why": "begin 時の timestamp を共有 counter から batch で取る形に替える。定義 §2 の timestamp の決め方の変更 (段 6 レビュー R1)。"}
+{"card_id": "ssn-readonly-cstamp-at-snapshot", "cc": "ermia", "rule": "T", "reasons": ["ts-scheme"], "why": "read-only 取引の commit 時刻を ++Lsn から snapshot 時刻に替える。定義 §2 の timestamp の決め方の変更 (段 6 レビュー R2)。"}
+{"card_id": "essn-exclusion-test", "cc": "ermia", "rule": "A", "reasons": ["other:correctness-argument"], "why": "除外条件を η から ξ に替え、stock の SSN が abort させた取引を commit させる。正しさは ESSN の論拠に依る (段 6 レビュー R3)。"}
+{"card_id": "essn-previous-edge-only-metadata", "cc": "ermia", "rule": "A", "reasons": ["other:correctness-argument"], "why": "ESSN の検査 (π と ξ) の簡略化で、ESSN の論拠を前提にする部品。essn-exclusion-test と同じ扱い。"}
+{"card_id": "bcc-essential-pattern-validation", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "read set の版が変わった取引でも essential pattern が無ければ commit させる。正しさは BCC の論拠に依り、MOCC の TID 検証の論拠では言えない。"}
+{"card_id": "bcc-global-tid-vector-clock", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "BCC の部品。部品カードは親の機構の前提ごと判定する (判定の子の作法) ので、BCC 本体と同じ扱い。"}
+{"card_id": "bcc-readset-history-hashtable", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "BCC の部品。部品カードは親の機構の前提ごと判定する (判定の子の作法) ので、BCC 本体と同じ扱い。"}
+{"card_id": "bcc-multilevel-circular-buffers", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "BCC の部品。部品カードは親の機構の前提ごと判定する (判定の子の作法) ので、BCC 本体と同じ扱い。"}
+{"card_id": "healing-false-invalidation-elimination", "cc": "tictoc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "版が変わった read を値の一致で通す。stock の版比較の論拠では正しさを言えない (文献カード README §7 の報酬ハックの型とも重なる)。"}
+{"card_id": "healing-false-invalidation-elimination", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "版が変わった read を値の一致で通す。stock の版比較の論拠では正しさを言えない (文献カード README §7 の報酬ハックの型とも重なる)。"}
+{"card_id": "healing-false-invalidation-elimination", "cc": "cicada", "rule": "A", "reasons": ["other:correctness-argument"], "why": "版が変わった read を値の一致で通す。stock の版比較の論拠では正しさを言えない (文献カード README §7 の報酬ハックの型とも重なる)。"}
+{"card_id": "healing-false-invalidation-elimination", "cc": "mvto", "rule": "A", "reasons": ["other:correctness-argument"], "why": "版が変わった read を値の一致で通す。stock の版比較の論拠では正しさを言えない (文献カード README §7 の報酬ハックの型とも重なる)。"}
+{"card_id": "ssn-read-mostly-cold-read-skipping", "cc": "ermia", "rule": "A", "reasons": ["other:correctness-argument"], "why": "stale 版の read を SSN の追跡から外す近似で、原典にも正式な証明が無い。stock の SSN の論拠では言えない。"}
+{"card_id": "ssn-safe-snapshot", "cc": "ermia", "rule": "A", "reasons": ["other:correctness-argument"], "why": "read-only 取引の SSN 追跡を省き、safe snapshot の論拠で正しさを言う。stock の SSN の論拠とは別。"}
+{"card_id": "cicada-clock-boost-on-abort", "cc": "mvto", "rule": "T", "reasons": ["ts-scheme"], "why": "abort 後の timestamp の値を clock boost で変える。規則 T の値の決め方の変更 (焦点再レビュー F1)。"}
+{"card_id": "healing-transaction-healing", "cc": "tictoc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "validation に失敗した取引を abort せず修復して commit させ、正しさは原典 §4.4 の論拠に依る。カードに stock の論拠だけで言える根拠は無い (焦点再レビュー F2)。"}
+{"card_id": "healing-transaction-healing", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "validation に失敗した取引を abort せず修復して commit させ、正しさは原典 §4.4 の論拠に依る。カードに stock の論拠だけで言える根拠は無い (焦点再レビュー F2)。"}
+{"card_id": "healing-access-cache", "cc": "tictoc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "Healing の部品。部品カードは親の機構の前提ごと判定するので Healing 本体と同じ扱い (焦点再レビュー F2)。"}
+{"card_id": "healing-access-cache", "cc": "mocc", "rule": "A", "reasons": ["other:correctness-argument"], "why": "Healing の部品。部品カードは親の機構の前提ごと判定するので Healing 本体と同じ扱い (焦点再レビュー F2)。"}

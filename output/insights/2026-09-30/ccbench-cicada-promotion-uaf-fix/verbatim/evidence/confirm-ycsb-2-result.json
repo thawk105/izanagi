@@ -1,0 +1,5189 @@
+{
+  "builds": {
+    "y-base-010": {
+      "binary_sha256": "dc66f9933e3fd2e818abf071c631f40102c44282b1ee48b0f4ba2c31d9c1e30a",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-base-010",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-base-010",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "base"
+    },
+    "y-broken-010": {
+      "binary_sha256": "5000b1e7be3d1df4ecf41f1b05598e6e23591009c04c8ab26aa560a87e1d975f",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-broken-010",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-broken-010",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "kind": "Release",
+      "patches": [
+        "diag",
+        "broken"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-000": {
+      "binary_sha256": "3d20c1a34e8d2c1a676712b4c914c3f53c6b0ea5e97e8c208719f8c8b42d6d71",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-000",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-000",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-001": {
+      "binary_sha256": "2eef55a93de3d6dfeffd3509b577a00c7bcbe427e44d4eae05e45ddf279caab3",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-001",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-001",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-010": {
+      "binary_sha256": "600b6bf87ea1328055d3a0d8432c517adeb7d0b75f7b8ab088fbbc2591503ccd",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-010",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-010",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-011": {
+      "binary_sha256": "233182396a9e4e7aa942d8882693a6e0e827adefbbd81e797201efdc72a09561",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "util.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-011",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-011",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-100": {
+      "binary_sha256": "bd27b673767c26f5f95eece504bf17195c920ef3607e30b3f2ae05e390741156",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-100",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-100",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-101": {
+      "binary_sha256": "ca2309b4966aca64cc7cd7507ce7e56ee64af7102f3c5e2eda7f8398073439d3",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "util.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-101",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-101",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-110": {
+      "binary_sha256": "4cc9ea9dc8c5cfd86455b377b6b706c1961c089606ce3edbb407687816398d3e",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "util.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "0"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-110",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-110",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    },
+    "y-tip-111": {
+      "binary_sha256": "352550fb5345993b36e8b7253efa392b29bc30aac3d83e889936cf71f3fc330c",
+      "compile_defines": {
+        "transaction.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "util.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "ycsb_cicada.cc": {
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "SINGLE_EXEC": "0",
+          "TRACE": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "WRITE_LATEST_ONLY": "1"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md32-confirm-qwvreq_4/src-y-tip-111",
+        "-B",
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-111",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md32-confirm-qwvreq_4/gflags-install;/scr/md32-confirm-qwvreq_4/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md32-confirm-qwvreq_4/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md32-confirm-qwvreq_4/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md32-confirm-qwvreq_4/thirdparty-src/googletest",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "kind": "Release",
+      "patches": [
+        "diag"
+      ],
+      "reverse": [],
+      "target": "ycsb_cicada",
+      "trace": 1,
+      "which": "tip"
+    }
+  },
+  "errors": [],
+  "fixed_tip_failures": [],
+  "hostname": "bnode128",
+  "identity": {
+    "base_bundle_sha256": "5273d8c7779c17f90628261ebd07f37b5d02b8285d6cd600d406aaaafc05585f",
+    "base_oid": "aa8e36f1669001e75a6d6da9609287dcc9f9d29b",
+    "patch_sha256": {
+      "broken": "bdeb527d329d277ca310189abb416a7f6f4341a2b5e5ce6beb452b925bf16668",
+      "diag": "feaab9b6a98baf4be13cdb93e4cc7478ae5eeaf41aa3830a247dd5bfd8c1b3a3",
+      "fix1": "eac73cb9900fb2bfad6c06a3e22ac5ee7ba2aec3797458845837208b034bde90",
+      "fix2": "64759cbba21dd60961ca4b93f9d4174cafb466df98c621fe4ed7f476f409eab8",
+      "fix3": "beb381298f40ab0bcad76f0fcf8a42046260e82866bfdb73669e638a7c2a54f5",
+      "fix4": "a5575bd4babfba59b361c0ceebb4be9e95550ab9a896342c923d16545e94726b",
+      "tpcc": "3ff97f05c458e804ba401d5eb3a850c42bc0c02155584a34dad1d4110b0acda4",
+      "trace": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5"
+    },
+    "tip_bundle_sha256": "4b955c51d7aaa594b9f733f6de81e0d21fc3d94bb7cc3c6f7d8e955bbfba9d3d",
+    "tip_oid": "16ad3eb8ca5f7bb3aea789bff99958e2192f6714",
+    "verifier_head": "4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037"
+  },
+  "m1_killed": true,
+  "other_ccbench": [],
+  "part": "ycsb",
+  "runs": [
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-000/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-000",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 222492,
+        "commit_count": 222492,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-000/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-000",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 240413,
+        "commit_count": 240413,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-000/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-000",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 1371789,
+        "commit_count": 1371789,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-000/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-000",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2319964,
+        "commit_count": 2319964,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-001/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-001",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 219773,
+        "commit_count": 219773,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-001/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-001",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 230327,
+        "commit_count": 230327,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-001/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-001",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 1384305,
+        "commit_count": 1384305,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-001/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-001",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2342677,
+        "commit_count": 2342677,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 375941,
+        "commit_count": 375941,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 412789,
+        "commit_count": 412789,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 1644767,
+        "commit_count": 1644767,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2428839,
+        "commit_count": 2428839,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-011/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-011",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 365152,
+        "commit_count": 365152,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-011/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-011",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 408707,
+        "commit_count": 408707,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-011/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-011",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 1577549,
+        "commit_count": 1577549,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-011/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-011",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2367005,
+        "commit_count": 2367005,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-100/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-100",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 161727,
+        "commit_count": 161727,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-100/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-100",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 175494,
+        "commit_count": 175494,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-100/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-100",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 815968,
+        "commit_count": 815968,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-100/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-100",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2395904,
+        "commit_count": 2395904,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-101/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-101",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 162732,
+        "commit_count": 162732,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-101/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-101",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 177408,
+        "commit_count": 177408,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-101/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-101",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 783939,
+        "commit_count": 783939,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-101/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-101",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2435099,
+        "commit_count": 2435099,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-110/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-110",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 183851,
+        "commit_count": 183851,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-110/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-110",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 201438,
+        "commit_count": 201438,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-110/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-110",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 908672,
+        "commit_count": 908672,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-110/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-110",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2412874,
+        "commit_count": 2412874,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-111/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-111",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 184895,
+        "commit_count": 184895,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-111/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=0",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "true",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "5",
+          "ycsb_rmw": "1",
+          "ycsb_rratio": "0",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-111",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 199858,
+        "commit_count": 199858,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "W"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-111/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-111",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 911349,
+        "commit_count": 911349,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-tip-111/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=100",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "100",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-tip-111",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": true,
+        "break_events": [],
+        "c_lines": 2389428,
+        "commit_count": 2389428,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 3,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 0,
+        "witness_cycles_reported": 0,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "P"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-base-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=10",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "10",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "50",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-base-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": false,
+        "break_events": [],
+        "c_lines": 384647,
+        "commit_count": 384647,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 1,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 9,
+        "witness_cycles_reported": 9,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "K"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-base-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-base-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": false,
+        "break_events": [],
+        "c_lines": 1503789,
+        "commit_count": 1503789,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 1,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 359,
+        "witness_cycles_reported": 20,
+        "witness_cycles_with_event": 0,
+        "witness_cycles_with_event_key_on_edge": 0
+      },
+      "workload": "R"
+    },
+    {
+      "argv": [
+        "/scr/md32-confirm-qwvreq_4/build-y-broken-010/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "asan_errors": 0,
+      "asan_first_report": null,
+      "bad_alloc": false,
+      "failed_lines": {},
+      "flag_binding": {
+        "argv_bound": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "false",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "display": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "group_commit": "0",
+          "thread_num": "4",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "errors": [],
+        "printed": {
+          "clocks_per_us": "2100",
+          "extime": "1",
+          "gc_inter_us": "10",
+          "group_commit": "0",
+          "group_commit_timeout_us": "2",
+          "io_time_ns": "5",
+          "p_wal": "0",
+          "pre_reserve_version": "10000",
+          "s_wal": "0",
+          "thread_num": "4",
+          "worker1_insert_delay_rphase_us": "0",
+          "ycsb": "1",
+          "ycsb_max_ope": "4",
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "90",
+          "ycsb_tuple_num": "200",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "status": "normal"
+      },
+      "label": "y-broken-010",
+      "rc": 0,
+      "repeat": 1,
+      "signal": null,
+      "verification": {
+        "accepted": false,
+        "break_events": [
+          {
+            "a_wts": 84481283215333121,
+            "b_wts": 84481283227318016,
+            "key": "0000000000000002",
+            "tx_wts": 84481283228816641
+          },
+          {
+            "a_wts": 84481283215333121,
+            "b_wts": 84481283228816641,
+            "key": "0000000000000002",
+            "tx_wts": 84481283229095683
+          },
+          {
+            "a_wts": 84481291830500097,
+            "b_wts": 84481291842540800,
+            "key": "000000000000000d",
+            "tx_wts": 84481291843568385
+          },
+          {
+            "a_wts": 84481292359456002,
+            "b_wts": 84481292369956611,
+            "key": "0000000000000002",
+            "tx_wts": 84481292372320003
+          },
+          {
+            "a_wts": 84481292418859778,
+            "b_wts": 84481292429017345,
+            "key": "0000000000000042",
+            "tx_wts": 84481292429486336
+          },
+          {
+            "a_wts": 84481296875040001,
+            "b_wts": 84481296891484419,
+            "key": "0000000000000003",
+            "tx_wts": 84481296895465217
+          },
+          {
+            "a_wts": 84481302290230016,
+            "b_wts": 84481302301922051,
+            "key": "0000000000000001",
+            "tx_wts": 84481302303344898
+          },
+          {
+            "a_wts": 84481304085134083,
+            "b_wts": 84481304102464768,
+            "key": "0000000000000000",
+            "tx_wts": 84481304102936833
+          },
+          {
+            "a_wts": 84481304359259907,
+            "b_wts": 84481304377481985,
+            "key": "0000000000000000",
+            "tx_wts": 84481304377793283
+          },
+          {
+            "a_wts": 84481305250574082,
+            "b_wts": 84481305264509187,
+            "key": "0000000000000001",
+            "tx_wts": 84481305265203971
+          },
+          {
+            "a_wts": 84481305834809600,
+            "b_wts": 84481305850614530,
+            "key": "0000000000000004",
+            "tx_wts": 84481305861774594
+          },
+          {
+            "a_wts": 84481306577110272,
+            "b_wts": 84481306587173122,
+            "key": "0000000000000001",
+            "tx_wts": 84481306588686083
+          },
+          {
+            "a_wts": 84481320943464192,
+            "b_wts": 84481320960753922,
+            "key": "000000000000000a",
+            "tx_wts": 84481320963659523
+          },
+          {
+            "a_wts": 84481321373551360,
+            "b_wts": 84481321381861633,
+            "key": "0000000000000003",
+            "tx_wts": 84481321390953219
+          },
+          {
+            "a_wts": 84481321987052801,
+            "b_wts": 84481321988763906,
+            "key": "0000000000000002",
+            "tx_wts": 84481321995609858
+          },
+          {
+            "a_wts": 84481325693058306,
+            "b_wts": 84481325708342019,
+            "key": "0000000000000001",
+            "tx_wts": 84481325709891840
+          },
+          {
+            "a_wts": 84481326401850624,
+            "b_wts": 84481326421441794,
+            "key": "0000000000000000",
+            "tx_wts": 84481326423508736
+          },
+          {
+            "a_wts": 84481327018377985,
+            "b_wts": 84481327031510275,
+            "key": "0000000000000004",
+            "tx_wts": 84481327032050944
+          },
+          {
+            "a_wts": 84481330438073091,
+            "b_wts": 84481330455673088,
+            "key": "0000000000000002",
+            "tx_wts": 84481330456191234
+          },
+          {
+            "a_wts": 84481332689025281,
+            "b_wts": 84481332703989504,
+            "key": "0000000000000000",
+            "tx_wts": 84481332708429568
+          },
+          {
+            "a_wts": 84481338500552960,
+            "b_wts": 84481338511500035,
+            "key": "0000000000000003",
+            "tx_wts": 84481338518335232
+          },
+          {
+            "a_wts": 84481339994543363,
+            "b_wts": 84481340008835842,
+            "key": "0000000000000003",
+            "tx_wts": 84481340009026816
+          },
+          {
+            "a_wts": 84481341362465026,
+            "b_wts": 84481341369342721,
+            "key": "0000000000000000",
+            "tx_wts": 84481341374426368
+          },
+          {
+            "a_wts": 84481342018599681,
+            "b_wts": 84481342027346178,
+            "key": "0000000000000000",
+            "tx_wts": 84481342029569282
+          },
+          {
+            "a_wts": 84481344131327232,
+            "b_wts": 84481344140974336,
+            "key": "000000000000000a",
+            "tx_wts": 84481344143126786
+          },
+          {
+            "a_wts": 84481346553332992,
+            "b_wts": 84481346564818177,
+            "key": "0000000000000002",
+            "tx_wts": 84481346565261056
+          },
+          {
+            "a_wts": 84481347934987522,
+            "b_wts": 84481347948710144,
+            "key": "0000000000000004",
+            "tx_wts": 84481347949786370
+          },
+          {
+            "a_wts": 84481349001627907,
+            "b_wts": 84481349012076291,
+            "key": "0000000000000009",
+            "tx_wts": 84481349013673218
+          },
+          {
+            "a_wts": 84481350092053248,
+            "b_wts": 84481350104375041,
+            "key": "0000000000000001",
+            "tx_wts": 84481350107689728
+          },
+          {
+            "a_wts": 84481353901299456,
+            "b_wts": 84481353912695043,
+            "key": "0000000000000003",
+            "tx_wts": 84481353919911682
+          },
+          {
+            "a_wts": 84481356730790144,
+            "b_wts": 84481356738958083,
+            "key": "0000000000000000",
+            "tx_wts": 84481356744396546
+          },
+          {
+            "a_wts": 84481360124182786,
+            "b_wts": 84481360142390019,
+            "key": "0000000000000002",
+            "tx_wts": 84481360144637186
+          },
+          {
+            "a_wts": 84481365626550018,
+            "b_wts": 84481365637707521,
+            "key": "0000000000000002",
+            "tx_wts": 84481365642284801
+          },
+          {
+            "a_wts": 84481370866893571,
+            "b_wts": 84481370888512769,
+            "key": "0000000000000003",
+            "tx_wts": 84481370889552640
+          },
+          {
+            "a_wts": 84481372201663232,
+            "b_wts": 84481372211198721,
+            "key": "0000000000000000",
+            "tx_wts": 84481372217424130
+          },
+          {
+            "a_wts": 84481380179662592,
+            "b_wts": 84481380202647299,
+            "key": "0000000000000002",
+            "tx_wts": 84481380202687232
+          },
+          {
+            "a_wts": 84481382748522752,
+            "b_wts": 84481382758892290,
+            "key": "0000000000000000",
+            "tx_wts": 84481382761893122
+          },
+          {
+            "a_wts": 84481383359084802,
+            "b_wts": 84481383371046657,
+            "key": "0000000000000002",
+            "tx_wts": 84481383371893504
+          },
+          {
+            "a_wts": 84481388211757826,
+            "b_wts": 84481388226517248,
+            "key": "0000000000000004",
+            "tx_wts": 84481388232691969
+          },
+          {
+            "a_wts": 84481392107618051,
+            "b_wts": 84481392116407553,
+            "key": "000000000000000d",
+            "tx_wts": 84481392118606595
+          },
+          {
+            "a_wts": 84481392548441344,
+            "b_wts": 84481392558165763,
+            "key": "0000000000000000",
+            "tx_wts": 84481392559924482
+          },
+          {
+            "a_wts": 84481392981473537,
+            "b_wts": 84481392996083459,
+            "key": "0000000000000001",
+            "tx_wts": 84481392997466368
+          },
+          {
+            "a_wts": 84481394135829762,
+            "b_wts": 84481394146221825,
+            "key": "0000000000000000",
+            "tx_wts": 84481394147478274
+          },
+          {
+            "a_wts": 84481397461498625,
+            "b_wts": 84481397481393408,
+            "key": "0000000000000000",
+            "tx_wts": 84481397483053825
+          },
+          {
+            "a_wts": 84481397478496513,
+            "b_wts": 84481397481393408,
+            "key": "0000000000000004",
+            "tx_wts": 84481397487374081
+          },
+          {
+            "a_wts": 84481400828548865,
+            "b_wts": 84481400839073026,
+            "key": "0000000000000000",
+            "tx_wts": 84481400841622787
+          },
+          {
+            "a_wts": 84481402201689858,
+            "b_wts": 84481402224217856,
+            "key": "0000000000000007",
+            "tx_wts": 84481402227741443
+          },
+          {
+            "a_wts": 84481402548924161,
+            "b_wts": 84481402558506752,
+            "key": "0000000000000000",
+            "tx_wts": 84481402560438530
+          },
+          {
+            "a_wts": 84481410663772419,
+            "b_wts": 84481410679224576,
+            "key": "0000000000000003",
+            "tx_wts": 84481410682145026
+          },
+          {
+            "a_wts": 84481411128765185,
+            "b_wts": 84481411138030850,
+            "key": "0000000000000003",
+            "tx_wts": 84481411144218370
+          },
+          {
+            "a_wts": 84481415159534339,
+            "b_wts": 84481415172548354,
+            "key": "0000000000000000",
+            "tx_wts": 84481415174410499
+          },
+          {
+            "a_wts": 84481424096795393,
+            "b_wts": 84481424103704832,
+            "key": "0000000000000000",
+            "tx_wts": 84481424109435649
+          },
+          {
+            "a_wts": 84481425178756354,
+            "b_wts": 84481425192063744,
+            "key": "0000000000000002",
+            "tx_wts": 84481425193958144
+          },
+          {
+            "a_wts": 84481426584841475,
+            "b_wts": 84481426598755584,
+            "key": "0000000000000010",
+            "tx_wts": 84481426602375936
+          },
+          {
+            "a_wts": 84481428925916418,
+            "b_wts": 84481428941536512,
+            "key": "0000000000000000",
+            "tx_wts": 84481428942709505
+          },
+          {
+            "a_wts": 84481443639913728,
+            "b_wts": 84481443654042880,
+            "key": "0000000000000000",
+            "tx_wts": 84481443656111362
+          },
+          {
+            "a_wts": 84481443639913728,
+            "b_wts": 84481443656111362,
+            "key": "0000000000000000",
+            "tx_wts": 84481443656247552
+          },
+          {
+            "a_wts": 84481443960378625,
+            "b_wts": 84481443977531139,
+            "key": "0000000000000005",
+            "tx_wts": 84481443982145794
+          },
+          {
+            "a_wts": 84481447915714307,
+            "b_wts": 84481447928520450,
+            "key": "0000000000000000",
+            "tx_wts": 84481447928835843
+          },
+          {
+            "a_wts": 84481452984847106,
+            "b_wts": 84481452994988288,
+            "key": "0000000000000000",
+            "tx_wts": 84481452996474112
+          },
+          {
+            "a_wts": 84481454086175490,
+            "b_wts": 84481454104773889,
+            "key": "0000000000000000",
+            "tx_wts": 84481454105110274
+          },
+          {
+            "a_wts": 84481459479583490,
+            "b_wts": 84481459495393537,
+            "key": "0000000000000003",
+            "tx_wts": 84481459499389698
+          },
+          {
+            "a_wts": 84481464177527041,
+            "b_wts": 84481464190071552,
+            "key": "0000000000000003",
+            "tx_wts": 84481464191972096
+          },
+          {
+            "a_wts": 84481464306492673,
+            "b_wts": 84481464320326914,
+            "key": "0000000000000000",
+            "tx_wts": 84481464322444544
+          },
+          {
+            "a_wts": 84481473634211072,
+            "b_wts": 84481473651209474,
+            "key": "0000000000000002",
+            "tx_wts": 84481473652268802
+          },
+          {
+            "a_wts": 84481474441517313,
+            "b_wts": 84481474450160896,
+            "key": "0000000000000003",
+            "tx_wts": 84481474451641089
+          },
+          {
+            "a_wts": 84481479805613826,
+            "b_wts": 84481479823904515,
+            "key": "0000000000000006",
+            "tx_wts": 84481479824149250
+          },
+          {
+            "a_wts": 84481481761510146,
+            "b_wts": 84481481769887490,
+            "key": "0000000000000003",
+            "tx_wts": 84481481772531971
+          },
+          {
+            "a_wts": 84481486023636738,
+            "b_wts": 84481486035652867,
+            "key": "0000000000000003",
+            "tx_wts": 84481486037344003
+          },
+          {
+            "a_wts": 84481488537077507,
+            "b_wts": 84481488550469378,
+            "key": "0000000000000000",
+            "tx_wts": 84481488550609152
+          },
+          {
+            "a_wts": 84481488879303937,
+            "b_wts": 84481488890634497,
+            "key": "0000000000000006",
+            "tx_wts": 84481488893917442
+          },
+          {
+            "a_wts": 84481496744194306,
+            "b_wts": 84481496760549121,
+            "key": "0000000000000003",
+            "tx_wts": 84481496761118466
+          },
+          {
+            "a_wts": 84481497680984321,
+            "b_wts": 84481497691430147,
+            "key": "0000000000000001",
+            "tx_wts": 84481497696299779
+          },
+          {
+            "a_wts": 84481498540806401,
+            "b_wts": 84481498554241795,
+            "key": "0000000000000023",
+            "tx_wts": 84481498558590211
+          },
+          {
+            "a_wts": 84481502963689731,
+            "b_wts": 84481502975403267,
+            "key": "0000000000000006",
+            "tx_wts": 84481502978048256
+          },
+          {
+            "a_wts": 84481505861224193,
+            "b_wts": 84481505873049856,
+            "key": "0000000000000094",
+            "tx_wts": 84481505875620611
+          },
+          {
+            "a_wts": 84481511137228035,
+            "b_wts": 84481511150267650,
+            "key": "0000000000000001",
+            "tx_wts": 84481511151170818
+          },
+          {
+            "a_wts": 84481512327408387,
+            "b_wts": 84481512344355072,
+            "key": "0000000000000001",
+            "tx_wts": 84481512344438017
+          },
+          {
+            "a_wts": 84481516205017856,
+            "b_wts": 84481516215554307,
+            "key": "0000000000000017",
+            "tx_wts": 84481516222116097
+          },
+          {
+            "a_wts": 84481518013938435,
+            "b_wts": 84481518024290048,
+            "key": "0000000000000000",
+            "tx_wts": 84481518026214656
+          },
+          {
+            "a_wts": 84481518013938435,
+            "b_wts": 84481518026214656,
+            "key": "0000000000000000",
+            "tx_wts": 84481518026957569
+          },
+          {
+            "a_wts": 84481522202111232,
+            "b_wts": 84481522213796099,
+            "key": "0000000000000002",
+            "tx_wts": 84481522214087936
+          },
+          {
+            "a_wts": 84481524381559555,
+            "b_wts": 84481524401495808,
+            "key": "0000000000000001",
+            "tx_wts": 84481524401679618
+          },
+          {
+            "a_wts": 84481526906845955,
+            "b_wts": 84481526922888960,
+            "key": "0000000000000000",
+            "tx_wts": 84481526925135106
+          },
+          {
+            "a_wts": 84481535324573442,
+            "b_wts": 84481535336779011,
+            "key": "0000000000000000",
+            "tx_wts": 84481535337208066
+          },
+          {
+            "a_wts": 84481539040372993,
+            "b_wts": 84481539057509122,
+            "key": "0000000000000000",
+            "tx_wts": 84481539057623809
+          },
+          {
+            "a_wts": 84481550960937219,
+            "b_wts": 84481550973775617,
+            "key": "0000000000000002",
+            "tx_wts": 84481550974753537
+          },
+          {
+            "a_wts": 84481560382127360,
+            "b_wts": 84481560393695490,
+            "key": "0000000000000003",
+            "tx_wts": 84481560396441856
+          },
+          {
+            "a_wts": 84481561586851072,
+            "b_wts": 84481561600355587,
+            "key": "0000000000000001",
+            "tx_wts": 84481561601531136
+          },
+          {
+            "a_wts": 84481568054515969,
+            "b_wts": 84481568064700674,
+            "key": "0000000000000001",
+            "tx_wts": 84481568069470464
+          },
+          {
+            "a_wts": 84481569615288067,
+            "b_wts": 84481569628218626,
+            "key": "0000000000000000",
+            "tx_wts": 84481569631555331
+          },
+          {
+            "a_wts": 84481570619026178,
+            "b_wts": 84481570638884609,
+            "key": "0000000000000000",
+            "tx_wts": 84481570639832320
+          },
+          {
+            "a_wts": 84481577204257538,
+            "b_wts": 84481577215303937,
+            "key": "0000000000000001",
+            "tx_wts": 84481577216478978
+          },
+          {
+            "a_wts": 84481577635962112,
+            "b_wts": 84481577653842179,
+            "key": "0000000000000002",
+            "tx_wts": 84481577657232642
+          },
+          {
+            "a_wts": 84481579211124992,
+            "b_wts": 84481579221193472,
+            "key": "0000000000000001",
+            "tx_wts": 84481579224144130
+          },
+          {
+            "a_wts": 84481580425664258,
+            "b_wts": 84481580452953345,
+            "key": "0000000000000006",
+            "tx_wts": 84481580457010944
+          },
+          {
+            "a_wts": 84481580495130368,
+            "b_wts": 84481580505422595,
+            "key": "0000000000000000",
+            "tx_wts": 84481580507398915
+          },
+          {
+            "a_wts": 84481581666880771,
+            "b_wts": 84481581675262209,
+            "key": "0000000000000002",
+            "tx_wts": 84481581676789507
+          },
+          {
+            "a_wts": 84481587814506753,
+            "b_wts": 84481587820218627,
+            "key": "0000000000000000",
+            "tx_wts": 84481587823974657
+          },
+          {
+            "a_wts": 84481587834845955,
+            "b_wts": 84481587849885954,
+            "key": "0000000000000002",
+            "tx_wts": 84481587851755778
+          },
+          {
+            "a_wts": 84481591267160322,
+            "b_wts": 84481591283266816,
+            "key": "0000000000000005",
+            "tx_wts": 84481591288835330
+          },
+          {
+            "a_wts": 84481592125106947,
+            "b_wts": 84481592138019584,
+            "key": "0000000000000002",
+            "tx_wts": 84481592142553857
+          },
+          {
+            "a_wts": 84481592735535874,
+            "b_wts": 84481592746930945,
+            "key": "0000000000000004",
+            "tx_wts": 84481592747354370
+          },
+          {
+            "a_wts": 84481592908899586,
+            "b_wts": 84481592918536961,
+            "key": "0000000000000001",
+            "tx_wts": 84481592920421123
+          },
+          {
+            "a_wts": 84481600088137985,
+            "b_wts": 84481600113993474,
+            "key": "0000000000000005",
+            "tx_wts": 84481600114477313
+          },
+          {
+            "a_wts": 84481603053010691,
+            "b_wts": 84481603064071936,
+            "key": "0000000000000000",
+            "tx_wts": 84481603064561923
+          },
+          {
+            "a_wts": 84481603918995715,
+            "b_wts": 84481603931177216,
+            "key": "0000000000000000",
+            "tx_wts": 84481603933575426
+          },
+          {
+            "a_wts": 84481606236577538,
+            "b_wts": 84481606249525505,
+            "key": "0000000000000001",
+            "tx_wts": 84481606249531138
+          },
+          {
+            "a_wts": 84481606236577538,
+            "b_wts": 84481606248613123,
+            "key": "0000000000000001",
+            "tx_wts": 84481606249525505
+          },
+          {
+            "a_wts": 84481609391416065,
+            "b_wts": 84481609406635777,
+            "key": "0000000000000007",
+            "tx_wts": 84481609407741185
+          },
+          {
+            "a_wts": 84481610796535042,
+            "b_wts": 84481610809481474,
+            "key": "0000000000000001",
+            "tx_wts": 84481610810716929
+          },
+          {
+            "a_wts": 84481614468215041,
+            "b_wts": 84481614481444096,
+            "key": "0000000000000000",
+            "tx_wts": 84481614483084033
+          },
+          {
+            "a_wts": 84481617016568579,
+            "b_wts": 84481617029410051,
+            "key": "0000000000000003",
+            "tx_wts": 84481617031152387
+          },
+          {
+            "a_wts": 84481625034866435,
+            "b_wts": 84481625045308163,
+            "key": "0000000000000002",
+            "tx_wts": 84481625048773889
+          },
+          {
+            "a_wts": 84481634404574979,
+            "b_wts": 84481634418090241,
+            "key": "0000000000000002",
+            "tx_wts": 84481634421327106
+          },
+          {
+            "a_wts": 84481637103948034,
+            "b_wts": 84481637117208323,
+            "key": "0000000000000001",
+            "tx_wts": 84481637118591233
+          },
+          {
+            "a_wts": 84481658731158787,
+            "b_wts": 84481658740672771,
+            "key": "0000000000000003",
+            "tx_wts": 84481658744408321
+          },
+          {
+            "a_wts": 84481660909364482,
+            "b_wts": 84481660920783105,
+            "key": "0000000000000000",
+            "tx_wts": 84481660926658817
+          },
+          {
+            "a_wts": 84481662764173058,
+            "b_wts": 84481662774378755,
+            "key": "0000000000000003",
+            "tx_wts": 84481662779994371
+          },
+          {
+            "a_wts": 84481667705455872,
+            "b_wts": 84481667716044545,
+            "key": "0000000000000005",
+            "tx_wts": 84481667721315584
+          },
+          {
+            "a_wts": 84481668079495424,
+            "b_wts": 84481668089481475,
+            "key": "0000000000000002",
+            "tx_wts": 84481668091481859
+          },
+          {
+            "a_wts": 84481679301897986,
+            "b_wts": 84481679310490368,
+            "key": "0000000000000001",
+            "tx_wts": 84481679315619585
+          },
+          {
+            "a_wts": 84481681077358849,
+            "b_wts": 84481681084722433,
+            "key": "0000000000000004",
+            "tx_wts": 84481681090288896
+          },
+          {
+            "a_wts": 84481684414399232,
+            "b_wts": 84481684432344321,
+            "key": "0000000000000006",
+            "tx_wts": 84481684435139329
+          },
+          {
+            "a_wts": 84481688937002754,
+            "b_wts": 84481688947617026,
+            "key": "0000000000000000",
+            "tx_wts": 84481688947765504
+          },
+          {
+            "a_wts": 84481688937002754,
+            "b_wts": 84481688947087105,
+            "key": "0000000000000000",
+            "tx_wts": 84481688947617026
+          },
+          {
+            "a_wts": 84481696499910915,
+            "b_wts": 84481696516193026,
+            "key": "0000000000000000",
+            "tx_wts": 84481696519295746
+          },
+          {
+            "a_wts": 84481696673807619,
+            "b_wts": 84481696688631555,
+            "key": "0000000000000000",
+            "tx_wts": 84481696689511169
+          },
+          {
+            "a_wts": 84481698639858434,
+            "b_wts": 84481698654158083,
+            "key": "0000000000000002",
+            "tx_wts": 84481698655151363
+          },
+          {
+            "a_wts": 84481699609795330,
+            "b_wts": 84481699624639232,
+            "key": "0000000000000001",
+            "tx_wts": 84481699626667264
+          },
+          {
+            "a_wts": 84481700492937473,
+            "b_wts": 84481700505634048,
+            "key": "0000000000000004",
+            "tx_wts": 84481700506179842
+          },
+          {
+            "a_wts": 84481700881024257,
+            "b_wts": 84481700889874179,
+            "key": "0000000000000000",
+            "tx_wts": 84481700890635011
+          },
+          {
+            "a_wts": 84481702110834944,
+            "b_wts": 84481702125587714,
+            "key": "0000000000000001",
+            "tx_wts": 84481702126370562
+          },
+          {
+            "a_wts": 84481707226745089,
+            "b_wts": 84481707239326976,
+            "key": "000000000000001b",
+            "tx_wts": 84481707244728066
+          },
+          {
+            "a_wts": 84481707913490176,
+            "b_wts": 84481707926578946,
+            "key": "0000000000000001",
+            "tx_wts": 84481707928741122
+          },
+          {
+            "a_wts": 84481709447147776,
+            "b_wts": 84481709460570882,
+            "key": "0000000000000002",
+            "tx_wts": 84481709461313282
+          },
+          {
+            "a_wts": 84481711799828738,
+            "b_wts": 84481711810980097,
+            "key": "0000000000000002",
+            "tx_wts": 84481711812416768
+          },
+          {
+            "a_wts": 84481712364408577,
+            "b_wts": 84481712374923521,
+            "key": "0000000000000001",
+            "tx_wts": 84481712377900802
+          },
+          {
+            "a_wts": 84481719512782594,
+            "b_wts": 84481719524214529,
+            "key": "0000000000000004",
+            "tx_wts": 84481719524589314
+          },
+          {
+            "a_wts": 84481722515628288,
+            "b_wts": 84481722525634306,
+            "key": "0000000000000000",
+            "tx_wts": 84481722529680640
+          },
+          {
+            "a_wts": 84481725980704002,
+            "b_wts": 84481726001897219,
+            "key": "0000000000000001",
+            "tx_wts": 84481726003244290
+          },
+          {
+            "a_wts": 84481726257751811,
+            "b_wts": 84481726274315008,
+            "key": "0000000000000001",
+            "tx_wts": 84481726278055682
+          },
+          {
+            "a_wts": 84481726834605313,
+            "b_wts": 84481726844037889,
+            "key": "0000000000000005",
+            "tx_wts": 84481726848226560
+          },
+          {
+            "a_wts": 84481727048711939,
+            "b_wts": 84481727066341120,
+            "key": "0000000000000004",
+            "tx_wts": 84481727074123522
+          },
+          {
+            "a_wts": 84481728924312834,
+            "b_wts": 84481728933454082,
+            "key": "0000000000000001",
+            "tx_wts": 84481728934279425
+          },
+          {
+            "a_wts": 84481731095359235,
+            "b_wts": 84481731104427779,
+            "key": "0000000000000000",
+            "tx_wts": 84481731106907904
+          },
+          {
+            "a_wts": 84481732364721923,
+            "b_wts": 84481732374907651,
+            "key": "0000000000000004",
+            "tx_wts": 84481732378966784
+          },
+          {
+            "a_wts": 84481735759747843,
+            "b_wts": 84481735769725696,
+            "key": "0000000000000005",
+            "tx_wts": 84481735774035203
+          },
+          {
+            "a_wts": 84481738707458307,
+            "b_wts": 84481738719847680,
+            "key": "0000000000000001",
+            "tx_wts": 84481738720562947
+          },
+          {
+            "a_wts": 84481739239488256,
+            "b_wts": 84481739250939648,
+            "key": "0000000000000001",
+            "tx_wts": 84481739252799233
+          },
+          {
+            "a_wts": 84481741545696003,
+            "b_wts": 84481741557676291,
+            "key": "0000000000000001",
+            "tx_wts": 84481741559373570
+          },
+          {
+            "a_wts": 84481746820735233,
+            "b_wts": 84481746827599107,
+            "key": "0000000000000000",
+            "tx_wts": 84481746829871361
+          },
+          {
+            "a_wts": 84481751676071682,
+            "b_wts": 84481751685934848,
+            "key": "0000000000000002",
+            "tx_wts": 84481751686181635
+          },
+          {
+            "a_wts": 84481752646717696,
+            "b_wts": 84481752661733635,
+            "key": "0000000000000000",
+            "tx_wts": 84481752664082690
+          },
+          {
+            "a_wts": 84481756198164736,
+            "b_wts": 84481756206787843,
+            "key": "0000000000000005",
+            "tx_wts": 84481756208806659
+          },
+          {
+            "a_wts": 84481758206260995,
+            "b_wts": 84481758215820546,
+            "key": "0000000000000000",
+            "tx_wts": 84481758215995651
+          },
+          {
+            "a_wts": 84481759798940417,
+            "b_wts": 84481759812463362,
+            "key": "0000000000000000",
+            "tx_wts": 84481759813263619
+          },
+          {
+            "a_wts": 84481761447648002,
+            "b_wts": 84481761462066432,
+            "key": "0000000000000000",
+            "tx_wts": 84481761462929155
+          },
+          {
+            "a_wts": 84481772620793091,
+            "b_wts": 84481772630632194,
+            "key": "0000000000000005",
+            "tx_wts": 84481772631188739
+          },
+          {
+            "a_wts": 84481773148709634,
+            "b_wts": 84481773158620419,
+            "key": "0000000000000000",
+            "tx_wts": 84481773160076547
+          },
+          {
+            "a_wts": 84481784792736515,
+            "b_wts": 84481784806018819,
+            "key": "0000000000000000",
+            "tx_wts": 84481784808514819
+          },
+          {
+            "a_wts": 84481786227005699,
+            "b_wts": 84481786238677250,
+            "key": "0000000000000000",
+            "tx_wts": 84481786238685953
+          },
+          {
+            "a_wts": 84481787982713090,
+            "b_wts": 84481787994833664,
+            "key": "0000000000000001",
+            "tx_wts": 84481787996654851
+          },
+          {
+            "a_wts": 84481788131996930,
+            "b_wts": 84481788142958339,
+            "key": "0000000000000002",
+            "tx_wts": 84481788145192704
+          },
+          {
+            "a_wts": 84481788633911040,
+            "b_wts": 84481788644825345,
+            "key": "0000000000000001",
+            "tx_wts": 84481788646512384
+          },
+          {
+            "a_wts": 84481789529716482,
+            "b_wts": 84481789544468739,
+            "key": "0000000000000004",
+            "tx_wts": 84481789546137346
+          },
+          {
+            "a_wts": 84481793426407682,
+            "b_wts": 84481793436671746,
+            "key": "0000000000000004",
+            "tx_wts": 84481793437580033
+          },
+          {
+            "a_wts": 84481795102479617,
+            "b_wts": 84481795119875328,
+            "key": "0000000000000002",
+            "tx_wts": 84481795120708352
+          },
+          {
+            "a_wts": 84481801017127169,
+            "b_wts": 84481801027630848,
+            "key": "0000000000000000",
+            "tx_wts": 84481801035669249
+          },
+          {
+            "a_wts": 84481801406176515,
+            "b_wts": 84481801421669120,
+            "key": "0000000000000002",
+            "tx_wts": 84481801422270211
+          },
+          {
+            "a_wts": 84481805046747906,
+            "b_wts": 84481805056184577,
+            "key": "0000000000000000",
+            "tx_wts": 84481805058241794
+          },
+          {
+            "a_wts": 84481809142478083,
+            "b_wts": 84481809155271937,
+            "key": "0000000000000002",
+            "tx_wts": 84481809158490882
+          },
+          {
+            "a_wts": 84481809291225345,
+            "b_wts": 84481809304030464,
+            "key": "0000000000000001",
+            "tx_wts": 84481809305105666
+          },
+          {
+            "a_wts": 84481809310976769,
+            "b_wts": 84481809325714688,
+            "key": "0000000000000001",
+            "tx_wts": 84481809326013185
+          },
+          {
+            "a_wts": 84481809583513347,
+            "b_wts": 84481809594222337,
+            "key": "0000000000000001",
+            "tx_wts": 84481809594886402
+          },
+          {
+            "a_wts": 84481817411614977,
+            "b_wts": 84481817429706498,
+            "key": "0000000000000000",
+            "tx_wts": 84481817432874755
+          }
+        ],
+        "break_fired": "CICADA_BREAK_FIRED slug=promotion-ronly-stale-recheck reached=189 changed=183 committed=176",
+        "c_lines": 1540140,
+        "commit_count": 1540140,
+        "integrity_numeric": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "rc": 1,
+        "read_wts_mismatch": 0,
+        "record_name": "no_cycle_upper_bound_indeterminate",
+        "total_cycles": 308,
+        "witness_cycles_reported": 20,
+        "witness_cycles_with_event": 18,
+        "witness_cycles_with_event_key_on_edge": 18
+      },
+      "workload": "R"
+    }
+  ],
+  "status": "observed"
+}

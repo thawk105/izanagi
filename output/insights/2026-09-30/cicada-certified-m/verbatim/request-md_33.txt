@@ -1,0 +1,32 @@
+md_33: Cicada の正しさの記録を中間案 M の水準へ上げる (M の実装、T-2874)
+
+最初に同じ directory の common.txt を読むこと。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、本文に「記録の水準は中間案 M に決定 (D2305 項 4)」を含む item を grep して対象とする (T 番号は固定しない)。
+
+■ 目的
+Cicada の判定器は巡回が無い履歴を indeterminate としか言えず、U0 の典型的な失敗 (既読版の早すぎる回収・再利用) は今の検査の盲点にある
+(output/insights/2026-09-29/cicada-certified-evidence-design/README.md §1 項 3・§5)。D2305 項 4 で中間案 M が採られた。M を実装し、
+「TRACE ビルドで、生存中の tx が読んだ版が回収・再利用されていないこと、公開した全版が記録されていることを全 tx で照合し、違反 0」と書ける状態にする。
+
+■ やること
+1. md_24 の設計 (同 README の M の節、B = 読み束縛・U = 公開の双方向照合・P = write set の置換保存のうち M が採るもの) を読み、見積り (計装 +150〜250 行、計算 0.22〜0.36 node 時間) の範囲で実装する。Codex author。
+2. 段 1 で扱うこと: M の対象 (`INLINE_VERSION_OPT=0`) と比較相手の最良設定 (`INLINE_VERSION_OPT=1`) が食い違う (論文ストーリー 3 版目 docs/paper-story-vhash/2026-09-30.md §4.5)。inline 版の経路を M の照合に含めるか、最良設定を M の範囲外と明記するかを決め、根拠を書く。
+3. 記録はすべて `#if TRACE` の内側 (D14、絶対規律 1)。TRACE=0 の命令列が変わらないことを確かめる。
+4. 正例: 設計が挙げる壊し 2 本 (既読版の早すぎる回収、公開の記録漏れ など) を patches/broken-cicada-*.patch として作り、照合が違反として検出し帰属することを確かめる。md_14 の仮裁定 P5 型 (安全点で下限を最新へ上げる) を壊しの 1 本に使ってよい。
+5. 負例: stock (最良設定と既定) と、forwarding / GC 接続の試作 (md_21 の E-max) の小走行で違反 0 を確かめる。巡回の検査と M の照合の両方を回す。
+6. 論文に書ける文と書けない文を、設計の表に沿って更新する (「Cicada が一般に serializable」とは書かない)。
+
+■ 成果物
+- 計装・起動器・壊し 2 本 (置き場は設計に従う。repo に入れるものは Codex author)、ledger・README の該当 entry。
+- 一次資料: output/insights/<着手日>/cicada-certified-m/README.md (実装、段 1 の判断、正例・負例、TRACE=0 の確認、書ける文)。
+- spool fragment (対象 item の完了または更新)。
+
+■ 所有
+M の計装と起動器、patches/broken-cicada-* の新規 (md_32 が作るものと名前を分ける)、ledger・README の該当 entry、自分の一次資料と fragment。
+patches/instr-cicada-trace*.patch を変える必要が出たら、段 4 で他 wave との重複を確かめてから最小限にする。
+external/ccbench の branch (md_32)、patches/cicada-forwarding-* と tools/vhash_forwarding_model/ (md_31)、patches/instr-cicada-version-lifetime.patch と md_2 の driver (md_29)、patches/cicada-interval-gc-* (md_18) は触らない。
+
+■ 注意
+- 正しさの防壁に触る wave なので、軽量版でも段 3 の相談と段 6 の review を省かない。計算ノードは合計 2 node 時間未満。

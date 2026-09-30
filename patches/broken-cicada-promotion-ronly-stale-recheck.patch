@@ -1,0 +1,155 @@
+diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -49,6 +49,35 @@
+ #else
+ #line 37
+ #endif
++#if TRACE
++namespace cicada_break {
++struct Event {
++  uint64_t tx, a, b;
++  std::string key;
++};
++inline std::atomic<uint64_t> reached{0}, changed{0}, committed{0};
++inline std::string hex(std::string_view key) {
++  static constexpr char digits[] = "0123456789abcdef";
++  std::string out;
++  for (unsigned char c : key) {
++    out += digits[c >> 4];
++    out += digits[c & 15];
++  }
++  return out;
++}
++struct Report {
++  ~Report() {
++    std::fprintf(stderr,
++                 "CICADA_BREAK_FIRED slug=promotion-ronly-stale-recheck "
++                 "reached=%llu changed=%llu committed=%llu\n",
++                 (unsigned long long) reached.load(),
++                 (unsigned long long) changed.load(),
++                 (unsigned long long) committed.load());
++  }
++};
++inline Report report;
++} // namespace cicada_break
++#endif
+ class TxExecutor {
+ public:
+   TransactionStatus status_ = TransactionStatus::invalid;
+@@ -67,6 +96,21 @@
+ 
+   bool reconnoitering_ = false;
+   bool is_ronly_ = false;
++#if TRACE
++  std::vector<size_t> break_promoted_read_indexes_;
++  std::vector<cicada_break::Event> break_events_;
++  void breakCommit() {
++    for (const auto& e : break_events_) {
++      cicada_break::committed.fetch_add(1, std::memory_order_relaxed);
++      std::fprintf(stderr,
++                   "CICADA_BREAK_EVENT slug=promotion-ronly-stale-recheck "
++                   "tx_wts=%llu key=%s a_wts=%llu b_wts=%llu\n",
++                   (unsigned long long) e.tx, cicada_break::hex(e.key).c_str(),
++                   (unsigned long long) e.a, (unsigned long long) e.b);
++    }
++    break_events_.clear();
++  }
++#endif
+   bool is_batch_ = false;
+ 
+   uint8_t thid_ = 0;
+@@ -220,17 +264,24 @@
+                               Version* later_ver, Version* ver) {
+     if (ver != &(tuple->inline_ver_) &&
+         MinRts.load(std::memory_order_acquire) > ver->ldAcqWts() &&
+-        !is_ronly_ &&
+         tuple->inline_ver_.status_.load(std::memory_order_acquire) ==
+             VersionStatus::unused) {
+-      // Read-only transactions use an rts snapshot and do not validate reads;
+-      // promotion would turn that snapshot read into an unvalidated write.
++#if TRACE
++      const bool break_was_ronly = is_ronly_;
++#endif
+       const size_t write_set_size = write_set_.size();
+       update(s, key, TupleBody(ver->body_));
+       if (status_ != TransactionStatus::aborted &&
+           write_set_.size() == write_set_size + 1) {
+         write_set_.back().from_promotion_ = true;
++#if TRACE
++        if (break_was_ronly) {
++          if (auto* re = searchReadSet(s, key))
++            break_promoted_read_indexes_.push_back(re - read_set_.data());
++        }
++#endif
+       }
++      if (this->is_ronly_) this->is_ronly_ = false;
+     }
+     (void) later_ver; // read_internal() already recorded this read.
+   }
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -32,6 +32,10 @@
+  * @return void
+  */
+ void TxExecutor::begin() {
++#if TRACE
++  break_promoted_read_indexes_.clear();
++  break_events_.clear();
++#endif
+   /**
+    * Allocate timestamp in read phase.
+    */
+@@ -576,6 +580,33 @@
+       result = false;
+       goto FINISH_VALIDATION;
+     }
++#if TRACE
++    bool break_promoted_read = false;
++    for (size_t index : break_promoted_read_indexes_) {
++      if (index == static_cast<size_t>(itr - read_set_.begin())) {
++        break_promoted_read = true;
++        break;
++      }
++    }
++    if (break_promoted_read && (*itr).later_ver_) {
++      cicada_break::reached.fetch_add(1, std::memory_order_relaxed);
++      Version* newest = (*itr).rcdptr_->ldAcqLatest();
++      while (newest->ldAcqWts() >= this->wts_.ts_) newest = newest->ldAcqNext();
++      while (newest->ldAcqStatus() == VersionStatus::pending)
++        ;
++      while (newest->ldAcqStatus() != VersionStatus::committed &&
++             newest->ldAcqStatus() != VersionStatus::deleted) {
++        newest = newest->ldAcqNext();
++        while (newest->ldAcqStatus() == VersionStatus::pending)
++          ;
++      }
++      if (newest != ver) {
++        cicada_break::changed.fetch_add(1, std::memory_order_relaxed);
++        break_events_.push_back(
++            {wts_.ts_, ver->ldAcqWts(), newest->ldAcqWts(), (*itr).key_});
++      }
++    }
++#endif
+   }
+ 
+   /**
+@@ -752,6 +776,9 @@
+  * @return void
+  */
+ void TxExecutor::abort() {
++#if TRACE
++  break_events_.clear();
++#endif
+   // remove inserted records
+   std::vector<Tuple*> inserted_tuples;
+   for (auto& we : write_set_) {
+@@ -923,6 +950,7 @@
+   if (FLAGS_s_wal) swal();*/
+ 
+ #if TRACE
++  breakCommit();
+   traceCommit();
+ #else
+ #line 909

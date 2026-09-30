@@ -1,0 +1,72 @@
+== c2r1
+[r2-pair-job] 2026-10-01 03:20:07 JST host bnode018 jobid 0:40205.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r1 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-2.json sha256 f0a0afdabd98f49daea2aa5645675fef79c4a6b908a8b0a88aabdceb00b78e74
+[r2-pair-job] 2026-10-01 03:20:07 JST cand start
+[r2-pair-job] 2026-10-01 03:27:29 JST cand end rc=0
+[r2-pair-job] 2026-10-01 03:27:29 JST stock start
+[r2-pair-job] 2026-10-01 03:32:35 JST stock end rc=0
+[r2-pair-job] 2026-10-01 03:32:35 JST summary cand_rc=0 stock_rc=0
+Created Request Time:   Thu Oct  1 03:19:55 2026
+Started Request Time:   Thu Oct  1 03:20:07 2026
+Ended Request Time:     Thu Oct  1 03:32:35 2026
+  Elapse:               752S
+  Remaining Elapse:     1648S
+== c3r1
+[r2-pair-job] 2026-10-01 04:04:27 JST host bnode014 jobid 0:40213.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r1 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-3.json sha256 4900e27860f584232562e24e542127835db6c7c8f02751ba098d837b93dc7c71
+[r2-pair-job] 2026-10-01 04:04:27 JST cand start
+[r2-pair-job] 2026-10-01 04:11:34 JST cand end rc=0
+[r2-pair-job] 2026-10-01 04:11:34 JST stock start
+[r2-pair-job] 2026-10-01 04:16:38 JST stock end rc=0
+[r2-pair-job] 2026-10-01 04:16:38 JST summary cand_rc=0 stock_rc=0
+Created Request Time:   Thu Oct  1 04:04:20 2026
+Started Request Time:   Thu Oct  1 04:04:27 2026
+Ended Request Time:     Thu Oct  1 04:16:38 2026
+  Elapse:               735S
+  Remaining Elapse:     1665S
+== c4r1
+[r2-pair-job] 2026-10-01 04:04:37 JST host bnode017 jobid 0:40214.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r1 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-4.json sha256 4f7e78a0606c1be9e753063f66444b5987565b4ff8cdc4b67ba79f4978b54b10
+[r2-pair-job] 2026-10-01 04:04:37 JST cand start
+[r2-pair-job] 2026-10-01 04:13:45 JST cand end rc=0
+[r2-pair-job] 2026-10-01 04:13:45 JST stock start
+[r2-pair-job] 2026-10-01 04:18:39 JST stock end rc=0
+[r2-pair-job] 2026-10-01 04:18:39 JST summary cand_rc=0 stock_rc=0
+Created Request Time:   Thu Oct  1 04:04:26 2026
+Started Request Time:   Thu Oct  1 04:04:37 2026
+Ended Request Time:     Thu Oct  1 04:18:39 2026
+  Elapse:               846S
+  Remaining Elapse:     1554S
+== c2r2
+[r2-pair-job] 2026-10-01 04:04:42 JST host bnode018 jobid 0:40215.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r2 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-2.json sha256 f0a0afdabd98f49daea2aa5645675fef79c4a6b908a8b0a88aabdceb00b78e74
+[r2-pair-job] 2026-10-01 04:04:42 JST cand start
+[r2-pair-job] 2026-10-01 04:12:07 JST cand end rc=0
+[r2-pair-job] 2026-10-01 04:12:07 JST stock start
+[r2-pair-job] 2026-10-01 04:17:07 JST stock end rc=0
+[r2-pair-job] 2026-10-01 04:17:07 JST summary cand_rc=0 stock_rc=0
+Created Request Time:   Thu Oct  1 04:04:35 2026
+Started Request Time:   Thu Oct  1 04:04:42 2026
+Ended Request Time:     Thu Oct  1 04:17:07 2026
+  Elapse:               749S
+  Remaining Elapse:     1651S
+== c3r2
+[r2-pair-job] 2026-10-01 04:09:00 JST host bnode021 jobid 0:40219.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2b head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-3.json sha256 4900e27860f584232562e24e542127835db6c7c8f02751ba098d837b93dc7c71
+[r2-pair-job] 2026-10-01 04:09:00 JST cand start
+[r2-pair-job] 2026-10-01 04:16:07 JST cand end rc=0
+[r2-pair-job] 2026-10-01 04:16:07 JST stock start
+[r2-pair-job] 2026-10-01 04:20:41 JST stock end rc=0
+[r2-pair-job] 2026-10-01 04:20:41 JST summary cand_rc=0 stock_rc=0
+Created Request Time:   Thu Oct  1 04:08:49 2026
+Started Request Time:   Thu Oct  1 04:09:00 2026
+Ended Request Time:     Thu Oct  1 04:20:41 2026
+  Elapse:               705S
+  Remaining Elapse:     1695S
+== c4r2
+[r2-pair-job] 2026-10-01 04:09:08 JST host bnode046 jobid 0:40220.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r2 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-4.json sha256 4f7e78a0606c1be9e753063f66444b5987565b4ff8cdc4b67ba79f4978b54b10
+[r2-pair-job] 2026-10-01 04:09:08 JST cand start
+[r2-pair-job] 2026-10-01 04:18:21 JST cand end rc=0
+[r2-pair-job] 2026-10-01 04:18:21 JST stock start
+[r2-pair-job] 2026-10-01 04:23:19 JST stock end rc=0
+[r2-pair-job] 2026-10-01 04:23:19 JST summary cand_rc=0 stock_rc=0
+Created Request Time:   Thu Oct  1 04:08:55 2026
+Started Request Time:   Thu Oct  1 04:09:08 2026
+Ended Request Time:     Thu Oct  1 04:23:19 2026
+  Elapse:               855S
+  Remaining Elapse:     1545S

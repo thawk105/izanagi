@@ -1,0 +1,143 @@
+{
+  "builds": {},
+  "ci_format_evidence": {
+    "path": "/work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/format-tip.log",
+    "sha256": "cfa32f6131e469944076d825af015e9d50ecfbd6faea0a17b5839fb7608eb075",
+    "summary_lines": [
+      "Ubuntu clang-format version 14.0.0-1ubuntu1.1",
+      "format files=213",
+      "format rc=0",
+      "Ubuntu clang-format version 14.0.6",
+      "format files=213",
+      "format rc=0"
+    ]
+  },
+  "ci_image": {
+    "argv": [
+      "bash",
+      "/work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/confirm/run_ci_image.sh",
+      "/work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/tip.bundle",
+      "16ad3eb8ca5f7bb3aea789bff99958e2192f6714",
+      "/work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/images/ccbench-devcontainer-ci.sif",
+      "/work/1/SFC/tanab/izanagi-thirdparty-cache",
+      "/scr",
+      "/work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/evidence/confirm-ci-4/ci-image"
+    ],
+    "rc": 0
+  },
+  "d297_probe": {
+    "argv": [
+      "python3",
+      "/work/1/SFC/tanab/izanagi/.codex/worktrees/md32promo-d/tools/check_trace0_preprocess_identity.py",
+      "--repo",
+      "/scr/md32-confirm-s8vuhkdm/src-probe",
+      "--old",
+      "68106660686232781bca3be792a750d3e19d7a8a",
+      "--new",
+      "727c1cb1c4e313ac689f06313d879bd361705be2",
+      "--cxx",
+      "g++-11",
+      "--header-cc",
+      "gcc-11",
+      "--third-party-cache",
+      "/work/1/SFC/tanab/izanagi-thirdparty-cache",
+      "--dependency-prefix",
+      "/work/1/SFC/tanab/izanagi-a2-deps",
+      "--scratch-root",
+      "/scr"
+    ],
+    "rc": 0,
+    "stderr": ""
+  },
+  "d297_probe_passed": true,
+  "d297_probe_tree_identity": {
+    "cicada_tree_matches_pin_c": true,
+    "outside_cicada_matches_tip": true,
+    "pin_c_cicada_tree": "0db663e41a86eb3cffc91045e0399cb965f3aa1b",
+    "probe_cicada_tree": "0db663e41a86eb3cffc91045e0399cb965f3aa1b",
+    "probe_outside_cicada_manifest_sha256": "33e565646c09b0063b6985bf04ce29004b6d34a10d0c97739a0c99c3a1a8ac50",
+    "tip_outside_cicada_manifest_sha256": "33e565646c09b0063b6985bf04ce29004b6d34a10d0c97739a0c99c3a1a8ac50"
+  },
+  "d297_tip_rejected_as_expected": true,
+  "d297_tip_rejection": {
+    "argv": [
+      "python3",
+      "/work/1/SFC/tanab/izanagi/.codex/worktrees/md32promo-d/tools/check_trace0_preprocess_identity.py",
+      "--repo",
+      "/scr/md32-confirm-s8vuhkdm/src-ci",
+      "--old",
+      "68106660686232781bca3be792a750d3e19d7a8a",
+      "--new",
+      "16ad3eb8ca5f7bb3aea789bff99958e2192f6714",
+      "--cxx",
+      "g++-11",
+      "--header-cc",
+      "gcc-11",
+      "--third-party-cache",
+      "/work/1/SFC/tanab/izanagi-thirdparty-cache",
+      "--dependency-prefix",
+      "/work/1/SFC/tanab/izanagi-a2-deps",
+      "--scratch-root",
+      "/scr"
+    ],
+    "rc": 1,
+    "stderr": "error: \u9078\u5b9a\u3057\u305f macro context \u306b\u304a\u3051\u308b TRACE=0 \u6b63\u898f\u5316 preprocess \u51fa\u529b\u306e\u540c\u4e00\u6027\u3001\u304a\u3088\u3073 include \u6d3b\u6027\u306e\u540c\u4e00\u6027\u3092\u78ba\u8a8d\u3067\u304d\u306a\u3044: source_digest: cc/cicada/transaction.cc \u306e\u6761\u4ef6\u6307\u4ee4\u304c\u672a\u77e5\u30de\u30af\u30ed ['INLINE_VERSION_OPT', 'INLINE_VERSION_PROMOTION', 'SINGLE_EXEC', 'WORKER1_INSERT_DELAY_RPHASE'] \u3092\u53c2\u7167 \u2014 \u5b9f TU \u4f9b\u7d66\u30de\u30af\u30ed\u30fb\u5148\u884c\u3059\u308b #define\u30fbCONTEXT_MACROS\u30fbbuiltin \u306e\u3044\u305a\u308c\u3067\u3082\u306a\u304f\u3001digest \u306f\u3053\u306e\u6761\u4ef6\u679d\u3092\u3069\u306e\u6587\u8108\u3067\u3082\u8986\u3048\u306a\u3044 (TU \u6ce8\u5165\u30de\u30af\u30ed GLOBAL_VALUE_DEFINE \u578b\u306e identity \u6b7b\u89d2\u3001\u507d cache hit \u306e\u904b\u3073\u5c4b) \u305f\u3081 fails-closed \u3067\u505c\u6b62 (T-148)\u3002\u65e2\u77e5\u306e\u6587\u8108\u30de\u30af\u30ed\u306a\u3089 CONTEXT_MACROS \u3078\u306e\u767b\u9332 (= \u4e21\u6587\u8108 digest \u5316) \u304c\u6b63\u3057\u3044\u5c01\u9396\u3067\u3001\u3053\u306e\u691c\u67fb\u306e\u7de9\u548c\u3067\u306f\u306a\u3044 (\u898f\u5f8b2)\u3002\n"
+  },
+  "errors": [],
+  "fixed_tip_failures": [],
+  "hostname": "bnode023",
+  "identity": {
+    "base_bundle_sha256": "5273d8c7779c17f90628261ebd07f37b5d02b8285d6cd600d406aaaafc05585f",
+    "base_oid": "aa8e36f1669001e75a6d6da9609287dcc9f9d29b",
+    "patch_sha256": {
+      "broken": "bdeb527d329d277ca310189abb416a7f6f4341a2b5e5ce6beb452b925bf16668",
+      "diag": "feaab9b6a98baf4be13cdb93e4cc7478ae5eeaf41aa3830a247dd5bfd8c1b3a3",
+      "fix1": "eac73cb9900fb2bfad6c06a3e22ac5ee7ba2aec3797458845837208b034bde90",
+      "fix2": "64759cbba21dd60961ca4b93f9d4174cafb466df98c621fe4ed7f476f409eab8",
+      "fix3": "beb381298f40ab0bcad76f0fcf8a42046260e82866bfdb73669e638a7c2a54f5",
+      "fix4": "a5575bd4babfba59b361c0ceebb4be9e95550ab9a896342c923d16545e94726b",
+      "tpcc": "3ff97f05c458e804ba401d5eb3a850c42bc0c02155584a34dad1d4110b0acda4",
+      "trace": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5"
+    },
+    "tip_bundle_sha256": "4b955c51d7aaa594b9f733f6de81e0d21fc3d94bb7cc3c6f7d8e955bbfba9d3d",
+    "tip_oid": "16ad3eb8ca5f7bb3aea789bff99958e2192f6714",
+    "verifier_head": "89335134f0d11199b597bc466c63f1dc0800bde5"
+  },
+  "other_ccbench": [],
+  "part": "ci",
+  "patch_apply_table": {
+    "broken": [
+      {
+        "patch": "trace",
+        "rc": 0,
+        "stderr": ""
+      },
+      {
+        "patch": "broken",
+        "rc": 0,
+        "stderr": ""
+      }
+    ],
+    "tpcc": [
+      {
+        "patch": "trace",
+        "rc": 0,
+        "stderr": ""
+      },
+      {
+        "patch": "tpcc",
+        "rc": 0,
+        "stderr": ""
+      }
+    ],
+    "trace": [
+      {
+        "patch": "trace",
+        "rc": 0,
+        "stderr": ""
+      }
+    ]
+  },
+  "runs": [],
+  "status": "observed"
+}

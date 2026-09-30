@@ -1,0 +1,232 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 5400,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0-docstring-equivalent",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "\"\"\"Pinned Cicada hot block experiment. All throughput is exploratory.\"\"\"\n",
+     "new": "\"\"\"Pinned Cicada hot block experiment. Every throughput is exploratory.\"\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-estimate-trace-two-times-max",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "        trace_jobs = [len(plan_trace(j)) * trace_wall for j in (0, 1)]\n",
+     "new": "        trace_jobs = [max(len(plan_trace(j)) for j in (0, 1)) * trace_wall] * 2\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-count-v1-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "    if (not isinstance(value, dict) or value.get(\"schema_version\") != 2 or\n",
+     "new": "    if (not isinstance(value, dict) or value.get(\"schema_version\") not in (1, 2) or\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-pair-crosses-job",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "                    if (not r.get(\"job_id\") or r[\"job_id\"] != ref.get(\"job_id\") or\n",
+     "new": "                    if (not r.get(\"job_id\") or\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-cycle-arm-not-disqualified",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "    failed = {r[\"arm\"] for r in traces if r[\"build_kind\"] == \"trace\" and\n",
+     "new": "    failed = {\"-\" for r in traces if r[\"build_kind\"] == \"trace\" and\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-stale-gap-dropped-from-trace-plan",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "        broken = (*BROKEN, \"B2-probe\")\n",
+     "new": "        broken = (*(b for b in BROKEN if b != \"stale-gap\"), \"B2-probe\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-post-arm-dropped-in-a-round",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))]\n",
+     "new": "            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))\n            if not (round_index == 1 and arm == \"post-k1\")]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-post-overlay-dropped-from-build",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "            if arm.startswith(\"post-\"):\n                patches.append(POST)\n",
+     "new": "            if False:\n                patches.append(POST)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-fig-write-wait-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_cicada_hot_block.py",
+     "old": "                       [float(wait) if wait is not None else 0 for _, _, wait, _ in bars],\n",
+     "new": "                       [0 for _, _, wait, _ in bars],\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-post-count-line-optional",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "    if len(post) != int(arm.startswith(\"post-\")):\n",
+     "new": "    if len(post) > 1:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-probe-join-partial",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "            if changed != reads:\n",
+     "new": "            if reads and not (set(changed) & set(reads)):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11-b2-old-prediction",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "    return {\"status\": \"unreached\" if fired[\"reached\"] == 0 else\n",
+     "new": "    return {\"status\": \"prediction-failed\" if fired[\"committed\"] > 0 else\n            \"unreached\" if fired[\"reached\"] == 0 else\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12-fig-write-source-overwritten",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/plotting/plot_vhash_cicada_hot_block.py",
+     "old": "    _save(fig, output / \"fig-write\", data, source)\n",
+     "new": "    _save(fig, output / \"fig-write\", data, (bars and value) or source)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13-undetermined-line-optional",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "        if len(undetermined) != 1 or undetermined[0] is None:\n",
+     "new": "        if len(undetermined) > 1:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-positive-timeout-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "        if r[\"build_kind\"] == \"trace\" and (r[\"rc\"] != 0 or not r.get(\"trace\") or\n",
+     "new": "        if r[\"build_kind\"] == \"trace\" and r[\"rc\"] != 124 and (r[\"rc\"] != 0 or not r.get(\"trace\") or\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15-dead-line-optional",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+     "old": "        if len(dead) != 1 or dead[0] is None or dead[0][1] != slug:\n",
+     "new": "        if len(dead) > 1:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
