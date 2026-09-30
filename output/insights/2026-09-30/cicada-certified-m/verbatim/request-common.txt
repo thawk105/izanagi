@@ -1,0 +1,44 @@
+VHash 論文の並行 wave 共通指示 (2026-09-29、ユーザー依頼により親セッションが作成)
+
+この file は同じ directory の md_N.txt の全 wave が最初に読む共通指示である。個別の md_N.txt と食い違ったら md_N.txt を優先する。
+CLAUDE.md の絶対規律と dev-wave の契約はこの file より常に優先する。
+
+1. 背景と入口
+   - 論文ストーリー系列 `docs/paper-story-vhash/` (D2277 前後で新設。実番号は decisions.md で「VHash と timestamp forwarding の論文を 3 本目」を grep)。
+   - wave の作業ツリーに `docs/paper-story-vhash/` がまだ無い場合 (親セッションの取り込みより先に着手した場合) は、同じ中身の複製
+     `/work/1/SFC/tanab/tmp/vhash-2026-09-29/docs-snapshot/` (README.md・2026-09-29.md・source-memo-2026-09-29.md) を読む。
+     段 1 で止まらずに進めてよい。docs-snapshot を repo へ写さない。台帳の対象 item の探し方は各 md_N.txt に従う。
+   - まず `docs/paper-story-vhash/README.md` を読み、次に README が指す最新版 (2026-09-29 夜の時点で `2026-09-29b.md`) のうち自分の主題に関係する節だけを読む。
+   - 出典メモ `source-memo-2026-09-29.md` は構想の記録であって一次資料ではない。メモが文献について書いていることは、原典で確かめるまで事実として書かない。
+   - 並行して他の VHash wave が走る。他 wave の成果物が main に無いことを前提に進める。他 wave の完了を待たない。
+
+2. 書いてよい場所・書いてはいけない場所
+   - 書かない: `docs/paper-story-vhash/` の README・版・出典メモ (次の版の wave だけが扱う)。external/ccbench の gitlink (submodule を進めない)。
+   - 一次資料: `output/insights/<着手日>/vhash-<主題>/README.md` (主題は各 md_N.txt が指定)。値のある図はここに生成器付きで置く (`tools/plotting/FIGURE_CONVENTIONS.md`、作図は計測機の外)。
+   - 台帳: `docs/spool/` の fragment だけ (worklog・decisions・failures)。対象の item は md_N.txt の「台帳の項目の探し方」で探す。
+   - CCBench の改変: D16 / D18 / D20 の分類に従い、既定で元と挙動が一致する inert patch として `patches/` に置く。`patches/ledger.json` は複数 wave が追記しうる。main 取り込みで衝突したら両方の entry を残す。
+   - 編集面は各 md_N.txt の「所有」に限る。所有外の file は読むだけにする。
+
+3. 計算と計測
+   - 新規 evidence は Pegasus で取る (`docs/pegasus-runbook.md`)。重い処理は計算ノードへ。login node で計測しない。
+   - 1 タスクの job 合計が 2 node 時間以上になる見込みなら、投入せず見積り (条件数 × 1 条件の所要) を一次資料に書いて止め、最終報告でユーザーに確認を求める。2 node 時間未満なら確認不要。
+   - 条件は複数ノードへ割って同時に投げる。1 ノードで何時間も直列に流さない。
+   - 性能比較には同時刻の対照を置く。1 走の前後比較で結論を書かない。
+   - 観測者効果の分離 (絶対規律 1): 正しさ検査用トレースと診断計器を入れたビルドの throughput を性能値として使わない。性能値は trace も計器も外したビルドで、比較相手も同じ条件で測る。
+   - job の一時 file は `/work/SFC/tanab/tmp/<作業名>-<日付>/` に置く。home に置かない。
+
+4. 正しさの扱い
+   - Cicada の trace と判定器は md_3・md_17 で整備済み (D2279・D2294、patches/instr-cicada-trace*.patch)。ただし判定の上限は indeterminate であって certified ではない。
+   - 検査を通していない variant の性能値は「未検証の診断値」と明記し、採否・headline・「serializable」の根拠にしない (絶対規律 2)。
+   - 検査器が anomaly を出した variant は即失格。検査を甘くして通す変更をしない。
+
+5. 報告
+   - 一次資料には「何を確かめ、何を確かめていないか」を分けて書く。数値・件数・「無い」という主張は、実測の生出力と照合できる形で残す。
+   - 最終報告は日本語の平易な文で、次の版 (`docs/paper-story-vhash/` 2 版目) に使える結論・図・限界を短くまとめる。
+
+6. main への land と作業ツリーの撤去 (2026-09-29 夜に追記、land 調整役の依頼)
+   - land 調整役のセッション「manager: parallel land」が、main への land と worktree 撤去の順番を調整している。
+   - land するときは、この名前宛てに「LAND-READY <wave> 実際に land へ渡す受領証の緑時刻 受領証 path」を申告し、調整役の PREP / GO を待ってから land を 1 回起動する。
+   - 撤去は「CLEANUP-READY <wave>」で申告し、OK を待つ。撤去ツールは repo 全体で同時 1 本。rc=75 は数分空けて再試行。`git worktree prune` は候補が自分の分だけのときに限る。
+   - 結果は「LANDED <wave> fold=<sha>」「FAIL <wave> rc=<n> reason=<要点>」「CLEANUP-DONE <wave>」で返す。
+   - 受入の束縛ファイルが 2026-09-30 04:53 JST に変わった。それより前の main で取った受入の受領証では land できない (調整役の連絡)。受入はその後の main で取る。
