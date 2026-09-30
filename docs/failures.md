@@ -6621,6 +6621,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — md_23 wave (VHash の hot block を Cicada に入れる) で、login の静的検査と前処理比較を通った patch が計算ノードの smoke1 (36580.nqsv、101 s) で条件 gate に拒否された。`CICADA_VHASH_COUNT` の分岐 20 site のうち 12 が `#if CICADA_VHASH_K` の内側にあり、gate の meaning の probe は K 未定義で owner TU を前処理するので 8 site しか観測できなかった。先例 (md_6 の `CICADA_FWD_COUNT` は companion `CICADA_FWD_ENABLE=1`) に答えがあり、段 4 の macro 設計で予見できた。companion `CICADA_VHASH_K=1` を固定して smoke2 で通った。実害は smoke 1 回分の時間だけ。恒久対応は F139 のまま (条件 gate に載せる macro は、他の macro の #if の内側に分岐を置くなら companion を設計の段で決める)。
 
 - **再発: 2026-09-29** — [T-2911] VHash md_22 の新 driver が計算ノードの smoke で 2 回止まった。(1) workload macro の owner TU `cc/cicada/ycsb_cicada.cc` が masstree の `config.h` (build 時にしか生成されない) を include し、新しい source copy で condition gate の前処理が失敗 (smoke1、job 内 19 秒)。(2) 計器 build に長い tx 用 macro の中でだけ定義される実行時 flag (`izanagi_long_kind`) を渡し `unknown command line flag` (smoke2)。どちらも先例 (md_14 の driver の `dependency` 腕、silo_policy_coverage の `_prepare_build_dependencies`、vlife patch の macro と flag の対応) に答えがあった。段 5 の実装子の prompt に「既存 driver・CCBench との外部交点表」を作らせたが、依存物 build の順序と flag の定義 macro は表に入っていなかった。恒久対応は F139 のまま (実機の書式・生成物は先例の実装か最安の生死確認で確かめてから driver に書く)。記録 = 同 README §12、`verbatim/s6-fix3-ruling.md`・`s6-fix4-ruling.md`。
+
+- **再発: 2026-09-30** — VHash md_29 wave で、Cicada 計器 patch の拡張 (走行末の熱いキー走査) が実機の制約を机上で外し、計算ノードの smoke を 2 回空振りさせた。(1) Codex author が走査を `ycsb_cicada.cc` の `#if IZANAGI_CICADA_VLIFE` に置き companion 登録した (condition gate は owner TU `transaction.cc` の前処理しか観測しない。smoke 前に親の静的確認で見つけて owner TU へ移した)、(2) 移した fix で owner TU の分岐宣言を 49 のまま残し、gate が実数 44 と照合して拒否 (37898.nqsv、61 s)、(3) 走査が `include/ycsb.hh` にだけある `YCSB`・`Storage::YCSB` を使い、workload ごとに compile される `transaction.cc` で compile error (37937.nqsv、99 s)。(2) は login の自走でも `test_condition_meaning_gate.py` の在庫 test が赤だったが、Codex の sandbox は pytest・dispatch を使えず、親も smoke 前に走らせていなかった。3 回目で成立 (37961.nqsv)。恒久対応は F139 のまま (実機の書式は先例の実装か最安の生死確認で確かめてから書く) に加え、gate 登録を触る wave は統合直後・smoke 前に condition gate test を login 自走する (記憶 condition-gate-meaning-sees-owner-tu-only)。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
@@ -28849,6 +28851,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 両側が同じ登録簿へ追加した取り込みでは、衝突の有無にかかわらず、両側差分の数値 literal の変更を突き合わせ、同じ行を両側が同値へ書き換えた箇所を合成の対象として列挙し、合成後のコードから値を導出する (本 wave の段 6 追補裁定 FM-2、`output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`)。memory `acceptance-discipline` に手順を置く。
 - 再発検知: 取り込みの前に、merge-base から両側への差分で `-`/`+` の対になった数値 literal の変更を両側で比べ、同じ行が同じ新値へ変わっていれば赤として扱う。
 
+
+- **再発: 2026-09-30** — VHash md_29 wave の land 前の前方 merge で、変種が出た。main 側 (vhash-interval-gc) が `orchestrator/tests/test_condition_meaning_gate.py` に site 数の総和 pin `sum(_CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 277` を新しく足し、wave 側は同じ辞書の `IZANAGI_CICADA_VLIFE` を 37 → 44 にしていた。文字の競合は 0 件で、合成結果の総和 pin は wave の +7 を含まず、合成後の login 自走で赤になった (受入 1 回目の後、land の PREP で検出)。手で直さず abort し、同じ file を変えた lock-order-axis の着地後に main を 1 回取り込み、Codex が辞書を数え直して 298 に書いた merge で受入を取り直した。「同じ行を同値へ」でなく「一方が足した派生値の pin が、他方の変える要素を数える」形で、F1079 の再発検知 (両側で対になった数値 literal の比較) には掛からない。恒久対応は F1079 のまま (合成後のコードから派生値を導出する) に加え、condition gate など件数 pin を持つ登録簿を両側が変えた取り込みでは、合成後に該当 test を自走してから commit する。
 ### F1080. 段 4 の親裁定が段 2 plan・段 3 相談の安全側の推奨を 3 度覆し、毎回実測の破損で差し戻された [手順漏れ]
 
 - 事象: VHash md_18 (区間 GC) の段 4 で、親は次の 3 点で段 2 plan・段 3 相談と違う設計を裁定した。いずれも smoke で SIGSEGV・停止を起こした。
