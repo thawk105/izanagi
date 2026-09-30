@@ -8,7 +8,7 @@ index 5b34518..7cafe16 100644
 +#if TRACE
 +  uint64_t trace_read_gen_ = 0;
 +#else
-+#line 15
++#line 11
  #endif
 diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 index fb24515..b066092 100644
@@ -177,7 +177,7 @@ index fb24515..b066092 100644
 +    }
 +  }
 +#else
-+#line 40
++#line 39
 +#endif
    TransactionStatus status_ = TransactionStatus::invalid;
 @@ -193,3 +350,14 @@ public:
@@ -186,13 +186,13 @@ index fb24515..b066092 100644
 +        delTarget->traceEventBegin("gc_inline");
 +        cicada_m::tick(thid_, cicada_m::ev_gc_inline);
 +#else
-+#line 180
++#line 179
 +#endif
          tuple->returnInlineVersionRight();
 +#if TRACE
 +        delTarget->traceEventEnd();
 +#else
-+#line 181
++#line 180
 +#endif
          goto gcAfterThisVersion_NEXT_LOOP;
 @@ -199,3 +367,14 @@ public:
@@ -201,13 +201,13 @@ index fb24515..b066092 100644
 +      delTarget->traceEventBegin("gc_pool");
 +      cicada_m::tick(thid_, cicada_m::ev_gc_pool);
 +#else
-+#line 186
++#line 185
 +#endif
        reuse_version_from_gc_.emplace_back(delTarget);
 +#if TRACE
 +        delTarget->traceEventEnd();
 +#else
-+#line 187
++#line 186
 +#endif
  #else  // if REUSE_VERSION
 @@ -239,3 +418,15 @@ public:
@@ -216,14 +216,14 @@ index fb24515..b066092 100644
 +      tuple->inline_ver_.traceEventBegin("reuse_inline");
 +      cicada_m::tick(thid_, cicada_m::ev_reuse_inline);
 +#else
-+#line 221
++#line 220
 +#endif
        tuple->inline_ver_.set(0, this->wts_.ts_, std::move(body));
 +#if TRACE
 +      tuple->inline_ver_.trace_owner_.store(tuple, std::memory_order_release);
 +      tuple->inline_ver_.traceEventEnd();
 +#else
-+#line 222
++#line 221
 +#endif
  #if ADD_ANALYSIS
 @@ -254,3 +445,15 @@ public:
@@ -232,14 +232,14 @@ index fb24515..b066092 100644
 +      newVersion->traceEventBegin("reuse_pool");
 +      cicada_m::tick(thid_, cicada_m::ev_reuse_pool);
 +#else
-+#line 236
++#line 235
 +#endif
        newVersion->set(0, this->wts_.ts_, std::move(body));
 +#if TRACE
 +      newVersion->trace_owner_.store(tuple, std::memory_order_release);
 +      newVersion->traceEventEnd();
 +#else
-+#line 237
++#line 236
 +#endif
        return newVersion;
 @@ -261,2 +464,9 @@ public:
@@ -250,7 +250,7 @@ index fb24515..b066092 100644
 +    fresh->trace_owner_.store(tuple, std::memory_order_release);
 +    return fresh;
 +#else
-+#line 244
++#line 243
  #endif
 @@ -271,2 +481,3 @@ public:
      }
@@ -262,13 +262,13 @@ index fb24515..b066092 100644
 +          (*itr).new_ver_->traceEventBegin("clean_inline");
 +          cicada_m::tick(thid_, cicada_m::ev_clean_inline);
 +#else
-+#line 353
++#line 352
 +#endif
            (*itr).rcdptr_->returnInlineVersionRight();
 +#if TRACE
 +        (*itr).new_ver_->traceEventEnd();
 +#else
-+#line 354
++#line 353
 +#endif
            continue;
 @@ -410,5 +632,20 @@ public:
@@ -276,20 +276,20 @@ index fb24515..b066092 100644
 +#if TRACE
 +        (*itr).new_ver_->traceEventBegin("clean_pool");
 +#else
-+#line 359
++#line 358
 +#endif
          (*itr).new_ver_->status_.store(VersionStatus::unused,
                                         std::memory_order_release);
 +#if TRACE
 +        cicada_m::tick(thid_, cicada_m::ev_clean_pool);
 +#else
-+#line 361
++#line 360
 +#endif
          reuse_version_from_gc_.emplace_back((*itr).new_ver_);
 +#if TRACE
 +        (*itr).new_ver_->traceEventEnd();
 +#else
-+#line 362
++#line 361
 +#endif
  #else
 diff --git a/cc/cicada/include/tuple.hh b/cc/cicada/include/tuple.hh
@@ -300,10 +300,10 @@ index 1d5e61f..8a9342f 100644
      inline_ver_.set(0, param->initial_wts, nullptr, VersionStatus::committed);
 +#if TRACE
 +    inline_ver_.trace_owner_.store(this, std::memory_order_release);
-+#else
-+#line 88
-+#endif
 +
++#else
++#line 83
++#endif
      inline_ver_.body_ = std::move(body);
 @@ -89,2 +95,8 @@ public:
          ->set(0, param->initial_wts, nullptr, VersionStatus::committed);
@@ -311,7 +311,7 @@ index 1d5e61f..8a9342f 100644
 +    latest_.load(std::memory_order_acquire)->trace_owner_.store(
 +        this, std::memory_order_release);
 +#else
-+#line 95
++#line 89
 +#endif
      (latest_.load(std::memory_order_acquire))->body_ = std::move(body);
 diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
@@ -334,7 +334,7 @@ index 12de93b..1ab92a4 100644
 +    trace_gen_.fetch_add(1, std::memory_order_release);
 +  }
 +#else
-+#line 32
++#line 31
 +#endif
    TupleBody body_;
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
@@ -354,7 +354,7 @@ index 1106a0b..f43a6e4 100644
 +  trace_published_.clear();
 +  cicada_m::tick(thid_, cicada_m::tx_begin);
 +#else
-+#line 38
++#line 37
 +#endif
    this->status_ = TransactionStatus::inflight;
 @@ -125,3 +138,36 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
@@ -374,12 +374,12 @@ index 1106a0b..f43a6e4 100644
 +    traceViolation(cicada_m::v_B_WINDOW, key, ver, g1, g2, seen_wts,
 +                   ver->trace_last_event_.load(std::memory_order_acquire));
 +#else
-+#line 126
++#line 120
 +#endif
 +#if TRACE
 +  const auto trace_read_before = read_set_.size();
 +#else
-+#line 126
++#line 125
 +#endif
    read_set_.emplace_back(s, key, tuple, later_ver, ver);
 +#if TRACE
@@ -389,10 +389,10 @@ index 1106a0b..f43a6e4 100644
 +    traceViolation(cicada_m::v_B_WINDOW, key, ver, g1, g2, seen_wts);
 +  cicada_m::tick(thid_, cicada_m::b_registered);
 +  }
-+#else
-+#line 128
-+#endif
 +
++#else
++#line 126
++#endif
  
 @@ -148,2 +194,17 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
  
@@ -409,7 +409,7 @@ index 1106a0b..f43a6e4 100644
 +  enum class TracePath { external, reread, own } trace_path = TracePath::external;
 +  Version* trace_expected_ver = nullptr;
 +#else
-+#line 149
++#line 148
 +#endif
    Version* ver;
 @@ -157,2 +218,8 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
@@ -418,7 +418,7 @@ index 1106a0b..f43a6e4 100644
 +    trace_path = TracePath::reread;
 +    trace_expected_ver = re->ver_;
 +#else
-+#line 158
++#line 157
 +#endif
      *body = &(re->ver_->body_);
 @@ -162,2 +229,8 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
@@ -427,10 +427,10 @@ index 1106a0b..f43a6e4 100644
 +    trace_path = TracePath::own;
 +    trace_expected_ver = we->new_ver_;
 +#else
-+#line 163
++#line 162
 +#endif
      *body = &(we->new_ver_->body_);
-@@ -174,4 +247,12 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -174,4 +247,13 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
  #endif // if ADD_ANALYSIS
 +#if TRACE
 +  if (tuple == nullptr) {
@@ -440,10 +440,11 @@ index 1106a0b..f43a6e4 100644
 +#else
 +#line 175
    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
++#line 175
 +#endif
  
    ver = read_internal(s, key, tuple);
-@@ -178,2 +259,10 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -178,2 +260,11 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
 +#if TRACE
 +  if (ver == nullptr) {
 +    cicada_m::tick(thid_, cicada_m::read_not_found);
@@ -452,17 +453,18 @@ index 1106a0b..f43a6e4 100644
 +#else
 +#line 178
    if (ver == nullptr) return Status::WARN_NOT_FOUND;
++#line 178
 +#endif
  
-@@ -182,2 +271,7 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -182,2 +273,7 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
     */
 +#if TRACE
 +  trace_expected_ver = ver;
 +#else
-+#line 183
++#line 182
 +#endif
    *body = &(ver->body_);
-@@ -185,2 +279,30 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -185,2 +281,30 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
  FINISH_READ:
 +#if TRACE
 +  auto kind = cicada_m::v_API_EXTERNAL;
@@ -490,50 +492,50 @@ index 1106a0b..f43a6e4 100644
 +TRACE_API_DONE:
 +  cicada_m::tick(thid_, cicada_m::api_checked);
 +#else
-+#line 186
++#line 185
 +#endif
  #if ADD_ANALYSIS
-@@ -305,1 +427,6 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+@@ -305,1 +429,6 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::op_insert);
 +#else
-+#line 305
++#line 304
 +#endif
    if (searchWriteSet(s, key)) return Status::WARN_ALREADY_EXISTS;
-@@ -352,2 +479,7 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+@@ -352,2 +481,7 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
  
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::op_delete);
 +#else
-+#line 353
++#line 352
 +#endif
    // cancel previous write
-@@ -420,2 +552,7 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+@@ -420,2 +554,7 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
    result.clear();
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::op_scan);
 +#else
-+#line 430
++#line 420
 +#endif
    auto rset_init_size = read_set_.size();
-@@ -529,2 +666,9 @@ bool TxExecutor::validation() {
+@@ -529,2 +668,9 @@ bool TxExecutor::validation() {
      }
 +#if TRACE
 +    trace_installed_.push_back({(*itr).storage_, std::string((*itr).key_),
 +                                (*itr).new_ver_, (*itr).op_, wts_.ts_});
 +    cicada_m::tick(thid_, cicada_m::u_installed);
 +#else
-+#line 531
++#line 529
 +#endif
      (*itr).finish_version_install_ = true;
-@@ -709,8 +853,44 @@ inline void TxExecutor::cpv() // commit pending versions
+@@ -709,8 +855,44 @@ inline void TxExecutor::cpv() // commit pending versions
        Masstrees[get_storage((*itr).storage_)].remove_value((*itr).key_);
 +#if TRACE
 +      if ((*itr).new_ver_->ldAcqStatus() != VersionStatus::pending)
 +        traceViolation(cicada_m::v_U_NOT_PENDING, (*itr).key_,
 +                       (*itr).new_ver_);
 +#else
-+#line 710
++#line 709
 +#endif
        (*itr).new_ver_->status_.store(VersionStatus::deleted,
                                       std::memory_order_release);
@@ -546,7 +548,7 @@ index 1106a0b..f43a6e4 100644
 +        cicada_m::tick(thid_, cicada_m::u_published);
 +      }
 +#else
-+#line 712
++#line 711
 +#endif
        gc_records_.push_back((*itr).rcdptr_);
      } else {
@@ -555,7 +557,7 @@ index 1106a0b..f43a6e4 100644
 +        traceViolation(cicada_m::v_U_NOT_PENDING, (*itr).key_,
 +                       (*itr).new_ver_);
 +#else
-+#line 714
++#line 713
 +#endif
        (*itr).new_ver_->status_.store(VersionStatus::committed,
                                       std::memory_order_release);
@@ -568,20 +570,20 @@ index 1106a0b..f43a6e4 100644
 +        cicada_m::tick(thid_, cicada_m::u_published);
 +      }
 +#else
-+#line 716
++#line 715
 +#endif
      }
-@@ -753,2 +933,9 @@ void TxExecutor::abort() {
+@@ -753,2 +935,9 @@ void TxExecutor::abort() {
  
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::tx_abort);
 +  if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
 +  traceEnd("abort", cicada_m::b_end_checked_abort);
 +#else
-+#line 754
++#line 753
 +#endif
    writeSetClean();
-@@ -910,3 +1097,8 @@ void TxExecutor::writePhase() {
+@@ -910,3 +1099,8 @@ void TxExecutor::writePhase() {
  #if TRACE
 +  cicada_m::tick(thid_, cicada_m::tx_commit_write);
 +  if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
@@ -590,17 +592,17 @@ index 1106a0b..f43a6e4 100644
 +  trace_installed_.clear();
 +  trace_published_.clear();
  #else
-@@ -940,2 +1132,5 @@ bool TxExecutor::commit() {
+@@ -940,2 +1134,5 @@ bool TxExecutor::commit() {
  #if TRACE
 +    cicada_m::tick(thid_, cicada_m::tx_commit_ronly);
 +    if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
 +    traceEnd("ronly", cicada_m::b_end_checked_ronly);
      traceCommit();
-@@ -981,2 +1176,7 @@ void TxExecutor::reconnoiter_begin() { reconnoitering_ = true; }
+@@ -981,2 +1178,7 @@ void TxExecutor::reconnoiter_begin() { reconnoitering_ = true; }
  void TxExecutor::reconnoiter_end() {
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::tx_reconnoiter);
 +#else
-+#line 982
++#line 971
 +#endif
    read_set_.clear();

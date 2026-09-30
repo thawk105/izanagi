@@ -4,7 +4,7 @@ index f346d9323..efa1bfc1a 100644
 +++ b/cc/cicada/transaction.cc
 @@ -159,7 +159,26 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
  #else
- #line 126
+ #line 125
  #endif
 -  read_set_.emplace_back(s, key, tuple, later_ver, ver);
 +  struct BreakStats {
