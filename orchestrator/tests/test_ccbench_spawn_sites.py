@@ -1012,7 +1012,7 @@ _DEFERRED_GATE_MEMBERS = (
         "fixed 10 us stock build calls p3_s4_loop._require_condition_gate before run_campaign",
         "campaign",
         "<module>.run_stock_control",
-        446,
+        455,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b4_binary_record.py",
@@ -3024,7 +3024,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/p3_s4_loop_policy.py",
-            "wave t2867", "campaign", "<module>.run_stock_control", 446,
+            "wave t2867", "campaign", "<module>.run_stock_control", 455,
         ),
         (
             "orchestrator/campaign/b4_binary_record.py",
