@@ -298,5 +298,51 @@ def test_m8_hot_block_write_wait_and_hold_and_v1(tmp_path, monkeypatch):
     assert [p.get_height() for p in captured[-1][1].patches] == [7, 21]
 
 
+def test_m12_hot_block_real_save_and_provenance(tmp_path):
+    from tools.plotting import plot_vhash_cicada_hot_block as hot
+
+    source = tmp_path / "aggregate.json"
+    data = {"schema": "vhash-hot-aggregate/v2", "pin": "pin",
+            "conditions": {}, "disqualified_arms": [],
+            "cells": {"ro0-gc10": {
+                "B-k1/stock": {"points": [{"ratio": .7}]},
+                "post-k1/stock": {"points": [{"ratio": .9}]} }},
+            "count": [{"cell": "ro0-gc10", "arm": "B-k1", "count": {
+                "install_wait_cycles_per_update_commit": 7,
+                "install_hold_cycles_per_update_commit": 21}}]}
+    source.write_text(json.dumps(data))
+    hot.make_figures(data, source, tmp_path)
+    for stem in ("fig-k", "fig-ro", "fig-write"):
+        assert (tmp_path / f"{stem}.png").is_file()
+        assert (tmp_path / f"{stem}.pdf").is_file()
+        provenance = json.loads((tmp_path / f"{stem}.provenance.json").read_text())
+        assert provenance["aggregate"] == str(source.resolve())
+        assert provenance["aggregate_sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+
+
+def test_hot_block_arm_and_gc_styles(tmp_path, monkeypatch):
+    from tools.plotting import plot_vhash_cicada_hot_block as hot
+
+    styles = {}
+    def capture(fig, path, _payload, _source):
+        styles[path.name] = {item.get_label(): (item.lines[0].get_color(),
+                                                item.lines[0].get_marker(),
+                                                item.lines[0].get_linestyle())
+                             for item in fig.axes[0].containers
+                             if item.lines[0] is not None}
+    monkeypatch.setattr(hot, "_save", capture)
+    arms = ("B-k1", "B-k8", "post-k1", "post-k8")
+    cells = {f"ro0-gc{gc}": {f"{arm}/stock": {"points": [{"ratio": 1.0}]}
+                              for arm in arms}
+             for gc in (10, 1000, 100000)}
+    data = {"schema": "vhash-hot-aggregate/v2", "pin": "pin", "conditions": {},
+            "cells": cells, "count": []}
+    hot.make_figures(data, tmp_path / "aggregate.json", tmp_path)
+    k = styles["fig-k"]
+    assert len({k[f"{arm}/stock"][:2] for arm in arms}) == len(arms)
+    ro = styles["fig-ro"]
+    assert len({ro[f"B-k1/stock, GC {gc} us"][2] for gc in (10, 1000, 100000)}) == 3
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", *sys.argv[1:]]))

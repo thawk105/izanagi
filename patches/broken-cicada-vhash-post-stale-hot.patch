@@ -42,16 +42,17 @@
 +  vh_break_pending.clear();
 +#line 35
  #if CICADA_VHASH_WL
-@@ -258,2 +294,16 @@
+@@ -258,2 +294,17 @@
            later_ver=i ? ptr[i-1] : nullptr;
-+          if (is_ronly_ && i+1<n && !key.empty() &&
++          Version* older=ver->ldAcqNext();
++          while (older && older->ldAcqStatus() != VersionStatus::committed)
++            older=older->ldAcqNext();
++          if (is_ronly_ && older && !key.empty() &&
 +              (static_cast<unsigned char>(key.back()) & 1) &&
-+              ver->ldAcqStatus() == VersionStatus::committed &&
-+              ptr[i+1] != ver &&
-+              ptr[i+1]->ldAcqStatus() == VersionStatus::committed) {
++              ver->ldAcqStatus() == VersionStatus::committed) {
 +            ++vh_break_reached;
 +            vh_break_log("reached", wts_.ts_, key, ver->ldAcqWts());
-+            ver=ptr[i+1];
++            ver=older;
 +            later_ver=ptr[i];
 +            ++vh_break_changed;
 +            vh_break_log("changed", wts_.ts_, key, ver->ldAcqWts());
@@ -59,17 +60,17 @@
 +          }
 +#line 107
  #if CICADA_VHASH_COUNT
-@@ -1010,2 +1060,4 @@
+@@ -1010,2 +1061,4 @@
  void TxExecutor::abort() {
 +  vh_break_pending.clear();
 +#line 745
  #if CICADA_VHASH_COUNT
-@@ -1200,2 +1252,4 @@
+@@ -1200,2 +1253,4 @@
    read_set_.clear();
 +  vh_break_commit();
 +#line 912
  #if CICADA_VHASH_COUNT
-@@ -1231,2 +1285,4 @@
+@@ -1231,2 +1286,4 @@
      read_set_.clear();
 +    vh_break_commit();
 +#line 936

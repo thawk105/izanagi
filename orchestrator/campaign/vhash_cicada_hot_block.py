@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -33,11 +34,8 @@ VARIANT = "patches/cicada-vhash-hot-block-variant.patch"
 POST = "patches/cicada-vhash-hot-block-post.patch"
 COUNT_V2 = "patches/cicada-vhash-hot-block-count-v2.patch"
 TRACE = "patches/instr-cicada-trace.patch"
-USE_ORIGINAL_POST_BREAKS = False
-BROKEN = {"B1": ("patches/broken-cicada-vhash-stale-hot.patch" if USE_ORIGINAL_POST_BREAKS else
-                 "patches/broken-cicada-vhash-post-stale-hot.patch"),
-          "B2": ("patches/broken-cicada-vhash-skip-pending.patch" if USE_ORIGINAL_POST_BREAKS else
-                 "patches/broken-cicada-vhash-post-skip-pending.patch"),
+BROKEN = {"B1": "patches/broken-cicada-vhash-post-stale-hot.patch",
+          "B2": "patches/broken-cicada-vhash-post-skip-pending.patch",
           "stale-gap": "patches/broken-cicada-vhash-post-stale-gap.patch"}
 B2_PROBE = "patches/broken-cicada-vhash-skip-pending-probe.patch"
 DRIVER_ID = "orchestrator.campaign.vhash_cicada_hot_block"
@@ -64,6 +62,7 @@ PROBE_PREFIX = "CICADA_B2PROBE "
 PROBE_STATUS = {0: "invalid", 1: "pending", 2: "aborted",
                 3: "precommitted", 4: "committed", 5: "deleted", 6: "unused"}
 OMITTED_RE = re.compile(r"CICADA_BREAK_OMITTED slug=post-stale-gap omitted=(\d+)")
+UNDETERMINED_RE = re.compile(r"CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=(\d+)")
 EVENT_RE = re.compile(r"CICADA_BREAK_EVENT slug=([a-z-]+) stage=(reached|changed|committed) tx_wts=(\d+) key=((?:[0-9a-f]{2})+) read_wts=(\d+)")
 FIRED_RE = re.compile(r"CICADA_BREAK_FIRED slug=([a-z-]+) reached=(\d+) changed=(\d+) committed=(\d+)")
 INTEGRITY_ZERO = ("orphan_reads", "version_dups", "dup_txids", "genesis_commits",
@@ -579,13 +578,20 @@ def _break_events(stderr, build):
         raise ValueError(f"break event/summary mismatch: {stages} != {fired[0]}")
     omitted = [OMITTED_RE.fullmatch(line) for line in stderr.splitlines()
                if line.startswith("CICADA_BREAK_OMITTED ")]
+    undetermined = [UNDETERMINED_RE.fullmatch(line) for line in stderr.splitlines()
+                    if line.startswith("CICADA_BREAK_UNDETERMINED ")]
     if build == "broken-stale-gap":
         if len(omitted) != 1 or omitted[0] is None:
             raise ValueError("stale-gap omitted summary missing or malformed")
+        if len(undetermined) != 1 or undetermined[0] is None:
+            raise ValueError("stale-gap undetermined summary missing or malformed")
     elif omitted:
         raise ValueError("unexpected omitted summary")
+    elif undetermined:
+        raise ValueError("unexpected undetermined summary")
     return {"events": events, "event_stages": stages, "fired": fired[0],
-            "omitted": int(omitted[0][1]) if omitted else None}
+            "omitted": int(omitted[0][1]) if omitted else None,
+            "undetermined": int(undetermined[0][1]) if undetermined else None}
 
 
 def _probe_events(stderr):
@@ -722,12 +728,30 @@ def _verify_trace(trace_dir, source, commits, stderr, build, build_kind):
         result["break"] = {**event, **_attribute(record, versions, event["events"], int(match[1]))}
         if build == "broken-B2-probe":
             probe = _probe_events(stderr)
+            def event_key(item):
+                return item["tx_wts"], item["key"], item["read_wts"]
+
+            def probe_key(item):
+                read = item["stages"]["read"]
+                return int(read["tx_wts"]), read["key"], int(read["older_wts"])
+
+            changed = Counter(event_key(e) for e in event["events"]
+                              if e["stage"] == "changed")
+            reads = Counter(probe_key(item) for item in probe["events"].values())
+            if changed != reads:
+                reason = ("B2 probe has no changed break event" if reads - changed else
+                          "B2 probe/changed break event multiset mismatch")
+                raise ValueError(f"{reason}: "
+                                 f"events={changed}, reads={reads}")
+            committed = Counter(event_key(e) for e in event["events"]
+                                if e["stage"] == "committed")
+            ends = Counter(probe_key(item) for item in probe["events"].values()
+                           if item["stages"]["end"]["outcome"] == "commit")
+            if committed != ends:
+                raise ValueError(f"B2 probe/committed break event multiset mismatch: "
+                                 f"events={committed}, ends={ends}")
             for item in probe["events"].values():
                 read = item["stages"]["read"]
-                if not any(int(read["tx_wts"]) == e["tx_wts"] and
-                           read["key"] == e["key"] and int(read["older_wts"]) == e["read_wts"]
-                           for e in event["events"] if e["stage"] == "changed"):
-                    raise ValueError("B2 probe has no changed break event")
                 if item["stages"]["end"]["outcome"] == "commit" and any(
                         int(read["tx_wts"]) == match["tx_wts"] and
                         read["key"] == match["key"] and
@@ -805,27 +829,29 @@ def broken_verdict(record):
     trace = record["trace"]
     event = trace["break"]
     fired = event["fired"]
+    observed = {"reached": fired["reached"], "changed": fired["changed"],
+                "committed": fired["committed"],
+                "attributed_cycles": event["witness_count"]}
     if record["build"] == "broken-stale-gap":
+        observed.update(omitted=event["omitted"], undetermined=event["undetermined"])
         if event["omitted"] == 0 or fired["reached"] == 0:
-            return {"status": "unreached"}
+            return {"status": "unreached", **observed}
         detected = (fired["committed"] > 0 and trace["total_cycles"] > 0 and
                     event["witness_count"] > 0)
         return {"status": "detected" if detected else
-                "undetected" if fired["committed"] > 0 else "validation-stopped"}
+                "undetected" if fired["committed"] > 0 else "validation-stopped", **observed}
     if record["build"] == "broken-B1":
         detected = (fired["committed"] >= 1 and trace["verdict"] == "non-serializable"
                     and trace["total_cycles"] > 0 and event["witness_count"] >= 1)
         return {"status": "detected" if detected else "undetected",
                 "needs_B3": fired["committed"] >= 1 and event["witness_count"] == 0}
-    predicted = fired["committed"] == 0 and not (
-        trace["verdict"] == "non-serializable" and trace["total_cycles"] > 0)
-    if record.get("cell") == "T1":
-        predicted = predicted and fired["reached"] == 0
-    elif record.get("cell") == "T2":
-        predicted = predicted and fired["reached"] == fired["changed"]
-    return {"status": "validation-stopped" if predicted and fired["changed"] else
-            "unreached" if predicted else "prediction-failed",
-            "prediction_met": predicted, "attributed_cycles": event["witness_count"]}
+    detected = (fired["committed"] > 0 and
+                trace["verdict"] == "non-serializable" and
+                trace["total_cycles"] > 0 and event["witness_count"] > 0)
+    return {"status": "unreached" if fired["reached"] == 0 else
+            "detected" if detected else
+            "undetected" if fired["committed"] > 0 else "validation-stopped",
+            **observed}
 
 
 BROKEN_CLASSIFICATION_CONDITIONS = {

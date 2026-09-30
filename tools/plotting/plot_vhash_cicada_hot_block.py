@@ -79,7 +79,8 @@ def _series(data, cells, arm):
 def _draw_series(ax, data, cells, arm, positions=None, **kwargs):
     x, y, err, points = _series(data, cells, arm)
     locate = (lambda i: positions[i]) if positions is not None else (lambda i: i)
-    marker = "s" if str(arm).startswith("post-") else "D"
+    marker = {"B-k1": "D", "B-k8": "o", "post-k1": "s",
+              "post-k8": "^", "stock": "x"}.get(str(arm).split("/")[0], "v")
     line = ax.errorbar([locate(i) for i in x], y, yerr=err,
                        marker=marker, linewidth=1, capsize=2, **kwargs)
     color = line[0].get_color()
@@ -100,8 +101,10 @@ def make_figures(data, source, output):
     arms = sorted({arm for cells in data["cells"].values() for arm in cells})
     if not arms:
         raise ValueError("no qualified performance arms")
-    colors = {arm: ("tab:orange" if arm.startswith("post-") else "tab:blue")
-              for arm in arms}
+    palette = {"B-k1": "tab:blue", "B-k8": "tab:cyan",
+               "post-k1": "tab:orange", "post-k8": "tab:red",
+               "stock": "black"}
+    colors = {arm: palette.get(arm.split("/")[0], "tab:purple") for arm in arms}
 
     fig, ax = plt.subplots(figsize=(12, 6), constrained_layout=True)
     for arm in arms:
@@ -115,12 +118,13 @@ def make_figures(data, source, output):
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(8, 5), constrained_layout=True)
-    for gc in (10, 1000, 100000):
+    for gc, line_style in ((10, "-"), (1000, "--"), (100000, ":")):
         for arm in arms:
             names = [f"ro{ro}-gc{gc}" for ro in (0, 50, 95)]
             _draw_series(ax, data, names, arm,
                          positions=[int(name.split("-")[0][2:]) for name in names],
-                         label=f"{arm}, GC {gc} us", color=colors[arm])
+                         label=f"{arm}, GC {gc} us", color=colors[arm],
+                         linestyle=line_style)
     ax.axhline(1, linestyle="--", color="black", linewidth=.8)
     ax.set(xlabel="Requested read-only transactions (%)", ylabel="Throughput / stock",
            title="Gain by GC interval")
@@ -146,11 +150,11 @@ def make_figures(data, source, output):
         arm = row.get("arm", f"B-k{row.get('k')}")
         if arm == "stock":
             continue
-        source = row.get("post_count") if arm.startswith("post-") else value
-        source = source or {}
+        counters = row.get("post_count") if arm.startswith("post-") else value
+        counters = counters or {}
         prefix = "publish" if arm.startswith("post-") else "install"
-        wait = source.get(prefix + "_wait_cycles_per_update_commit")
-        hold = source.get(prefix + "_hold_cycles_per_update_commit")
+        wait = counters.get(prefix + "_wait_cycles_per_update_commit")
+        hold = counters.get(prefix + "_hold_cycles_per_update_commit")
         bars.append((row["cell"], arm, wait, hold))
     if bars:
         positions = list(range(len(bars)))

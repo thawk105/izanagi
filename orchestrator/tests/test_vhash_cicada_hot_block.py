@@ -71,6 +71,7 @@ def jobs():
                          "verdict": "indeterminate", "break": {
                              "fired": {"reached": 0, "changed": 0, "committed": 0},
                              "omitted": 0 if name == "stale-gap" else None,
+                             "undetermined": 0 if name == "stale-gap" else None,
                              "witness_count": 0}}}
               for cell in ("T1", "T2") for name in (*h.BROKEN, "B2-probe")]
     raw.append({"records": trace})
@@ -215,11 +216,18 @@ def test_m5_stale_gap_trace_and_verdict():
     with pytest.raises(ValueError, match="broken trace coverage"):
         aggregate(raw)
     record = {"build": "broken-stale-gap", "trace": {"verdict": "indeterminate",
-              "total_cycles": 0, "break": {"omitted": 1, "fired": {"reached": 1,
+              "total_cycles": 0, "break": {"omitted": 1, "undetermined": 2,
+              "fired": {"reached": 1,
               "changed": 1, "committed": 1}, "witness_count": 0}}}
     assert h.broken_verdict(record)["status"] == "undetected"
+    assert h.broken_verdict(record)["undetermined"] == 2
     record["trace"]["break"]["fired"]["reached"] = 0
     assert h.broken_verdict(record)["status"] == "unreached"
+    raw = jobs()
+    gap = next(r for r in raw[-2]["records"] if r["build"] == "broken-stale-gap"
+               and r["cell"] == "T1")
+    gap["trace"]["break"]["undetermined"] = 2
+    assert aggregate(raw)["broken"]["broken-stale-gap:T1"]["undetermined"] == 2
 
 
 def test_probe_join_and_missing_keys():
@@ -305,6 +313,43 @@ def test_probe_actual_format_break_and_witness_join(tmp_path, monkeypatch):
                             "broken-B2-probe", "broken")
 
 
+def test_m10_probe_changed_and_committed_multisets(tmp_path, monkeypatch):
+    monkeypatch.setattr(h, "_trace_rows", lambda _: ({"C": 1}, {}))
+    payload = {"results": [{"verdict": "indeterminate", "total_cycles": 0,
+                            "integrity": {name: 0 for name in h.INTEGRITY_ZERO}}]}
+    monkeypatch.setattr(h.subprocess, "run", lambda *_args, **_kwargs:
+                        SimpleNamespace(returncode=3, stdout=json.dumps(payload).encode(), stderr=b""))
+    monkeypatch.setattr(h, "_attribute", lambda *_args: {
+        "witness_count": 0, "examples": [], "witness_events": []})
+    read = "CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01"
+    end = "CICADA_B2PROBE stage=end id=1:2 outcome=commit"
+    changed = "CICADA_BREAK_EVENT slug=skip-pending stage=changed tx_wts=5 key=0a01 read_wts=4"
+    committed = changed.replace("stage=changed", "stage=committed")
+    summary = "CICADA_BREAK_FIRED slug=skip-pending reached=0 changed=1 committed=1"
+    base = [read, end, changed, committed, summary, "CICADA_TRACE_INITIAL_WTS=1"]
+    h._verify_trace(tmp_path, tmp_path, 1, "\n".join(base), "broken-B2-probe", "broken")
+    extra_probe = [read.replace("id=1:2", "id=1:3"),
+                   end.replace("id=1:2 outcome=commit", "id=1:3 outcome=abort")]
+    with pytest.raises(ValueError, match="changed break event"):
+        h._verify_trace(tmp_path, tmp_path, 1, "\n".join(base + extra_probe),
+                        "broken-B2-probe", "broken")
+    extra_changed = [changed.replace("key=0a01", "key=0a02"),
+                     summary.replace("changed=1", "changed=2")]
+    with pytest.raises(ValueError, match="changed break event multiset mismatch"):
+        h._verify_trace(tmp_path, tmp_path, 1,
+                        "\n".join([read, end, changed, extra_changed[0], committed,
+                                   extra_changed[1], base[-1]]), "broken-B2-probe", "broken")
+    with pytest.raises(ValueError, match="committed break event multiset mismatch"):
+        h._verify_trace(tmp_path, tmp_path, 1,
+                        "\n".join([read, end, changed, summary.replace("committed=1", "committed=0"),
+                                   base[-1]]), "broken-B2-probe", "broken")
+    with pytest.raises(ValueError, match="committed break event multiset mismatch"):
+        h._verify_trace(tmp_path, tmp_path, 1,
+                        "\n".join([read, end.replace("outcome=commit", "outcome=abort"),
+                                   changed, committed, summary, base[-1]]),
+                        "broken-B2-probe", "broken")
+
+
 def test_shared_binary_dependency_hashes(tmp_path, monkeypatch):
     binary, dependency = tmp_path / "binary", tmp_path / "library"
     binary.write_bytes(b"binary")
@@ -363,9 +408,14 @@ def test_break_event_summary_and_omission_required():
     lines = [
         "CICADA_BREAK_EVENT slug=post-stale-gap stage=reached tx_wts=2 key=0a01 read_wts=3",
         "CICADA_BREAK_FIRED slug=post-stale-gap reached=1 changed=0 committed=0",
-        "CICADA_BREAK_OMITTED slug=post-stale-gap omitted=4"]
-    assert h._break_events("\n".join(lines), "broken-stale-gap")["omitted"] == 4
+        "CICADA_BREAK_OMITTED slug=post-stale-gap omitted=4",
+        "CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=2"]
+    parsed = h._break_events("\n".join(lines), "broken-stale-gap")
+    assert parsed["omitted"] == 4
+    assert parsed["undetermined"] == 2
     with pytest.raises(ValueError, match="omitted"):
+        h._break_events("\n".join((lines[0], lines[1], lines[3])), "broken-stale-gap")
+    with pytest.raises(ValueError, match="undetermined"):
         h._break_events("\n".join(lines[:-1]), "broken-stale-gap")
     with pytest.raises(ValueError, match="event/summary mismatch"):
         h._break_events("\n".join([lines[0], lines[1].replace("reached=1", "reached=2"),
@@ -384,7 +434,23 @@ def test_broken_rules():
           "committed": 0}, "witness_count": 0}}}
     assert h.broken_verdict(b2)["status"] == "validation-stopped"
     b2["trace"]["break"]["fired"]["committed"] = 1
-    assert h.broken_verdict(b2)["status"] == "prediction-failed"
+    assert h.broken_verdict(b2)["status"] == "undetected"
+
+
+@pytest.mark.parametrize("build", ["broken-B2", "broken-B2-probe"])
+@pytest.mark.parametrize("reached,changed,committed", [
+    (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])
+def test_m11_b2_verdict_records_observations(build, reached, changed, committed):
+    record = {"build": build, "cell": "T1", "trace": {
+        "verdict": "indeterminate", "total_cycles": 0,
+        "break": {"fired": {"reached": reached, "changed": changed,
+                            "committed": committed}, "witness_count": 0}}}
+    result = h.broken_verdict(record)
+    assert {key: result[key] for key in ("reached", "changed", "committed")} == {
+        "reached": reached, "changed": changed, "committed": committed}
+    assert result["status"] == ("unreached" if reached == 0 else
+                                "undetected" if committed else "validation-stopped")
+    assert "prediction_met" not in result
 
 
 def test_perf_eligibility_and_pair_node_must_match():
