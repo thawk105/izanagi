@@ -8556,6 +8556,9 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/cicada-ro-gcflag-workload.patch": frozenset({
             "IZANAGI_CICADA_ROGC_WORKLOAD", "IZANAGI_CICADA_ROGC_WORKLOAD_V1",
         }),
+        "patches/cicada-ceiling-workload.patch": frozenset({
+            "IZANAGI_CICADA_CEILING_WORKLOAD", "IZANAGI_CICADA_CEILING_WORKLOAD_V1",
+        }),
         "patches/instr-silo-function-policy-probe.patch": frozenset({
             "IZANAGI_SILO_POLICY_PROBE",
         }),

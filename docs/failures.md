@@ -4284,6 +4284,8 @@
 - **再発: 2026-09-21** — [T-2632] の commit 群の自作 harness が失敗 node を `IZANAGI_FAILURE ... nodeid="[^"]*"` で抜き、引用符を含む parametrize id
   (`corrupt_report_stops[False-{"schema_version":...}]`) を途中で切った。final の前に `-rf` の要約行 (`| FAILED <nodeid>`) からの抽出へ切り替え、probe の観測も
   同じ規則で抜き直したので、誤った判定は出ていない (near miss、`output/insights/2026-09-21/t2632-b4-evidence-carrier/README.md` §6)。
+
+- **再発: 2026-10-01** — md_42 の変異本走 1 回目で、`unittest` の `subTest` を使う test の失敗が pytest の `FAILED` 行に出ない (`-rf` の要約に test 名が載らない) ため、M1・M2 は他の test の赤だけが抽出されて node の不一致 (MISMATCH)、M8 は抽出 0 件で harness が停止した。login の自走 probe (`python3 <test>` の unittest 出力) では KILLED と完全一致だった。期待 node を dispatch の観測に改め、M8 は自走 probe の結果を証拠に本走から外した。同じ subTest は受入全走の junit 合成も壊した (pytest が subtest 15 個を suite の `tests` 属性に数え、`tools/acceptance_shards.py` の件数照合 `junit-tests` で受領証が出ない)。subTest を外して (9ea29f9df) M1・M2・M8 を取り直し、dispatch の本走で登録どおりになった。新しい test で subTest を使わない。
 ### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
@@ -13427,6 +13429,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   今回は「編集したのは docs であって実装面ではない」という区別が無関係であることが顕在化した。
   **wrapper が見ているのは `git status` の bytes であり、追跡・未追跡も docs・実装面も区別しない。**
 - 回復: 記録を先に commit して木を clean にしてから、本走を無干渉で走らせ直した。
+
+- **再発: 2026-10-01** — md_42 の変異本走 2 回目 (固定 commit の計測用 checkout に `tools/mutation_harness.py` を直接当てる) の走行中に、親が集計のため同じ checkout から driver を import して `orchestrator/campaign/__pycache__` を作り、harness の復元検査が「stale bytecode cache を除去できない」で 8 本目の後に停止した。書いたのは docs ではなく bytecode cache だが、「本走中に同じ作業木へ書く」型は同じ。cache を消し、残り 12 本を新しい spec で 3 回目として完走させた。以後、集計の import は別の checkout から `PYTHONDONTWRITEBYTECODE=1` で行った。
 ### F384. 所有 file の合計行数が大きい実装子が SIGKILL され成果物ゼロで終わる [セッション死・救出] [コンテキスト浪費]
 
 - 事象: dev-wave 段 5 の実装子 2 体が `codex_exit_code = -9` で終了した。1 体目は
@@ -28961,3 +28965,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: memory `codex-child-discipline` の節「sandbox-children-use-self-run-harness-not-pytest」(子は run_tests.py・pytest を走らせられない、prompt に書く) を段 5 の prompt を書く前に引く。
   実装子・fix 子の prompt に「試験は走らせず、直し終えて『実装済み・未実走』と報告せよ。試験を走らせられないことを理由に止まらない」の 1 文を入れる (本 wave の継続子・fix 子 4 本はこの 1 文で全件完了した)。
 - 再発検知: 実装子の報告が「test 起動が失敗したため停止」「実装途中」を含み、`.done` の rc が 0 のもの。受理検査 (`check_codex_output.py`) は通るので、親が報告の総括を読んで判定する。
+
+### F1090. fix 裁定が既存 test の期待値の変更を 1 か所ずつしか許可せず、fix 子が同じ test の別の assert との衝突で 3 回止まった [手順漏れ]
+
+- 事象: md_42 (dev-wave-vhash-ceiling-vs-sota) の段 6 で、FR-2 (見積りと 1 job 300 s の gate) を直す fix 4 が、同じ wave の fix 1 で作った予算 gate の test (M15) の正例と衝突して編集途中で停止。親が正例の入力だけ入れ替えを許可した fix 5 は、同じ test の負例 (単独 7,201 s の build job を allow_over_budget で通す) と衝突して編集 0 で停止。M15 を全列挙した fix 6 は通ったが、FR2-5 (理由の構造化) を直す fix 7 が fix 6 の test の「理由は文字列で受理」と衝突して編集 0 で停止。land 調整役へ FAIL-2・FAIL を出し、4 回目は投げずに運用担保で閉じた。
+- 根本原因: 親が fix 裁定で、変える gate の挙動に従属する test の assert を全部並べず、衝突が見えた 1 か所ずつ許可を足した。fix 子は「既存テストの期待値を変更しない」を守って止まるので、許可の漏れの数だけ 1 巡 (10〜20 分) を捨てる。F729 (規則が広すぎる側) とは逆の、許可が狭すぎる側の型。
+- 恒久対応: memory `fix-ruling-enumerate-dependent-expectations` (fix 裁定で、変える対象の直後に従属して変わる期待を列挙し、許可する期待と変えてはならない期待を分けて書く)。land 調整役が手順の改修提案 (md_2) に「対象 test 関数の全 assert を裁定に逐語で並べて可否を付ける」を集約する。
+- 再発検知: fix 子の報告が「既存テストの期待値と衝突」で止まったら、次の fix を投げる前に、衝突した test 関数の全 assert を裁定へ並べ直す。同じ根で 2 回止まったら 3 回目の前に land 調整役へ FAIL-2 を送る (2026-10-01 のユーザー指示)。
+
+### F1091. 受入全走で main 側の 2 本の test が単独では再現しない赤を出し、受入を 2 回食った [計測汚染] [near miss]
+
+- 事象: md_42 (dev-wave-vhash-ceiling-vs-sota) の受入で、本 wave が触れていない 2 本の test が 1 回ずつ赤になり、どちらも計算ノードの単独再走では再現しなかった。
+  1. `orchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_figure_passes_layout_check` — 受入 1 回目 (2026-10-01 05:02〜05:31、shard-1、bnode014) で `FigureLayoutError: text bbox overlap: '+30.0000%' / 'no regression'` (作図の文字の重なり検査)。同 file の単独再走は 42 passed。
+  2. `orchestrator/tests/test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate` — 受入 3 回目 (06:24〜06:32、shard-1) で `Failed: first evaluation did not finish` (driver の tick を 5,000 回回す待ちのループが、並列の受入負荷の下で 1 回目の評価を終えない)。同 file の単独再走は 65 passed。
+  受入を合計 2 回食った (1 回あたり約 30 分)。
+- 根本原因: 未確定。1 は作図の文字配置が描画環境 (フォント・負荷) に依存する可能性、2 は壁時計ではなく tick 回数で待つループが、受入の並列負荷で背景の thread pool の進行に追いつかない可能性 (T-2797 で時間依存を一度除いた test)。どちらも本 wave と無関係の既存 test。
+- 恒久対応: 未実施。直す wave の材料として land 調整役が集約する (2026-10-01 の依頼)。本 wave では DW-O18 に従い、単独再走の非再現を確かめてから受入を取り直した (worklog fragment に判定を記録)。
+- 再発検知: 受入の赤がこの 2 本のどちらかなら、この F を引いて単独再走で確かめる。同じ test が別の wave の受入でも落ちたら、この F に再発として追記する。

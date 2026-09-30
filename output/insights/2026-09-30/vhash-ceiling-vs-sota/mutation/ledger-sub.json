@@ -1,0 +1,404 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/6f2d04e40b280244ffbb57b5f4af93ae/izdw-6f2d04e40b.o40367",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/6f2d04e40b280244ffbb57b5f4af93ae/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................                                         [100%]\n32 passed in 4.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "dae9302e5bee8a3da99140248663eef9389739ab2d1d04a7b8ada5d9ded20b25"
+    },
+    "artifact_error": null,
+    "collection_sha256": "18bdc09ae14eebe07aad1b5704e383e1c54c77774f78f872cff650abfff18c85",
+    "duration_s": 27.014,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "3b1ed51fec516a2271bb1a60fe18e4662abfdc1a0d1e54f266a522dd303b18a1",
+    "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+    "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+    "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+    "status": "PASSED",
+    "test_output_sha256": "dae9302e5bee8a3da99140248663eef9389739ab2d1d04a7b8ada5d9ded20b25",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea"
+  },
+  "date": "2026-09-30T21:17:53.117186+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/9aaae3d4cb898959030d1589b2db2001/izdw-9aaae3d4cb.o40368",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/9aaae3d4cb898959030d1589b2db2001/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................                                         [100%]\n32 passed in 4.83s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "0641b5b3ef8fde717f78621bd2cd7a8a397ec03edb82550a24799037ebb07e11"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "18bdc09ae14eebe07aad1b5704e383e1c54c77774f78f872cff650abfff18c85",
+      "duration_s": 26.907,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-docstring-equivalent",
+      "injection_diff_sha256": "3abe02d93c52d52d7a01db6f5d604f5ba7e9370daa6eeb0e997b9199df31716f",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a80c3a9fdf3578cf20617a46ee1677aea57d81fca2dd7ed5f3c3e6fc848b01cc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+          "new": "Matched Cicada ceiling experiment",
+          "old": "Paired Cicada ceiling experiment"
+        }
+      ],
+      "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+      "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+      "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+      "status": "SURVIVED",
+      "test_output_sha256": "0641b5b3ef8fde717f78621bd2cd7a8a397ec03edb82550a24799037ebb07e11",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/071c04b33ff089adbe7c894bca6f9d69/izdw-071c04b33f.o40369",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/071c04b33ff089adbe7c894bca6f9d69/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........................FFF...                                         [100%]\n=================================== FAILURES ===================================\n______________________ CeilingTests.test_m1_perf_defines _______________________\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m1_perf_defines>\n\n    def test_m1_perf_defines(self):\n        expected = C.expected_perf_defines(\"hot8\") | {k: str(v) for k, v in C.V.TUNED_GENOME.items()}\n        rows = [{\"file\": f\"/x/{name}\", \"command\": \"c++ \" + \" \".join(\n            f\"-D{k}={v}\" for k, v in expected.items()) +\n            \" CMakeFiles/ycsb_cicada.exe.dir/ -c \" + name} for name in\n            (\"transaction.cc\", \"util.cc\", \"ycsb_cicada.cc\")]\n        C.check_perf_defines(rows, \"hot8\")\n        for macro in (\"CICADA_VHASH_COUNT\", \"IZANAGI_CICADA_VLIFE\", \"UNRELATED_DEFINE\"):\n            bad = copy.deepcopy(rows)\n            bad[0][\"command\"] += f\" -D{macro}=1\"\n>           with self.assertRaises(ValueError):\nE           AssertionError: ValueError not raised\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:66: AssertionError\n____________________ CeilingTests.test_m24_igc_perf_defines ____________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m24_igc_perf_defines>\n\n    def test_m24_igc_perf_defines(self):\n        expected = C.expected_perf_defines(\"igc1\")\n        self.assertEqual(C.expected_perf_defines(\"igc\"), expected)\n        self.assertEqual(C.expected_perf_defines(\"igc3\"), expected)\n        defines = expected | {k: str(v) for k, v in C.V.TUNED_GENOME.items()}\n        commands = [{\"file\": f\"/x/{name}\", \"command\": \"c++ \" + \" \".join(\n            f\"-D{k}={v}\" for k, v in defines.items()) +\n            \" CMakeFiles/ycsb_cicada.exe.dir/ -c \" + name} for name in\n            (\"transaction.cc\", \"util.cc\", \"ycsb_cicada.cc\")]\n        C.check_perf_defines(commands, \"igc\")\n        commands[0][\"command\"] += \" -DUNRELATED_DEFINE=1\"\n>       with self.assertRaisesRegex(ValueError, \"perf -D mismatch\"):\nE       AssertionError: ValueError not raised\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:482: AssertionError\n______________ CeilingTests.test_m19_measured_perf_defines_exact _______________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m19_measured_perf_defines_exact>\n\n    def test_m19_measured_perf_defines_exact(self):\n        # Literal compile definitions from the base S build, independent of\n        # expected_perf_defines so removal of BOOST_ALL_NO_LIB fails here.\n        defines = (\n            \"-DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB=1 \"\n            \"-DBOOST_FILESYSTEM_DYN_LINK=1 -DKEY_SIZE=8 -DMASSTREE_USE=1 \"\n            \"-DVAL_SIZE=4 -DTRACE=0 -DINLINE_VERSION_OPT=1 \"\n            \"-DINLINE_VERSION_PROMOTION=0 -DREUSE_VERSION=1 -DSINGLE_EXEC=0 \"\n            \"-DWRITE_LATEST_ONLY=0 -DWORKER1_INSERT_DELAY_RPHASE=0 \"\n            \"-DPARTITION_TABLE=0 -DLinux=1 -DNDEBUG=1 \"\n            \"-DIZANAGI_CICADA_CEILING_WORKLOAD=1\"\n        )\n        rows = [{\"file\": f\"/x/{name}\",\n                 \"command\": f\"c++ {defines} CMakeFiles/ycsb_cicada.exe.dir/ -c {name}\"}\n                for name in (\"transaction.cc\", \"util.cc\", \"ycsb_cicada.cc\")]\n        C.check_perf_defines(rows, \"S\")\n        extra = copy.deepcopy(rows)\n        extra[0][\"command\"] += \" -DUNRELATED_DEFINE=1\"\n>       with self.assertRaisesRegex(ValueError, \"perf -D mismatch\"):\nE       AssertionError: ValueError not raised\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:87: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact\n3 failed, 29 passed in 4.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1352 retained_bytes=1352 omitted_bytes=0 rendered_excerpt_bytes=1405 sha256=a5bc382c466abcb29c719933d1cab53ef806abd753c39a044e2377234da01f0e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m19_measured_perf_defines_exact>\n> \n>     def test_m19_measured_perf_defines_exact(self):\n>         # Literal compile definitions from the base S build, independent of\n>         # expected_perf_defines so removal of BOOST_ALL_NO_LIB fails here.\n>         defines = (\n>             \"-DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB=1 \"\n>             \"-DBOOST_FILESYSTEM_DYN_LINK=1 -DKEY_SIZE=8 -DMASSTREE_USE=1 \"\n>             \"-DVAL_SIZE=4 -DTRACE=0 -DINLINE_VERSION_OPT=1 \"\n>             \"-DINLINE_VERSION_PROMOTION=0 -DREUSE_VERSION=1 -DSINGLE_EXEC=0 \"\n>             \"-DWRITE_LATEST_ONLY=0 -DWORKER1_INSERT_DELAY_RPHASE=0 \"\n>             \"-DPARTITION_TABLE=0 -DLinux=1 -DNDEBUG=1 \"\n>             \"-DIZANAGI_CICADA_CEILING_WORKLOAD=1\"\n>         )\n>         rows = [{\"file\": f\"/x/{name}\",\n>                  \"command\": f\"c++ {defines} CMakeFiles/ycsb_cicada.exe.dir/ -c {name}\"}\n>                 for name in (\"transaction.cc\", \"util.cc\", \"ycsb_cicada.cc\")]\n>         C.check_perf_defines(rows, \"S\")\n>         extra = copy.deepcopy(rows)\n>         extra[0][\"command\"] += \" -DUNRELATED_DEFINE=1\"\n> >       with self.assertRaisesRegex(ValueError, \"perf -D mismatch\"):\n> E       AssertionError: ValueError not raised\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:87: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=989 retained_bytes=989 omitted_bytes=0 rendered_excerpt_bytes=1028 sha256=5808e701ee7110fd56f51e397df86da05d4d29a9065cec1c76347aa2578357d6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m24_igc_perf_defines>\n> \n>     def test_m24_igc_perf_defines(self):\n>         expected = C.expected_perf_defines(\"igc1\")\n>         self.assertEqual(C.expected_perf_defines(\"igc\"), expected)\n>         self.assertEqual(C.expected_perf_defines(\"igc3\"), expected)\n>         defines = expected | {k: str(v) for k, v in C.V.TUNED_GENOME.items()}\n>         commands = [{\"file\": f\"/x/{name}\", \"command\": \"c++ \" + \" \".join(\n>             f\"-D{k}={v}\" for k, v in defines.items()) +\n>             \" CMakeFiles/ycsb_cicada.exe.dir/ -c \" + name} for name in\n>             (\"transaction.cc\", \"util.cc\", \"ycsb_cicada.cc\")]\n>         C.check_perf_defines(commands, \"igc\")\n>         commands[0][\"command\"] += \" -DUNRELATED_DEFINE=1\"\n> >       with self.assertRaisesRegex(ValueError, \"perf -D mismatch\"):\n> E       AssertionError: ValueError not raised\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:482: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=911 retained_bytes=911 omitted_bytes=0 rendered_excerpt_bytes=948 sha256=b529b18b6f623d9f9b7761e346f675d868889596b76e7abc582526a67499d934\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m1_perf_defines>\n> \n>     def test_m1_perf_defines(self):\n>         expected = C.expected_perf_defines(\"hot8\") | {k: str(v) for k, v in C.V.TUNED_GENOME.items()}\n>         rows = [{\"file\": f\"/x/{name}\", \"command\": \"c++ \" + \" \".join(\n>             f\"-D{k}={v}\" for k, v in expected.items()) +\n>             \" CMakeFiles/ycsb_cicada.exe.dir/ -c \" + name} for name in\n>             (\"transaction.cc\", \"util.cc\", \"ycsb_cicada.cc\")]\n>         C.check_perf_defines(rows, \"hot8\")\n>         for macro in (\"CICADA_VHASH_COUNT\", \"IZANAGI_CICADA_VLIFE\", \"UNRELATED_DEFINE\"):\n>             bad = copy.deepcopy(rows)\n>             bad[0][\"command\"] += f\" -D{macro}=1\"\n> >           with self.assertRaises(ValueError):\n> E           AssertionError: ValueError not raised\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:66: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3252 retained_bytes=3252 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4957 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3f95d9237079fcb04d10876051bec961e36f0c48f7c855d37a58b57899421282"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18bdc09ae14eebe07aad1b5704e383e1c54c77774f78f872cff650abfff18c85",
+      "duration_s": 26.975,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact"
+      ],
+      "hang_risk": false,
+      "id": "M1-perf-define-exact",
+      "injection_diff_sha256": "ee8a9f73fc6a06d36bcadcc63c0bcc4cbd4a427c1de8cd72f2c274950dabd9bf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c9ab145c339868245fadf0c94708b097d154adc224a64768f4f0aaeca5d178f4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+          "new": "        if not expected.items() <= actual.items():\n",
+          "old": "        if actual != expected:\n"
+        }
+      ],
+      "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+      "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+      "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+      "status": "KILLED",
+      "test_output_sha256": "3f95d9237079fcb04d10876051bec961e36f0c48f7c855d37a58b57899421282",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/950d43e0e47c2be2bcd13cd0cc59eb5e/izdw-950d43e0e4.o40370",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/950d43e0e47c2be2bcd13cd0cc59eb5e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........................FFFFF                                         [100%]\n=================================== FAILURES ===================================\n_______________ CeilingTests.test_m2_paired_same_round_node_job ________________\n[gw23] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m2_paired_same_round_node_job>\n\n    def test_m2_paired_same_round_node_job(self):\n        good = [row(), row(arm=\"hot1\", tps=150)]\n        self.assertEqual(C.paired(good, \"hot1\", \"P2\", 10, \"prelim\")[0][\"ratio\"], 1.5)\n        for change in ({\"round\": 2}, {\"node\": \"n2\"}, {\"job_id\": \"other\"},\n                       {\"gc_inter_us\": 100}):\n            bad = copy.deepcopy(good)\n            bad[1].update(change)\n>           with self.assertRaises(ValueError):\nE           AssertionError: ValueError not raised\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:121: AssertionError\n__________ CeilingTests.test_full_preliminary_choice_and_budget_flags __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_full_preliminary_choice_and_budget_flags>\n\n    def test_full_preliminary_choice_and_budget_flags(self):\n        rows = []\n        for point in (\"P1\", \"P2\", \"P3\", \"P4\"):\n            for gc in (10, 100):\n                for round_no in range(1, 4):\n                    for arm in C.prelim_arms(point):\n                        score = 100 if arm == \"R\" else 120\n                        if point == \"P2\" and arm == \"hot1\": score = 140\n                        if point == \"P4\" and arm == \"hot8\": score = 135\n                        rows.append(row(point, arm, gc, round_no, tps=score,\n                                        batch=0 if arm == \"R-noLR\" else 10))\n        witnesses = {arm: {\"status\": \"certified\", \"accepted\": True, \"verifier_rc\": 0,\n            \"counts\": {\"batch_c_lines\": 1,\n            \"hot_hits\": 1, \"forward_success\": 1}} for arm in C.M_ARMS}\n>       result = C.aggregate(rows, witnesses)\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:192: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n    pairs = paired(prelim, arm, point, interval, \"prelim\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrows = [{'mode': 'prelim', 'point': 'P1', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\narm = 'S', point = 'P1', gc = 10, mode = 'prelim'\n\n    def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n        groups = defaultdict(dict)\n        for row in rows:\n            _eligible_raw(row)\n            if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n                key = (0, \"\", \"\")\n                if row[\"arm\"] in groups[key]:\n>                   raise ValueError(\"duplicate arm in one paired job\")\nE                   ValueError: duplicate arm in one paired job\n\norchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n__________ CeilingTests.test_m16_runner_up_requires_eligible_witness ___________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m16_runner_up_requires_eligible_witness>\n\n    def test_m16_runner_up_requires_eligible_witness(self):\n        rows = []\n        for point in (\"P1\", \"P2\", \"P3\", \"P4\"):\n            for gc in (10, 100):\n                for round_no in range(1, 4):\n                    for arm in C.prelim_arms(point):\n                        scores = {\"R\": 100, \"hot1\": 140, \"hot8\": 135, \"fwd\": 130}\n                        rows.append(row(point, arm, gc, round_no,\n                                        tps=scores.get(arm, 105),\n                                        batch=0 if arm == \"R-noLR\" else 10))\n        valid = lambda key: {\"accepted\": True, \"verifier_rc\": 3,\n                             \"counts\": {\"batch_c_lines\": 1, key: 1}}\n        witnesses = {\"hot1\": valid(\"hot_hits\"), \"hot8\": valid(\"hot_hits\"),\n                     \"fwd\": valid(\"forward_success\")}\n>       self.assertEqual(C.aggregate(rows, witnesses)[\"comparison_arms\"],\n                         [\"S\", \"R\", \"hot1\", \"hot8\"])\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:354: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n    pairs = paired(prelim, arm, point, interval, \"prelim\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrows = [{'mode': 'prelim', 'point': 'P1', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\narm = 'S', point = 'P1', gc = 10, mode = 'prelim'\n\n    def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n        groups = defaultdict(dict)\n        for row in rows:\n            _eligible_raw(row)\n            if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n                key = (0, \"\", \"\")\n                if row[\"arm\"] in groups[key]:\n>                   raise ValueError(\"duplicate arm in one paired job\")\nE                   ValueError: duplicate arm in one paired job\n\norchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n______________ CeilingTests.test_fr4_aggregate_residual_threshold ______________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_fr4_aggregate_residual_threshold>\n\n    def test_fr4_aggregate_residual_threshold(self):\n        def collect(residual_tps):\n            rows = []\n            for gc in (10, 100):\n                for round_no in range(1, 4):\n                    for arm in C.prelim_arms(\"P2\"):\n                        score = (100 if arm == \"R\" else residual_tps if arm == \"R-noLR\"\n                                 else 130 if arm == \"hot1\" else 110)\n                        rows.append(row(\"P2\", arm, gc, round_no, tps=score,\n                                        batch=0 if arm == \"R-noLR\" else 10))\n            for point in (\"P2\", \"P3\"):\n                for round_no in range(1, 7):\n                    for arm in (\"R\", \"hot1\"):\n                        item = row(point, arm, 10, round_no, mode=\"compare\",\n                                   tps=100 if arm == \"R\" else 130)\n                        item[\"duration_s\"] = 30\n                        item[\"normal_commits\"] = item[\"throughput_tps\"] * 30\n                        rows.append(item)\n            witness = {\"hot1\": {\"accepted\": True, \"verifier_rc\": 3,\n                       \"counts\": {\"batch_c_lines\": 1, \"hot_hits\": 1}}}\n            return C.aggregate(rows, witness)\n>       high, low = collect(150), collect(149)\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:465: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_ceiling_vs_sota.py:464: in collect\n    return C.aggregate(rows, witness)\norchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n    pairs = paired(prelim, arm, point, interval, \"prelim\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrows = [{'mode': 'prelim', 'point': 'P2', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P2', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P2', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\narm = 'S', point = 'P2', gc = 10, mode = 'prelim'\n\n    def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n        groups = defaultdict(dict)\n        for row in rows:\n            _eligible_raw(row)\n            if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n                key = (0, \"\", \"\")\n                if row[\"arm\"] in groups[key]:\n>                   raise ValueError(\"duplicate arm in one paired job\")\nE                   ValueError: duplicate arm in one paired job\n\norchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n_______ CeilingTests.test_m14_aggregate_uses_comparison_not_preliminary ________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m14_aggregate_uses_comparison_not_preliminary>\n\n    def test_m14_aggregate_uses_comparison_not_preliminary(self):\n        rows = []\n        for point in (\"P1\", \"P2\", \"P3\", \"P4\"):\n            for gc in (10, 100):\n                for round_no in range(1, 4):\n                    for arm in C.prelim_arms(point):\n                        rows.append(row(point, arm, gc, round_no,\n                                        tps=100 if arm == \"R\" else 130,\n                                        batch=0 if arm == \"R-noLR\" else 10))\n        witnesses = {\"hot1\": {\"accepted\": True, \"verifier_rc\": 3,\n                    \"counts\": {\"batch_c_lines\": 1, \"hot_hits\": 1}}}\n>       self.assertIn(\"予備のみ\", C.aggregate(rows, witnesses)[\"research_decision\"])\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:262: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n    pairs = paired(prelim, arm, point, interval, \"prelim\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrows = [{'mode': 'prelim', 'point': 'P1', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\narm = 'S', point = 'P1', gc = 10, mode = 'prelim'\n\n    def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n        groups = defaultdict(dict)\n        for row in rows:\n            _eligible_raw(row)\n            if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n                key = (0, \"\", \"\")\n                if row[\"arm\"] in groups[key]:\n>                   raise ValueError(\"duplicate arm in one paired job\")\nE                   ValueError: duplicate arm in one paired job\n\norchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary\n5 failed, 27 passed in 4.84s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2671 retained_bytes=2671 omitted_bytes=0 rendered_excerpt_bytes=2770 sha256=ca0463ce37abdeaf0929c7b4a08c05324a4a8b0de9604c6a0cfa2be1405cb3d0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_fr4_aggregate_residual_threshold>\n> \n>     def test_fr4_aggregate_residual_threshold(self):\n>         def collect(residual_tps):\n>             rows = []\n>             for gc in (10, 100):\n>                 for round_no in range(1, 4):\n>                     for arm in C.prelim_arms(\"P2\"):\n>                         score = (100 if arm == \"R\" else residual_tps if arm == \"R-noLR\"\n>                                  else 130 if arm == \"hot1\" else 110)\n>                         rows.append(row(\"P2\", arm, gc, round_no, tps=score,\n>                                         batch=0 if arm == \"R-noLR\" else 10))\n>             for point in (\"P2\", \"P3\"):\n>                 for round_no in range(1, 7):\n>                     for arm in (\"R\", \"hot1\"):\n>                         item = row(point, arm, 10, round_no, mode=\"compare\",\n>                                    tps=100 if arm == \"R\" else 130)\n>                         item[\"duration_s\"] = 30\n>                         item[\"normal_commits\"] = item[\"throughput_tps\"] * 30\n>                         rows.append(item)\n>             witness = {\"hot1\": {\"accepted\": True, \"verifier_rc\": 3,\n>                        \"counts\": {\"batch_c_lines\": 1, \"hot_hits\": 1}}}\n>             return C.aggregate(rows, witness)\n> >       high, low = collect(150), collect(149)\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:465: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:464: in collect\n>     return C.aggregate(rows, witness)\n> orchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n>     pairs = paired(prelim, arm, point, interval, \"prelim\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> rows = [{'mode': 'prelim', 'point': 'P2', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P2', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P2', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\n> arm = 'S', point = 'P2', gc = 10, mode = 'prelim'\n> \n>     def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n>         groups = defaultdict(dict)\n>         for row in rows:\n>             _eligible_raw(row)\n>             if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n>                 key = (0, \"\", \"\")\n>                 if row[\"arm\"] in groups[key]:\n> >                   raise ValueError(\"duplicate arm in one paired job\")\n> E                   ValueError: duplicate arm in one paired job\n> \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2290 retained_bytes=2290 omitted_bytes=0 rendered_excerpt_bytes=2373 sha256=bff315e322bed80367d36857f323b4c81d501f58839d7b0698206d6e9e44df16\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m16_runner_up_requires_eligible_witness>\n> \n>     def test_m16_runner_up_requires_eligible_witness(self):\n>         rows = []\n>         for point in (\"P1\", \"P2\", \"P3\", \"P4\"):\n>             for gc in (10, 100):\n>                 for round_no in range(1, 4):\n>                     for arm in C.prelim_arms(point):\n>                         scores = {\"R\": 100, \"hot1\": 140, \"hot8\": 135, \"fwd\": 130}\n>                         rows.append(row(point, arm, gc, round_no,\n>                                         tps=scores.get(arm, 105),\n>                                         batch=0 if arm == \"R-noLR\" else 10))\n>         valid = lambda key: {\"accepted\": True, \"verifier_rc\": 3,\n>                              \"counts\": {\"batch_c_lines\": 1, key: 1}}\n>         witnesses = {\"hot1\": valid(\"hot_hits\"), \"hot8\": valid(\"hot_hits\"),\n>                      \"fwd\": valid(\"forward_success\")}\n> >       self.assertEqual(C.aggregate(rows, witnesses)[\"comparison_arms\"],\n>                          [\"S\", \"R\", \"hot1\", \"hot8\"])\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:354: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n>     pairs = paired(prelim, arm, point, interval, \"prelim\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> rows = [{'mode': 'prelim', 'point': 'P1', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\n> arm = 'S', point = 'P1', gc = 10, mode = 'prelim'\n> \n>     def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n>         groups = defaultdict(dict)\n>         for row in rows:\n>             _eligible_raw(row)\n>             if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n>                 key = (0, \"\", \"\")\n>                 if row[\"arm\"] in groups[key]:\n> >                   raise ValueError(\"duplicate arm in one paired job\")\n> E                   ValueError: duplicate arm in one paired job\n> \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2213 retained_bytes=2213 omitted_bytes=0 rendered_excerpt_bytes=2294 sha256=5f5490d6afe59a88179bc8484826e805ed4816ea9d9c3b9279b4ccccab4846b3\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_full_preliminary_choice_and_budget_flags>\n> \n>     def test_full_preliminary_choice_and_budget_flags(self):\n>         rows = []\n>         for point in (\"P1\", \"P2\", \"P3\", \"P4\"):\n>             for gc in (10, 100):\n>                 for round_no in range(1, 4):\n>                     for arm in C.prelim_arms(point):\n>                         score = 100 if arm == \"R\" else 120\n>                         if point == \"P2\" and arm == \"hot1\": score = 140\n>                         if point == \"P4\" and arm == \"hot8\": score = 135\n>                         rows.append(row(point, arm, gc, round_no, tps=score,\n>                                         batch=0 if arm == \"R-noLR\" else 10))\n>         witnesses = {arm: {\"status\": \"certified\", \"accepted\": True, \"verifier_rc\": 0,\n>             \"counts\": {\"batch_c_lines\": 1,\n>             \"hot_hits\": 1, \"forward_success\": 1}} for arm in C.M_ARMS}\n> >       result = C.aggregate(rows, witnesses)\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:192: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n>     pairs = paired(prelim, arm, point, interval, \"prelim\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> rows = [{'mode': 'prelim', 'point': 'P1', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\n> arm = 'S', point = 'P1', gc = 10, mode = 'prelim'\n> \n>     def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n>         groups = defaultdict(dict)\n>         for row in rows:\n>             _eligible_raw(row)\n>             if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n>                 key = (0, \"\", \"\")\n>                 if row[\"arm\"] in groups[key]:\n> >                   raise ValueError(\"duplicate arm in one paired job\")\n> E                   ValueError: duplicate arm in one paired job\n> \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=2058 retained_bytes=2058 omitted_bytes=0 rendered_excerpt_bytes=2145 sha256=8c201a4a406836372c70ef3e12836251496dc74905332f85a0dc30c85988a032\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m14_aggregate_uses_comparison_not_preliminary>\n> \n>     def test_m14_aggregate_uses_comparison_not_preliminary(self):\n>         rows = []\n>         for point in (\"P1\", \"P2\", \"P3\", \"P4\"):\n>             for gc in (10, 100):\n>                 for round_no in range(1, 4):\n>                     for arm in C.prelim_arms(point):\n>                         rows.append(row(point, arm, gc, round_no,\n>                                         tps=100 if arm == \"R\" else 130,\n>                                         batch=0 if arm == \"R-noLR\" else 10))\n>         witnesses = {\"hot1\": {\"accepted\": True, \"verifier_rc\": 3,\n>                     \"counts\": {\"batch_c_lines\": 1, \"hot_hits\": 1}}}\n> >       self.assertIn(\"\\u4e88\\u5099\\u306e\\u307f\", C.aggregate(rows, witnesses)[\"research_decision\"])\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:262: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:465: in aggregate\n>     pairs = paired(prelim, arm, point, interval, \"prelim\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> rows = [{'mode': 'prelim', 'point': 'P1', 'arm': 'S', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'R', ... 'arm': 'hot8', 'gc_inter_us': 10, ...}, {'mode': 'prelim', 'point': 'P1', 'arm': 'igc1', 'gc_inter_us': 10, ...}, ...]\n> arm = 'S', point = 'P1', gc = 10, mode = 'prelim'\n> \n>     def paired(rows: list[dict], arm: str, point: str, gc: int, mode: str) -> list[dict]:  # M2\n>         groups = defaultdict(dict)\n>         for row in rows:\n>             _eligible_raw(row)\n>             if row[\"point\"] == point and row[\"gc_inter_us\"] == gc and row[\"mode\"] == mode:\n>                 key = (0, \"\", \"\")\n>                 if row[\"arm\"] in groups[key]:\n> >                   raise ValueError(\"duplicate arm in one paired job\")\n> E                   ValueError: duplicate arm in one paired job\n> \n> orchestrator/campaign/vhash_ceiling_vs_sota.py:366: ValueError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=688 retained_bytes=688 omitted_bytes=0 rendered_excerpt_bytes=719 sha256=b0c82f6891b35778147e6d4d6f9ebb0e5b159066464636a542f24e91d9496526\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m2_paired_same_round_node_job>\n> \n>     def test_m2_paired_same_round_node_job(self):\n>         good = [row(), row(arm=\"hot1\", tps=150)]\n>         self.assertEqual(C.paired(good, \"hot1\", \"P2\", 10, \"prelim\")[0][\"ratio\"], 1.5)\n>         for change in ({\"round\": 2}, {\"node\": \"n2\"}, {\"job_id\": \"other\"},\n>                        {\"gc_inter_us\": 100}):\n>             bad = copy.deepcopy(good)\n>             bad[1].update(change)\n> >           with self.assertRaises(ValueError):\n> E           AssertionError: ValueError not raised\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:121: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=9920 retained_bytes=9920 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12820 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ca6cef8a16aaa4dbdb4784b6c987087629e35bdbc874999dccd7c43d41c7df9c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18bdc09ae14eebe07aad1b5704e383e1c54c77774f78f872cff650abfff18c85",
+      "duration_s": 26.968,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary"
+      ],
+      "hang_risk": false,
+      "id": "M2-pair-pooled-not-same-round-node",
+      "injection_diff_sha256": "d9fb373cad7a9b94e30ab713c6b4836bfdc0803f847de017c44c3a5360357113",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b476d5497043e624f00dcbf81db5d2ec1f1f84e7ecaccab665a6d06601808828",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+          "new": "key = (0, \"\", \"\")",
+          "old": "key = (row[\"round\"], row[\"node\"], row[\"job_id\"])"
+        }
+      ],
+      "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+      "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+      "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+      "status": "KILLED",
+      "test_output_sha256": "ca6cef8a16aaa4dbdb4784b6c987087629e35bdbc874999dccd7c43d41c7df9c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/ba1a30a89c3f7bc056adce527af2e2bc/izdw-ba1a30a89c.o40372",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/ba1a30a89c3f7bc056adce527af2e2bc/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................F...                                         [100%]\n=================================== FAILURES ===================================\n___________________ CeilingTests.test_m8_manifest_all_fields ___________________\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\nself = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m8_manifest_all_fields>\n\n    def test_m8_manifest_all_fields(self):\n        with tempfile.TemporaryDirectory() as td:\n            binary = Path(td) / \"binary\"\n            binary.write_bytes(b\"binary\")\n            v = Path(td) / \"V.patch\"\n            w = Path(td) / \"W.patch\"\n            v.write_bytes(b\"v\")\n            w.write_bytes(b\"w\")\n            old = C.TREE_PATCHES[\"base\"]\n            C.TREE_PATCHES[\"base\"] = (v, w)\n            try:\n                manifest = {\"schema\": 1, \"pin\": C.PIN, \"tree\": \"base\", \"arm\": \"R\",\n                    \"patches\": C.patch_manifest(\"base\"), \"macros\": list(C.variants(\"base\")[\"R\"]),\n                    \"binary_sha256\": C.base.sha(binary),\n                    \"compile_commands_sha256\": \"c\"*64, \"compiler_version_sha256\": \"d\"*64}\n                C.check_manifest(manifest, binary, \"base\", \"R\")\n                for key, replacement in ((\"patches\", list(reversed(manifest[\"patches\"]))),\n                                         (\"macros\", []), (\"pin\", \"wrong\")):\n                    bad = {**manifest, key: replacement}\n>                   with self.assertRaises(ValueError):\nE                   AssertionError: ValueError not raised\n\norchestrator/tests/test_vhash_ceiling_vs_sota.py:109: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields\n1 failed, 31 passed in 5.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1352 retained_bytes=1352 omitted_bytes=0 rendered_excerpt_bytes=1407 sha256=93c16b730f551ae4bc3ff44948ec308a9f2f53dad6e307b018599b844a0bedb7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n> self = <test_vhash_ceiling_vs_sota.CeilingTests testMethod=test_m8_manifest_all_fields>\n> \n>     def test_m8_manifest_all_fields(self):\n>         with tempfile.TemporaryDirectory() as td:\n>             binary = Path(td) / \"binary\"\n>             binary.write_bytes(b\"binary\")\n>             v = Path(td) / \"V.patch\"\n>             w = Path(td) / \"W.patch\"\n>             v.write_bytes(b\"v\")\n>             w.write_bytes(b\"w\")\n>             old = C.TREE_PATCHES[\"base\"]\n>             C.TREE_PATCHES[\"base\"] = (v, w)\n>             try:\n>                 manifest = {\"schema\": 1, \"pin\": C.PIN, \"tree\": \"base\", \"arm\": \"R\",\n>                     \"patches\": C.patch_manifest(\"base\"), \"macros\": list(C.variants(\"base\")[\"R\"]),\n>                     \"binary_sha256\": C.base.sha(binary),\n>                     \"compile_commands_sha256\": \"c\"*64, \"compiler_version_sha256\": \"d\"*64}\n>                 C.check_manifest(manifest, binary, \"base\", \"R\")\n>                 for key, replacement in ((\"patches\", list(reversed(manifest[\"patches\"]))),\n>                                          (\"macros\", []), (\"pin\", \"wrong\")):\n>                     bad = {**manifest, key: replacement}\n> >                   with self.assertRaises(ValueError):\n> E                   AssertionError: ValueError not raised\n> \n> orchestrator/tests/test_vhash_ceiling_vs_sota.py:109: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1352 retained_bytes=1352 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2125 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "decd73281b98ab40d20152f794b65b585dbce6733d1b2363622871d2392cfc0d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18bdc09ae14eebe07aad1b5704e383e1c54c77774f78f872cff650abfff18c85",
+      "duration_s": 27.015,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields"
+      ],
+      "hang_risk": false,
+      "id": "M8-manifest-binary-sha-only",
+      "injection_diff_sha256": "f4b026d71453f4ce5945ad63e2b63d8b835e2368642929ec689dd62db6d0de61",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7bbde2976508351765c650e92663339b5fb75801da7e5e704da86bf835fe732f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+          "new": "if any(manifest.get(key) != value for key, value in expected.items() if key == \"binary_sha256\"):",
+          "old": "if any(manifest.get(key) != value for key, value in expected.items()):"
+        }
+      ],
+      "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+      "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+      "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+      "status": "KILLED",
+      "test_output_sha256": "decd73281b98ab40d20152f794b65b585dbce6733d1b2363622871d2392cfc0d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/9a1cf36ade554408f35c3cf498b98b93/izdw-9a1cf36ade.o40366",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/output/pegasus-dispatch/9a1cf36ade554408f35c3cf498b98b93/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_do_build_passes_igc_to_perf_gate\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_igc_build_and_smoke_paths\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_interval_mode_three_diagnostics_are_extracted\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m11_m12_and_perf_separation\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_positive_reaches_mode_one_flags\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_run_reaches_verifier\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_final_decision_from_30_second_comparison\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_build_shards_and_unsplittable_reason\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_execution_job_300_second_gate\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m17_max_eligible_even_below_one\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m18_hot_count_precedes_workload\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m20_hot_diagnostic_real_count_line\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m21_window_and_preparation_estimates\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m22_broken_positive_requires_cycle\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m23_residual_cost_threshold\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m3_gc_only_R\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m6_accepted_rc3_and_single_witness_gate\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m7_c_lines_two_independent_equalities\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m9_order_and_m10_neighbor\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_patch_order_and_genome\norchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_workload_exact_output\n\n32 tests collected in 1.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "860b4a1b597bf8d65ee0dc3fcb9ffc0a7528e56a14b12a45e9583a7871d9ae70"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_do_build_passes_igc_to_perf_gate",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_igc_build_and_smoke_paths",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_interval_mode_three_diagnostics_are_extracted",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m11_m12_and_perf_separation",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_positive_reaches_mode_one_flags",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_run_reaches_verifier",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_final_decision_from_30_second_comparison",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_build_shards_and_unsplittable_reason",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_execution_job_300_second_gate",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m17_max_eligible_even_below_one",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m18_hot_count_precedes_workload",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m20_hot_diagnostic_real_count_line",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m21_window_and_preparation_estimates",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m22_broken_positive_requires_cycle",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m23_residual_cost_threshold",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m3_gc_only_R",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m6_accepted_rc3_and_single_witness_gate",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m7_c_lines_two_independent_equalities",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m9_order_and_m10_neighbor",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_patch_order_and_genome",
+        "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_workload_exact_output"
+      ],
+      "duration_s": 451.804,
+      "rc": 0,
+      "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+      "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+      "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+      "status": "PASSED",
+      "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-docstring-equivalent": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "3abe02d93c52d52d7a01db6f5d604f5ba7e9370daa6eeb0e997b9199df31716f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+            "new": "Matched Cicada ceiling experiment",
+            "old": "Paired Cicada ceiling experiment"
+          }
+        ]
+      },
+      "M1-perf-define-exact": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact",
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ee8a9f73fc6a06d36bcadcc63c0bcc4cbd4a427c1de8cd72f2c274950dabd9bf",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+            "new": "        if not expected.items() <= actual.items():\n",
+            "old": "        if actual != expected:\n"
+          }
+        ]
+      },
+      "M2-pair-pooled-not-same-round-node": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d9fb373cad7a9b94e30ab713c6b4836bfdc0803f847de017c44c3a5360357113",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+            "new": "key = (0, \"\", \"\")",
+            "old": "key = (row[\"round\"], row[\"node\"], row[\"job_id\"])"
+          }
+        ]
+      },
+      "M8-manifest-binary-sha-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f4b026d71453f4ce5945ad63e2b63d8b835e2368642929ec689dd62db6d0de61",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+            "new": "if any(manifest.get(key) != value for key, value in expected.items() if key == \"binary_sha256\"):",
+            "old": "if any(manifest.get(key) != value for key, value in expected.items()):"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "3b1ed51fec516a2271bb1a60fe18e4662abfdc1a0d1e54f266a522dd303b18a1",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_vhash_ceiling_vs_sota.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "9ea29f9df4b83db82c884146abafa30749d27401",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_vhash_ceiling_vs_sota.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6689f24609a29c948bd6034d76787593463e6a44",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c83911a96cf1472b00ebe9d4794cfd11d11a057d97b3b4a1684c30d99233496a",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e2a29d54e76b33a1995cd2ee7bfff658fbe7a5a7b99f672a0c5ed058c17f4c2c",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vceil-m1/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "e34cd66b1bcda61b8111c69cff467471f6f7743e6e0acc83bd1bd8d289b517ea",
+  "updated_at": "2026-09-30T21:20:32.010469+00:00"
+}
