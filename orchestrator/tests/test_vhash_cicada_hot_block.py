@@ -72,6 +72,7 @@ def jobs():
                              "fired": {"reached": 0, "changed": 0, "committed": 0},
                              "omitted": 0 if name == "stale-gap" else None,
                              "undetermined": 0 if name == "stale-gap" else None,
+                             "dead": 0 if name in ("B1", "stale-gap") else None,
                              "witness_count": 0}}}
               for cell in ("T1", "T2") for name in (*h.BROKEN, "B2-probe")]
     raw.append({"records": trace})
@@ -409,14 +410,17 @@ def test_break_event_summary_and_omission_required():
         "CICADA_BREAK_EVENT slug=post-stale-gap stage=reached tx_wts=2 key=0a01 read_wts=3",
         "CICADA_BREAK_FIRED slug=post-stale-gap reached=1 changed=0 committed=0",
         "CICADA_BREAK_OMITTED slug=post-stale-gap omitted=4",
-        "CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=2"]
+        "CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=2",
+        "CICADA_BREAK_DEAD slug=post-stale-gap dead=3"]
     parsed = h._break_events("\n".join(lines), "broken-stale-gap")
     assert parsed["omitted"] == 4
     assert parsed["undetermined"] == 2
+    assert parsed["dead"] == 3
     with pytest.raises(ValueError, match="omitted"):
-        h._break_events("\n".join((lines[0], lines[1], lines[3])), "broken-stale-gap")
+        h._break_events("\n".join((lines[0], lines[1], lines[3], lines[4])),
+                        "broken-stale-gap")
     with pytest.raises(ValueError, match="undetermined"):
-        h._break_events("\n".join(lines[:-1]), "broken-stale-gap")
+        h._break_events("\n".join((lines[0], lines[1], lines[2], lines[4])), "broken-stale-gap")
     with pytest.raises(ValueError, match="event/summary mismatch"):
         h._break_events("\n".join([lines[0], lines[1].replace("reached=1", "reached=2"),
                                     lines[2]]), "broken-stale-gap")
@@ -624,9 +628,11 @@ def test_patch_break_event_stages_and_witness_attribution():
         "CICADA_BREAK_EVENT slug=stale-hot stage=changed tx_wts=4294967298 key=0a01 read_wts=4294967297",
         "CICADA_BREAK_EVENT slug=stale-hot stage=committed tx_wts=4294967298 key=0a01 read_wts=4294967297",
         "CICADA_BREAK_FIRED slug=stale-hot reached=1 changed=1 committed=1",
+        "CICADA_BREAK_DEAD slug=stale-hot dead=2",
     ])
     diagnostics = h._break_events(stderr, "broken-B1")
     assert diagnostics["event_stages"] == {"reached": 1, "changed": 1, "committed": 1}
+    assert diagnostics["dead"] == 2
     record = {"anomalies": [{"cycle": [7, 8], "edges": [{"from": 7, "to": 8,
         "reasons": [{"type": "rw", "key": "0a01", "u_ver": [1, 1],
                      "v_ver": [1, 3]}]}]}]}
@@ -637,7 +643,8 @@ def test_patch_break_event_stages_and_witness_attribution():
         h._break_events(stderr.replace("committed=1", "committed=2"), "broken-B1")
     with pytest.raises(ValueError, match="malformed break event"):
         h._break_events(stderr.replace("stage=changed ", "stage=unknown "), "broken-B1")
-    skip = stderr.replace("stale-hot", "skip-pending")
+    skip = stderr.replace("stale-hot", "skip-pending").replace(
+        "CICADA_BREAK_DEAD slug=skip-pending dead=2", "")
     assert h._break_events(skip, "broken-B2")["fired"]["committed"] == 1
 
 
@@ -716,6 +723,65 @@ def test_broken_aggregate_four_classification_boundaries():
             assert item["integrity_state"]["violations"] == {"orphan_reads": 2}
 
 
+def test_m14_broken_timeout_is_hung_but_positive_timeout_rejected():
+    raw = jobs()
+    broken = next(r for r in raw[-2]["records"] if r["build"] == "broken-B1")
+    broken["rc"] = 124
+    broken["trace"] = None
+    result = aggregate(raw)
+    item = result["broken"]["broken-B1:T1"]
+    assert item["status"] == "hung"
+    assert item["classification"] == "hung"
+    assert item["rc"] == 124
+    assert item["status"] not in ("detected", "undetected")
+    positive = next(r for r in raw[-2]["records"] if r["build_kind"] == "trace")
+    positive["rc"] = 124
+    positive["trace"] = None
+    with pytest.raises(ValueError, match="invalid trace run"):
+        aggregate(raw)
+    positive["rc"] = 0
+    positive["trace"] = {"clean": True, "rc": 3, "total_cycles": 0,
+                         "verdict": "indeterminate"}
+    broken["rc"] = 123
+    with pytest.raises(ValueError, match="invalid broken trace run"):
+        aggregate(raw)
+
+
+def test_m15_dead_summary_required_once_and_observed():
+    base = "CICADA_BREAK_FIRED slug=stale-hot reached=0 changed=0 committed=0"
+    dead = "CICADA_BREAK_DEAD slug=stale-hot dead=7"
+    with pytest.raises(ValueError, match="dead summary"):
+        h._break_events(base, "broken-B1")
+    with pytest.raises(ValueError, match="dead summary"):
+        h._break_events("\n".join((base, dead, dead)), "broken-B1")
+    event = h._break_events("\n".join((base, dead)), "broken-B1")
+    assert event["dead"] == 7
+    record = {"build": "broken-B1", "trace": {"verdict": "indeterminate",
+              "total_cycles": 0, "break": {**event, "witness_count": 0}}}
+    assert h.broken_verdict(record)["dead"] == 7
+    gap = "\n".join((
+        "CICADA_BREAK_FIRED slug=post-stale-gap reached=0 changed=0 committed=0",
+        "CICADA_BREAK_OMITTED slug=post-stale-gap omitted=0",
+        "CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=0"))
+    with pytest.raises(ValueError, match="dead summary"):
+        h._break_events(gap, "broken-stale-gap")
+    gap_event = h._break_events(gap + "\nCICADA_BREAK_DEAD slug=post-stale-gap dead=5",
+                                "broken-stale-gap")
+    assert gap_event["dead"] == 5
+    raw = jobs()
+    for item in raw[-2]["records"]:
+        if item["build"] == "broken-B1":
+            item["trace"]["break"]["dead"] = 7
+        if item["build"] == "broken-stale-gap":
+            item["trace"]["break"]["dead"] = 5
+    observed = aggregate(raw)["broken"]
+    assert observed["broken-B1:T1"]["dead"] == 7
+    assert observed["broken-stale-gap:T1"]["dead"] == 5
+    with pytest.raises(ValueError, match="unexpected dead summary"):
+        h._break_events(base.replace("stale-hot", "skip-pending") + "\n" +
+                        dead.replace("stale-hot", "skip-pending"), "broken-B2")
+
+
 def test_m11_broken_integrity_violation_does_not_stop_trace_job(tmp_path, monkeypatch):
     specs = [{"build": "broken-B1", "cell": "T1"},
              {"build": "broken-B2", "cell": "T2"}]
@@ -747,6 +813,8 @@ def test_m11_broken_integrity_violation_does_not_stop_trace_job(tmp_path, monkey
         slug = "stale-hot" if spec["build"] == "broken-B1" else "skip-pending"
         trace = h._verify_trace(scratch, source, 1,
             f"CICADA_BREAK_FIRED slug={slug} reached=0 changed=0 committed=0\n"
+            + ("CICADA_BREAK_DEAD slug=stale-hot dead=0\n"
+               if spec["build"] == "broken-B1" else "") +
             "CICADA_TRACE_INITIAL_WTS=1\n", spec["build"], "broken")
         return {"build": spec["build"], "trace": trace}
     monkeypatch.setattr(h, "run_one", run_one)

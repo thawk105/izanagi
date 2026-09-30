@@ -1,12 +1,13 @@
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -26,2 +26,43 @@
+@@ -26,2 +26,46 @@
  
 +namespace {
 +struct VHashBreakEvent { uint64_t tx, read_wts; std::string key; };
 +std::atomic<uint64_t> vh_break_reached{0}, vh_break_changed{0}, vh_break_committed{0};
 +std::atomic<uint64_t> vh_break_omitted{0};
 +std::atomic<uint64_t> vh_break_undetermined{0};
++std::atomic<uint64_t> vh_break_dead{0};
 +thread_local uint64_t vh_omit_seq=0;
 +thread_local std::vector<VHashBreakEvent> vh_break_pending;
 +std::string vh_break_hex(std::string_view key) {
@@ -38,75 +39,122 @@
 +            (unsigned long long)vh_break_omitted.load());
 +    fprintf(stderr, "CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=%llu\n",
 +            (unsigned long long)vh_break_undetermined.load());
++    fprintf(stderr, "CICADA_BREAK_DEAD slug=post-stale-gap dead=%llu\n",
++            (unsigned long long)vh_break_dead.load());
 +  }
 +} vh_break_report;
 +}
 +#line 25
 +
  #if !defined(CICADA_VHASH_COUNT)
-@@ -122,2 +163,4 @@
+@@ -122,2 +166,4 @@
  void TxExecutor::begin() {
 +  vh_break_pending.clear();
 +#line 35
  #if CICADA_VHASH_WL
-@@ -262,4 +305,20 @@
+@@ -231,2 +277,6 @@
+   bool vh_used = false;
++  bool vh_break_selected = false;
++  bool vh_break_changed_selected = false;
++  uint64_t vh_break_selected_wts = 0;
++  unsigned vh_dead_retries = 0;
+ #if CICADA_VHASH_COUNT
+@@ -262,4 +312,22 @@
          } else {
 -          vh_used=false;
 -          later_ver=nullptr;
-+          ver=ptr[i];
-+          later_ver=i ? ptr[i-1] : nullptr;
-+          ++vh_break_reached;
-+          vh_break_log("reached", wts_.ts_, key, ver->ldAcqWts());
-+          Version* stock=nullptr;
-+          bool determined=false;
-+          for (int attempt=0; attempt<4; ++attempt) {
-+            Version* head=tuple->ldAcqLatest();
-+            stock=head;
-+            while (stock && stock->ldAcqWts()>trts) stock=stock->ldAcqNext();
-+            if (tuple->ldAcqLatest()==head) { determined=true; break; }
-+          }
-+          if (!determined) ++vh_break_undetermined;
-+          else if (stock != ver) {
-+            ++vh_break_changed;
-+            vh_break_log("changed", wts_.ts_, key, ver->ldAcqWts());
-+            vh_break_pending.push_back({wts_.ts_, ver->ldAcqWts(), std::string(key)});
++          if (ptr[i]->ldAcqWts() != wts[i]) {
++            ++vh_break_dead;
++            vh_used=false;
++            later_ver=nullptr;
++          } else {
++            ver=ptr[i];
++            later_ver=i ? ptr[i-1] : nullptr;
++            vh_break_selected=true;
++            vh_break_selected_wts=wts[i];
++            Version* stock=nullptr;
++            bool determined=false;
++            for (int attempt=0; attempt<4; ++attempt) {
++              Version* head=tuple->ldAcqLatest();
++              stock=head;
++              while (stock && stock->ldAcqWts()>trts) stock=stock->ldAcqNext();
++              if (tuple->ldAcqLatest()==head) { determined=true; break; }
++            }
++            if (!determined) ++vh_break_undetermined;
++            else vh_break_changed_selected=(stock != ver);
 +          }
  #if CICADA_VHASH_COUNT
-@@ -267,3 +326,2 @@
+@@ -267,3 +335,2 @@
            else ++vh_post_stats_[thid_].adj_fail_head;
 -          vh_hops=0;
  #endif
-@@ -732,2 +790,3 @@
+@@ -298,2 +365,3 @@
+ #endif
++vh_stock_retry:
+   while (ver->ldAcqWts() > trts) {
+@@ -312,2 +380,16 @@
+          ver->status_.load(memory_order_acquire) != VersionStatus::deleted) {
++#if CICADA_VHASH_K && !SINGLE_EXEC
++    VersionStatus status=ver->ldAcqStatus();
++    if ((status == VersionStatus::unused || status == VersionStatus::invalid) &&
++        vh_dead_retries < 3) {
++      ++vh_break_dead;
++      ++vh_dead_retries;
++      vh_break_selected=false;
++      vh_break_changed_selected=false;
++      later_ver=nullptr;
++      ver=tuple->ldAcqLatest();
++      goto vh_stock_retry;
++    }
++#endif
++#line 108
+     /**
+@@ -321,2 +403,14 @@
+   }
++#if CICADA_VHASH_K && !SINGLE_EXEC
++  if (vh_break_selected) {
++    ++vh_break_reached;
++    vh_break_log("reached", wts_.ts_, key, vh_break_selected_wts);
++    if (vh_break_changed_selected) {
++      ++vh_break_changed;
++      vh_break_log("changed", wts_.ts_, key, vh_break_selected_wts);
++      vh_break_pending.push_back({wts_.ts_, vh_break_selected_wts, std::string(key)});
++    }
++  }
++#endif
++#line 108
+ #endif
+@@ -732,2 +826,3 @@
  #if CICADA_VHASH_K
 +          if ((++vh_omit_seq & 3) != 0) {
  #if CICADA_VHASH_COUNT
-@@ -751,2 +810,5 @@
+@@ -751,2 +846,5 @@
  #endif
 +          } else {
 +            ++vh_break_omitted;
 +          }
  #endif
-@@ -763,2 +825,3 @@
+@@ -763,2 +861,3 @@
  #if CICADA_VHASH_K
 +          if ((++vh_omit_seq & 3) != 0) {
  #if CICADA_VHASH_COUNT
-@@ -782,2 +845,5 @@
+@@ -782,2 +881,5 @@
  #endif
 +          } else {
 +            ++vh_break_omitted;
 +          }
  #endif
-@@ -1010,2 +1076,4 @@
+@@ -1010,2 +1112,4 @@
  void TxExecutor::abort() {
 +  vh_break_pending.clear();
 +#line 745
  #if CICADA_VHASH_COUNT
-@@ -1200,2 +1268,4 @@
+@@ -1205,2 +1309,4 @@
    read_set_.clear();
 +  vh_break_commit();
 +#line 912
  #if CICADA_VHASH_COUNT
-@@ -1231,2 +1301,4 @@
+@@ -1241,2 +1347,4 @@
      read_set_.clear();
 +    vh_break_commit();
 +#line 936

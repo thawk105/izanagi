@@ -63,6 +63,7 @@ PROBE_STATUS = {0: "invalid", 1: "pending", 2: "aborted",
                 3: "precommitted", 4: "committed", 5: "deleted", 6: "unused"}
 OMITTED_RE = re.compile(r"CICADA_BREAK_OMITTED slug=post-stale-gap omitted=(\d+)")
 UNDETERMINED_RE = re.compile(r"CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=(\d+)")
+DEAD_RE = re.compile(r"CICADA_BREAK_DEAD slug=([a-z-]+) dead=(\d+)")
 EVENT_RE = re.compile(r"CICADA_BREAK_EVENT slug=([a-z-]+) stage=(reached|changed|committed) tx_wts=(\d+) key=((?:[0-9a-f]{2})+) read_wts=(\d+)")
 FIRED_RE = re.compile(r"CICADA_BREAK_FIRED slug=([a-z-]+) reached=(\d+) changed=(\d+) committed=(\d+)")
 INTEGRITY_ZERO = ("orphan_reads", "version_dups", "dup_txids", "genesis_commits",
@@ -580,6 +581,13 @@ def _break_events(stderr, build):
                if line.startswith("CICADA_BREAK_OMITTED ")]
     undetermined = [UNDETERMINED_RE.fullmatch(line) for line in stderr.splitlines()
                     if line.startswith("CICADA_BREAK_UNDETERMINED ")]
+    dead = [DEAD_RE.fullmatch(line) for line in stderr.splitlines()
+            if line.startswith("CICADA_BREAK_DEAD")]
+    if build in ("broken-B1", "broken-stale-gap"):
+        if len(dead) != 1 or dead[0] is None or dead[0][1] != slug:
+            raise ValueError(f"{build} dead summary missing, duplicated, or malformed")
+    elif dead:
+        raise ValueError("unexpected dead summary")
     if build == "broken-stale-gap":
         if len(omitted) != 1 or omitted[0] is None:
             raise ValueError("stale-gap omitted summary missing or malformed")
@@ -591,7 +599,8 @@ def _break_events(stderr, build):
         raise ValueError("unexpected undetermined summary")
     return {"events": events, "event_stages": stages, "fired": fired[0],
             "omitted": int(omitted[0][1]) if omitted else None,
-            "undetermined": int(undetermined[0][1]) if undetermined else None}
+            "undetermined": int(undetermined[0][1]) if undetermined else None,
+            "dead": int(dead[0][2]) if dead else None}
 
 
 def _probe_events(stderr):
@@ -832,6 +841,8 @@ def broken_verdict(record):
     observed = {"reached": fired["reached"], "changed": fired["changed"],
                 "committed": fired["committed"],
                 "attributed_cycles": event["witness_count"]}
+    if event.get("dead") is not None:
+        observed["dead"] = event["dead"]
     if record["build"] == "broken-stale-gap":
         observed.update(omitted=event["omitted"], undetermined=event["undetermined"])
         if event["omitted"] == 0 or fired["reached"] == 0:
@@ -844,7 +855,8 @@ def broken_verdict(record):
         detected = (fired["committed"] >= 1 and trace["verdict"] == "non-serializable"
                     and trace["total_cycles"] > 0 and event["witness_count"] >= 1)
         return {"status": "detected" if detected else "undetected",
-                "needs_B3": fired["committed"] >= 1 and event["witness_count"] == 0}
+                "needs_B3": fired["committed"] >= 1 and event["witness_count"] == 0,
+                **({"dead": event["dead"]} if event.get("dead") is not None else {})}
     detected = (fired["committed"] > 0 and
                 trace["verdict"] == "non-serializable" and
                 trace["total_cycles"] > 0 and event["witness_count"] > 0)
@@ -855,6 +867,7 @@ def broken_verdict(record):
 
 
 BROKEN_CLASSIFICATION_CONDITIONS = {
+    "hung": "benchmark rc 124; verifier not run; no detection verdict",
     "detected-attributed-clean": "committed >= 1; verdict non-serializable; attributed witness >= 1; integrity clean",
     "detected-attributed-integrity-violation": "committed >= 1; verdict non-serializable; attributed witness >= 1; integrity violation",
     "integrity-violation-only": "at least one detection condition absent; integrity violation",
@@ -951,6 +964,8 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, arms=ARMS):
               not r["trace"].get("clean") or
               not _valid_trace_verdict(r["trace"])):
             raise ValueError("invalid trace run")
+        if r["build_kind"] == "broken" and r["rc"] == 124:
+            continue
         if r["build_kind"] == "broken" and (r["rc"] != 0 or
               not r.get("trace") or type(r["trace"].get("clean")) is not bool or
               not _valid_trace_verdict(r["trace"]) or
@@ -1005,7 +1020,10 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, arms=ARMS):
        for name, values in data.items()}
        for cell, data in ratios.items()}
     breaks = {r["build"] + ":" + r["cell"]:
-              {**broken_verdict(r), **_broken_classification(r)}
+              ({"status": "hung", "classification": "hung", "rc": 124,
+                "classification_condition": BROKEN_CLASSIFICATION_CONDITIONS["hung"]}
+               if r["rc"] == 124 else
+               {**broken_verdict(r), **_broken_classification(r)})
               for r in traces if r["build_kind"] == "broken"}
     count_rows = []
     for r in counts:

@@ -984,9 +984,9 @@ pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 
 | broken-cicada-stale-read-ro | なし | read-only txn の可視版選択で、txn 内の偶数番目の読みに限り可視版の 1 つ古い committed 版を選ぶ |
 | broken-cicada-vhash-stale-hot | なし | hot から選んだ版の 1 件古い確定版を ro 読みの一部に返す (variant の上だけ) |
 | broken-cicada-vhash-skip-pending | なし | hot から選んだ PENDING 版を待たずに次の確定版へ進む (variant の上だけ) |
-| broken-cicada-vhash-post-stale-hot | なし | post の隣接確認後、ro hit で選択版の物理の直後から最初の確定版を返す |
+| broken-cicada-vhash-post-stale-hot | なし | post の隣接確認後、ro・奇数 key・確定版の hit だけ、物理の直後 1 版が確定済みならそれを返す。第 2 段で再利用中の版を検出した読みは stock へ戻し、終了時に `CICADA_BREAK_DEAD` を出す |
 | broken-cicada-vhash-post-skip-pending | なし | post の隣接確認後、PENDING hit を飛ばす |
-| broken-cicada-vhash-post-stale-gap | なし | writer の hot 更新を 4 回に 1 回省き、reader の隣接失敗を無視する。stock 比較の前後で latest が不一致なら最大 3 回再試行し、未確定件数を出す |
+| broken-cicada-vhash-post-stale-gap | なし | writer の hot 更新を 4 回に 1 回省き、reader の隣接失敗を無視する。ただし hit の wts 不一致と第 2 段で再利用中の版を検出した読みは stock へ戻し、終了時に `CICADA_BREAK_DEAD` を出す。stock 比較の前後で latest が不一致なら最大 3 回再試行し、未確定件数を出す |
 | broken-cicada-vhash-skip-pending-probe | なし | variant の B2 に read / validation / end の事象 ID 計器を加える |
 
 - **重ね方:** md_3 の旧壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
