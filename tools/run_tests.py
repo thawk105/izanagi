@@ -756,6 +756,36 @@ def _is_acceptance_run(args: Sequence[str]) -> bool:
     return True
 
 
+def _is_scoped_acceptance_run(args: Sequence[str]) -> bool:
+    """Recognize only the launcher-bound positional scoped target list."""
+    marker = os.environ.get("IZANAGI_SCOPED_ACCEPTANCE_TARGETS_SHA256")
+    if not marker or re.fullmatch(r"[0-9a-f]{64}", marker) is None:
+        return False
+    if os.environ.get("PYTEST_ADDOPTS", "").strip() or os.environ.get("PYTEST_PLUGINS", "").strip():
+        return False
+    targets = []
+    for token in args:
+        if token.startswith("-"):
+            return False
+        path, separator, node = token.partition("::")
+        try:
+            relative = Path(path).resolve().relative_to(Path(_REPO).resolve()).as_posix()
+        except (OSError, ValueError):
+            return False
+        if (not Path(relative).name.startswith("test_")
+                or not relative.endswith(".py") or separator and not node):
+            return False
+        targets.append(relative + (separator + node if separator else ""))
+    if not targets or targets != sorted(set(targets)):
+        return False
+    payload = json.dumps(targets, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode()).hexdigest() == marker
+
+
+def _is_receipted_acceptance_run(args: Sequence[str]) -> bool:
+    return _is_acceptance_run(args) or _is_scoped_acceptance_run(args)
+
+
 def _git_env() -> dict[str, str]:
     env = {
         key: value for key, value in os.environ.items()
@@ -784,7 +814,7 @@ def _deletion_git_failure(message: str) -> int:
 def _preflight_unstaged_deletions(
     args: Sequence[str], repo: Path | str,
 ) -> int:
-    if not _is_acceptance_run(args):
+    if not _is_receipted_acceptance_run(args):
         return 0
     repo_path = Path(repo).resolve()
     try:
@@ -822,7 +852,7 @@ def _preflight_unstaged_deletions(
 def _preflight_ruleops(args: Sequence[str], repo: Path | str) -> int:
     """Validate the production RuleOps ledger on acceptance-shaped runs only."""
 
-    if not _is_acceptance_run(args):
+    if not _is_receipted_acceptance_run(args):
         return 0
     repo_path = Path(repo).resolve()
     command = [
@@ -895,7 +925,7 @@ def _preflight_submodule(args: Sequence[str], repo: Path | str) -> int:
     marker = repo_path / _SUBMODULE_MARKER
     if _submodule_is_initialized(repo_path):
         return 0
-    if not _is_acceptance_run(args):
+    if not _is_receipted_acceptance_run(args):
         print(
             f"警告: submodule marker {marker} がありません。"
             "targeted run のため初期化せず続行します。",
@@ -2406,7 +2436,7 @@ def main(
         )
         return _PEGASUS_DISPATCH_RC
     args = _normalize_args(pytest_args)
-    is_acceptance = _is_acceptance_run(args)
+    is_acceptance = _is_receipted_acceptance_run(args)
     positional = _positional_tokens(args)
     try:
         configured_exclusions = tuple(_PERMANENT_FULL_SUITE_EXCLUSIONS)

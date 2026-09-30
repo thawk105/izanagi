@@ -1,0 +1,178 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 2400,
+ "timeout_seconds": 14400,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "mh1-commit-cas-always",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/helper.py",
+     "old": "        cas = (\"UH1\" in faults or (waiting(t) and (\"UH1g\" in faults or t.gen == h.gen)))\n",
+     "new": "        cas = True  # MH1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh2-publish-at-snapshot",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/helper.py",
+     "old": "                if \"UH2\" in faults and target > t.gc_floor:\n",
+     "new": "                if target > t.gc_floor:  # MH2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh3-boundary-keeps-expired",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "    active = [t for t in s.txns if t.phase != \"done\" and not t.expired]\n",
+     "new": "    active = [t for t in s.txns if t.phase != \"done\"]  # MH3\n"
+    },
+    {
+     "file": "tools/vhash_forwarding_model/gc_connection.py",
+     "old": "def reclaimable_versions(state):\n    active = [t for t in state.txns if t.phase != \"done\" and not t.expired]\n",
+     "new": "def reclaimable_versions(state):\n    active = [t for t in state.txns if t.phase != \"done\"]  # MH3\n"
+    },
+    {
+     "file": "tools/vhash_forwarding_model/gc_connection.py",
+     "old": "def effect_snapshot(state):\n    active = [t for t in state.txns if t.phase != \"done\" and not t.expired]\n",
+     "new": "def effect_snapshot(state):\n    active = [t for t in state.txns if t.phase != \"done\"]  # MH3\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh4-gc-ignores-expired-refs",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)\n",
+     "new": "    refs = {vid for t in s.txns if not t.expired for vid in t.refs} | set(s.helper.refs)  # MH4\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh5-j3-judges-expired-logically",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/judge.py",
+     "old": "        if t.expired:\n            continue\n",
+     "new": "        if False:  # MH5\n            continue\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh6-resume-skips-expiry-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "        if t.expired:\n            if \"UH5\" in faults:\n",
+     "new": "        if t.expired:\n            if True:  # MH6\n"
+    },
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "            if t.expired and \"UH5\" not in faults:\n",
+     "new": "            if False:  # MH6\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh7-end-wait-keeps-gen",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "                nt = replace(t, pc=t.pc + 1, phase=\"resume\", gen=t.gen + 1,\n                             cand_ts=base, resume_used=False)\n",
+     "new": "                nt = replace(t, pc=t.pc + 1, phase=\"resume\", gen=t.gen,  # MH7\n                             cand_ts=base, resume_used=False)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mh8-gc-ignores-helper-refs",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/vhash_forwarding_model/model.py",
+     "old": "    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)\n",
+     "new": "    refs = {vid for t in s.txns for vid in t.refs}  # MH8\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+    "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

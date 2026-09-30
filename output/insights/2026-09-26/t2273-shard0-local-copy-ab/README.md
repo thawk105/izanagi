@@ -90,3 +90,8 @@ wave `dev-wave-t2273-shard0-local-copy`。実装 branch `worktree-t2273-shard0-l
 ## 8. この dir の中身
 
 `verbatim/` 依頼・brief・段 4 / 6 裁定・Codex 子の prompt と出力・開始 gate・probe 逐語 (`probe-source.md`)、`analysis/analysis.md` 走表と対表 (集計器の出力そのまま)、`analysis/analysis-compact.json` 集計 JSON の要約 (全文 48MB は job dir)、`runs/` infra 分類 3 件・投入台帳・計測 tip、`mutation/` final の spec と結果。job dir は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2273-shard0-local-copy/` (repo 外)。
+
+## 所在の移動・撤去 (2026-09-30 追記)
+
+本 insight が実装の保存先として名指す branch `worktree-t2273-shard0-local-copy` (tip `5c51e958e`、実装 `eb65d322f`) は、D2242 決定 1 の「残す」を改める新しい決定の下で 2026-09-30 の掃除 wave が削除する。branch 束 bundle `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-originals-migration/backup/branches.bundle` から復元できる。
+判定の根拠・木ごとの退避の所在・残る写しの一覧は `output/insights/2026-09-30/cleanup-originals-migration/README.md` を正本とする。上の本文は当時の事実として書き換えない (記録された測定・判定は撤去を理由に無効にならない、規律 7)。撤去は同 wave の land の後に行う。

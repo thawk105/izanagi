@@ -283,9 +283,9 @@ class TextLimit:
 # (2026-08-02) により小幅に引き上げる。
 COMMAND_LIMITS = {
     ".claude/commands/dev-wave.md": TextLimit(9_520, 140),
-    # 2026-09-29 の個別裁定による最小幅引き上げ (§5 の push 失敗時 1 行、
-    # D730 の 3 例例外ではない)。
-    ".claude/commands/cleanup-branches.md": TextLimit(7_437, 110),
+    # 2026-09-29 のユーザー指示 (古い・価値の小さい木と branch を退避して消す
+    # 既定動作) の収容。完成本文 + 余白 3。
+    ".claude/commands/cleanup-branches.md": TextLimit(9_064, 110),
     ".claude/commands/rulings.md": TextLimit(5_623, 180),
     ".claude/commands/next-tasks.md": TextLimit(27_100, 100),
 }
@@ -631,9 +631,9 @@ inventory test 4 群（`test_campaign.py` の certified-writer caller inventory�
 DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 
 land成功・job終端後main worktreeから`python3 tools/dev_wave_cleanup.py`で撤去(絶対path、`--main-worktree <MAIN>`は両方に)。
-撤去はrepo全体で1本ずつ(並列はLustre過負荷)、rc=75は数分後再試行。
+撤去はrepo全体で1本ずつ(Lustre過負荷)、rc=75は数分後再試行。
 先にmanifest(`DW-S05-A`)の子木を`remove-child --manifest <M> --child-worktree <P> --evidence-dir <D>`で(回収waveは旧分も)、次にwaveを`--wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`で撤去、他へ引き渡さない。
-toolは非占有・main祖先性(子木は所有pathのtree一致も可)・dirty退避可否・manifest束縛を検査。撤去前の不成立・不明は拒否し木とbranchを残す(以後rc=30)。統合証明済manifest現行branchは履歴を`<D>`へbundle後(HEADがmain祖先なら省く)に`-D`。
+toolは非占有・main祖先性(子木は所有path一致か、wave land済なら履歴bundle+dirty退避)・manifest束縛を検査。不成立・不明は拒否し木とbranchを残す(以後rc=30)。manifest現行branchは`<D>`へbundle後(HEADがmain祖先なら省く)に`-D`。`<D>`はjob後も残る所。
 F26:`git worktree remove`/`git submodule deinit`不可。wave branchは`-d`のみ、手打ち`-D`禁止。残る子木はunlockし理由をworklogへ。
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
@@ -776,20 +776,18 @@ CODEX_CLEANUP_BRANCHES_SKILL_FILES = frozenset(
     CODEX_CLEANUP_BRANCHES_SKILL_LIMITS
 )
 CODEX_CLEANUP_BRANCHES_DESCRIPTION = (
-    "Safely inventory and clean up merged local Izanagi branches and worktrees "
-    "through the shared dispatcher. Use for merged-branch or worktree cleanup; "
-    "deletion needs explicit $cleanup-branches."
+    "Safely back up and clean up merged or stale local Izanagi branches and worktrees through the shared dispatcher. Use for branch or worktree cleanup; deletion needs explicit $cleanup-branches."
 )
 CODEX_CLEANUP_BRANCHES_SKILL_SHA256 = (
-    "3cf0344df609115811d30a30ffe875cca1756e5a5a9aaa2c26e3c9f278269930"
+    "076089079683c0850354f43281df5ac05cfc3461b6b9f0cab1bdb221e24319a7"
 )
 CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   display_name: "Cleanup Branches"
-  short_description: "Izanagi のマージ済み branch と worktree を安全に整理"
-  default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
+  short_description: "Izanagi の古い・取込済み branch と worktree を退避して整理"
+  default_prompt: "Use $cleanup-branches to back up and clean up merged or stale branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "e777a6f489e8ec53d306effbb73dc9c13a2c8b7c66ec066f5eeb5e049d0eb5dc"
+    "7b5379534f7ed5a061ac276001006f00cd49d3a9ca89cedeea9e4874f88d8d5f"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (

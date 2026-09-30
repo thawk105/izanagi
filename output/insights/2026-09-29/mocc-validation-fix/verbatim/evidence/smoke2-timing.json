@@ -1,0 +1,30 @@
+{
+  "fixed_cost_seconds": 53.000375778006855,
+  "batches": [
+    {
+      "batch": 1,
+      "arm_order": [
+        "T_X",
+        "T_F",
+        "N_X",
+        "N_F",
+        "P_X",
+        "P_F"
+      ],
+      "execution_order": [
+        "0001-T_X",
+        "0002-T_X",
+        "0003-T_X",
+        "0004-T_X",
+        "0005-T_F",
+        "0006-T_F",
+        "0007-N_X",
+        "0008-N_F",
+        "0009-P_X",
+        "0010-P_F"
+      ],
+      "benchmark_seconds": 78.15963439500774,
+      "verify_seconds": 187.6346613210044
+    }
+  ]
+}

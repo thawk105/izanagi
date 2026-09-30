@@ -8549,6 +8549,13 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
     ledger = json.loads(_LEDGER.read_text(encoding="utf-8"))
     registered = {entry["path"] for entry in ledger["entries"]}
     allowed_non_variant_tokens = {
+        "patches/cicada-ro-gcflag-variant.patch": frozenset({
+            "IZANAGI_CICADA_RO_GCFLAG", "IZANAGI_CICADA_RO_GCFLAG_COUNT",
+            "IZANAGI_CICADA_RO_GCFLAG_COUNT_V1",
+        }),
+        "patches/cicada-ro-gcflag-workload.patch": frozenset({
+            "IZANAGI_CICADA_ROGC_WORKLOAD", "IZANAGI_CICADA_ROGC_WORKLOAD_V1",
+        }),
         "patches/instr-silo-function-policy-probe.patch": frozenset({
             "IZANAGI_SILO_POLICY_PROBE",
         }),

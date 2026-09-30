@@ -1,0 +1,108 @@
+{
+ "mine": [
+  {
+   "tag": "smoke1",
+   "host": "bnode140",
+   "start": "2026-09-29T15:36:48.587672+00:00",
+   "end": "2026-09-29T15:37:02.497470+00:00"
+  },
+  {
+   "tag": "smoke2",
+   "host": "bnode001",
+   "start": "2026-09-29T15:50:19.763410+00:00",
+   "end": "2026-09-29T15:52:43.328926+00:00"
+  },
+  {
+   "tag": "smoke3",
+   "host": "bnode031",
+   "start": "2026-09-29T16:09:02.200485+00:00",
+   "end": "2026-09-29T16:11:27.158958+00:00"
+  },
+  {
+   "tag": "verify1",
+   "host": "bnode085",
+   "start": "2026-09-29T16:16:26.179107+00:00",
+   "end": "2026-09-29T16:23:26.597622+00:00"
+  },
+  {
+   "tag": "measure1",
+   "host": "bnode005",
+   "start": "2026-09-29T16:18:45.653883+00:00",
+   "end": "2026-09-29T16:29:52.790202+00:00"
+  },
+  {
+   "tag": "throughput1",
+   "host": "bnode031",
+   "start": "2026-09-29T16:40:25.924006+00:00",
+   "end": "2026-09-29T16:51:00.156640+00:00"
+  },
+  {
+   "tag": "verify2",
+   "host": "bnode026",
+   "start": "2026-09-29T16:43:32.327152+00:00",
+   "end": "2026-09-29T16:50:43.341578+00:00"
+  }
+ ],
+ "peer_receipts_recent": 55,
+ "peer_receipts_with_host_and_times": 45,
+ "peer_receipts_unparsed": [
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/codex/fix5b/art/dev-wave-vhash-forwarding-target-policy/dev-wave-vhash-forwarding-target-policy-fix-28c3ff4f458d765bd70432ba684fde073d6afa5564c39d47c3b509bd2d992558/receipt.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/codex/fix4b/art/dev-wave-vhash-forwarding-target-policy/dev-wave-vhash-forwarding-target-policy-fix-3a3a486925a8fcfa024c06a04fae19968792e3425362f03815de9885995af652/receipt.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/codex/fix4a/art/dev-wave-vhash-forwarding-target-policy/dev-wave-vhash-forwarding-target-policy-fix-fdc6a8cb5cb1e2775080c493fae14f2ee642aacb18ab0706cd49eebfda69ff4e/receipt.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/codex/fix3b/art/dev-wave-vhash-forwarding-target-policy/dev-wave-vhash-forwarding-target-policy-fix-8bc8d3a69f1aaa4376ab892fbb66037ddf5250b4ddff52cd6f7c6b7db7e7030b/receipt.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/codex/merge1/art/dev-wave-vhash-forwarding-target-policy/dev-wave-vhash-forwarding-target-policy-fix-5ec020b8e18b913ac321627b0e25c500154ef27d0284377d840e2b0270663cbd/receipt.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/mutation/mutation-source/output/insights/2026-08-11_t139-manifest-land1/receipt-schema-v1.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/mutation/mutation-source/output/insights/2026-09-11/t2397-a1-attempt4/transport/66100a3feb20ad694ea459c4df3e9f16/receipt.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/mutation/mutation-source/output/insights/2026-09-09_t2265-cohort2-cert/receipt-summary.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/mutation/mutation-source/output/insights/2026-09-18/t2484-watchdog-segments/evidence/receipt-segments.summary.json",
+  "/work/SFC/tanab/tmp/vhash-forwarding-target-policy-2026-09-29/mutation/mutation-source/output/insights/2026-09-18/t2484-watchdog-segments/evidence/run2/receipts-excerpt.json"
+ ],
+ "peer_hosts": [
+  "md_20 best-config-verify:bnode070:2026-09-29T23:45:45.421510+09:00~2026-09-29T23:48:26+09:00",
+  "md_20 best-config-verify:bnode078:2026-09-29T23:40:58.199440+09:00~2026-09-29T23:41:31+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:03:17.768915+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:07:12.448929+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:09:29.951344+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:09:29.960718+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:09:30.104584+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:09:35.212038+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:09:45.347564+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:09:45.360124+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:10:15.972442+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:10:31.251409+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode001:2026-09-30T00:10:31.274663+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode002:2026-09-30T00:06:08.528610+09:00~2026-09-30T00:11:02+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:07:10.223533+09:00~2026-09-30T00:11:02+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:26.206714+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:31.146074+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:31.233979+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:31.239496+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:31.260713+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:31.321483+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:32.257669+09:00~2026-09-30T00:10:54+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:36.379355+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode003:2026-09-30T00:10:45.304898+09:00~2026-09-30T00:11:02+09:00",
+  "md_21 forwarding-target-policy:bnode005:2026-09-30T00:52:37.006813+09:00~2026-09-30T00:54:47+09:00",
+  "md_21 forwarding-target-policy:bnode006:2026-09-30T00:10:42.273334+09:00~2026-09-30T00:10:59+09:00",
+  "md_21 forwarding-target-policy:bnode007:2026-09-30T00:08:40+09:00~2026-09-30T00:08:40+09:00",
+  "md_21 forwarding-target-policy:bnode010:2026-09-30T00:01:32.676115+09:00~2026-09-30T00:11:03+09:00",
+  "md_21 forwarding-target-policy:bnode014:2026-09-30T00:08:13.629356+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode015:2026-09-29T23:54:13.204990+09:00~2026-09-30T00:11:19+09:00",
+  "md_21 forwarding-target-policy:bnode015:2026-09-30T00:05:14.985938+09:00~2026-09-30T00:10:53+09:00",
+  "md_21 forwarding-target-policy:bnode016:2026-09-30T00:08:42+09:00~2026-09-30T00:08:42+09:00",
+  "md_21 forwarding-target-policy:bnode019:2026-09-30T00:13:55.037818+09:00~2026-09-30T00:51:08+09:00",
+  "md_21 forwarding-target-policy:bnode023:2026-09-30T00:10:33+09:00~2026-09-30T00:10:33+09:00",
+  "md_21 forwarding-target-policy:bnode026:2026-09-30T00:10:05.270749+09:00~2026-09-30T00:11:03+09:00",
+  "md_21 forwarding-target-policy:bnode027:2026-09-30T00:08:42+09:00~2026-09-30T00:08:42+09:00",
+  "md_21 forwarding-target-policy:bnode028:2026-09-30T00:08:40+09:00~2026-09-30T00:08:40+09:00",
+  "md_21 forwarding-target-policy:bnode031:2026-09-30T00:08:42+09:00~2026-09-30T00:08:42+09:00",
+  "md_21 forwarding-target-policy:bnode035:2026-09-30T00:10:54+09:00~2026-09-30T00:10:54+09:00",
+  "md_21 forwarding-target-policy:bnode040:2026-09-30T00:08:42+09:00~2026-09-30T00:08:42+09:00",
+  "md_21 forwarding-target-policy:bnode064:2026-09-30T00:08:41+09:00~2026-09-30T00:08:41+09:00",
+  "md_21 forwarding-target-policy:bnode068:2026-09-30T00:05:15.832088+09:00~2026-09-30T00:07:41+09:00",
+  "md_21 forwarding-target-policy:bnode072:2026-09-30T00:10:11+09:00~2026-09-30T00:10:11+09:00",
+  "md_21 forwarding-target-policy:bnode085:2026-09-30T00:08:42+09:00~2026-09-30T00:08:42+09:00",
+  "md_21 forwarding-target-policy:bnode107:2026-09-30T00:10:55+09:00~2026-09-30T00:10:55+09:00"
+ ],
+ "overlaps": []
+}

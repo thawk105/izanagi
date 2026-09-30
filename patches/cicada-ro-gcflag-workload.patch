@@ -1,0 +1,142 @@
+diff --git a/include/ycsb.hh b/include/ycsb.hh
+--- a/include/ycsb.hh
++++ b/include/ycsb.hh
+@@ -30,6 +30,16 @@
+ DECLARE_uint64(ycsb_tuple_num);
+ DECLARE_double(ycsb_zipf_skew);
+ #endif
+ 
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++DECLARE_int32(izanagi_rogc_ronly_pct);
++DECLARE_uint64(izanagi_rogc_wait_us);
++DECLARE_uint64(izanagi_rogc_seed);
++struct alignas(CACHE_LINE_SIZE) RogcWorkloadCount {
++  uint64_t attempts = 0, ro_attempts = 0, commits = 0, long_ro_attempts = 0;
++};
++extern RogcWorkloadCount rogc_workload_count[256];
++#endif
++#line 35
+ enum class Storage : std::uint32_t {
+   YCSB = 0,
+@@ -87,9 +97,18 @@
+ public:
+   Xoroshiro128Plus rnd_;
+   FastZipf zipf_;
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++  Xoroshiro128Plus rogc_draw_;
++  bool rogc_seeded_ = false;
++#endif
++#line 91
+ 
+   YcsbWorkload() {
+     rnd_.init();
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++    rogc_draw_.init();
++#endif
++#line 93
+     FastZipf zipf(&rnd_, FLAGS_ycsb_zipf_skew, FLAGS_ycsb_tuple_num);
+     zipf_ = zipf;
+   }
+@@ -99,6 +117,29 @@
+     uint64_t start = rdtscp();
+ #endif
+     makeProcedure(tx.pro_set_, rnd_, zipf_);
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++    if (!rogc_seeded_ && FLAGS_izanagi_rogc_seed != 0) {
++      rogc_draw_.s[0] = rogc_draw_.splitMix64(FLAGS_izanagi_rogc_seed ^ tx.thid_);
++      rogc_draw_.s[1] = rogc_draw_.splitMix64(rogc_draw_.s[0]);
++      rogc_seeded_ = true;
++    }
++    if (FLAGS_izanagi_rogc_ronly_pct < 0 || FLAGS_izanagi_rogc_ronly_pct > 100)
++      ERR;
++    const bool long_ro = tx.thid_ == 1 && FLAGS_izanagi_rogc_wait_us != 0;
++    const bool chosen_ro = long_ro ||
++        rogc_draw_.next() % 100 < uint64_t(FLAGS_izanagi_rogc_ronly_pct);
++    if (chosen_ro) {
++      for (auto& op : tx.pro_set_) op.ope_ = Ope::READ;
++    } else {
++      bool has_write = false;
++      for (const auto& op : tx.pro_set_) has_write |= op.ope_ != Ope::READ;
++      if (!has_write) tx.pro_set_.front().ope_ = FLAGS_ycsb_rmw ?
++          Ope::READ_MODIFY_WRITE : Ope::WRITE;
++    }
++    tx.pro_set_.front().ronly_ = chosen_ro;
++    tx.pro_set_.front().wonly_ = false;
++#endif
++#line 103
+ #if ADD_ANALYSIS
+     tx.result_->local_make_procedure_latency_ += rdtscp() - start;
+ #endif
+@@ -110,6 +152,13 @@
+ 
+     if (loadAcquire(tx.quit_)) return;
+ 
+     tx.begin();
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++    auto& rogc_count = rogc_workload_count[tx.thid_];
++    ++rogc_count.attempts;
++    if (tx.is_ronly_) ++rogc_count.ro_attempts;
++    if (long_ro) ++rogc_count.long_ro_attempts;
++#endif
++#line 114
+     SimpleKey<8> key[tx.pro_set_.size()];
+     HeapObject obj[tx.pro_set_.size()];
+@@ -158,10 +207,19 @@
+       i++;
+     }
+ 
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++    if (long_ro)
++      clock_delay(FLAGS_izanagi_rogc_wait_us * FLAGS_clocks_per_us);
++#endif
++#line 161
+     if (!tx.commit()) {
+       tx.abort();
+       ++tx.result_->local_abort_counts_;
+       goto RETRY;
+     }
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++    ++rogc_workload_count[tx.thid_].commits;
++#endif
++#line 166
+     storeRelease(tx.result_->local_commit_counts_,
+                  loadAcquire(tx.result_->local_commit_counts_) + 1);
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -19,6 +19,25 @@
+ #include "../../common/runner.hh"
+ 
+ using namespace std;
+ 
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++DEFINE_int32(izanagi_rogc_ronly_pct, 0, "Read-only procedure percentage.");
++DEFINE_uint64(izanagi_rogc_wait_us, 0, "Worker 1 read-only wait after reads (us).");
++DEFINE_uint64(izanagi_rogc_seed, 0, "Read-only procedure draw seed; 0 uses random_device.");
++RogcWorkloadCount rogc_workload_count[256];
++static void report_rogc_workload() {
++  uint64_t attempts = 0, ro = 0, commits = 0, long_ro = 0;
++  for (unsigned i = 0; i < TotalThreadNum; ++i) {
++    attempts += rogc_workload_count[i].attempts;
++    ro += rogc_workload_count[i].ro_attempts;
++    commits += rogc_workload_count[i].commits;
++    long_ro += rogc_workload_count[i].long_ro_attempts;
++  }
++  cout << "IZANAGI_CICADA_ROGC_WORKLOAD_V1 {\"schema\":1,\"attempts\":" << attempts
++       << ",\"ro_attempts\":" << ro << ",\"commits\":" << commits
++       << ",\"long_ro_attempts\":" << long_ro << "}" << endl;
++}
++#endif
++#line 23
+ int main(int argc, char* argv[]) try {
+   gflags::SetUsageMessage("YCSB Cicada benchmark.");
+@@ -51,5 +70,9 @@
+ #endif
+       });
+ 
++#if IZANAGI_CICADA_ROGC_WORKLOAD
++  report_rogc_workload();
++#endif
++#line 54
+   return 0;
+ } catch (const bad_alloc&) { ERR; }

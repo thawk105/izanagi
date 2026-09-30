@@ -447,6 +447,50 @@ VHash 論文 (`docs/paper-story-vhash/`) の新規性の芯 U0 (abort せず既�
   md_6 の `smoke` / `run` / `aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良 `BACK_OFF=0, INLINE_VERSION_OPT=1, INLINE_VERSION_PROMOTION=0, REUSE_VERSION=1, WRITE_LATEST_ONLY=0`。
 - **一次資料:** `output/insights/2026-09-29/vhash-gc-connection-prototype/README.md`。
 
+## cicada-ro-gcflag-variant.patch / cicada-ro-gcflag-workload.patch — read-only commit でも GC の公開を進める variant と、3 build で共通の ro 手続き生成 (合成 variant, D18 第 4 類, VHash 論文 md_22)
+
+Cicada の read-only commit は `mainte()` を通らず GC flag を立てないので、read-only だけを続ける worker が 1 本いると leader が MinRts を公開できない (md_15 §6.3)。
+本 variant は ro commit の後始末 (`read_set_`・`node_map_` を消した後) で `mainte()` を呼ぶ。ro の rts・ThreadRtsArray・版の選び方は変えない (固定 snapshot の意味は不変)。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a`。variant は `cc/cicada/transaction.cc` だけ、workload は `include/ycsb.hh` と `cc/cicada/ycsb_cicada.cc`。
+  pin 単独・pin + `instr-cicada-trace.patch`・pin + `instr-cicada-version-lifetime.patch` の 3 通りに、workload → variant の順で fuzz なしの `git apply` で当たる。
+- **macro (未定義 = 0 = stock と同じ変更経路、挿入後は無条件 `#line` で行番号を戻す):**
+  - `IZANAGI_CICADA_RO_GCFLAG` (owner `cc/cicada/transaction.cc`): ro commit で `mainte()` を呼ぶ。
+  - `IZANAGI_CICADA_RO_GCFLAG_COUNT` (owner 同、companion `IZANAGI_CICADA_RO_GCFLAG=1`): ro commit 数と、その `mainte()` で GC flag が 0→1 になった回数を数え、終了時に
+    `IZANAGI_CICADA_RO_GCFLAG_COUNT_V1 {json}` を 1 行出す。検査 (trace build) と smoke 専用で、性能 build では使わない。
+  - `IZANAGI_CICADA_ROGC_WORKLOAD` (owner `cc/cicada/ycsb_cicada.cc`、分岐は owner TU 2 と include する `include/ycsb.hh` 7): 手続き生成時 (retry では変えない) に
+    `--izanagi_rogc_ronly_pct` の確率で全 op を READ・ro にし、非 ro は少なくとも 1 op を write にする。`--izanagi_rogc_wait_us` > 0 なら worker 1 を長い ro に固定し、
+    読み終えて commit の前にその µs 待つ。乱数は YCSB の既存系列を乱さない別系列 (`--izanagi_rogc_seed`)。終了時に `IZANAGI_CICADA_ROGC_WORKLOAD_V1 {json}` (試行・ro 試行・commit・長い ro) を 1 行出す。
+    計器 build (vlife) でも同じ手続き生成を使い、vlife 側の ro 書換え (`izanagi_ronly_pct`) と長い tx 用 macro (`IZANAGI_CICADA_LONGTX`) は使わない。
+- **登録:** 3 macro を `orchestrator/campaign/condition_meaning_gate.py` の許可ドメインへ登録し、`screening_driver.py` の既定値表、`test_p3_s4_loop.py` の許可表、
+  spawn site の define 交差表、materializer 登録簿を追随。**`patches/ledger.json` には登録しない** (D2288 と同じ理由: 同 ledger は `silo_ladder_rung1` 専用で entry 1 件を契約が要求する)。
+- **driver:** `orchestrator/campaign/vhash_ro_gc_publish.py` の `smoke` / `verify` / `measure` / `throughput`。source copy ごとに macro なしの依存物 build (masstree の `config.h` を作る) → condition gate → 本 build の順。
+- **一次資料:** `output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`。
+
+## cicada-forwarding-target.patch / cicada-forwarding-target-broken-ignore-mismatch.patch — 構成 C・E の前進先の選び方の knob と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_21)
+
+構成 C (md_6) と構成 E (md_14) の前進先 (目標時刻) の選び方を実行時 flag で切り替える試作。`cicada-forwarding-variant.patch` → `cicada-forwarding-gc.patch` の**上に重ねる** patch で、
+**確認・確定・公開の行は変えず**、目標時刻の計算・1 tx 1 回の抑止・計数だけを足す。**既定 flag では md_6・md_14 と同じ目標と同じ計数行 (V1) になる。**
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない。この patch を使った値は「未検証の診断値」として扱う** (検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` に variant → gc を当てた `cc/cicada/transaction.cc`。trace patch (`instr-cicada-trace.patch`) → variant → gc → 本 patch の順でも当たる。
+  変更は `cc/cicada/transaction.cc` だけで、`include/*.hh` と md_6・md_14 の patch は変えない。
+- **macro:** 新設なし。既存の `CICADA_FWD_ENABLE`・`CICADA_FWD_COUNT`・`CICADA_GC_SAFEPOINT`・`CICADA_GC_COUNT` の内側だけに足した (新しい `#if` 系 directive は 0、
+  全 macro 未定義の前処理は gc 適用後と一致)。条件 gate の登録簿 (`condition_meaning_gate.py`) は変えていない。
+- **実行時 flag (既定 = 現行):** `--cicada_fwd_target=min|max|partial` と `--cicada_fwd_once` (`CICADA_FWD_ENABLE` の内側)、`--cicada_gc_target=now|max` と `--cicada_gc_once` (`CICADA_GC_SAFEPOINT` の内側)。
+  `max` は既読の可視区間に収まる最大の自 thread 形式の時刻 (各既読版の直上の非 aborted 版の wts の最小より小さい最大、「今」で打ち切る)、`partial` は C で目標に届かなくても可視区間の上端まで進む、`once` は 1 tx で目標計算に入るのは 1 回。
+  既定以外の flag では計数行を `CICADA_FWD_V2` / `CICADA_GC_V2` (V1 の全 field + `target`・`once`、thread 別 `no_room`・`once_skipped`・`uncapped`、C は `short_success`) で出す。
+  **計数入り build の throughput は性能値に使わない。**
+- **壊し正例 `cicada-forwarding-target-broken-ignore-mismatch.patch`:** 本 patch の上に重ねる無マクロの無条件 patch (新しい `#if` を足さない)。E の事前確認と再観測の既読不一致の判定を ok とみなし、
+  その試行が成功したら `forced_success` を数え、GC 行を常に V2 で出す。検査は E-now (`--cicada_gc_target=now`) で走らせる (E-max は可視区間の内側に目標を取るので到達しない)。検査専用で、計測には使わない。
+- **登録:** 条件 gate の登録簿は不変。`orchestrator/tests/test_ccbench_spawn_sites.py` の重ね patch 用の表 `_OVERLAY_BASE_DEFINE_INTERFACES` に
+  `cicada-forwarding-gc.patch` の `CICADA_GC_SAFEPOINT` と `cicada-forwarding-variant.patch` の `CICADA_FWD_COUNT` を足した (本 patch の文脈行に両 macro の `#if` が入るため。
+  期待件数は不変)。**`patches/ledger.json` には登録しない** (D2288 と同じ理由)。
+- **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `target-run --workload normal|many_ops|wait_after_reads [--wait-us 1000|10000] [--skew 0|0.6|0.9] [--smoke]` / `target-aggregate --raw ...`。
+  既存の `run` / `gc-run` / `aggregate` / `gc-aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良。
+- **一次資料:** `output/insights/2026-09-29/vhash-forwarding-target-policy/README.md`。
+
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 
 段 5 (sort-strategy) の coder 編集面。write_set の lock 獲得順序を決める comparator を、stock の
@@ -910,6 +954,14 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
 
 ---
 
+## cicada-vhash-hot-block-variant.patch — Cicada の物理先頭 K 版の hot block (2026-09-29)
+
+pin C `68106660` の `cc/cicada/` にだけ当てる out-of-tree patch。`CICADA_VHASH_K` は 0 (未定義の既定・stock)、1、2、4、8 のみ。`CICADA_VHASH_COUNT` と `CICADA_VHASH_WL` は各 0/1 (未定義は 0)。WL=1 の `--vhash_ronly_pct` は −1 (YCSB 生成のまま) または 0〜100。K>0 は Tuple の latest 直後に atomic な sequence、件数、K 件の wts/ptr を置き、物理列の先頭 K 件 (PENDING・ABORTED を含む) を写す。reader は第 1 段だけで使用し、奇数・世代変化なら stock に戻る。install の 2 CAS と GC の tail 切断は sequence 書き区間内。`TRACE=1` の場合は pin → `instr-cicada-trace.patch` → 本 patch と重ねる。性能用には TRACE=0・COUNT=0 を使う。
+
+COUNT=1 は終了時に stdout へ `CICADA_VHASH_COUNT_JSON` を 1 行出す。schema_version=1、k、sizeof_tuple (byte)、workers (thid 0〜255 の配列)。各 worker の hot は hot snapshot 採用回数、fallback_odd / fallback_changed は sequence による stock fallback 回数、cold は hot 全件が新しく cold 探索へ出た回数。hops は第 1 段で飛ばした物理版数の bucket `[0,1,2,3,4-7,8-15,16+]`、snapshot_lag_ts は ro transaction の begin 時の `max(0,wts_.ts_−rts_)` の bucket `[0,1,2-3,4-7,...,32768-65535,65536+]` (timestamp 単位)。ro_commit / ro_abort / update_commit / update_abort は transaction 件数。install_wait_cycles、install_hold_cycles、gc_hold_cycles は rdtscp cycle の総和、install_count / gc_count は対応する区間の件数。K=0 でも hops、lag、commit/abort を計数する。
+
+壊し patch は本 patch の上にだけ重ねる。`broken-cicada-vhash-stale-hot.patch` は ro の hot 採用で 1 件古い確定版を選ぶ。`broken-cicada-vhash-skip-pending.patch` は hot 採用の PENDING を待たずに後続の確定版へ進む。両方とも stderr に `CICADA_BREAK_EVENT` (reached / changed / committed、tx_wts、key、read_wts) を全件、終了時に `CICADA_BREAK_FIRED` を出す。trace v2 の行は変更しない。
+
 ## instr-cicada-trace.patch / broken-cicada-{skip-read-recheck,no-rts-update,stale-read-ro}.patch — Cicada の trace と正例 (VHash 論文の前提 G0、2026-09-29)
 
 pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 の本来の置き場 (`izanagi-trace` 枝) への移送と pin 前進は
@@ -922,8 +974,10 @@ pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 
 | broken-cicada-skip-read-recheck | なし | validation の read set 再検査で、読んだ版が今の可視版と違っても abort しない |
 | broken-cicada-no-rts-update | なし | `readTimestampUpdateInValidation()` の呼出しを外す |
 | broken-cicada-stale-read-ro | なし | read-only txn の可視版選択で、txn 内の偶数番目の読みに限り可視版の 1 つ古い committed 版を選ぶ |
+| broken-cicada-vhash-stale-hot | なし | hot から選んだ版の 1 件古い確定版を ro 読みの一部に返す (variant の上だけ) |
+| broken-cicada-vhash-skip-pending | なし | hot から選んだ PENDING 版を待たずに次の確定版へ進む (variant の上だけ) |
 
-- **重ね方:** 壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
+- **重ね方:** md_3 の旧壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
   instr が `cc/cicada/` の 4 file)。壊しは裸マクロを持たない無条件 patch なので、既定で重ならず、正例の build にだけ当てる。
   新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない (条件 gate の定義一覧・裸マクロ登録の照合を変えない)。
 - **発火診断 (壊しだけ):** 事象を commit した txn の分だけ stderr の `CICADA_BREAK_EVENT slug= tx_wts= key= a_wts= b_wts=` に全件出し、
@@ -959,6 +1013,33 @@ CCBench の C1' `6aa7a58f` (pin C の子、header 2 file だけ) にある。md_
 - **未対応:** Delivery を含む全 mix (F cell) の 4 thread は、stock Cicada 自体が `gc_records()` の `ERR` で落ちる (trace の有無に依らない、11 回中 11 回。機序は未特定)。
   範囲読みの phantom・不在の読み・BOMB / SBOMB の trace・campaign 接続・certified は対象外。記録は `output/insights/2026-09-29/vhash-cicada-verifier-ext/`。
 - **pin 前進時:** C2' 系へ pin が進んだら、重ね順の厳密適用と生死確認を取り直す。
+
+## fix-cicada-gc-records.patch / fix-cicada-gc-records-scan-key.patch — stock Cicada の削除経路の欠陥 2 件の修理 ([T-2908]、2026-09-29〜30)
+
+上の「未対応」の F cell × 4 thread の異常終了を直す**挙動を変える修理** (inert patch ではない)。本来の置き場は CCBench の local branch
+`izanagi-cicada-gc-records-fix` (F `25898d00` の子 2 commit、push と pin の前進は人間の手番、D16・D18・D20) で、pin が C のうちに実験で
+使えるよう同じ差分を out-of-tree patch として置く。`patches/ledger.json` には登録しない (entries 1 件固定)。pin がこの 2 commit を含む tip へ
+進んだら 2 本とも不要になる。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| fix-cicada-gc-records | なし (無条件) | `cc/cicada/transaction.cc` の `gc_records()` だけ。最上段から続く aborted の版を何段でも読み飛ばし、到達した版が deleted なら従来どおり回収、それ以外 (null・pending・committed) は従来どおり `ERR`。最上段の wts による待機判定、validation・commit・abort は変えない |
+| fix-cicada-gc-records-scan-key | なし (無条件) | 同 file の `scan()` だけ。結果の key を最新版の body ではなく作成時に複写される `Tuple::body_` から取り、それが空なら従来どおり最新版から取る |
+
+- **欠陥:** (1) 後発の Delivery の削除版が read set 再検査で abort すると `writeSetClean()` が aborted にしたまま版鎖の最上段に残し、先発の削除を
+  commit した thread の `gc_records()` が `ERR` する (診断で 10/10 実測)。(2) (1) を直すと、最上段に body の無い削除版がある行を `scan()` が
+  空 key で read set に入れる既存欠陥が表に出る (trace の R 行の key が空になり判定器が parse error、read-own-reads の key 照合も誤りうる)。
+- **重ね方:** 2 本は行が離れていて独立に当たる。適用順は gc-records → scan-key。pin C 単独、pin C → `instr-cicada-trace.patch`、C1' →
+  instr → instr-tpcc、F 単独、F → instr → instr-tpcc (→ 壊し patch) のいずれの後にも厳密適用できる (git apply --check と patchharness の適用)。
+  `instr-cicada-version-lifetime.patch`・`cicada-forwarding-variant.patch` (+ `cicada-forwarding-gc.patch`) の後にも `git apply --check` は通った
+  (生死は未確認)。新しい `#if` 条件・`IZANAGI_` の語を含まない。
+- **実証 (F 基点、TRACE=0 は Release・sanitizer OFF):** 修理 2 本の F cell × t4 10/10・t8 10/10 が完走、同じ job の無修理は t4 5/5・t8 4/5 が
+  `gc_records` の ERR。pin C + 修理 2 本 3/3 完走。修理 2 本 + instr + instr-tpcc の F cell × t4 trace 3 本は巡回 0・integrity 数値項目と
+  存在履歴違反 0・C 行 = commit 数 (並行下の削除 890〜3,570 件、4 thread 全部)。M・R2 cell は修理前後とも合格。read 再検査の壊しを重ねると
+  non-serializable (巡回 386)。TRACE=0 は (修理) 対 (計装 + 修理) で tpcc の 3 TU の命令列が一致。上流 CI の format (clang-format 14、213 file)
+  と build (CI image、全 protocol) を CCBench の branch tip で手元通過。
+- **限界:** INLINE_VERSION_OPT=1 の insert 経路では空 key が残りうる (修理前と同じ)。`abort()` が insert した tuple を解放した後に
+  `writeSetClean()` が書く use-after-free (既存、ASan で検出) は直していない。記録は `output/insights/2026-09-29/vhash-cicada-gc-records-fix/`。
 
 ---
 

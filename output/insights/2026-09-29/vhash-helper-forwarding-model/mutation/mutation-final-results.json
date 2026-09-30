@@ -1,0 +1,767 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............................................                             [100%]\n44 passed in 9.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "72a26984e56443f3b7be8ed4773cace6514cb50a0a4ae7722bcd16b0d5846637"
+    },
+    "artifact_error": null,
+    "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+    "duration_s": 10.416,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b9a4d23f959c1625e37ca112daa9bcfe8c71406114d3de64a7e7eba430dee7a0",
+    "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+    "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+    "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+    "status": "PASSED",
+    "test_output_sha256": "72a26984e56443f3b7be8ed4773cace6514cb50a0a4ae7722bcd16b0d5846637",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+  },
+  "date": "2026-09-29T09:05:09.335268+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n..................F..........F.F.......FF...                             [100%]\n=================================== FAILURES ===================================\n_________________________ test_healthy_h2_h3_complete __________________________\n[gw40] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_healthy_h2_h3_complete():\n        for name in (\"H2\", \"H3\"):\n>           _, result = _search(name)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:216: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...r=HelperState(phase='publish', txn='T', gen=2, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x14b3eb1036f0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n_______________________ test_helper_refs_and_uh6_replay ________________________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_refs_and_uh6_replay():\n        initial, healthy = _search(\"H4\")\n        assert not any(healthy[\"verdicts\"].values())\n        _, expired = _search(\"H4\", resume=\"expire\")\n        assert not any(expired[\"verdicts\"].values())\n        h1, _ = scenario(\"H1\")\n        read = next(n for n, x in enabled_steps(h1, pressure=\"helper\") if x.thread == \"T\")\n        snapshot = next(n for n, x in enabled_steps(read, pressure=\"helper\")\n                        if x.operation == \"h_snapshot\")\n        assert snapshot.helper.refs == (\"A20\",)\n        assert next(n for n, x in enabled_steps(snapshot, pressure=\"helper\")\n                    if x.operation == \"h_rts\").helper.refs == (\"A20\",)\n        state = snapshot\n        for operation in (\"end_wait\", \"h_rts\", \"h_pass\", \"h_check\", \"h_pass\", \"h_commit_fail\"):\n>           state = next(n for n, x in enabled_steps(state, pressure=\"helper\")\n                         if x.operation == operation)\nE           StopIteration\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:250: StopIteration\n_________ test_h2_refs_release_fault_reaches_window_without_violation __________\n[gw31] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h2_refs_release_fault_reaches_window_without_violation():\n        _, result = _search(\"H2\", \"UH3F\")\n        assert result[\"witness\"][\"reached\"] and result[\"fault_step_seen\"]\n>       assert not result[\"counterexample\"] and result[\"floor_above_cand_states\"] == 0\nE       AssertionError: assert (not {'judge': 'J3', 'reason': {'version': 'B60', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 61, ...}, 'steps': [Step(...forward_candidate', version='B40', fault=''), Step(thread='T', operation='forward_rts', version='A20', fault=''), ...]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:93: AssertionError\n________________________ test_h2_cas_faults_and_replay _________________________\n[gw30] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h2_cas_faults_and_replay():\n        for fault, revert, unsafe in ((\"UH1\", False, True), (\"UH1g\", False, False),\n                                      (\"UH1p\", False, False), (\"UH1p\", True, True),\n                                      (\"UH4\", False, True)):\n            initial, result = _search(\"H2\", fault, revert=revert)\n            assert result[\"witness\"][\"reached\"]\n            assert result[\"fault_step_seen\"] == (fault != \"UH1g\")\n>           assert bool(result[\"counterexample\"]) == unsafe, fault\nE           AssertionError: UH1g\nE           assert True == False\nE            +  where True = bool({'judge': 'J3', 'reason': {'version': 'B60', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 61, ...}, 'steps': [Step(...forward_candidate', version='B40', fault=''), Step(thread='T', operation='forward_rts', version='A20', fault=''), ...]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:79: AssertionError\n_____________________ test_wait_history_and_healthy_floor ______________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_history_and_healthy_floor():\n        for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n                             (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n>           _, result = _search(name, **kwargs)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:232: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...r=HelperState(phase='publish', txn='T', gen=2, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x147e078044a0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\n5 failed, 39 passed in 9.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1293 retained_bytes=1293 omitted_bytes=0 rendered_excerpt_bytes=1340 sha256=05c2db6c9476f2a2c4dd235b65e37def5dc8596ae17fb38bc271abbb0d225c04\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_history_and_healthy_floor():\n>         for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n>                              (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n> >           _, result = _search(name, **kwargs)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:232: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...r=HelperState(phase='publish', txn='T', gen=2, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x147e078044a0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1170 retained_bytes=1170 omitted_bytes=0 rendered_excerpt_bytes=1215 sha256=724552dd6e2c485fb9a8fd5e9f6a84a2e2cc6e3172860a7e63146e8f6b5dbd1e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_healthy_h2_h3_complete():\n>         for name in (\"H2\", \"H3\"):\n> >           _, result = _search(name)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:216: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=81, status='COMMITTED', owner='initial', reclaimed=False), Vers...r=HelperState(phase='publish', txn='T', gen=2, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x14b3eb1036f0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1098 retained_bytes=1098 omitted_bytes=0 rendered_excerpt_bytes=1141 sha256=974a8e318dc858a8b35a37a16ae91396b1a040a1d8dadc7c07252218ab665836\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_refs_and_uh6_replay():\n>         initial, healthy = _search(\"H4\")\n>         assert not any(healthy[\"verdicts\"].values())\n>         _, expired = _search(\"H4\", resume=\"expire\")\n>         assert not any(expired[\"verdicts\"].values())\n>         h1, _ = scenario(\"H1\")\n>         read = next(n for n, x in enabled_steps(h1, pressure=\"helper\") if x.thread == \"T\")\n>         snapshot = next(n for n, x in enabled_steps(read, pressure=\"helper\")\n>                         if x.operation == \"h_snapshot\")\n>         assert snapshot.helper.refs == (\"A20\",)\n>         assert next(n for n, x in enabled_steps(snapshot, pressure=\"helper\")\n>                     if x.operation == \"h_rts\").helper.refs == (\"A20\",)\n>         state = snapshot\n>         for operation in (\"end_wait\", \"h_rts\", \"h_pass\", \"h_check\", \"h_pass\", \"h_commit_fail\"):\n> >           state = next(n for n, x in enabled_steps(state, pressure=\"helper\")\n>                          if x.operation == operation)\n> E           StopIteration\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:250: StopIteration\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 rendered_excerpt_bytes=1015 sha256=1abac6d59ab8b1af16ce1dc33071f88b875cf58b56a2558c20389c24800cecf4\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h2_cas_faults_and_replay():\n>         for fault, revert, unsafe in ((\"UH1\", False, True), (\"UH1g\", False, False),\n>                                       (\"UH1p\", False, False), (\"UH1p\", True, True),\n>                                       (\"UH4\", False, True)):\n>             initial, result = _search(\"H2\", fault, revert=revert)\n>             assert result[\"witness\"][\"reached\"]\n>             assert result[\"fault_step_seen\"] == (fault != \"UH1g\")\n> >           assert bool(result[\"counterexample\"]) == unsafe, fault\n> E           AssertionError: UH1g\n> E           assert True == False\n> E            +  where True = bool({'judge': 'J3', 'reason': {'version': 'B60', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 61, ...}, 'steps': [Step(...forward_candidate', version='B40', fault=''), Step(thread='T', operation='forward_rts', version='A20', fault=''), ...]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:79: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=677 retained_bytes=677 omitted_bytes=0 rendered_excerpt_bytes=696 sha256=e025c2d90a813e267478987e37b8b8ea9d0cb45ff86d51a3e96b781c035df7cd\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h2_refs_release_fault_reaches_window_without_violation():\n>         _, result = _search(\"H2\", \"UH3F\")\n>         assert result[\"witness\"][\"reached\"] and result[\"fault_step_seen\"]\n> >       assert not result[\"counterexample\"] and result[\"floor_above_cand_states\"] == 0\n> E       AssertionError: assert (not {'judge': 'J3', 'reason': {'version': 'B60', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 61, ...}, 'steps': [Step(...forward_candidate', version='B40', fault=''), Step(thread='T', operation='forward_rts', version='A20', fault=''), ...]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:93: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=5222 retained_bytes=5222 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7861 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8c7348ab4e88b65c6d0f591239bcb8521be9b2d2bf0f667c49697f14e1d475c2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.567,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "hang_risk": false,
+      "id": "mh1-commit-cas-always",
+      "injection_diff_sha256": "980ae1d282cc579c98b58a0222fe773f08d56b0875df2696907b3a6c194cd63b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "14fb31148a9a3dd072ff3a9bdd68c89a087758fe138af1455212b00a4bf2e1ec",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/helper.py",
+          "new": "        cas = True  # MH1\n",
+          "old": "        cas = (\"UH1\" in faults or (waiting(t) and (\"UH1g\" in faults or t.gen == h.gen)))\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "8c7348ab4e88b65c6d0f591239bcb8521be9b2d2bf0f667c49697f14e1d475c2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n...............FFF.FF...........F.F...F.....                             [100%]\n=================================== FAILURES ===================================\n_______________________ test_helper_sound_and_effect_h1 ________________________\n[gw29] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_sound_and_effect_h1():\n>       initial, result = _search(\"H1\", revert=True)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:62: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x154deb77b6f0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n_____________________ test_wait_history_and_healthy_floor ______________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_history_and_healthy_floor():\n        for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n                             (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n>           _, result = _search(name, **kwargs)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:232: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x14e9ece536f0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n_________________________ test_healthy_h2_h3_complete __________________________\n[gw40] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_healthy_h2_h3_complete():\n        for name in (\"H2\", \"H3\"):\n>           _, result = _search(name)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:216: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x149ea19ff6f0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n_______________________ test_helper_refs_and_uh6_replay ________________________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_refs_and_uh6_replay():\n>       initial, healthy = _search(\"H4\")\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:237: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=51, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x15389da5f6f0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n_________________________ test_expire_effect_and_sound _________________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expire_effect_and_sound():\n>       _, accept = _search(\"H4\")\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:176: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n    result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\ntools/vhash_forwarding_model/model.py:606: in explore\n    state_invariant(ns)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nstate = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=51, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n\n    def _sound(state):\n>       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\nE       assert False\nE        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x1540de31b6f0>)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n_____________________ test_h4_expired_refs_and_skip_check ______________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h4_expired_refs_and_skip_check():\n        for fault in (\"UH3X\", \"UH5\"):\n            initial, result = _search(\"H4\", fault, resume=\"expire\")\n            assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n            ce = result[\"counterexample\"]\n>           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\nE           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'future_read' == 'use_after_free'\nE             \nE             - use_after_free\nE             + future_read)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n_________ test_h2_refs_release_fault_reaches_window_without_violation __________\n[gw31] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h2_refs_release_fault_reaches_window_without_violation():\n        _, result = _search(\"H2\", \"UH3F\")\n        assert result[\"witness\"][\"reached\"] and result[\"fault_step_seen\"]\n>       assert not result[\"counterexample\"] and result[\"floor_above_cand_states\"] == 0\nE       AssertionError: assert (not {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='B40', fault='')]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:93: AssertionError\n________________________ test_h2_cas_faults_and_replay _________________________\n[gw30] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h2_cas_faults_and_replay():\n        for fault, revert, unsafe in ((\"UH1\", False, True), (\"UH1g\", False, False),\n                                      (\"UH1p\", False, False), (\"UH1p\", True, True),\n                                      (\"UH4\", False, True)):\n            initial, result = _search(\"H2\", fault, revert=revert)\n            assert result[\"witness\"][\"reached\"]\n            assert result[\"fault_step_seen\"] == (fault != \"UH1g\")\n            assert bool(result[\"counterexample\"]) == unsafe, fault\n            if unsafe:\n                ce = result[\"counterexample\"]\n>               assert ce[\"judge\"] == \"J3\" and changed_step_in_trace(ce[\"steps\"], fault)\nE               AssertionError: assert ('J3' == 'J3'\nE                 \nE                   J3 and False)\nE                +  where False = changed_step_in_trace([Step(thread='T', operation='read', version='A20', fault=''), Step(thread='H', operation='h_snapshot', version='T:61',...d='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='B40', fault='')], 'UH1')\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:82: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay\n8 failed, 36 passed in 9.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1293 retained_bytes=1293 omitted_bytes=0 rendered_excerpt_bytes=1340 sha256=202070e29f02f7c2487c1fcefceb5c87082f26cff964e163b859cefa46754823\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_history_and_healthy_floor():\n>         for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n>                              (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n> >           _, result = _search(name, **kwargs)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:232: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x14e9ece536f0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1211 retained_bytes=1211 omitted_bytes=0 rendered_excerpt_bytes=1250 sha256=216db5b2a868c0de191894b9314127e37f3f1719379120c5a8c22ee22ba9ade6\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h2_cas_faults_and_replay():\n>         for fault, revert, unsafe in ((\"UH1\", False, True), (\"UH1g\", False, False),\n>                                       (\"UH1p\", False, False), (\"UH1p\", True, True),\n>                                       (\"UH4\", False, True)):\n>             initial, result = _search(\"H2\", fault, revert=revert)\n>             assert result[\"witness\"][\"reached\"]\n>             assert result[\"fault_step_seen\"] == (fault != \"UH1g\")\n>             assert bool(result[\"counterexample\"]) == unsafe, fault\n>             if unsafe:\n>                 ce = result[\"counterexample\"]\n> >               assert ce[\"judge\"] == \"J3\" and changed_step_in_trace(ce[\"steps\"], fault)\n> E               AssertionError: assert ('J3' == 'J3'\n> E                 \n> E                   J3 and False)\n> E                +  where False = changed_step_in_trace([Step(thread='T', operation='read', version='A20', fault=''), Step(thread='H', operation='h_snapshot', version='T:61',...d='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='B40', fault='')], 'UH1')\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:82: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1170 retained_bytes=1170 omitted_bytes=0 rendered_excerpt_bytes=1215 sha256=0d4e404758efcedaf041d4352dd69227ac784ec8ee9f25c220832e4c89ca81c5\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_healthy_h2_h3_complete():\n>         for name in (\"H2\", \"H3\"):\n> >           _, result = _search(name)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:216: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x149ea19ff6f0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1154 retained_bytes=1154 omitted_bytes=0 rendered_excerpt_bytes=1197 sha256=c08e8c1f0fab348727ded98dfe5783bb5a3ab99857d5fc95bce64620ace37392\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_sound_and_effect_h1():\n> >       initial, result = _search(\"H1\", revert=True)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:62: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=61, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x154deb77b6f0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1143 retained_bytes=1143 omitted_bytes=0 rendered_excerpt_bytes=1186 sha256=21d3109701798a808d24638bd064d4ebc2737eacd045685b00a542543e41bd92\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_refs_and_uh6_replay():\n> >       initial, healthy = _search(\"H4\")\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:237: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=51, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x15389da5f6f0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1133 retained_bytes=1133 omitted_bytes=0 rendered_excerpt_bytes=1176 sha256=86793ebe33caf43120f913844f86c5a972209a831b81274b73f687000f10fabd\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expire_effect_and_sound():\n> >       _, accept = _search(\"H4\")\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:176: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:37: in _search\n>     result = explore(initial, fault=fault, witness=window, danger=danger_witness(name),\n> tools/vhash_forwarding_model/model.py:606: in explore\n>     state_invariant(ns)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> state = State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...elper=HelperState(phase='rts', txn='T', gen=0, target=51, reads=(('A', 'A20'),), index=0, failed=False, refs=('A20',)))\n> \n>     def _sound(state):\n> >       assert all(t.gc_floor <= t.cand_ts for t in state.txns if not t.expired)\n> E       assert False\n> E        +  where False = all(<generator object _sound.<locals>.<genexpr> at 0x1540de31b6f0>)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:48: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=860 retained_bytes=860 omitted_bytes=0 rendered_excerpt_bytes=889 sha256=b0b2c96e04501f5b80d248df9ea5b22d0066530d103b9c325dd71f322f78466f\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h4_expired_refs_and_skip_check():\n>         for fault in (\"UH3X\", \"UH5\"):\n>             initial, result = _search(\"H4\", fault, resume=\"expire\")\n>             assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n>             ce = result[\"counterexample\"]\n> >           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\n> E           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'future_read' == 'use_after_free'\n> E             \n> E             - use_after_free\n> E             + future_read)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE rank=8 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=677 retained_bytes=677 omitted_bytes=0 rendered_excerpt_bytes=696 sha256=1bd1a548e2c8240c2c1baeb307419470b72083d9180fb96f6529dde31be6eefe\n--- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h2_refs_release_fault_reaches_window_without_violation():\n>         _, result = _search(\"H2\", \"UH3F\")\n>         assert result[\"witness\"][\"reached\"] and result[\"fault_step_seen\"]\n> >       assert not result[\"counterexample\"] and result[\"floor_above_cand_states\"] == 0\n> E       AssertionError: assert (not {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...='GC', operation='read_floor', version='', fault=''), Step(thread='GC', operation='reclaim', version='B40', fault='')]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:93: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=8 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=8 failed=8 errors=0 selected=8 omitted_failures=0 source_bytes=8641 retained_bytes=8641 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12691 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "eefd65460681e809a53c671e376b151fccb79f8f13773eff9b0cc6d3015b4787"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.564,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay"
+      ],
+      "hang_risk": false,
+      "id": "mh2-publish-at-snapshot",
+      "injection_diff_sha256": "553ad604505db189660ce7fad8c7547c04c4769959cd44cf626a828bfe30be5b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0eda27af30147606d92e752f1f15106bc8c23bfb3fb8f1b5267fc5eb1bcf4f8d",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/helper.py",
+          "new": "                if target > t.gc_floor:  # MH2\n",
+          "old": "                if \"UH2\" in faults and target > t.gc_floor:\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "eefd65460681e809a53c671e376b151fccb79f8f13773eff9b0cc6d3015b4787",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n..............F........F.....F..............                             [100%]\n=================================== FAILURES ===================================\n_____________ test_helper_reclaimed_contacts_and_reference_reason ______________\n[gw43] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_reclaimed_contacts_and_reference_reason():\n        versions = (Version(\"A20\", \"A\", 20, 20, reclaimed=True),)\n        t = Txn(\"T\", 45, ((\"R\", \"A\"), (\"WAIT\", \"\")), pc=1,\n                read_log=((\"A\", \"A20\"),))\n        for phase in (\"rts\", \"check\"):\n            state = State(versions, (t,), helper=HelperState(\n                phase, \"T\", 0, 61, t.read_log))\n            after, step = next((n, x) for n, x in enabled_steps(state, pressure=\"helper\")\n                               if x.thread == \"H\" and x.operation == \"touch_reclaimed\")\n            assert after == state and step.version == \"A20\"\n            assert j3(state, after, step)[\"reason\"] == \"use_after_free\"\n        selected = State((replace(versions[0], reclaimed=False),\n                          Version(\"A50\", \"A\", 50, 50, reclaimed=True)), (t,),\n                         helper=HelperState(\"check\", \"T\", 0, 61, t.read_log))\n        after, step = next((n, x) for n, x in enabled_steps(selected, pressure=\"helper\")\n                           if x.thread == \"H\" and x.operation == \"touch_reclaimed\")\n        assert after == selected and step.version == \"A50\"\n        before = State((replace(versions[0], reclaimed=False),), (t,),\n                       helper=HelperState(refs=(\"A20\",)))\n        after = replace(before, versions=versions)\n        assert j3(before, after, Step(\"GC\", \"reclaim\", \"A20\"))[\"txn\"] == \"H\"\n        protected = replace(before, versions=(before.versions[0], Version(\"A50\", \"A\", 50, 50)),\n                            txns=(replace(t, expired=True),))\n        unprotected = replace(protected, helper=HelperState())\n        assert \"A20\" not in reclaimable_versions(protected)\n>       assert \"A20\" in reclaimable_versions(unprotected)\nE       AssertionError: assert 'A20' in ()\nE        +  where () = reclaimable_versions(State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...k=1, gc_seen=None, helper=HelperState(phase='idle', txn='', gen=0, target=0, reads=(), index=0, failed=False, refs=())))\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:287: AssertionError\n_____________________ test_h4_expired_refs_and_skip_check ______________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h4_expired_refs_and_skip_check():\n        for fault in (\"UH3X\", \"UH5\"):\n            initial, result = _search(\"H4\", fault, resume=\"expire\")\n>           assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\nE           assert (True and False)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:113: AssertionError\n_________________________ test_expire_effect_and_sound _________________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expire_effect_and_sound():\n        _, accept = _search(\"H4\")\n        assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n        off = explore(scenario(\"H4\")[0], pressure=\"self\")\n        assert off[\"effects\"][\"attributable\"] is None\n        initial, result = _search(\"H4\", resume=\"expire\")\n        assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\n        assert result[\"floor_above_cand_states\"] == 0\n>       assert result[\"effects\"][\"attributable\"][\"delta_B\"] > 0\nE       assert 0 > 0\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:183: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\n3 failed, 41 passed in 9.61s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2193 retained_bytes=2193 omitted_bytes=0 rendered_excerpt_bytes=2258 sha256=f70a63d86c3e5fb822260809ba3b3d22a8b27d887a05a111e74e33230d2ced1d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_reclaimed_contacts_and_reference_reason():\n>         versions = (Version(\"A20\", \"A\", 20, 20, reclaimed=True),)\n>         t = Txn(\"T\", 45, ((\"R\", \"A\"), (\"WAIT\", \"\")), pc=1,\n>                 read_log=((\"A\", \"A20\"),))\n>         for phase in (\"rts\", \"check\"):\n>             state = State(versions, (t,), helper=HelperState(\n>                 phase, \"T\", 0, 61, t.read_log))\n>             after, step = next((n, x) for n, x in enabled_steps(state, pressure=\"helper\")\n>                                if x.thread == \"H\" and x.operation == \"touch_reclaimed\")\n>             assert after == state and step.version == \"A20\"\n>             assert j3(state, after, step)[\"reason\"] == \"use_after_free\"\n>         selected = State((replace(versions[0], reclaimed=False),\n>                           Version(\"A50\", \"A\", 50, 50, reclaimed=True)), (t,),\n>                          helper=HelperState(\"check\", \"T\", 0, 61, t.read_log))\n>         after, step = next((n, x) for n, x in enabled_steps(selected, pressure=\"helper\")\n>                            if x.thread == \"H\" and x.operation == \"touch_reclaimed\")\n>         assert after == selected and step.version == \"A50\"\n>         before = State((replace(versions[0], reclaimed=False),), (t,),\n>                        helper=HelperState(refs=(\"A20\",)))\n>         after = replace(before, versions=versions)\n>         assert j3(before, after, Step(\"GC\", \"reclaim\", \"A20\"))[\"txn\"] == \"H\"\n>         protected = replace(before, versions=(before.versions[0], Version(\"A50\", \"A\", 50, 50)),\n>                             txns=(replace(t, expired=True),))\n>         unprotected = replace(protected, helper=HelperState())\n>         assert \"A20\" not in reclaimable_versions(protected)\n> >       assert \"A20\" in reclaimable_versions(unprotected)\n> E       AssertionError: assert 'A20' in ()\n> E        +  where () = reclaimable_versions(State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...k=1, gc_seen=None, helper=HelperState(phase='idle', txn='', gen=0, target=0, reads=(), index=0, failed=False, refs=())))\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:287: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=675 retained_bytes=675 omitted_bytes=0 rendered_excerpt_bytes=704 sha256=ec0ebfa441eecd326d16914ebee1d192a428eb1103fbd82ac207ceda85c97e26\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expire_effect_and_sound():\n>         _, accept = _search(\"H4\")\n>         assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n>         off = explore(scenario(\"H4\")[0], pressure=\"self\")\n>         assert off[\"effects\"][\"attributable\"] is None\n>         initial, result = _search(\"H4\", resume=\"expire\")\n>         assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\n>         assert result[\"floor_above_cand_states\"] == 0\n> >       assert result[\"effects\"][\"attributable\"][\"delta_B\"] > 0\n> E       assert 0 > 0\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:183: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=395 retained_bytes=395 omitted_bytes=0 rendered_excerpt_bytes=414 sha256=28b6344aa480819b949b96c86933d2776057a4178940f16dfbd16df438f266c4\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h4_expired_refs_and_skip_check():\n>         for fault in (\"UH3X\", \"UH5\"):\n>             initial, result = _search(\"H4\", fault, resume=\"expire\")\n> >           assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n> E           assert (True and False)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:113: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3263 retained_bytes=3263 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4966 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8c6a356df5a08a6ae335379e2a6b3c59bd303e2fc8473da40695ebb26cfe64bc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.525,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound"
+      ],
+      "hang_risk": false,
+      "id": "mh3-boundary-keeps-expired",
+      "injection_diff_sha256": "b90f580cdb7be3bca4a6c85fefec9cfe3648570e0d5de4c975927035553d258c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c3af79b92950eabdbb209e856d3a17bc436e720ddb52d788db0b6e2164cd0581",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "    active = [t for t in s.txns if t.phase != \"done\"]  # MH3\n",
+          "old": "    active = [t for t in s.txns if t.phase != \"done\" and not t.expired]\n"
+        },
+        {
+          "file": "tools/vhash_forwarding_model/gc_connection.py",
+          "new": "def reclaimable_versions(state):\n    active = [t for t in state.txns if t.phase != \"done\"]  # MH3\n",
+          "old": "def reclaimable_versions(state):\n    active = [t for t in state.txns if t.phase != \"done\" and not t.expired]\n"
+        },
+        {
+          "file": "tools/vhash_forwarding_model/gc_connection.py",
+          "new": "def effect_snapshot(state):\n    active = [t for t in state.txns if t.phase != \"done\"]  # MH3\n",
+          "old": "def effect_snapshot(state):\n    active = [t for t in state.txns if t.phase != \"done\" and not t.expired]\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "8c6a356df5a08a6ae335379e2a6b3c59bd303e2fc8473da40695ebb26cfe64bc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............................F.F...F....F....                             [100%]\n=================================== FAILURES ===================================\n_________________________ test_expire_effect_and_sound _________________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expire_effect_and_sound():\n        _, accept = _search(\"H4\")\n        assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n        off = explore(scenario(\"H4\")[0], pressure=\"self\")\n        assert off[\"effects\"][\"attributable\"] is None\n        initial, result = _search(\"H4\", resume=\"expire\")\n>       assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\nE       AssertionError: assert (True and not {'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:181: AssertionError\n_______________________ test_helper_refs_and_uh6_replay ________________________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_refs_and_uh6_replay():\n        initial, healthy = _search(\"H4\")\n        assert not any(healthy[\"verdicts\"].values())\n        _, expired = _search(\"H4\", resume=\"expire\")\n>       assert not any(expired[\"verdicts\"].values())\nE       AssertionError: assert not True\nE        +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]))\nE        +    where dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x1525bcd75340>()\nE        +      where <built-in method values of dict object at 0x1525bcd75340> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:240: AssertionError\n_____________________ test_h4_expired_refs_and_skip_check ______________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h4_expired_refs_and_skip_check():\n        for fault in (\"UH3X\", \"UH5\"):\n            initial, result = _search(\"H4\", fault, resume=\"expire\")\n            assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n            ce = result[\"counterexample\"]\n>           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\nE           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'reference' == 'use_after_free'\nE             \nE             - use_after_free\nE             + reference)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n_____________________ test_wait_history_and_healthy_floor ______________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_history_and_healthy_floor():\n        for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n                             (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n            _, result = _search(name, **kwargs)\n>           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\nE           AssertionError: assert (True and not True)\nE            +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]))\nE            +    where dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x151c11c17ac0>()\nE            +      where <built-in method values of dict object at 0x151c11c17ac0> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\n4 failed, 40 passed in 9.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1035 retained_bytes=1035 omitted_bytes=0 rendered_excerpt_bytes=1062 sha256=6c7602ac1d4540f4460d31a9e725fa8317d89c78f36ce97b3b793542b6c27058\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_history_and_healthy_floor():\n>         for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n>                              (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n>             _, result = _search(name, **kwargs)\n> >           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\n> E           AssertionError: assert (True and not True)\n> E            +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]))\n> E            +    where dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x151c11c17ac0>()\n> E            +      where <built-in method values of dict object at 0x151c11c17ac0> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=923 retained_bytes=923 omitted_bytes=0 rendered_excerpt_bytes=950 sha256=08ab76f6acdba96b558ab7dac3f6d761407c7bee436f1ec4a9a9cfbcda027d5d\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_refs_and_uh6_replay():\n>         initial, healthy = _search(\"H4\")\n>         assert not any(healthy[\"verdicts\"].values())\n>         _, expired = _search(\"H4\", resume=\"expire\")\n> >       assert not any(expired[\"verdicts\"].values())\n> E       AssertionError: assert not True\n> E        +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]))\n> E        +    where dict_values([None, None, {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x1525bcd75340>()\n> E        +      where <built-in method values of dict object at 0x1525bcd75340> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:240: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=856 retained_bytes=856 omitted_bytes=0 rendered_excerpt_bytes=885 sha256=1ebee14aa29010467f18049e9f601ed189989dc22347cbdfc7ba7342966fb83d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h4_expired_refs_and_skip_check():\n>         for fault in (\"UH3X\", \"UH5\"):\n>             initial, result = _search(\"H4\", fault, resume=\"expire\")\n>             assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n>             ce = result[\"counterexample\"]\n> >           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\n> E           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'reference' == 'use_after_free'\n> E             \n> E             - use_after_free\n> E             + reference)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=823 retained_bytes=823 omitted_bytes=0 rendered_excerpt_bytes=848 sha256=7c04c6786473d4ff18038555bc85515fae1a64ca9eaea50458b7e9fdb8e939cc\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expire_effect_and_sound():\n>         _, accept = _search(\"H4\")\n>         assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n>         off = explore(scenario(\"H4\")[0], pressure=\"self\")\n>         assert off[\"effects\"][\"attributable\"] is None\n>         initial, result = _search(\"H4\", resume=\"expire\")\n> >       assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\n> E       AssertionError: assert (True and not {'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=3637 retained_bytes=3637 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5744 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a466ddd187509b7c972b72d7c36dff014e4c8ad879876148d7d3528f0486649e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.526,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "hang_risk": false,
+      "id": "mh4-gc-ignores-expired-refs",
+      "injection_diff_sha256": "d0eb58d7d7bb3645050b8ed286ed9750e8efb011a84eba8f5b6445373cb8dea6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5a4f1b23a4bb393d728a1e36a63e70ad028e239ef40a07f1e5074d767771ffca",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "    refs = {vid for t in s.txns if not t.expired for vid in t.refs} | set(s.helper.refs)  # MH4\n",
+          "old": "    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "a466ddd187509b7c972b72d7c36dff014e4c8ad879876148d7d3528f0486649e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n..............F.........F....FF........F....                             [100%]\n=================================== FAILURES ===================================\n____________________ test_expired_j3_keeps_only_refs_reason ____________________\n[gw34] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expired_j3_keeps_only_refs_reason():\n        versions = (Version(\"A20\", \"A\", 20, 20), Version(\"A50\", \"A\", 50, 50))\n        t = Txn(\"T\", 45, ((\"R\", \"A\"),), expired=True, read_log=((\"A\", \"A20\"),))\n        before = State(versions, (t,))\n        after = replace(before, versions=(replace(versions[0], reclaimed=True), versions[1]))\n        step = Step(\"GC\", \"reclaim\", \"A20\")\n>       assert j3(before, after, step) is None\nE       AssertionError: assert {'version': 'A20', 'txn': 'T', 'reason': 'read_log', 'gc_step': 'reclaim'} is None\nE        +  where {'version': 'A20', 'txn': 'T', 'reason': 'read_log', 'gc_step': 'reclaim'} = j3(State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...k=1, gc_seen=None, helper=HelperState(phase='idle', txn='', gen=0, target=0, reads=(), index=0, failed=False, refs=())), State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=True), Versi...k=1, gc_seen=None, helper=HelperState(phase='idle', txn='', gen=0, target=0, reads=(), index=0, failed=False, refs=())), Step(thread='GC', operation='reclaim', version='A20', fault=''))\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:142: AssertionError\n_____________________ test_h4_expired_refs_and_skip_check ______________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h4_expired_refs_and_skip_check():\n        for fault in (\"UH3X\", \"UH5\"):\n            initial, result = _search(\"H4\", fault, resume=\"expire\")\n            assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n            ce = result[\"counterexample\"]\n>           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\nE           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'read_log', 'gc_step': 'reclaim'}, 'steps': [Step(t...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'read_log' == 'use_after_free'\nE             \nE             - use_after_free\nE             + read_log)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n_______________________ test_helper_refs_and_uh6_replay ________________________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_refs_and_uh6_replay():\n        initial, healthy = _search(\"H4\")\n        assert not any(healthy[\"verdicts\"].values())\n        _, expired = _search(\"H4\", resume=\"expire\")\n>       assert not any(expired[\"verdicts\"].values())\nE       AssertionError: assert not True\nE        +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]))\nE        +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x154b63fa9c80>()\nE        +      where <built-in method values of dict object at 0x154b63fa9c80> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:240: AssertionError\n_________________________ test_expire_effect_and_sound _________________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expire_effect_and_sound():\n        _, accept = _search(\"H4\")\n        assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n        off = explore(scenario(\"H4\")[0], pressure=\"self\")\n        assert off[\"effects\"][\"attributable\"] is None\n        initial, result = _search(\"H4\", resume=\"expire\")\n>       assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\nE       AssertionError: assert (True and not {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:181: AssertionError\n_____________________ test_wait_history_and_healthy_floor ______________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_history_and_healthy_floor():\n        for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n                             (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n            _, result = _search(name, **kwargs)\n>           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\nE           AssertionError: assert (True and not True)\nE            +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]))\nE            +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x14e0d3b06a80>()\nE            +      where <built-in method values of dict object at 0x14e0d3b06a80> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\n5 failed, 39 passed in 9.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1319 retained_bytes=1319 omitted_bytes=0 rendered_excerpt_bytes=1346 sha256=2374a40c47f593eb2fd796e8ff05b825ef3c8f7c0ca154307bee5df0f9895e0b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expired_j3_keeps_only_refs_reason():\n>         versions = (Version(\"A20\", \"A\", 20, 20), Version(\"A50\", \"A\", 50, 50))\n>         t = Txn(\"T\", 45, ((\"R\", \"A\"),), expired=True, read_log=((\"A\", \"A20\"),))\n>         before = State(versions, (t,))\n>         after = replace(before, versions=(replace(versions[0], reclaimed=True), versions[1]))\n>         step = Step(\"GC\", \"reclaim\", \"A20\")\n> >       assert j3(before, after, step) is None\n> E       AssertionError: assert {'version': 'A20', 'txn': 'T', 'reason': 'read_log', 'gc_step': 'reclaim'} is None\n> E        +  where {'version': 'A20', 'txn': 'T', 'reason': 'read_log', 'gc_step': 'reclaim'} = j3(State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=False), Vers...k=1, gc_seen=None, helper=HelperState(phase='idle', txn='', gen=0, target=0, reads=(), index=0, failed=False, refs=())), State(versions=(Version(id='A20', key='A', wts=20, rts=20, status='COMMITTED', owner='initial', reclaimed=True), Versi...k=1, gc_seen=None, helper=HelperState(phase='idle', txn='', gen=0, target=0, reads=(), index=0, failed=False, refs=())), Step(thread='GC', operation='reclaim', version='A20', fault=''))\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:142: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1069 retained_bytes=1069 omitted_bytes=0 rendered_excerpt_bytes=1096 sha256=77be341c63ff32c2cc3842d030024e009a1f20af034c725b61c12c512ea96430\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_history_and_healthy_floor():\n>         for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n>                              (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n>             _, result = _search(name, **kwargs)\n> >           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\n> E           AssertionError: assert (True and not True)\n> E            +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]))\n> E            +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x14e0d3b06a80>()\n> E            +      where <built-in method values of dict object at 0x14e0d3b06a80> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=957 retained_bytes=957 omitted_bytes=0 rendered_excerpt_bytes=984 sha256=f525ece33b8f9c5936ecdc8511707d4a5b765d0c04ef45c4f2bcea1baf0f5420\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_refs_and_uh6_replay():\n>         initial, healthy = _search(\"H4\")\n>         assert not any(healthy[\"verdicts\"].values())\n>         _, expired = _search(\"H4\", resume=\"expire\")\n> >       assert not any(expired[\"verdicts\"].values())\n> E       AssertionError: assert not True\n> E        +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]))\n> E        +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x154b63fa9c80>()\n> E        +      where <built-in method values of dict object at 0x154b63fa9c80> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:240: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=854 retained_bytes=854 omitted_bytes=0 rendered_excerpt_bytes=883 sha256=cf865a61904cb2a63e2ec8846993f7d142bbfb4a32a0bf2e47a633d5d30327a1\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h4_expired_refs_and_skip_check():\n>         for fault in (\"UH3X\", \"UH5\"):\n>             initial, result = _search(\"H4\", fault, resume=\"expire\")\n>             assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n>             ce = result[\"counterexample\"]\n> >           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\n> E           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'T', 'reason': 'read_log', 'gc_step': 'reclaim'}, 'steps': [Step(t...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'read_log' == 'use_after_free'\n> E             \n> E             - use_after_free\n> E             + read_log)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=823 retained_bytes=823 omitted_bytes=0 rendered_excerpt_bytes=848 sha256=99a9791d6fae4398bcca9aba2ec50812a76613265b8bf8a9221dbadf61e35901\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expire_effect_and_sound():\n>         _, accept = _search(\"H4\")\n>         assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n>         off = explore(scenario(\"H4\")[0], pressure=\"self\")\n>         assert off[\"effects\"][\"attributable\"] is None\n>         initial, result = _search(\"H4\", resume=\"expire\")\n> >       assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\n> E       AssertionError: assert (True and not {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'future_read', 'cand_ts': 45, ...}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=5022 retained_bytes=5022 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7592 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b3227b1feff440dfb77f196f8c3ac35dea7cc24b4bf81ac22562bbc5498ac0c9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.496,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "hang_risk": false,
+      "id": "mh5-j3-judges-expired-logically",
+      "injection_diff_sha256": "37e6414b540c28e863f74d4e5a4904b6f1ddacc89789ec2b86cdc4792b3d8052",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "afec9cc768fb1d180ee3a5bcb98186913a4229075d2fb3dc0fe4098421e8349c",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/judge.py",
+          "new": "        if False:  # MH5\n            continue\n",
+          "old": "        if t.expired:\n            continue\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "b3227b1feff440dfb77f196f8c3ac35dea7cc24b4bf81ac22562bbc5498ac0c9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............................F..F.F.....F....                             [100%]\n=================================== FAILURES ===================================\n_____________________ test_h4_expired_refs_and_skip_check ______________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h4_expired_refs_and_skip_check():\n        for fault in (\"UH3X\", \"UH5\"):\n            initial, result = _search(\"H4\", fault, resume=\"expire\")\n            assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n            ce = result[\"counterexample\"]\n            assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\n            assert changed_step_in_trace(ce[\"steps\"], fault)\n            before = replay(initial, ce[\"steps\"][:-1], fault=fault, pressure=\"helper\", resume=\"expire\")\n            after = replay(initial, ce[\"steps\"], fault=fault, pressure=\"helper\", resume=\"expire\")\n            assert j3(before, after, ce[\"steps\"][-1]) == ce[\"reason\"]\n            if fault == \"UH3X\":\n                end = next(i for i, step in enumerate(ce[\"steps\"]) if step.thread == \"T\"\n                           and step.operation == \"end_wait\")\n                resumed = replay(initial, ce[\"steps\"][:end + 1], fault=fault,\n                                 pressure=\"helper\", resume=\"expire\")\n                checked, check = next((n, x) for n, x in enabled_steps(\n                    resumed, faults=frozenset((fault,)), pressure=\"helper\", resume=\"expire\")\n                    if x.thread == \"T\" and x.operation == \"check_expired\")\n>               aborted, decision = next((n, x) for n, x in enabled_steps(\n                    checked, faults=frozenset((fault,)), pressure=\"helper\", resume=\"expire\")\n                    if x.thread == \"T\" and x.operation == \"decide_aborted\")\nE               StopIteration\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:128: StopIteration\n_______________________ test_helper_refs_and_uh6_replay ________________________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_refs_and_uh6_replay():\n        initial, healthy = _search(\"H4\")\n        assert not any(healthy[\"verdicts\"].values())\n        _, expired = _search(\"H4\", resume=\"expire\")\n>       assert not any(expired[\"verdicts\"].values())\nE       AssertionError: assert not True\nE        +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]))\nE        +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]) = <built-in method values of dict object at 0x1486d1548b80>()\nE        +      where <built-in method values of dict object at 0x1486d1548b80> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:240: AssertionError\n_________________________ test_expire_effect_and_sound _________________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expire_effect_and_sound():\n        _, accept = _search(\"H4\")\n        assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n        off = explore(scenario(\"H4\")[0], pressure=\"self\")\n        assert off[\"effects\"][\"attributable\"] is None\n        initial, result = _search(\"H4\", resume=\"expire\")\n>       assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\nE       AssertionError: assert (True and not {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}, 'steps': [Step(thread='T', opera...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:181: AssertionError\n_____________________ test_wait_history_and_healthy_floor ______________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_history_and_healthy_floor():\n        for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n                             (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n            _, result = _search(name, **kwargs)\n>           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\nE           AssertionError: assert (True and not True)\nE            +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]))\nE            +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]) = <built-in method values of dict object at 0x148295b2d0c0>()\nE            +      where <built-in method values of dict object at 0x148295b2d0c0> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\n4 failed, 40 passed in 9.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1645 retained_bytes=1645 omitted_bytes=0 rendered_excerpt_bytes=1698 sha256=fda963d37bf90bd9fdcb2c308809b3c23e54d4fd707b88bf656296ebb8c2e922\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h4_expired_refs_and_skip_check():\n>         for fault in (\"UH3X\", \"UH5\"):\n>             initial, result = _search(\"H4\", fault, resume=\"expire\")\n>             assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n>             ce = result[\"counterexample\"]\n>             assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\n>             assert changed_step_in_trace(ce[\"steps\"], fault)\n>             before = replay(initial, ce[\"steps\"][:-1], fault=fault, pressure=\"helper\", resume=\"expire\")\n>             after = replay(initial, ce[\"steps\"], fault=fault, pressure=\"helper\", resume=\"expire\")\n>             assert j3(before, after, ce[\"steps\"][-1]) == ce[\"reason\"]\n>             if fault == \"UH3X\":\n>                 end = next(i for i, step in enumerate(ce[\"steps\"]) if step.thread == \"T\"\n>                            and step.operation == \"end_wait\")\n>                 resumed = replay(initial, ce[\"steps\"][:end + 1], fault=fault,\n>                                  pressure=\"helper\", resume=\"expire\")\n>                 checked, check = next((n, x) for n, x in enabled_steps(\n>                     resumed, faults=frozenset((fault,)), pressure=\"helper\", resume=\"expire\")\n>                     if x.thread == \"T\" and x.operation == \"check_expired\")\n> >               aborted, decision = next((n, x) for n, x in enabled_steps(\n>                     checked, faults=frozenset((fault,)), pressure=\"helper\", resume=\"expire\")\n>                     if x.thread == \"T\" and x.operation == \"decide_aborted\")\n> E               StopIteration\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:128: StopIteration\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 rendered_excerpt_bytes=1011 sha256=2fa034757c0424ce8ed0140af6ea4f0f21eec482d8cf2791beabed8ad5d949a1\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_history_and_healthy_floor():\n>         for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n>                              (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n>             _, result = _search(name, **kwargs)\n> >           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\n> E           AssertionError: assert (True and not True)\n> E            +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]))\n> E            +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]) = <built-in method values of dict object at 0x148295b2d0c0>()\n> E            +      where <built-in method values of dict object at 0x148295b2d0c0> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=872 retained_bytes=872 omitted_bytes=0 rendered_excerpt_bytes=899 sha256=ab996f0cc8dc67a1c6ee09a1321215e7a93a94fc42e08e74be10e8a2b080f53d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_refs_and_uh6_replay():\n>         initial, healthy = _search(\"H4\")\n>         assert not any(healthy[\"verdicts\"].values())\n>         _, expired = _search(\"H4\", resume=\"expire\")\n> >       assert not any(expired[\"verdicts\"].values())\n> E       AssertionError: assert not True\n> E        +  where True = any(dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]))\n> E        +    where dict_values([None, None, {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}]) = <built-in method values of dict object at 0x1486d1548b80>()\n> E        +      where <built-in method values of dict object at 0x1486d1548b80> = {'J1': None, 'J2': None, 'J3': {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:240: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=823 retained_bytes=823 omitted_bytes=0 rendered_excerpt_bytes=848 sha256=f5888035189bab510decae5b0b290ff384365db9221ad6d3a4e3140a356c1856\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expire_effect_and_sound():\n>         _, accept = _search(\"H4\")\n>         assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n>         off = explore(scenario(\"H4\")[0], pressure=\"self\")\n>         assert off[\"effects\"][\"attributable\"] is None\n>         initial, result = _search(\"H4\", resume=\"expire\")\n> >       assert result[\"witness\"][\"reached\"] and not result[\"counterexample\"]\n> E       AssertionError: assert (True and not {'judge': 'J3', 'reason': {'version': 'B40', 'txn': 'T', 'reason': 'use_after_free'}, 'steps': [Step(thread='T', opera...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=4324 retained_bytes=4324 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6456 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "dd759db9a8826f89446f8ed556ebf0814f01097940e83819828b4c7366cfb298"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.517,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "hang_risk": false,
+      "id": "mh6-resume-skips-expiry-check",
+      "injection_diff_sha256": "667f4128624d857af492eefcc6308b7e044fa719e387fafa95be33e2f29ff3ab",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6b62dad3bde67bad63bea37cdc5e3d0b16931eead08e2b75e0cfc184a7dfab5a",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "        if t.expired:\n            if True:  # MH6\n",
+          "old": "        if t.expired:\n            if \"UH5\" in faults:\n"
+        },
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "            if False:  # MH6\n",
+          "old": "            if t.expired and \"UH5\" not in faults:\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "dd759db9a8826f89446f8ed556ebf0814f01097940e83819828b4c7366cfb298",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n..............F.............................                             [100%]\n=================================== FAILURES ===================================\n______________________ test_wait_own_step_and_generation _______________________\n[gw35] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_own_step_and_generation():\n        initial, _ = scenario(\"H1\")\n        t_read = next(n for n, x in enabled_steps(initial, pressure=\"helper\") if x.thread == \"T\")\n        t = t_read.txns[0]\n        assert t.pc == 1\n        own = [(n, x) for n, x in enabled_steps(t_read, pressure=\"helper\") if x.thread == \"T\"]\n        assert [x.operation for _, x in own] == [\"end_wait\"]\n>       assert own[0][0].txns[0].gen == t.gen + 1\nE       AssertionError: assert 0 == (0 + 1)\nE        +  where 0 = Txn(id='T', start=45, ops=(('R', 'A'), ('WAIT', '')), cand_ts=45, gc_floor=45, pc=2, phase='resume', index=0, target=0...pressure_base_confirmed=0, pressure_base_floor=0, gen=0, expired=False, helper_base=0, resume_used=False, held_refs=()).gen\nE        +  and   0 = Txn(id='T', start=45, ops=(('R', 'A'), ('WAIT', '')), cand_ts=45, gc_floor=45, pc=1, phase='ops', index=0, target=0, r...pressure_base_confirmed=0, pressure_base_floor=0, gen=0, expired=False, helper_base=0, resume_used=False, held_refs=()).gen\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:157: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation\n1 failed, 43 passed in 9.61s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1141 retained_bytes=1141 omitted_bytes=0 rendered_excerpt_bytes=1172 sha256=9377a03bf51b92ac3f23609ae4b2bcdf4ab4a8e94ee33e19cdd512eea3a6cc32\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_own_step_and_generation():\n>         initial, _ = scenario(\"H1\")\n>         t_read = next(n for n, x in enabled_steps(initial, pressure=\"helper\") if x.thread == \"T\")\n>         t = t_read.txns[0]\n>         assert t.pc == 1\n>         own = [(n, x) for n, x in enabled_steps(t_read, pressure=\"helper\") if x.thread == \"T\"]\n>         assert [x.operation for _, x in own] == [\"end_wait\"]\n> >       assert own[0][0].txns[0].gen == t.gen + 1\n> E       AssertionError: assert 0 == (0 + 1)\n> E        +  where 0 = Txn(id='T', start=45, ops=(('R', 'A'), ('WAIT', '')), cand_ts=45, gc_floor=45, pc=2, phase='resume', index=0, target=0...pressure_base_confirmed=0, pressure_base_floor=0, gen=0, expired=False, helper_base=0, resume_used=False, held_refs=()).gen\n> E        +  and   0 = Txn(id='T', start=45, ops=(('R', 'A'), ('WAIT', '')), cand_ts=45, gc_floor=45, pc=1, phase='ops', index=0, target=0, r...pressure_base_confirmed=0, pressure_base_floor=0, gen=0, expired=False, helper_base=0, resume_used=False, held_refs=()).gen\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:157: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1141 retained_bytes=1141 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1890 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9bda913829e4c29a2901d70695d701205b1f818f991711e37db7539000c2998d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.476,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation"
+      ],
+      "hang_risk": false,
+      "id": "mh7-end-wait-keeps-gen",
+      "injection_diff_sha256": "d49665772d7395118918bfc1840bc79d93026f6b631cbf2888db149a51074958",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bf20227fa637830d35f5a8fed68eaed9c3c8805df1684325095cc1733c04bc89",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "                nt = replace(t, pc=t.pc + 1, phase=\"resume\", gen=t.gen,  # MH7\n                             cand_ts=base, resume_used=False)\n",
+          "old": "                nt = replace(t, pc=t.pc + 1, phase=\"resume\", gen=t.gen + 1,\n                             cand_ts=base, resume_used=False)\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "9bda913829e4c29a2901d70695d701205b1f818f991711e37db7539000c2998d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n......................FF...F..........F..F..                             [100%]\n=================================== FAILURES ===================================\n_______________________ test_helper_refs_and_uh6_replay ________________________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_helper_refs_and_uh6_replay():\n        initial, healthy = _search(\"H4\")\n>       assert not any(healthy[\"verdicts\"].values())\nE       AssertionError: assert not True\nE        +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]))\nE        +    where dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x14c54b256f00>()\nE        +      where <built-in method values of dict object at 0x14c54b256f00> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:238: AssertionError\n_________________________ test_expire_effect_and_sound _________________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_expire_effect_and_sound():\n        _, accept = _search(\"H4\")\n>       assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\nE       AssertionError: assert (not {'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:177: AssertionError\n_____________________ test_h4_expired_refs_and_skip_check ______________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_h4_expired_refs_and_skip_check():\n        for fault in (\"UH3X\", \"UH5\"):\n            initial, result = _search(\"H4\", fault, resume=\"expire\")\n            assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n            ce = result[\"counterexample\"]\n>           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\nE           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'reference' == 'use_after_free'\nE             \nE             - use_after_free\nE             + reference)\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n_____________________ test_wait_history_and_healthy_floor ______________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_wait_history_and_healthy_floor():\n        for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n                             (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n            _, result = _search(name, **kwargs)\n>           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\nE           AssertionError: assert (True and not True)\nE            +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]))\nE            +    where dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x153af4e22780>()\nE            +      where <built-in method values of dict object at 0x153af4e22780> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n_________________________ test_healthy_h2_h3_complete __________________________\n[gw40] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_healthy_h2_h3_complete():\n        for name in (\"H2\", \"H3\"):\n            _, result = _search(name)\n            assert result[\"witness\"][\"reached\"] and not result[\"danger\"][\"reached\"]\n>           assert not any(result[\"verdicts\"].values())\nE           AssertionError: assert not True\nE            +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]))\nE            +    where dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x147907c73dc0>()\nE            +      where <built-in method values of dict object at 0x147907c73dc0> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n\norchestrator/tests/test_vhash_forwarding_model_helper.py:218: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\nFAILED orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\n5 failed, 39 passed in 9.64s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1035 retained_bytes=1035 omitted_bytes=0 rendered_excerpt_bytes=1062 sha256=f38abdb5738f0518b7b669ac16f8b28b04d7c9859a92e549d59bbdcf36ad0fb8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_wait_history_and_healthy_floor():\n>         for name, kwargs in ((\"H1\", {\"revert\": True}), (\"H2\", {}),\n>                              (\"H4\", {}), (\"H4\", {\"resume\": \"expire\"})):\n>             _, result = _search(name, **kwargs)\n> >           assert result[\"statistics\"][\"complete\"] and not any(result[\"verdicts\"].values())\n> E           AssertionError: assert (True and not True)\n> E            +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]))\n> E            +    where dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x153af4e22780>()\n> E            +      where <built-in method values of dict object at 0x153af4e22780> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:233: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=948 retained_bytes=948 omitted_bytes=0 rendered_excerpt_bytes=975 sha256=0573ef9a1a24b2d19ec9ab4eab55b023816cb6a59da1631d102517f535549f9c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_healthy_h2_h3_complete():\n>         for name in (\"H2\", \"H3\"):\n>             _, result = _search(name)\n>             assert result[\"witness\"][\"reached\"] and not result[\"danger\"][\"reached\"]\n> >           assert not any(result[\"verdicts\"].values())\n> E           AssertionError: assert not True\n> E            +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]))\n> E            +    where dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x147907c73dc0>()\n> E            +      where <built-in method values of dict object at 0x147907c73dc0> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:218: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=856 retained_bytes=856 omitted_bytes=0 rendered_excerpt_bytes=885 sha256=eea780be13e517b4ba6f1d06e0aa39f952921d2f901203055741a2ff56e53cb4\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_h4_expired_refs_and_skip_check():\n>         for fault in (\"UH3X\", \"UH5\"):\n>             initial, result = _search(\"H4\", fault, resume=\"expire\")\n>             assert result[\"witness\"][\"reached\"] and result[\"danger\"][\"reached\"]\n>             ce = result[\"counterexample\"]\n> >           assert ce and ce[\"reason\"][\"reason\"] == \"use_after_free\"\n> E           AssertionError: assert ({'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]} and 'reference' == 'use_after_free'\n> E             \n> E             - use_after_free\n> E             + reference)\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:115: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=818 retained_bytes=818 omitted_bytes=0 rendered_excerpt_bytes=841 sha256=b6fc37e0f0fb25d16305d22262885fcd4bca33b0dbcb2318db08aa0f93101c32\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_helper_refs_and_uh6_replay():\n>         initial, healthy = _search(\"H4\")\n> >       assert not any(healthy[\"verdicts\"].values())\n> E       AssertionError: assert not True\n> E        +  where True = any(dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]))\n> E        +    where dict_values([None, None, {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}]) = <built-in method values of dict object at 0x14c54b256f00>()\n> E        +      where <built-in method values of dict object at 0x14c54b256f00> = {'J1': None, 'J2': None, 'J3': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}}.values\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:238: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=568 retained_bytes=568 omitted_bytes=0 rendered_excerpt_bytes=585 sha256=c3efd041a0d69052a081281dc4c8d9587634b3f8d5cfe53af864d5e5c9f85f24\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_expire_effect_and_sound():\n>         _, accept = _search(\"H4\")\n> >       assert not accept[\"counterexample\"] and accept[\"effects\"][\"attributable\"] is None\n> E       AssertionError: assert (not {'judge': 'J3', 'reason': {'version': 'A20', 'txn': 'H', 'reason': 'reference', 'gc_step': 'reclaim'}, 'steps': [Step(...operation='fix_timestamp', version='', fault=''), Step(thread='W', operation='install', version='W:A', fault=''), ...]})\n> \n> orchestrator/tests/test_vhash_forwarding_model_helper.py:177: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=5 failed=5 errors=0 selected=5 omitted_failures=0 source_bytes=4225 retained_bytes=4225 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6769 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "89e417589a80bc3fba3a8eecfe6bcde3a539252d89f85dc2c3b34c2ed70ea5e5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "1028579818b4d248a90516f29d5ecb582319696addeea88bb3adbc74fdccddde",
+      "duration_s": 10.515,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete"
+      ],
+      "hang_risk": false,
+      "id": "mh8-gc-ignores-helper-refs",
+      "injection_diff_sha256": "d0a66dc4fc99ee56ce50d6fc08295b1047180076f51f9d27f79236b367ae5ad7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c2e8a8dc30634cba09c38e95a02731446487f21d9a0d5752d18d93da7f955a1d",
+      "replacements": [
+        {
+          "file": "tools/vhash_forwarding_model/model.py",
+          "new": "    refs = {vid for t in s.txns for vid in t.refs}  # MH8\n",
+          "old": "    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)\n"
+        }
+      ],
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "KILLED",
+      "test_output_sha256": "89e417589a80bc3fba3a8eecfe6bcde3a539252d89f85dc2c3b34c2ed70ea5e5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\norchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative\norchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative\norchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds\norchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay\norchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable\norchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay\norchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds\norchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read\norchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state\norchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition\norchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts\norchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version\norchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes\norchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation\norchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort\norchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness\norchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_ug2r_and_ug3_without_o1\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_floor_lowering_counter_positive_and_representative_zero\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_explore_counts_one_added_floor_lowering_edge\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_restricted_judgment_matches_reference_gc\norchestrator/tests/test_vhash_forwarding_model_gc.py::test_old_representative_pins\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_representative_old_pins\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_h3_early_publish_replay\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_state_hash_distinguishes_helper_and_generation\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_decision_is_not_committed\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_h5_danger_write_skew_cycle\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay\norchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason\n\n44 tests collected in 0.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "2bc59473aabf3285d6a38ecb2a7b0d294a7151f0a4df7241876933630654e42f"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j1_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_handmade_positive_and_negative",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_all_scenario_witnesses_and_v1_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_v0_s8_cycle_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_commit_and_abort_reachable",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_detected_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_single_rule_faults_undetected_in_fixed_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s4_pending_blocks_read",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_touch_is_j3_even_on_same_state",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_restricted_judgment_matches_every_transition",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s9_u2_after_other_reader_aborts",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_j3_future_forward_version",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_reclaimed_version_metadata_routes",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_fault_then_failed_commit_validation",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_scenario_witness_order_and_s5_writer_abort",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_old_target_allocation_violates_timestamp_uniqueness",
+        "orchestrator/tests/test_vhash_forwarding_model.py::test_s10_write_skew_search_results",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g1_effects_and_waiting_bounds",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g2_one_waiter_does_not_move_boundary",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g3_to_g6_unsafe_faults_have_real_shortest_replays",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_ug2r_and_ug3_without_o1",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_g6_rollback_j3_positive_and_safe_negative",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_refs_are_counted_and_pressure_stays_in_wait",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_sound_g1_to_g6_fixed_scenarios_invariants",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_floor_lowering_counter_positive_and_representative_zero",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_explore_counts_one_added_floor_lowering_edge",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_restricted_judgment_matches_reference_gc",
+        "orchestrator/tests/test_vhash_forwarding_model_gc.py::test_old_representative_pins",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_representative_old_pins",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h3_early_publish_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_state_hash_distinguishes_helper_and_generation",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_decision_is_not_committed",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h5_danger_write_skew_cycle",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+        "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason"
+      ],
+      "duration_s": 1.4,
+      "rc": 0,
+      "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+      "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+      "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+      "status": "PASSED",
+      "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "mh1-commit-cas-always": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "980ae1d282cc579c98b58a0222fe773f08d56b0875df2696907b3a6c194cd63b",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/helper.py",
+            "new": "        cas = True  # MH1\n",
+            "old": "        cas = (\"UH1\" in faults or (waiting(t) and (\"UH1g\" in faults or t.gen == h.gen)))\n"
+          }
+        ]
+      },
+      "mh2-publish-at-snapshot": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_cas_faults_and_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h2_refs_release_fault_reaches_window_without_violation",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_sound_and_effect_h1",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "553ad604505db189660ce7fad8c7547c04c4769959cd44cf626a828bfe30be5b",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/helper.py",
+            "new": "                if target > t.gc_floor:  # MH2\n",
+            "old": "                if \"UH2\" in faults and target > t.gc_floor:\n"
+          }
+        ]
+      },
+      "mh3-boundary-keeps-expired": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1,
+          "2": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_reclaimed_contacts_and_reference_reason"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b90f580cdb7be3bca4a6c85fefec9cfe3648570e0d5de4c975927035553d258c",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "    active = [t for t in s.txns if t.phase != \"done\"]  # MH3\n",
+            "old": "    active = [t for t in s.txns if t.phase != \"done\" and not t.expired]\n"
+          },
+          {
+            "file": "tools/vhash_forwarding_model/gc_connection.py",
+            "new": "def reclaimable_versions(state):\n    active = [t for t in state.txns if t.phase != \"done\"]  # MH3\n",
+            "old": "def reclaimable_versions(state):\n    active = [t for t in state.txns if t.phase != \"done\" and not t.expired]\n"
+          },
+          {
+            "file": "tools/vhash_forwarding_model/gc_connection.py",
+            "new": "def effect_snapshot(state):\n    active = [t for t in state.txns if t.phase != \"done\"]  # MH3\n",
+            "old": "def effect_snapshot(state):\n    active = [t for t in state.txns if t.phase != \"done\" and not t.expired]\n"
+          }
+        ]
+      },
+      "mh4-gc-ignores-expired-refs": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0eb58d7d7bb3645050b8ed286ed9750e8efb011a84eba8f5b6445373cb8dea6",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "    refs = {vid for t in s.txns if not t.expired for vid in t.refs} | set(s.helper.refs)  # MH4\n",
+            "old": "    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)\n"
+          }
+        ]
+      },
+      "mh5-j3-judges-expired-logically": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expired_j3_keeps_only_refs_reason",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "37e6414b540c28e863f74d4e5a4904b6f1ddacc89789ec2b86cdc4792b3d8052",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/judge.py",
+            "new": "        if False:  # MH5\n            continue\n",
+            "old": "        if t.expired:\n            continue\n"
+          }
+        ]
+      },
+      "mh6-resume-skips-expiry-check": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "667f4128624d857af492eefcc6308b7e044fa719e387fafa95be33e2f29ff3ab",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "        if t.expired:\n            if True:  # MH6\n",
+            "old": "        if t.expired:\n            if \"UH5\" in faults:\n"
+          },
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "            if False:  # MH6\n",
+            "old": "            if t.expired and \"UH5\" not in faults:\n"
+          }
+        ]
+      },
+      "mh7-end-wait-keeps-gen": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_own_step_and_generation"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d49665772d7395118918bfc1840bc79d93026f6b631cbf2888db149a51074958",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "                nt = replace(t, pc=t.pc + 1, phase=\"resume\", gen=t.gen,  # MH7\n                             cand_ts=base, resume_used=False)\n",
+            "old": "                nt = replace(t, pc=t.pc + 1, phase=\"resume\", gen=t.gen + 1,\n                             cand_ts=base, resume_used=False)\n"
+          }
+        ]
+      },
+      "mh8-gc-ignores-helper-refs": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_expire_effect_and_sound",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_h4_expired_refs_and_skip_check",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_healthy_h2_h3_complete",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_helper_refs_and_uh6_replay",
+          "orchestrator/tests/test_vhash_forwarding_model_helper.py::test_wait_history_and_healthy_floor"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0a66dc4fc99ee56ce50d6fc08295b1047180076f51f9d27f79236b367ae5ad7",
+        "replacements": [
+          {
+            "file": "tools/vhash_forwarding_model/model.py",
+            "new": "    refs = {vid for t in s.txns for vid in t.refs}  # MH8\n",
+            "old": "    refs = {vid for t in s.txns for vid in t.refs} | set(s.helper.refs)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b9a4d23f959c1625e37ca112daa9bcfe8c71406114d3de64a7e7eba430dee7a0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_forwarding_model.py",
+      "orchestrator/tests/test_vhash_forwarding_model_gc.py",
+      "orchestrator/tests/test_vhash_forwarding_model_helper.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 14400.0
+  },
+  "repo_head": "25a8d957dd6d26c5b74c927223002b681a14d6ff",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_forwarding_model.py",
+      "orchestrator/tests/test_vhash_forwarding_model_gc.py",
+      "orchestrator/tests/test_vhash_forwarding_model_helper.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-helper-forwarding-2026-09-29/mutation/mutation-scratch-final2/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9b96c1b5778a95c6c9dea20256e62e74336216bc",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "40cc4372aa4f89a39dd88ccc0c00210878e6bc627f2293660616df42c4ec5f06",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "015b657fc3c17d9e8273cacb7960ce1954d5b0614f77b97282346be6d13c453b",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-helper-forwarding-2026-09-29/mutation/mutation-scratch-final2/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "00a61e1d049d90abcfe2316de82502e33e4e784b09b754d6e1e58067bcad36f9",
+  "updated_at": "2026-09-29T09:07:41.336652+00:00"
+}

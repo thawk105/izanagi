@@ -1,0 +1,1169 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..................................................................       [100%]\n66 passed in 6.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "e77dc789cae806919823437990239f89cc5b5bb333109e2f23c75ba8c1e97972"
+    },
+    "artifact_error": null,
+    "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+    "duration_s": 6.822,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a2a15d121eff420072bd0753165da574cb0a66440a5b3fe8282dbd0fa415f75b",
+    "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+    "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+    "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+    "status": "PASSED",
+    "test_output_sha256": "e77dc789cae806919823437990239f89cc5b5bb333109e2f23c75ba8c1e97972",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+  },
+  "date": "2026-09-29T16:07:46.851812+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...................F.....F............FF.FF.......................       [100%]\n=================================== FAILURES ===================================\n___________ test_production_literal_reference_rejects[\"docs/notes\"] ____________\n[gw13] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw13/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\nliteral = '\"docs/notes\"'\n\n    @pytest.mark.parametrize(\"literal\", [\n        '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n    ])\n    def test_production_literal_reference_rejects(tree, literal):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x14b0b0011770>)\n\norchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n_______________ test_comment_apostrophe_does_not_hide_reference ________________\n[gw21] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw21/test_comment_apostrophe_does_n0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n\n    def test_comment_apostrophe_does_not_hide_reference(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", '# don\\'t\\nPATH = \"docs/notes/story.md\"\\n')\n        put(repo, \"orchestrator/tests/test_consumer.py\",\n            '# don\\'t\\nPATH = \"docs/notes/story.md\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"readers\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(x.startswith(\"production-reference:\") for x in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_comment_apostrophe_does_not_hide_reference.<locals>.<genexpr> at 0x14c6137c9770>)\n\norchestrator/tests/test_scoped_acceptance.py:170: AssertionError\n____________ test_production_literal_reference_rejects[\"story.md\"] _____________\n[gw14] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw14/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\nliteral = '\"story.md\"'\n\n    @pytest.mark.parametrize(\"literal\", [\n        '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n    ])\n    def test_production_literal_reference_rejects(tree, literal):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x14c9d3779770>)\n\norchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n_______ test_production_literal_reference_rejects[\"docs/notes/story.md\"] _______\n[gw12] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw12/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\nliteral = '\"docs/notes/story.md\"'\n\n    @pytest.mark.parametrize(\"literal\", [\n        '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n    ])\n    def test_production_literal_reference_rejects(tree, literal):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x1503f7725770>)\n\norchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n______________ test_production_literal_reference_rejects[\"notes\"] ______________\n[gw15] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw15/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\nliteral = '\"notes\"'\n\n    @pytest.mark.parametrize(\"literal\", [\n        '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n    ])\n    def test_production_literal_reference_rejects(tree, literal):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x1504bd301770>)\n\norchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n________________ test_insight_depth_three_split_reader_rejects _________________\n[gw26] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw26/test_insight_depth_three_split0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n\n    def test_insight_depth_three_split_reader_rejects(tree):\n        repo, _ = tree\n        put(repo, \"orchestrator/campaign/p3_b4_wiring_probe.py\",\n            'ROOT = \"output\" / \"insights\" / \"2026-01-01_slug\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"output/insights/2026-01-01_slug/report.md\", \"# insight\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"insight\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"reasons\"] == [\n            \"production-reference:output/insights/2026-01-01_slug/report.md:\"\n            \"orchestrator/campaign/p3_b4_wiring_probe.py\"\n        ]\nE       AssertionError: assert [] == ['production-...ing_probe.py']\nE         \nE         Right contains one more item: 'production-reference:output/insights/2026-01-01_slug/report.md:orchestrator/campaign/p3_b4_wiring_probe.py'\nE         Use -v to get more diff\n\norchestrator/tests/test_scoped_acceptance.py:239: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\n6 failed, 60 passed in 6.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1282 retained_bytes=1282 omitted_bytes=0 rendered_excerpt_bytes=1339 sha256=e85f0e980a03ccb6b27cbb515fd31db48a90c1a937da3acbc45bfca91bb715db\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw26/test_insight_depth_three_split0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n> \n>     def test_insight_depth_three_split_reader_rejects(tree):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/campaign/p3_b4_wiring_probe.py\",\n>             'ROOT = \"output\" / \"insights\" / \"2026-01-01_slug\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"output/insights/2026-01-01_slug/report.md\", \"# insight\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"insight\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"reasons\"] == [\n>             \"production-reference:output/insights/2026-01-01_slug/report.md:\"\n>             \"orchestrator/campaign/p3_b4_wiring_probe.py\"\n>         ]\n> E       AssertionError: assert [] == ['production-...ing_probe.py']\n> E         \n> E         Right contains one more item: 'production-reference:output/insights/2026-01-01_slug/report.md:orchestrator/campaign/p3_b4_wiring_probe.py'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_scoped_acceptance.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\\\"docs/notes/story.md\\\"]\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1144 retained_bytes=1144 omitted_bytes=0 rendered_excerpt_bytes=1197 sha256=efd9f44af0cc9c4f177f6ddb347c3b4125b0c8e0852cefb60dac54fecb520f9c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw12/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n> literal = '\"docs/notes/story.md\"'\n> \n>     @pytest.mark.parametrize(\"literal\", [\n>         '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n>     ])\n>     def test_production_literal_reference_rejects(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x1503f7725770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\\\"docs/notes\\\"]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1135 retained_bytes=1135 omitted_bytes=0 rendered_excerpt_bytes=1188 sha256=94ffb883e367ab358740435e2c32ee70f7690a3fd1ca9c4b56708d5d6842cb1b\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw13/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n> literal = '\"docs/notes\"'\n> \n>     @pytest.mark.parametrize(\"literal\", [\n>         '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n>     ])\n>     def test_production_literal_reference_rejects(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x14b0b0011770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\\\"story.md\\\"]\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1133 retained_bytes=1133 omitted_bytes=0 rendered_excerpt_bytes=1186 sha256=650d3b8ba358f636881153f49e74279c58c81ef4dbd3e86cd965ce9d777d8cc8\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw14/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n> literal = '\"story.md\"'\n> \n>     @pytest.mark.parametrize(\"literal\", [\n>         '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n>     ])\n>     def test_production_literal_reference_rejects(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x14c9d3779770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\\\"notes\\\"]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1130 retained_bytes=1130 omitted_bytes=0 rendered_excerpt_bytes=1183 sha256=184ef184f0e313afa8f754f2414b51554abd2aa76809b32a86af575b833c97c5\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw15/test_production_literal_refere0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n> literal = '\"notes\"'\n> \n>     @pytest.mark.parametrize(\"literal\", [\n>         '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n>     ])\n>     def test_production_literal_reference_rejects(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x1504bd301770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1110 retained_bytes=1110 omitted_bytes=0 rendered_excerpt_bytes=1174 sha256=668dac72bbcc5e5b44975f7cb9999b03edf57f1db7d5905b612d61a5ea2753f1\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-1/popen-gw21/test_comment_apostrophe_does_n0/tree'), '4c4f6ed9df997cf73e59e92e11bd9b8a3c167340')\n> \n>     def test_comment_apostrophe_does_not_hide_reference(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", '# don\\x5c't\\x5cnPATH = \"docs/notes/story.md\"\\x5cn')\n>         put(repo, \"orchestrator/tests/test_consumer.py\",\n>             '# don\\x5c't\\x5cnPATH = \"docs/notes/story.md\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"readers\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(x.startswith(\"production-reference:\") for x in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_comment_apostrophe_does_not_hide_reference.<locals>.<genexpr> at 0x14c6137c9770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:170: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=6934 retained_bytes=6934 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10195 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "48bcc4fdf1e3c61466ea2b0ca205caa5138b47701dd80a4a3bf050a799ae99b9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 6.898,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects"
+      ],
+      "hang_risk": false,
+      "id": "ms1-no-production-reference",
+      "injection_diff_sha256": "b46caaa715d6f5eaf442c42cd99ba9a150b073d73da554578fe6bb6b72d22c1f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "26da6bfa177c3a5660f388a1b1b8fcec2dd4e0b1c1f5ed4ef9e61f2f2b914763",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "            if False:  # MS1\n                reasons.append(f\"production-reference:{path}:{candidate}\")\n",
+          "old": "            if _references(body, keys):\n                reasons.append(f\"production-reference:{path}:{candidate}\")\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "48bcc4fdf1e3c61466ea2b0ca205caa5138b47701dd80a4a3bf050a799ae99b9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.............................F..................F.................       [100%]\n=================================== FAILURES ===================================\n__________________ test_closed_path_exclusions[tools/new.py] ___________________\n[gw11] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw11/test_closed_path_exclusions_to0/tree'), '1b853962e15b0dee2869d1ac63dff471939bfd11')\npath = 'tools/new.py'\n\n    @pytest.mark.parametrize(\"path\", [\n        \"docs/dev-wave/protocol.md\", \"docs/worklog.md\", \"docs/archive/old.md\",\n        \"docs/my-preregistration.md\", \"docs/ai-provenance.md\",\n        \"docs/spool/README.md\", \"tools/new.py\",\n    ])\n    def test_closed_path_exclusions(tree, path):\n>       assert result(tree, {path: \"text\"})[\"classification\"][\"eligible\"] is False\nE       assert True is False\n\norchestrator/tests/test_scoped_acceptance.py:95: AssertionError\n________ test_implementation_tip_rejected_independent_of_receipt_claim _________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_implementation_tip_rejected_independent_of_receipt_claim():\n        with BASE._repo() as repo:\n            request = _request(repo, implementation=True)\n            payload = _scoped_payload(request)\n>           assert payload[\"classification\"][\"eligible\"] is False\nE           assert True is False\n\norchestrator/tests/test_scoped_acceptance_land.py:103: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim\n2 failed, 64 passed in 6.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=677 retained_bytes=677 omitted_bytes=0 rendered_excerpt_bytes=708 sha256=dc51776e7ffc3d0e401a21028b3a73210624d3bd8a837ab5f7dd4302e451ffb8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw11/test_closed_path_exclusions_to0/tree'), '1b853962e15b0dee2869d1ac63dff471939bfd11')\n> path = 'tools/new.py'\n> \n>     @pytest.mark.parametrize(\"path\", [\n>         \"docs/dev-wave/protocol.md\", \"docs/worklog.md\", \"docs/archive/old.md\",\n>         \"docs/my-preregistration.md\", \"docs/ai-provenance.md\",\n>         \"docs/spool/README.md\", \"tools/new.py\",\n>     ])\n>     def test_closed_path_exclusions(tree, path):\n> >       assert result(tree, {path: \"text\"})[\"classification\"][\"eligible\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_scoped_acceptance.py:95: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=431 retained_bytes=431 omitted_bytes=0 rendered_excerpt_bytes=452 sha256=7ffa49df6f56865391edb6b493ff3432e907e681f6ebf4e428afa9fc3dd9f7c3\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_implementation_tip_rejected_independent_of_receipt_claim():\n>         with BASE._repo() as repo:\n>             request = _request(repo, implementation=True)\n>             payload = _scoped_payload(request)\n> >           assert payload[\"classification\"][\"eligible\"] is False\n> E           assert True is False\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:103: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1108 retained_bytes=1108 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2321 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4bedc7fd158fdc987edeeae774bbdff5149b352521152234c93fa685960dc6eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 6.929,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim"
+      ],
+      "hang_risk": false,
+      "id": "ms2-allow-any-path",
+      "injection_diff_sha256": "fe66c46a28887d731fa25a7578ed0531692cedbb999b19878f56af6a666d2b47",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7c1ff604846032b827e81c307f6f2e6d69a78f3302f2936e52b70f50e18c3819",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "    return True  # MS2\n",
+          "old": "    return path.startswith(\"docs/\") and len(parts) >= 2 and path.endswith(\".md\")\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "4bedc7fd158fdc987edeeae774bbdff5149b352521152234c93fa685960dc6eb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n................F...................FF...F........................       [100%]\n=================================== FAILURES ===================================\n_______________________ test_symlink_and_gitlink_reject ________________________\n[gw36] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw36/test_symlink_and_gitlink_rejec0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n\n    def test_symlink_and_gitlink_reject(tree):\n        repo, base = tree\n        target = repo / \"docs/link.md\"\n        target.parent.mkdir(exist_ok=True)\n        target.symlink_to(\"story.md\")\n        git(repo, \"add\", \"-A\", \"docs/link.md\")\n        git(repo, \"commit\", \"-qm\", \"symlink\")\n>       assert SCOPED.plan(repo, base, git(repo, \"rev-parse\", \"HEAD\"))[\"classification\"][\"eligible\"] is False\nE       assert True is False\n\norchestrator/tests/test_scoped_acceptance.py:357: AssertionError\n__________________________ test_raw_metadata_rejects ___________________________\n[gw33] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw33/test_raw_metadata_rejects0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n\n    def test_raw_metadata_rejects(tree):\n        repo, base = tree\n        put(repo, \"docs/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"add\")\n        added = git(repo, \"rev-parse\", \"HEAD\")\n        (repo / \"docs/story.md\").chmod(0o755)\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"mode\")\n>       assert SCOPED.plan(repo, added, git(repo, \"rev-parse\", \"HEAD\"))[\"classification\"][\"eligible\"] is False\nE       assert True is False\n\norchestrator/tests/test_scoped_acceptance.py:324: AssertionError\n_________________ test_rename_is_delete_plus_add_and_rejected __________________\n[gw34] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw34/test_rename_is_delete_plus_add0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n\n    def test_rename_is_delete_plus_add_and_rejected(tree):\n        repo, _ = tree\n        put(repo, \"docs/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"add\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        git(repo, \"mv\", \"docs/story.md\", \"docs/renamed.md\")\n        git(repo, \"commit\", \"-qm\", \"rename\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n        assert got[\"classification\"][\"eligible\"] is False\n>       assert any(reason.startswith(\"metadata:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_rename_is_delete_plus_add_and_rejected.<locals>.<genexpr> at 0x15355e2c5770>)\n\norchestrator/tests/test_scoped_acceptance.py:342: AssertionError\n__________________ test_blob_to_symlink_type_change_rejected ___________________\n[gw37] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw37/test_blob_to_symlink_type_chan0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n\n    def test_blob_to_symlink_type_change_rejected(tree):\n        repo, _ = tree\n        put(repo, \"docs/link.md\", \"# original\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"blob\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        (repo / \"docs/link.md\").unlink()\n        (repo / \"docs/link.md\").symlink_to(\"target.md\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"type change\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"eligible\"] is False\nE       assert True is False\n\norchestrator/tests/test_scoped_acceptance.py:375: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected\n4 failed, 62 passed in 6.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=991 retained_bytes=991 omitted_bytes=0 rendered_excerpt_bytes=1033 sha256=4e40b6afa4908fb1c83e417a0886f5c1ac65b209d415e6ea3a597bbf9611c972\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw34/test_rename_is_delete_plus_add0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n> \n>     def test_rename_is_delete_plus_add_and_rejected(tree):\n>         repo, _ = tree\n>         put(repo, \"docs/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"add\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         git(repo, \"mv\", \"docs/story.md\", \"docs/renamed.md\")\n>         git(repo, \"commit\", \"-qm\", \"rename\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>         assert got[\"classification\"][\"eligible\"] is False\n> >       assert any(reason.startswith(\"metadata:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_rename_is_delete_plus_add_and_rejected.<locals>.<genexpr> at 0x15355e2c5770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:342: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=844 retained_bytes=844 omitted_bytes=0 rendered_excerpt_bytes=886 sha256=c4e076583d55b2b94d6f4965da038150413800809a0eb5c45a91dc16e33ec8b5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw37] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw37/test_blob_to_symlink_type_chan0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n> \n>     def test_blob_to_symlink_type_change_rejected(tree):\n>         repo, _ = tree\n>         put(repo, \"docs/link.md\", \"# original\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"blob\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         (repo / \"docs/link.md\").unlink()\n>         (repo / \"docs/link.md\").symlink_to(\"target.md\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"type change\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"eligible\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_scoped_acceptance.py:375: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects\" nodeid_bytes=71 nodeid_omitted_bytes=0 source_bytes=749 retained_bytes=749 omitted_bytes=0 rendered_excerpt_bytes=787 sha256=8f681c3360cd73a87ba0305e953c5a6ae00c08a9cf5947ccb3926fcb65dc6f60\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw33/test_raw_metadata_rejects0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n> \n>     def test_raw_metadata_rejects(tree):\n>         repo, base = tree\n>         put(repo, \"docs/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"add\")\n>         added = git(repo, \"rev-parse\", \"HEAD\")\n>         (repo / \"docs/story.md\").chmod(0o755)\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"mode\")\n> >       assert SCOPED.plan(repo, added, git(repo, \"rev-parse\", \"HEAD\"))[\"classification\"][\"eligible\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_scoped_acceptance.py:324: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject\" nodeid_bytes=77 nodeid_omitted_bytes=0 source_bytes=684 retained_bytes=684 omitted_bytes=0 rendered_excerpt_bytes=715 sha256=79c0f5c1fd708689b153e17c0fe5912525a9d6ceb619c4ac25111c0a51d46e69\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw36] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw36/test_symlink_and_gitlink_rejec0/tree'), '55f66de4164c82593822197c3ee1d5b13da0e7bb')\n> \n>     def test_symlink_and_gitlink_reject(tree):\n>         repo, base = tree\n>         target = repo / \"docs/link.md\"\n>         target.parent.mkdir(exist_ok=True)\n>         target.symlink_to(\"story.md\")\n>         git(repo, \"add\", \"-A\", \"docs/link.md\")\n>         git(repo, \"commit\", \"-qm\", \"symlink\")\n> >       assert SCOPED.plan(repo, base, git(repo, \"rev-parse\", \"HEAD\"))[\"classification\"][\"eligible\"] is False\n> E       assert True is False\n> \n> orchestrator/tests/test_scoped_acceptance.py:357: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=3268 retained_bytes=3268 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5381 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "172109501129c652c63c32adf020095abbd85bd09130e988f7f03e11e2b259a4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.01,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected",
+        "orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected",
+        "orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject",
+        "orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected",
+        "orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected"
+      ],
+      "hang_risk": false,
+      "id": "ms3-no-metadata-check",
+      "injection_diff_sha256": "d44f4e36f3b98411b084d2186e53546edfb693ea3ef5a773a049f88b687466fc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3da44f03605ae769e5cfeaed2facbff059af1ac1d449e6d56d0e6f467535ac15",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "        if False:  # MS3\n",
+          "old": "        if (entry[\"status\"] not in {\"A\", \"M\"} or entry[\"mode\"] != \"100644\"\n                or (entry[\"status\"] == \"M\" and entry[\"old_mode\"] != \"100644\")):\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "172109501129c652c63c32adf020095abbd85bd09130e988f7f03e11e2b259a4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...................................F..............................       [100%]\n=================================== FAILURES ===================================\n______________________ test_inventory_literal_is_selected ______________________\n[gw39] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-4/popen-gw39/test_inventory_literal_is_sele0/tree'), 'a49f6ca26bd2ec4d1e78b2bfbc4497915288d54b')\n\n    def test_inventory_literal_is_selected(tree):\n        got = result(tree, {\"docs/story.md\": \"# story\\n\"})\n>       assert \"test_real_repo_serialization.py::test_real\" in got[\"selection\"][\"nodes\"]\nE       AssertionError: assert 'test_real_repo_serialization.py::test_real' in ['test_campaign.py::test_certified_writer_authorization_caller_inventory_is_closed']\n\norchestrator/tests/test_scoped_acceptance.py:393: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected\n1 failed, 65 passed in 6.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected\" nodeid_bytes=80 nodeid_omitted_bytes=0 source_bytes=621 retained_bytes=621 omitted_bytes=0 rendered_excerpt_bytes=645 sha256=2dcdf0e55929f5588abdbf330c11b8b062ddba2af9435dcaa0debba0dbe5b653\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-4/popen-gw39/test_inventory_literal_is_sele0/tree'), 'a49f6ca26bd2ec4d1e78b2bfbc4497915288d54b')\n> \n>     def test_inventory_literal_is_selected(tree):\n>         got = result(tree, {\"docs/story.md\": \"# story\\x5cn\"})\n> >       assert \"test_real_repo_serialization.py::test_real\" in got[\"selection\"][\"nodes\"]\n> E       AssertionError: assert 'test_real_repo_serialization.py::test_real' in ['test_campaign.py::test_certified_writer_authorization_caller_inventory_is_closed']\n> \n> orchestrator/tests/test_scoped_acceptance.py:393: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=621 retained_bytes=621 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1347 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "573a1bb9353d96f7878f91dc54f88c2fcdcb77ae2a7f4e69f1485548461f0aca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.049,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected"
+      ],
+      "hang_risk": false,
+      "id": "ms4-no-inventory",
+      "injection_diff_sha256": "46c93bbc198f7083d86ca38642f279e02114ed65511775a83b0dc8f08ec47889",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "537c8da251a97164bd983f155a13a19e16b48862babab1ab85b93ff85f67336e",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "    nodes = sorted(set(FIXED_NODES))  # MS4\n",
+          "old": "    nodes = sorted(set(inventory) | set(FIXED_NODES))\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "573a1bb9353d96f7878f91dc54f88c2fcdcb77ae2a7f4e69f1485548461f0aca",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\nF......................F.F...F...F...F.......F....................       [100%]\n=================================== FAILURES ===================================\n___________________ test_insight_date_ancestor_is_not_a_key ____________________\n[gw30] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_insight_date_ancestor_is_not_a_key():\n        keys = SCOPED._keys(\"output/insights/2026-01-01/topic/report.md\")\n        assert b\"output/insights/2026-01-01\" not in keys\n        assert b\"2026-01-01\" not in keys\n>       assert b\"output/insights/2026-01-01/topic\" in keys\nE       AssertionError: assert b'output/insights/2026-01-01/topic' in {b'output/insights/2026-01-01/topic/report.md', b'report.md'}\n\norchestrator/tests/test_scoped_acceptance.py:290: AssertionError\n__________________ test_directory_key_alone_selects_consumer ___________________\n[gw20] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw20/test_directory_key_alone_selec0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n\n    def test_directory_key_alone_selects_consumer(tree):\n        repo, _ = tree\n        put(repo, \"orchestrator/tests/test_consumer.py\", 'DIRECTORY = \"docs/notes\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"consumer\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\nE       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n\norchestrator/tests/test_scoped_acceptance.py:155: AssertionError\n___________ test_production_literal_reference_rejects[\"docs/notes\"] ____________\n[gw13] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw13/test_production_literal_refere0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\nliteral = '\"docs/notes\"'\n\n    @pytest.mark.parametrize(\"literal\", [\n        '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n    ])\n    def test_production_literal_reference_rejects(tree, literal):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x1478d836d770>)\n\norchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n______________ test_production_literal_reference_rejects[\"notes\"] ______________\n[gw15] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw15/test_production_literal_refere0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\nliteral = '\"notes\"'\n\n    @pytest.mark.parametrize(\"literal\", [\n        '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n    ])\n    def test_production_literal_reference_rejects(tree, literal):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x146e7c6e9770>)\n\norchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n____________ test_each_selection_key_selects_consumer[\"docs/notes\"] ____________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw17/test_each_selection_key_select0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\nliteral = '\"docs/notes\"'\n\n    @pytest.mark.parametrize(\"literal\", ['\"docs/notes\"', '\"story.md\"', '\"notes\"'])\n    def test_each_selection_key_selects_consumer(tree, literal):\n        repo, _ = tree\n        put(repo, \"orchestrator/tests/test_consumer.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"consumer\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\nE       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n\norchestrator/tests/test_scoped_acceptance.py:142: AssertionError\n________________ test_insight_depth_three_split_reader_rejects _________________\n[gw26] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw26/test_insight_depth_three_split0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n\n    def test_insight_depth_three_split_reader_rejects(tree):\n        repo, _ = tree\n        put(repo, \"orchestrator/campaign/p3_b4_wiring_probe.py\",\n            'ROOT = \"output\" / \"insights\" / \"2026-01-01_slug\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"output/insights/2026-01-01_slug/report.md\", \"# insight\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"insight\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"reasons\"] == [\n            \"production-reference:output/insights/2026-01-01_slug/report.md:\"\n            \"orchestrator/campaign/p3_b4_wiring_probe.py\"\n        ]\nE       AssertionError: assert [] == ['production-...ing_probe.py']\nE         \nE         Right contains one more item: 'production-reference:output/insights/2026-01-01_slug/report.md:orchestrator/campaign/p3_b4_wiring_probe.py'\nE         Use -v to get more diff\n\norchestrator/tests/test_scoped_acceptance.py:239: AssertionError\n______________ test_each_selection_key_selects_consumer[\"notes\"] _______________\n[gw19] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw19/test_each_selection_key_select0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\nliteral = '\"notes\"'\n\n    @pytest.mark.parametrize(\"literal\", ['\"docs/notes\"', '\"story.md\"', '\"notes\"'])\n    def test_each_selection_key_selects_consumer(tree, literal):\n        repo, _ = tree\n        put(repo, \"orchestrator/tests/test_consumer.py\", \"PATH = \" + literal + \"\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"consumer\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\nE       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n\norchestrator/tests/test_scoped_acceptance.py:142: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]\n7 failed, 59 passed in 6.34s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1282 retained_bytes=1282 omitted_bytes=0 rendered_excerpt_bytes=1339 sha256=0e7f86207918aea4411c1ac594657bfee01e6d7d5f01124962722ca4f9406d92\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw26/test_insight_depth_three_split0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n> \n>     def test_insight_depth_three_split_reader_rejects(tree):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/campaign/p3_b4_wiring_probe.py\",\n>             'ROOT = \"output\" / \"insights\" / \"2026-01-01_slug\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"output/insights/2026-01-01_slug/report.md\", \"# insight\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"insight\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"reasons\"] == [\n>             \"production-reference:output/insights/2026-01-01_slug/report.md:\"\n>             \"orchestrator/campaign/p3_b4_wiring_probe.py\"\n>         ]\n> E       AssertionError: assert [] == ['production-...ing_probe.py']\n> E         \n> E         Right contains one more item: 'production-reference:output/insights/2026-01-01_slug/report.md:orchestrator/campaign/p3_b4_wiring_probe.py'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_scoped_acceptance.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\\\"docs/notes\\\"]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1256 retained_bytes=1256 omitted_bytes=0 rendered_excerpt_bytes=1303 sha256=4e1689bfeb6ed5bc5cdc22851e8eca12b4e261909fdffb2cdc72fd28d00e62ed\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw17/test_each_selection_key_select0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n> literal = '\"docs/notes\"'\n> \n>     @pytest.mark.parametrize(\"literal\", ['\"docs/notes\"', '\"story.md\"', '\"notes\"'])\n>     def test_each_selection_key_selects_consumer(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/tests/test_consumer.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"consumer\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\n> E       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n> \n> orchestrator/tests/test_scoped_acceptance.py:142: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\\\"notes\\\"]\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1251 retained_bytes=1251 omitted_bytes=0 rendered_excerpt_bytes=1298 sha256=ef9116a6b2190cbd25bc0495a7045b797d81e9746d7b42c8fb2be917e2933ecf\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw19/test_each_selection_key_select0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n> literal = '\"notes\"'\n> \n>     @pytest.mark.parametrize(\"literal\", ['\"docs/notes\"', '\"story.md\"', '\"notes\"'])\n>     def test_each_selection_key_selects_consumer(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/tests/test_consumer.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"consumer\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\n> E       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n> \n> orchestrator/tests/test_scoped_acceptance.py:142: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1142 retained_bytes=1142 omitted_bytes=0 rendered_excerpt_bytes=1185 sha256=f15c2eec48f6926d47794fe9d6aaf9481acf7ba805edf08ea489dcff1fea8d27\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw20/test_directory_key_alone_selec0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n> \n>     def test_directory_key_alone_selects_consumer(tree):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/tests/test_consumer.py\", 'DIRECTORY = \"docs/notes\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"consumer\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\n> E       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n> \n> orchestrator/tests/test_scoped_acceptance.py:155: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\\\"docs/notes\\\"]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1135 retained_bytes=1135 omitted_bytes=0 rendered_excerpt_bytes=1188 sha256=a98b6249b0ec1463c4746f39ade8989507610c06977e2869b59b3729dacc7cd3\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw13/test_production_literal_refere0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n> literal = '\"docs/notes\"'\n> \n>     @pytest.mark.parametrize(\"literal\", [\n>         '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n>     ])\n>     def test_production_literal_reference_rejects(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x1478d836d770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\\\"notes\\\"]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1130 retained_bytes=1130 omitted_bytes=0 rendered_excerpt_bytes=1183 sha256=67def6cbaf8251f497a382538528bad8b7eada8291bbfbf13884008f290d4e08\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw15/test_production_literal_refere0/tree'), 'c4c91513fb41f153f67e85d7151df633aeef36d7')\n> literal = '\"notes\"'\n> \n>     @pytest.mark.parametrize(\"literal\", [\n>         '\"docs/notes/story.md\"', '\"docs/notes\"', '\"story.md\"', '\"notes\"',\n>     ])\n>     def test_production_literal_reference_rejects(tree, literal):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"PATH = \" + literal + \"\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(reason.startswith(\"production-reference:\") for reason in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_production_literal_reference_rejects.<locals>.<genexpr> at 0x146e7c6e9770>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:111: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=528 retained_bytes=528 omitted_bytes=0 rendered_excerpt_bytes=549 sha256=777cfa52fba834c4cb0f37ee2c9f3a318dd2ce159091ac7c0061b8b3e53e5e0f\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_insight_date_ancestor_is_not_a_key():\n>         keys = SCOPED._keys(\"output/insights/2026-01-01/topic/report.md\")\n>         assert b\"output/insights/2026-01-01\" not in keys\n>         assert b\"2026-01-01\" not in keys\n> >       assert b\"output/insights/2026-01-01/topic\" in keys\n> E       AssertionError: assert b'output/insights/2026-01-01/topic' in {b'output/insights/2026-01-01/topic/report.md', b'report.md'}\n> \n> orchestrator/tests/test_scoped_acceptance.py:290: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=7724 retained_bytes=7724 omitted_bytes=0 budget_bytes=49152 rendered_bytes=11375 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5e076f4bf6ab92abf2128da988d31a65c48e718bac7ae7b815731659ac5f4aa8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.052,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key",
+        "orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]"
+      ],
+      "hang_risk": false,
+      "id": "ms5-no-dir-keys",
+      "injection_diff_sha256": "d7faa19a0edfd3869e71dbab63d43439cc9930d5054d02d9aea9d580274e2fc7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "95856a4c0165e6e477bb671a4e1f73ed750e30907002048bb6b8b4458b3f3828",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "    for depth in range(len(parts), len(parts)):  # MS5\n",
+          "old": "    for depth in range(minimum_depth, len(parts)):\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "5e076f4bf6ab92abf2128da988d31a65c48e718bac7ae7b815731659ac5f4aa8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...............................................................FF.       [100%]\n=================================== FAILURES ===================================\n________________ test_scoped_receipt_rederived_on_eligible_tip _________________\n[gw43] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_scoped_receipt_rederived_on_eligible_tip():\n        with BASE._repo() as repo:\n            request = _request(repo)\n            payload = _scoped_payload(request)\n            assert payload[\"classification\"][\"eligible\"] is True\n            assert payload[\"selection\"][\"eligible\"] is True\n            assert payload[\"selection\"][\"files\"]\n            payload[\"selection\"][\"files\"] = []\n            payload[\"selection\"][\"selection_digest\"] = SCOPED._digest({\n                \"nodes\": payload[\"selection\"][\"nodes\"], \"files\": [],\n            })\n            BASE._write_receipt(request.acceptance_receipt, payload)\n>           assert BASE._land(request).reason == \"acceptance-receipt-rejected\"\nE           AssertionError: assert 'main fast-fo...sted wave tip' == 'acceptance-receipt-rejected'\nE             \nE             - acceptance-receipt-rejected\nE             + main fast-forwarded to the tested wave tip\n\norchestrator/tests/test_scoped_acceptance_land.py:130: AssertionError\n________________ test_scoped_receipt_drift_rejected[selection] _________________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\nmutation = 'selection'\n\n    @pytest.mark.parametrize(\"mutation\", [\n        \"schema\", \"wave\", \"main\", \"tip\", \"selection\", \"classification\",\n        \"gate\", \"selector\", \"launcher\",\n    ])\n    def test_scoped_receipt_drift_rejected(mutation):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            payload = _scoped_payload(request)\n            if mutation == \"schema\":\n                payload[\"schema_version\"] = LAND._ACCEPTANCE_RECEIPT_SCHEMA\n            elif mutation == \"wave\":\n                payload[\"acceptance_wave\"] = \"wrong-wave\"\n            elif mutation == \"main\":\n                payload[\"tested_main\"] = \"0\" * 40\n            elif mutation == \"tip\":\n                payload[\"tested_tip\"] = \"0\" * 40\n            elif mutation == \"selection\":\n                payload[\"selection\"][\"files\"] = []\n            elif mutation == \"classification\":\n                payload[\"classification\"][\"eligible\"] = False\n            elif mutation == \"gate\":\n                payload[\"direct_gate_results\"][0][\"rc\"] = 1\n            elif mutation == \"selector\":\n                payload[\"selector_blob_sha\"] = \"0\" * 40\n            elif mutation == \"launcher\":\n                payload[\"launcher_blob_sha\"] = \"0\" * 40\n            BASE._write_receipt(request.acceptance_receipt, payload)\n>           assert BASE._land(request).reason == \"acceptance-receipt-rejected\"\nE           AssertionError: assert 'main fast-fo...sted wave tip' == 'acceptance-receipt-rejected'\nE             \nE             - acceptance-receipt-rejected\nE             + main fast-forwarded to the tested wave tip\n\norchestrator/tests/test_scoped_acceptance_land.py:177: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]\n2 failed, 64 passed in 6.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1715 retained_bytes=1715 omitted_bytes=0 rendered_excerpt_bytes=1792 sha256=557b1b6ac5ffc8916ec868b22d068f242a5cb1ef2f80e2be5136470f89b3a979\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n> mutation = 'selection'\n> \n>     @pytest.mark.parametrize(\"mutation\", [\n>         \"schema\", \"wave\", \"main\", \"tip\", \"selection\", \"classification\",\n>         \"gate\", \"selector\", \"launcher\",\n>     ])\n>     def test_scoped_receipt_drift_rejected(mutation):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             payload = _scoped_payload(request)\n>             if mutation == \"schema\":\n>                 payload[\"schema_version\"] = LAND._ACCEPTANCE_RECEIPT_SCHEMA\n>             elif mutation == \"wave\":\n>                 payload[\"acceptance_wave\"] = \"wrong-wave\"\n>             elif mutation == \"main\":\n>                 payload[\"tested_main\"] = \"0\" * 40\n>             elif mutation == \"tip\":\n>                 payload[\"tested_tip\"] = \"0\" * 40\n>             elif mutation == \"selection\":\n>                 payload[\"selection\"][\"files\"] = []\n>             elif mutation == \"classification\":\n>                 payload[\"classification\"][\"eligible\"] = False\n>             elif mutation == \"gate\":\n>                 payload[\"direct_gate_results\"][0][\"rc\"] = 1\n>             elif mutation == \"selector\":\n>                 payload[\"selector_blob_sha\"] = \"0\" * 40\n>             elif mutation == \"launcher\":\n>                 payload[\"launcher_blob_sha\"] = \"0\" * 40\n>             BASE._write_receipt(request.acceptance_receipt, payload)\n> >           assert BASE._land(request).reason == \"acceptance-receipt-rejected\"\n> E           AssertionError: assert 'main fast-fo...sted wave tip' == 'acceptance-receipt-rejected'\n> E             \n> E             - acceptance-receipt-rejected\n> E             + main fast-forwarded to the tested wave tip\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:177: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1037 retained_bytes=1037 omitted_bytes=0 rendered_excerpt_bytes=1080 sha256=e3342ccf9f027aa3546c4aa70f44b6a2f4509cfe29370c1d6450e3b85a6f89c2\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_scoped_receipt_rederived_on_eligible_tip():\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             payload = _scoped_payload(request)\n>             assert payload[\"classification\"][\"eligible\"] is True\n>             assert payload[\"selection\"][\"eligible\"] is True\n>             assert payload[\"selection\"][\"files\"]\n>             payload[\"selection\"][\"files\"] = []\n>             payload[\"selection\"][\"selection_digest\"] = SCOPED._digest({\n>                 \"nodes\": payload[\"selection\"][\"nodes\"], \"files\": [],\n>             })\n>             BASE._write_receipt(request.acceptance_receipt, payload)\n> >           assert BASE._land(request).reason == \"acceptance-receipt-rejected\"\n> E           AssertionError: assert 'main fast-fo...sted wave tip' == 'acceptance-receipt-rejected'\n> E             \n> E             - acceptance-receipt-rejected\n> E             + main fast-forwarded to the tested wave tip\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:130: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2752 retained_bytes=2752 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4031 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a25a7f26de641efdc01267ae0ac65c4a50f83609c7532f43c9b590e8c640be1a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 6.92,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]"
+      ],
+      "hang_risk": false,
+      "id": "ms6-land-trusts-receipt",
+      "injection_diff_sha256": "a70333221b52d4d79893b412033bf5ac3a6370a18cd8575e8c7c0dc9ba6da002",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8b1a1518743fd8ef0452e258fc1dfb890e22766569539b9577c660f00ca69c0b",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "new": "        expected = {\"classification\": receipt[\"classification\"], \"selection\": receipt[\"selection\"]}  # MS6\n",
+          "old": "        expected = _scoped_acceptance.plan(repository.wave, tested_main, tested_tip)\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "a25a7f26de641efdc01267ae0ac65c4a50f83609c7532f43c9b590e8c640be1a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n....................................................F....FF.F..FF.       [100%]\n=================================== FAILURES ===================================\n___ test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py] ___\n[gw8] linux -- Python 3.10.12 /usr/bin/python3\n\npath = 'tools/scoped_acceptance.py'\n\n    @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n    def test_scoped_forward_main_blob_drift_rejected(path):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            _scoped_payload(request)\n            main = repo.main\n            file = main / path\n            file.write_bytes(file.read_bytes() + b\"\\n# drift\\n\")\n            BASE._git(main, \"add\", path)\n            BASE._git(main, \"commit\", \"-qm\", \"drift\")\n            incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n            merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n>           with pytest.raises(LAND._Reject):\nE           Failed: DID NOT RAISE _Reject\n\norchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n______ test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py] _______\n[gw10] linux -- Python 3.10.12 /usr/bin/python3\n\npath = 'tools/check_docs.py'\n\n    @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n    def test_scoped_forward_main_blob_drift_rejected(path):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            _scoped_payload(request)\n            main = repo.main\n            file = main / path\n            file.write_bytes(file.read_bytes() + b\"\\n# drift\\n\")\n            BASE._git(main, \"add\", path)\n            BASE._git(main, \"commit\", \"-qm\", \"drift\")\n            incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n            merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n>           with pytest.raises(LAND._Reject):\nE           Failed: DID NOT RAISE _Reject\n\norchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n_ test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py] _\n[gw9] linux -- Python 3.10.12 /usr/bin/python3\n\npath = 'tools/scoped_acceptance_launcher.py'\n\n    @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n    def test_scoped_forward_main_blob_drift_rejected(path):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            _scoped_payload(request)\n            main = repo.main\n            file = main / path\n            file.write_bytes(file.read_bytes() + b\"\\n# drift\\n\")\n            BASE._git(main, \"add\", path)\n            BASE._git(main, \"commit\", \"-qm\", \"drift\")\n            incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n            merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n>           with pytest.raises(LAND._Reject):\nE           Failed: DID NOT RAISE _Reject\n\norchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n______ test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py] _______\n[gw11] linux -- Python 3.10.12 /usr/bin/python3\n\npath = 'tools/spool_fold.py'\n\n    @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n    def test_scoped_forward_main_blob_drift_rejected(path):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            _scoped_payload(request)\n            main = repo.main\n            file = main / path\n            file.write_bytes(file.read_bytes() + b\"\\n# drift\\n\")\n            BASE._git(main, \"add\", path)\n            BASE._git(main, \"commit\", \"-qm\", \"drift\")\n            incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n            merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n>           with pytest.raises(LAND._Reject):\nE           Failed: DID NOT RAISE _Reject\n\norchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n_______ test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py] _______\n[gw7] linux -- Python 3.10.12 /usr/bin/python3\n\npath = 'tools/run_tests.py'\n\n    @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n    def test_scoped_forward_main_blob_drift_rejected(path):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            _scoped_payload(request)\n            main = repo.main\n            file = main / path\n            file.write_bytes(file.read_bytes() + b\"\\n# drift\\n\")\n            BASE._git(main, \"add\", path)\n            BASE._git(main, \"commit\", \"-qm\", \"drift\")\n            incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n            merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n>           with pytest.raises(LAND._Reject):\nE           Failed: DID NOT RAISE _Reject\n\norchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n_ test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py] _\n[gw12] linux -- Python 3.10.12 /usr/bin/python3\n\npath = 'orchestrator/tests/conftest.py'\n\n    @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n    def test_scoped_forward_main_blob_drift_rejected(path):\n        with BASE._repo() as repo:\n            request = _request(repo)\n            _scoped_payload(request)\n            main = repo.main\n            file = main / path\n            file.write_bytes(file.read_bytes() + b\"\\n# drift\\n\")\n            BASE._git(main, \"add\", path)\n            BASE._git(main, \"commit\", \"-qm\", \"drift\")\n            incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n            merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n>           with pytest.raises(LAND._Reject):\nE           Failed: DID NOT RAISE _Reject\n\norchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]\n6 failed, 60 passed in 6.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]\" nodeid_bytes=132 nodeid_omitted_bytes=0 source_bytes=845 retained_bytes=845 omitted_bytes=0 rendered_excerpt_bytes=892 sha256=37c0551748b92cc0a3841c846af638178cf891a9da656d61c2cae6c1c782b7b7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /usr/bin/python3\n> \n> path = 'tools/scoped_acceptance_launcher.py'\n> \n>     @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n>     def test_scoped_forward_main_blob_drift_rejected(path):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             _scoped_payload(request)\n>             main = repo.main\n>             file = main / path\n>             file.write_bytes(file.read_bytes() + b\"\\x5cn# drift\\x5cn\")\n>             BASE._git(main, \"add\", path)\n>             BASE._git(main, \"commit\", \"-qm\", \"drift\")\n>             incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n>             merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n> >           with pytest.raises(LAND._Reject):\n> E           Failed: DID NOT RAISE _Reject\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=841 retained_bytes=841 omitted_bytes=0 rendered_excerpt_bytes=888 sha256=3cd5a9990bf35f72d7ba43075d5ff10371d4f8fcebaa3bf291bc889068b786ea\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /usr/bin/python3\n> \n> path = 'orchestrator/tests/conftest.py'\n> \n>     @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n>     def test_scoped_forward_main_blob_drift_rejected(path):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             _scoped_payload(request)\n>             main = repo.main\n>             file = main / path\n>             file.write_bytes(file.read_bytes() + b\"\\x5cn# drift\\x5cn\")\n>             BASE._git(main, \"add\", path)\n>             BASE._git(main, \"commit\", \"-qm\", \"drift\")\n>             incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n>             merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n> >           with pytest.raises(LAND._Reject):\n> E           Failed: DID NOT RAISE _Reject\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=836 retained_bytes=836 omitted_bytes=0 rendered_excerpt_bytes=883 sha256=8a6c5b580558912f288ddfd2eddc93e0c7c6b9947d9d77a103c2242542a81a7b\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /usr/bin/python3\n> \n> path = 'tools/scoped_acceptance.py'\n> \n>     @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n>     def test_scoped_forward_main_blob_drift_rejected(path):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             _scoped_payload(request)\n>             main = repo.main\n>             file = main / path\n>             file.write_bytes(file.read_bytes() + b\"\\x5cn# drift\\x5cn\")\n>             BASE._git(main, \"add\", path)\n>             BASE._git(main, \"commit\", \"-qm\", \"drift\")\n>             incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n>             merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n> >           with pytest.raises(LAND._Reject):\n> E           Failed: DID NOT RAISE _Reject\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=830 retained_bytes=830 omitted_bytes=0 rendered_excerpt_bytes=877 sha256=4375be7b030f7c8d598363249f9c8dd5ab2af0549596d26da720875cfe58f562\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /usr/bin/python3\n> \n> path = 'tools/check_docs.py'\n> \n>     @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n>     def test_scoped_forward_main_blob_drift_rejected(path):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             _scoped_payload(request)\n>             main = repo.main\n>             file = main / path\n>             file.write_bytes(file.read_bytes() + b\"\\x5cn# drift\\x5cn\")\n>             BASE._git(main, \"add\", path)\n>             BASE._git(main, \"commit\", \"-qm\", \"drift\")\n>             incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n>             merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n> >           with pytest.raises(LAND._Reject):\n> E           Failed: DID NOT RAISE _Reject\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=830 retained_bytes=830 omitted_bytes=0 rendered_excerpt_bytes=877 sha256=b74e59da970234d99a32e484781b9ee460bd3753fcb5e71bcce58871cb2424f0\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /usr/bin/python3\n> \n> path = 'tools/spool_fold.py'\n> \n>     @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n>     def test_scoped_forward_main_blob_drift_rejected(path):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             _scoped_payload(request)\n>             main = repo.main\n>             file = main / path\n>             file.write_bytes(file.read_bytes() + b\"\\x5cn# drift\\x5cn\")\n>             BASE._git(main, \"add\", path)\n>             BASE._git(main, \"commit\", \"-qm\", \"drift\")\n>             incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n>             merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n> >           with pytest.raises(LAND._Reject):\n> E           Failed: DID NOT RAISE _Reject\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=828 retained_bytes=828 omitted_bytes=0 rendered_excerpt_bytes=875 sha256=88939b34a37f88be6f2e1b673078209a622f00a7ba3e1ea79977f06095b36f1d\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3\n> \n> path = 'tools/run_tests.py'\n> \n>     @pytest.mark.parametrize(\"path\", LAND._SCOPED_FORWARD_BLOBS)\n>     def test_scoped_forward_main_blob_drift_rejected(path):\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             _scoped_payload(request)\n>             main = repo.main\n>             file = main / path\n>             file.write_bytes(file.read_bytes() + b\"\\x5cn# drift\\x5cn\")\n>             BASE._git(main, \"add\", path)\n>             BASE._git(main, \"commit\", \"-qm\", \"drift\")\n>             incorporated = BASE._git(main, \"rev-parse\", \"HEAD\")\n>             merge = type(\"Forward\", (), {\"incorporated_main_sha\": incorporated})()\n> >           with pytest.raises(LAND._Reject):\n> E           Failed: DID NOT RAISE _Reject\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:201: Failed\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=5010 retained_bytes=5010 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8336 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b3d13fc4fdabbc7c89db575e4af72e38bda0fe1a52e73af380ae818c25883c72"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 6.955,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]"
+      ],
+      "hang_risk": false,
+      "id": "ms7-no-scoped-forward-blobs",
+      "injection_diff_sha256": "6001a65df54588c7023920e5b74c596b7c138c2a0bba32b88ace4b4cfd2275de",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dc8ccb6b63494fc079efa1732fb6114df9e776b123754be0c43b0a2c8ef18b78",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "new": "    for path in ():  # MS7\n",
+          "old": "    for path in _SCOPED_FORWARD_BLOBS:\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "b3d13fc4fdabbc7c89db575e4af72e38bda0fe1a52e73af380ae818c25883c72",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................F..........................................       [100%]\n=================================== FAILURES ===================================\n____________________ test_direct_gate_rejects_nonzero_exit _____________________\n[gw14] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw14/test_direct_gate_rejects_nonze0')\n\n    def test_direct_gate_rejects_nonzero_exit(tmp_path):\n        from tools import scoped_acceptance_launcher as LAUNCHER\n    \n        argv = [sys.executable, \"-c\", \"raise SystemExit(1)\"]\n>       with pytest.raises(ValueError, match=r\"direct gate 0 failed with rc=1\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_scoped_acceptance_land.py:255: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit\n1 failed, 65 passed in 6.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=519 retained_bytes=519 omitted_bytes=0 rendered_excerpt_bytes=544 sha256=67337b92249c0010ac84aac4628dd373afc7b185bb9bb8246a0806035bef7a0a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw14/test_direct_gate_rejects_nonze0')\n> \n>     def test_direct_gate_rejects_nonzero_exit(tmp_path):\n>         from tools import scoped_acceptance_launcher as LAUNCHER\n>     \n>         argv = [sys.executable, \"-c\", \"raise SystemExit(1)\"]\n> >       with pytest.raises(ValueError, match=r\"direct gate 0 failed with rc=1\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:255: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=519 retained_bytes=519 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1254 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "da6efae9ce9d4ac57b8442b25df9b23ec1bd1e8d373aa23aeffb4d88164302b5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 6.959,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit"
+      ],
+      "hang_risk": false,
+      "id": "ms8-ignore-gate-rc",
+      "injection_diff_sha256": "edbb3681a1dc81cac8ab9d98a82e9abf464389ae19a217cbb6bec53ae7ca248e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d7e6e3f2862ce0d62a91320f13db65445bb49a0e48a4ad3f1bcd99ec11911be4",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance_launcher.py",
+          "new": "    if False:  # MS8\n        raise ValueError(f\"direct gate {index} failed with rc={result.returncode}\")\n",
+          "old": "    if result.returncode:\n        raise ValueError(f\"direct gate {index} failed with rc={result.returncode}\")\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "da6efae9ce9d4ac57b8442b25df9b23ec1bd1e8d373aa23aeffb4d88164302b5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n................................................................F.       [100%]\n=================================== FAILURES ===================================\n___________________ test_v5_rejects_only_extra_scoped_field ____________________\n[gw44] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_v5_rejects_only_extra_scoped_field():\n        with BASE._repo() as repo:\n            request = _request(repo)\n            payload = BASE._receipt_payload(request.acceptance_receipt)\n            assert payload[\"schema_version\"] == LAND._ACCEPTANCE_RECEIPT_SCHEMA\n            assert payload[\"authority_kind\"] == LAND._ACCEPTANCE_AUTHORITY_KINDS[\n                payload[\"launcher_source_revision\"]\n            ]\n            assert set(payload) == LAND._ACCEPTANCE_RECEIPT_FIELDS\n            payload[\"classification\"] = SCOPED.plan(\n                request.wave_worktree, request.tested_main_sha,\n                request.tested_wave_tip_sha,\n            )[\"classification\"]\n            BASE._write_receipt(request.acceptance_receipt, payload)\n>           assert BASE._land(request).reason == \"acceptance-receipt-rejected\"\nE           AssertionError: assert 'main fast-fo...sted wave tip' == 'acceptance-receipt-rejected'\nE             \nE             - acceptance-receipt-rejected\nE             + main fast-forwarded to the tested wave tip\n\norchestrator/tests/test_scoped_acceptance_land.py:147: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field\n1 failed, 65 passed in 6.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1168 retained_bytes=1168 omitted_bytes=0 rendered_excerpt_bytes=1215 sha256=218cc7662f14bdf1bc364d2df836dc92aca6bd9c679fc0d14a2426255036adda\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_v5_rejects_only_extra_scoped_field():\n>         with BASE._repo() as repo:\n>             request = _request(repo)\n>             payload = BASE._receipt_payload(request.acceptance_receipt)\n>             assert payload[\"schema_version\"] == LAND._ACCEPTANCE_RECEIPT_SCHEMA\n>             assert payload[\"authority_kind\"] == LAND._ACCEPTANCE_AUTHORITY_KINDS[\n>                 payload[\"launcher_source_revision\"]\n>             ]\n>             assert set(payload) == LAND._ACCEPTANCE_RECEIPT_FIELDS\n>             payload[\"classification\"] = SCOPED.plan(\n>                 request.wave_worktree, request.tested_main_sha,\n>                 request.tested_wave_tip_sha,\n>             )[\"classification\"]\n>             BASE._write_receipt(request.acceptance_receipt, payload)\n> >           assert BASE._land(request).reason == \"acceptance-receipt-rejected\"\n> E           AssertionError: assert 'main fast-fo...sted wave tip' == 'acceptance-receipt-rejected'\n> E             \n> E             - acceptance-receipt-rejected\n> E             + main fast-forwarded to the tested wave tip\n> \n> orchestrator/tests/test_scoped_acceptance_land.py:147: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1168 retained_bytes=1168 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1932 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8cf25598150bac78dfbcfb220556a1e256ea47e64289607721e91961ecae96db"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 6.98,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field"
+      ],
+      "hang_risk": false,
+      "id": "ms9-extra-fields-accepted",
+      "injection_diff_sha256": "e861b31271dab0c1af12c41f0cc39b1a579dfec5923c63ff27e1ed42581b5f3c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2b975615533c961b598f330f2b55b9bc653f7c3336a288e565d9e7823c8077a2",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_land.py",
+          "new": "    if not set(value) >= _ACCEPTANCE_RECEIPT_FIELDS:  # MS9\n        raise _acceptance_rejected()\n    return value\n",
+          "old": "    if set(value) != expected:\n        raise _acceptance_rejected()\n    return value\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "8cf25598150bac78dfbcfb220556a1e256ea47e64289607721e91961ecae96db",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..........................................F.F.....................       [100%]\n=================================== FAILURES ===================================\n_______________ test_comment_apostrophe_does_not_hide_reference ________________\n[gw21] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw21/test_comment_apostrophe_does_n0/tree'), 'e7f6b8663bdf151b5c4526887c96fb1f0e0d28eb')\n\n    def test_comment_apostrophe_does_not_hide_reference(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", '# don\\'t\\nPATH = \"docs/notes/story.md\"\\n')\n        put(repo, \"orchestrator/tests/test_consumer.py\",\n            '# don\\'t\\nPATH = \"docs/notes/story.md\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"readers\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert any(x.startswith(\"production-reference:\") for x in got[\"classification\"][\"reasons\"])\nE       assert False\nE        +  where False = any(<generator object test_comment_apostrophe_does_not_hide_reference.<locals>.<genexpr> at 0x14c9583c58c0>)\n\norchestrator/tests/test_scoped_acceptance.py:170: AssertionError\n_____________ test_comment_apostrophe_does_not_hide_test_selection _____________\n[gw22] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw22/test_comment_apostrophe_does_n0/tree'), 'e7f6b8663bdf151b5c4526887c96fb1f0e0d28eb')\n\n    def test_comment_apostrophe_does_not_hide_test_selection(tree):\n        repo, _ = tree\n        put(repo, \"orchestrator/tests/test_consumer.py\",\n            '# don\\'t\\nPATH = \"docs/notes/story.md\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"consumer\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/notes/story.md\", \"# story\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"doc\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n        assert got[\"classification\"][\"eligible\"] is True\n>       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\nE       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n\norchestrator/tests/test_scoped_acceptance.py:186: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection\n2 failed, 64 passed in 6.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1237 retained_bytes=1237 omitted_bytes=0 rendered_excerpt_bytes=1290 sha256=9d339d66baaf2fab785b2322385bc807b055ca2236e31c9ba70b1ca4fd67f75a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw22/test_comment_apostrophe_does_n0/tree'), 'e7f6b8663bdf151b5c4526887c96fb1f0e0d28eb')\n> \n>     def test_comment_apostrophe_does_not_hide_test_selection(tree):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/tests/test_consumer.py\",\n>             '# don\\x5c't\\x5cnPATH = \"docs/notes/story.md\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"consumer\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>         assert got[\"classification\"][\"eligible\"] is True\n> >       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\n> E       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n> \n> orchestrator/tests/test_scoped_acceptance.py:186: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1111 retained_bytes=1111 omitted_bytes=0 rendered_excerpt_bytes=1175 sha256=ad6a259272e19d55729f652110cb4d553d7b2254b91b4a4a8ba556042353e465\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw21/test_comment_apostrophe_does_n0/tree'), 'e7f6b8663bdf151b5c4526887c96fb1f0e0d28eb')\n> \n>     def test_comment_apostrophe_does_not_hide_reference(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", '# don\\x5c't\\x5cnPATH = \"docs/notes/story.md\"\\x5cn')\n>         put(repo, \"orchestrator/tests/test_consumer.py\",\n>             '# don\\x5c't\\x5cnPATH = \"docs/notes/story.md\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"readers\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/notes/story.md\", \"# story\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"doc\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert any(x.startswith(\"production-reference:\") for x in got[\"classification\"][\"reasons\"])\n> E       assert False\n> E        +  where False = any(<generator object test_comment_apostrophe_does_not_hide_reference.<locals>.<genexpr> at 0x14c9583c58c0>)\n> \n> orchestrator/tests/test_scoped_acceptance.py:170: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2348 retained_bytes=2348 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3623 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "33759c45fd835411c525318666d19436fb18027c4c1c3f38e7af726387a3aef4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.118,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection"
+      ],
+      "hang_risk": false,
+      "id": "mf1-quoted-only-matching",
+      "injection_diff_sha256": "ffdefd105b5a824ff14db2b4d042f8a94256f1c9f49c5d0a3db4177629746357",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "869760e34360dac58cb8364385a7cb4a749ace05c6ec61866bdcb5d11e26d8c7",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "def _references(data: bytes, keys: set[bytes]) -> bool:  # MF1\n    literals = []\n    quote = None\n    start = 0\n    escaped = False\n    for i, byte in enumerate(data):\n        if quote is None:\n            if byte in (34, 39):\n                quote, start = byte, i + 1\n        elif escaped:\n            escaped = False\n        elif byte == 92:\n            escaped = True\n        elif byte == quote:\n            literals.append(data[start:i])\n            quote = None\n    return any(key in literal for literal in literals for key in keys)\n",
+          "old": "def _references(data: bytes, keys: set[bytes]) -> bool:\n    return any(key in data for key in keys)\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "33759c45fd835411c525318666d19436fb18027c4c1c3f38e7af726387a3aef4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...................................F..............................       [100%]\n=================================== FAILURES ===================================\n___________________ test_insight_readme_basename_is_generic ____________________\n[gw23] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw23/test_insight_readme_basename_i0/tree'), 'a056334e096ac55280d26278bbdbdfb5ad72ffa2')\n\n    def test_insight_readme_basename_is_generic(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", 'NAME = \"README.md\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"output/insights/2026-09-29/topic/README.md\", \"# insight\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"insight\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"eligible\"] is True\nE       assert False is True\n\norchestrator/tests/test_scoped_acceptance.py:199: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic\n1 failed, 65 passed in 6.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=828 retained_bytes=828 omitted_bytes=0 rendered_excerpt_bytes=871 sha256=55688d8dc707d9c81cd615ab0533a91296a176d55400279a4ae540c7b750700e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw23] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw23/test_insight_readme_basename_i0/tree'), 'a056334e096ac55280d26278bbdbdfb5ad72ffa2')\n> \n>     def test_insight_readme_basename_is_generic(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", 'NAME = \"README.md\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"output/insights/2026-09-29/topic/README.md\", \"# insight\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"insight\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"eligible\"] is True\n> E       assert False is True\n> \n> orchestrator/tests/test_scoped_acceptance.py:199: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=828 retained_bytes=828 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1578 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "dc17baee70225584aaba637c32cdae893d65d9e1427295e2c2395b400996816a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.033,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic"
+      ],
+      "hang_risk": false,
+      "id": "mf2-readme-basename-key",
+      "injection_diff_sha256": "b3deaefeff966e08164e1a0a38af236537f198ba71b19b5ce056de2f317f2626",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d8cac9727309005dc5f505598972df9a3ef53a72ee134dfc83afddedab9c22fb",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "    if True:  # MF2\n",
+          "old": "    if parts[-1] not in {\"README.md\", \"index.md\"} and not DATE.fullmatch(parts[-1]):\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "dc17baee70225584aaba637c32cdae893d65d9e1427295e2c2395b400996816a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................F..F.......................................       [100%]\n=================================== FAILURES ===================================\n___________ test_spool_container_reference_does_not_reject_fragment ____________\n[gw24] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw24/test_spool_container_reference0/tree'), '84926ee3a031ba42caa58c10381d1e59049e4cab')\n\n    def test_spool_container_reference_does_not_reject_fragment(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", 'DIRECTORY = \"docs/spool/worklog\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"fragment\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"eligible\"] is True\nE       assert False is True\n\norchestrator/tests/test_scoped_acceptance.py:212: AssertionError\n_______________ test_uninspected_spool_container_reader_rejects ________________\n[gw28] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw28/test_uninspected_spool_contain0/tree'), '84926ee3a031ba42caa58c10381d1e59049e4cab')\n\n    def test_uninspected_spool_container_reader_rejects(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"ROOT = 'docs/spool/'\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"fragment\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"reasons\"] == [\"container-reader:tools/x.py\"]\nE       AssertionError: assert ['container-r...d:tools/x.py'] == ['container-r...r:tools/x.py']\nE         \nE         Left contains one more item: 'production-reference:docs/spool/worklog/unique-fragment.md:tools/x.py'\nE         Use -v to get more diff\n\norchestrator/tests/test_scoped_acceptance.py:268: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects\n2 failed, 64 passed in 6.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1079 retained_bytes=1079 omitted_bytes=0 rendered_excerpt_bytes=1128 sha256=3e5c9755a1b02ea4bd4ec2669e73a1092bc7b9388fa514d6c2e61aec0384ad4e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw28/test_uninspected_spool_contain0/tree'), '84926ee3a031ba42caa58c10381d1e59049e4cab')\n> \n>     def test_uninspected_spool_container_reader_rejects(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"ROOT = 'docs/spool/'\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"fragment\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"reasons\"] == [\"container-reader:tools/x.py\"]\n> E       AssertionError: assert ['container-r...d:tools/x.py'] == ['container-r...r:tools/x.py']\n> E         \n> E         Left contains one more item: 'production-reference:docs/spool/worklog/unique-fragment.md:tools/x.py'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_scoped_acceptance.py:268: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=850 retained_bytes=850 omitted_bytes=0 rendered_excerpt_bytes=893 sha256=873e16de4688ba5c4660a3b6e976ae32bbc5229af0338e1924e0901bce523e51\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw24/test_spool_container_reference0/tree'), '84926ee3a031ba42caa58c10381d1e59049e4cab')\n> \n>     def test_spool_container_reference_does_not_reject_fragment(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", 'DIRECTORY = \"docs/spool/worklog\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"fragment\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"eligible\"] is True\n> E       assert False is True\n> \n> orchestrator/tests/test_scoped_acceptance.py:212: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1929 retained_bytes=1929 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3180 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d3ee721308817859bfa0ea67abc3cbb88f3d303de7b295ddf728607eb05943d8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.02,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment",
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment",
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+      ],
+      "hang_risk": false,
+      "id": "mf3-spool-container-keys",
+      "injection_diff_sha256": "e7702d77df29346668ee6aefb933eaedc643b89c034bf4337d9eb3d7fb287e7f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0126ae54d04ea5528d60d2dec4ced605c4f6f37826f77e0d28c25c2b58f49364",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "    if False:  # MF3\n        return {key.encode(\"utf-8\") for key in keys}\n",
+          "old": "    if path.startswith(\"docs/spool/\"):\n        return {key.encode(\"utf-8\") for key in keys}\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "d3ee721308817859bfa0ea67abc3cbb88f3d303de7b295ddf728607eb05943d8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n............................................F.....................       [100%]\n=================================== FAILURES ===================================\n________________ test_insight_depth_three_split_reader_rejects _________________\n[gw26] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw26/test_insight_depth_three_split0/tree'), '36e688f00f1e235b9d924abcdcaef1d8d5cec1c2')\n\n    def test_insight_depth_three_split_reader_rejects(tree):\n        repo, _ = tree\n        put(repo, \"orchestrator/campaign/p3_b4_wiring_probe.py\",\n            'ROOT = \"output\" / \"insights\" / \"2026-01-01_slug\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"output/insights/2026-01-01_slug/report.md\", \"# insight\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"insight\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"reasons\"] == [\n            \"production-reference:output/insights/2026-01-01_slug/report.md:\"\n            \"orchestrator/campaign/p3_b4_wiring_probe.py\"\n        ]\nE       AssertionError: assert [] == ['production-...ing_probe.py']\nE         \nE         Right contains one more item: 'production-reference:output/insights/2026-01-01_slug/report.md:orchestrator/campaign/p3_b4_wiring_probe.py'\nE         Use -v to get more diff\n\norchestrator/tests/test_scoped_acceptance.py:239: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\n1 failed, 65 passed in 6.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1283 retained_bytes=1283 omitted_bytes=0 rendered_excerpt_bytes=1340 sha256=0995ccb2d189c4158c77bae85bb0a90f03c198c2a959fe9b0a984b578fadf8f9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw26/test_insight_depth_three_split0/tree'), '36e688f00f1e235b9d924abcdcaef1d8d5cec1c2')\n> \n>     def test_insight_depth_three_split_reader_rejects(tree):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/campaign/p3_b4_wiring_probe.py\",\n>             'ROOT = \"output\" / \"insights\" / \"2026-01-01_slug\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"output/insights/2026-01-01_slug/report.md\", \"# insight\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"insight\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"reasons\"] == [\n>             \"production-reference:output/insights/2026-01-01_slug/report.md:\"\n>             \"orchestrator/campaign/p3_b4_wiring_probe.py\"\n>         ]\n> E       AssertionError: assert [] == ['production-...ing_probe.py']\n> E         \n> E         Right contains one more item: 'production-reference:output/insights/2026-01-01_slug/report.md:orchestrator/campaign/p3_b4_wiring_probe.py'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_scoped_acceptance.py:239: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1283 retained_bytes=1283 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2058 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fbfb31af1c6066580a1fe76506c72990679178f0a59a566cfe57fb2e56c7b5e8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.111,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects"
+      ],
+      "hang_risk": false,
+      "id": "mf4-insight-depth3-key",
+      "injection_diff_sha256": "68b85d09bfb467a563f9595157ee9d31a817e01f17cc64701b1e7ba62aab6277",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f2f7cab548213f491e6e85517cee55147c9cb3647d67924f486aa177fb450898",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "    minimum_depth = 4 if path.startswith(\"output/insights/\") else 2  # MF4\n",
+          "old": "    minimum_depth = 3 if path.startswith(\"output/insights/\") else 2\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "fbfb31af1c6066580a1fe76506c72990679178f0a59a566cfe57fb2e56c7b5e8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................................FF..........................       [100%]\n=================================== FAILURES ===================================\n_______________ test_uninspected_spool_container_reader_rejects ________________\n[gw28] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw28/test_uninspected_spool_contain0/tree'), 'fc9a81978ec665eb29dde87c22817e345197e952')\n\n    def test_uninspected_spool_container_reader_rejects(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", \"ROOT = 'docs/spool/'\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"fragment\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"reasons\"] == [\"container-reader:tools/x.py\"]\nE       AssertionError: assert [] == ['container-r...r:tools/x.py']\nE         \nE         Right contains one more item: 'container-reader:tools/x.py'\nE         Use -v to get more diff\n\norchestrator/tests/test_scoped_acceptance.py:268: AssertionError\n______________ test_uninspected_insight_container_reader_rejects _______________\n[gw27] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw27/test_uninspected_insight_conta0/tree'), 'fc9a81978ec665eb29dde87c22817e345197e952')\n\n    def test_uninspected_insight_container_reader_rejects(tree):\n        repo, _ = tree\n        put(repo, \"tools/x.py\", 'ROOT = \"insights\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"reader\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"output/insights/2026-01-01/topic/report.md\", \"# insight\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"insight\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>       assert got[\"classification\"][\"reasons\"] == [\"container-reader:tools/x.py\"]\nE       AssertionError: assert [] == ['container-r...r:tools/x.py']\nE         \nE         Right contains one more item: 'container-reader:tools/x.py'\nE         Use -v to get more diff\n\norchestrator/tests/test_scoped_acceptance.py:255: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects\n2 failed, 64 passed in 6.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1017 retained_bytes=1017 omitted_bytes=0 rendered_excerpt_bytes=1066 sha256=b2936da284a8cf3386cb0d1560716c2372bd3a901a44dd7f050ed385f3147657\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw27/test_uninspected_insight_conta0/tree'), 'fc9a81978ec665eb29dde87c22817e345197e952')\n> \n>     def test_uninspected_insight_container_reader_rejects(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", 'ROOT = \"insights\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"output/insights/2026-01-01/topic/report.md\", \"# insight\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"insight\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"reasons\"] == [\"container-reader:tools/x.py\"]\n> E       AssertionError: assert [] == ['container-r...r:tools/x.py']\n> E         \n> E         Right contains one more item: 'container-reader:tools/x.py'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_scoped_acceptance.py:255: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1010 retained_bytes=1010 omitted_bytes=0 rendered_excerpt_bytes=1059 sha256=a854dfdbf3e32be9257282f2cdfdad8193eb8adb89ad1ac0335a7e0400060573\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw28/test_uninspected_spool_contain0/tree'), 'fc9a81978ec665eb29dde87c22817e345197e952')\n> \n>     def test_uninspected_spool_container_reader_rejects(tree):\n>         repo, _ = tree\n>         put(repo, \"tools/x.py\", \"ROOT = 'docs/spool/'\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"reader\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"fragment\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n> >       assert got[\"classification\"][\"reasons\"] == [\"container-reader:tools/x.py\"]\n> E       AssertionError: assert [] == ['container-r...r:tools/x.py']\n> E         \n> E         Right contains one more item: 'container-reader:tools/x.py'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_scoped_acceptance.py:268: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2027 retained_bytes=2027 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3280 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b3ac2db0af7a9d8b5922a8e72b199d78e955bb825fbc62fbdbeda55ed4b1957c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.033,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects"
+      ],
+      "hang_risk": false,
+      "id": "mf5-no-container-reader-check",
+      "injection_diff_sha256": "3041b4b71589018ba64c4c00dc879307dd2df5b7ac1ecd731c6acda265c17b4e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5f3c8fce5654db3cab2c5d0c237fa81bcee301288eeb51191ef4b4da74318359",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "        if False and ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))  # MF5\n",
+          "old": "        if ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "b3ac2db0af7a9d8b5922a8e72b199d78e955bb825fbc62fbdbeda55ed4b1957c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................................F..........................       [100%]\n=================================== FAILURES ===================================\n__________________ test_spool_container_path_selects_consumer __________________\n[gw31] linux -- Python 3.10.12 /usr/bin/python3\n\ntree = (PosixPath('/tmp/pytest-of-tanab/pytest-15/popen-gw31/test_spool_container_path_sele0/tree'), 'beebe64f070b70531e20cebd5f1d54983dca2791')\n\n    def test_spool_container_path_selects_consumer(tree):\n        repo, _ = tree\n        put(repo, \"orchestrator/tests/test_consumer.py\", 'ROOT = \"docs/spool\"\\n')\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"consumer\")\n        main = git(repo, \"rev-parse\", \"HEAD\")\n        put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\n\")\n        git(repo, \"add\", \"-A\")\n        git(repo, \"commit\", \"-qm\", \"fragment\")\n        got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n        assert got[\"classification\"][\"eligible\"] is True\n>       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\nE       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n\norchestrator/tests/test_scoped_acceptance.py:305: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer\n1 failed, 65 passed in 6.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=1217 retained_bytes=1217 omitted_bytes=0 rendered_excerpt_bytes=1262 sha256=acb2bc0cf30a31b29f8b37dbdf28d34199d8c757c0c151aaa3e9a784a01ba585\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tree = (PosixPath('/tmp/pytest-of-tanab/pytest-15/popen-gw31/test_spool_container_path_sele0/tree'), 'beebe64f070b70531e20cebd5f1d54983dca2791')\n> \n>     def test_spool_container_path_selects_consumer(tree):\n>         repo, _ = tree\n>         put(repo, \"orchestrator/tests/test_consumer.py\", 'ROOT = \"docs/spool\"\\x5cn')\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"consumer\")\n>         main = git(repo, \"rev-parse\", \"HEAD\")\n>         put(repo, \"docs/spool/worklog/unique-fragment.md\", \"# log\\x5cn\")\n>         git(repo, \"add\", \"-A\")\n>         git(repo, \"commit\", \"-qm\", \"fragment\")\n>         got = SCOPED.plan(repo, main, git(repo, \"rev-parse\", \"HEAD\"))\n>         assert got[\"classification\"][\"eligible\"] is True\n> >       assert \"orchestrator/tests/test_consumer.py\" in got[\"selection\"][\"files\"]\n> E       AssertionError: assert 'orchestrator/tests/test_consumer.py' in ['orchestrator/tests/test_acceptance_schedule_order.py', 'orchestrator/tests/test_check_ai_provenance.py', 'orchestrat...osure.py', 'orchestrator/tests/test_p3_b4_wiring_probe.py', 'orchestrator/tests/test_p3_exploration_namespace.py', ...]\n> \n> orchestrator/tests/test_scoped_acceptance.py:305: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1217 retained_bytes=1217 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1977 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "be57f9aeef0bf534bd3087c34ff89dbaccf216f5459c78cdebcef83b6b75287f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "15f1c1f0f523b722254a94858de765658ee5a3539009d30509fb97ba3435a71c",
+      "duration_s": 7.035,
+      "expected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer"
+      ],
+      "hang_risk": false,
+      "id": "mf6-no-spool-selection",
+      "injection_diff_sha256": "96074b7bb3cbc9cab16642adb1994ed94066f78ea5c0a733a75fdfc278668784",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4104f5433fd35faaad114133766e50f7f447e15ce9ce6eb3984092f11fd0b473",
+      "replacements": [
+        {
+          "file": "tools/scoped_acceptance.py",
+          "new": "                or False):  # MF6\n",
+          "old": "                or spool and b\"docs/spool\" in body):\n"
+        }
+      ],
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "KILLED",
+      "test_output_sha256": "be57f9aeef0bf534bd3087c34ff89dbaccf216f5459c78cdebcef83b6b75287f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\norchestrator/tests/test_scoped_acceptance.py::test_allowed_tree_changes[docs/spool/worklog/entry.md-# log\\n]\norchestrator/tests/test_scoped_acceptance.py::test_allowed_tree_changes[output/insights/2026-09-29/result.jsonl-{}\\n]\norchestrator/tests/test_scoped_acceptance.py::test_allowed_tree_changes[docs/notes/story.md-# story\\n]\norchestrator/tests/test_scoped_acceptance.py::test_existing_knowledge_file_change_allowed[docs/notes/story.md]\norchestrator/tests/test_scoped_acceptance.py::test_existing_knowledge_file_change_allowed[output/insights/old.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/dev-wave/protocol.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/worklog.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/archive/old.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/my-preregistration.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/ai-provenance.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/spool/README.md]\norchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]\norchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]\norchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]\norchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]\norchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]\norchestrator/tests/test_scoped_acceptance.py::test_selection_literals_and_digest\norchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]\norchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"story.md\"]\norchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]\norchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer\norchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference\norchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection\norchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic\norchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment\norchestrator/tests/test_scoped_acceptance.py::test_insights_literal_selects_test\norchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects\norchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects\norchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects\norchestrator/tests/test_scoped_acceptance.py::test_inspected_insight_container_readers_stay_eligible\norchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key\norchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer\norchestrator/tests/test_scoped_acceptance.py::test_missing_fixed_file_fails_closed\norchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects\norchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected\norchestrator/tests/test_scoped_acceptance.py::test_oversize_blob_rejects\norchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject\norchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected\norchestrator/tests/test_scoped_acceptance.py::test_non_utf8_path_fails_closed\norchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected\norchestrator/tests/test_scoped_acceptance.py::test_duplicate_inventory_fails_closed\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_docs_land_and_v5_control\norchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip\norchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[schema]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[wave]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[main]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[tip]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[classification]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[gate]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selector]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[launcher]\norchestrator/tests/test_scoped_acceptance_land.py::test_release_authority_dispatches_scoped\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]\norchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]\norchestrator/tests/test_scoped_acceptance_land.py::test_gate_failure_leaves_no_receipt\norchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit\norchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_records_success_and_log_digest\norchestrator/tests/test_scoped_acceptance_land.py::test_runner_scoped_shape_keeps_full_suite_shape_closed\norchestrator/tests/test_scoped_acceptance_land.py::test_wait_scoped_flag_is_opt_in\n\n66 tests collected in 1.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "51d933f5da74fcc99ca627e56ff9ec52852c1476bfdc41f3583fd10b2101117c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_scoped_acceptance.py::test_allowed_tree_changes[docs/spool/worklog/entry.md-# log/n]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_allowed_tree_changes[output/insights/2026-09-29/result.jsonl-{}/n]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_allowed_tree_changes[docs/notes/story.md-# story/n]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_existing_knowledge_file_change_allowed[docs/notes/story.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_existing_knowledge_file_change_allowed[output/insights/old.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/dev-wave/protocol.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/worklog.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/archive/old.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/my-preregistration.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/ai-provenance.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[docs/spool/README.md]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_selection_literals_and_digest",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"story.md\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]",
+        "orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer",
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+        "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic",
+        "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insights_literal_selects_test",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_inspected_insight_container_readers_stay_eligible",
+        "orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key",
+        "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer",
+        "orchestrator/tests/test_scoped_acceptance.py::test_missing_fixed_file_fails_closed",
+        "orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected",
+        "orchestrator/tests/test_scoped_acceptance.py::test_oversize_blob_rejects",
+        "orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject",
+        "orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected",
+        "orchestrator/tests/test_scoped_acceptance.py::test_non_utf8_path_fails_closed",
+        "orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected",
+        "orchestrator/tests/test_scoped_acceptance.py::test_duplicate_inventory_fails_closed",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_docs_land_and_v5_control",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[schema]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[wave]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[main]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[tip]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[classification]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[gate]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selector]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[launcher]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_release_authority_dispatches_scoped",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_gate_failure_leaves_no_receipt",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_records_success_and_log_digest",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_runner_scoped_shape_keeps_full_suite_shape_closed",
+        "orchestrator/tests/test_scoped_acceptance_land.py::test_wait_scoped_flag_is_opt_in"
+      ],
+      "duration_s": 1.922,
+      "rc": 0,
+      "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+      "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+      "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+      "status": "PASSED",
+      "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "mf1-quoted-only-matching": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+          "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ffdefd105b5a824ff14db2b4d042f8a94256f1c9f49c5d0a3db4177629746357",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "def _references(data: bytes, keys: set[bytes]) -> bool:  # MF1\n    literals = []\n    quote = None\n    start = 0\n    escaped = False\n    for i, byte in enumerate(data):\n        if quote is None:\n            if byte in (34, 39):\n                quote, start = byte, i + 1\n        elif escaped:\n            escaped = False\n        elif byte == 92:\n            escaped = True\n        elif byte == quote:\n            literals.append(data[start:i])\n            quote = None\n    return any(key in literal for literal in literals for key in keys)\n",
+            "old": "def _references(data: bytes, keys: set[bytes]) -> bool:\n    return any(key in data for key in keys)\n"
+          }
+        ]
+      },
+      "mf2-readme-basename-key": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b3deaefeff966e08164e1a0a38af236537f198ba71b19b5ce056de2f317f2626",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "    if True:  # MF2\n",
+            "old": "    if parts[-1] not in {\"README.md\", \"index.md\"} and not DATE.fullmatch(parts[-1]):\n"
+          }
+        ]
+      },
+      "mf3-spool-container-keys": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment",
+          "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e7702d77df29346668ee6aefb933eaedc643b89c034bf4337d9eb3d7fb287e7f",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "    if False:  # MF3\n        return {key.encode(\"utf-8\") for key in keys}\n",
+            "old": "    if path.startswith(\"docs/spool/\"):\n        return {key.encode(\"utf-8\") for key in keys}\n"
+          }
+        ]
+      },
+      "mf4-insight-depth3-key": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "68b85d09bfb467a563f9595157ee9d31a817e01f17cc64701b1e7ba62aab6277",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "    minimum_depth = 4 if path.startswith(\"output/insights/\") else 2  # MF4\n",
+            "old": "    minimum_depth = 3 if path.startswith(\"output/insights/\") else 2\n"
+          }
+        ]
+      },
+      "mf5-no-container-reader-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects",
+          "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3041b4b71589018ba64c4c00dc879307dd2df5b7ac1ecd731c6acda265c17b4e",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "        if False and ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))  # MF5\n",
+            "old": "        if ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))\n"
+          }
+        ]
+      },
+      "mf6-no-spool-selection": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "96074b7bb3cbc9cab16642adb1994ed94066f78ea5c0a733a75fdfc278668784",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "                or False):  # MF6\n",
+            "old": "                or spool and b\"docs/spool\" in body):\n"
+          }
+        ]
+      },
+      "ms1-no-production-reference": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+          "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+          "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+          "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]",
+          "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]",
+          "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b46caaa715d6f5eaf442c42cd99ba9a150b073d73da554578fe6bb6b72d22c1f",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "            if False:  # MS1\n                reasons.append(f\"production-reference:{path}:{candidate}\")\n",
+            "old": "            if _references(body, keys):\n                reasons.append(f\"production-reference:{path}:{candidate}\")\n"
+          }
+        ]
+      },
+      "ms2-allow-any-path": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fe66c46a28887d731fa25a7578ed0531692cedbb999b19878f56af6a666d2b47",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "    return True  # MS2\n",
+            "old": "    return path.startswith(\"docs/\") and len(parts) >= 2 and path.endswith(\".md\")\n"
+          }
+        ]
+      },
+      "ms3-no-metadata-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected",
+          "orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects",
+          "orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected",
+          "orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d44f4e36f3b98411b084d2186e53546edfb693ea3ef5a773a049f88b687466fc",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "        if False:  # MS3\n",
+            "old": "        if (entry[\"status\"] not in {\"A\", \"M\"} or entry[\"mode\"] != \"100644\"\n                or (entry[\"status\"] == \"M\" and entry[\"old_mode\"] != \"100644\")):\n"
+          }
+        ]
+      },
+      "ms4-no-inventory": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "46c93bbc198f7083d86ca38642f279e02114ed65511775a83b0dc8f08ec47889",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "    nodes = sorted(set(FIXED_NODES))  # MS4\n",
+            "old": "    nodes = sorted(set(inventory) | set(FIXED_NODES))\n"
+          }
+        ]
+      },
+      "ms5-no-dir-keys": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer",
+          "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]",
+          "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]",
+          "orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key",
+          "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+          "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+          "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d7faa19a0edfd3869e71dbab63d43439cc9930d5054d02d9aea9d580274e2fc7",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance.py",
+            "new": "    for depth in range(len(parts), len(parts)):  # MS5\n",
+            "old": "    for depth in range(minimum_depth, len(parts)):\n"
+          }
+        ]
+      },
+      "ms6-land-trusts-receipt": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a70333221b52d4d79893b412033bf5ac3a6370a18cd8575e8c7c0dc9ba6da002",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_land.py",
+            "new": "        expected = {\"classification\": receipt[\"classification\"], \"selection\": receipt[\"selection\"]}  # MS6\n",
+            "old": "        expected = _scoped_acceptance.plan(repository.wave, tested_main, tested_tip)\n"
+          }
+        ]
+      },
+      "ms7-no-scoped-forward-blobs": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]",
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6001a65df54588c7023920e5b74c596b7c138c2a0bba32b88ace4b4cfd2275de",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_land.py",
+            "new": "    for path in ():  # MS7\n",
+            "old": "    for path in _SCOPED_FORWARD_BLOBS:\n"
+          }
+        ]
+      },
+      "ms8-ignore-gate-rc": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "edbb3681a1dc81cac8ab9d98a82e9abf464389ae19a217cbb6bec53ae7ca248e",
+        "replacements": [
+          {
+            "file": "tools/scoped_acceptance_launcher.py",
+            "new": "    if False:  # MS8\n        raise ValueError(f\"direct gate {index} failed with rc={result.returncode}\")\n",
+            "old": "    if result.returncode:\n        raise ValueError(f\"direct gate {index} failed with rc={result.returncode}\")\n"
+          }
+        ]
+      },
+      "ms9-extra-fields-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e861b31271dab0c1af12c41f0cc39b1a579dfec5923c63ff27e1ed42581b5f3c",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_land.py",
+            "new": "    if not set(value) >= _ACCEPTANCE_RECEIPT_FIELDS:  # MS9\n        raise _acceptance_rejected()\n    return value\n",
+            "old": "    if set(value) != expected:\n        raise _acceptance_rejected()\n    return value\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a2a15d121eff420072bd0753165da574cb0a66440a5b3fe8282dbd0fa415f75b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_scoped_acceptance.py",
+      "orchestrator/tests/test_scoped_acceptance_land.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "6ba3f5c72f60584b08b3d733756e045e223f8412",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_scoped_acceptance.py",
+      "orchestrator/tests/test_scoped_acceptance_land.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/scoped-acceptance-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a56dfa03d02ef5e181aa93da56f6657f6f88136d",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "1c53b4c26afaa031e6bc3fe815e992490e85805b780c91fc0383f956f7345852",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "7d8cc42b12715ee461e5aa161b55beb99a6f3257555ad3d1a6fabd027ed8a9dd",
+  "summary": {
+    "KILLED": 15,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 15,
+    "matching": 15,
+    "recorded": 15,
+    "registered": 15
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/scoped-acceptance-2026-09-29/mutation/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "4e60a59fe74f06b264f4e6d3245b4d0caf4665abed9c6eba031b176d13c7a273",
+  "updated_at": "2026-09-29T16:11:30.883864+00:00"
+}

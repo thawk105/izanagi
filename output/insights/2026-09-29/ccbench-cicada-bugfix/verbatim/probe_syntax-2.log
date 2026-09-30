@@ -1,0 +1,15 @@
+F default: rc=0 errors=0
+F opt_promo: rc=1 errors=1
+    cc/cicada/include/transaction.hh:207:13: error: cannot convert ‘Storage’ to ‘int’
+F opt_promo_analysis: rc=1 errors=2
+    cc/cicada/include/transaction.hh:207:13: error: cannot convert ‘Storage’ to ‘int’
+    cc/cicada/zz_probe_F_transaction.cc:131:46: error: ‘start’ was not declared in this scope; did you mean ‘start_’?
+F worker1_delay: rc=1 errors=3
+    cc/cicada/zz_probe_F_transaction.cc:924:16: error: ‘thid’ was not declared in this scope; did you mean ‘thid_’?
+    cc/cicada/zz_probe_F_transaction.cc:924:30: error: ‘WORKER1_INSERT_DELAY_RPHASE_US’ was not declared in this scope; did you
+    cc/cicada/zz_probe_F_transaction.cc:925:5: error: ‘clock_delay’ was not declared in this scope
+G default: rc=0 errors=0
+G opt_promo: rc=0 errors=0
+G opt_promo_analysis: rc=0 errors=0
+G worker1_delay: rc=0 errors=0
+clone status after: M cc/cicada/include/transaction.hh |  M cc/cicada/transaction.cc

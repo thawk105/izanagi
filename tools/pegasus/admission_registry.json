@@ -319,6 +319,18 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/silo_policy_contrast_launch.py": {
+      "class": "local-ok",
+      "reason": "login-side proposal and PBS submitter; measurement stays in the job body",
+      "primary_gate": "driver preview and qsub submission",
+      "evidence": "static login-side classification"
+    },
+    "tools/pegasus/silo_policy_contrast_parent.py": {
+      "class": "local-ok",
+      "reason": "login-side role parent; measurement stays in the job body",
+      "primary_gate": "role invocation and round tool CLI",
+      "evidence": "static login-side classification"
+    },
     "tools/pegasus/smoke_probe.sh": {
       "class": "dispatch-required",
       "reason": "PBS smoke probe job body",

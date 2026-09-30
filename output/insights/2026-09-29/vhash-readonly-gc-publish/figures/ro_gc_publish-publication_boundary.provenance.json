@@ -1,0 +1,1760 @@
+{
+  "campaign_id": "vhash-ro-gc-publish",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-ro-gc-publish-2026-09-29/compact/measure1.json",
+      "sha256": "157b725d49b5232fb6c72e776d363384d0285132fcf20e3ba69ba9b5a4c3d12f"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-ro-gc-publish-2026-09-29/compact/throughput1.json",
+      "sha256": "3a15cf2eec8c8c1d84b195f5d7e6bb8b27c6361054fdc4c0ea2b75e3aa7ecaf8"
+    }
+  ],
+  "conditions": {
+    "S0-none-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 0,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "S0-wait10msR-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 0,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "S50-none-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 50,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "S50-wait10msR-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 50,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "S95-none-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 95,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "S95-wait10msR-gc10": {
+      "series": "S",
+      "genome": "default",
+      "skew": 0.0,
+      "ro_pct": 95,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "T0-none-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 0,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "T0-wait10msR-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 0,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "T50-none-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 50,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "T50-wait10msR-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 50,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    },
+    "T95-none-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 95,
+      "delay": "none",
+      "wait_us": 0,
+      "gc_inter_us": 10
+    },
+    "T95-wait10msR-gc10": {
+      "series": "T",
+      "genome": "tuned",
+      "skew": 0.9,
+      "ro_pct": 95,
+      "delay": "wait10msR",
+      "wait_us": 10000,
+      "gc_inter_us": 10
+    }
+  },
+  "measurement_env": [
+    {
+      "records": 1000000,
+      "extime": 3,
+      "workers": 48,
+      "site": "PEGASUS_COMPUTE"
+    },
+    {
+      "records": 1000000,
+      "extime": 3,
+      "workers": 48,
+      "site": "PEGASUS_COMPUTE"
+    }
+  ],
+  "metric": "publication_boundary",
+  "boundary_context": {
+    "S0-none-gc10": {
+      "stock": [
+        {
+          "publications": 14985,
+          "publication_label": "14985 回",
+          "boundary_age_us": 358.2482482482483,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 14969,
+          "publication_label": "14969 回",
+          "boundary_age_us": 360.39882423675596,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 15560,
+          "publication_label": "15560 回",
+          "boundary_age_us": 339.3438946015424,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 14623,
+          "publication_label": "14623 回",
+          "boundary_age_us": 369.39369486425494,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 15652,
+          "publication_label": "15652 回",
+          "boundary_age_us": 342.61167901865576,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 15438,
+          "publication_label": "15438 回",
+          "boundary_age_us": 351.8672107785983,
+          "boundary_age_label": null
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 392.31487813750454,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 375.15216625572384,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 358.7336846372112,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 375.2408935685828,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 371.1659773917838,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 323.558262454435,
+          "ro_holder_fraction": 0.0
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": 0.0
+      }
+    },
+    "S0-wait10msR-gc10": {
+      "stock": [
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 14145.518394648829,
+          "ro_holder_fraction": 0.024216570469798658
+        },
+        {
+          "boundary_age_us": 14313.752508361204,
+          "ro_holder_fraction": 0.02410451839464883
+        },
+        {
+          "boundary_age_us": 14384.658783783783,
+          "ro_holder_fraction": 0.024291013605442176
+        },
+        {
+          "boundary_age_us": 14345.819397993311,
+          "ro_holder_fraction": 0.024197074074074076
+        },
+        {
+          "boundary_age_us": 14250.91973244147,
+          "ro_holder_fraction": 0.023610882943143813
+        },
+        {
+          "boundary_age_us": 14193.498327759198,
+          "ro_holder_fraction": 0.023649138047138047
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.024216570469798658,
+          0.02410451839464883,
+          0.024291013605442176,
+          0.024197074074074076,
+          0.023610882943143813,
+          0.023649138047138047
+        ],
+        "mean": 0.024011532922374266
+      },
+      "variant_wait_minus_none_boundary_age_us": {
+        "repetitions": [
+          13753.203516511325,
+          13938.60034210548,
+          14025.925099146572,
+          13970.578504424728,
+          13879.753755049687,
+          13869.940065304763
+        ],
+        "mean": 13906.333547090428
+      }
+    },
+    "S50-none-gc10": {
+      "stock": [
+        {
+          "publications": 22748,
+          "publication_label": "22748 回",
+          "boundary_age_us": 211.72577809038157,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 21975,
+          "publication_label": "21975 回",
+          "boundary_age_us": 221.11362912400455,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 21641,
+          "publication_label": "21641 回",
+          "boundary_age_us": 222.47206691003188,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 21768,
+          "publication_label": "21768 回",
+          "boundary_age_us": 224.170203969129,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 22311,
+          "publication_label": "22311 回",
+          "boundary_age_us": 216.7121151001748,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 22596,
+          "publication_label": "22596 回",
+          "boundary_age_us": 214.260400070809,
+          "boundary_age_label": null
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 84.13516163828326,
+          "ro_holder_fraction": 0.4052490658552851
+        },
+        {
+          "boundary_age_us": 90.12958380202474,
+          "ro_holder_fraction": 0.40387383451628245
+        },
+        {
+          "boundary_age_us": 91.7479943201988,
+          "ro_holder_fraction": 0.40369911532479746
+        },
+        {
+          "boundary_age_us": 83.76416157064692,
+          "ro_holder_fraction": 0.40544908590575435
+        },
+        {
+          "boundary_age_us": 101.27973308137474,
+          "ro_holder_fraction": 0.4049604542427282
+        },
+        {
+          "boundary_age_us": 87.79833736039065,
+          "ro_holder_fraction": 0.4026805896990542
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.4052490658552851,
+          0.40387383451628245,
+          0.40369911532479746,
+          0.40544908590575435,
+          0.4049604542427282,
+          0.4026805896990542
+        ],
+        "mean": 0.4043186909239836
+      }
+    },
+    "S50-wait10msR-gc10": {
+      "stock": [
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 13927.799331103679,
+          "ro_holder_fraction": 0.317959
+        },
+        {
+          "boundary_age_us": 14320.157190635451,
+          "ro_holder_fraction": 0.3207876598639456
+        },
+        {
+          "boundary_age_us": 13809.096989966556,
+          "ro_holder_fraction": 0.3011047013422819
+        },
+        {
+          "boundary_age_us": 14181.585284280936,
+          "ro_holder_fraction": 0.3014302517006803
+        },
+        {
+          "boundary_age_us": 14375.545150501672,
+          "ro_holder_fraction": 0.30931492491467577
+        },
+        {
+          "boundary_age_us": 14009.244147157191,
+          "ro_holder_fraction": 0.30663170508474574
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.317959,
+          0.3207876598639456,
+          0.3011047013422819,
+          0.3014302517006803,
+          0.30931492491467577,
+          0.30663170508474574
+        ],
+        "mean": 0.3095380404843882
+      },
+      "variant_wait_minus_none_boundary_age_us": {
+        "repetitions": [
+          13843.664169465395,
+          14230.027606833426,
+          13717.348995646358,
+          14097.82112271029,
+          14274.265417420296,
+          13921.4458097968
+        ],
+        "mean": 14014.095520312096
+      }
+    },
+    "S95-none-gc10": {
+      "stock": [
+        {
+          "publications": 5021,
+          "publication_label": "5021 回",
+          "boundary_age_us": 811.2626966739693,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 5005,
+          "publication_label": "5005 回",
+          "boundary_age_us": 802.7112887112887,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 4975,
+          "publication_label": "4975 回",
+          "boundary_age_us": 803.6745728643216,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 4963,
+          "publication_label": "4963 回",
+          "boundary_age_us": 810.4835784807576,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 4970,
+          "publication_label": "4970 回",
+          "boundary_age_us": 806.6060362173038,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 4933,
+          "publication_label": "4933 回",
+          "boundary_age_us": 826.2661666328806,
+          "boundary_age_label": null
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 39.2455881999856,
+          "ro_holder_fraction": 0.9280181590303869
+        },
+        {
+          "boundary_age_us": 34.67047393987134,
+          "ro_holder_fraction": 0.9283167243225205
+        },
+        {
+          "boundary_age_us": 35.14914157820514,
+          "ro_holder_fraction": 0.9248142397198931
+        },
+        {
+          "boundary_age_us": 35.37801923862372,
+          "ro_holder_fraction": 0.9282470324364903
+        },
+        {
+          "boundary_age_us": 35.51112802514553,
+          "ro_holder_fraction": 0.9274531507467132
+        },
+        {
+          "boundary_age_us": 35.87664010417404,
+          "ro_holder_fraction": 0.9276762511085447
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.9280181590303869,
+          0.9283167243225205,
+          0.9248142397198931,
+          0.9282470324364903,
+          0.9274531507467132,
+          0.9276762511085447
+        ],
+        "mean": 0.9274209262274247
+      }
+    },
+    "S95-wait10msR-gc10": {
+      "stock": [
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 13166.307692307691,
+          "ro_holder_fraction": 0.8765073447098977
+        },
+        {
+          "boundary_age_us": 13092.90635451505,
+          "ro_holder_fraction": 0.8770899389830509
+        },
+        {
+          "boundary_age_us": 13397.454237288135,
+          "ro_holder_fraction": 0.8721219134948097
+        },
+        {
+          "boundary_age_us": 13109.060200668897,
+          "ro_holder_fraction": 0.8805911535836177
+        },
+        {
+          "boundary_age_us": 13070.33779264214,
+          "ro_holder_fraction": 0.8799309419795222
+        },
+        {
+          "boundary_age_us": 12960.484949832777,
+          "ro_holder_fraction": 0.8732940067796611
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.8765073447098977,
+          0.8770899389830509,
+          0.8721219134948097,
+          0.8805911535836177,
+          0.8799309419795222,
+          0.8732940067796611
+        ],
+        "mean": 0.8765892165884265
+      },
+      "variant_wait_minus_none_boundary_age_us": {
+        "repetitions": [
+          13127.062104107707,
+          13058.235880575177,
+          13362.30509570993,
+          13073.682181430273,
+          13034.826664616994,
+          12924.608309728603
+        ],
+        "mean": 13096.786706028115
+      }
+    },
+    "T0-none-gc10": {
+      "stock": [
+        {
+          "publications": 25505,
+          "publication_label": "25505 回",
+          "boundary_age_us": 193.42454420701824,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 24997,
+          "publication_label": "24997 回",
+          "boundary_age_us": 200.16161939432732,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 28743,
+          "publication_label": "28743 回",
+          "boundary_age_us": 172.65501165501166,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 26563,
+          "publication_label": "26563 回",
+          "boundary_age_us": 186.60490155479425,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 25559,
+          "publication_label": "25559 回",
+          "boundary_age_us": 193.5287374310419,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 24654,
+          "publication_label": "24654 回",
+          "boundary_age_us": 202.12225196722642,
+          "boundary_age_label": null
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 183.2613922177837,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 195.43948592604272,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 208.64197270889488,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 179.29778599123094,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 221.45802984544324,
+          "ro_holder_fraction": 0.0
+        },
+        {
+          "boundary_age_us": 184.68957978210923,
+          "ro_holder_fraction": 0.0
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": 0.0
+      }
+    },
+    "T0-wait10msR-gc10": {
+      "stock": [
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 13691.519031141868,
+          "ro_holder_fraction": 0.026221676056338027
+        },
+        {
+          "boundary_age_us": 13733.134948096886,
+          "ro_holder_fraction": 0.026254766550522647
+        },
+        {
+          "boundary_age_us": 13473.631034482758,
+          "ro_holder_fraction": 0.02596926480836237
+        },
+        {
+          "boundary_age_us": 13445.210344827587,
+          "ro_holder_fraction": 0.025741087108013937
+        },
+        {
+          "boundary_age_us": 13715.886206896552,
+          "ro_holder_fraction": 0.026323239436619718
+        },
+        {
+          "boundary_age_us": 13545.758620689656,
+          "ro_holder_fraction": 0.025618285714285715
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.026221676056338027,
+          0.026254766550522647,
+          0.02596926480836237,
+          0.025741087108013937,
+          0.026323239436619718,
+          0.025618285714285715
+        ],
+        "mean": 0.026021386612357065
+      },
+      "variant_wait_minus_none_boundary_age_us": {
+        "repetitions": [
+          13508.257638924084,
+          13537.695462170843,
+          13264.989061773864,
+          13265.912558836355,
+          13494.428177051108,
+          13361.069040907547
+        ],
+        "mean": 13405.391989943966
+      }
+    },
+    "T50-none-gc10": {
+      "stock": [
+        {
+          "publications": 18079,
+          "publication_label": "18079 回",
+          "boundary_age_us": 259.73842579788703,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 17014,
+          "publication_label": "17014 回",
+          "boundary_age_us": 275.71693899141883,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 17915,
+          "publication_label": "17915 回",
+          "boundary_age_us": 261.53223555679597,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 17614,
+          "publication_label": "17614 回",
+          "boundary_age_us": 266.3012944248893,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 17595,
+          "publication_label": "17595 回",
+          "boundary_age_us": 267.8949133276499,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 16729,
+          "publication_label": "16729 回",
+          "boundary_age_us": 284.4481439416582,
+          "boundary_age_label": null
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 153.67149128387837,
+          "ro_holder_fraction": 0.350508796062203
+        },
+        {
+          "boundary_age_us": 135.43498216606298,
+          "ro_holder_fraction": 0.3489859954480317
+        },
+        {
+          "boundary_age_us": 138.1878799875576,
+          "ro_holder_fraction": 0.35019106358829954
+        },
+        {
+          "boundary_age_us": 134.82968693674957,
+          "ro_holder_fraction": 0.34830222940048505
+        },
+        {
+          "boundary_age_us": 143.8333531686998,
+          "ro_holder_fraction": 0.34834008434208935
+        },
+        {
+          "boundary_age_us": 137.87996976145146,
+          "ro_holder_fraction": 0.3462052453739344
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.350508796062203,
+          0.3489859954480317,
+          0.35019106358829954,
+          0.34830222940048505,
+          0.34834008434208935,
+          0.3462052453739344
+        ],
+        "mean": 0.34875556903584054
+      }
+    },
+    "T50-wait10msR-gc10": {
+      "stock": [
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 12703.39393939394,
+          "ro_holder_fraction": 0.8210209355932203
+        },
+        {
+          "boundary_age_us": 12504.390572390572,
+          "ro_holder_fraction": 0.8092704848484849
+        },
+        {
+          "boundary_age_us": 12808.403389830508,
+          "ro_holder_fraction": 0.8068106508474576
+        },
+        {
+          "boundary_age_us": 12654.43918918919,
+          "ro_holder_fraction": 0.7971019659863946
+        },
+        {
+          "boundary_age_us": 12779.262626262625,
+          "ro_holder_fraction": 0.8100943412969284
+        },
+        {
+          "boundary_age_us": 12540.851851851852,
+          "ro_holder_fraction": 0.8025015656565656
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.8210209355932203,
+          0.8092704848484849,
+          0.8068106508474576,
+          0.7971019659863946,
+          0.8100943412969284,
+          0.8025015656565656
+        ],
+        "mean": 0.8077999907048419
+      },
+      "variant_wait_minus_none_boundary_age_us": {
+        "repetitions": [
+          12549.722448110062,
+          12368.955590224508,
+          12670.21550984295,
+          12519.60950225244,
+          12635.429273093925,
+          12402.9718820904
+        ],
+        "mean": 12524.484034269046
+      }
+    },
+    "T95-none-gc10": {
+      "stock": [
+        {
+          "publications": 7333,
+          "publication_label": "7333 回",
+          "boundary_age_us": 526.909995908905,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 7343,
+          "publication_label": "7343 回",
+          "boundary_age_us": 523.2328748467928,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 7267,
+          "publication_label": "7267 回",
+          "boundary_age_us": 531.060547681299,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 7277,
+          "publication_label": "7277 回",
+          "boundary_age_us": 528.1679263432733,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 7347,
+          "publication_label": "7347 回",
+          "boundary_age_us": 525.6311419627059,
+          "boundary_age_label": null
+        },
+        {
+          "publications": 7318,
+          "publication_label": "7318 回",
+          "boundary_age_us": 529.7775348455863,
+          "boundary_age_label": null
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 31.395450339917133,
+          "ro_holder_fraction": 0.8827156094644892
+        },
+        {
+          "boundary_age_us": 31.91397511066109,
+          "ro_holder_fraction": 0.8829886269439142
+        },
+        {
+          "boundary_age_us": 31.34506854073698,
+          "ro_holder_fraction": 0.8824923536731522
+        },
+        {
+          "boundary_age_us": 31.254181135991697,
+          "ro_holder_fraction": 0.8812128597657529
+        },
+        {
+          "boundary_age_us": 31.109734266847006,
+          "ro_holder_fraction": 0.8805401363064429
+        },
+        {
+          "boundary_age_us": 37.3309443642777,
+          "ro_holder_fraction": 0.8819317713498849
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.8827156094644892,
+          0.8829886269439142,
+          0.8824923536731522,
+          0.8812128597657529,
+          0.8805401363064429,
+          0.8819317713498849
+        ],
+        "mean": 0.8819802262506061
+      }
+    },
+    "T95-wait10msR-gc10": {
+      "stock": [
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        },
+        {
+          "publications": 0,
+          "publication_label": "公開 0 回",
+          "boundary_age_us": null,
+          "boundary_age_label": "未定義"
+        }
+      ],
+      "variant": [
+        {
+          "boundary_age_us": 12451.013377926422,
+          "ro_holder_fraction": 0.945741186440678
+        },
+        {
+          "boundary_age_us": 12246.418060200669,
+          "ro_holder_fraction": 0.9489566040268457
+        },
+        {
+          "boundary_age_us": 12563.528428093645,
+          "ro_holder_fraction": 0.9426488508474576
+        },
+        {
+          "boundary_age_us": 12750.08026755853,
+          "ro_holder_fraction": 0.9485525945017182
+        },
+        {
+          "boundary_age_us": 12625.652173913044,
+          "ro_holder_fraction": 0.9530016655290102
+        },
+        {
+          "boundary_age_us": 12389.802675585284,
+          "ro_holder_fraction": 0.9450508576271186
+        }
+      ],
+      "variant_ro_holder_fraction": {
+        "repetitions": [
+          0.945741186440678,
+          0.9489566040268457,
+          0.9426488508474576,
+          0.9485525945017182,
+          0.9530016655290102,
+          0.9450508576271186
+        ],
+        "mean": 0.9473252931621382
+      },
+      "variant_wait_minus_none_boundary_age_us": {
+        "repetitions": [
+          12419.617927586505,
+          12214.504085090008,
+          12532.183359552908,
+          12718.826086422538,
+          12594.542439646197,
+          12352.471731221007
+        ],
+        "mean": 12472.024271586526
+      }
+    }
+  },
+  "paired_values": [
+    {
+      "S0-none-gc10": [
+        [
+          4995.0,
+          4581.666666666667
+        ],
+        [
+          4989.666666666667,
+          4731.666666666667
+        ],
+        [
+          5186.666666666667,
+          4934.0
+        ],
+        [
+          4874.333333333333,
+          4685.333333333333
+        ],
+        [
+          5217.333333333333,
+          4836.0
+        ],
+        [
+          5146.0,
+          5486.666666666667
+        ]
+      ],
+      "S0-wait10msR-gc10": [
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          98.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ]
+      ],
+      "S50-none-gc10": [
+        [
+          7582.666666666667,
+          20395.333333333332
+        ],
+        [
+          7325.0,
+          19261.666666666668
+        ],
+        [
+          7213.666666666667,
+          18780.0
+        ],
+        [
+          7256.0,
+          20713.333333333332
+        ],
+        [
+          7437.0,
+          16934.0
+        ],
+        [
+          7532.0,
+          19727.666666666668
+        ]
+      ],
+      "S50-wait10msR-gc10": [
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ]
+      ],
+      "S95-none-gc10": [
+        [
+          1673.6666666666667,
+          41649.666666666664
+        ],
+        [
+          1668.3333333333333,
+          48241.0
+        ],
+        [
+          1658.3333333333333,
+          47509.666666666664
+        ],
+        [
+          1654.3333333333333,
+          47335.333333333336
+        ],
+        [
+          1656.6666666666667,
+          47298.0
+        ],
+        [
+          1644.3333333333333,
+          47100.666666666664
+        ]
+      ],
+      "S95-wait10msR-gc10": [
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          98.33333333333333
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ]
+      ],
+      "T0-none-gc10": [
+        [
+          8501.666666666666,
+          9012.0
+        ],
+        [
+          8332.333333333334,
+          8455.333333333334
+        ],
+        [
+          9581.0,
+          7914.666666666667
+        ],
+        [
+          8854.333333333334,
+          9199.0
+        ],
+        [
+          8519.666666666666,
+          7505.333333333333
+        ],
+        [
+          8218.0,
+          8995.333333333334
+        ]
+      ],
+      "T0-wait10msR-gc10": [
+        [
+          0.0,
+          96.33333333333333
+        ],
+        [
+          0.0,
+          96.33333333333333
+        ],
+        [
+          0.0,
+          96.66666666666667
+        ],
+        [
+          0.0,
+          96.66666666666667
+        ],
+        [
+          0.0,
+          96.66666666666667
+        ],
+        [
+          0.0,
+          96.66666666666667
+        ]
+      ],
+      "T50-none-gc10": [
+        [
+          6026.333333333333,
+          10478.666666666666
+        ],
+        [
+          5671.333333333333,
+          12055.666666666666
+        ],
+        [
+          5971.666666666667,
+          11787.666666666666
+        ],
+        [
+          5871.333333333333,
+          12021.0
+        ],
+        [
+          5865.0,
+          11203.333333333334
+        ],
+        [
+          5576.333333333333,
+          11905.333333333334
+        ]
+      ],
+      "T50-wait10msR-gc10": [
+        [
+          0.0,
+          99.0
+        ],
+        [
+          0.0,
+          99.0
+        ],
+        [
+          0.0,
+          98.33333333333333
+        ],
+        [
+          0.0,
+          98.66666666666667
+        ],
+        [
+          0.0,
+          99.0
+        ],
+        [
+          0.0,
+          99.0
+        ]
+      ],
+      "T95-none-gc10": [
+        [
+          2444.3333333333335,
+          49718.0
+        ],
+        [
+          2447.6666666666665,
+          48722.333333333336
+        ],
+        [
+          2422.3333333333335,
+          49897.333333333336
+        ],
+        [
+          2425.6666666666665,
+          50106.0
+        ],
+        [
+          2449.0,
+          50276.0
+        ],
+        [
+          2439.3333333333335,
+          41580.0
+        ]
+      ],
+      "T95-wait10msR-gc10": [
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ],
+        [
+          0.0,
+          99.66666666666667
+        ]
+      ]
+    },
+    {
+      "S0-none-gc10": [
+        [
+          358.2482482482483,
+          392.31487813750454
+        ],
+        [
+          360.39882423675596,
+          375.15216625572384
+        ],
+        [
+          339.3438946015424,
+          358.7336846372112
+        ],
+        [
+          369.39369486425494,
+          375.2408935685828
+        ],
+        [
+          342.61167901865576,
+          371.1659773917838
+        ],
+        [
+          351.8672107785983,
+          323.558262454435
+        ]
+      ],
+      "S0-wait10msR-gc10": [
+        [
+          null,
+          14145.518394648829
+        ],
+        [
+          null,
+          14313.752508361204
+        ],
+        [
+          null,
+          14384.658783783783
+        ],
+        [
+          null,
+          14345.819397993311
+        ],
+        [
+          null,
+          14250.91973244147
+        ],
+        [
+          null,
+          14193.498327759198
+        ]
+      ],
+      "S50-none-gc10": [
+        [
+          211.72577809038157,
+          84.13516163828326
+        ],
+        [
+          221.11362912400455,
+          90.12958380202474
+        ],
+        [
+          222.47206691003188,
+          91.7479943201988
+        ],
+        [
+          224.170203969129,
+          83.76416157064692
+        ],
+        [
+          216.7121151001748,
+          101.27973308137474
+        ],
+        [
+          214.260400070809,
+          87.79833736039065
+        ]
+      ],
+      "S50-wait10msR-gc10": [
+        [
+          null,
+          13927.799331103679
+        ],
+        [
+          null,
+          14320.157190635451
+        ],
+        [
+          null,
+          13809.096989966556
+        ],
+        [
+          null,
+          14181.585284280936
+        ],
+        [
+          null,
+          14375.545150501672
+        ],
+        [
+          null,
+          14009.244147157191
+        ]
+      ],
+      "S95-none-gc10": [
+        [
+          811.2626966739693,
+          39.2455881999856
+        ],
+        [
+          802.7112887112887,
+          34.67047393987134
+        ],
+        [
+          803.6745728643216,
+          35.14914157820514
+        ],
+        [
+          810.4835784807576,
+          35.37801923862372
+        ],
+        [
+          806.6060362173038,
+          35.51112802514553
+        ],
+        [
+          826.2661666328806,
+          35.87664010417404
+        ]
+      ],
+      "S95-wait10msR-gc10": [
+        [
+          null,
+          13166.307692307691
+        ],
+        [
+          null,
+          13092.90635451505
+        ],
+        [
+          null,
+          13397.454237288135
+        ],
+        [
+          null,
+          13109.060200668897
+        ],
+        [
+          null,
+          13070.33779264214
+        ],
+        [
+          null,
+          12960.484949832777
+        ]
+      ],
+      "T0-none-gc10": [
+        [
+          193.42454420701824,
+          183.2613922177837
+        ],
+        [
+          200.16161939432732,
+          195.43948592604272
+        ],
+        [
+          172.65501165501166,
+          208.64197270889488
+        ],
+        [
+          186.60490155479425,
+          179.29778599123094
+        ],
+        [
+          193.5287374310419,
+          221.45802984544324
+        ],
+        [
+          202.12225196722642,
+          184.68957978210923
+        ]
+      ],
+      "T0-wait10msR-gc10": [
+        [
+          null,
+          13691.519031141868
+        ],
+        [
+          null,
+          13733.134948096886
+        ],
+        [
+          null,
+          13473.631034482758
+        ],
+        [
+          null,
+          13445.210344827587
+        ],
+        [
+          null,
+          13715.886206896552
+        ],
+        [
+          null,
+          13545.758620689656
+        ]
+      ],
+      "T50-none-gc10": [
+        [
+          259.73842579788703,
+          153.67149128387837
+        ],
+        [
+          275.71693899141883,
+          135.43498216606298
+        ],
+        [
+          261.53223555679597,
+          138.1878799875576
+        ],
+        [
+          266.3012944248893,
+          134.82968693674957
+        ],
+        [
+          267.8949133276499,
+          143.8333531686998
+        ],
+        [
+          284.4481439416582,
+          137.87996976145146
+        ]
+      ],
+      "T50-wait10msR-gc10": [
+        [
+          null,
+          12703.39393939394
+        ],
+        [
+          null,
+          12504.390572390572
+        ],
+        [
+          null,
+          12808.403389830508
+        ],
+        [
+          null,
+          12654.43918918919
+        ],
+        [
+          null,
+          12779.262626262625
+        ],
+        [
+          null,
+          12540.851851851852
+        ]
+      ],
+      "T95-none-gc10": [
+        [
+          526.909995908905,
+          31.395450339917133
+        ],
+        [
+          523.2328748467928,
+          31.91397511066109
+        ],
+        [
+          531.060547681299,
+          31.34506854073698
+        ],
+        [
+          528.1679263432733,
+          31.254181135991697
+        ],
+        [
+          525.6311419627059,
+          31.109734266847006
+        ],
+        [
+          529.7775348455863,
+          37.3309443642777
+        ]
+      ],
+      "T95-wait10msR-gc10": [
+        [
+          null,
+          12451.013377926422
+        ],
+        [
+          null,
+          12246.418060200669
+        ],
+        [
+          null,
+          12563.528428093645
+        ],
+        [
+          null,
+          12750.08026755853
+        ],
+        [
+          null,
+          12625.652173913044
+        ],
+        [
+          null,
+          12389.802675585284
+        ]
+      ]
+    }
+  ]
+}

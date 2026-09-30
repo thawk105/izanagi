@@ -1,0 +1,43 @@
+scoped-acceptance md_1: 変更が docs・insight・台帳に閉じた wave は、全テストでなく「その面を読むテスト」だけで受入できるようにする
+
+(2026-09-29、ユーザー依頼により親セッション manager: vhash が作成。CLAUDE.md の絶対規律と dev-wave の契約はこの file より常に優先する。ただし本 wave はその契約の一部を変える提案と実装を行う)
+
+■ ユーザーの指示 (2026-09-29 夜、逐語)
+「あなたとやっている仕事ってさ、これまで昔からあった izanagi のテストを回さなくても問題ない話だよね？なぜなら izanagi システムとあまり関係ないじゃん？
+あなたと私と dev-wave で試行錯誤して知識を izanagi に蓄積させてるだけでしょ？つまり、特定スタイルの開発であったら main land めっちゃ早く終わらせられるよね？
+そういうことがすでに dev-wave スキル定義でわかっていそうなのか、わかっていそうでなければわからせてやりたい」
+→ この指示を decisions fragment にユーザー裁定として記録し、本 wave の根拠にする。
+
+■ 現状 (親が確かめた事実)
+- `docs/dev-wave/core.md` の DW-S04 は「実装面の差分ゼロの wave だけ変異 matrix を免除する。受入全走は免除せず」と定めている。
+- `tools/dev_wave_land.py` は `dev-wave-acceptance-receipt/v5` の受領証 (受入 command は `python3 tools/run_tests.py` の完全一致) を構造上必須とし、docs-only の免除経路はコードに無い。
+- 2026-09-29 の VHash の docs-only land は、計算ノードの混雑と非帰属の赤で受入に約 5 時間かかった (テストは 1 回約 2〜13 分、残りは queue 待ちと再投入)。
+- 実 repo を読むテストの一覧は `orchestrator/tests/conftest.py` の `_REAL_REPO_NODE_INVENTORY` にある。
+- ただし「docs だけなら無関係」とは限らない: 実 repo の docs・insights・patches/ledger.json を読むテスト、check_docs の pin、inventory テストがある。VHash の wave でも、検査器 (orchestrator/verifier/)・計測 driver・tools/ のモデル・patch 台帳を触るものは izanagi 本体の検査の対象である。
+
+■ 目的
+変更面が機械的に「知識の蓄積面」(docs/**、output/insights/**、docs/spool/**、など段 2〜4 で決める閉じた allowlist) に閉じていると判定できる wave は、
+全テストの受入の代わりに「その面を読むテスト + docs の検査」だけの縮小受入で land できるようにする。それ以外 (実装面が 1 byte でもある wave) は従来どおり全テストの受入を要求する (fail-closed)。
+
+■ やること
+1. 分類器: 受入の対象 tip と main の merge-base からの変更 path を機械で数え、allowlist に完全に閉じているかを判定する。wave の自己申告にしない。path の判定は D95 決定 2 の「実装面」の定義と整合させる (実装面かどうかは path で決まる)。allowlist の候補と、入れてはいけないもの (tools/・orchestrator/・hooks/・patches/・.claude/・docs/dev-wave/ の exact pin された節・台帳 canonical など) を段 2〜3 で攻めさせて決める。
+2. 縮小受入の中身: `_REAL_REPO_NODE_INVENTORY` のテスト、docs を読むテスト (check_docs とその test、spool fold の検査、provenance 監査、inventory 系)、変更 path を literal で参照するテストの集合。何を入れるかの規則を書き、漏れを攻めさせる (段 3 に「縮小で見逃す赤」を探すレンズを置く)。
+3. 受領証と land: 縮小受入の受領証の schema (例: 受入の種類と分類器の判定結果と変更 path の digest を持つ) と、`tools/dev_wave_land.py` がそれを受け取る条件 (分類器を land の lock 内で再実行して同じ判定になること、実装面が混ざったら拒否) を設計・実装する。Codex author。
+4. 正例・負例: (a) docs だけの変更が縮小受入で land できる、(b) 実装面を 1 file 混ぜると縮小受入の受領証を land が拒否する、(c) allowlist 内でも実 repo 読みテストを壊す docs 変更 (例: pin された節の改変) は縮小受入で赤になる、を実物で確かめる。変異で分類器と land の拒否を崩して、テストが赤になることも確かめる。
+5. 手順書: DW-S04 と dev-wave の手順、`docs/pegasus-runbook.md` の受入の節を改める。DW-S04 など exact pin された節の編集は Codex author と fixture placeholder の手順に従う (docs/dev-wave の byte 予算も守る)。
+6. 効果: 縮小受入の所要と、同じ tip の全受入の所要を比べる (同時刻の対照、混雑の影響を明記)。
+
+■ 守ること
+- D747 (受入の高速化手段としてテスト削除を採らない) と矛盾しない形にする: テストは削らず、変更面に応じて回す集合を選ぶだけ。全テストは実装面を含む wave が引き続き回す。この差を decisions に書く。
+- 絶対規律 2・3: 正しさの門 (検査器・trace・受領証・事前登録・凍結) に触れる path は必ず全受入の側に入れる。
+- 迷ったら全受入に倒す (fail-closed)。
+
+■ 成果物
+- 分類器・縮小受入・land の変更とテスト (Codex author)、手順書の改訂。
+- 一次資料: output/insights/<着手日>/scoped-acceptance/README.md (設計、allowlist と除外の根拠、縮小集合の規則、正例・負例、変異、効果の実測、限界)。
+- decisions fragment (ユーザー裁定の記録と設計の選択)、worklog fragment。
+
+■ 注意
+- 受入・land という全 wave が通る経路を変えるので、dev-wave は全 9 段で行う (ユーザーの明示が無くても、正しさ防壁と受理集合を変える wave なので段 2・3・6 と変異を省かない)。
+- 本 wave 自身の land は従来の全受入で行う。
+- land は land 調整役「manager: parallel land」へ LAND-READY を申告して GO を待つ。撤去は CLEANUP-READY。

@@ -672,6 +672,12 @@ def test_screening_condition_requests_cover_exact_define_specs():
         macro: screening_driver._CONDITION_DEFAULTS[macro]
         for macro in (
             "CICADA_FWD_ENABLE",
+            "CICADA_VHASH_K",
+            "CICADA_VHASH_COUNT",
+            "CICADA_VHASH_WL",
+            "IZANAGI_CICADA_RO_GCFLAG",
+            "IZANAGI_CICADA_RO_GCFLAG_COUNT",
+            "IZANAGI_CICADA_ROGC_WORKLOAD",
             "CICADA_FWD_COUNT",
             "CICADA_LONGTX",
             "CICADA_GC_SAFEPOINT",
@@ -684,6 +690,12 @@ def test_screening_condition_requests_cover_exact_define_specs():
         )
     } == {
         "CICADA_FWD_ENABLE": 0,
+        "CICADA_VHASH_K": 0,
+        "CICADA_VHASH_COUNT": 0,
+        "CICADA_VHASH_WL": 0,
+        "IZANAGI_CICADA_RO_GCFLAG": 0,
+        "IZANAGI_CICADA_RO_GCFLAG_COUNT": 0,
+        "IZANAGI_CICADA_ROGC_WORKLOAD": 0,
         "CICADA_FWD_COUNT": 0,
         "CICADA_LONGTX": 0,
         "CICADA_GC_SAFEPOINT": 0,

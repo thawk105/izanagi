@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 73 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Fifty-five
+Claim boundary: the supply domain contains the 79 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Sixty-one
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -80,6 +80,19 @@ _SI_OWNER = ("cc/si/transaction.cc",)
 _CICADA_OWNER = ("cc/cicada/transaction.cc",)
 _CICADA_YCSB_OWNER = ("cc/cicada/ycsb_cicada.cc",)
 _DEFINE_SPECS = {
+    "IZANAGI_CICADA_RO_GCFLAG": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ro-gcflag-variant.patch", inert_values=("0",),
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ro-gcflag-variant.patch",
+        companion_defines=(("IZANAGI_CICADA_RO_GCFLAG", "1"),), inert_values=("0",),
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ro-gcflag-workload.patch", inert_values=("0",),
+    ),
     "IZANAGI_CICADA_VLIFE": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
         "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
@@ -261,6 +274,19 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
         "patches/cicada-forwarding-variant.patch",
     ),
+    "CICADA_VHASH_K": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-vhash-hot-block-variant.patch",
+    ),
+    "CICADA_VHASH_COUNT": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-vhash-hot-block-variant.patch",
+        companion_defines=(("CICADA_VHASH_K", "1"),),
+    ),
+    "CICADA_VHASH_WL": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-vhash-hot-block-variant.patch",
+    ),
     "CICADA_FWD_COUNT": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
         "patches/cicada-forwarding-variant.patch",
@@ -409,6 +435,15 @@ def _request_spec(request: DefineRequest) -> DefineSpec:
     return DEFINE_SPECS[request.macro]
 SUPPLY_DOMAIN_MACROS = frozenset(DEFINE_SPECS)
 _CONDITIONAL_BRANCH_WITNESSES = {
+    "IZANAGI_CICADA_RO_GCFLAG": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG",
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG_COUNT",
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD",
+    ),
     "IZANAGI_CICADA_VLIFE": (
         "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE",
     ),
@@ -465,6 +500,15 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
     "CICADA_FWD_ENABLE": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE",
+    ),
+    "CICADA_VHASH_K": (
+        "cc/cicada/transaction.cc", "#if CICADA_VHASH_K",
+    ),
+    "CICADA_VHASH_COUNT": (
+        "cc/cicada/transaction.cc", "#if CICADA_VHASH_COUNT",
+    ),
+    "CICADA_VHASH_WL": (
+        "cc/cicada/transaction.cc", "#if CICADA_VHASH_WL",
     ),
     "CICADA_FWD_COUNT": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_COUNT",
@@ -602,7 +646,13 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_BREAK_MOCC_NEGATED_TEMPERATURE_PREDICATE": 9,
     "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS": 7,
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": 5,
+    "IZANAGI_CICADA_RO_GCFLAG": 1,
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": 3,
+    "IZANAGI_CICADA_ROGC_WORKLOAD": 2,
     "CICADA_FWD_ENABLE": 11,
+    "CICADA_VHASH_K": 9,
+    "CICADA_VHASH_COUNT": 19,
+    "CICADA_VHASH_WL": 4,
     "CICADA_FWD_COUNT": 4,
     "CICADA_LONGTX": 4,
     "CICADA_GC_SAFEPOINT": 3,
@@ -614,6 +664,12 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "CICADA_INTERVAL_LONGTX": 2,
 }
 _CONDITIONAL_BRANCH_COMPANION_SITES = {
+    "CICADA_VHASH_K": (("cc/cicada/include/tuple.hh", "#if CICADA_VHASH_K", 3),),
+    "CICADA_VHASH_COUNT": (("cc/cicada/include/transaction.hh", "#if CICADA_VHASH_COUNT", 1),),
+    "CICADA_VHASH_WL": (("cc/cicada/include/transaction.hh", "#if CICADA_VHASH_WL", 1),),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        ("include/ycsb.hh", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 7),
+    ),
     "IZANAGI_CICADA_VLIFE": (
         ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 9),
     ),
@@ -1233,14 +1289,14 @@ def make_define_request(
     stock_comparison: bool = False,
     protocol: str = "silo",
 ) -> DefineRequest:
-    """Construct a request from the independently declared 73-macro supply domain."""
+    """Construct a request from the independently declared 79-macro supply domain."""
     try:
         if protocol not in ("silo", "mocc") or (protocol == "mocc" and macro != "BACKOFF_FIXED"):
             raise KeyError(protocol)
         spec = _MOCC_BACKOFF_SPEC if protocol == "mocc" else DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", f"macro is outside the 73-macro domain: {macro!r}",
+            "request-contract-invalid", f"macro is outside the 79-macro domain: {macro!r}",
         ) from exc
     if len(spec.owner_tus) != 1:
         raise ConditionMeaningGateError(
@@ -1310,7 +1366,7 @@ def _validate_define_request(request: DefineRequest) -> tuple[DefineSpec, str, s
         spec = _request_spec(request)
     except KeyError as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", "macro is outside the 73-macro domain",
+            "request-contract-invalid", "macro is outside the 79-macro domain",
         ) from exc
     if request.route != spec.route:
         raise ConditionMeaningGateError(

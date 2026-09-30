@@ -1,0 +1,31 @@
+fix(mocc): recheck the read-set version after the lock check in validation
+
+MOCC keeps a record's version (tidword_) and its writer lock (rwlock_)
+in separate words, so the read-set check in validation() loads the
+version, compares it with the version seen in the read phase, and then
+loads the lock counter in a second load. A concurrent writer can publish
+a new version and unlock the record between these two loads. The reader
+then sees an unchanged version and an unlocked record, and commits even
+though the value it read has been overwritten. Because max_rset_ was
+computed from a third load of the version, the reader also took the
+writer's new version into max_rset_ and chose a commit TID later than
+the writer's.
+
+If this happens on one read-write edge of two transactions that read
+what the other writes, both can commit a write skew (G2). On a
+read-heavy YCSB setting (48 threads, 1,000,000 records, 95% reads,
+zipf 0.9) a serializability checker found five such G2 cycles, and a
+diagnostic probe tied each of them to this window on one edge (two
+observed directly, three inferred from the order of the loads).
+
+Load the version again after the lock check and abort, with the same
+abort state and ADD_ANALYSIS counter as the existing version-mismatch
+check, if its epoch or TID differs from the version that was checked.
+Compute max_rset_ from the checked version, as Silo does with its
+single tidword load. The existing checks are unchanged; the new check
+only adds a reason to abort, and max_rset_ now comes from the checked
+version instead of a later load.
+
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-5-1m; reasoning=unknown; role=manager

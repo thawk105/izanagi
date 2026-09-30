@@ -1,0 +1,3511 @@
+{
+  "new_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+  "parent_oid": "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+  "host": "bnode073",
+  "builds": {
+    "canonical-01": {
+      "label": "canonical-01",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-01-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-01-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-01-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-01",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-01-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-01-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-01-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7658501870027976,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-01.configure.log",
+        "log_sha256": "f3910042369a0559a019ab487f1f4b841a52534ae57c69a8436d2406117e9c64"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.63292060099775,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-01.build.log",
+        "log_sha256": "e175178a271ae851edd4d6d3b41db227d230e004e53bf85165778013cd5630c1"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "1b343902352d206aee49e33878d9fd7df9ba760f7a691b8676e6be3f4316d8bf"
+    },
+    "canonical-02": {
+      "label": "canonical-02",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-02-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-02-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-02-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-02",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-02-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-02-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-02-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654181889956817,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-02.configure.log",
+        "log_sha256": "0c0f33b46ca1acce0c66a5a99ca2d232a0e93ac5e555516bd92124f13c5dbd96"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.733598257997073,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-02.build.log",
+        "log_sha256": "8af306ef09ca6687aaa0979b32b434a7f81774f9fea49598be6827fb7f09a8e4"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "fed5169428eec1bacb73e234a90e900c1ec7bcea7a93373f0087da1ddcfa7dbd"
+    },
+    "canonical-00": {
+      "label": "canonical-00",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-00-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-00-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-00-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-00",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-00-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-00-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-00-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654414080025163,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-00.configure.log",
+        "log_sha256": "295ddad4ec3dafe102a933cf2eb5de7f622d5317bf9d91225df4b5b7b4525dee"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 14.138972596992971,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-00.build.log",
+        "log_sha256": "8af306ef09ca6687aaa0979b32b434a7f81774f9fea49598be6827fb7f09a8e4"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "53c2af6613714c97c9eb1ca45a1dd2ddf0596d40d35f8906fd76ddcfcfaab41c"
+    },
+    "canonical-03": {
+      "label": "canonical-03",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-03-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-03-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-03-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-03",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-03-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-03-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-03-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7655131149949739,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-03.configure.log",
+        "log_sha256": "de3d46e974a425142e2404f95b3f81f3f8999068c8b707618336652b278ecf8d"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 14.24117439899419,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-03.build.log",
+        "log_sha256": "ac79e55c13daf5a920cb2614ea3d23bca5582e6d6f631acf6fcc6a4366c80271"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "895185b19f5a0005bf4855c5f477717a8658cf56062653b852790436bede4976"
+    },
+    "canonical-04": {
+      "label": "canonical-04",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-04-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-04-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-04-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-04",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-04-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-04-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-04-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.765403505996801,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-04.configure.log",
+        "log_sha256": "71960835dc6d17c601ebe6aa92fe788f3847fb195528be6e95b8d80695cd9263"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.633800704003079,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-04.build.log",
+        "log_sha256": "757e311046db8eda44acd1ec4177d3b4f6b44841dada54947b244a89e9d196a2"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "0e1d60dc9e0da1e1397be466d33d193f569afc421c08453290758a245ea10876"
+    },
+    "canonical-05": {
+      "label": "canonical-05",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-05-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-05-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-05-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-05",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-05-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-05-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-05-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654820860043401,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-05.configure.log",
+        "log_sha256": "960573dc3c828bd8b8a8ce4820e8ac415f3b11d7512a01178309fec63360c2a5"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.636473777005449,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-05.build.log",
+        "log_sha256": "9ad73ee0fc6797d47c7a83959824758e05b0703d29b2b75f903772c51082d2b4"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "0fc4d28707d5034a1e3ea474cb3946ea506d39b3e4a7f1f186aa43ca985824b1"
+    },
+    "canonical-06": {
+      "label": "canonical-06",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-06-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-06-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-06-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-06",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-06-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-06-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-06-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7656862459989497,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-06.configure.log",
+        "log_sha256": "f0e58e06e91f5e6f00bac924440530ca07c9ba9c58ad7a550fe9eb805652186a"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.734804097999586,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-06.build.log",
+        "log_sha256": "8ecd6e7c56df4be27569e06cccbfba73333e539dad8249dbb9c50ed426e1fc1f"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "4cab465c3d612814e64bc8522ec7aaa23e7e77f84afa62ae815f7431941a7cfa"
+    },
+    "canonical-07": {
+      "label": "canonical-07",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-07-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-07-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-07-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-07",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-07-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-07-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-07-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7155172280035913,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-07.configure.log",
+        "log_sha256": "5053e5288b556f31bcffa2e7eb4d0a9a2a6872936b99a64cf07cde0aa2276d48"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.840422287001275,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-07.build.log",
+        "log_sha256": "12a074e1d8b7d9c861c4d0788fd3119d372777da51986653f5cbcefe5fb9c79f"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "c05f6d587a2735c98973a558085097b4f31439402ec9923c31473433db8ac9f7"
+    },
+    "canonical-08": {
+      "label": "canonical-08",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-08-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-08-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-08-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-08",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-08-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-08-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-08-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7655838879873045,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-08.configure.log",
+        "log_sha256": "a50f71b5f39490f719d7f6d7eb9aa8268112e828915cf56ab03e36e05f0dadfb"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.634097117988858,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-08.build.log",
+        "log_sha256": "219673a4eb2addb04c72d8bc5ab29e10f61c2d15c4bae06f6d423ac85f353934"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "fb917aade5186c1610210e7c7c2516c01168772fa59d57d954fb8a6ad2a52547"
+    },
+    "canonical-09": {
+      "label": "canonical-09",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-09-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-09-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-09-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-09",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-09-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-09-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-09-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.765662064004573,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-09.configure.log",
+        "log_sha256": "66e1b9b8ff3810f4d3325c3c5788a2620acf0d9866fe93ba29ff902804b36bb8"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.585934602990164,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-09.build.log",
+        "log_sha256": "28586bec0e95f315e25b3c1fe50f7e7c08b944948dcb6d778efbc88e0a117aaf"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "21e5507e4ae5e2e81bf2a252a9206b07421474cd89a381e1ca9f1d694919a02b"
+    },
+    "canonical-10": {
+      "label": "canonical-10",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-10-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-10-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-10-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-10",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-10-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-10-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-10-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.715577173003112,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-10.configure.log",
+        "log_sha256": "b136cb150deee3816b2365a972c38d9c380862317f4bba3a89927d282e3d8a92"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.684864426992135,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-10.build.log",
+        "log_sha256": "757e311046db8eda44acd1ec4177d3b4f6b44841dada54947b244a89e9d196a2"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "5e3ce224b6d94ccc9fc4d5e426acbc330ff1c6c8b581ce1cfbf21bc2079b7625"
+    },
+    "canonical-11": {
+      "label": "canonical-11",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-11-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-11-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-11-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-11",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-11-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-11-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-11-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7656126189976931,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-11.configure.log",
+        "log_sha256": "dbbb708a973c70349476870f698a659977be954461bff8df18985e7277c74190"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.802298848007922,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-11.build.log",
+        "log_sha256": "f39b363bcda80a45d9c4eb8b0d3e97909e113f76a4417e0f3a1a30bbc886fc69"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "3a9656dd174b56fb00ee066b73aeef3cde93535d9708fbbe0f80f3809cab57b1"
+    },
+    "canonical-12": {
+      "label": "canonical-12",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-12-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-12-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-12-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-12",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-12-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-12-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-12-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7656019480054965,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-12.configure.log",
+        "log_sha256": "2ed3efc074fff164d8893e656fbc01a9a091f63e79080e195c5f5ef8998a9b3d"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.584790928987786,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-12.build.log",
+        "log_sha256": "efa83a77030b97b89ff5d8a220864a4a13f46fac65c0cbe738372f246bede430"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "ffbcaca035d40f8a6c103efaadaacf17708ed850faad2920f8a251bd9cc55c0c"
+    },
+    "canonical-13": {
+      "label": "canonical-13",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-13-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-13-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-13-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-13",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-13-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-13-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-13-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7154838239948731,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-13.configure.log",
+        "log_sha256": "667568cf18acbcded59218d43f2498765b756b0343ba290e3971daf0977f712a"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.63957488599408,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-13.build.log",
+        "log_sha256": "3cf7ff939f26026ba1aa263499d99c9f7125e185c3dddef43aa0249877bf4dce"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "acac8ac2422b9a3260f0ebd18f51bef21063d5bec7628ae18c9b6f39ea31fc65"
+    },
+    "canonical-14": {
+      "label": "canonical-14",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-14-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-14-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-14-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-14",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-14-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-14-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-14-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7655174770043232,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-14.configure.log",
+        "log_sha256": "e7b440178a2ecef71825198a0dcfdf1b3ac09eed3f6af72ab6e8a1a70411aaae"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.691203879003297,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-14.build.log",
+        "log_sha256": "20fa1d70a82dcea194e922f74af8e98f67237ffb3d9a0713631c39145b525e50"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "653f877f7fd5bd4a17a1e29e058e7fa6b2dd9f870ee56201bf15c9d6f537127c"
+    },
+    "canonical-15": {
+      "label": "canonical-15",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-15-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-15-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-15-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-15",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-15-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-15-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-15-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7656154159922153,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-15.configure.log",
+        "log_sha256": "87b3e10f0e1f680d794734abbfcdc8c4d6b75d80967b5ec0dbd1020fd1187526"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.805514659004984,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-15.build.log",
+        "log_sha256": "df03ef502c5429929209245eb56e6acfa8d556ba6a7dedcacee4a5e509b5b415"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "9e91277971021719b7cf70bffb762ae5f8151e6ea3d28dc074fd9bcb66bf33bb"
+    },
+    "canonical-16": {
+      "label": "canonical-16",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-16-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-16-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-16-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-16",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-16-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-16-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-16-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7655604900064645,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-16.configure.log",
+        "log_sha256": "50c5b34d84ab353c14ea076c01f9e2ba95198c7740b9a530b7a4e92eb3c03277"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.63461886398727,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-16.build.log",
+        "log_sha256": "fd1b6463ea8820d4a148ca26cba67f106ae6cd5b443a4251f1955c02977135a9"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "5a74c78d3ef79d684b1365a424369e445c010b7fdcd6ac62e4094c96d6def0b9"
+    },
+    "canonical-17": {
+      "label": "canonical-17",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-17-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-17-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-17-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-17",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-17-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-17-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-17-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654055370076094,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-17.configure.log",
+        "log_sha256": "2ecf45b3a09192ae67822a34ea8483791a2122c07a8f94fbab65de66de69c2ed"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.64815811200242,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-17.build.log",
+        "log_sha256": "382923af4eb3e13e5b0edaffb469dca79096c3c0fa0d28d607e0164110ad0ad5"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "0659a765d37b7f3d49ce730497ec71f7a592257cc3e1f2d989c68137ebeced6e"
+    },
+    "canonical-18": {
+      "label": "canonical-18",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-18-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-18-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-18-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-18",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-18-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-18-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-18-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7657056719908724,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-18.configure.log",
+        "log_sha256": "22ad5557481bffd0c513410cc9d8a095ff42e4706c4afd815759a0985b53ccd6"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.645026011989103,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-18.build.log",
+        "log_sha256": "57b7e00c1e2d64f3ad2be07c7b794b3eb5174c32dc2faebfca2111448835a272"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "88f305baea3abb2886618f7a6829d6486bf4033aa837e2e713a297b069d08fe0"
+    },
+    "canonical-19": {
+      "label": "canonical-19",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-19-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-19-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-19-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-19",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-19-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-19-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-19-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7657165129930945,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-19.configure.log",
+        "log_sha256": "b5acc91bf79cf6c48fd6940ee88cb596351def483f4d4f3035287a4cd6f625ff"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.703977661003591,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-19.build.log",
+        "log_sha256": "7c9318ba07283e6bf21925f59825a7f83a3c00f05d29b006cb67e226e4bd29ee"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "bb8a1882f888555b2e01fb358779a97943f726dce068e3c0a32d837ba9f124d0"
+    },
+    "canonical-20": {
+      "label": "canonical-20",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-20-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-20-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-20-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-20",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-20-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-20-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-20-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.786785977994441,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-20.configure.log",
+        "log_sha256": "7d9818cee5b2acf365b8621a6feedeb536ed218126c0ef21bbcd7df106585dec"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.634091501997318,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-20.build.log",
+        "log_sha256": "2009c32e5115818ea9c1c79a22c83fa893da9f601a9c434c851c68dc032c06a8"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "e24abf75562dccf60c1882fdae04ca09dac1f2854f8a342d8f02b6ec438a93f2"
+    },
+    "canonical-21": {
+      "label": "canonical-21",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 0,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-21-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-21-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-21-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-21",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-21-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-21-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-21-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654429239919409,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-21.configure.log",
+        "log_sha256": "f3e42d63585b155e0d36d567aa2e1490e0fbe6b1b92ff66a80f0eb741122ed42"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.639137199003017,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-21.build.log",
+        "log_sha256": "62d961cadab37252f79de339534e7c3e4fd66b2e9d4d2732a4bfce1ba21af45a"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "0",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "0",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "c3253d906553831feba11906dca4303b46b664933be6a38f2c2a838fca66c4d8"
+    },
+    "canonical-22": {
+      "label": "canonical-22",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-22-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-22-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-22-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-22",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-22-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-22-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-22-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654891599959228,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-22.configure.log",
+        "log_sha256": "d0701435393b326deba824bcc460ce30f6fa8391c917836bf25b6a7d2b9fbb6a"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.693160341994371,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-22.build.log",
+        "log_sha256": "0673f3a67710ccd0d0f3f84f26dbc04501802e34860efae6b2275805ce7b32cd"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "07072bed19820388c37bc0ba9f07ef9d96f4a04b762d1f55fe1521c6e117d659"
+    },
+    "canonical-23": {
+      "label": "canonical-23",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 1
+      },
+      "analysis": 0,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-23-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-23-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/canonical-23-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-canonical-23",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/canonical-23-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/canonical-23-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/canonical-23-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=1",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654822960030288,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-23.configure.log",
+        "log_sha256": "0aa4adc7352fc596b63c9b18600fd7b2d88a8985be1570bc4f4e1e5e4b816f77"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.692396990998532,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/canonical-23.build.log",
+        "log_sha256": "3ac756d88e22c029571b50f226e7b16b790c4d9d483395f4ae56d779b4833e07"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "1"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "1"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "236f13b6099e469e52d0439ddbcafa2214e72237bd7b80b186eb6b013ae05a93"
+    },
+    "analysis-backoff-0": {
+      "label": "analysis-backoff-0",
+      "genome": {
+        "BACK_OFF": 0,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 1,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/analysis-backoff-0-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/analysis-backoff-0-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/analysis-backoff-0-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-analysis-backoff-0",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=1",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/analysis-backoff-0-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/analysis-backoff-0-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/analysis-backoff-0-googletest",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7393556320021162,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/analysis-backoff-0.configure.log",
+        "log_sha256": "04681dd67220480e8e04e38fccaa6c04452e114580accf57806fabc1399a615f"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.583229889001814,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/analysis-backoff-0.build.log",
+        "log_sha256": "3e921fcb15fa25eb9cb1500f3facb6193fe554d405795eb90962fff699eb908b"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "0",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "1",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "1",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "1",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "0",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "44fee640f36eb7372c34709d8707cf368731c768fe8781531b267eef1e24a8a8"
+    },
+    "analysis-backoff-1": {
+      "label": "analysis-backoff-1",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 1,
+        "INLINE_VERSION_PROMOTION": 1,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 1,
+      "wait": 0,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/analysis-backoff-1-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/analysis-backoff-1-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/analysis-backoff-1-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-analysis-backoff-1",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=1",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/analysis-backoff-1-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/analysis-backoff-1-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/analysis-backoff-1-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7654975810000906,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/analysis-backoff-1.configure.log",
+        "log_sha256": "6313bcc80a6624b13dd94c092043ef2072d77b4ec9a842d844fb1477508c92b8"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.588868192004156,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/analysis-backoff-1.build.log",
+        "log_sha256": "0d2b62288c522dc4f584f1049510aebd326e1bde7c720d42ecb1cbb22c0ab531"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "1",
+          "WORKER1_INSERT_DELAY_RPHASE": "0",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "1",
+          "INLINE_VERSION_PROMOTION": "1",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "1",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "1",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "1",
+            "WORKER1_INSERT_DELAY_RPHASE": "0",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "1",
+            "INLINE_VERSION_PROMOTION": "1",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "1e6f93c2ae9c7fd2d13373963399ad6b792cbc55f475571569e81bb1f3c605a7"
+    },
+    "w5": {
+      "label": "w5",
+      "genome": {
+        "BACK_OFF": 1,
+        "INLINE_VERSION_OPT": 0,
+        "INLINE_VERSION_PROMOTION": 0,
+        "REUSE_VERSION": 1,
+        "WRITE_LATEST_ONLY": 0
+      },
+      "analysis": 0,
+      "wait": 1,
+      "source_oid": "eb93423bbb27a2694d3d75861696c365f0fb8f7c",
+      "build_parallelism": 6,
+      "dependencies": {
+        "masstree": {
+          "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+          "source": "/scr/md19-genomes-yinkf3o3/w5-masstree"
+        },
+        "mimalloc": {
+          "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+          "source": "/scr/md19-genomes-yinkf3o3/w5-mimalloc"
+        },
+        "googletest": {
+          "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+          "source": "/scr/md19-genomes-yinkf3o3/w5-googletest"
+        }
+      },
+      "configure_argv": [
+        "cmake",
+        "-S",
+        "/scr/md19-genomes-yinkf3o3/ccbench",
+        "-B",
+        "/scr/md19-genomes-yinkf3o3/build-w5",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCCBENCH_CCACHE=OFF",
+        "-DCCBENCH_TRACE=0",
+        "-DCCBENCH_ADD_ANALYSIS=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DCMAKE_C_COMPILER_LAUNCHER=",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+        "-DCMAKE_TOOLCHAIN_FILE=",
+        "-DCMAKE_PREFIX_PATH=/scr/md19-genomes-yinkf3o3/gflags-install;/scr/md19-genomes-yinkf3o3/glog-install",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/md19-genomes-yinkf3o3/w5-masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/md19-genomes-yinkf3o3/w5-mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/md19-genomes-yinkf3o3/w5-googletest",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=1",
+        "-DCMAKE_CXX_FLAGS="
+      ],
+      "configure": {
+        "rc": 0,
+        "seconds": 0.7657102090015542,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5.configure.log",
+        "log_sha256": "2a43015815a2510cb017f7786e001874928989ba6f8095ab8f3eb8ab4a427a2d"
+      },
+      "build": {
+        "rc": 0,
+        "seconds": 13.587910421003471,
+        "log": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5.build.log",
+        "log_sha256": "238ca998cbc72f79436039415d87b9f147e8e0406d0c25932dfdc4edeac89fbc"
+      },
+      "compile_command_binding": {
+        "expected_defines": {
+          "TRACE": "0",
+          "ADD_ANALYSIS": "0",
+          "WORKER1_INSERT_DELAY_RPHASE": "1",
+          "BACK_OFF": "1",
+          "INLINE_VERSION_OPT": "0",
+          "INLINE_VERSION_PROMOTION": "0",
+          "REUSE_VERSION": "1",
+          "WRITE_LATEST_ONLY": "0"
+        },
+        "translation_units": {
+          "ycsb_cicada.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "1",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "transaction.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "1",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          },
+          "util.cc": {
+            "TRACE": "0",
+            "ADD_ANALYSIS": "0",
+            "WORKER1_INSERT_DELAY_RPHASE": "1",
+            "BACK_OFF": "1",
+            "INLINE_VERSION_OPT": "0",
+            "INLINE_VERSION_PROMOTION": "0",
+            "REUSE_VERSION": "1",
+            "WRITE_LATEST_ONLY": "0"
+          }
+        },
+        "valid": true
+      },
+      "binary_sha256": "41e9532326de0c8dc447033607391350cf7f3917bb270bcb78a34074be167b44"
+    }
+  },
+  "runs": [
+    {
+      "thread": 2,
+      "delay_us": 0,
+      "repeat": 1,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=2",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=0"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay0-r1.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay0-r1.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t2",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 211411.0,
+      "commit_count": 211411,
+      "abort_count": 1956,
+      "flags_valid": true,
+      "seconds": 1.589187049001339
+    },
+    {
+      "thread": 2,
+      "delay_us": 100000,
+      "repeat": 1,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=2",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=100000"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay100000-r1.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay100000-r1.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t2",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t100000",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 150862.0,
+      "commit_count": 150862,
+      "abort_count": 10,
+      "flags_valid": true,
+      "seconds": 1.573408266005572
+    },
+    {
+      "thread": 2,
+      "delay_us": 0,
+      "repeat": 2,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=2",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=0"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay0-r2.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay0-r2.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t2",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 212044.0,
+      "commit_count": 212044,
+      "abort_count": 1906,
+      "flags_valid": true,
+      "seconds": 1.5664584859914612
+    },
+    {
+      "thread": 2,
+      "delay_us": 100000,
+      "repeat": 2,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=2",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=100000"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay100000-r2.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay100000-r2.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t2",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t100000",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 150007.0,
+      "commit_count": 150007,
+      "abort_count": 9,
+      "flags_valid": true,
+      "seconds": 1.585048969995114
+    },
+    {
+      "thread": 2,
+      "delay_us": 0,
+      "repeat": 3,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=2",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=0"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay0-r3.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay0-r3.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t2",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 211586.0,
+      "commit_count": 211586,
+      "abort_count": 1888,
+      "flags_valid": true,
+      "seconds": 1.5634534179989714
+    },
+    {
+      "thread": 2,
+      "delay_us": 100000,
+      "repeat": 3,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=2",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=100000"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay100000-r3.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t2-delay100000-r3.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t2",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t100000",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 150177.0,
+      "commit_count": 150177,
+      "abort_count": 10,
+      "flags_valid": true,
+      "seconds": 1.5765750609862152
+    },
+    {
+      "thread": 1,
+      "delay_us": 0,
+      "repeat": 1,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=1",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=0"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t1-delay0-r1.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t1-delay0-r1.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t1",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t0",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 185839.0,
+      "commit_count": 185839,
+      "abort_count": 0,
+      "flags_valid": true,
+      "seconds": 1.575179085994023
+    },
+    {
+      "thread": 1,
+      "delay_us": 100000,
+      "repeat": 1,
+      "argv": [
+        "/scr/md19-genomes-yinkf3o3/build-w5/cc/cicada/ycsb_cicada.exe",
+        "-thread_num=1",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-gc_inter_us=10",
+        "-extime=1",
+        "-clocks_per_us=2100",
+        "-worker1_insert_delay_rphase_us=100000"
+      ],
+      "rc": 0,
+      "stdout": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t1-delay100000-r1.stdout",
+      "stderr": "/work/1/SFC/tanab/tmp/ccbench-cicada-bugfix-20260929/evidence/build-1/w5-t1-delay100000-r1.stderr",
+      "flags_raw": [
+        "#FLAGS_clocks_per_us:\t\t\t2100",
+        "#FLAGS_extime:\t\t\t\t1",
+        "#FLAGS_gc_inter_us:\t\t\t10",
+        "#FLAGS_group_commit:\t\t\t0",
+        "#FLAGS_group_commit_timeout_us:\t\t2",
+        "#FLAGS_io_time_ns:\t\t\t5",
+        "#FLAGS_pre_reserve_version:\t\t10000",
+        "#FLAGS_p_wal:\t\t\t\t0",
+        "#FLAGS_s_wal:\t\t\t\t0",
+        "#FLAGS_thread_num:\t\t\t1",
+        "#FLAGS_ycsb:\t\t\t\t1",
+        "#FLAGS_worker1_insert_delay_rphase_us:\t100000",
+        "#FLAGS_ycsb_max_ope:\t10",
+        "#FLAGS_ycsb_rmw:\t0",
+        "#FLAGS_ycsb_rratio:\t50",
+        "#FLAGS_ycsb_tuple_num:\t1000000",
+        "#FLAGS_ycsb_zipf_skew:\t0.9"
+      ],
+      "throughput_tps": 185791.0,
+      "commit_count": 185791,
+      "abort_count": 0,
+      "flags_valid": true,
+      "seconds": 1.5647476560116047
+    }
+  ],
+  "prediction": {
+    "statement": "t2 delayed near t1 (+ at most 10 commits); t2 zero approximately twice t1; t1 insensitive to flag",
+    "median_tps": {
+      "t1_d0": 185839.0,
+      "t1_d100000": 185791.0,
+      "t2_d0": 211586.0,
+      "t2_d100000": 150177.0
+    },
+    "t2_zero_to_t1_zero_ratio": 1.1385446542437272,
+    "t1_delayed_to_zero_ratio": 0.9997417119119237,
+    "delayed_t2_minus_t1_commit_counts": [
+      -34929,
+      -35784,
+      -35614
+    ],
+    "all_delayed_t2_within_t1_plus_10_commits": true
+  },
+  "toolchain": {
+    "version_body_sha256": {
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11"
+  },
+  "dependency_sources": {
+    "masstree": "/scr/md19-genomes-yinkf3o3/thirdparty-src/masstree",
+    "mimalloc": "/scr/md19-genomes-yinkf3o3/thirdparty-src/mimalloc",
+    "googletest": "/scr/md19-genomes-yinkf3o3/thirdparty-src/googletest",
+    "gflags": "/scr/md19-genomes-yinkf3o3/gflags-install",
+    "glog": "/scr/md19-genomes-yinkf3o3/glog-install"
+  },
+  "build_success": {
+    "canonical": 24,
+    "additional": 3,
+    "required": "24/24 + 3/3"
+  }
+}

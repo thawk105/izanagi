@@ -45,6 +45,9 @@ def test_mocc_backoff_fixed_uses_mocc_owner_and_target():
     assert G._validate_define_request(silo)[0] == G.DEFINE_SPECS["BACKOFF_FIXED"]
     assert G._validate_define_request(mocc)[0].owner_tus == G._MOCC_OWNER
 _COMPILE_TIME_BRANCH_MACROS = (
+    "IZANAGI_CICADA_RO_GCFLAG",
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT",
+    "IZANAGI_CICADA_ROGC_WORKLOAD",
     "IZANAGI_CICADA_VLIFE",
     "IZANAGI_CICADA_LONGTX",
     "SILO_POLICY_VARIANT",
@@ -64,6 +67,9 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
     "CICADA_FWD_ENABLE",
+    "CICADA_VHASH_K",
+    "CICADA_VHASH_COUNT",
+    "CICADA_VHASH_WL",
     "CICADA_FWD_COUNT",
     "CICADA_LONGTX",
     "CICADA_GC_SAFEPOINT",
@@ -190,8 +196,26 @@ _NEW_BRANCH_EXPECTATIONS = {
     "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION": (
         "cc/si/transaction.cc", "#if IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION", 5, 0,
     ),
+    "IZANAGI_CICADA_RO_GCFLAG": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG", 1, 0,
+    ),
+    "IZANAGI_CICADA_RO_GCFLAG_COUNT": (
+        "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_RO_GCFLAG_COUNT", 3, 0,
+    ),
+    "IZANAGI_CICADA_ROGC_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 2, 0,
+    ),
     "CICADA_FWD_ENABLE": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE", 11, 0,
+    ),
+    "CICADA_VHASH_K": (
+        "cc/cicada/transaction.cc", "#if CICADA_VHASH_K", 9, 0,
+    ),
+    "CICADA_VHASH_COUNT": (
+        "cc/cicada/transaction.cc", "#if CICADA_VHASH_COUNT", 19, 0,
+    ),
+    "CICADA_VHASH_WL": (
+        "cc/cicada/transaction.cc", "#if CICADA_VHASH_WL", 4, 0,
     ),
     "CICADA_FWD_COUNT": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_COUNT", 4, 0,
@@ -465,6 +489,8 @@ def _compile_time_source_root(
         owner_text = "int izanagi_owner_present = 1;\n" + owner_text
     owner.write_text(owner_text, encoding="utf-8")
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         includes = []
         for source_rel, start, n in G._CONDITIONAL_BRANCH_COMPANION_SITES[macro]:
@@ -519,6 +545,8 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
         expected_pair = (source_rel, expected_directive)
         count = 1
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         expected = [expected_pair] * count
         expected += [(path, directive) for path, directive, n
@@ -1244,12 +1272,20 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
     tmp_path: Path,
 ):
     assert tuple(G.CONDITIONAL_BRANCH_WITNESSES) == _COMPILE_TIME_BRANCH_MACROS
-    assert sum(G._CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 239
+    assert sum(G._CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 277
     assert G._CONDITIONAL_BRANCH_COMPANION_SITES["CICADA_INTERVAL_GC"] == (
         ("cc/cicada/include/transaction.hh", "#if CICADA_INTERVAL_GC", 1),
         ("cc/cicada/include/tuple.hh", "#if CICADA_INTERVAL_GC", 1),
         ("cc/cicada/include/version.hh", "#if CICADA_INTERVAL_GC", 3),
     )
+    assert {
+        macro: G._CONDITIONAL_BRANCH_COMPANION_SITES[macro]
+        for macro in ("CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL")
+    } == {
+        "CICADA_VHASH_K": (("cc/cicada/include/tuple.hh", "#if CICADA_VHASH_K", 3),),
+        "CICADA_VHASH_COUNT": (("cc/cicada/include/transaction.hh", "#if CICADA_VHASH_COUNT", 1),),
+        "CICADA_VHASH_WL": (("cc/cicada/include/transaction.hh", "#if CICADA_VHASH_WL", 1),),
+    }
     for macro in _COMPILE_TIME_BRANCH_MACROS:
         patch_declaration = _patch_added_branch_declaration(macro)
         fixture = _compile_time_source_root(tmp_path / macro, macro)
@@ -1584,6 +1620,8 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
     root = _compile_time_source_root(tmp_path, macro)
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         count = G._declared_total_site_count(macro)
     if macro == "BACKOFF_REQUESTED_US":
@@ -1631,6 +1669,8 @@ def test_new_branch_selection_supply_meaning_and_admission(tmp_path, macro):
     """
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS[macro]
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         count = G._declared_total_site_count(macro)
     root = _compile_time_source_root(tmp_path, macro)
@@ -3554,6 +3594,8 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
+        "IZANAGI_CICADA_RO_GCFLAG", "IZANAGI_CICADA_RO_GCFLAG_COUNT",
+        "IZANAGI_CICADA_ROGC_WORKLOAD",
         "IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
         "SILO_POLICY_VARIANT", "IZANAGI_SILO_POLICY_PROBE", "IZANAGI_BREAK_SILO_POLICY",
         "MOCC_TEMP_PREDICATE",
@@ -3578,6 +3620,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_SI_FIRST_UPDATER_WINS",
         "IZANAGI_BREAK_SI_READ_UNCOMMITTED_VERSION",
         "CICADA_FWD_ENABLE", "CICADA_FWD_COUNT", "CICADA_LONGTX",
+        "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
         "CICADA_GC_SAFEPOINT", "CICADA_GC_WAIT", "CICADA_GC_COUNT",
         "CICADA_INTERVAL_GC", "CICADA_INTERVAL_GC_GENERAL",
         "CICADA_INTERVAL_COUNT", "CICADA_INTERVAL_LONGTX",
@@ -3622,6 +3665,21 @@ def test_v1_domain_and_claim_boundaries_are_exact():
             "patches/" + patch,
         )
     for macro, owner, companion in (
+        ("IZANAGI_CICADA_RO_GCFLAG", "cc/cicada/transaction.cc", ()),
+        ("IZANAGI_CICADA_RO_GCFLAG_COUNT", "cc/cicada/transaction.cc",
+         (("IZANAGI_CICADA_RO_GCFLAG", "1"),)),
+    ):
+        assert G.DEFINE_SPECS[macro] == G.DefineSpec(
+            G.ROUTE_CMAKE_CXX_FLAGS, (owner,), "ycsb_cicada.exe",
+            "patches/cicada-ro-gcflag-variant.patch",
+            companion_defines=companion, inert_values=("0",),
+        )
+    assert G.DEFINE_SPECS["IZANAGI_CICADA_ROGC_WORKLOAD"] == G.DefineSpec(
+        G.ROUTE_CMAKE_CXX_FLAGS, ("cc/cicada/ycsb_cicada.cc",),
+        "ycsb_cicada.exe", "patches/cicada-ro-gcflag-workload.patch",
+        inert_values=("0",),
+    )
+    for macro, owner, companion in (
         ("CICADA_FWD_ENABLE", "cc/cicada/transaction.cc", ()),
         ("CICADA_FWD_COUNT", "cc/cicada/transaction.cc", (("CICADA_FWD_ENABLE", "1"),)),
         ("CICADA_LONGTX", "cc/cicada/ycsb_cicada.cc", ()),
@@ -3630,6 +3688,16 @@ def test_v1_domain_and_claim_boundaries_are_exact():
             G.ROUTE_CMAKE_CXX_FLAGS, (owner,), "ycsb_cicada.exe",
             "patches/cicada-forwarding-variant.patch",
             companion_defines=companion, inert_values=(),
+        )
+    for macro, companion in (
+        ("CICADA_VHASH_K", ()),
+        ("CICADA_VHASH_COUNT", (("CICADA_VHASH_K", "1"),)),
+        ("CICADA_VHASH_WL", ()),
+    ):
+        assert G.DEFINE_SPECS[macro] == G.DefineSpec(
+            G.ROUTE_CMAKE_CXX_FLAGS, ("cc/cicada/transaction.cc",), "ycsb_cicada.exe",
+            "patches/cicada-vhash-hot-block-variant.patch",
+            companion_defines=companion,
         )
     for macro, owner, companion in (
         ("CICADA_GC_SAFEPOINT", "cc/cicada/transaction.cc",
@@ -3661,8 +3729,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 55
-    assert len(G.MEANING_SUPPORTED_MACROS) == 56
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 61
+    assert len(G.MEANING_SUPPORTED_MACROS) == 62
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3753,7 +3821,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 24
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 49
+    ) == 55
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -3872,10 +3940,10 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
     assert stock_requests["BACKOFF_STEP_POLICY_SEED"].stock_comparison is True
 
 
-def test_module_claim_names_the_exact_73_define_supply_domain() -> None:
-    assert "supply domain contains the 73 patch-derived defines" in G.__doc__
+def test_module_claim_names_the_exact_79_define_supply_domain() -> None:
+    assert "supply domain contains the 79 patch-derived defines" in G.__doc__
     assert (
-        "Fifty-five\nregistered macros additionally have a bounded compile-time witness"
+        "Sixty-one\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__

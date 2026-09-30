@@ -1,0 +1,272 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 2400,
+ "timeout_seconds": 10800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "ms1-no-production-reference",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "            if _references(body, keys):\n                reasons.append(f\"production-reference:{path}:{candidate}\")\n",
+     "new": "            if False:  # MS1\n                reasons.append(f\"production-reference:{path}:{candidate}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+    "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+    "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+    "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes/story.md\"]",
+    "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]",
+    "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"story.md\"]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms2-allow-any-path",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "    return path.startswith(\"docs/\") and len(parts) >= 2 and path.endswith(\".md\")\n",
+     "new": "    return True  # MS2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_closed_path_exclusions[tools/new.py]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_implementation_tip_rejected_independent_of_receipt_claim"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms3-no-metadata-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "        if (entry[\"status\"] not in {\"A\", \"M\"} or entry[\"mode\"] != \"100644\"\n                or (entry[\"status\"] == \"M\" and entry[\"old_mode\"] != \"100644\")):\n",
+     "new": "        if False:  # MS3\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_blob_to_symlink_type_change_rejected",
+    "orchestrator/tests/test_scoped_acceptance.py::test_raw_metadata_rejects",
+    "orchestrator/tests/test_scoped_acceptance.py::test_rename_is_delete_plus_add_and_rejected",
+    "orchestrator/tests/test_scoped_acceptance.py::test_symlink_and_gitlink_reject"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms4-no-inventory",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "    nodes = sorted(set(inventory) | set(FIXED_NODES))\n",
+     "new": "    nodes = sorted(set(FIXED_NODES))  # MS4\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_inventory_literal_is_selected"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms5-no-dir-keys",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "    for depth in range(minimum_depth, len(parts)):\n",
+     "new": "    for depth in range(len(parts), len(parts)):  # MS5\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_directory_key_alone_selects_consumer",
+    "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"docs/notes\"]",
+    "orchestrator/tests/test_scoped_acceptance.py::test_each_selection_key_selects_consumer[\"notes\"]",
+    "orchestrator/tests/test_scoped_acceptance.py::test_insight_date_ancestor_is_not_a_key",
+    "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects",
+    "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"docs/notes\"]",
+    "orchestrator/tests/test_scoped_acceptance.py::test_production_literal_reference_rejects[\"notes\"]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms6-land-trusts-receipt",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        expected = _scoped_acceptance.plan(repository.wave, tested_main, tested_tip)\n",
+     "new": "        expected = {\"classification\": receipt[\"classification\"], \"selection\": receipt[\"selection\"]}  # MS6\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_drift_rejected[selection]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_receipt_rederived_on_eligible_tip"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms7-no-scoped-forward-blobs",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    for path in _SCOPED_FORWARD_BLOBS:\n",
+     "new": "    for path in ():  # MS7\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[orchestrator/tests/conftest.py]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/check_docs.py]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/run_tests.py]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance.py]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/scoped_acceptance_launcher.py]",
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_scoped_forward_main_blob_drift_rejected[tools/spool_fold.py]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms8-ignore-gate-rc",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance_launcher.py",
+     "old": "    if result.returncode:\n        raise ValueError(f\"direct gate {index} failed with rc={result.returncode}\")\n",
+     "new": "    if False:  # MS8\n        raise ValueError(f\"direct gate {index} failed with rc={result.returncode}\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_direct_gate_rejects_nonzero_exit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "ms9-extra-fields-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    if set(value) != expected:\n        raise _acceptance_rejected()\n    return value\n",
+     "new": "    if not set(value) >= _ACCEPTANCE_RECEIPT_FIELDS:  # MS9\n        raise _acceptance_rejected()\n    return value\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance_land.py::test_v5_rejects_only_extra_scoped_field"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mf1-quoted-only-matching",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "def _references(data: bytes, keys: set[bytes]) -> bool:\n    return any(key in data for key in keys)\n",
+     "new": "def _references(data: bytes, keys: set[bytes]) -> bool:  # MF1\n    literals = []\n    quote = None\n    start = 0\n    escaped = False\n    for i, byte in enumerate(data):\n        if quote is None:\n            if byte in (34, 39):\n                quote, start = byte, i + 1\n        elif escaped:\n            escaped = False\n        elif byte == 92:\n            escaped = True\n        elif byte == quote:\n            literals.append(data[start:i])\n            quote = None\n    return any(key in literal for literal in literals for key in keys)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_reference",
+    "orchestrator/tests/test_scoped_acceptance.py::test_comment_apostrophe_does_not_hide_test_selection"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mf2-readme-basename-key",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "    if parts[-1] not in {\"README.md\", \"index.md\"} and not DATE.fullmatch(parts[-1]):\n",
+     "new": "    if True:  # MF2\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_insight_readme_basename_is_generic"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mf3-spool-container-keys",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "    if path.startswith(\"docs/spool/\"):\n        return {key.encode(\"utf-8\") for key in keys}\n",
+     "new": "    if False:  # MF3\n        return {key.encode(\"utf-8\") for key in keys}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_reference_does_not_reject_fragment",
+    "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mf4-insight-depth3-key",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "    minimum_depth = 3 if path.startswith(\"output/insights/\") else 2\n",
+     "new": "    minimum_depth = 4 if path.startswith(\"output/insights/\") else 2  # MF4\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_insight_depth_three_split_reader_rejects"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mf5-no-container-reader-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "        if ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))\n",
+     "new": "        if False and ((insight_changed and any(literal in body for literal in INSIGHT_CONTAINERS))  # MF5\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_insight_container_reader_rejects",
+    "orchestrator/tests/test_scoped_acceptance.py::test_uninspected_spool_container_reader_rejects"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "mf6-no-spool-selection",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/scoped_acceptance.py",
+     "old": "                or spool and b\"docs/spool\" in body):\n",
+     "new": "                or False):  # MF6\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_scoped_acceptance.py::test_spool_container_path_selects_consumer"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

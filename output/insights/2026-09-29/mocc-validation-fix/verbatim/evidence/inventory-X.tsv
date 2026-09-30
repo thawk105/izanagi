@@ -1,0 +1,12 @@
+# commit=f4a5169ede52630d9357444e3412ffe9aed7c78f
+# patch	sha256	rc	first_stderr_line
+broken-mocc-early-unlock.patch	5fc1b4c21e4413dd8c7acc46a5127ba3ae61d084174c1e56f4e0627887072684	1	error: patch failed: cc/mocc/transaction.cc:1257
+broken-mocc-hot-update-unlock.patch	5562c566cf29153e092dc4ae43d7b0d8184b54ae58a1fa7e10e76e4e0e9440c8	1	error: patch failed: cc/mocc/transaction.cc:1257
+broken-mocc-lockskip-validation.patch	c0d4498946ca75ac8881fdbcf0df004e58f12553ddc0082c2825a5d782c9a45c	0
+broken-mocc-permutation-erase.patch	b2976ad3d076dcc5c8f9409a0a9071554ff5b8ade3a51e69c1f0ff8e72a8ebd7	0
+broken-mocc-skip-canonical-restore.patch	82bacba0af5644f6bee36d491f386eea59f42de096ff1cbfaa1072e0d3e55fa2	0
+control-mocc-negated-temperature-predicate.patch	781a3e242bd77b54db48d3c0ebe5fc255ae1afaf676685c2db5c30e11b8874c8	0
+instr-mocc-lock-coverage-pin-candidate.patch	9b06feed940d4d45318bfc7d2147a19e291abf7363285c3825b34c00c8907e94	1	error: patch failed: cc/mocc/transaction.cc:14
+instr-mocc-lock-coverage-temperature.patch	7e6c97bb4ad1cf400e63ce14e3746fece5dbf2088efed1af8ce9e3fd89a7ea9a	1	error: patch failed: cc/mocc/transaction.cc:30
+instr-mocc-lock-coverage.patch	e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48	1	error: patch failed: cc/mocc/transaction.cc:11
+mocc-temperature-predicate-variant.patch	229419efe1dffe8721c2114403ef6f7b05e73c643626c269c95dcbb27e806ae3	0

@@ -159,6 +159,8 @@ MACHINE_CALLERS = {
 MANUAL_BUILD_FILES = {
     "silo_policy_coverage.py",
     "vhash_cicada_vlife.py",
+    "vhash_cicada_hot_block.py",
+    "vhash_ro_gc_publish.py",
     "vhash_forwarding_prototype.py",
     "vhash_interval_gc.py",
     "b4_binary_record.py",
@@ -181,6 +183,8 @@ ADMITTED_MANUAL_BUILD_FILES = {"s8a_trigger_coverage.py"}
 
 EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.vhash_cicada_vlife._build_variant",
+    "orchestrator.campaign.vhash_cicada_hot_block._build_one",
+    "orchestrator.campaign.vhash_ro_gc_publish._build_variant",
     "orchestrator.campaign.vhash_forwarding_prototype._build_variant",
     "orchestrator.campaign.vhash_interval_gc._build_variant",
     "orchestrator.campaign.silo_policy_coverage._build_variant",

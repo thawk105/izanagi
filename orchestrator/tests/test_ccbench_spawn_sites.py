@@ -82,6 +82,11 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
     ("campaign/vhash_interval_gc.py", "<module>.run_measured"): 1,
     # Verify delegates its trace binary argv to run_measured.
     ("campaign/vhash_interval_gc.py", "<module>.verify_binary"): 1,
+    # Exploratory Cicada hot-block runs use a bounded wait4 loop and trace gate.
+    ("campaign/vhash_cicada_hot_block.py", "<module>.run_one"): 1,
+    ("campaign/vhash_ro_gc_publish.py", "<module>._checked"): 1,
+    ("campaign/vhash_ro_gc_publish.py", "<module>._run"): 1,
+    ("campaign/vhash_ro_gc_publish.py", "<module>._verify"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._checked"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._delay_compile"): 1,
     ("campaign/vhash_cicada_vlife.py", "<module>._calibrate"): 1,
@@ -105,6 +110,10 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # CMake/Git/preprocess commands, a standalone sizeof probe, and the verifier.
+    ("campaign/vhash_cicada_hot_block.py", "<module>.checked"): 1,
+    ("campaign/vhash_cicada_hot_block.py", "<module>._tuple_size"): 1,
+    ("campaign/vhash_cicada_hot_block.py", "<module>._verify_trace"): 1,
     # Forked children run only the correctness verifier on collected traces;
     # they never launch a CCBench binary or a measurement.
     ("campaign/pipeline.py", "<module>._prepare_evaluation_core._run_local_concurrent_pass"): 1,
@@ -667,9 +676,14 @@ _CMAKE_INTERNAL_DEFINE_RE = re.compile(
 # an upstream CCBench define. Still require its actual added conditional in the
 # introducing patch; no registry key is used to discover the interface.
 _OVERLAY_BASE_DEFINE_INTERFACES = {
-    "patches/cicada-forwarding-variant.patch": frozenset({
-        "CICADA_FWD_ENABLE", "CICADA_LONGTX",
+    # Broken overlays quote the introducing patch's COUNT/WL conditions in context.
+    "patches/cicada-vhash-hot-block-variant.patch": frozenset({
+        "CICADA_VHASH_K", "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
     }),
+    "patches/cicada-forwarding-variant.patch": frozenset({
+        "CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT",
+    }),
+    "patches/cicada-forwarding-gc.patch": frozenset({"CICADA_GC_SAFEPOINT"}),
     "patches/instr-silo-function-policy-probe.patch": frozenset({
         "IZANAGI_SILO_POLICY_PROBE",
     }),
@@ -989,6 +1003,14 @@ class _DeferredGateMember:
 
 
 _DEFERRED_GATE_MEMBERS = (
+    _DeferredGateMember(
+        "orchestrator/campaign/p3_s4_loop_policy.py",
+        "wave t2867",
+        "fixed 10 us stock build calls p3_s4_loop._require_condition_gate before run_campaign",
+        "campaign",
+        "<module>.run_stock_control",
+        446,
+    ),
     _DeferredGateMember(
         "orchestrator/campaign/b4_binary_record.py",
         "wave t2636",
@@ -2998,6 +3020,10 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         for item in _DEFERRED_GATE_MEMBERS
     } == {
         (
+            "orchestrator/campaign/p3_s4_loop_policy.py",
+            "wave t2867", "campaign", "<module>.run_stock_control", 446,
+        ),
+        (
             "orchestrator/campaign/b4_binary_record.py",
             "wave t2636", "buildcache", "<module>._build_with_dependencies", 118,
         ),
@@ -3597,10 +3623,22 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 69,
+        "proven-unreachable": 75,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 73})
+    assert classifications[s8b_sink] == Counter({"covered": 79})
+    assert failures == []
+
+
+def test_ro_gc_publish_build_sink_uses_complete_condition_gate_family():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    classifications, failures = _define_sink_cross_product_classification(
+        _production_build_sources(), frozenset(patch_sources))
+    sink = _BuildSink(
+        "orchestrator/campaign/vhash_ro_gc_publish.py",
+        "<module>._build_variant", 216, "direct-cmake-target")
+    assert classifications[sink] == Counter({
+        "covered": 4, "proven-unreachable": 75})
     assert failures == []
 
 
@@ -3624,7 +3662,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 59})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 65})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3633,7 +3671,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 59,
+        "failure-reachable": 14, "proven-unreachable": 65,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

@@ -1,0 +1,11 @@
+bf9f67138 3d9d852c7 False ['path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0819-684.md', 'path:docs/spool/FOLDED.md', 'path:docs/worklog.md']
+9463bcbcb ad08cd475 False ['path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0826-977.md', 'path:docs/archive/worklog-phase3-0826-978-979.md', 'path:docs/archive/worklog-phase3-0826-980.md']
+dd6621397 3a177bdfa False ['path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0827-1024-1025.md', 'path:docs/archive/worklog-phase3-0827-1026.md', 'path:docs/decisions.md']
+f5423e2ff c48507e66 True []
+e43f6d8da bb3b124ca True []
+3886a1fd3 bacc92f14 False ['path:docs/archive/README.md', 'path:docs/archive/worklog-phase3-0922-1826.md', 'path:docs/failures.md', 'ref:docs/paper-story/README.md:orchestrator/campaign/ident.py:paper-story']
+65fd1422f 3bb0e8225 True []
+bad8365b9 4361d5f4f True []
+3bcf17276 aad743206 True []
+8b261bcf8 92dc6428b False ['ref:docs/phase3.md:.codex/role-adapters/auditor.json:docs/phase3.md', 'ref:output/insights/2026-09-27/t2849-mocc-conn/verbatim/brief.md:orchestrator/campaign/condition_meaning_gate.py:verbatim', 'ref:output/insights/2026-09-27/t2849-mocc-conn/verbatim/estimate.md:orchestrator/campaign/condition_meaning_gate.py:verbatim', 'ref:output/insights/2026-09-27/t2849-mocc-conn/verbatim/request.md:orchestrator/campaign/condition_meaning_gate.py:verbatim']
+{False: 5, True: 5}

@@ -242,6 +242,7 @@ _COMPUTE_RECEIPT_SCHEMA_VERSION = "dev-wave-compute-receipt/v1"
 _RECEIPT_AUTHORITY_KIND = "dev-wave-acceptance-launcher"
 _RECEIPT_TEMP_PREFIX = ".dev-wave-acceptance-receipt-"
 _LAUNCHER_PATH = "tools/acceptance_launcher.py"
+_SCOPED_LAUNCHER_PATH = "tools/scoped_acceptance_launcher.py"
 _LAUNCHER_BOOTSTRAP = r'''
 import hashlib
 import sys
@@ -1660,6 +1661,7 @@ def _compute_parser() -> argparse.ArgumentParser:
 def _acceptance_parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(prog=f"{_PROGRAM} acceptance", add_help=True)
     parser.add_argument("--wave", required=True)
+    parser.add_argument("--scoped", action="store_true")
     parser.add_argument("--lease-dir", type=Path)
     parser.add_argument(
         "--lease-optional",
@@ -2696,6 +2698,7 @@ def _launcher_tree_blob(
     repo: Path,
     revision: str,
     stage: str,
+    path: str = _LAUNCHER_PATH,
 ) -> str | None:
     raw = _trusted_blob_git(
         effects,
@@ -2706,13 +2709,13 @@ def _launcher_tree_blob(
         "-z",
         revision,
         "--",
-        _LAUNCHER_PATH,
+        path,
     )
     if raw == b"":
         return None
     match = re.fullmatch(
         rb"100(?:644|755) blob ([0-9a-f]{40})\t"
-        + re.escape(_LAUNCHER_PATH.encode("ascii"))
+        + re.escape(path.encode("ascii"))
         + rb"\x00",
         raw,
     )
@@ -2767,8 +2770,20 @@ def _launcher_binding(
     repo: Path,
     tested_main: str,
     tested_tip: str,
+    scoped: bool = False,
 ) -> _LauncherBinding:
-    if effects.launcher_source is not None:
+    if scoped:
+        blob_sha = _launcher_tree_blob(
+            effects, repo, tested_main, "acceptance-launcher",
+            _SCOPED_LAUNCHER_PATH,
+        )
+        if blob_sha is None:
+            raise _StageFailure("acceptance-launcher")
+        source = _trusted_blob_git(
+            effects, repo, b"", "acceptance-launcher", "cat-file", "blob", blob_sha,
+        )
+        binding = _LauncherBinding(source, blob_sha, "tested-main")
+    elif effects.launcher_source is not None:
         binding = effects.launcher_source(repo, tested_main, tested_tip)
     else:
         binding = _default_launcher_source(
@@ -3245,13 +3260,14 @@ def _launcher_argv(
     log_file: Path,
     pre_fingerprint: _TreeFingerprint,
     environment: _AcceptanceEnvironment,
+    scoped: bool = False,
 ) -> tuple[str, ...]:
     prefix = (
         sys.executable,
         "-I",
         "-c",
         _LAUNCHER_BOOTSTRAP,
-        str(repo / _LAUNCHER_PATH),
+        str(repo / (_SCOPED_LAUNCHER_PATH if scoped else _LAUNCHER_PATH)),
         "--repo-root",
         str(repo),
         "--wave",
@@ -3752,6 +3768,7 @@ def _run_acceptance_attempt(
     lifecycle: _AcceptanceLifecycle,
     owned_paths: Sequence[Path] = (),
     lease_optional: bool = False,
+    scoped: bool = False,
 ) -> _AcceptanceAttemptResult:
     active_lifecycle = lifecycle
     primary = _Outcome(RC_FAIL_CLOSED, "internal")
@@ -3955,6 +3972,7 @@ def _run_acceptance_attempt(
             repo,
             claim_context.main_sha,
             prerun_fingerprint.head_sha,
+            scoped=scoped,
         )
         waiter_blob_sha = binding.waiter_blob_sha
         receipt_temp = _prepare_acceptance_receipt(
@@ -3975,6 +3993,7 @@ def _run_acceptance_attempt(
             log_file=resolved_log_file,
             pre_fingerprint=prerun_fingerprint,
             environment=acceptance_environment,
+            scoped=scoped,
         )
         try:
             launch = effects.launch_launcher or _default_launch_launcher
@@ -4349,6 +4368,7 @@ def run_acceptance(
     lifecycle: _AcceptanceLifecycle | None = None,
     owned_paths: Sequence[Path] = (),
     lease_optional: bool = False,
+    scoped: bool = False,
 ) -> _Outcome:
     active_lifecycle = lifecycle or _AcceptanceLifecycle()
     deadline = _AcceptanceDeadline(max_wait_seconds)
@@ -4377,6 +4397,7 @@ def run_acceptance(
             lifecycle=active_lifecycle,
             owned_paths=owned_paths,
             lease_optional=lease_optional,
+            scoped=scoped,
         )
         last = attempt.outcome
         if not attempt.retry:
@@ -4545,6 +4566,7 @@ def main(
                     lifecycle=lifecycle,
                     owned_paths=args.owned_path,
                     lease_optional=args.lease_optional,
+                    scoped=args.scoped,
                 )
             except BaseException as exc:
                 if lifecycle.receipt_published:
