@@ -12,7 +12,7 @@
 | `search-registration.md` | 検索の事前登録 (主張 N1〜N5 と検索式の対応、結果前に commit `a28f9111d`) と改訂 1・2 |
 | `search-ledger.md` | 補助探索 26 本 (R4)、索引検索 (arXiv 完走・OpenAlex 未完走) の記録、N4・N5 の結論 |
 | `search-judgments-arxiv-run1.jsonl` | arXiv の hit 76 行の判定 |
-| `prior-work.md` | 最も近い先行 13 本の表 (N1・N2) と、範囲外の型 T1〜T6 (N3) |
+| `prior-work.md` | 最も近い先行 11 本の表 (N1・N2) と評価の健全性を扱う近傍 2 本、範囲外の型 T1〜T6 (N3) |
 | `conditions-registration.md` | 条件 R1〜R5 と SOTA 集合・上限の目安・余地の閾値の事前登録 (測定前に commit `ba6e86342`) と改訂 1・2 |
 | `measurements/results.md` | 測定の集計表 (条件ごとの S・B1・B2・r1・r2・区分と、全構成の 3 rep) |
 | `measurements/points.csv` | 全 261 点の値 (集計 JSON から機械的に抜き出したもの) |
@@ -31,7 +31,7 @@
 |---|---|---|---|---|
 | R1 YCSB hotspot (zipf 0.99、read 50%、10 op、48 thread) | **大**: S = 2.28M tps (Silo の静的 backoff 5 µs、abort 率 68%)、B1 = 8.19M、B2 = 7.18M、r1 = 3.59、r2 = 3.15 | NeurCC が hotspot の YCSB 拡張 (θ=1、16 thread) で Silo の最大 4.27 倍・Polyjuice の 3.32 倍 (Fig.7a) | abort に消える 68% は同じ hot な行への書き込みの衝突。T1 (施錠順)・T2 (validation の方式)・T3 (hot な取引の実行前の並べ替え)・T6 (組み合わせ) が効きうる。T5 (待ち方) は NeurCC の範囲と重なる | **条件付きで推す** |
 | R2 TPC-C 1 warehouse (48 thread) | **中**: S = 463K tps (TicToc・BACK_OFF=0、abort 率 71%)、B1 = 679K (48 warehouse の緩い目安)、B2 = 1.60M、r1 = 1.47、r2 = 3.46 | IC3 (1 WH・64 thread で 434K、2PL・OCC は 50K 未満)、DRP (OCC の 6.6 倍)、Polyjuice (高競合で IC3・Tebaldi に +56%)、NeurCC (2 位の最大 1.14 倍)。学習型 CC と手作りの特化 CC の本拠地 | 同上。ただし CCBench の stock の 21 構成のうち 13 構成 (SI の参考 2 構成を含む) が成功 2 回未満 (§3.2) で、比べる相手の集合が健全でない | 推さない |
-| R3 BoMB の長短混在 (L1 1 本 + 短い取引 47 本) | **小** (登録の指標 = 短い取引の throughput): S = 40.3M、B1 = 39.2M、r1 = 0.97、r2 = 1.00 | Oze (BoMB で L1 を commit させつつ短い取引を保つ)、Shirakami | **登録の指標の外で大きな無駄がある**: 直列化可能なプロトコルは全部、混在で L1 を 3 秒間に 1 回も commit しない (単独なら 5〜7 回)。T4 (版の管理) や L1 の優先・予約が効きうるが、VHash (別 manager) と主題が重なる | 登録の規則では推さない。次の登録の候補として記録 (§4.3) |
+| R3 BoMB の長短混在 (L1 1 本 + 短い取引 47 本) | **小** (登録の指標 = 短い取引の throughput): S = 40.3M、B1 = 39.2M、r1 = 0.97、r2 = 1.00 | Oze (BoMB で L1 を commit させつつ短い取引を保つ)、Shirakami | **登録の指標の外で大きな無駄がある**: 測れた直列化可能なプロトコルは全構成で、混在の L1 を 3 秒間に 1 回も commit しない (単独なら 5〜7 回。SS2PL は segfault で未観測)。T4 (版の管理) や L1 の優先・予約が効きうるが、VHash (別 manager) と主題が重なる | 登録の規則では推さない。次の登録の候補として記録 (§4.3) |
 
 - **新しさの地図 (§1):** 学習・自動化で CC を特化する先行 (Polyjuice・NeurCC・ATCC・CormCC・ACC・Callas・Tebaldi) は、どれも正しさを固定の骨格に置き、
   骨格の上の方策の値か既存 CC 部品の割付けを探す。LLM がコードを生成する先行 (ADRS 系) は取引の順序だけを返し、直列化可能性の検査を持たない。
@@ -108,12 +108,14 @@ ERMIA・SI は `garbage_collection.cc` の `gcRecord` で ERR 終了、Cicada・
 48 warehouse の上限の変種では全プロトコルが成功した (Silo 679K が最大)。
 
 **R3 (BoMB の長短混在)**: 短い取引の throughput は Silo 40.3M・TicToc 38.6M・MOCC 24.4M・Cicada 2.9M・MVTO 1.8M・Oze 1.4M・ERMIA 1.2M・SI 1.1M で、
-L1 が居ない場合 (Silo 39.2M) と差が無い。**L1 は、直列化可能なプロトコルの全構成で 3 秒間に commit 0 回 (abort 5〜8 回)。** L1 単独なら 5〜7 回 commit する。
+L1 が居ない場合 (Silo 39.2M) と差が無い。**L1 は、測れた直列化可能なプロトコルの全構成 (Silo・TicToc・MOCC・Cicada・ERMIA・MVTO・Oze の各 BACK_OFF 0/1、3/3 成功) で 3 秒間に commit 0 回 (Oze 以外は abort 5〜8 回)。SS2PL は BoMB で 3/3 segfault したので観測していない。** L1 単独なら 5〜7 回 commit する。
 L1 を混在で commit したのは SI (直列化可能でない、6 回) だけ。Oze は単独・混在とも L1 の commit と abort が 0 回 (3 秒で L1 が終わらない)。SS2PL は BoMB で segfault。
 
 ### 3.3 目安の限界
 
 - B1 は同じ hot な行を書く取引を順に並べる待ちを無視し、R2 では 48 倍の大きさの database の効果を含む。達成できる値ではない。
+- B2 の算法: 集計は「最良構成の rep ごとの throughput/(1−abort 率) の中央値」で計算した (driver への指示どおり)。登録 §4 の文面 (最良構成の throughput / (1 − abort 率)) を
+  中央値同士で読むと、R2 の B2 は 1,602,873 (掲載 1,603,105) で r2 は 3.46 のまま、R1 も区分は変わらない (段 6 レビューの所見 F1)。
 - B2 は abort した試行が commit と同じ費用だと仮定し、待ち・backoff の休止に消えた時間を含まない (trace・計器なし build では測れない)。
 - 値は stock の CCBench の性能で、どの構成も本 wave で直列化可能性を検査していない。R2 の比べる相手の多くが stock の欠陥で失敗しており、R2 の S (TicToc) は健全な SOTA 集合の最良ではない。
 - CCBench の YCSB は書き込みで値が実質変わらない (md_2 §7)。値の一致で検証を通す型の仕組みは R1 で過大に見える。
@@ -142,7 +144,7 @@ L1 を混在で commit したのは SI (直列化可能でない、6 回) だけ
 
 ### 4.3 R3: 登録の規則では推さない (次の登録の候補)
 
-- 登録した指標 (短い取引の throughput) では余地は小 (r1 0.97)。**しかし L1 の commit が直列化可能な全プロトコルで 0 回であり、長い取引の飢えという大きな無駄が登録の指標の外にある。**
+- 登録した指標 (短い取引の throughput) では余地は小 (r1 0.97)。**しかし L1 の commit が、測れた直列化可能なプロトコル (SS2PL は segfault で未観測) の全構成で 0 回であり、長い取引の飢えという大きな無駄が登録の指標の外にある。**
   結果を見た後で指標を差し替えないので、本 wave では推さない。
 - 次に登録するなら、指標を「短い取引の throughput を保ったままの L1 の commit 率」にし、SOTA 集合に Oze (CCBench では本 wave の設定で L1 が 3 秒で終わらない) と Shirakami を入れる。
   長い取引の版の扱い (T4) は VHash (別 manager) と主題が重なるので、担当の切り分けが先に要る。
@@ -151,7 +153,7 @@ L1 を混在で commit したのは SI (直列化可能でない、6 回) だけ
 
 - **芯にできる形は「R1 × (T2・T3・T6 の新しい口で LLM が作った機構) × (NeurCC 級の学習型 CC + 手作りの SOTA)」だけ**で、今の hook のままの gen-opt (T1・T5) では
   「既存手法の表現範囲の外」を主張できない。
-- 新しさの主張として使えるのは N5 の限定つきの未検出 (直列化可能性を探索の反復の中で機械検査する CC 合成) と、2604.06566 自身が CC を「厳密な正しさ検査が要る未解決の課題」と書いていること。
+- 新しさの主張として使えるのは N5 の「arXiv を式 A1・A2・A4 で submittedDate 2026-09-30 まで確認した範囲では未検出」(RW2、1 索引。直列化可能性を探索の反復の中で機械検査する CC 合成) と、2604.06566 自身が CC を「厳密な正しさ検査が要る未解決の課題」と書いていること。
   ただし N5 は方法の新しさであり、ユーザーの基準 (大きな性能向上) を満たすには R1 での性能の勝ちが別に要る。
 - 反対の材料: R1 の余地の相当部分を NeurCC が既に取っている可能性、R2 の基盤の欠陥、R3 の主題の重なり。
 
@@ -173,3 +175,7 @@ L1 を混在で commit したのは SI (直列化可能でない、6 回) だけ
 - Codex: author 1 (計測 driver と取得 script)、fix 8 (BoMB の割付けと parse、TMPDIR、503 の再試行、third-party の cache、compile 命令の照合、plan の見積り、失敗の集計、図)。
   計算ノードで 1 件ずつ欠陥が出る型 (TMPDIR → cache → compile 命令) を 3 回踏んだ。
 - 計算ノード: 約 1.0 node 時間 (§3.1)。
+- 段 6 の独立 read-only レビュー (Codex 1 本、報告は repo の外 `stage6/review.md`): must-fix 5 件 (B2 の算法、prior-work の N4 の古い記述、R3 の L1 の全称、N5 の RW2 の限定語、先行の本数) を
+  real と裁定し親が本文で直した。判定は変わらない。nit 2 件 (R3 の指標の差し替え・単独性の確認の実在) はレビュー子が refuted とした。
+  照合された数字: R1・R2・R3 の S・B1・r1、13/21 構成、261 点、76 行、ADRS の 20%・34%・60%、Bespoke OLAP の 11.17・45.33 倍、依頼の逐語 3 件、2604.06566 の 2 文。
+  Polyjuice・NeurCC・ATCC の逐語は文字化原典が job dir に無く再照合していない。
