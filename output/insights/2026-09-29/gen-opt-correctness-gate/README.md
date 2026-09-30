@@ -406,3 +406,11 @@ auditor の追加は実装 wave で行う。role の本文を変えるときは�
 - 実装 wave の item を起票する (spool fragment)。最初は U0 の生死確認 (計算 ≈ 0.5 node 時間、2 node 時間未満なので確認不要の範囲) で、D1 の述語が stock で満たされることを確かめる。
 - 段 A の試し候補 (md_2) が決まったら、その仕組みを §5.2 の Q1〜Q8 で区分し、「そのまま足りる」か「記録の追加で足りる」に入るものを試しに選ぶ (「意味の拡張が要る」ものは判定器拡張の wave が先に要る)。
 - 母集団型の探索 (md_4) の設計では、小モデルの関門が仕様の単位でかかることと、1 仕組みあたり約 1 wave の費用を前提に入れる。
+
+---
+
+## 訂正節 (2026-09-30 追記、[T-2884] の wave `dev-wave-t2884-gate-verifier`。本文は当時のまま)
+
+- **§3.2・§3.4・§7 の「`A` 行」は使わない。** `A` は判定器が abort 要因の集計に既に使っている tag である (`orchestrator/verifier/parse.py` の tag 分岐、`VerifyResult.abort_reasons`)。正式な記録では、手順列を `Q` 行、据えた値の刻印を `V` 行とし、判定器の trace parser が読まない別 file `gate_<thid>.log` に書く (U0 の実測 `output/insights/2026-09-29/gen-opt-gate-liveness/README.md` §1.1 と同じ。`S` も MOCC の計装が使用中なので使わない)。本文の「`A` 行」は「`Q` 行 (と `V` 行)」と読み替える。
+- **刻印の置き場は `YCSB::id_` の 64 bit とする** (本文 §3.2 の「`val_` の先頭 4 byte・hash の下位 32 bit」ではない)。書き手 = `((thid+1)<<48) | thread 内の通し番号`、初期 load は既存の `id_ = key id` なので genesis の期待刻印は key の整数値。`val_` の中身は変えない。
+- 正式な書式・判定器の照合・生死確認は `output/insights/2026-09-30/gen-opt-gate-verifier/README.md` に記す。

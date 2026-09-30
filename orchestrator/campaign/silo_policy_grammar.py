@@ -54,12 +54,61 @@ _ALT = dict(zip(
     '&& || ! & | ~ ^ &= |= ^= !='.split()))
 _LEX = re.compile(r'\s+|[A-Za-z_][A-Za-z_0-9]*|[0-9][A-Za-z_0-9\x27.]*|<<=|>>=|::|->|\+\+|--|&&|\|\||==|!=|<=|>=|<<|>>|[+*/%&|^\-]=|<:|:>|<%|%>|%:|.', re.DOTALL)
 _NUM = re.compile(r"(0[xX][0-9a-fA-F](?:'?[0-9a-fA-F])*|0[bB][01](?:'?[01])*|0(?:'?[0-7])*|[1-9](?:'?[0-9])*)([uU](?:[lL])?)\Z")
-_TYPES = {'uint32_t': 'U32', 'uint64_t': 'U64', 'bool': 'bool', 'void': 'void', 'PolicyState': 'PolicyState'}
+@dataclass(frozen=True)
+class PolicyProfile:
+    types: dict[str, str]
+    api_namespace: str
+    state_name: str
+    enums: dict[str, tuple[str, ...]]
+    fields: dict[str, dict[str, str]]
+    required_hooks: dict[str, tuple[str, str]]
+    context_types: frozenset[str]
+    return_types: frozenset[str]
+    local_types: frozenset[str]
+    aggregate: str | None = None
+    mutable_aggregate: str | None = None
+    forbidden_identifiers: frozenset[str] = frozenset()
+
+
+_FUNCTION_TYPES = {'uint32_t': 'U32', 'uint64_t': 'U64', 'bool': 'bool',
+                   'void': 'void', 'PolicyState': 'PolicyState'}
 for _name in ('PolicyAction', 'AbortReason', 'LockResponse', 'AbortContext', 'LockContext', 'CommitContext'):
-    _TYPES['izanagi_silo_api::' + _name] = _name
+    _FUNCTION_TYPES['izanagi_silo_api::' + _name] = _name
 _NUMERIC = {'U32', 'U64'}
 _ENUMS = {'PolicyAction': ('retry', 'abort'), 'AbortReason': ('unset', 'lock_conflict', 'update_absent', 'read_tid', 'read_locked', 'node_validation', 'insert_node', 'scan_node')}
 _FIELDS = {'AbortContext': {'reason': 'AbortReason', 'rand': 'U64'}, 'LockContext': {'attempt': 'U32', 'rand': 'U64'}, 'CommitContext': {}, 'LockResponse': {'action': 'PolicyAction', 'wait_us': 'U32'}}
+FUNCTION_POLICY_PROFILE = PolicyProfile(
+    _FUNCTION_TYPES, 'izanagi_silo_api', 'PolicyState', _ENUMS, _FIELDS,
+    {'policy_after_abort': ('U32', 'AbortContext'),
+     'policy_on_lock_conflict': ('LockResponse', 'LockContext'),
+     'policy_on_commit': ('void', 'CommitContext')},
+    frozenset({'AbortContext', 'LockContext', 'CommitContext'}),
+    frozenset({'U32', 'U64', 'bool', 'void', 'LockResponse'}),
+    frozenset({'U32', 'U64', 'bool', 'LockResponse', 'PolicyAction', 'AbortReason'}),
+    'LockResponse', 'LockResponse')
+
+_ORDER_API = 'izanagi_silo_order_api'
+_ORDER_TYPES = {'uint32_t': 'U32', 'uint64_t': 'U64', 'bool': 'bool',
+                'void': 'void', 'OrderState': 'OrderState'}
+for _name in ('AbortReason', 'TxnContext', 'EntryContext', 'AbortContext', 'CommitContext'):
+    _ORDER_TYPES[_ORDER_API + '::' + _name] = _name
+ORDER_POLICY_PROFILE = PolicyProfile(
+    _ORDER_TYPES, _ORDER_API, 'OrderState', {'AbortReason': _ENUMS['AbortReason']},
+    {'TxnContext': {'write_count': 'U32', 'rand': 'U64'},
+     'EntryContext': {'epoch': 'U32', 'tid': 'U32', 'locked': 'bool'},
+     'AbortContext': {'reason': 'AbortReason', 'rand': 'U64'}, 'CommitContext': {}},
+    {'order_enabled': ('bool', 'TxnContext'),
+     'order_priority': ('U64', 'EntryContext'),
+     'order_after_abort': ('void', 'AbortContext'),
+     'order_on_commit': ('void', 'CommitContext')},
+    frozenset({'TxnContext', 'EntryContext', 'AbortContext', 'CommitContext'}),
+    frozenset({'U32', 'U64', 'bool', 'void'}),
+    frozenset({'U32', 'U64', 'bool', 'AbortReason'}),
+    forbidden_identifiers=frozenset(('izanagi_trace stream record_lock clear_shadow TRACE '
+        'result_ local_commit_counts_ read_set_ write_set_ node_map_ Masstrees pro_set_ '
+        'Tuple TupleBody WriteElement ReadElement rcdptr_ tidword_ Tidword storage_ '
+        'key_ body_ TxExecutor this loadAcquire storeRelease compareExchange atomic sort '
+        'izanagi_silo_policy izanagi_silo_api izanagi_silo_skel izanagi_silo_order_skel').split()))
 _STORAGE = {'static', 'thread_local', 'extern', 'inline', 'mutable', 'volatile'}
 _KEYWORDS = set(('alignas alignof asm auto bool break case catch char char16_t char32_t '
                  'class const constexpr const_cast continue decltype default delete do '
@@ -117,8 +166,9 @@ def _lex(source: str) -> list[Token]:
 
 
 class _Parser:
-    def __init__(self, tokens: list[Token]):
+    def __init__(self, tokens: list[Token], profile: PolicyProfile):
         self.ts, self.i = tokens, 0
+        self.profile = profile
         self.scopes: list[dict[str, Symbol]] = [{}]
         self.functions: dict[str, tuple[str, list[Symbol]]] = {}
         self.state: dict[str, str] | None = None
@@ -148,7 +198,9 @@ class _Parser:
 
     def name(self):
         t = self.t
-        if t.kind != 'identifier' or t.text in _TYPES or t.text in _KEYWORDS:
+        if t.text in self.profile.forbidden_identifiers:
+            self.fail('order.forbidden-identifier', 'forbidden policy identifier')
+        if t.kind != 'identifier' or t.text in self.profile.types or t.text in _KEYWORDS:
             self.fail('decl.name', 'expected declaration name')
         self.i += 1
         return t.text
@@ -157,10 +209,14 @@ class _Parser:
         if self.t.kind != 'identifier':
             self.fail('name.resolve', 'expected name')
         name = self.t.text
+        if name in self.profile.forbidden_identifiers:
+            self.fail('order.forbidden-identifier', 'forbidden policy identifier')
         self.i += 1
         while self.eat('::'):
             if self.t.kind != 'identifier':
                 self.fail('name.resolve', 'expected qualified name')
+            if self.t.text in self.profile.forbidden_identifiers:
+                self.fail('order.forbidden-identifier', 'forbidden policy identifier')
             name += '::' + self.t.text
             self.i += 1
         return name
@@ -170,9 +226,9 @@ class _Parser:
         if t.text in _STORAGE:
             self.fail('decl.storage', 'forbidden storage specifier')
         name = self.qualified()
-        if name not in _TYPES:
+        if name not in self.profile.types:
             self.fail('decl.function', 'type outside policy contract', t)
-        return _TYPES[name]
+        return self.profile.types[name]
 
     def declare(self, name, symbol):
         if name in self.scopes[-1]:
@@ -202,7 +258,7 @@ class _Parser:
     def parse(self):
         while self.t.text != '<eof>':
             if self.eat('struct'):
-                self.need('PolicyState', 'decl.state')
+                self.need(self.profile.state_name, 'decl.state')
                 if self.state is not None:
                     self.fail('decl.state', 'exactly one PolicyState required')
                 self.state = {}
@@ -237,21 +293,17 @@ class _Parser:
                 self.function()
         if self.state is None:
             self.fail('decl.state', 'missing PolicyState')
-        signatures = {
-            'policy_after_abort': ('U32', 'AbortContext'),
-            'policy_on_lock_conflict': ('LockResponse', 'LockContext'),
-            'policy_on_commit': ('void', 'CommitContext'),
-        }
+        signatures = self.profile.required_hooks
         for name, (ret, ctx) in signatures.items():
             if name not in self.functions:
                 self.fail('decl.function', 'missing required function: ' + name)
             r, args = self.functions[name]
-            if r != ret or [(a.type, a.ref, a.const) for a in args] != [('PolicyState', True, False), (ctx, True, True)]:
+            if r != ret or [(a.type, a.ref, a.const) for a in args] != [(self.profile.state_name, True, False), (ctx, True, True)]:
                 self.fail('decl.function', 'incorrect required signature: ' + name)
 
     def function(self):
         ret = self.type()
-        if ret not in _NUMERIC | {'bool', 'void', 'LockResponse'}:
+        if ret not in self.profile.return_types:
             self.fail('decl.function', 'invalid return type')
         name = self.name()
         if name in self.functions or name in self.scopes[0]:
@@ -264,9 +316,9 @@ class _Parser:
                 ty = self.type()
                 ref = self.eat('&')
                 if ref:
-                    valid = ty == 'PolicyState' or (ty in {'AbortContext', 'LockContext', 'CommitContext'} and const)
+                    valid = ty == self.profile.state_name or (ty in self.profile.context_types and const)
                 else:
-                    valid = ty in _NUMERIC | {'bool'} | set(_ENUMS) and not const
+                    valid = ty in _NUMERIC | {'bool'} | set(self.profile.enums) and not const
                 if not valid:
                     self.fail('decl.function', 'invalid parameter form')
                 names.append(self.name() if self.t.kind == 'identifier' else None)
@@ -344,10 +396,10 @@ class _Parser:
                 self.fail('switch.closed', 'break outside switch', t)
             self.need(';')
             return 'break'
-        if t.text == 'const' or t.text in ('uint32_t', 'uint64_t', 'bool', 'izanagi_silo_api'):
+        if t.text == 'const' or t.text in ('uint32_t', 'uint64_t', 'bool', self.profile.api_namespace):
             const = self.eat('const')
             ty = self.type()
-            if ty not in _NUMERIC | {'bool', 'LockResponse'} | set(_ENUMS):
+            if ty not in self.profile.local_types:
                 self.fail('decl.local', 'invalid local type')
             name = self.name()
             self.declare(name, Symbol(ty, const))
@@ -369,7 +421,7 @@ class _Parser:
     def switch(self):
         self.need('(')
         cond = self.expr()
-        if cond.type not in _NUMERIC | set(_ENUMS):
+        if cond.type not in _NUMERIC | set(self.profile.enums):
             self.fail('type.numeric', 'invalid switch condition')
         self.need(')')
         self.need('{')
@@ -403,7 +455,7 @@ class _Parser:
             self.need(':')
             last = None
             while self.t.text not in ('case', 'default', '}'):
-                if self.t.text in ('const', 'uint32_t', 'uint64_t', 'bool', 'izanagi_silo_api'):
+                if self.t.text in ('const', 'uint32_t', 'uint64_t', 'bool', self.profile.api_namespace):
                     self.fail('switch.closed', 'case declarations require block')
                 if self.t.text == '{':
                     last = self.block()
@@ -426,7 +478,7 @@ class _Parser:
 
     def enum(self, name, token):
         parts = name.split('::')
-        if len(parts) == 3 and parts[0] == 'izanagi_silo_api' and parts[1] in _ENUMS and parts[2] in _ENUMS[parts[1]]:
+        if len(parts) == 3 and parts[0] == self.profile.api_namespace and parts[1] in self.profile.enums and parts[2] in self.profile.enums[parts[1]]:
             return Expr(parts[1])
         self.fail('name.resolve', 'unknown enumerator: ' + name, token)
 
@@ -455,7 +507,7 @@ class _Parser:
             self.i += 1
             if (not left.lvalue or left.const or left.symbol is None
                     or left.symbol.origin == 'parameter'
-                    or left.type in {'PolicyState', 'AbortContext', 'LockContext', 'CommitContext'}):
+                    or left.type in {self.profile.state_name} | self.profile.context_types):
                 self.fail('assignment.target', 'not a mutable assignment target')
             right = self.expr()
             if op == '=':
@@ -495,11 +547,11 @@ class _Parser:
             self.need('(')
             e = self.expr()
             self.need(')')
-            if e.type not in _NUMERIC | {'bool'} | set(_ENUMS):
+            if e.type not in _NUMERIC | {'bool'} | set(self.profile.enums):
                 self.fail('type.conversion', 'invalid cast source')
             return Expr(ty)
         name = self.qualified()
-        if name == 'izanagi_silo_api::LockResponse':
+        if self.profile.aggregate and name == self.profile.api_namespace + '::' + self.profile.aggregate:
             if self.constant:
                 self.fail('decl.constant', 'aggregate is not scalar constant')
             self.need('{', 'type.conversion')
@@ -545,17 +597,17 @@ class _Parser:
                 if p.ref and (not a.lvalue or (not p.const and a.const)):
                     self.fail('type.conversion', 'reference binding mismatch')
             return Expr(ret, callable_statement=True)
-        if name.startswith('izanagi_silo_api::'):
+        if name.startswith(self.profile.api_namespace + '::'):
             if self.constant:
                 self.fail('decl.constant', 'enumerator outside scalar constant grammar', t)
             return self.enum(name, t)
         s = self.lookup(name, t)
         if self.eat('.'):
             member = self.name()
-            fields = self.state if s.type == 'PolicyState' else _FIELDS.get(s.type)
+            fields = self.state if s.type == self.profile.state_name else self.profile.fields.get(s.type)
             if fields is None or member not in fields:
                 self.fail('name.resolve', 'unknown member')
-            mutable = (s.type == 'PolicyState' and s.ref and s.origin == 'parameter') or (s.type == 'LockResponse' and s.origin == 'local')
+            mutable = (s.type == self.profile.state_name and s.ref and s.origin == 'parameter') or (s.type == self.profile.mutable_aggregate and s.origin == 'local')
             field = Symbol(fields[member], s.const, origin='member' if mutable else 'readonly-member')
             return Expr(fields[member], True, s.const or not mutable, symbol=field)
         return Expr(s.type, True, s.const, symbol=s)
@@ -565,7 +617,7 @@ class _Parser:
             self.convertible('bool', a)
             self.convertible('bool', b)
             return Expr('bool')
-        if op in ('==', '!=') and a.type == b.type and a.type in {'bool'} | set(_ENUMS):
+        if op in ('==', '!=') and a.type == b.type and a.type in {'bool'} | set(self.profile.enums):
             return Expr('bool')
         at, bt = self.numeric(a), self.numeric(b)
         if op in ('/', '%', '<<', '>>'):
@@ -576,10 +628,10 @@ class _Parser:
         return Expr(at if op in ('<<', '>>') else 'U64' if 'U64' in (at, bt) else 'U32')
 
 
-def validate_policy(source: str) -> PolicyDecision:
+def validate_policy(source: str, profile: PolicyProfile = FUNCTION_POLICY_PROFILE) -> PolicyDecision:
     """Reject candidate syntax as data; implementation failures propagate."""
     try:
-        _Parser(_lex(source)).parse()
+        _Parser(_lex(source), profile).parse()
     except _Reject as e:
         offset = e.token.offset
         return PolicyDecision(False, rule_id=e.rule, offset=offset,

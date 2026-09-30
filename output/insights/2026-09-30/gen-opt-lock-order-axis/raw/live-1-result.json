@@ -1,0 +1,31 @@
+{
+  "binary_sha256": {},
+  "builds": {},
+  "errors": [
+    {
+      "message": "repo CCBench gitlink differs from axis PIN",
+      "stage": "preflight",
+      "type": "RuntimeError"
+    }
+  ],
+  "finished": {
+    "jst": "2026-09-30T13:19:40.629849+09:00",
+    "utc": "2026-09-30T04:19:40.629849+00:00"
+  },
+  "gate": null,
+  "host": "bnode056",
+  "job": "DW-S05-C lock-order hand contrast",
+  "note": "既存判定器の 1 回の判定であり、D1・D2 照合 (md_14) による certified ではない",
+  "patch_sha256": null,
+  "pin": "6810666",
+  "runs": {},
+  "stages_seconds": {
+    "total": 1.511
+  },
+  "started": {
+    "jst": "2026-09-30T13:19:39.118849+09:00",
+    "utc": "2026-09-30T04:19:39.118849+00:00"
+  },
+  "symbol_check": null,
+  "transaction_cc_sha256": null
+}

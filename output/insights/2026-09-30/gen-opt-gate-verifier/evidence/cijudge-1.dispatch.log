@@ -1,0 +1,40 @@
+start 2026-09-30 13:36:30 JST tag=cijudge-1 wall=01:30:00 tree=/work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u1 head=4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037 F=25898d00b9a6bbf09329ff8e8318c77d4f08b46e U1=dcb9a41f3e538744298b0e5c42dc37349bac114e
+9705a609f046cdd2d1c2a42f04eb63a5bd3b0412674ce71d297fce201e82491b  /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/run_ci_then_judge_v3.sh
+045ceecdc106849eeef2ec4759d3cd7381a2e2687fe55783496b9dca2ffa0b92  /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/run_ci_build_v3.sh
+cb8a7c43de1bb88fd71546227f01cf816f123237bf40d7f89e7744cbd8bef22e  /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/run_judge_v3.sh
+bcd46b29e6458beafb3435250ac288a398e574a97b92e322dd821adc63f3035a  /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u1/tools/check_trace0_preprocess_identity.py
+570fd53966162bb565f241bf22bcdc49dc8048b419a62a31254748c076031ea6  /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1.bundle
+cb8cd1c36d57f7c32e6d8a87c733fd55dd7f63d53fb1931505391828b606adc8  /work/SFC/tanab/tmp/t2854-ccbench-format-ci-20260929/images/ccbench-devcontainer-ci.sif
+[Pegasus dispatch] job を gen_S へ投入します (izdw-5f6480fa6b)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u1/output/pegasus-dispatch/orphan-holds/unknown-532326bde1f6131bad37ce1a.json
+[Pegasus dispatch] request ID 37901.nqsv を受理しました
+[Pegasus dispatch] request 37901.nqsv の状態: QUE
+[Pegasus dispatch] request 37901.nqsv の状態: RUN
+[Pegasus dispatch] request 37901.nqsv の状態: END
+[Pegasus dispatch] request 37901.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u1/output/pegasus-dispatch/orphan-holds/unknown-532326bde1f6131bad37ce1a.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u1/output/pegasus-dispatch/5f6480fa6bae0a3d1e745f1872998a0f/receipt.json へ保存しました (child rc=16)
+Pegasus dispatch infrastructure failure: job bootstrap failure: stage=result-guard
+[Pegasus dispatch] request 37901.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 3329152, "time_ns": 1790743001680945257}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3329173, "event": "direct-child-wait-start", "pid": 3329159, "time_ns": 1790743001708666847}
+| 
+| %NQSV(INFO): Batch job received signal SIGKILL. (Exceeded per-req elapse time limit)
+| 
+| ============================================================
+| Request ID:             37901.nqsv
+| Request Name:           izdw-5f6480fa6b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Wed Sep 30 13:36:33 2026
+| Started Request Time:   Wed Sep 30 13:36:41 2026
+| Ended Request Time:     Wed Sep 30 15:06:46 2026
+| Resources Information:
+|   Elapse:               5409S
+|   Remaining Elapse:     0S
+| ============================================================
+[Pegasus dispatch] request 37901.nqsv child stderr end
+IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":true,"kind":"infra","reason":"dispatch-error"}
+end 2026-09-30 15:06:56 JST rc=16

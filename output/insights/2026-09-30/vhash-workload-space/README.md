@@ -393,6 +393,11 @@ abort 理由の合計 = abort 数 (全走、driver の parser)。作図器が dr
   その前の `--plan-only` 事前検査は spec を受理したが、使い捨て container の削除が Lustre の EINTR で止まり、`--resume` も rc=125 だったため、親が container を削除して
   自分の登録 1 件だけを prune した。
 - **inert:** 既定 build の前処理一致 (test) と、smoke3 の正規化 objdump・rodata 一致 (`raw/smoke3.json.gz`)。
+- **land 前の main 取り込み (2026-09-30):** 受入 1 回目 (tested main 5b7134c5c、tested tip c04b29b8e、child-green) の後、land 調整役の PREP で local main e5b9c1f77 を前方 merge したところ、
+  文字の競合は 0 件だったが、main 側 (vhash-interval-gc) が足した `orchestrator/tests/test_condition_meaning_gate.py` の site 数の総和 pin が本 wave の VLIFE 37 → 44 を含まず赤になった
+  (Codex 合成監査と合成後の login 自走で確認)。手で直さず abort し、同じ file を変えた lock-order-axis の着地 (main e863ea6c3、総和 pin 291) を待ってから main を 1 回取り込み、
+  Codex が辞書 42 項目を数え直して総和 pin を 298 に書いた merge を作って全体受入を取り直した。同じ merge で patches/README.md の「owner TU 49」(段 5 途中の値の書き残し) を 44 に直した。
+  合成後の login 自走: condition gate test 339 passed、driver test 37 passed、作図器 test 15 passed、test file 集合の meta-test 3 passed。
 
 ## 10. 次の版 (paper-story-vhash) へ
 

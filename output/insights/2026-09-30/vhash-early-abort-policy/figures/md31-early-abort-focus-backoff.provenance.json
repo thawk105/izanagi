@@ -1,0 +1,199 @@
+{
+  "campaign_id": "vhash-early-abort-policy-2026-09-30",
+  "figure": "early-abort-focus-backoff",
+  "generated_at": "2026-09-30T05:19:01.474817+00:00",
+  "inputs_sha256": {
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-early-abort-policy/output/insights/2026-09-30/vhash-early-abort-policy/data/abort-aggregate.json": "aa990f2d87702c981d76e85c3273a00fd1d09a19ef830a60aa4f9e8304d179e4",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s06/raw-abort-s06-2026-09-30T05-05-16.324392+00-00.json": "d303a672b30a366bd27569cd9eda5bc7d017c3790cb11be91a17eac16a34d2f8",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s08/raw-abort-s08-2026-09-30T05-05-17.956467+00-00.json": "df100ae3331726f8c31dc611a599aa285ea69a8ba16a77c76c22e8d3b0532d30",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s09/raw-abort-s09-2026-09-30T05-05-16.807943+00-00.json": "e0c3bc956e781c8546ad54e6680b8cae7018ed9fb7ffc6f31bcbcab5165b4e43",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s095/raw-abort-s095-2026-09-30T05-05-16.628874+00-00.json": "5a47d0f8de7d8a599f4a600e16ee54c4b6efd98d26636663d2d05548ae01ffbb",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-focus/raw-abort-focus-2026-09-30T05-05-16.510113+00-00.json": "d2400842f0ef2beefc94b9fde9822c410076e52cf92249d7fafa5f2937b666ea",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-backoff/raw-abort-backoff-2026-09-30T05-05-18.180734+00-00.json": "21ce59022c419cfeeed1e8e1cd01631e5398c1fc1fb4608e8f0b6172292c5f42"
+  },
+  "generator": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-early-abort-policy/output/insights/2026-09-30/vhash-early-abort-policy/make_figures.py",
+  "generator_sha256": "9299a6a8cc81a86bf0bd360545ddf3f29cf1640373b6690b6ff0f58a1a9ea965",
+  "matplotlib_version": "3.10.9",
+  "conditions": {
+    "threads": 48,
+    "tuples": 1000000,
+    "rratio": 50,
+    "ccbench_pin": "6810666",
+    "environments": {
+      "s06": "bnode043",
+      "s08": "bnode142",
+      "s09": "bnode028",
+      "s095": "bnode050",
+      "focus": "bnode057",
+      "backoff": "bnode049"
+    },
+    "jobs": {
+      "s06": {
+        "skew": 0.6,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "s08": {
+        "skew": 0.8,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "s09": {
+        "skew": 0.9,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "s095": {
+        "skew": 0.95,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "focus": {
+        "skew": 0.9,
+        "wait_us": 1000,
+        "gc_inter_us": 1000
+      },
+      "backoff": {
+        "skew": 0.9,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      }
+    }
+  },
+  "verification_status": "unverified",
+  "statistics": "3 rep points; diamond=rep median; 95% t CI for rep mean",
+  "major_values": {
+    "focus": {
+      "stock": {
+        "lag_rts_mean_us": [
+          2365.5845278703064,
+          3037.044635473631,
+          2518.6458023514033
+        ],
+        "long_completion_rate": [
+          0.008582274302690212,
+          0.02269479700764899,
+          0.03948373949223062
+        ]
+      },
+      "E-hb": {
+        "lag_rts_mean_us": [
+          2871.414834075037,
+          2983.8566381591663,
+          2908.6017893810504
+        ],
+        "long_completion_rate": [
+          0.023913775682047826,
+          0.04303135888501742,
+          0.05692747595528984
+        ]
+      },
+      "E-max": {
+        "lag_rts_mean_us": [
+          2873.262664746705,
+          2860.7534193604306,
+          2954.126463793914
+        ],
+        "long_completion_rate": [
+          0.03914841207002727,
+          0.024622854170279176,
+          0.0212073213657163
+        ]
+      },
+      "b": {
+        "lag_rts_mean_us": [
+          2953.7260308676955,
+          2898.465048834961,
+          2919.7385314372955
+        ],
+        "long_completion_rate": [
+          0.016904009375332932,
+          0.012983662940670678,
+          0.011276049100770768
+        ]
+      },
+      "c": {
+        "lag_rts_mean_us": [
+          2857.919481454567,
+          2822.281721784987,
+          2822.8117531772778
+        ],
+        "long_completion_rate": [
+          0.022803380641046086,
+          0.01735393769109991,
+          0.03396441049809052
+        ]
+      }
+    },
+    "backoff": {
+      "stock": {
+        "long_completion_rate": [
+          0.052129221732745964,
+          0.0745814307458143,
+          0.13232963549920762
+        ],
+        "long_commit_per_s": [
+          23.666666666666668,
+          32.666666666666664,
+          55.666666666666664
+        ],
+        "throughput_tps": [
+          2623363.0,
+          2651181.0,
+          2674619.0
+        ]
+      },
+      "E-max": {
+        "long_completion_rate": [
+          0.1712121212121212,
+          0.036431226765799254,
+          0.05083459787556904
+        ],
+        "long_commit_per_s": [
+          75.33333333333333,
+          16.333333333333332,
+          22.333333333333332
+        ],
+        "throughput_tps": [
+          2777711.0,
+          2824468.0,
+          2765095.0
+        ]
+      },
+      "stock-bo1": {
+        "long_completion_rate": [
+          0.15082824760244115,
+          0.18760907504363003,
+          0.3618134263295554
+        ],
+        "long_commit_per_s": [
+          57.666666666666664,
+          71.66666666666667,
+          138.33333333333334
+        ],
+        "throughput_tps": [
+          800951.0,
+          769330.0,
+          747598.0
+        ]
+      },
+      "E-max-bo1": {
+        "long_completion_rate": [
+          0.19463667820069205,
+          0.0796847635726795,
+          0.1671018276762402
+        ],
+        "long_commit_per_s": [
+          75.0,
+          30.333333333333332,
+          64.0
+        ],
+        "throughput_tps": [
+          736981.0,
+          757553.0,
+          789046.0
+        ]
+      }
+    }
+  }
+}
