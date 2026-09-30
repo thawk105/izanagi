@@ -134,12 +134,18 @@ def serialize_compiled_protocol_source_snapshot(
             or type(snapshot.protocol) is not str or not snapshot.protocol
             or type(snapshot.ccbench_root) is not str
             or not os.path.isabs(snapshot.ccbench_root)
+            or (snapshot.gate_d5_sources is not None
+                and (type(snapshot.gate_d5_sources) is not tuple
+                     or len(snapshot.gate_d5_sources) != 4
+                     or any(type(item) is not str
+                            for item in snapshot.gate_d5_sources[:3])
+                     or type(snapshot.gate_d5_sources[3]) is not bool))
             or (snapshot.normalized_sources is not None
                 and (type(snapshot.normalized_sources) is not tuple
                      or any(type(item) is not str
                             for item in snapshot.normalized_sources)))):
         raise ValueError("CompiledProtocolSourceSnapshot が直列化不能")
-    return {
+    body = {
         "schema": COMPILED_PROTOCOL_SOURCE_SNAPSHOT_SCHEMA,
         "protocol": snapshot.protocol,
         "ccbench_root": snapshot.ccbench_root,
@@ -148,6 +154,9 @@ def serialize_compiled_protocol_source_snapshot(
             else list(snapshot.normalized_sources)
         ),
     }
+    if snapshot.gate_d5_sources is not None:
+        body["gate_d5_sources"] = list(snapshot.gate_d5_sources)
+    return body
 
 
 def deserialize_compiled_protocol_source_snapshot(
@@ -157,13 +166,19 @@ def deserialize_compiled_protocol_source_snapshot(
     required = {
         "schema", "protocol", "ccbench_root", "normalized_sources",
     }
-    if type(value) is not dict or set(value) != required:
+    if type(value) is not dict or set(value) not in (
+            required, required | {"gate_d5_sources"}):
         raise ValueError("proof source snapshot key 集合が不正")
     normalized = value["normalized_sources"]
+    gate_sources = value.get("gate_d5_sources")
     if (value["schema"] != COMPILED_PROTOCOL_SOURCE_SNAPSHOT_SCHEMA
             or type(value["protocol"]) is not str or not value["protocol"]
             or type(value["ccbench_root"]) is not str
             or not os.path.isabs(value["ccbench_root"])
+            or ("gate_d5_sources" in value
+                and (type(gate_sources) is not list or len(gate_sources) != 4
+                     or any(type(item) is not str for item in gate_sources[:3])
+                     or type(gate_sources[3]) is not bool))
             or (normalized is not None
                 and (type(normalized) is not list
                      or any(type(item) is not str for item in normalized)))):
@@ -173,6 +188,9 @@ def deserialize_compiled_protocol_source_snapshot(
         ccbench_root=value["ccbench_root"],
         normalized_sources=(
             None if normalized is None else tuple(normalized)
+        ),
+        gate_d5_sources=(
+            None if gate_sources is None else tuple(gate_sources)
         ),
     )
 
@@ -2418,6 +2436,7 @@ def resolve_evidence(
     cxx: str = "g++-13",
     backoff_grammar_version: Optional[int] = None,
     sort_oracle_contract_id: Optional[str] = None,
+    require_gate_witness: bool = False,
 ) -> SourceEvidence:
     """Resolve build evidence and bind it to the inspected source root.
 
@@ -2459,6 +2478,7 @@ def resolve_evidence(
         tracked_paths=tracked_paths,
         proof_source_snapshot=capture_compiled_protocol_source_snapshot(
             genome.protocol, source_root,
+            require_gate_witness=require_gate_witness,
         ),
         verification_variant=verification_variant_id(genome, token),
     )

@@ -189,17 +189,50 @@ class CompiledProtocolSourceSnapshot:
     protocol: str
     ccbench_root: str
     normalized_sources: Optional[Tuple[str, ...]]
+    gate_d5_sources: Optional[Tuple[str, str, str, bool]] = None
 
 
 def capture_compiled_protocol_source_snapshot(
-        protocol: str, ccbench_root: Path | str,
+        protocol: str, ccbench_root: Path | str, *,
+        require_gate_witness: bool = False,
 ) -> CompiledProtocolSourceSnapshot:
     """Capture the exact normalized source texts consumed by later assessment."""
     root = os.path.realpath(os.path.abspath(os.fspath(ccbench_root)))
+    if type(require_gate_witness) is not bool:
+        raise TypeError("require_gate_witness must be bool")
+    gate_sources = None
+    if require_gate_witness:
+        root_path = Path(root)
+        try:
+            ycsb = _normalize_compiled_source_text(
+                (root_path / "include/ycsb.hh").read_text())
+            transaction = _normalize_compiled_source_text(
+                (root_path / "cc/silo/transaction.cc").read_text())
+            driver = _normalize_compiled_source_text(
+                (root_path / "cc/silo/ycsb_silo.cc").read_text())
+            expected = (root_path / "include/ycsb.hh").resolve()
+            includes_ycsb = False
+            for match in re.finditer(
+                    r'^[ \t]*#[ \t]*include[ \t]*"([^"\r\n]+)"[ \t]*$',
+                    driver, re.M):
+                include_path = Path(match.group(1))
+                if include_path.is_absolute():
+                    continue
+                try:
+                    if ((root_path / "cc/silo" / include_path).resolve(strict=True)
+                            == expected):
+                        includes_ycsb = True
+                        break
+                except (OSError, RuntimeError):
+                    continue
+            gate_sources = (ycsb, transaction, driver, includes_ycsb)
+        except (OSError, UnicodeError):
+            pass
     return CompiledProtocolSourceSnapshot(
         protocol=protocol,
         ccbench_root=root,
         normalized_sources=compiled_protocol_source_texts(protocol, root),
+        gate_d5_sources=gate_sources,
     )
 
 

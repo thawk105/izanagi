@@ -557,6 +557,7 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  result_evidence_context: Optional[
                      reflux_result_evidence.ResultEvidenceIssuanceContext
                  ] = None,
+                 require_gate_witness: bool = False,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -567,6 +568,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。
     `bench_max_rounds` は既定 3 の既存経路では従来の evaluate 呼出し形を維持し、明示的な
     非既定値だけを pipeline へ渡す。`balanced_schedule` は二 arm 専用 opt-in。"""
+    if type(require_gate_witness) is not bool:
+        raise TypeError("require_gate_witness must be bool")
     if balanced_schedule is not None and record_rep_integer_counters:
         raise ValueError("balanced schedule does not support record_rep_integer_counters")
     if a1_source_context is not None and balanced_schedule is None:
@@ -822,7 +825,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     )
                 source_evidence = source_digest.resolve_evidence(
                     g, cfg.ccbench_commit, ccbench_dir=ccbench_dir,
-                    cxx=evidence_cxx, **source_options,
+                    cxx=evidence_cxx,
+                    **({"require_gate_witness": True}
+                       if (require_gate_witness or (g.protocol == "silo" and
+                           g.flags.get("SILO_ORDER_VARIANT", 0) != 0)) else {}),
+                    **source_options,
                 )
                 src_tok = source_evidence.src_token
             except RuntimeError as e:
@@ -956,6 +963,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 if a1_source_context is not None:
                     evaluate_options["a1_source_context"] = a1_source_context
                 if balanced_schedule is not None:
+                    if require_gate_witness:
+                        evaluate_options["require_gate_witness"] = True
                     r = _prepare_evaluation(
                         g, layout, env_tag, cfg.ccbench_commit, perf,
                         clocks_per_us, numactl=numactl, do_bench=do_bench,
@@ -970,6 +979,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                         **evaluate_options,
                     )
                 else:
+                    if require_gate_witness:
+                        evaluate_options["require_gate_witness"] = True
                     r = evaluate(
                         g, layout, env_tag, cfg.ccbench_commit, perf,
                         clocks_per_us, numactl=numactl, do_bench=do_bench,

@@ -74,6 +74,7 @@ EXPECTED_CODER_SITES = frozenset({
     "orchestrator.campaign.p3_s4_loop.main",
     "orchestrator.campaign.p3_s4_loop_sort.main",
     "orchestrator.campaign.p3_s4_loop_policy.main",
+    "orchestrator.campaign.p3_s4_loop_lock_order.main",
     "orchestrator.campaign.p3_s4_loop_trigger_gating.main",
     "orchestrator.campaign.p3_autonomous_workload_trial.main",
 })
