@@ -1,0 +1,61 @@
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -55,7 +55,9 @@
+   struct alignas(64) VHashStats {
+     uint64_t hot=0, odd=0, changed=0, cold=0;
+     uint64_t hops[7]{}; // 0, 1, 2, 3, 4-7, 8-15, 16+
+-    uint64_t lag[18]{}; // [0], [1], [2,3], ... [2^15,2^16-1], [2^16,+inf)
++    uint64_t lag[42]{}; // 0, powers of two through 2^39, then 2^40+
++    uint64_t lag_sum_cycles=0, lag_count=0;
++#line 55
+     uint64_t ro_commit=0, ro_abort=0, update_commit=0, update_abort=0;
+     uint64_t install_wait=0, install_hold=0, gc_hold=0;
+     uint64_t install_count=0, gc_count=0;
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -52,12 +52,13 @@
+ unsigned vh_lag_bucket(uint64_t n) {
+   if (!n) return 0;
+   unsigned b=1;
+-  while (n >>= 1) { if (b == 17) break; ++b; }
++  while (n >>= 1) { if (b == 41) break; ++b; }
+   return b;
+ }
++#line 28
+ struct VHashReport {
+   ~VHashReport() {
+-    std::cout << "CICADA_VHASH_COUNT_JSON {\"schema_version\":1,\"k\":"
++    std::cout << "CICADA_VHASH_COUNT_JSON {\"schema_version\":2,\"k\":"
+               << CICADA_VHASH_K << ",\"sizeof_tuple\":" << sizeof(Tuple)
+               << ",\"workers\":[";
+     for (unsigned t=0; t<256; ++t) {
+@@ -68,9 +69,11 @@
+                 << ",\"fallback_changed\":" << s.changed
+                 << ",\"cold\":" << s.cold << ",\"hops\":[";
+       for (unsigned i=0;i<7;++i) { if (i) std::cout << ','; std::cout << s.hops[i]; }
+-      std::cout << "],\"snapshot_lag_ts\":[";
+-      for (unsigned i=0;i<18;++i) { if (i) std::cout << ','; std::cout << s.lag[i]; }
+-      std::cout << "],\"ro_commit\":" << s.ro_commit
++      std::cout << "],\"snapshot_lag_cycles\":[";
++      for (unsigned i=0;i<42;++i) { if (i) std::cout << ','; std::cout << s.lag[i]; }
++      std::cout << "],\"snapshot_lag_sum_cycles\":" << s.lag_sum_cycles
++                << ",\"snapshot_lag_count\":" << s.lag_count;
++      std::cout << ",\"ro_commit\":" << s.ro_commit
+                 << ",\"ro_abort\":" << s.ro_abort
+                 << ",\"update_commit\":" << s.update_commit
+                 << ",\"update_abort\":" << s.update_abort
+@@ -135,8 +138,12 @@
+                    __ATOMIC_RELEASE);
+   this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
+ #if CICADA_VHASH_COUNT
+-  if (is_ronly_)
+-    ++vh_stats_[thid_].lag[vh_lag_bucket(wts_.ts_ >= rts_ ? wts_.ts_-rts_ : 0)];
++  if (is_ronly_) {
++    uint64_t lag_cycles=(wts_.ts_ >= rts_ ? wts_.ts_-rts_ : 0) >> 8;
++    ++vh_stats_[thid_].lag[vh_lag_bucket(lag_cycles)];
++    vh_stats_[thid_].lag_sum_cycles += lag_cycles;
++    ++vh_stats_[thid_].lag_count;
++  }
+ #endif
+ #line 43
+   __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
