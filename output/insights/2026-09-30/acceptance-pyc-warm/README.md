@@ -29,7 +29,7 @@ wave: branch `worktree-dev-wave-acceptance-pyc-warm` (実装の tip `f4920ddb3`�
 
 事前登録: `apw-stage-notes/s4-ruling.md`「同時刻対照の事前登録」と 23:01 の追記 (K の期待赤の確定方法)。runner / 集計器は Codex author 製 (job dir `meas/run-pair.sh`、`meas/aggregate.py`、`meas/make-trees.sh`)。
 
-- 木: H tip `f4920ddb3` の fresh worktree 4 本。K1/K2 は `tools/run_tests.py` だけ `d79fd3524` の blob (`1c8af6ba…`) に戻した (commit しない)。H1/H2 は無変更 (blob `13c7ae4d…`)。作成直後の tests pyc 0、submodule marker あり (`apw-measured/trees.json`)。1 回目の作成で H1 の `git worktree add` が Lustre の EINTR で失敗し、同じ手順で H1/H2 だけ作り直した (`apw-measured/trees-attempt1.json`)。
+- 木: H tip `f4920ddb3` の fresh worktree 4 本。K1/K2 は `tools/run_tests.py` だけ `d79fd3524` の blob (`1c8af6ba…`) に戻した (commit しない)。H1/H2 は無変更 (blob `13c7ae4d…`)。作成直後の tests pyc 0、submodule marker あり (`apw-measured/apw-trees.json`)。1 回目の作成で H1 の `git worktree add` が Lustre の EINTR で失敗し、同じ手順で H1/H2 だけ作り直した (`apw-measured/trees-attempt1.json`)。
 - 起動: 各対で K と H を同時に `IZANAGI_ACCEPTANCE_SHARDS=3 python3 tools/run_tests.py` (起動差 0.003 / 0.005 秒)。対 1 23:18〜23:29、対 2 23:29〜23:47 (JST 9/30)。
 
 | 対 | 腕 | prep (起動→session) | login collection (投入意図後) | 待ち行列 s0/s1/s2 | pre s0/s1/s2 | W_max | outer | rc |
