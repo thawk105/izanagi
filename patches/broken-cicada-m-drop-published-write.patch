@@ -1,0 +1,31 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index f346d9323..050577837 100644
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -1095,6 +1095,26 @@ void TxExecutor::writePhase() {
+   if (FLAGS_s_wal) swal();*/
+ 
+ #if TRACE
++  struct BreakStats {
++    std::atomic<unsigned long long> reached{0}, changed{0}, committed{0};
++    ~BreakStats() {
++      std::fprintf(stderr, "CICADA_BREAK_FIRED slug=m-drop-published-write reached=%llu changed=%llu committed=%llu\n",
++          reached.load(), changed.load(), committed.load());
++    }
++  };
++  static BreakStats break_stats;
++  if (!write_set_.empty() && break_stats.reached.fetch_add(1) == 0) {
++    auto& victim = write_set_.back();
++    auto key_hex = izanagi_trace::key_to_hex(victim.key_);
++    std::fprintf(stderr,
++        "CICADA_BREAK_EVENT slug=m-drop-published-write thid=%u tx_seq=%llu tx_wts=%llu key=%s ver=%p removed=1\n",
++        unsigned(thid_), (unsigned long long)trace_seq_,
++        (unsigned long long)wts_.ts_, key_hex.c_str(),
++        static_cast<void*>(victim.new_ver_));
++    write_set_.pop_back();
++    ++break_stats.changed;
++    ++break_stats.committed;
++  }
+   cicada_m::tick(thid_, cicada_m::tx_commit_write);
+   traceEnd("commit", cicada_m::b_end_checked_commit);
+   traceCommit();

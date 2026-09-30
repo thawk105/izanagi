@@ -1,0 +1,43 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index f346d9323..9466dd8b0 100644
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -1129,6 +1129,38 @@ bool TxExecutor::commit() {
+    */
+   if (this->is_ronly_) {
+ #if TRACE
++    struct BreakStats {
++      std::atomic<unsigned long long> reached{0}, changed{0}, committed{0};
++      ~BreakStats() {
++        std::fprintf(stderr, "CICADA_BREAK_FIRED slug=m-early-reclaim reached=%llu changed=%llu committed=%llu\n",
++            reached.load(), changed.load(), committed.load());
++      }
++    };
++    static BreakStats break_stats;
++    if (!read_set_.empty() && trace_seq_ % 1024 == 1) {
++      ++break_stats.reached;
++      auto& victim = read_set_.front();
++      const auto before = MinRts.load(std::memory_order_acquire);
++      const auto elevated = MinWts.load(std::memory_order_acquire) - 1;
++      if (elevated > this->rts_) {
++        __atomic_store_n(&ThreadRtsArray[thid_].obj_, elevated, __ATOMIC_RELEASE);
++        ++break_stats.changed;
++      }
++      storeRelease(GCFlag[thid_].obj_, 1);
++      for (unsigned wait = 0; wait < 100; ++wait) {
++        clock_delay(50 * FLAGS_clocks_per_us);
++        storeRelease(GCFlag[thid_].obj_, 1);
++      }
++      const auto after = MinRts.load(std::memory_order_acquire);
++      auto key_hex = izanagi_trace::key_to_hex(victim.key_);
++      std::fprintf(stderr,
++          "CICADA_BREAK_EVENT slug=m-early-reclaim thid=%u tx_seq=%llu tx_wts=%llu key=%s ver=%p rts_raised=%u gcflag_set=1 minrts_before=%llu minrts_after=%llu\n",
++          unsigned(thid_), (unsigned long long)trace_seq_,
++          (unsigned long long)wts_.ts_, key_hex.c_str(),
++          static_cast<void*>(victim.ver_), unsigned(elevated > this->rts_),
++          (unsigned long long)before, (unsigned long long)after);
++      ++break_stats.committed;
++    }
+     cicada_m::tick(thid_, cicada_m::tx_commit_ronly);
+     traceEnd("ronly", cicada_m::b_end_checked_ronly);
+     traceCommit();
