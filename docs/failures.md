@@ -1130,6 +1130,8 @@
 - **supersede: 2026-09-18** — 削除側の運用則「1 worktree ずつ削除し、必要なら timeout を延ばす」は D2104 項 32 / D2113 の固定 launcher `tools/cleanup_remove_dirs.py` (`/cleanup-branches` §3 手順 3、全対象を前景 1 回で渡す) で置換済み。2026-09-17 の実走では 17 本並列 101 秒・10 本 161 秒で全件 removed (数値は同実走の final 報告を依頼文が引用したもの、job dir は消失)。作成側の運用則 (`git worktree add` は 1 件ずつ、必要なら timeout を延ばし、背景化されたら pid 終了を待つ) は残る。現行実体は §3 の同 launcher と `DW-O28` の `tools/dev_wave_cleanup.py`。
 
 - **再発: 2026-09-29** — `dev-wave-vhash-readonly-share` の wave 用 worktree の作成で、login の高負荷 (load 50〜170、他 wave の `git worktree add` が 10 本前後並走) の下、`git worktree add` が checkout の途中で EINTR (「システムコール割り込み」) により 2 回 rc=128 で終了した (1 回目 14:42「Could not reset index file to revision 'HEAD'」、2 回目 15:01「cannot create directory ...: システムコール割り込み」、各 20 分弱)。どちらも作りかけの directory と admin dir は消え、branch だけが残った。3 回目は `git worktree add --no-checkout` で登録だけを先に作り、`git worktree lock` の後に `git -C <path> reset -q --hard HEAD` を成功するまで反復する形にして、1 回目の reset で完成した (15:07)。この形なら reset が中断されても登録と作りかけが残り再実行できる見込みだが、今回 reset の中断は起きておらず確かめていない。同じ wave の子木・計測木 7 本もこの形で作り、全件 1 回目で成功した。変異 harness (`tools/mutation_worktree.py`) の login での plan-only は harness 内部の `git worktree add --detach` が同じ EINTR で失敗し (rc=125)、計算ノードでの実行に切り替えた。
+
+- **再発: 2026-09-30** — dev-wave-lock-order-axis の fix 用子木の `git worktree add -b` が checkout の途中で「cannot create directory …: システムコール割り込み」(EINTR) により rc=128 で終了し、作りかけの木は消えて branch だけが残った。既存 branch を指定した `git worktree add <path> <branch>` の単独の再実行で成功した。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -28834,6 +28836,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同じ done file で待ち手を `--commit-worktree` 付きで再実行する (Codex author の trailer 付きで commit された)。
 - 再発検知: 起動器の `.done` が 3、待ち手の log に `worktree-commit: failed reason=add-all` が出たら、子木の gitdir の `index.lock` を見る。
 
+
+- **再発: 2026-09-30** — dev-wave-lock-order-axis の fix 子 (fix-f-2) の終了直後 13:29 JST に、子木の gitdir `.git/worktrees/lock-order-f/index.lock` が 0 byte で残った。起動器は残差を commit できていた (cf50faedd) が、続く待ち手の `--commit-worktree` が rc=70 `worktree-commit failed reason=add-all`、同じ木で後から起動した 2 つの子 (変異準備・件数の fix) の起動器の終端 commit も rc=3 で同じ理由で落ち、成果は未 commit のまま木に残った (親が所有 path 限定の diff で取り出した)。親が F 木を cmdline・cwd に持つ process が 0 件であることを確かめて lock を消した。同じ wave の他の子木 3 本には lock は無かった。lock を作った process は未特定 (2 例目、どちらも同じ producer の終端 commit の直後)。
 ### F1079. 2 つの wave が同じ件数 pin を同じ値へ書き換え、git の 3-way 合成が衝突なしで 1 回分の加算だけを残した [手順漏れ] [near miss]
 
 - 事象: 2026-09-30、[T-2911] VHash md_22 wave の受入前に local main 17995a4fe (VHash hot block wave が着地) を取り込むと、登録簿 7 file が衝突した。衝突は「同じ位置へ別の項目を足した」型で和集合にすれば解けるが、衝突の外で、両 wave がそれぞれ新 macro 3 件を足したことに伴う件数 pin (`_COMPILE_TIME_BRANCH_MACROS` 51→54、`MEANING_SUPPORTED_MACROS` 52→55、交差表の `proven-unreachable` 55→58・65→68、s8b sink の `covered` 69→72 など) を**同じ新値へ**書き換えていた。git は両側が同一の変更をしたと見て衝突なしで 1 回分だけを残すので、合成結果の pin は両 wave の追加の合算 (+6) でなく +3 のままになる。登録項目の衝突だけを解いて commit すると受入で赤になり、合算がたまたま別の変更と打ち消し合えば誤った件数で緑になりうる。
