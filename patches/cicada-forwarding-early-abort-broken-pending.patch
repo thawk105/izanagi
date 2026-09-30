@@ -1,0 +1,21 @@
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -446,7 +446,7 @@
+     if (std::string(GC_ABORT_POLICY_TEXT) == "off") return;
+     std::cout << "CICADA_GC_ABORT_V1 {\"schema\":1,\"policy\":\""
+               << GC_ABORT_POLICY_TEXT
+-              << "\",\"witness\":\"committed_deleted\",\"threads\":[";
++              << "\",\"witness\":\"pending_too\",\"threads\":[";
+     for (size_t i = 0; i < TotalThreadNum; ++i) {
+       if (i) std::cout << ',';
+       const auto& c = abort_slots[i].c;
+@@ -534,7 +534,8 @@
+       const uint64_t wts = cursor->ldAcqWts();
+       const auto status = cursor->ldAcqStatus();
+       if (wts < tx.wts_.ts_ && (status == VersionStatus::committed ||
+-                                status == VersionStatus::deleted))
++                                status == VersionStatus::deleted ||
++                                status == VersionStatus::pending))
+         witness = status;
+       cursor = cursor->ldAcqNext();
+     }

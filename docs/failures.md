@@ -5222,6 +5222,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-27** (near miss、実害なし) — [T-2850] 試走 v2 後段 wave の親が、repo 外の glue の差分を読むために Bash で `cd <Codex author の子 worktree の scratch> && diff …` (読み取りだけ) を実行し、harness の追跡 cwd がその子 worktree へ移って以後の command が拒否された。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変)。書き込みは発生していない。同型: 他 worktree の file は絶対 path で読み `cd` を前置しない。どうしても `cd` が要る操作は job dir の `.sh` に閉じ込める (本 wave の以後の写し出し・pytest はそうした)。
 
 - **再発: 2026-09-29** (実害: session が約 15 分止まりユーザー手番を要した) — [T-2911] VHash md_22 wave の親が段 5 の実装子の dry-run を `cd <Codex author の子 worktree> && python3 tools/dev_wave_codex.py … --dry-run` で打ち、harness の追跡 cwd が子 worktree へ移って以後の全 Bash が隔離 guard に拒否された。これまでの復帰手順 `EnterWorktree(path=<自分の wave worktree>)` は、login の load average 約 45 の下で内部の `git worktree list` が 10 秒の上限を超え、11 回連続で時間切れになった。子エージェントも同じ cwd を継ぐので代行できず、ユーザーの `! cd` も同じ guard に拒否された。ユーザーの許可を得て `ExitWorktree(keep)` で抜け、元の作業場所から実装子を起動し、約 20 分後に負荷が下がって同じ worktree で作業を続けた。書き込みの取り違えは無い。同型: `dev_wave_codex.py` は `--repo-root` を取るので `cd` は要らない。高負荷時は `EnterWorktree(path)` が効かないことがあるので、そもそも `cd` を前置しない (memory `worktree-discipline` の「cwd の罠」、本エントリの 2026-09-18 の 3 件と同型)。
+
+- **再発: 2026-09-30** (near miss、実害なし) — VHash md_26 wave の親が、worklog fragment の `base:` を land 先の local main の台帳で取るために Bash で `cd <主 checkout> && python3 tools/spool_fold.py --base-digest …` (読み取りだけ) を実行し、harness の追跡 cwd が主 checkout へ移って以後の Bash が隔離 guard に拒否された。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変、書き込みなし)。同型: `spool_fold.py --base-digest` は cwd の台帳を読み、対象 repo を指定する引数が無いので、`docs/spool/worklog/README.md` の「digest は land 先の local main の現物に対して取る」を隔離 session で実行すると `cd` を誘う。主 checkout での lookup は job dir の `.sh` に閉じ込める。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -5755,6 +5757,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   連鎖を pin するテストの新設は本 wave の scope 外として後続タスクへ送った。
 
 - **再発: 2026-09-26** — [T-2854] 単位 11 の計算 probe (job dir、repo 外) で、変異 H-line の判定器が TPC-C consumer を target 名 (`tpcc_` で始まる) で選んでいた。実際の 21 compile entry では該当が 12 件 (`tpcc_<p>.cc` 9 件 + silo・si・mocc の `transaction.cc` の tpcc target 3 件) で、正しく検出しても必ず「理由違い」になる形だった。selftest の合成 row が実構成 (source と target の組) を写しておらず、自己試験は緑、段 6 の敵対レビュー 2 本も見逃した。計算投入の前に親が前例の実測 JSON (単位 3 の `C1-preprocess.json`) と照合して見つけ、fix で TPC-C consumer を source で選び、selftest の row を実測の 21 組にし、旧 filter が正例を拒否する陰性 case を足した。near miss (計算前に是正、成果物の値は不変)。対応は実測の 21 組を selftest へ転記して代表性を改めたもので、実 artifact を直接入力する対策 (本エントリの恒久対応の形) は未実施 (probe は job dir の使い捨てで repo の gate ではないため)。記録は `output/insights/2026-09-26/t2854-unit11-combined/README.md` §6。
+
+- **再発: 2026-09-30** — 判定器の D5 (emitter の証拠面) の include 検査が `#include "ycsb.hh"` しか受けない正規表現で、test の fixture も実物と違うその簡略形を書いていたため、段 5・6 の test (200 件緑) と review 2 本・焦点再レビューが通した。実物の `cc/silo/ycsb_silo.cc` は `#include "../../include/ycsb.hh"` で、計算ノードの生死確認 (Silo 修正あり) で D1・D2 が 0 件なのに D5 が不成立になり certified にならなかった (向きは偽の赤)。include の path を `cc/silo/` から解決して `include/ycsb.hh` と同じ file のときだけ成立にし、fixture を実物の形にして別 file へ解決する負例を足した (`orchestrator/verifier/core.py` の `_gate_d5`、`orchestrator/tests/test_verifier_gate_witness.py::test_gate_wrong_include_target_d5_fails`)。再発検知は同 test と変異 M12、および実物の source で走る生死確認 (`output/insights/2026-09-30/gen-opt-gate-verifier/README.md` §4.3)。
 ### F110. 単独性の合格条件を「非自 process の CPU 時間ゼロ」にしたため、計算ノードでは決して満たせなかった [恒真ゲート] [計測汚染]
 
 - 事象: [T-419] の probe 因果実験を Pegasus 計算ノード bnode138 で走らせたところ、最初の arm (A0) で
@@ -10239,6 +10243,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — VHash GC 接続の小モデル wave (dev-wave-vhash-gc-connection) で、親が fix3 の commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と、新 test file の所要計測の run_tests dispatch を同一 worktree からほぼ同時に投入し、監査の qsub 中の pending orphan hold (`phase: pending-qsub`) を所要計測が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。監査は request 34686.nqsv で走り切り rc=0、hold は監査の終端で自然に解除、所要計測は単独の再投入で 28 passed。qdel も hold の手動削除もしていない。既存恒久対応に修正すべき新事実はない。
 
 - **再発: 2026-09-29** — md_23 wave で、親が同じ detached 計測木から本走 6 job (perf 3・count 1・trace 2) を detach script で同時に投げ、1 本目の pending orphan hold を検知して 5 本が rc 16 (`child_started=false`、`reason=orphan-hold`) になった (親の操作ミス)。1 本目 (36631.nqsv) は走り切り、残り 5 本は同じ木から 1 本ずつ流す chain で通した。qdel も hold の手動削除もしていない。`DW-C00` の「同一 worktree の dispatch は全種直列」の読み落としで、既存の恒久対応に直すべき新事実はない。並列にしたい計測は、計測木を job の数だけ作ってから投げる。
+
+- **再発: 2026-09-30** — VHash md_31 で、親が fix1 commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と焦点走 2 を同一 worktree からほぼ同時に投入し、焦点走 2 の qsub 中の pending orphan hold を監査が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。焦点走 2 は request 37897 で走り切り、hold はその終端で自然に解除、監査は単独の再投入 (37907) で rc=0。qdel も hold の手動削除もしていない。既存の恒久対応に直すべき新事実はない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -21572,6 +21578,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-29** — VHash md_21 で、C++ の計数行を新しく読む driver の解析を、実装子が推測で組んだ fixture だけで検査した。実物との食い違いが smoke 1 (`CICADA_LONGTX_V1` の top-level key に `schema` があった) と fix 後の焦点再レビュー (SAFEPOINT の無い build の GC 行の mode は `"none"`、driver は `"off"` を要求) で 1 巡に 1 件ずつ出て、fix を 2 巡追加した。どちらも login のテストと段 6 のレビュー 2 本では捕まらなかった。直した後は実 stdout の行を写した回帰テストと、build の macro 集合から期待を導く形にした。
+
+- **再発: 2026-09-30** — VHash md_31 で、実装子が推測で組んだ fixture と login のテスト・段 6 のレビュー 2 本では捕まらない欠陥が、実機で 1 巡に 1 件ずつ 3 件出た。smoke 1 で新 subcommand の起動枠が target-run の流れを写さず依存物 build を抜かし、条件 gate の前処理が `config.h` 無しで停止 (レビュー B は「起動枠の再記述」を nit として挙げていた)。smoke 2 で計器なし build の計数専用の変数が未使用になり `-Werror` で停止 (子の環境には gflags と生成 config.h が無く、構文検査が走らなかった)。検査 1 で repo 外起動器が hb の腕の GC V1 行 (`no_room` を持たない) にも `no_room` の分割照合を当てて落ちた。直した後、abort-run の順序を検査するテストを足し、変数と macro の組の表を子に出させた。md_21 の再発と同じく、新しく build・解析する経路は smoke を最初の fix 巡の前に出すのが最も安い。
 ### F723. 親が「逐語」と称した射影資料を省略記号で切り、子の fixture に同じ穴が空いた [テスト代表性] [手順漏れ]
 
 - 事象: 実 build の逐語を job dir へ射影する際、`.o.d` の中身を `...` で省略した。実装子は
