@@ -1,0 +1,30 @@
+--- base
++++ fixed
+@@ -95790,8 +95790,8 @@
+     min_wts_ = initial_wts;
+     gc_lock_.store(0, std::memory_order_release);
+     continuing_commit_.store(0, std::memory_order_release);
+-    latest_ = &inline_ver_;
+-    body_ = std::ref(inline_ver_.body_);
++    latest_ = ver;
++    body_ = std::ref(ver->body_);
+   }
+ };
+ namespace google {
+@@ -129018,13 +129018,15 @@
+   }
+ }
+ void TxExecutor::abort() {
++  std::vector<Tuple*> inserted_tuples;
+   for (auto& we : write_set_) {
+     if (we.op_ == OpType::INSERT) {
++      inserted_tuples.push_back(we.rcdptr_);
+       Masstrees[get_storage(we.storage_)].remove_value(we.key_);
+-      delete we.rcdptr_;
+     }
+   }
+   writeSetClean();
++  for (Tuple* tuple : inserted_tuples) { delete tuple; }
+   read_set_.clear();
+   node_map_.clear();
+   if (FLAGS_group_commit) { chkGcpvTimeout(); }
