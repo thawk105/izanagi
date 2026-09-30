@@ -1130,6 +1130,8 @@
 - **supersede: 2026-09-18** — 削除側の運用則「1 worktree ずつ削除し、必要なら timeout を延ばす」は D2104 項 32 / D2113 の固定 launcher `tools/cleanup_remove_dirs.py` (`/cleanup-branches` §3 手順 3、全対象を前景 1 回で渡す) で置換済み。2026-09-17 の実走では 17 本並列 101 秒・10 本 161 秒で全件 removed (数値は同実走の final 報告を依頼文が引用したもの、job dir は消失)。作成側の運用則 (`git worktree add` は 1 件ずつ、必要なら timeout を延ばし、背景化されたら pid 終了を待つ) は残る。現行実体は §3 の同 launcher と `DW-O28` の `tools/dev_wave_cleanup.py`。
 
 - **再発: 2026-09-29** — `dev-wave-vhash-readonly-share` の wave 用 worktree の作成で、login の高負荷 (load 50〜170、他 wave の `git worktree add` が 10 本前後並走) の下、`git worktree add` が checkout の途中で EINTR (「システムコール割り込み」) により 2 回 rc=128 で終了した (1 回目 14:42「Could not reset index file to revision 'HEAD'」、2 回目 15:01「cannot create directory ...: システムコール割り込み」、各 20 分弱)。どちらも作りかけの directory と admin dir は消え、branch だけが残った。3 回目は `git worktree add --no-checkout` で登録だけを先に作り、`git worktree lock` の後に `git -C <path> reset -q --hard HEAD` を成功するまで反復する形にして、1 回目の reset で完成した (15:07)。この形なら reset が中断されても登録と作りかけが残り再実行できる見込みだが、今回 reset の中断は起きておらず確かめていない。同じ wave の子木・計測木 7 本もこの形で作り、全件 1 回目で成功した。変異 harness (`tools/mutation_worktree.py`) の login での plan-only は harness 内部の `git worktree add --detach` が同じ EINTR で失敗し (rc=125)、計算ノードでの実行に切り替えた。
+
+- **再発: 2026-09-30** — dev-wave-lock-order-axis の fix 用子木の `git worktree add -b` が checkout の途中で「cannot create directory …: システムコール割り込み」(EINTR) により rc=128 で終了し、作りかけの木は消えて branch だけが残った。既存 branch を指定した `git worktree add <path> <branch>` の単独の再実行で成功した。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -5228,6 +5230,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** (実害: session が約 15 分止まりユーザー手番を要した) — [T-2911] VHash md_22 wave の親が段 5 の実装子の dry-run を `cd <Codex author の子 worktree> && python3 tools/dev_wave_codex.py … --dry-run` で打ち、harness の追跡 cwd が子 worktree へ移って以後の全 Bash が隔離 guard に拒否された。これまでの復帰手順 `EnterWorktree(path=<自分の wave worktree>)` は、login の load average 約 45 の下で内部の `git worktree list` が 10 秒の上限を超え、11 回連続で時間切れになった。子エージェントも同じ cwd を継ぐので代行できず、ユーザーの `! cd` も同じ guard に拒否された。ユーザーの許可を得て `ExitWorktree(keep)` で抜け、元の作業場所から実装子を起動し、約 20 分後に負荷が下がって同じ worktree で作業を続けた。書き込みの取り違えは無い。同型: `dev_wave_codex.py` は `--repo-root` を取るので `cd` は要らない。高負荷時は `EnterWorktree(path)` が効かないことがあるので、そもそも `cd` を前置しない (memory `worktree-discipline` の「cwd の罠」、本エントリの 2026-09-18 の 3 件と同型)。
 
 - **再発: 2026-09-30** (near miss、実害なし) — VHash md_26 wave の親が、worklog fragment の `base:` を land 先の local main の台帳で取るために Bash で `cd <主 checkout> && python3 tools/spool_fold.py --base-digest …` (読み取りだけ) を実行し、harness の追跡 cwd が主 checkout へ移って以後の Bash が隔離 guard に拒否された。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変、書き込みなし)。同型: `spool_fold.py --base-digest` は cwd の台帳を読み、対象 repo を指定する引数が無いので、`docs/spool/worklog/README.md` の「digest は land 先の local main の現物に対して取る」を隔離 session で実行すると `cd` を誘う。主 checkout での lookup は job dir の `.sh` に閉じ込める。
+
+- **再発: 2026-09-30** (near miss、実害なし) — VHash md_32 wave の親が、段 5 の診断 job の `--dry-run` を `cd <計測用の detached 子 worktree> && /usr/bin/python3.10 … --dry-run` で打ち、harness の追跡 cwd が子 worktree へ移って以後の Bash が拒否された。`EnterWorktree(path=<自分の wave worktree>)` で 1 回で復帰 (login の load 約 20)。以後の dry-run は `cd` を前置せず `--repo-root` の絶対 path で打った。書き込みは発生していない。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -17605,6 +17609,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 実装子 prompt に「`external/ccbench/` を触るな。拒否されたら迂回せず停止しろ。
   shell 経由で書き込んで guard を回避してはならない」を明記し、編集面を作業場の絶対パスで渡す。
 
+
+- **再発: 2026-09-30** — VHash md_32 wave の段 5 で、CCBench の修理を Codex author に「submodule の作業木に実装せよ」と指示し、`cc/cicada/include/transaction.hh` への直接編集が guard_write に拒否された (子は迂回せず正しく停止、author 1 本を空費)。F546 の恒久対応 (使い捨て clone を編集面にし親が適用) が入口・reference に無く、親が prompt に書き忘れた。子木内の使い捨て clone (`md32-scratch/ccb`) で修理して差分を出す形で投げ直した。
 ### F547. 取り込んだ protocol と workload が同じ abort counter を二重加算し、測定値が 2 倍になりかけた [計測汚染]
 
 - 事象: CCBench の SS2PL を YCSB workload へ載せたところ、
@@ -28830,6 +28836,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同じ done file で待ち手を `--commit-worktree` 付きで再実行する (Codex author の trailer 付きで commit された)。
 - 再発検知: 起動器の `.done` が 3、待ち手の log に `worktree-commit: failed reason=add-all` が出たら、子木の gitdir の `index.lock` を見る。
 
+
+- **再発: 2026-09-30** — dev-wave-lock-order-axis の fix 子 (fix-f-2) の終了直後 13:29 JST に、子木の gitdir `.git/worktrees/lock-order-f/index.lock` が 0 byte で残った。起動器は残差を commit できていた (cf50faedd) が、続く待ち手の `--commit-worktree` が rc=70 `worktree-commit failed reason=add-all`、同じ木で後から起動した 2 つの子 (変異準備・件数の fix) の起動器の終端 commit も rc=3 で同じ理由で落ち、成果は未 commit のまま木に残った (親が所有 path 限定の diff で取り出した)。親が F 木を cmdline・cwd に持つ process が 0 件であることを確かめて lock を消した。同じ wave の他の子木 3 本には lock は無かった。lock を作った process は未特定 (2 例目、どちらも同じ producer の終端 commit の直後)。
 ### F1079. 2 つの wave が同じ件数 pin を同じ値へ書き換え、git の 3-way 合成が衝突なしで 1 回分の加算だけを残した [手順漏れ] [near miss]
 
 - 事象: 2026-09-30、[T-2911] VHash md_22 wave の受入前に local main 17995a4fe (VHash hot block wave が着地) を取り込むと、登録簿 7 file が衝突した。衝突は「同じ位置へ別の項目を足した」型で和集合にすれば解けるが、衝突の外で、両 wave がそれぞれ新 macro 3 件を足したことに伴う件数 pin (`_COMPILE_TIME_BRANCH_MACROS` 51→54、`MEANING_SUPPORTED_MACROS` 52→55、交差表の `proven-unreachable` 55→58・65→68、s8b sink の `covered` 69→72 など) を**同じ新値へ**書き換えていた。git は両側が同一の変更をしたと見て衝突なしで 1 回分だけを残すので、合成結果の pin は両 wave の追加の合算 (+6) でなく +3 のままになる。登録項目の衝突だけを解いて commit すると受入で赤になり、合算がたまたま別の変更と打ち消し合えば誤った件数で緑になりうる。
@@ -28861,3 +28869,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: [T-2951] (hook の判定を「branch の reflog に commit 由来の項が 1 つ以上ある」などへ直し、ff だけの木を land 済みとみなさない)。それまでの運用は hook の文言にある
   「未 land なら 1 行書いて終えてよい」で止め、撤去しない。
 - 再発検知: 直す wave が `orchestrator/tests/test_hooks.py` の `test_cleanup_stop_*` に「作成後に main へ ff しただけで commit 0 本の木では block しない」負例を足す。
+
+### F1082. TPC-C の異常終了を genome の promotion 軸へ帰属させ、その軸だけを外した対照を置かなかった [手順漏れ] [テスト代表性]
+
+- 事象: 前 wave (2026-09-29、CCBench の build 修理) は INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1 の genome で TPC-C M・R2 が `std::bad_alloc` で落ちるのを観測し、「promotion 有効の 8 genome は失格」とまとめた。2026-09-30 の診断 (gdb の catch throw と一要因対照) で、原因は promotion ではなく INLINE_VERSION_OPT=1 の `Tuple::init` が insert の版を無視する欠陥で、promotion 無効の OPT=1 genome (T0p) でも同じく落ちると分かった。失格の範囲 (8 genome) と原因の帰属 (promotion) がともにずれていた。
+- 根本原因: 観測した genome が 2 つの軸 (OPT と PROMO) を同時に 1 にしており、異常の帰属先を後から付いた軸 (promotion の build が初めて通った) に置いた。「その軸だけを外した genome (OPT=1・PROMO=0) でも起きるか」の対照を置かず、送出点の backtrace も取らないまま、切り分けの対象を計装の有無と前 wave の自分の変更 (重複登録の除去) に限った。
+- 恒久対応: 異常を genome の軸へ帰属させる記録は、(a) 送出点・最初の報告 (gdb の catch throw、ASan) と、(b) 疑う軸だけを外した genome の対照の両方を取ってから書く。md_32 の一次資料 (`output/insights/2026-09-30/ccbench-cicada-promotion-uaf-fix/README.md` §4) で帰属を訂正し、段 4 の事前登録 (追補 1) に「T0p (OPT=1・PROMO=0) も落ちる」を採否条件として置いた。memory `hub-evidence-and-check-design` に 1 行を足す。
+- 再発検知: 段 3 の相談で「帰属先の軸だけを外した対照があるか」を正しさ境界レンズの確認項目にする (DW-S03 の「親自身の実測値とその一般化」の具体例)。

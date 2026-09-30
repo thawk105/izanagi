@@ -1,0 +1,38 @@
+md_32: 比較相手 Cicada に残る不具合 2 件 (promotion 有効時の巡回・異常終了、abort 時の use-after-free) を直す
+
+最初に同じ directory の common.txt を読むこと。external/ccbench の gitlink は動かさない (commit は submodule 側に作るが izanagi の pin は変えない)。
+
+■ 台帳の項目の探し方
+docs/worklog.md の「次の一手」から、次の 2 つを grep して対象とする (T 番号は固定しない):
+「Cicada の promotion 有効の genome (INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1)」を含む item と、「`abort()` が INSERT した tuple を `delete` した直後に `writeSetClean()`」を含む item。
+
+■ 方針 (既存のユーザー裁定)
+基盤の欠陥は比較から外さず、直して使い続ける。CCBench の変更は上流 CCBench の CI (Release 全 protocol build と clang-format 14 `--dry-run --Werror`) を通す品質で作る (D2277 項 1・2)。直列化可能性を緩める直し方は採らない (絶対規律 2)。
+
+■ 直す 2 件
+1. promotion 有効の 8 genome: 判定器が YCSB K・R × thread 4 に G2 の巡回を検出し、TPC-C M・R2 × thread 4 が `std::bad_alloc` で異常終了する。まず原因を特定する。
+   出発点は output/insights/2026-09-29/ccbench-cicada-bugfix/README.md §4.3・§5 (重複登録を戻しても YCSB の巡回は残る、計装なしでも TPC-C は落ちる) と、残した raw trace (その wave の job dir の `evidence/diag-1-kept-trace/`)。
+   巡回の witness を壊した経路 (promotion のどの手順か) に帰属させてから直す。Cicada 原論文の promotion (best-effort inlining) の規則と照合する。
+2. abort 時の use-after-free: `cc/cicada/transaction.cc` の abort が INSERT した tuple を delete した直後に、`include/transaction.hh` の writeSetClean が同じ tuple の `continuing_commit_` へ書く (output/insights/2026-09-29/vhash-cicada-gc-records-fix/README.md §6、ASan で再現済み)。直し方の候補は同 §6。
+
+■ 進め方
+- 土台: CCBench の修理 branch は 2 本ある (`izanagi-cicada-build-fix` の tip G `eb93423b` と、gc_records の修理 branch の tip `81fc4a84`、どちらも F `25898d00` の子で未 push)。段 1 で、どちらの上に積むか・2 本を合わせた土台を local に作るかを決め、根拠を書く (push とまとめ方の最終判断は人間、T-2921・T-2924)。
+- 確認: (1) promotion 有効の 8 genome が build でき、YCSB と TPC-C の小走行で判定器に巡回が出ない (上限 indeterminate)、TPC-C が繰り返し完走する。(2) ASan で use-after-free が消える。どちらも修理前の再現と対にする。
+- 正しさの正例: promotion の誤りを狙った壊した版を 1 本以上作り、判定器が検出することを確かめる (patches/broken-cicada-*.patch、既定で重ならない)。
+- CI: 上流 CI と同じ手順で format と build を通す (手順は output/insights/2026-09-29/t2854-ccbench-format-ci/README.md §3)。D297 は修正で意味が変わる TU を除いて取り直し、変えた TU は意図した差分として範囲を書く。
+- 直った後: promotion 有効の 8 genome を md_11 の較正の空間へ戻す再計測は別 item にする (本 wave では行わない)。
+- push は人間の手番 (Pegasus から AI は push しない)。pin 前進は push と CI 緑の後の別 wave。
+
+■ 成果物
+- CCBench の新しい local branch と修理 commit (submodule 側)、壊した patch と ledger・README の該当 entry。
+- 一次資料: output/insights/<着手日>/ccbench-cicada-promotion-uaf-fix/README.md (2 件それぞれの原因・修理・確認、CI、D297、push とその後の手順)。
+- spool fragment (対象 item の完了・更新、push の人間手番 item、再計測の item)。
+
+■ 所有
+external/ccbench の新しい local branch (既存 branch は動かさない)、patches/broken-cicada-* の新規、ledger・README の該当 entry、自分の一次資料と fragment。
+izanagi の gitlink・orchestrator/campaign/pin.py、patches/cicada-forwarding-* と driver (md_31)、tools/vhash_forwarding_model/ (md_31)、patches/instr-cicada-version-lifetime.patch (md_29) は触らない。
+
+■ 注意
+- 正しさと基盤に関わる wave なので、軽量版でも段 3 の相談と段 6 の review を省かない。
+- 計算ノードは合計 2 node 時間未満。md_18・md_29・md_31 と同じノードで計測しない。
+- land は land 調整役「manager: parallel land」へ LAND-READY で申告する (common.txt 6)。

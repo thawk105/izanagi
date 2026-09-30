@@ -9,8 +9,8 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 79 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Sixty-one
+Claim boundary: the supply domain contains the 80 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Sixty-two
 registered macros additionally have a bounded compile-time witness: it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
@@ -105,6 +105,10 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-function-policy-variant.patch",
         inert_values=("0",),
+    ),
+    "SILO_ORDER_VARIANT": DefineSpec(
+        ROUTE_CMAKE_CACHE, ("cc/silo/transaction.cc",), "ycsb_silo.exe",
+        "patches/silo-lock-order-variant.patch", inert_values=("0",),
     ),
     "IZANAGI_SILO_POLICY_PROBE": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
@@ -453,6 +457,9 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "SILO_POLICY_VARIANT": (
         "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT",
     ),
+    "SILO_ORDER_VARIANT": (
+        "cc/silo/transaction.cc", "#if SILO_ORDER_VARIANT",
+    ),
     "IZANAGI_SILO_POLICY_PROBE": (
         "cc/silo/transaction.cc", "#if IZANAGI_SILO_POLICY_PROBE",
     ),
@@ -624,6 +631,7 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_CICADA_VLIFE": 37,
     "IZANAGI_CICADA_LONGTX": 3,
     "SILO_POLICY_VARIANT": 15,
+    "SILO_ORDER_VARIANT": 14,
     "IZANAGI_SILO_POLICY_PROBE": 21,
     "IZANAGI_SILO_LADDER_RUNG1": 2,
     "BACKOFF_TRIGGER_GATING": 12,
@@ -1289,14 +1297,14 @@ def make_define_request(
     stock_comparison: bool = False,
     protocol: str = "silo",
 ) -> DefineRequest:
-    """Construct a request from the independently declared 79-macro supply domain."""
+    """Construct a request from the independently declared 80-macro supply domain."""
     try:
         if protocol not in ("silo", "mocc") or (protocol == "mocc" and macro != "BACKOFF_FIXED"):
             raise KeyError(protocol)
         spec = _MOCC_BACKOFF_SPEC if protocol == "mocc" else DEFINE_SPECS[macro]
     except (KeyError, TypeError) as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", f"macro is outside the 79-macro domain: {macro!r}",
+            "request-contract-invalid", f"macro is outside the 80-macro domain: {macro!r}",
         ) from exc
     if len(spec.owner_tus) != 1:
         raise ConditionMeaningGateError(
@@ -1366,7 +1374,7 @@ def _validate_define_request(request: DefineRequest) -> tuple[DefineSpec, str, s
         spec = _request_spec(request)
     except KeyError as exc:
         raise ConditionMeaningGateError(
-            "request-contract-invalid", "macro is outside the 79-macro domain",
+            "request-contract-invalid", "macro is outside the 80-macro domain",
         ) from exc
     if request.route != spec.route:
         raise ConditionMeaningGateError(

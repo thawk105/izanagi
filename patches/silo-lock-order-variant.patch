@@ -1,0 +1,267 @@
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index 054a7e5f1..b66d19a4b 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -8,6 +8,121 @@
+ #include "include/scan_callback.hh"
+ #include "../../include/trace.hh" // izanagi: #if TRACE-guarded correctness trace
+ 
++#ifndef SILO_ORDER_VARIANT
++#error "SILO_ORDER_VARIANT must be supplied"
++#endif
++#if SILO_ORDER_VARIANT != 0 && SILO_ORDER_VARIANT != 1
++#error "SILO_ORDER_VARIANT must be 0 or 1"
++#endif
++#if SILO_ORDER_VARIANT
++#ifndef NO_WAIT_LOCKING_IN_VALIDATION
++#error "NO_WAIT_LOCKING_IN_VALIDATION must be supplied"
++#endif
++#if NO_WAIT_LOCKING_IN_VALIDATION != 1
++#error "NO_WAIT_LOCKING_IN_VALIDATION must be 1"
++#endif
++#ifndef NO_WAIT_OF_TICTOC
++#error "NO_WAIT_OF_TICTOC must be supplied"
++#endif
++#if NO_WAIT_OF_TICTOC != 0
++#error "NO_WAIT_OF_TICTOC must be 0"
++#endif
++// SILO-LOCK-ORDER-API-BEGIN
++namespace izanagi_silo_order_api {
++enum class AbortReason : uint32_t { unset, lock_conflict, update_absent, read_tid, read_locked, node_validation, insert_node, scan_node };
++struct TxnContext { uint32_t write_count; uint64_t rand; };
++struct EntryContext { uint32_t epoch; uint32_t tid; bool locked; };
++struct AbortContext { AbortReason reason; uint64_t rand; };
++struct CommitContext { };
++}
++namespace izanagi_silo_order {
++struct OrderState;
++bool order_enabled(OrderState&, const izanagi_silo_order_api::TxnContext&) noexcept;
++uint64_t order_priority(OrderState&, const izanagi_silo_order_api::EntryContext&) noexcept;
++void order_after_abort(OrderState&, const izanagi_silo_order_api::AbortContext&) noexcept;
++void order_on_commit(OrderState&, const izanagi_silo_order_api::CommitContext&) noexcept;
++}
++// SILO-LOCK-ORDER-API-END
++namespace izanagi_silo_order {
++#endif
++// EVOLVE-BLOCK-BEGIN silo-lock-order-policy
++#if SILO_ORDER_VARIANT
++struct OrderState { };
++bool order_enabled(OrderState&, const izanagi_silo_order_api::TxnContext&) noexcept { return false; }
++uint64_t order_priority(OrderState&, const izanagi_silo_order_api::EntryContext&) noexcept { return 0u; }
++void order_after_abort(OrderState&, const izanagi_silo_order_api::AbortContext&) noexcept { }
++void order_on_commit(OrderState&, const izanagi_silo_order_api::CommitContext&) noexcept { }
++#else
++#endif
++// EVOLVE-BLOCK-END silo-lock-order-policy
++#if SILO_ORDER_VARIANT
++} // namespace izanagi_silo_order
++namespace izanagi_silo_order_skel {
++thread_local izanagi_silo_order::OrderState state{};
++thread_local izanagi_silo_order_api::AbortReason reason = izanagi_silo_order_api::AbortReason::unset;
++thread_local uint64_t random_state = 88172645463325252ul;
++thread_local bool random_seeded = false;
++void seed_random(uint64_t thid) noexcept {
++  uint64_t x = thid + 0x9e3779b97f4a7c15ul;
++  x = (x ^ (x >> 30u)) * 0xbf58476d1ce4e5b9ul;
++  x = (x ^ (x >> 27u)) * 0x94d049bb133111ebul;
++  random_state = (x ^ (x >> 31u)) | 1ul;
++  random_seeded = true;
++}
++uint64_t next_random() noexcept {
++  random_state ^= random_state << 13u;
++  random_state ^= random_state >> 7u;
++  random_state ^= random_state << 17u;
++  return random_state;
++}
++__attribute__((noipa)) bool enabled(uint32_t count) noexcept {
++  return izanagi_silo_order::order_enabled(state, {count, next_random()});
++}
++__attribute__((noipa)) uint64_t priority(const izanagi_silo_order_api::EntryContext& entry) noexcept {
++  return izanagi_silo_order::order_priority(state, entry);
++}
++__attribute__((noipa)) void after_abort() noexcept {
++  izanagi_silo_order::order_after_abort(state, {reason, next_random()});
++}
++__attribute__((noipa)) void on_commit() noexcept {
++  izanagi_silo_order::order_on_commit(state, {});
++}
++// SILO-LOCK-ORDER-SORT-BEGIN
++template <typename Elements, typename Enabled, typename Priority, typename ReadWord>
++void sort_write_set(Elements& ws, Enabled enabled, Priority priority, ReadWord read_word) {
++  for (const auto& e : ws) {
++    if (e.op_ == OpType::INSERT || e.op_ == OpType::DELETE) {
++      sort(ws.begin(), ws.end());
++      return;
++    }
++  }
++  if (!enabled(static_cast<uint32_t>(ws.size()))) {
++    sort(ws.begin(), ws.end());
++    return;
++  }
++  std::vector<uint64_t> priorities;
++  std::vector<std::size_t> order;
++  priorities.reserve(ws.size());
++  order.reserve(ws.size());
++  for (std::size_t i = 0; i < ws.size(); ++i) {
++    const auto entry = read_word(ws[i]);
++    priorities.push_back(priority(entry));
++    order.push_back(i);
++  }
++  sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) {
++    if (priorities[a] != priorities[b]) return priorities[a] > priorities[b];
++    if (ws[a].storage_ != ws[b].storage_) return ws[a].storage_ < ws[b].storage_;
++    return ws[a].key_ < ws[b].key_;
++  });
++  Elements sorted;
++  sorted.reserve(ws.size());
++  for (auto i : order) sorted.push_back(std::move(ws[i]));
++  ws = std::move(sorted);
++}
++// SILO-LOCK-ORDER-SORT-END
++} // namespace izanagi_silo_order_skel
++#endif
++
+ extern void displayDB();
+ extern void siloLeaderWork(uint64_t& epoch_timer_start,
+                            uint64_t& epoch_timer_stop);
+@@ -34,6 +149,9 @@ void TxExecutor::abort() {
+   }
+ 
+   gc_records();
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::after_abort();
++#endif
+ 
+   read_set_.clear();
+   write_set_.clear();
+@@ -54,6 +172,10 @@ void TxExecutor::abort() {
+ 
+ void TxExecutor::begin() {
+   status_ = TransactionStatus::inflight;
++#if SILO_ORDER_VARIANT
++  if (!::izanagi_silo_order_skel::random_seeded) ::izanagi_silo_order_skel::seed_random(thid_);
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::unset;
++#endif
+   max_wset_.obj_ = 0;
+   max_rset_.obj_ = 0;
+ }
+@@ -96,6 +218,9 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+       if (it != node_map_.end()) {
+         if (unlikely(it->second != insert_info.old_version)) {
+           status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::insert_node;
++#endif
+           return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
+         }
+         // otherwise, bump the version
+@@ -160,6 +285,9 @@ void TxExecutor::lockWriteSet() {
+       if (expected.lock) {
+ #if NO_WAIT_LOCKING_IN_VALIDATION
+         this->status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::lock_conflict;
++#endif
+         if (itr != write_set_.begin()) unlockWriteSet(itr);
+         return;
+ #elif NO_WAIT_OF_TICTOC
+@@ -185,6 +313,9 @@ void TxExecutor::lockWriteSet() {
+     if (itr->op_ == OpType::UPDATE && itr->rcdptr_->tidword_.absent) {
+       unlockWriteSet(itr);
+       this->status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::update_absent;
++#endif
+       return;
+     }
+ 
+@@ -405,7 +536,19 @@ bool TxExecutor::validationPhase() { // Validation Phase
+   for (auto& we : write_set_) izanagi_pre_sort_rcdptrs.insert(we.rcdptr_);
+ #endif
+ 
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::sort_write_set(write_set_,
++      ::izanagi_silo_order_skel::enabled, ::izanagi_silo_order_skel::priority,
++      [](const auto& e) {
++        Tidword word;
++        word.obj_ = loadAcquire(e.rcdptr_->tidword_.obj_);
++        return ::izanagi_silo_order_api::EntryContext{
++            static_cast<uint32_t>(word.epoch), static_cast<uint32_t>(word.tid),
++            static_cast<bool>(word.lock)};
++      });
++#else
+   sort(write_set_.begin(), write_set_.end());
++#endif
+ 
+ #if TRACE
+   // Permutation-preservation check, post-sort verdict (D41 決定2). Outside
+@@ -456,6 +599,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+       this->status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::read_tid;
++#endif
+       unlockWriteSet();
+       return false;
+     }
+@@ -468,6 +614,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+       result_->local_vali_latency_ += rdtscp() - start;
+ #endif
+       this->status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::read_locked;
++#endif
+       unlockWriteSet();
+       return false;
+     }
+@@ -479,6 +628,9 @@ bool TxExecutor::validationPhase() { // Validation Phase
+     auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
+     if (node->full_version_value() != it.second) {
+       this->status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::node_validation;
++#endif
+       unlockWriteSet();
+       return false;
+     }
+@@ -706,6 +858,9 @@ void TxExecutor::writePhase() {
+ bool TxExecutor::commit() {
+   if (validationPhase()) {
+     writePhase();
++#if SILO_ORDER_VARIANT
++    ::izanagi_silo_order_skel::on_commit();
++#endif
+     return true;
+   } else {
+     return false;
+@@ -737,5 +892,8 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
+     tx_->node_map_.emplace_hint(it, (void*) n, version);
+   } else if ((*it).second != version) {
+     tx_->status_ = TransactionStatus::aborted;
++#if SILO_ORDER_VARIANT
++  ::izanagi_silo_order_skel::reason = ::izanagi_silo_order_api::AbortReason::scan_node;
++#endif
+   }
+ }
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+index b9a3c740d..a7a240b7b 100644
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -22,6 +22,8 @@ set(CCBENCH_KEY_SIZE      8 CACHE STRING "key size in bytes (YCSB)")
+ set(CCBENCH_MASSTREE_USE  1 CACHE STRING "use Masstree as the index")
+ set(CCBENCH_VAL_SIZE      4 CACHE STRING "value size in bytes (YCSB)")
+ 
++set(CCBENCH_SILO_ORDER_VARIANT 0 CACHE STRING "izanagi: 0=stock, 1=lock order (silo only)")
++
+ # ----- multi-protocol (used by 2+ protocols) -----
+ set(CCBENCH_KEY_SORT                       0 CACHE STRING "")
+ set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING "")
+@@ -65,6 +67,7 @@ function(ccbench_universal_definitions out_var)
+     MASSTREE_USE=${CCBENCH_MASSTREE_USE}
+     VAL_SIZE=${CCBENCH_VAL_SIZE}
+     TRACE=${CCBENCH_TRACE}
++    SILO_ORDER_VARIANT=${CCBENCH_SILO_ORDER_VARIANT}
+     PARENT_SCOPE)
+ endfunction()
+ 

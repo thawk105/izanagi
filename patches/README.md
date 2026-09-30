@@ -880,6 +880,31 @@ smoke は 5 case・30 check すべて真 (stock と 4 方策が legacy / 性能�
 
 ---
 
+## silo-lock-order-variant.patch — 段 A の軸 silo-lock-order-policy (競合度順の施錠) の骨格 ([T-2886]、2026-09-30)
+
+LLM が「write set をどの順で施錠するか」を関数単位で書く軸の骨格 (template patch)。仕様の正本 =
+`output/insights/2026-09-29/gen-opt-stage-a-candidate/README.md` §4、実装の記録 =
+`output/insights/2026-09-30/gen-opt-lock-order-axis/README.md`。軸定数は `orchestrator/campaign/axis_silo_lock_order.py`、
+api header の単一正本は `orchestrator/campaign/silo_lock_order_api.hh`、名前つき対照は `orchestrator/campaign/silo_lock_order_hand/`、
+提案文字列の検疫・文法・単独 compile は `orchestrator/campaign/silo_lock_order_gate.py` の `order_gate`。
+
+- `cmake/Options.cmake` の universal 相乗り (`CCBENCH_SILO_ORDER_VARIANT`、既定 0) と `cc/silo/transaction.cc`。**既定 0 で inert**
+  (追加の宣言・骨格・呼出し点・要因記録・並べ替え関数がすべて `#if SILO_ORDER_VARIANT` の内側で、preprocess 後に原文一致 →
+  src_token="stock")。未定義と 0 / 1 以外は `#error`、軸 ON で `NO_WAIT_LOCKING_IN_VALIDATION` と `NO_WAIT_OF_TICTOC` の
+  未定義または 1 / 0 以外も `#error`。
+- 軸 ON: api block の埋込み、単一 marker (id=`silo-lock-order-policy`) の hole (`izanagi_silo_order` の本体、既定本文 =
+  並べ替えない)、骨格所有の thread_local 状態・要因・PRNG・4 hook の noipa wrapper、`validationPhase` の stock の
+  `sort(write_set_)` 1 行だけを並べ替え関数 (`SILO-LOCK-ORDER-SORT-BEGIN/END` で区切った template) の呼び出しに置換。
+  並べ替え関数は、INSERT か DELETE を含む write set では stock の sort をして順序 hook を呼ばない。UPDATE だけなら
+  `order_enabled` を 1 回呼び、true のとき各要素の TID word を 1 回だけ読んで `order_priority` を 1 回ずつ呼び、
+  (優先度 降順, storage 昇順, key 昇順) の全順序で要素を並べ直す (要素の集合は変えず、既存の pre/post sort 検査は外側に残る)。
+  abort 後と commit 成功後の通知 hook は取引の種類によらず呼ぶ。要因記録は関数方策の骨格と同じ 7 点。
+- **排他:** `silo-sort-variant.patch` と同じ sort 行を置き換え、`silo-function-policy-variant.patch` と同じ file の同じ場所を
+  触るので、どちらとも同時に当てない (`axis_silo_lock_order.EXCLUSIVE_PATCHES`)。PIN 前進はしない。
+- 条件意味 gate (`condition_meaning_gate.py`) に `SILO_ORDER_VARIANT` を inert_values=("0",)、branch site 14 で登録。
+
+---
+
 ## broken-silo-{read-lock-check,…} 11 本 / control-silo-{double-abort-backoff,reverse-write-order,conservative-abort} 3 本 — 検出期待表の新規 silo 変異 ([T-2847])
 
 verifier が何を検出し何を判定しないかを実測で示すための変異 14 本。設計 (期待の層と発生条件) は
@@ -1084,6 +1109,32 @@ CCBench の C1' `6aa7a58f` (pin C の子、header 2 file だけ) にある。md_
   と build (CI image、全 protocol) を CCBench の branch tip で手元通過。
 - **限界:** INLINE_VERSION_OPT=1 の insert 経路では空 key が残りうる (修理前と同じ)。`abort()` が insert した tuple を解放した後に
   `writeSetClean()` が書く use-after-free (既存、ASan で検出) は直していない。記録は `output/insights/2026-09-29/vhash-cicada-gc-records-fix/`。
+
+## broken-cicada-promotion-ronly-stale-recheck.patch — Cicada の promotion 修理の正例 ([T-2922]、2026-09-30)
+
+CCBench の local branch `izanagi-cicada-promotion-uaf-fix` (土台 `aa8e36f1` = `izanagi-cicada-build-fix` G と `izanagi-cicada-gc-records-fix` の merge、
+その上に修理 4 commit、tip `9da70164`、push と pin の前進は人間の手番) の修理 1 本目 (読み取り専用 tx では promotion しない) を狙った壊し。
+修理そのものは branch にだけ置き、out-of-tree の修理 patch は作らない。`patches/ledger.json` には登録しない (entries 1 件固定、上の cicada 節と同じ)。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| broken-cicada-promotion-ronly-stale-recheck | なし (無条件) | `inlineVersionPromotion()` の「読み取り専用 tx は promotion しない」条件だけを外し、読み取り専用 tx を promotion で読み書き tx に転換する修理前の挙動に戻す。rts で読んだ要素の `later_ver_` を出発点にする validation の再検査はそのまま (修理前と同じ) |
+
+- **欠陥 (修理 1 本目が直したもの):** 読み取り専用 tx は rts で可視版を選び、`later_ver_` を rts 基準で記録する。promotion で読み書き tx に転換すると、
+  validation の読み取り再検査は `later_ver_` から wts 未満まで下る。`later_ver_` が aborted で、その手前に rts と wts の間の確定版が入ると、
+  再検査はそれを飛ばして読んだ版に行き着き、古い読みが通る (原論文 §3.1 は読み取り専用 tx を rts の snapshot で読み読み取り集合を検証しないと定め、
+  §3.3 の promotion は「可視版として読んだ版の読みを RMW へ格上げ」で、rts で読む tx の格上げは書いていない)。
+- **重ね方:** 修理後 tip → (`instr-cicada-trace.patch`、または promotion の `#error` 1 行だけを外した repo 外の診断変種) → (`instr-cicada-trace-tpcc.patch`) → 壊し、
+  の順で厳密適用する。`instr-cicada-trace.patch` は INLINE_VERSION_OPT ∧ INLINE_VERSION_PROMOTION と TRACE=1 の組を `#error` で止めるので、
+  promotion genome の trace は repo 外の診断変種で取る (標準の計器で保証された観測ではない)。新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない。
+- **発火診断 (壊しだけ):** promotion した read 要素で、再検査の `later_ver_` 起点と最新版起点が食い違ったまま commit した tx だけを
+  `CICADA_BREAK_EVENT slug=promotion-ronly-stale-recheck tx_wts= key= a_wts= b_wts=` に出し、終了時に `CICADA_BREAK_FIRED slug= reached= changed= committed=`。
+  判定器の判定には使わず、repo 外起動器の帰属解析 (witness の辺の端点と key の照合) だけに使う。
+- **実証:** 修理前 (土台) の代表 promotion genome (BACK_OFF=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0) の YCSB は K で巡回 9・R で 359。修理後 tip は
+  promotion 有効の 8 genome × YCSB K・W・R・P と TPC-C M・R2 がすべて巡回 0 (上限 indeterminate)。修理後 tip + 本 patch の R は non-serializable (巡回 308)、
+  代表 witness 20 件中 18 件で巡回の辺の端点が壊した経路の commit tx、辺の key が event の key (`CICADA_BREAK_FIRED ... reached=189 changed=183 committed=176`)。
+  integrity 数値項目 0・C 行 = commit 数で、巡回だけが赤の理由。記録は `output/insights/2026-09-30/ccbench-cicada-promotion-uaf-fix/`。
+- **pin 前進時:** pin が branch `izanagi-cicada-promotion-uaf-fix` を含む tip へ進んだら、厳密適用と生死確認を取り直す。pin C には修理 1 が無いので本 patch は当たらない。
 
 ---
 

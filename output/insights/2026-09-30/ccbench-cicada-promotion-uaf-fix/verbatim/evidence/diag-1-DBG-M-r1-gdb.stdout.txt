@@ -1,0 +1,52 @@
+Catchpoint 1 (throw)
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+#FLAGS_clocks_per_us:			2100
+#FLAGS_extime:				1
+#FLAGS_gc_inter_us:			10
+#FLAGS_group_commit:			0
+#FLAGS_group_commit_timeout_us:		2
+#FLAGS_io_time_ns:			5
+#FLAGS_pre_reserve_version:		10000
+#FLAGS_p_wal:				0
+#FLAGS_s_wal:				0
+#FLAGS_thread_num:			4
+#FLAGS_ycsb:				1
+#FLAGS_worker1_insert_delay_rphase_us:	0
+[start] load.
+[New Thread 0x155554b0e640 (LWP 600005)]
+[New Thread 0x15555490d640 (LWP 600006)]
+[New Thread 0x15555470c640 (LWP 600007)]
+[Thread 0x15555490d640 (LWP 600006) exited]
+[New Thread 0x15555450b640 (LWP 600008)]
+[Thread 0x155554b0e640 (LWP 600005) exited]
+[Thread 0x15555470c640 (LWP 600007) exited]
+[end] load.
+[Thread 0x15555450b640 (LWP 600008) exited]
+[New Thread 0x15555450b640 (LWP 600010)]
+[New Thread 0x15555470c640 (LWP 600011)]
+[New Thread 0x15555490d640 (LWP 600012)]
+[New Thread 0x155554b0e640 (LWP 600013)]
+[Switching to Thread 0x155554b0e640 (LWP 600013)]
+
+Thread 9 "tpcc_cicada.exe" hit Catchpoint 1 (exception thrown), 0x00001555553169f1 in __cxa_throw () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#0  0x00001555553169f1 in __cxa_throw () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#1  0x00001555552fed43 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#2  0x0000555555560b41 in HeapObject::allocate (this=0x15552427e340, size=0, align=0) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/include/../../../include/heap_object.hh:98
+#3  0x0000555555560c1d in HeapObject::deep_copy_from (this=0x15552427e340, rhs=...) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/include/../../../include/heap_object.hh:123
+#4  0x0000555555560dea in TupleBody::operator= (this=0x15552427e320, right=...) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/include/../../../include/tuple_body.hh:48
+#5  0x00005555555866c5 in Tuple::init (this=0x15552427e280, thid=3, ver=0x15552427a8c0, initial_wts=80556681712689923) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/include/tuple.hh:103
+#6  0x0000555555583700 in TxExecutor::insert (this=0x155554b0d940, s=<incomplete type>, key="\000\003\200\000\000\000\000", body=...) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/transaction.cc:315
+#7  0x0000555555574d62 in insert_history<TxExecutor, TransactionStatus> (tx=..., c_id=32767, c_d_id=1 '\001', c_w_id=1, d_id=1 '\001', w_id=1, h_amount=1174.76, w_name=0x155554b0d602 "6bfOYsJ9", d_name=0x155554b0d684 "teusG3hC3", hkg=0x155554b0dc00) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/../../include/./tpcc/tpcc_tx_payment.hh:224
+#8  0x000055555557010a in run_payment<TxExecutor, TransactionStatus, Tuple> (tx=..., query=0x155554b0d808, hkg=0x155554b0dc00) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/../../include/./tpcc/tpcc_tx_payment.hh:263
+#9  0x000055555556c2ce in TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus> (this=0x155554b0dbc0, tx=...) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/../../include/tpcc.hh:65
+#10 0x000055555555e171 in ccbench::runner_detail::worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook>(std::size_t, char &, const bool &, const bool &, const struct {...} &, const struct {...} &, const ccbench::NoOpHook &) (thid=3, ready=@0x5555555f4a63: 1 '\001', start=@0x7fffffffe740: true, quit=@0x7fffffffe780: false, make_tx=..., worker_init=..., worker_after_start=...) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/../../common/runner.hh:193
+#11 0x000055555555d979 in operator() (__closure=0x5555555f3dd8) at /scr/md32-promo-whrkauji/source-DBG/cc/cicada/../../common/runner.hh:283
+#12 0x000055555555f15c in std::__invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> >(std::__invoke_other, struct {...} &&) (__f=...) at /usr/include/c++/11/bits/invoke.h:61
+#13 0x000055555555f11f in std::__invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> >(struct {...} &&) (__fn=...) at /usr/include/c++/11/bits/invoke.h:96
+#14 0x000055555555f0cc in std::thread::_Invoker<std::tuple<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > >::_M_invoke<0>(std::_Index_tuple<0>) (this=0x5555555f3dd8) at /usr/include/c++/11/bits/std_thread.h:259
+#15 0x000055555555f0a0 in std::thread::_Invoker<std::tuple<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > >::operator()(void) (this=0x5555555f3dd8) at /usr/include/c++/11/bits/std_thread.h:266
+#16 0x000055555555f084 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > > >::_M_run(void) (this=0x5555555f3dd0) at /usr/include/c++/11/bits/std_thread.h:211
+#17 0x0000155555349ca6 in ?? () from /lib/x86_64-linux-gnu/libstdc++.so.6
+#18 0x0000155554fa9ac3 in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:442
+#19 0x000015555503b8d0 in clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:81

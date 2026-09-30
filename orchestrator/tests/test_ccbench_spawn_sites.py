@@ -3625,10 +3625,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 75,
+        "proven-unreachable": 76,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 79})
+    assert classifications[s8b_sink] == Counter({"covered": 80})
     assert failures == []
 
 
@@ -3640,7 +3640,7 @@ def test_ro_gc_publish_build_sink_uses_complete_condition_gate_family():
         "orchestrator/campaign/vhash_ro_gc_publish.py",
         "<module>._build_variant", 216, "direct-cmake-target")
     assert classifications[sink] == Counter({
-        "covered": 4, "proven-unreachable": 75})
+        "covered": 4, "proven-unreachable": 76})
     assert failures == []
 
 
@@ -3664,7 +3664,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 65})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 66})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3673,7 +3673,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 65,
+        "failure-reachable": 14, "proven-unreachable": 66,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target
