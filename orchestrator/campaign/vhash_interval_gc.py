@@ -498,15 +498,20 @@ def parse_json_line(stdout, prefix, required):
 
 def parse_counters(stdout, kind):
     longtx = parse_json_line(stdout, 'CICADA_IGC_LONGTX_V1 ',
-                             {'attempts', 'commits', 'aborts', 'residence_cycles_sum', 'residence_cycles_max'})
+                             {'schema', 'attempts', 'commits', 'aborts', 'residence_cycles_sum',
+                              'residence_cycles_max', 'clocks_per_us'})
     if any(type(longtx[k]) is not int or longtx[k] < 0 for k in
-           ('attempts', 'commits', 'aborts', 'residence_cycles_sum', 'residence_cycles_max')):
+           ('attempts', 'commits', 'aborts', 'residence_cycles_sum', 'residence_cycles_max',
+            'clocks_per_us')) or longtx['schema'] != 1 or longtx['clocks_per_us'] == 0:
         raise ValueError('invalid longtx counters')
     interval = None
     if kind == 'count':
-        interval = parse_json_line(stdout, 'CICADA_INTERVAL_V1 ', {'schema'})
-        if interval.get('debug_mode') != 1:
-            raise ValueError('count build must use default interval GC mode 1')
+        interval = parse_json_line(stdout, 'CICADA_INTERVAL_V1 ',
+                                   {'schema', 'debug_mode', 'chain_versions', 'chain_bytes',
+                                    'reuse_pool', 'threads'})
+        if interval['schema'] != 1 or interval.get('debug_mode') not in (-1, 1):
+            raise ValueError('invalid interval count mode')
+        interval_metrics(interval)
     elif 'CICADA_INTERVAL_V1 ' in stdout:
         raise ValueError('counter in perf/trace build')
     return interval, longtx
@@ -522,6 +527,8 @@ def counter_total(counter, name):
         values = [t[name] for t in threads if name in t]
         if len(values) != len(threads):
             raise ValueError(f'missing interval counter {name}')
+        if any(type(item) is not int or item < 0 for item in values):
+            raise ValueError(f'invalid interval counter {name}')
         value = sum(values)
     else:
         value = counter.get(name)
@@ -530,9 +537,76 @@ def counter_total(counter, name):
     return value
 
 
+def interval_metrics(counter):
+    """Summarize the count line without conflating stock's absent GC with zero work."""
+    if not isinstance(counter, dict) or not isinstance(counter.get('threads'), list) or not counter['threads']:
+        raise ValueError('missing interval threads')
+    mode = counter.get('debug_mode')
+    if mode not in (-1, 1) or type(mode) is not int:
+        raise ValueError('invalid interval mode')
+    fields = ('chain_versions', 'chain_bytes', 'pruned_pending', 'pruned_pending_bytes',
+              'reuse_pool', 'retired_versions', 'retired_bytes')
+    gc_top_fields = {'pruned_pending', 'pruned_pending_bytes', 'retired_versions', 'retired_bytes'}
+    result = {}
+    missing = []
+    for name in fields:
+        value = counter.get(name)
+        if value is None and mode == -1 and name in gc_top_fields:
+            value = 0
+            missing.append(name)
+        if type(value) is not int or value < 0:
+            raise ValueError(f'invalid interval counter {name}')
+        result[name] = value
+    result['missing_fields'] = missing
+    result['debug_mode'] = mode
+    result['gc_status'] = 'absent' if mode == -1 else 'measured'
+    thread_fields = ('installed', 'installed_bytes', 'stock_removed', 'stock_removed_bytes',
+                     'retention_unknown', 'write_hops', 'boundary_samples', 'boundary_age_sum')
+    gc_fields = ('attempts', 'success', 'cas_fail', 'lock_fail', 'pruned', 'pruned_bytes',
+                 'reuse', 'reuse_bytes', 'retired_current', 'retired_bytes',
+                 'install_lock_spins', 'install_lock_wait_tsc')
+    for name in thread_fields:
+        result[name] = counter_total(counter, name)
+    for name in gc_fields:
+        key = 'thread_retired_bytes' if name == 'retired_bytes' else name
+        result[key] = (0 if mode == -1 else counter_total(counter, name))
+    result['gc_fields_status'] = 'not_applicable' if mode == -1 else 'measured'
+    for name in ('prune_age_log2', 'stock_age_log2', 'retire_age_log2'):
+        rows = [thread.get(name) for thread in counter['threads']]
+        if mode == -1 and name != 'stock_age_log2':
+            for i, row in enumerate(rows):
+                if row is None:
+                    rows[i] = [0] * 64
+                    missing.append(f'threads[{i}].{name}')
+        if any(not isinstance(row, list) or len(row) != 64 or
+               any(type(value) is not int or value < 0 for value in row) for row in rows):
+            raise ValueError(f'invalid interval bucket {name}')
+        result[name] = [sum(row[i] for row in rows) for i in range(64)]
+    hops = [thread.get('hops') for thread in counter['threads']]
+    if any(not isinstance(row, list) or len(row) != 2 or
+           any(not isinstance(pair, list) or len(pair) != 2 or
+               any(type(value) is not int or value < 0 for value in pair) for pair in row)
+           for row in hops):
+        raise ValueError('invalid interval hops')
+    result['hops'] = [[sum(row[i][j] for row in hops) for j in range(2)] for i in range(2)]
+    modes = []
+    for thread in counter['threads']:
+        row = thread.get('debug_modes')
+        if not isinstance(row, list) or len(row) != 4 or any(
+                not isinstance(entry, dict) or entry.get('mode') != i or
+                any(type(entry.get(name)) is not int or entry[name] < 0 for name in
+                    ('calls', 'intervals', 'versions')) for i, entry in enumerate(row)):
+            raise ValueError('invalid interval debug modes')
+        modes.append(row)
+    result['debug_modes'] = [
+        {'mode': i, **{name: sum(row[i][name] for row in modes) for name in
+                       ('calls', 'intervals', 'versions')}} for i in range(4)]
+    return result
+
+
 def smoke_candidate_delta(counters):
-    minimum = counter_total(counters['min'], 'prune_success')
-    general = counter_total(counters['gen'], 'prune_success')
+    minimum = counter_total(counters['min'], 'success')
+    general = counter_total(counters['gen'], 'success')
     return {'minimum_prune_success': minimum, 'general_prune_success': general,
             'beyond_minimum_candidate': max(0, general - minimum)}
 
@@ -618,7 +692,8 @@ def aggregate(records, *, no_gen_perf=False, require_parts=False):
         elif record['build_kind'] == 'count' and record.get('perf_eligible') is False:
             if cell['count'][arm] is not None:
                 raise ValueError('duplicate count record')
-            cell['count'][arm] = record['interval_counter']
+            cell['count'][arm] = {'interval': interval_metrics(record['interval_counter']),
+                                  'longtx': record.get('longtx_counter')}
     if set(cells) != planned:
         raise ValueError(f'missing planned cells: {sorted(planned - set(cells))}')
     result = {}
@@ -691,7 +766,8 @@ def run_binary(binary, spec, receipts, hashes, raw_dir):
             'competing_probe': probe,
             'stdout': {'path': str(stdout_path), 'sha256': digest(completed.stdout)},
             'stderr': {'path': str(stderr_path), 'sha256': digest(completed.stderr)},
-            'interval_counter': interval, 'longtx_counter': longtx}
+            'interval_counter': interval, 'interval_metrics': interval_metrics(interval) if interval else None,
+            'longtx_counter': longtx}
 
 
 def run_diagnostic(binary, spec, receipts, out, *, run_timeout=60, gdb_timeout=120):

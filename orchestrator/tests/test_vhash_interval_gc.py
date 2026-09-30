@@ -13,6 +13,9 @@ from unittest.mock import patch
 
 from orchestrator.campaign import vhash_interval_gc as d
 
+# smoke10 compute-node count lines, retaining the first and last thread per arm.
+REAL_COUNT_LINES = {'min': 'CICADA_INTERVAL_V1 {"schema":1,"debug_mode":1,"version_bytes":128,"body_bytes":"owned HeapObject::size","chain_scope":"committed","chain_versions":1008518,"chain_bytes":193635456,"pruned_pending":682727,"pruned_pending_bytes":131083584,"reuse_pool":54524,"retired_versions":0,"retired_bytes":0,"retire_age_unit":"tsc_ticks","threads":[{"thid":0,"long":false,"debug_modes":[{"mode":0,"calls":0,"intervals":0,"versions":0},{"mode":1,"calls":72222,"intervals":7113,"versions":15488},{"mode":2,"calls":0,"intervals":0,"versions":0},{"mode":3,"calls":0,"intervals":0,"versions":0}],"snapshots":18061,"begin_skips":4072,"gap_keys":30416,"empty_gap_keys":28309,"attempts":72222,"success":7113,"cas_fail":0,"lock_fail":4421,"install_lock_spins":449419519,"install_lock_wait_tsc":841661690,"stock_lock_dropped":4895,"stock_lock_dropped_pruned":4535,"installed":72222,"installed_bytes":13866624,"pruned":15488,"pruned_bytes":2973696,"reuse":0,"reuse_bytes":0,"retired_current":0,"retired_bytes":0,"reuse_pool":200,"stock_removed":57346,"stock_removed_bytes":11010432,"boundary_samples":971,"boundary_age_sum":984693463373,"retention_unknown":12261,"write_hops":2101,"hops":[[0,1972],[0,1127]],"prune_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6,52,484,2557,7332,4791,156,110,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stock_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,11,1411,8914,6153,5162,4891,4911,4649,4387,3362,1234,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"retire_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"thid":47,"long":true,"debug_modes":[{"mode":0,"calls":0,"intervals":0,"versions":0},{"mode":1,"calls":272,"intervals":3,"versions":4},{"mode":2,"calls":0,"intervals":0,"versions":0},{"mode":3,"calls":0,"intervals":0,"versions":0}],"snapshots":0,"begin_skips":0,"gap_keys":127,"empty_gap_keys":124,"attempts":272,"success":3,"cas_fail":0,"lock_fail":13,"install_lock_spins":2644926,"install_lock_wait_tsc":5223402,"stock_lock_dropped":14,"stock_lock_dropped_pruned":14,"installed":272,"installed_bytes":52224,"pruned":4,"pruned_bytes":768,"reuse":0,"reuse_bytes":0,"retired_current":0,"retired_bytes":0,"reuse_pool":9719,"stock_removed":202,"stock_removed_bytes":38784,"boundary_samples":0,"boundary_age_sum":0,"retention_unknown":46,"write_hops":24,"hops":[[0,0],[114,0]],"prune_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stock_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,12,30,19,19,22,25,14,12,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"retire_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}]}\nCICADA_IGC_LONGTX_V1 {"schema":1,"attempts":996,"commits":272,"aborts":724,"residence_cycles_sum":2099861706,"residence_cycles_max":8593644,"clocks_per_us":2100}\n', 'gen': 'CICADA_INTERVAL_V1 {"schema":1,"debug_mode":1,"version_bytes":128,"body_bytes":"owned HeapObject::size","chain_scope":"committed","chain_versions":1003602,"chain_bytes":192691584,"pruned_pending":239496,"pruned_pending_bytes":45983232,"reuse_pool":89805,"retired_versions":0,"retired_bytes":0,"retire_age_unit":"tsc_ticks","threads":[{"thid":0,"long":false,"debug_modes":[{"mode":0,"calls":0,"intervals":0,"versions":0},{"mode":1,"calls":30160,"intervals":2726,"versions":4398},{"mode":2,"calls":0,"intervals":0,"versions":0},{"mode":3,"calls":0,"intervals":0,"versions":0}],"snapshots":7673,"begin_skips":1579,"gap_keys":12745,"empty_gap_keys":11247,"attempts":30160,"success":2726,"cas_fail":0,"lock_fail":1919,"install_lock_spins":572816399,"install_lock_wait_tsc":916788124,"stock_lock_dropped":2025,"stock_lock_dropped_pruned":1741,"installed":30160,"installed_bytes":5790720,"pruned":4398,"pruned_bytes":844416,"reuse":0,"reuse_bytes":0,"retired_current":0,"retired_bytes":0,"reuse_pool":0,"stock_removed":26036,"stock_removed_bytes":4998912,"boundary_samples":1003,"boundary_age_sum":1100850187802,"retention_unknown":7843,"write_hops":1148,"hops":[[0,417],[0,691]],"prune_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,19,122,562,1224,1399,982,83,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stock_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,127,1477,3430,2999,2386,1971,1923,1890,1416,570,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"retire_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"thid":47,"long":true,"debug_modes":[{"mode":0,"calls":0,"intervals":0,"versions":0},{"mode":1,"calls":125,"intervals":14,"versions":26},{"mode":2,"calls":0,"intervals":0,"versions":0},{"mode":3,"calls":0,"intervals":0,"versions":0}],"snapshots":0,"begin_skips":0,"gap_keys":69,"empty_gap_keys":61,"attempts":125,"success":14,"cas_fail":0,"lock_fail":4,"install_lock_spins":809255,"install_lock_wait_tsc":1381596,"stock_lock_dropped":7,"stock_lock_dropped_pruned":7,"installed":125,"installed_bytes":24000,"pruned":26,"pruned_bytes":4992,"reuse":0,"reuse_bytes":0,"retired_current":0,"retired_bytes":0,"reuse_pool":9960,"stock_removed":136,"stock_removed_bytes":26112,"boundary_samples":0,"boundary_age_sum":0,"retention_unknown":25,"write_hops":1,"hops":[[0,0],[303,0]],"prune_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,16,3,5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stock_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,11,36,19,9,11,12,8,2,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"retire_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}]}\nCICADA_IGC_LONGTX_V1 {"schema":1,"attempts":1185,"commits":125,"aborts":1060,"residence_cycles_sum":2100240118,"residence_cycles_max":6974168,"clocks_per_us":2100}\n', 'stock': 'CICADA_INTERVAL_V1 {"schema":1,"debug_mode":-1,"version_bytes":128,"body_bytes":"owned HeapObject::size","chain_scope":"committed","chain_versions":1020607,"chain_bytes":195956544,"pruned_pending":0,"pruned_pending_bytes":0,"reuse_pool":98059,"retired_versions":0,"retired_bytes":0,"retire_age_unit":"tsc_ticks","threads":[{"thid":0,"long":false,"debug_modes":[{"mode":0,"calls":0,"intervals":0,"versions":0},{"mode":1,"calls":0,"intervals":0,"versions":0},{"mode":2,"calls":0,"intervals":0,"versions":0},{"mode":3,"calls":0,"intervals":0,"versions":0}],"snapshots":0,"begin_skips":0,"gap_keys":0,"empty_gap_keys":0,"attempts":0,"success":0,"cas_fail":0,"lock_fail":0,"install_lock_spins":0,"install_lock_wait_tsc":0,"stock_lock_dropped":0,"stock_lock_dropped_pruned":0,"installed":274875,"installed_bytes":52776000,"pruned":0,"pruned_bytes":0,"reuse":0,"reuse_bytes":0,"retired_current":0,"retired_bytes":0,"reuse_pool":15040,"stock_removed":287337,"stock_removed_bytes":55168704,"boundary_samples":990,"boundary_age_sum":959978077231,"retention_unknown":18312,"write_hops":10431,"hops":[[0,12572],[0,7315]],"prune_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stock_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,111,1085,79424,56086,26437,21876,21104,20158,18144,14357,8213,2026,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"retire_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},{"thid":47,"long":true,"debug_modes":[{"mode":0,"calls":0,"intervals":0,"versions":0},{"mode":1,"calls":0,"intervals":0,"versions":0},{"mode":2,"calls":0,"intervals":0,"versions":0},{"mode":3,"calls":0,"intervals":0,"versions":0}],"snapshots":0,"begin_skips":0,"gap_keys":0,"empty_gap_keys":0,"attempts":0,"success":0,"cas_fail":0,"lock_fail":0,"install_lock_spins":0,"install_lock_wait_tsc":0,"stock_lock_dropped":0,"stock_lock_dropped_pruned":0,"installed":33,"installed_bytes":6336,"pruned":0,"pruned_bytes":0,"reuse":0,"reuse_bytes":0,"retired_current":0,"retired_bytes":0,"reuse_pool":9925,"stock_removed":20,"stock_removed_bytes":3840,"boundary_samples":0,"boundary_age_sum":0,"retention_unknown":10,"write_hops":2,"hops":[[0,0],[150,0]],"prune_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"stock_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,4,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"retire_age_log2":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}]}\nCICADA_IGC_LONGTX_V1 {"schema":1,"attempts":1062,"commits":33,"aborts":1029,"residence_cycles_sum":2100943068,"residence_cycles_max":5028666,"clocks_per_us":2100}\n'}
+
 
 def raises(exc, fn, *args, **kwargs):
     try:
@@ -177,14 +180,37 @@ def test_compile_binding_positive_negative():
 
 
 def test_counter_lines_positive_negative():
-    good = ('CICADA_INTERVAL_V1 {"schema":1,"debug_mode":1,"prune_success":4}\n'
-            'CICADA_IGC_LONGTX_V1 {"attempts":3,"commits":2,"aborts":1,'
-            '"residence_cycles_sum":40,"residence_cycles_max":20}\n')
-    assert d.parse_counters(good, 'count')[0]['prune_success'] == 4
-    raises(ValueError, d.parse_counters, good + good, 'count')
-    raises(ValueError, d.parse_counters, good, 'perf')
-    raises(ValueError, d.parse_counters, good.replace('"attempts":3', '"attempts":-3'), 'count')
-    raises(ValueError, d.parse_counters, good.replace('"debug_mode":1', '"debug_mode":0'), 'count')
+    for arm, good in REAL_COUNT_LINES.items():
+        interval, longtx = d.parse_counters(good, 'count')
+        metrics = d.interval_metrics(interval)
+        assert metrics['debug_mode'] == (-1 if arm == 'stock' else 1)
+        assert metrics['gc_status'] == ('absent' if arm == 'stock' else 'measured')
+        assert metrics['chain_versions'] == interval['chain_versions']
+        assert metrics['success'] == (sum(t['success'] for t in interval['threads'])
+                                      if arm != 'stock' else 0)
+        assert longtx['attempts'] == longtx['commits'] + longtx['aborts']
+        raises(ValueError, d.parse_counters, good + good, 'count')
+        raises(ValueError, d.parse_counters, good, 'perf')
+        prefix, suffix = good.rsplit('"attempts":', 1)
+        raises(ValueError, d.parse_counters, prefix + '"attempts":-' + suffix, 'count')
+        raises(ValueError, d.parse_counters, good.replace('"chain_versions":', '"missing_chain_versions":', 1), 'count')
+        raises(ValueError, d.parse_counters, good.replace('"hops":', '"missing_hops":', 1), 'count')
+    assert d.smoke_candidate_delta({arm: d.parse_counters(REAL_COUNT_LINES[arm], 'count')[0]
+                                    for arm in ('min', 'gen')})['minimum_prune_success'] > 0
+    stock = d.parse_counters(REAL_COUNT_LINES['stock'], 'count')[0]
+    stock.pop('pruned_pending')
+    stock.pop('pruned_pending_bytes')
+    for thread in stock['threads']:
+        for name in ('attempts', 'success', 'cas_fail', 'lock_fail', 'pruned',
+                     'pruned_bytes', 'reuse', 'reuse_bytes', 'retired_current', 'retired_bytes',
+                     'install_lock_spins', 'install_lock_wait_tsc', 'prune_age_log2'):
+            thread.pop(name)
+    metrics = d.interval_metrics(stock)
+    assert metrics['success'] == 0 and metrics['gc_fields_status'] == 'not_applicable'
+    assert 'pruned_pending' in metrics['missing_fields']
+    minimum = d.parse_counters(REAL_COUNT_LINES['min'], 'count')[0]
+    minimum['threads'][0]['success'] = True
+    raises(ValueError, d.interval_metrics, minimum)
 
 
 def test_plan_jobs_and_rotation():
@@ -241,8 +267,8 @@ def test_aggregate_requires_all_part_ids():
 
 
 def test_smoke_candidate_delta():
-    counters = {'min': {'threads': [{'prune_success': 2}, {'prune_success': 3}]},
-                'gen': {'threads': [{'prune_success': 4}, {'prune_success': 5}]}}
+    counters = {'min': {'threads': [{'success': 2}, {'success': 3}]},
+                'gen': {'threads': [{'success': 4}, {'success': 5}]}}
     assert d.smoke_candidate_delta(counters)['beyond_minimum_candidate'] == 4
     raises(ValueError, d.smoke_candidate_delta,
            {'min': {'threads': [{}]}, 'gen': counters['gen']})
@@ -352,8 +378,14 @@ def test_aggregate_missing_cells_rejected():
                                 'rep': rep, 'throughput_tps': 100 + rep})
             records.append({'valid': True, 'cell': cell, 'arm': arm,
                             'build_kind': 'count', 'perf_eligible': False,
-                            'interval_counter': {'schema': 1}})
-    assert d.aggregate(records)['complete'] is True
+                            'interval_counter': d.parse_counters(REAL_COUNT_LINES[arm], 'count')[0],
+                            'longtx_counter': d.parse_counters(REAL_COUNT_LINES[arm], 'count')[1]})
+    result = d.aggregate(records)
+    assert result['complete'] is True
+    count = result['cells'][next(iter(d.CELLS))]['count']
+    assert count['min']['interval']['success'] > 0
+    assert count['stock']['interval']['gc_status'] == 'absent'
+    assert count['gen']['longtx']['schema'] == 1
     raises(ValueError, d.aggregate, [r for r in records if r['cell'] != next(iter(d.CELLS))])
 
 
@@ -388,7 +420,7 @@ def test_smoke_attempts_every_build_and_preserves_complete_failure_log():
                             for key in ({} if dependency else d.arm_macros(arm, kind))]
 
         def fake_run(_binary, spec, _receipts, _hashes, _raw_dir):
-            return {**spec, 'interval_counter': {'prune_success': 1}, 'valid': True}
+            return {**spec, 'interval_counter': {'threads': [{'success': 1}]}, 'valid': True}
 
         args = SimpleNamespace(command='smoke', group=None, job=None,
                                output=root / 'output', scratch_root=root / 'scratch',
