@@ -8,6 +8,8 @@ Codex の受理集合は model 依存である。``docs/failures.md`` の F56 �
 とおり、``gpt-5.4-mini`` は ``max`` を拒否し ``none`` を受理する。本 module を
 使う検査は requested token だけを見ており、model×reasoning の対応も served
 model の identity も保証しない。
+``ultra`` は luna 系が非対応である (依頼が指定した事実であり、独立実測ではない)。
+この定数への収載は全 model の受理を意味せず、本 module は model×reasoning の互換を保証しない。
 model×reasoning の非対応組を起動前に拒否する恒久対応の所有は T-183 / T-184 にある。
 
 本 module を ``tools/dev_waves/`` に置くのは、``tools/dev_waves/daemon.py`` の
@@ -22,6 +24,7 @@ CODEX_REASONING_EFFORTS: tuple[str, ...] = (
     "high",
     "xhigh",
     "max",
+    "ultra",
 )
 
 __all__ = ["CLAUDE_EFFORTS", "CODEX_REASONING_EFFORTS"]
