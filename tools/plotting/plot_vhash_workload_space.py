@@ -7,7 +7,6 @@ throughput and wall time are deliberately absent from every figure.
 from __future__ import annotations
 
 import argparse
-from collections import defaultdict
 import csv
 import hashlib
 import itertools
@@ -21,15 +20,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from orchestrator.campaign import vhash_cicada_vlife as V
 
-# Schema-3 field names emitted by the W driver and instrument.
-SCHEMA3 = {
-    "val_size": "val_size", "sizeof_version": "sizeof_version",
-    "sizeof_ycsb": "sizeof_ycsb", "abort_reasons": "abort_reasons",
-    "hot_chains": "hot_chains", "hot_scan_us": "hot_scan_us",
-    "maxrss_kb": "maxrss_kb", "build_key": "build_key",
-}
-ABORT_REASONS = ("early_wts", "early_rts", "precheck", "rmw_delete_latest",
-                 "read_match", "write_rts_deleted", "node_set", "node_insert", "other")
+ABORT_REASONS = V.ABORT_REASONS
 ABORT_SIDES = ("normal", "long_tx")
 FACTORS = {
     "skew": (.6, .9, .99), "rr": (5, 50, 95),
@@ -92,7 +83,7 @@ def _flags(argv):
 
 def _validated_run(run, point, genome):
     flags = _flags(run.get("argv"))
-    if run.get(SCHEMA3["build_key"]) != {"genome": genome, "val_size": point["val"]}:
+    if run.get("build_key") != {"genome": genome, "val_size": point["val"]}:
         raise ValueError("build key/condition mismatch")
     expected = {"tuple_num": point["records"], "ycsb_tuple_num": point["records"],
                 "ycsb_max_ope": point["ops"], "ycsb_rratio": point["rr"],
@@ -118,23 +109,23 @@ def _validated_run(run, point, genome):
     if parsed.get("schema_version") != 3:
         raise ValueError("schema 3 required")
     build = parsed["build"]
-    if build.get(SCHEMA3["val_size"]) != point["val"] or (
+    if build.get("val_size") != point["val"] or (
         build.get("inline_version_opt") != (1 if genome == "tuned" else 0)
     ) or build.get("izanagi_ronly_pct") != point["ro"] or (
         build.get("izanagi_long_kind") != expected["izanagi_long_kind"]
     ):
         raise ValueError("build key/condition mismatch")
-    if any(type(build.get(SCHEMA3[k])) is not int or build[SCHEMA3[k]] <= 0
+    if any(type(build.get(k)) is not int or build[k] <= 0
            for k in ("sizeof_version", "sizeof_ycsb")):
         raise ValueError("missing build size")
-    rss = run.get(SCHEMA3["maxrss_kb"])
+    rss = run.get("maxrss_kb")
     if type(rss) is not int or rss <= 0:
         raise ValueError("maxrss missing")
     if len(parsed["workers"]) != point["threads"]:
         raise ValueError("worker count mismatch")
     reasons = {reason: {side: 0 for side in ABORT_SIDES} for reason in ABORT_REASONS}
     for worker in parsed["workers"]:
-        counts = worker.get(SCHEMA3["abort_reasons"])
+        counts = worker.get("abort_reasons")
         if not isinstance(counts, list) or len(counts) != len(ABORT_REASONS)*2 or (
             any(type(v) is not int or v < 0 for v in counts)
         ) or sum(counts) != sum(worker["aborts"]):
@@ -146,8 +137,8 @@ def _validated_run(run, point, genome):
     stored = run.get("summary")
     if not isinstance(stored, dict) or any(stored.get(k) != v for k, v in summary.items()):
         raise ValueError("summary mismatch")
-    chains = parsed.get(SCHEMA3["hot_chains"])
-    scan = parsed.get(SCHEMA3["hot_scan_us"])
+    chains = parsed.get("hot_chains")
+    scan = parsed.get("hot_scan_us")
     if not isinstance(chains, list) or len(chains) != 8 or (
         {item["key"] for item in chains} != set(range(8))
     ) or type(scan) is not int or scan < 0:
@@ -163,8 +154,8 @@ def load(paths):
     for path in paths:
         data = Path(path).read_bytes()
         raw = json.loads(data)
-        if raw.get("command") != "measure" or raw.get("schema_version") != 3:
-            raise ValueError("schema 3 measure raw required")
+        if raw.get("command") != "measure" or raw.get("schema_version") != 1:
+            raise ValueError("schema 1 measure raw required")
         conditions, runs = raw.get("conditions"), raw.get("runs")
         if not isinstance(conditions, dict) or not isinstance(runs, dict) or set(conditions) != set(runs):
             raise ValueError("conditions/runs mismatch")
@@ -224,18 +215,36 @@ def metrics(rep, records):
            "publications": publications, "live_versions": live,
            "live_ratio": live/records, "local_flag_opportunity": s["local_flag_opportunity"],
            "maxrss_kb": rep["maxrss_kb"], "hot_scan_us": rep["scan_us"]}
+    for site_index, site in enumerate(V.SITES):
+        positions = [sum(w["position"][site_index][i] for w in workers)
+                     for i in range(18)]
+        for depth in (1, 4, 8):
+            out[f"{site}_position_ge{depth}_rate"] = _ratio(
+                sum(positions[depth:]), sum(positions))
+        if site in ("read_update", "read_ronly"):
+            for depth in (1, 2, 4, 8):
+                out[f"{site}_beyond_k{depth}_rate"] = _ratio(
+                    sum(positions[depth:]), sum(positions))
+    for depth, index in ((1, 0), (2, 1), (4, 3), (8, 4)):
+        count = sum(w["candidate"][index] for w in workers)
+        out[f"candidate_k{depth}_count"] = count
+        out[f"candidate_k{depth}_denominator"] = sum(update)
+        out[f"candidate_k{depth}_rate"] = _ratio(count, sum(update))
+    out["live_bytes_estimate"] = live * (
+        p["build"]["sizeof_version"] + p["build"]["sizeof_ycsb"])
+    chain_lengths = [chain["length"] for chain in rep["chains"]
+                     if chain["status"] == "ok"]
+    out["hot_chain_max"] = max(chain_lengths) if chain_lengths else None
+    out["hot_chain_median"] = statistics.median(chain_lengths) if chain_lengths else None
     out["H1"] = None if reads < THRESHOLDS["reads"] else (
         out["h1"] >= THRESHOLDS["h1"] or
         (sum(update) >= THRESHOLDS["reads"] and out["u1"] >= THRESHOLDS["u1"]))
-    out["H2"] = None if sum(update) < THRESHOLDS["reads"] or (
-        s["update_commits"] < THRESHOLDS["update_commits"] or candidates < THRESHOLDS["candidates"]
-    ) else out["h2"] >= THRESHOLDS["h2"]
     # Candidate and commit floors are predicate requirements, not denominators:
     # below-floor observations are valid failures when read denominator is sufficient.
-    if sum(update) >= THRESHOLDS["reads"]:
-        out["H2"] = (out["h2"] >= THRESHOLDS["h2"] and
-                     candidates >= THRESHOLDS["candidates"] and
-                     s["update_commits"] >= THRESHOLDS["update_commits"])
+    out["H2"] = (out["h2"] >= THRESHOLDS["h2"] and
+                 candidates >= THRESHOLDS["candidates"] and
+                 s["update_commits"] >= THRESHOLDS["update_commits"]
+                 ) if sum(update) >= THRESHOLDS["reads"] else None
     out["H4-lag"] = "停止" if publications == 0 else (
         None if out["lag_us"] is None else out["lag_us"] >= THRESHOLDS["lag_us"])
     out["H4-live"] = out["live_ratio"] >= THRESHOLDS["live_factor"]
@@ -276,9 +285,6 @@ def _passing(row, h):
 
 def regions(rows):
     """Apply both blocks and both genomes before ranking opportunities."""
-    by_point = defaultdict(dict)
-    for row in rows.values():
-        by_point[_design_key(row["point"])][row["genome"]] = row
     candidates = []
     for h in ("H1", "H2", "H4"):
         definitions = []
@@ -320,31 +326,32 @@ def regions(rows):
                 continue
             # Every point's best genome must pass its own block/level threshold.
             rate = sum(_passing(v, h) for v in selected)/len(selected)
-            metric = {"H1": "h1", "H2": "h2", "H4": "live_ratio"}[h]
-            observations = [v[metric] for row in selected for v in row["values"]
-                            if v.get(metric) is not None]
+            metric = {"H1": "h1", "H2": "h2", "H4": "lag_us"}[h]
+            observations = [(math.inf if h == "H4" and v.get("publications") == 0 else v.get(metric))
+                            for row in selected for v in row["values"]
+                            if v.get(metric) is not None or h == "H4" and v.get("publications") == 0]
             med = statistics.median(observations) if observations else 0
+            live_values = [v["live_ratio"] for row in selected for v in row["values"]
+                           if v.get("live_ratio") is not None] if h == "H4" else []
+            live_med = statistics.median(live_values) if live_values else 0
             candidates.append({"hypothesis": h, "layer": layer, "region": spec,
                                "eligible": eligible, "pass_rate": rate,
-                               "median": med, "counts": counts,
+                               "median": med, "live_median": live_med, "counts": counts,
                                "condition_ids": sorted({v["id"] for v in selected})})
     chosen = []
     for h in ("H1", "H2", "H4"):
         pool = sorted((x for x in candidates if x["hypothesis"] == h and x["eligible"]),
-                      key=lambda x: (-x["pass_rate"], -x["median"], str(x["region"])))
+                      key=lambda x: (-x["pass_rate"], -x["median"],
+                                     -x["live_median"], str(x["region"])))
         chosen.extend(pool[:2])
     chosen = chosen[:5]
     if len(chosen) < 3:
         near = sorted((x for x in candidates if not x["eligible"]),
-                      key=lambda x: (-x["pass_rate"], -x["median"]))
+                      key=lambda x: (-x["pass_rate"], -x["median"], -x["live_median"]))
         for x in near[:3-len(chosen)]:
             chosen.append({**x, "label": "未達"})
     for x in chosen:
         x.setdefault("label", "採用")
-        x["mechanisms_to_check"] = ["前進 C", "GC 接続 E", "hot 配置 B",
-                                    "区間 GC", "read-only commit の公開"]
-        x["use_case"] = ("高 skew・長い transaction の key-value 負荷" if x["layer"] == "S"
-                         else "多因子が変わる key-value 負荷")
     return chosen, len([x for x in chosen if x["label"] == "採用"]) < 3
 
 
@@ -509,7 +516,16 @@ def write_tables(rows, candidates, insufficient, output, inputs):
         p = row["point"]
         base = {"id": row["id"], "layer": p["layer"], "genome": row["genome"],
                 **{k: p[k] for k in FACTORS}}
+        numeric_keys = sorted({k for v in row["values"] for k, value in v.items()
+                               if type(value) in (int, float) and k not in PREDICATES})
+        averages = {f"{k}_mean": statistics.mean(v[k] for v in row["values"]
+                     if type(v.get(k)) in (int, float)) for k in numeric_keys
+                    if any(type(v.get(k)) in (int, float) for v in row["values"])}
+        repetitions = {f"{k}_rep{i}": value for i, values in enumerate(row["values"], 1)
+                       for k, value in values.items()
+                       if type(value) in (int, float) or value is None and k in numeric_keys}
         full.append({**base, **{h: row["states"][h] for h in (*PREDICATES, "H4")},
+                     **averages, **repetitions,
                      "repetitions": json.dumps(row["values"], ensure_ascii=False,
                                                sort_keys=True)})
         norm_key = (p["records"], p["skew"])
@@ -536,7 +552,11 @@ def write_tables(rows, candidates, insufficient, output, inputs):
             for reason, sides in rep["reasons"].items():
                 abort.append({**base, "repetition": i+1, "reason": reason,
                               **sides, "total": sum(sides.values())})
-    fields = ["id", "layer", "genome", *FACTORS, *PREDICATES, "H4", "repetitions"]
+    mean_fields = sorted({key for record in full for key in record if key.endswith("_mean")})
+    rep_fields = sorted({key for record in full for key in record if "_rep" in key})
+    fields = ["id", "layer", "genome", *FACTORS, *PREDICATES, "H4", *mean_fields,
+              *rep_fields,
+              "repetitions"]
     _csv(output/"all_points.csv", full, fields)
     _md(output/"all_points.md", full, fields)
     candidate_rows = [{**{k: v for k, v in c.items() if k not in ("region", "condition_ids")},
@@ -544,7 +564,7 @@ def write_tables(rows, candidates, insufficient, output, inputs):
                        "condition_ids": ",".join(c["condition_ids"])} for c in candidates]
     _md(output/"candidates.md", candidate_rows,
         ["hypothesis", "layer", "region", "label", "pass_rate", "median",
-         "counts", "condition_ids", "mechanisms_to_check", "use_case"])
+         "live_median", "counts", "condition_ids"])
     (output/"candidate_status.json").write_text(json.dumps(
         {"insufficient": insufficient, "eligible_count": sum(c["label"] == "採用" for c in candidates)},
         ensure_ascii=False, indent=2)+"\n")
