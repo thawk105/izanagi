@@ -8,6 +8,8 @@ isolation)。verifier の入力は trace、commit witness、protocol/source cont
 """
 from __future__ import annotations
 
+MEANING_VERSION = 2
+
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
@@ -490,6 +492,21 @@ class Integrity:
     expected_commits: Optional[int] = None  # trace 外 counter の期待 commit 数
     observed_commits: Optional[int] = None  # dedup 後の trace committed txn 数
     notes: List[str] = field(default_factory=list)
+    gate_witness_enabled: bool = False
+    gate_witness_required: bool = False
+    gate_unreachable: int = 0
+    gate_d1a: int = 0
+    gate_d1b1: int = 0
+    gate_d1b2: int = 0
+    gate_d1c: int = 0
+    gate_d2a: int = 0
+    gate_d2b_i: int = 0
+    gate_d2b_ii: int = 0
+    gate_d5: str = "not-required"
+    gate_own_write_read_transactions: int = 0
+    gate_written_transactions: int = 0
+    gate_repeated_write_key_transactions: int = 0
+    gate_external_reads_checked: int = 0
     # 非 wire field。result_to_dict() と receipt schema には投影しない。
     proof_surfaces: ProofSurfaceAssessment = field(
         default_factory=ProofSurfaceAssessment,
@@ -516,6 +533,11 @@ class Integrity:
                 and self.permutation_violations == 0
                 and self.proof_surfaces.certification_gate_satisfied()
                 and self.existence_violations == 0
+                and self.gate_unreachable == 0
+                and self.gate_d1a == self.gate_d1b1 == self.gate_d1b2 == 0
+                and self.gate_d1c == self.gate_d2a == 0
+                and self.gate_d2b_i == self.gate_d2b_ii == 0
+                and (not self.gate_witness_required or self.gate_d5 == "pass")
                 and commit_witness_clean)
 
 

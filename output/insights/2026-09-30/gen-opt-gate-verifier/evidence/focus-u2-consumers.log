@@ -1,0 +1,144 @@
+start 2026-09-30 13:40:02 JST tree=/work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u2 head=220a292979030808b41c85f37ed6e243fd892e81 porcelain=0
+args: orchestrator/tests/test_artifact_admission.py orchestrator/tests/test_campaign.py orchestrator/tests/test_campaign_lock_codec.py orchestrator/tests/test_freeze_verification_hold.py orchestrator/tests/test_official_perf_closure.py orchestrator/tests/test_p3_b4_wiring_probe.py orchestrator/tests/test_p3_exploration_namespace.py orchestrator/tests/test_pipeline_verify_result_retention.py orchestrator/tests/test_plain_runner_coverage.py orchestrator/tests/test_pytest_collection_config.py orchestrator/tests/test_reflux_formal_consumer.py orchestrator/tests/test_reflux_result_evidence.py orchestrator/tests/test_s8b_ratified_verify.py orchestrator/tests/test_silo_ladder_rung1_driver.py orchestrator/tests/test_silo_ladder_rung1_evidence.py orchestrator/tests/test_t126_pegasus_tools.py orchestrator/tests/test_t2851_transfer_runner.py orchestrator/tests/test_t671_source_binding.py orchestrator/tests/test_verify_fanout.py orchestrator/tests/test_hold_inventory.py
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-7fcf05e4a7)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u2/output/pegasus-dispatch/orphan-holds/unknown-62ea23471c13bcbf45516750.json
+[Pegasus dispatch] request ID 37911.nqsv を受理しました
+[Pegasus dispatch] request 37911.nqsv の状態: QUE
+[Pegasus dispatch] request 37911.nqsv の状態: RUN
+[Pegasus dispatch] request 37911.nqsv の状態: END
+[Pegasus dispatch] request 37911.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u2/output/pegasus-dispatch/orphan-holds/unknown-62ea23471c13bcbf45516750.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/t2884-u2/output/pegasus-dispatch/7fcf05e4a702495753185a2803bc2ed2/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 37911.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+| 
+| ........................................................................ [  2%]
+| ........................................................................ [  5%]
+| ........................................................................ [  8%]
+| ........................................................................ [ 10%]
+| ........................................................................ [ 13%]
+| ........................................................................ [ 16%]
+| ........................................................................ [ 18%]
+| ........................................................................ [ 21%]
+| ........................................................................ [ 24%]
+| ........................................................................ [ 26%]
+| ........................................................................ [ 29%]
+| ........................................................................ [ 32%]
+| ........................................................................ [ 34%]
+| ...........................F............................................ [ 37%]
+| ........................................................................ [ 40%]
+| ........................................................................ [ 42%]
+| ........................................................................ [ 45%]
+| ........................................................................ [ 48%]
+| ........................................................................ [ 50%]
+| ........................................................................ [ 53%]
+| ........................................................................ [ 56%]
+| ........................................................................ [ 58%]
+| ........................................................................ [ 61%]
+| ........................................................................ [ 64%]
+| ...................................................................s.... [ 66%]
+| ........................................................................ [ 69%]
+| ........................................................................ [ 72%]
+| ........................................................................ [ 74%]
+| ........................................................................ [ 77%]
+| ........................................................................ [ 80%]
+| ........................................................................ [ 82%]
+| ........................................................................ [ 85%]
+| ...............................ss....................................... [ 88%]
+| ........................................................................ [ 90%]
+| ........................................................................ [ 93%]
+| ........................................................................ [ 96%]
+| ........................................................................ [ 98%]
+| ...............................                                          [100%]
+| =================================== FAILURES ===================================
+| _____________ test_every_test_file_is_self_runnable_or_allowlisted _____________
+| [gw13] linux -- Python 3.10.12 /bin/python3.10
+| 
+|     def test_every_test_file_is_self_runnable_or_allowlisted():
+|         """偽緑ガードの本体: 自走 harness も allowlist 記載も無い test_*.py を検出する。"""
+|         allow = _read_allowlist()
+|         offenders = []
+|         for name in _test_files():
+|             if name == _SELF:
+|                 continue
+|             if _self_runnable(_read(name)):
+|                 continue
+|             if name in allow:
+|                 continue
+|             offenders.append(name)
+| >       assert not offenders, (
+|             "素の runner で 0 件実行の偽緑になりうる (自走 harness も pytest 専用 allowlist "
+|             f"記載も無い): {offenders}. _run()/__main__ を足すか README の allowlist に追加せよ")
+| E       AssertionError: 素の runner で 0 件実行の偽緑になりうる (自走 harness も pytest 専用 allowlist 記載も無い): ['test_verifier_gate_witness.py']. _run()/__main__ を足すか README の allowlist に追加せよ
+| E       assert not ['test_verifier_gate_witness.py']
+| 
+| orchestrator/tests/test_plain_runner_coverage.py:72: AssertionError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted
+| 1 failed, 2691 passed, 3 skipped in 138.55s (0:02:18)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1152 retained_bytes=1152 omitted_bytes=0 rendered_excerpt_bytes=1465 sha256=019dede7797389840272dfeb68ca1c985c0d533a40fbde1601e81693f0572db0
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw13] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| >     def test_every_test_file_is_self_runnable_or_allowlisted():
+| >         """\u507d\u7dd1\u30ac\u30fc\u30c9\u306e\u672c\u4f53: \u81ea\u8d70 harness \u3082 allowlist \u8a18\u8f09\u3082\u7121\u3044 test_*.py \u3092\u691c\u51fa\u3059\u308b\u3002"""
+| >         allow = _read_allowlist()
+| >         offenders = []
+| >         for name in _test_files():
+| >             if name == _SELF:
+| >                 continue
+| >             if _self_runnable(_read(name)):
+| >                 continue
+| >             if name in allow:
+| >                 continue
+| >             offenders.append(name)
+| > >       assert not offenders, (
+| >             "\u7d20\u306e runner \u3067 0 \u4ef6\u5b9f\u884c\u306e\u507d\u7dd1\u306b\u306a\u308a\u3046\u308b (\u81ea\u8d70 harness \u3082 pytest \u5c02\u7528 allowlist "
+| >             f"\u8a18\u8f09\u3082\u7121\u3044): {offenders}. _run()/__main__ \u3092\u8db3\u3059\u304b README \u306e allowlist \u306b\u8ffd\u52a0\u305b\u3088")
+| > E       AssertionError: \u7d20\u306e runner \u3067 0 \u4ef6\u5b9f\u884c\u306e\u507d\u7dd1\u306b\u306a\u308a\u3046\u308b (\u81ea\u8d70 harness \u3082 pytest \u5c02\u7528 allowlist \u8a18\u8f09\u3082\u7121\u3044): ['test_verifier_gate_witness.py']. _run()/__main__ \u3092\u8db3\u3059\u304b README \u306e allowlist \u306b\u8ffd\u52a0\u305b\u3088
+| > E       assert not ['test_verifier_gate_witness.py']
+| > 
+| > orchestrator/tests/test_plain_runner_coverage.py:72: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1152 retained_bytes=1152 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2195 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 37911.nqsv child stdout end
+[Pegasus dispatch] request 37911.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 3467567, "time_ns": 1790743319118737798}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3467588, "event": "direct-child-wait-start", "pid": 3467574, "time_ns": 1790743319147499358}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3467588, "event": "direct-child-wait-complete", "pid": 3467574, "time_ns": 1790743458358784321}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 3467574, "rc": 0, "time_ns": 1790743458358871600}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 3467567, "rc": 0, "time_ns": 1790743458363443889}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 3467567}, {"comm": "bash", "pid": 3467548}, {"comm": "nqs_shpd", "pid": 3467547}, {"comm": "nqs_shpd", "pid": 3467350}, {"comm": "nqs_shpd", "pid": 5536}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 3467567, "sid": 3467547, "time_ns": 1790743458363950881}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 70.19322298583575, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 3467567, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1790743458434185657, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 3467567, "time_ns": 1790743458436743780}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 3467567, "time_ns": 1790743458459805760}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 3467567, "time_ns": 1790743458460918301}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 3467567, "time_ns": 1790743458460928243}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 3467567, "time_ns": 1790743458462287158}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 3467567, "time_ns": 1790743458462296705}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 3467567, "rc": 1, "time_ns": 1790743458462305677}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 3467567, "rc": 1, "time_ns": 1790743458462322861}
+| 
+| ============================================================
+| Request ID:             37911.nqsv
+| Request Name:           izdw-7fcf05e4a7
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Wed Sep 30 13:41:51 2026
+| Started Request Time:   Wed Sep 30 13:41:58 2026
+| Ended Request Time:     Wed Sep 30 13:44:18 2026
+| Resources Information:
+|   Elapse:               144S
+|   Remaining Elapse:     3456S
+| ============================================================
+[Pegasus dispatch] request 37911.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+end 2026-09-30 13:44:30 JST rc=1

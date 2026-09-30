@@ -1,0 +1,1235 @@
+diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+index dbaeb1b3c..aa2769c9a 100644
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -24,6 +24,10 @@
+ #include "tuple.hh"
+ #include "version.hh"
+ 
++#if CICADA_INTERVAL_COUNT
++void cicadaIgcRecordReusePool(uint8_t thid, size_t n);
++#endif
++#line 27
+ #define CONTINUING_COMMIT_THRESHOLD 5
+ 
+ enum class TransactionStatus : uint8_t {
+@@ -45,6 +49,16 @@
+   std::deque<Tuple*> gc_records_;    // for records
+   std::deque<GCElement<Tuple>> gcq_; // for versions
+   std::deque<Version*> reuse_version_from_gc_;
++#if CICADA_INTERVAL_GC
++  struct IGCRetiredVersion {
++    Version* version;
++    Tuple* tuple;
++    uint64_t epoch;
++    uint64_t retired_tsc;
++  };
++  std::deque<IGCRetiredVersion> igc_retired_versions_;
++#endif
++#line 48
+   std::vector<Procedure> pro_set_;
+   Result* result_ = nullptr;
+   const bool& quit_; // for thread termination control
+@@ -95,6 +109,10 @@
+   }
+ 
+   ~TxExecutor() {
++#if CICADA_INTERVAL_COUNT
++    cicadaIgcRecordReusePool(thid_, reuse_version_from_gc_.size());
++#endif
++#line 98
+     for (auto itr = reuse_version_from_gc_.begin();
+          itr != reuse_version_from_gc_.end(); ++itr) {
+       if ((*itr)->status_ == VersionStatus::unused) delete (*itr);
+diff --git a/cc/cicada/include/tuple.hh b/cc/cicada/include/tuple.hh
+index 1d5e61f3b..cc1efd9e1 100644
+--- a/cc/cicada/include/tuple.hh
++++ b/cc/cicada/include/tuple.hh
+@@ -32,6 +32,11 @@
+   atomic<uint64_t> continuing_commit_;
+   atomic<uint8_t> gc_lock_;
+   TupleBody body_; // only used for index tuple as single version
++#if CICADA_INTERVAL_GC
++  // Most recent interval unlink on this tuple, for stock tail reclamation.
++  std::atomic<uint64_t> igc_last_prune_epoch_{0};
++#endif
++#line 35
+ 
+   Tuple() : latest_(nullptr), gc_lock_(0) {}
+ 
+diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
+index 12de93b80..4678155a3 100644
+--- a/cc/cicada/include/version.hh
++++ b/cc/cicada/include/version.hh
+@@ -30,6 +30,13 @@
+   atomic<VersionStatus> status_; // commit record
+ 
+   TupleBody body_;
++#if CICADA_INTERVAL_GC
++  std::atomic<uint8_t> igc_pruned_{0};
++#endif
++#if CICADA_INTERVAL_COUNT
++  std::atomic<uint64_t> igc_install_tsc_{0};
++#endif
++#line 33
+ 
+   Version() {
+     status_.store(VersionStatus::pending, memory_order_release);
+@@ -83,11 +90,21 @@
+   uint64_t ldAcqWts() { return wts_.load(std::memory_order_acquire); }
+ 
+   void set(const uint64_t rts, const uint64_t wts, TupleBody&& body) {
++#if CICADA_INTERVAL_GC
++    // The retirement queue checks quiescence before a pruned version enters
++    // the pool. A pool consumer only resets the mark.
++    igc_pruned_.store(0, std::memory_order_relaxed);
++#endif
++#line 89
+     rts_.store(rts, memory_order_relaxed);
+     wts_.store(wts, memory_order_relaxed);
+     status_.store(VersionStatus::pending, memory_order_release);
+     next_.store(nullptr, memory_order_release);
+     body_ = std::move(body);
++#if CICADA_INTERVAL_COUNT
++    igc_install_tsc_.store(0, std::memory_order_relaxed);
++#endif
++#line 91
+   }
+ 
+   void set(const uint64_t rts, const uint64_t wts, Version* next,
+@@ -136,3 +153,28 @@
+     next_.store(next, std::memory_order_release);
+   }
+ };
++
++#if CICADA_INTERVAL_GC
++// Mirror the stock fields: optional metadata must fit existing padding.
++struct alignas(CACHE_LINE_SIZE) IGCStockVersionLayout {
++  std::atomic<uint64_t> rts_;
++  std::atomic<uint64_t> wts_;
++  std::atomic<Version*> next_;
++  std::atomic<VersionStatus> status_;
++  TupleBody body_;
++};
++static_assert(sizeof(Version) == sizeof(IGCStockVersionLayout),
++              "interval GC metadata must fit stock Version padding");
++#endif
++#if CICADA_INTERVAL_COUNT
++struct alignas(CACHE_LINE_SIZE) IGCCountStockVersionLayout {
++  std::atomic<uint64_t> rts_;
++  std::atomic<uint64_t> wts_;
++  std::atomic<Version*> next_;
++  std::atomic<VersionStatus> status_;
++  TupleBody body_;
++};
++static_assert(sizeof(Version) == sizeof(IGCCountStockVersionLayout),
++              "interval count metadata must fit stock Version padding");
++#endif
++#line 139
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index efcf02d75..58fd9db69 100644
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -5,6 +5,20 @@
+ #include <iostream>
+ #include <string>
+ #include <vector>
++#if CICADA_INTERVAL_GC
++#include <algorithm>
++#include <array>
++#include <cassert>
++#include <cstdint>
++#include <cstdlib>
++#include <unordered_map>
++#include "gflags/gflags.h"
++#endif
++#if CICADA_INTERVAL_COUNT
++#include <array>
++#include "gflags/gflags.h"
++#endif
++#line 8
+ 
+ #include "include/common.hh"
+ #include "include/scan_callback.hh"
+@@ -25,6 +39,649 @@
+ using namespace std;
+ 
+ #define MSK_TID 0b11111111
++
++#if CICADA_INTERVAL_COUNT
++DEFINE_uint64(cicada_igc_count_long_threads, 0,
++              "Number of long workers at the end, excluding leader.");
++DECLARE_uint64(ycsb_tuple_num);
++#endif
++#if CICADA_INTERVAL_COUNT
++namespace {
++struct alignas(CACHE_LINE_SIZE) IGCCounts {
++  uint64_t snapshots = 0, begin_skips = 0;
++  uint64_t mode_calls[4] = {}, mode_intervals[4] = {}, mode_versions[4] = {};
++  uint64_t gap_keys = 0, empty_gap_keys = 0;
++  uint64_t attempts = 0, success = 0, cas_fail = 0, lock_fail = 0;
++  uint64_t install_lock_spins = 0, install_lock_wait_tsc = 0;
++  uint64_t stock_lock_dropped = 0, stock_lock_dropped_pruned = 0;
++  uint64_t installed = 0, installed_bytes = 0;
++  uint64_t pruned = 0, pruned_bytes = 0, reuse = 0;
++  uint64_t reuse_bytes = 0, reuse_pool = 0;
++  uint64_t retired_current = 0, retired_bytes = 0;
++  uint64_t retire_age[64] = {};
++  uint64_t stock_removed = 0, stock_removed_bytes = 0;
++  uint64_t boundary_samples = 0, boundary_age_sum = 0;
++  uint64_t retention_unknown = 0;
++  uint64_t hops[2][2] = {};
++  uint64_t write_hops = 0;
++  uint64_t prune_age[64] = {}, stock_age[64] = {};
++};
++std::array<IGCCounts, 256> igc_counts;
++int igc_runtime_mode = -1; // -1 means the stock arm has no GC debug mode.
++uint64_t igc_last_boundary = 0;
++void igc_count_boundary(uint8_t thid) {
++  uint64_t minr = MinRts.load(std::memory_order_acquire);
++  if (minr != igc_last_boundary) {
++    ++igc_counts[thid].boundary_samples;
++    igc_counts[thid].boundary_age_sum += ((rdtscp() << 8) - 1) - minr;
++    igc_last_boundary = minr;
++  }
++}
++std::atomic<uint64_t> igc_initial_body_bytes{0};
++uint64_t igc_bytes(Version* v) {
++  // HeapObject allocates exactly size() bytes. Shallow bodies do not own it.
++  return sizeof(Version) +
++         (v->body_.is_value_owned() ? v->body_.get_val_size() : 0);
++}
++unsigned igc_bucket(uint64_t age) {
++  return age ? 63U - static_cast<unsigned>(__builtin_clzll(age)) : 0;
++}
++void igc_record_install(Version* v) {
++  v->igc_install_tsc_.store(rdtscp(), std::memory_order_relaxed);
++}
++unsigned igc_retention_bucket(Version* v) {
++  uint64_t installed = v->igc_install_tsc_.load(std::memory_order_relaxed);
++  if (!installed) return 64;
++  return igc_bucket(rdtscp() - installed);
++}
++void igc_record_reuse_pool(uint8_t thid, size_t n) {
++  igc_counts[thid].reuse_pool = n;
++}
++struct IGCReport {
++  ~IGCReport() {
++    uint64_t installed = 0, removed = 0, installed_bytes = 0;
++    uint64_t removed_bytes = 0, pending = 0, pending_bytes = 0;
++    uint64_t pooled = 0, retired = 0, retired_bytes = 0;
++    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& c = igc_counts[i];
++      installed += c.installed;
++      removed += c.pruned + c.stock_removed;
++      installed_bytes += c.installed_bytes;
++      removed_bytes += c.pruned_bytes + c.stock_removed_bytes;
++      pending += c.pruned - c.reuse;
++      pending_bytes += c.pruned_bytes - c.reuse_bytes;
++      pooled += c.reuse_pool;
++      retired += c.retired_current;
++      retired_bytes += c.retired_bytes;
++    }
++    uint64_t initial = FLAGS_ycsb_tuple_num;
++    uint64_t initial_bytes =
++        initial * (sizeof(Version) + igc_initial_body_bytes.load());
++    std::cout << "CICADA_INTERVAL_V1 {\"schema\":1,\"debug_mode\":"
++              << igc_runtime_mode << ",\"version_bytes\":" << sizeof(Version)
++              << ",\"body_bytes\":\"owned HeapObject::size\""
++              << ",\"chain_scope\":\"committed\""
++              << ",\"chain_versions\":" << initial + installed - removed
++              << ",\"chain_bytes\":"
++              << initial_bytes + installed_bytes - removed_bytes
++              << ",\"pruned_pending\":" << pending
++              << ",\"pruned_pending_bytes\":" << pending_bytes
++              << ",\"reuse_pool\":" << pooled
++              << ",\"retired_versions\":" << retired
++              << ",\"retired_bytes\":" << retired_bytes
++              << ",\"retire_age_unit\":\"tsc_ticks\""
++              << ",\"threads\":[";
++    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++      if (i) std::cout << ',';
++      const auto& c = igc_counts[i];
++      std::cout << "{\"thid\":" << i << ",\"long\":"
++                << (i && FLAGS_cicada_igc_count_long_threads &&
++                            i >= TotalThreadNum -
++                                     FLAGS_cicada_igc_count_long_threads
++                        ? "true"
++                        : "false")
++                << ",\"debug_modes\":[";
++      for (size_t m = 0; m < 4; ++m) {
++        if (m) std::cout << ',';
++        std::cout << "{\"mode\":" << m << ",\"calls\":" << c.mode_calls[m]
++                  << ",\"intervals\":" << c.mode_intervals[m]
++                  << ",\"versions\":" << c.mode_versions[m] << '}';
++      }
++      std::cout << "]"
++                << ",\"snapshots\":" << c.snapshots
++                << ",\"begin_skips\":" << c.begin_skips
++                << ",\"gap_keys\":" << c.gap_keys
++                << ",\"empty_gap_keys\":" << c.empty_gap_keys
++                << ",\"attempts\":" << c.attempts
++                << ",\"success\":" << c.success
++                << ",\"cas_fail\":" << c.cas_fail
++                << ",\"lock_fail\":" << c.lock_fail
++                << ",\"install_lock_spins\":" << c.install_lock_spins
++                << ",\"install_lock_wait_tsc\":" << c.install_lock_wait_tsc
++                << ",\"stock_lock_dropped\":" << c.stock_lock_dropped
++                << ",\"stock_lock_dropped_pruned\":"
++                << c.stock_lock_dropped_pruned
++                << ",\"installed\":" << c.installed
++                << ",\"installed_bytes\":" << c.installed_bytes
++                << ",\"pruned\":" << c.pruned
++                << ",\"pruned_bytes\":" << c.pruned_bytes
++                << ",\"reuse\":" << c.reuse
++                << ",\"reuse_bytes\":" << c.reuse_bytes
++                << ",\"retired_current\":" << c.retired_current
++                << ",\"retired_bytes\":" << c.retired_bytes
++                << ",\"reuse_pool\":" << c.reuse_pool
++                << ",\"stock_removed\":" << c.stock_removed
++                << ",\"stock_removed_bytes\":" << c.stock_removed_bytes
++                << ",\"boundary_samples\":" << c.boundary_samples
++                << ",\"boundary_age_sum\":" << c.boundary_age_sum
++                << ",\"retention_unknown\":" << c.retention_unknown
++                << ",\"write_hops\":" << c.write_hops << ",\"hops\":[["
++                << c.hops[0][0] << ',' << c.hops[0][1] << "],[" << c.hops[1][0]
++                << ',' << c.hops[1][1] << "]],\"prune_age_log2\":[";
++      for (size_t b = 0; b < 64; ++b) {
++        if (b) std::cout << ',';
++        std::cout << c.prune_age[b];
++      }
++      std::cout << "],\"stock_age_log2\":[";
++      for (size_t b = 0; b < 64; ++b) {
++        if (b) std::cout << ',';
++        std::cout << c.stock_age[b];
++      }
++      std::cout << "],\"retire_age_log2\":[";
++      for (size_t b = 0; b < 64; ++b) {
++        if (b) std::cout << ',';
++        std::cout << c.retire_age[b];
++      }
++      std::cout << "]}";
++    }
++    std::cout << "]}" << std::endl;
++  }
++} igc_report;
++[[maybe_unused]] void igc_count_mode_call(uint8_t thid, unsigned mode) {
++  ++igc_counts[thid].mode_calls[mode];
++}
++[[maybe_unused]] void igc_count_mode_candidate(uint8_t thid, unsigned mode,
++                                               size_t n) {
++  ++igc_counts[thid].mode_intervals[mode];
++  igc_counts[thid].mode_versions[mode] += n;
++}
++[[maybe_unused]] void igc_count_pruned(uint8_t thid, Version* v) {
++  ++igc_counts[thid].pruned;
++  igc_counts[thid].pruned_bytes += igc_bytes(v);
++  unsigned bucket = igc_retention_bucket(v);
++  if (bucket < 64)
++    ++igc_counts[thid].prune_age[bucket];
++  else
++    ++igc_counts[thid].retention_unknown;
++}
++[[maybe_unused]] void igc_count_pruned_drop(uint8_t thid, bool pruned) {
++  if (pruned) ++igc_counts[thid].stock_lock_dropped_pruned;
++}
++[[maybe_unused]] void igc_count_reuse(uint8_t thid, Version* v) {
++  ++igc_counts[thid].reuse;
++  igc_counts[thid].reuse_bytes += igc_bytes(v);
++}
++} // namespace
++void cicadaIgcRecordReusePool(uint8_t thid, size_t n) {
++  igc_record_reuse_pool(thid, n);
++}
++#define IGC_COUNT(id, expression)                                              \
++  do { ++igc_counts[id].expression; } while (false)
++#define IGC_COUNT_PRUNED(id, v) igc_count_pruned(id, v)
++#define IGC_COUNT_PRUNED_DROP(id, v) igc_count_pruned_drop(id, v)
++#define IGC_COUNT_REUSE(id, v) igc_count_reuse(id, v)
++#define IGC_RETIRE_TSC() rdtscp()
++#define IGC_COUNT_RETIRE(id, v)                                                \
++  do {                                                                         \
++    ++igc_counts[id].retired_current;                                          \
++    igc_counts[id].retired_bytes += igc_bytes(v);                              \
++  } while (false)
++#define IGC_COUNT_UNRETIRE(id, v, age)                                         \
++  do {                                                                         \
++    --igc_counts[id].retired_current;                                          \
++    igc_counts[id].retired_bytes -= igc_bytes(v);                              \
++    ++igc_counts[id].retire_age[igc_bucket(age)];                              \
++  } while (false)
++#define IGC_COUNT_MODE_CALL(id, mode) igc_count_mode_call(id, mode)
++#define IGC_COUNT_SET_MODE(mode) (igc_runtime_mode = static_cast<int>(mode))
++#define IGC_INSTALL_WAIT_START() rdtscp()
++#define IGC_COUNT_INSTALL_WAIT(id, spins, start)                               \
++  do {                                                                         \
++    igc_counts[id].install_lock_spins += spins;                                \
++    if (spins) igc_counts[id].install_lock_wait_tsc += rdtscp() - start;       \
++  } while (false)
++#define IGC_COUNT_MODE_CANDIDATE(id, mode, n)                                  \
++  igc_count_mode_candidate(id, mode, n)
++#else
++#define IGC_COUNT(id, expression) ((void) 0)
++#define IGC_COUNT_PRUNED(id, v) ((void) 0)
++#define IGC_COUNT_PRUNED_DROP(id, pruned) ((void) 0)
++#define IGC_COUNT_REUSE(id, v) ((void) 0)
++#define IGC_RETIRE_TSC() 0
++#define IGC_COUNT_RETIRE(id, v) ((void) 0)
++#define IGC_COUNT_UNRETIRE(id, v, age) ((void) 0)
++#define IGC_COUNT_MODE_CALL(id, mode) ((void) 0)
++#define IGC_COUNT_SET_MODE(mode) ((void) 0)
++#define IGC_INSTALL_WAIT_START() 0
++#define IGC_COUNT_INSTALL_WAIT(id, spins, start) ((void) 0)
++#define IGC_COUNT_MODE_CANDIDATE(id, mode, n) ((void) 0)
++#endif
++
++#if CICADA_INTERVAL_GC
++DEFINE_uint64(cicada_igc_debug_mode, 1,
++              "0 unsafe experimental reuse via retire queue after stock "
++              "pop (SIGSEGV/hang observed); 1 default: unlink, never reuse; "
++              "2 do not unlink; 3 skip pruning.");
++namespace {
++// assert() erases all read-path bookkeeping from performance builds.
++thread_local std::unordered_map<Version*, uint64_t> igc_read_wts;
++[[maybe_unused]] bool igc_record_read_path(Version* later, Version* selected) {
++  Version* v = later ? later : selected;
++  for (size_t hops = 0; v && hops < 100000; ++hops) {
++    igc_read_wts.emplace(v, v->ldAcqWts());
++    if (v == selected) return true;
++    v = v->ldAcqNext();
++  }
++  std::fprintf(stderr, "A7 read path did not reach selected=%p later=%p\n",
++               static_cast<void*>(selected), static_cast<void*>(later));
++  return false;
++}
++[[maybe_unused]] bool igc_check_read_version(uint8_t thid, Version* v) {
++  if (!v) {
++    std::fprintf(stderr, "A7 thid=%u null read path\n", thid);
++    return false;
++  }
++  auto it = igc_read_wts.find(v);
++  if (it == igc_read_wts.end()) return true; // concurrent new insertion
++  uint64_t now = v->ldAcqWts();
++  if (now == it->second) return true;
++  std::fprintf(
++      stderr,
++      "A7 thid=%u ver=%p read_wts=%lu now_wts=%lu status=%u mark=%u next=%p\n",
++      thid, static_cast<void*>(v), it->second, now,
++      static_cast<unsigned>(v->ldAcqStatus()),
++      v->igc_pruned_.load(std::memory_order_acquire),
++      static_cast<void*>(v->ldAcqNext()));
++  return false;
++}
++[[maybe_unused]] Version* igc_checked_read_next([[maybe_unused]] uint8_t thid,
++                                                Version* v) {
++  assert(igc_check_read_version(thid, v));
++  Version* next = v->ldAcqNext();
++  assert(igc_check_read_version(thid, next));
++  return next;
++}
++[[maybe_unused]] bool igc_check_spin(uint64_t n, uint8_t thid, Version* v,
++                                     Version* installed) {
++  if (n <= 100000000) return true;
++  std::fprintf(stderr,
++               "A8 thid=%u spin=%lu ver=%p wts=%lu status=%u mark=%u next=%p "
++               "new=%p new_wts=%lu new_status=%u new_mark=%u new_next=%p\n",
++               thid, n, static_cast<void*>(v), v->ldAcqWts(),
++               static_cast<unsigned>(v->ldAcqStatus()),
++               v->igc_pruned_.load(std::memory_order_acquire),
++               static_cast<void*>(v->ldAcqNext()),
++               static_cast<void*>(installed), installed->ldAcqWts(),
++               static_cast<unsigned>(installed->ldAcqStatus()),
++               installed->igc_pruned_.load(std::memory_order_acquire),
++               static_cast<void*>(installed->ldAcqNext()));
++  std::abort();
++}
++constexpr size_t kIgcThreads = 256;
++std::array<std::atomic<bool>, kIgcThreads> igc_beginning{};
++// Zero means idle. Epoch one is live before the first snapshot.
++std::atomic<uint64_t> igc_epoch{1};
++std::array<std::atomic<uint64_t>, kIgcThreads> igc_tx_start_epoch{};
++uint64_t igc_oldest_active_epoch() {
++  uint64_t oldest = UINT64_MAX;
++  for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++    uint64_t start = igc_tx_start_epoch[i].load(std::memory_order_seq_cst);
++    if (start && start < oldest) oldest = start;
++  }
++  return oldest;
++}
++constexpr size_t kIgcMaxPoints = kIgcThreads * 3 + 2;
++struct IGCPointSet {
++  std::array<uint64_t, kIgcMaxPoints> points{};
++  size_t count = 0;
++  uint64_t horizon = 0;
++  uint64_t generation = 0;
++};
++struct IGCSnapshotSlot {
++  std::atomic<uint64_t> sequence{0};
++  std::array<std::atomic<uint64_t>, kIgcMaxPoints> points{};
++  std::atomic<size_t> count{0};
++  std::atomic<uint64_t> horizon{0};
++  std::atomic<uint64_t> generation{0};
++};
++std::array<IGCSnapshotSlot, 3> igc_snapshot_slots{};
++std::atomic<unsigned> igc_published_slot{0};
++uint64_t igc_generation = 0;
++[[maybe_unused]] bool igc_on_chain(Tuple* tuple, Version* target) {
++  for (Version* v = tuple->ldAcqLatest(); v; v = v->ldAcqNext())
++    if (v == target) return true;
++  return false;
++}
++// The leader alone writes slots. Atomic elements make a concurrent retry safe.
++void igc_publish(const IGCPointSet& next) {
++  unsigned slot = (igc_published_slot.load(std::memory_order_relaxed) + 1) % 3;
++  auto& dst = igc_snapshot_slots[slot];
++  dst.sequence.fetch_add(1, std::memory_order_seq_cst);
++  for (size_t i = 0; i < next.count; ++i)
++    dst.points[i].store(next.points[i], std::memory_order_seq_cst);
++  dst.count.store(next.count, std::memory_order_seq_cst);
++  dst.horizon.store(next.horizon, std::memory_order_seq_cst);
++  dst.generation.store(next.generation, std::memory_order_seq_cst);
++  dst.sequence.fetch_add(1, std::memory_order_seq_cst);
++  igc_published_slot.store(slot, std::memory_order_seq_cst);
++}
++IGCPointSet igc_read_snapshot() {
++  IGCPointSet result;
++  for (unsigned attempt = 0; attempt < 8; ++attempt) {
++    const auto& src =
++        igc_snapshot_slots[igc_published_slot.load(std::memory_order_seq_cst)];
++    uint64_t before = src.sequence.load(std::memory_order_seq_cst);
++    if (before & 1) continue;
++    result.count = src.count.load(std::memory_order_seq_cst);
++    if (result.count > kIgcMaxPoints) continue;
++    for (size_t i = 0; i < result.count; ++i)
++      result.points[i] = src.points[i].load(std::memory_order_seq_cst);
++    result.horizon = src.horizon.load(std::memory_order_seq_cst);
++    result.generation = src.generation.load(std::memory_order_seq_cst);
++    if (before == src.sequence.load(std::memory_order_seq_cst)) return result;
++  }
++  // A busy publisher can lap a slow reader. Skip this pruning attempt.
++  return {};
++}
++uint64_t igc_last_sample = 0;
++
++void igc_take_snapshot([[maybe_unused]] uint8_t thid) {
++  uint64_t now = rdtscp();
++  if (now - igc_last_sample < FLAGS_gc_inter_us * FLAGS_clocks_per_us) return;
++  igc_last_sample = now;
++  // A-TSC: one socket with synchronized TSC. A begin after T has wts
++  // >= T<<8; a begin before T is flagged or published in both arrays.
++  // The leader alone publishes MinWts, before this sampling step.
++  for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++    if (igc_beginning[i].load(std::memory_order_seq_cst)) {
++      IGC_COUNT(thid, begin_skips);
++      return;
++    }
++  }
++  IGCPointSet next;
++  next.horizon = (now << 8) - 1;
++  for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++    uint64_t w = __atomic_load_n(&ThreadWtsArray[i].obj_, __ATOMIC_ACQUIRE);
++    uint64_t r = __atomic_load_n(&ThreadRtsArray[i].obj_, __ATOMIC_ACQUIRE);
++    if (w) next.points[next.count++] = w;
++    if (w > 1) next.points[next.count++] = w - 1;
++    if (r) next.points[next.count++] = r;
++  }
++  uint64_t minw = MinWts.load(std::memory_order_acquire);
++  if (minw > 1) next.points[next.count++] = minw - 1;
++  std::sort(next.points.begin(), next.points.begin() + next.count);
++  next.count =
++      std::unique(next.points.begin(), next.points.begin() + next.count) -
++      next.points.begin();
++  next.generation = ++igc_generation;
++  igc_publish(next);
++  igc_epoch.store(next.generation + 1, std::memory_order_seq_cst);
++  IGC_COUNT(thid, snapshots);
++}
++
++void igc_prune(Tuple* tuple, [[maybe_unused]] std::string_view key,
++               [[maybe_unused]] uint64_t tx_wts, uint8_t thid) {
++  unsigned mode = static_cast<unsigned>(FLAGS_cicada_igc_debug_mode);
++  if (mode > 3) std::abort();
++  IGC_COUNT_MODE_CALL(thid, mode);
++  IGC_COUNT(thid, attempts);
++  if (!tuple->getGCRight(thid + 1)) {
++    IGC_COUNT(thid, lock_fail);
++    return;
++  }
++  IGCPointSet snap = igc_read_snapshot();
++  if (!snap.generation || snap.count < 2) {
++    tuple->returnGCRight();
++    return;
++  }
++  struct Scratch {
++    std::vector<Version*> chain;
++    std::vector<size_t> vis;
++    std::vector<size_t> first_le;
++    std::vector<size_t> newer_committed;
++  };
++  thread_local Scratch scratch;
++  auto& chain = scratch.chain;
++  auto& vis = scratch.vis;
++  auto& first_le = scratch.first_le;
++  auto& newer_committed = scratch.newer_committed;
++  chain.clear();
++  vis.clear();
++  first_le.clear();
++  newer_committed.clear();
++  for (Version* v = tuple->ldAcqLatest(); v; v = v->ldAcqNext())
++    chain.push_back(v);
++  if (chain.size() < 3) {
++    tuple->returnGCRight();
++    return;
++  }
++  size_t newer = chain.size();
++  for (size_t i = 0; i < chain.size(); ++i) {
++    newer_committed.push_back(newer);
++    if (chain[i]->ldAcqStatus() == VersionStatus::committed) newer = i;
++  }
++  auto visible = [&](uint64_t ts) {
++    for (size_t i = 0; i < chain.size(); ++i)
++      if (chain[i]->ldAcqStatus() == VersionStatus::committed &&
++          chain[i]->ldAcqWts() <= ts)
++        return i;
++    return chain.size();
++  };
++  for (size_t j = 0; j < snap.count; ++j) {
++    vis.push_back(visible(snap.points[j]));
++    size_t first = 0;
++    while (first < chain.size() && chain[first]->ldAcqWts() > snap.points[j])
++      ++first;
++    first_le.push_back(first);
++  }
++  const size_t minr_visible = visible(MinRts.load(std::memory_order_acquire));
++  const size_t p1 = vis.front();
++  size_t p2 = p1;
++  for (size_t j = 1; j < vis.size(); ++j)
++    if (vis[j] != p1) {
++      p2 = vis[j];
++      break;
++    }
++  IGC_COUNT(thid, gap_keys);
++  if (p1 == p2 || p1 == chain.size() || minr_visible == chain.size()) {
++    IGC_COUNT(thid, empty_gap_keys);
++    tuple->returnGCRight();
++    return;
++  }
++  auto eligible = [&](size_t i) {
++    if (i == 0 || i + 1 >= chain.size() || i >= minr_visible ||
++        chain[i]->ldAcqStatus() != VersionStatus::committed)
++      return false;
++    // An inline version is a Tuple member and lies inside its object range.
++    auto version_addr = reinterpret_cast<std::uintptr_t>(chain[i]);
++    auto tuple_begin = reinterpret_cast<std::uintptr_t>(tuple);
++    if (version_addr >= tuple_begin &&
++        version_addr < tuple_begin + sizeof(Tuple))
++      return false;
++    const size_t n = newer_committed[i];
++    if (n == chain.size()) return false;
++    bool in_gap = false;
++    in_gap = i >= p2 && i <= p1;
++#if CICADA_INTERVAL_GC_GENERAL
++    in_gap = false;
++    for (size_t j = 1; j < vis.size(); ++j)
++      in_gap |= i >= vis[j] && i <= vis[j - 1];
++#endif
++    if (!in_gap || chain[n]->ldAcqWts() > snap.horizon) return false;
++    for (size_t j = 0; j < snap.count; ++j) {
++      // Condition (b): no protected timestamp in this visible interval.
++      if (chain[i]->ldAcqWts() <= snap.points[j] &&
++          snap.points[j] < chain[n]->ldAcqWts())
++        return false;
++      // Keep both anchors: the first node at/below p may be pending, so
++      // its predecessor need not be the visible committed predecessor.
++      // Blind install searches from latest_ under this tuple's gc_lock_.
++      // Keep both anchors for read-side validation as well.
++      if (vis[j] == i + 1 || first_le[j] == i + 1) return false;
++    }
++    return true;
++  };
++  bool any = false;
++  for (size_t i = 1; i + 1 < chain.size();) {
++    if (!eligible(i)) {
++      ++i;
++      continue;
++    }
++    any = true;
++    size_t first = i;
++    do { ++i; } while (i + 1 < chain.size() && eligible(i));
++    // Recheck the whole run: a CAS at its upper edge cannot detect an
++    // insertion into its interior after the chain was collected.
++    bool intact = true;
++    for (size_t k = first; k < i; ++k) {
++      if (chain[k]->ldAcqNext() != chain[k + 1] ||
++          chain[k]->ldAcqStatus() != VersionStatus::committed) {
++        intact = false;
++        break;
++      }
++    }
++    if (!intact) {
++      IGC_COUNT(thid, cas_fail);
++      continue;
++    }
++    unsigned mode = static_cast<unsigned>(FLAGS_cicada_igc_debug_mode);
++    IGC_COUNT_MODE_CANDIDATE(thid, mode, i - first);
++    if (mode == 2) continue;
++    Version* expected = chain[first];
++    if (chain[first - 1]->next_.compare_exchange_strong(
++            expected, chain[i], std::memory_order_acq_rel,
++            std::memory_order_acquire)) {
++      // CAS proves upper->next == chain[i] at this linearization point.
++      // A concurrent insert may change upper->next before another load.
++      assert(expected == chain[first]);
++      // Detached next links remain intact.
++      for (size_t k = first; k < i; ++k) {
++        // gc_lock_ serializes this mark with gcq_ pop for this tuple.
++        chain[k]->igc_pruned_.store(1, std::memory_order_release);
++        IGC_COUNT_PRUNED(thid, chain[k]);
++        // A2: the detached run retains its internal links and every member
++        // still satisfies the predicate used to select it.
++        assert(
++            (chain[k]->igc_pruned_.load(std::memory_order_acquire) &&
++             chain[k]->ldAcqStatus() == VersionStatus::committed &&
++             k < minr_visible && newer_committed[k] < chain.size() &&
++             chain[newer_committed[k]]->ldAcqWts() <= snap.horizon &&
++             chain[k]->ldAcqNext() == chain[k + 1] &&
++             [&] {
++               for (size_t j = 0; j < snap.count; ++j)
++                 if ((chain[k]->ldAcqWts() <= snap.points[j] &&
++                      snap.points[j] < chain[newer_committed[k]]->ldAcqWts()) ||
++                     vis[j] == k + 1 || first_le[j] == k + 1)
++                   return false;
++               return true;
++             }()) ||
++            (std::fprintf(stderr,
++                          "A2 thid=%u gen=%lu H=%lu minr=%lu "
++                          "first=%zu end=%zu k=%zu n=%zu minr_vis=%zu "
++                          "wts=%lu status=%u mark=%u next=%p lower=%p "
++                          "p1=%lu vis0=%zu first0=%zu\n",
++                          thid, snap.generation, snap.horizon,
++                          MinRts.load(std::memory_order_acquire), first, i, k,
++                          newer_committed[k], minr_visible,
++                          chain[k]->ldAcqWts(),
++                          static_cast<unsigned>(chain[k]->ldAcqStatus()),
++                          chain[k]->igc_pruned_.load(std::memory_order_acquire),
++                          static_cast<void*>(chain[k]->ldAcqNext()),
++                          static_cast<void*>(chain[i]), snap.points[0], vis[0],
++                          first_le[0]),
++             [&] {
++               for (size_t j = 0; j < snap.count; ++j)
++                 std::fprintf(stderr,
++                              "A2 point[%zu]=%lu visible=%zu first_le=%zu\n", j,
++                              snap.points[j], vis[j], first_le[j]);
++               return false;
++             }()));
++      }
++      // Publish after unlink while holding gc_lock_. A stock cutter takes
++      // the same tuple lock before checking this epoch.
++      tuple->igc_last_prune_epoch_.store(
++          igc_epoch.load(std::memory_order_seq_cst), std::memory_order_seq_cst);
++      IGC_COUNT(thid, success);
++    } else
++      IGC_COUNT(thid, cas_fail);
++  }
++  if (!any) IGC_COUNT(thid, empty_gap_keys);
++  tuple->returnGCRight();
++}
++} // namespace
++#define IGC_ASSERT_A7_RESET() assert((igc_read_wts.clear(), true));
++#define IGC_ASSERT_A7_RECORD(later, selected)                                  \
++  assert(igc_record_read_path(later, selected));
++#define IGC_ASSERT_A7_CHECK(id, ver) assert(igc_check_read_version(id, ver));
++#define IGC_A7_NEXT(id, node) igc_checked_read_next(id, node)
++#define IGC_WAIT_PENDING(id, node, installed)                                  \
++  do {                                                                         \
++    [[maybe_unused]] uint64_t igc_spins = 0;                                   \
++    while (node->ldAcqStatus() == VersionStatus::pending) {                    \
++      assert(igc_check_spin(++igc_spins, id, node, installed));                \
++    }                                                                          \
++  } while (false);
++#define IGC_ASSERT_A1(id, pre, next)                                           \
++  assert((!(pre)->igc_pruned_.load(std::memory_order_acquire)) ||              \
++         (std::fprintf(stderr,                                                 \
++                       "A1 thid=%u pre=%p wts=%lu status=%u "                  \
++                       "mark=%u next=%p ver=%p\n",                             \
++                       id, static_cast<void*>(pre), (pre)->ldAcqWts(),         \
++                       static_cast<unsigned>((pre)->ldAcqStatus()),            \
++                       (pre)->igc_pruned_.load(std::memory_order_acquire),     \
++                       static_cast<void*>((pre)->ldAcqNext()),                 \
++                       static_cast<void*>(next)),                              \
++          false));
++#define IGC_ASSERT_A5(id, installed, candidate)                                \
++  assert(((candidate) &&                                                       \
++          !(candidate)->igc_pruned_.load(std::memory_order_acquire)) ||        \
++         (std::fprintf(                                                        \
++              stderr,                                                          \
++              "A5 thid=%u new=%p new_wts=%lu ver=%p "                          \
++              "wts=%lu status=%u mark=%u\n",                                   \
++              id, static_cast<void*>(installed), (installed)->ldAcqWts(),      \
++              static_cast<void*>(candidate),                                   \
++              (candidate) ? (candidate)->ldAcqWts() : 0,                       \
++              (candidate) ? static_cast<unsigned>((candidate)->ldAcqStatus())  \
++                          : 255,                                               \
++              (candidate)                                                      \
++                  ? (candidate)->igc_pruned_.load(std::memory_order_acquire)   \
++                  : 0),                                                        \
++          false));
++#define IGC_ASSERT_A4(id, tuple, version)                                      \
++  assert(igc_on_chain(tuple, version) ||                                       \
++         (std::fprintf(stderr,                                                 \
++                       "A4 thid=%u ver=%p wts=%lu status=%u "                  \
++                       "mark=%u minr=%lu latest=%p\n",                         \
++                       id, static_cast<void*>(version), (version)->ldAcqWts(), \
++                       static_cast<unsigned>((version)->ldAcqStatus()),        \
++                       (version)->igc_pruned_.load(std::memory_order_acquire), \
++                       MinRts.load(std::memory_order_acquire),                 \
++                       static_cast<void*>((tuple)->ldAcqLatest())),            \
++          false));
++#else
++#define IGC_ASSERT_A7_RESET()
++#define IGC_ASSERT_A7_RECORD(later, selected)
++#define IGC_ASSERT_A7_CHECK(id, ver)
++#define IGC_A7_NEXT(id, node) node->ldAcqNext()
++#define IGC_WAIT_PENDING(id, node, installed)                                  \
++  while (node->ldAcqStatus() == VersionStatus::pending)                        \
++    ;
++#define IGC_ASSERT_A1(id, pre, next)
++#define IGC_ASSERT_A5(id, installed, candidate)
++#define IGC_ASSERT_A4(id, tuple, version)
++#endif
++#line 29
+ 
+ /**
+  * @brief Initialize function of transaction.
+@@ -32,6 +689,13 @@
+  * @return void
+  */
+ void TxExecutor::begin() {
++  IGC_ASSERT_A7_RESET()
++#if CICADA_INTERVAL_GC
++  igc_beginning[thid_].store(true, std::memory_order_seq_cst);
++  igc_tx_start_epoch[thid_].store(igc_epoch.load(std::memory_order_seq_cst),
++                                  std::memory_order_seq_cst);
++#endif
++#line 35
+   /**
+    * Allocate timestamp in read phase.
+    */
+@@ -41,6 +705,10 @@
+                    __ATOMIC_RELEASE);
+   this->rts_ = MinWts.load(std::memory_order_acquire) - 1;
+   __atomic_store_n(&(ThreadRtsArray[thid_].obj_), this->rts_, __ATOMIC_RELEASE);
++#if CICADA_INTERVAL_GC
++  igc_beginning[thid_].store(false, std::memory_order_seq_cst);
++#endif
++#line 45
+ 
+   /* one-sided synchronization
+    * tanabe... disabled.
+@@ -101,6 +769,16 @@
+    */
+   ver = tuple->ldAcqLatest();
+   while (ver->ldAcqWts() > trts) {
++#if CICADA_INTERVAL_COUNT
++    ++igc_counts[thid_]
++          .hops[is_ronly_ ? 0 : 1]
++               [thid_ && FLAGS_cicada_igc_count_long_threads &&
++                        thid_ >=
++                            TotalThreadNum - FLAGS_cicada_igc_count_long_threads
++                    ? 0
++                    : 1];
++#endif
++#line 104
+     later_ver = ver;
+     ver = ver->ldAcqNext();
+     if (ver == nullptr) return nullptr;
+@@ -123,6 +801,8 @@
+     return nullptr;
+   }
+ 
++  IGC_ASSERT_A7_RECORD(later_ver, ver)
++#line 126
+   read_set_.emplace_back(s, key, tuple, later_ver, ver);
+ 
+ #if INLINE_VERSION_OPT
+@@ -267,6 +947,10 @@
+     while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
+       later_ver = ver;
+       ver = ver->ldAcqNext();
++#if CICADA_INTERVAL_COUNT
++      ++igc_counts[thid_].write_hops;
++#endif
++#line 270
+     }
+   }
+ 
+@@ -298,6 +982,10 @@
+ }
+ 
+ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
++#if CICADA_INTERVAL_GC
++  std::abort();
++#endif
++#line 301
+ #if ADD_ANALYSIS
+   uint64_t start = rdtscp();
+ #endif // if ADD_ANALYSIS
+@@ -346,6 +1034,10 @@
+ }
+ 
+ Status TxExecutor::delete_record(Storage s, std::string_view key) {
++#if CICADA_INTERVAL_GC
++  std::abort();
++#endif
++#line 349
+ #if ADD_ANALYSIS
+   uint64_t start = rdtscp();
+ #endif // if ADD_ANALYSIS
+@@ -417,6 +1109,10 @@
+                         bool l_exclusive, std::string_view right_key,
+                         bool r_exclusive, std::vector<TupleBody*>& result,
+                         int64_t limit) {
++#if CICADA_INTERVAL_GC
++  std::abort();
++#endif
++#line 420
+   result.clear();
+   auto rset_init_size = read_set_.size();
+ 
+@@ -485,6 +1181,50 @@
+     // prove that across the (op != RMW && op != DELETE && !WRITE_LATEST_ONLY
+     // && ver != expected) condition. Initialize to silence -Wmaybe-uninitialized
+     // without changing runtime behavior.
++#if CICADA_INTERVAL_GC
++    if ((*itr).op_ != OpType::RMW && (*itr).op_ != OpType::DELETE &&
++        !WRITE_LATEST_ONLY) {
++      Tuple* tuple = (*itr).rcdptr_;
++      uint64_t wait_spins = 0;
++      [[maybe_unused]] uint64_t wait_start = 0;
++      // Install and pruning each hold only this tuple's gc_lock_. Neither
++      // waits for a second tuple lock, so serialization cannot deadlock.
++      while (!tuple->getGCRight(thid_ + 1)) {
++        if (wait_spins++ == 0) wait_start = IGC_INSTALL_WAIT_START();
++      }
++      IGC_COUNT_INSTALL_WAIT(thid_, wait_spins, wait_start);
++      for (;;) {
++        Version* head = tuple->ldAcqLatest();
++        Version* before = nullptr;
++        Version* at = head;
++        // A failed CAS restarts from latest_; later_ver_ may name a node
++        // detached before this lock was acquired.
++        while (at->ldAcqWts() > this->wts_.ts_) {
++          before = at;
++          at = at->ldAcqNext();
++        }
++        // Write-set validation follows new_ver_->next_, not later_ver_.
++        (*itr).later_ver_ = before;
++        (*itr).new_ver_->strRelNext(at);
++        if (!before) {
++          if (tuple->latest_.compare_exchange_strong(head, (*itr).new_ver_,
++                                                     memory_order_acq_rel,
++                                                     memory_order_acquire))
++            break;
++        } else {
++          IGC_ASSERT_A1(thid_, before, at)
++          if (before->next_.compare_exchange_strong(at, (*itr).new_ver_,
++                                                    memory_order_acq_rel,
++                                                    memory_order_acquire))
++            break;
++        }
++      }
++      tuple->returnGCRight();
++      (*itr).finish_version_install_ = true;
++      continue;
++    }
++#endif
++#line 488
+     Version *expected(nullptr), *ver, *pre_ver = nullptr;
+     for (;;) {
+       if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
+@@ -520,6 +1260,8 @@
+         }
+       } else {
+         (*itr).new_ver_->strRelNext(ver);
++        IGC_ASSERT_A1(thid_, pre_ver, ver)
++#line 524
+         if (pre_ver->next_.compare_exchange_strong(ver, (*itr).new_ver_,
+                                                    memory_order_acq_rel,
+                                                    memory_order_acquire)) {
+@@ -547,17 +1289,34 @@
+     else
+       ver = (*itr).rcdptr_->ldAcqLatest();
+ 
++    IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 550
++#if CICADA_INTERVAL_GC
++    while (ver->ldAcqWts() >= this->wts_.ts_) ver = IGC_A7_NEXT(thid_, ver);
++#else
+     while (ver->ldAcqWts() >= this->wts_.ts_) ver = ver->ldAcqNext();
++#endif
++#line 551
+     // if write after read occured, it may happen "==".
+ 
++    IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 553
+     while (ver->ldAcqStatus() == VersionStatus::pending)
+       ;
+     while (ver->ldAcqStatus() != VersionStatus::committed &&
+            ver->ldAcqStatus() != VersionStatus::deleted) {
++#if CICADA_INTERVAL_GC
++      ver = IGC_A7_NEXT(thid_, ver);
++#else
+       ver = ver->ldAcqNext();
++#endif
++      IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 558
+       while (ver->ldAcqStatus() == VersionStatus::pending)
+         ;
+     }
++    IGC_ASSERT_A7_CHECK(thid_, ver)
++#line 561
+     /**
+      * This part is different from the original.
+      * Checking that view is not broken.
+@@ -576,13 +1335,27 @@
+   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+     if ((*itr).op_ == OpType::INSERT) { continue; }
+     Version* ver = (*itr).new_ver_->ldAcqNext();
++    IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
++#line 579
++#if CICADA_INTERVAL_GC
++    IGC_WAIT_PENDING(thid_, ver, (*itr).new_ver_)
++#else
+     while (ver->ldAcqStatus() == VersionStatus::pending)
+       ;
++#endif
++#line 581
+     while (ver->ldAcqStatus() != VersionStatus::committed &&
+            ver->ldAcqStatus() != VersionStatus::deleted) {
+       ver = ver->ldAcqNext();
++      IGC_ASSERT_A5(thid_, (*itr).new_ver_, ver)
++#line 584
++#if CICADA_INTERVAL_GC
++      IGC_WAIT_PENDING(thid_, ver, (*itr).new_ver_)
++#else
+       while (ver->ldAcqStatus() == VersionStatus::pending)
+         ;
++#endif
++#line 586
+     }
+ 
+     if (ver->ldAcqRts() > this->wts_.ts_ ||
+@@ -716,6 +1489,22 @@
+     }
+     gcq_.emplace_back(GCElement((*itr).storage_, (*itr).key_, (*itr).rcdptr_,
+                                 (*itr).new_ver_, this->wts_.ts_));
++#if CICADA_INTERVAL_COUNT
++    ++igc_counts[thid_].installed;
++    igc_counts[thid_].installed_bytes += igc_bytes((*itr).new_ver_);
++    uint64_t initial_body_bytes = 0;
++    igc_initial_body_bytes.compare_exchange_strong(
++        initial_body_bytes, (*itr).new_ver_->body_.get_val_size());
++    igc_record_install((*itr).new_ver_);
++#endif
++#if CICADA_INTERVAL_GC
++    if (FLAGS_cicada_igc_debug_mode == 3) {
++      IGC_COUNT_MODE_CALL(thid_, 3);
++    } else {
++      igc_prune((*itr).rcdptr_, (*itr).key_, this->wts_.ts_, thid_);
++    }
++#endif
++#line 719
+     ++(*itr).rcdptr_->continuing_commit_;
+   }
+ }
+@@ -754,6 +1543,11 @@
+   writeSetClean();
+   read_set_.clear();
+   node_map_.clear();
++#if CICADA_INTERVAL_GC
++  // All abort cleanup that can touch transaction pointers has finished.
++  igc_tx_start_epoch[thid_].store(0, std::memory_order_seq_cst);
++#endif
++#line 757
+ 
+   if (FLAGS_group_commit) { chkGcpvTimeout(); }
+ 
+@@ -804,6 +1598,32 @@
+ }
+ 
+ void TxExecutor::gc_versions() {
++#if CICADA_INTERVAL_GC
++  // A tx that could hold a detached pointer began before this version's pop.
++  // Wait for every such tx to finish; newer begins cannot acquire that pointer.
++  // Each thread owns its queue. Scan all start epochs once per GC call.
++  const uint64_t oldest = igc_oldest_active_epoch();
++  while (!igc_retired_versions_.empty() &&
++         igc_retired_versions_.front().epoch < oldest) {
++    const auto retired = igc_retired_versions_.front();
++    assert((oldest > retired.epoch) ||
++           (std::fprintf(stderr, "A6 thid=%u epoch=%lu oldest=%lu\n", thid_,
++                         retired.epoch, oldest),
++            false));
++    // A9: hold the tuple lock so the diagnostic walk cannot race stock GC.
++    assert(([&] {
++      while (!retired.tuple->getGCRight(thid_ + 1)) _mm_pause();
++      bool detached = !igc_on_chain(retired.tuple, retired.version);
++      retired.tuple->returnGCRight();
++      return detached;
++    }()));
++    IGC_COUNT_UNRETIRE(thid_, retired.version, rdtscp() - retired.retired_tsc);
++    IGC_COUNT_REUSE(thid_, retired.version);
++    reuse_version_from_gc_.emplace_back(retired.version);
++    igc_retired_versions_.pop_front();
++  }
++#endif
++#line 807
+   while (!gcq_.empty()) {
+     if (gcq_.front().wts_ >= MinRts.load(memory_order_acquire)) break;
+ 
+@@ -813,12 +1633,52 @@
+       * so, if we get right by id 0, other worker thread can't detect.
+       */
+     if (gcq_.front().rcdptr_->getGCRight(thid_ + 1) == false) {
++#if CICADA_INTERVAL_GC
++      // Count only: the lock-free mark does not affect this decision.
++      IGC_COUNT(thid_, stock_lock_dropped);
++      IGC_COUNT_PRUNED_DROP(thid_, gcq_.front().ver_->igc_pruned_.load(
++                                       std::memory_order_acquire));
++#endif
++#line 816
+       // fail acquiring the lock
+       gcq_.pop_front();
+       continue;
+     }
+ 
+     Tuple* tuple = gcq_.front().rcdptr_;
++#if CICADA_INTERVAL_GC
++    bool was_pruned =
++        gcq_.front().ver_->igc_pruned_.load(std::memory_order_acquire) != 0;
++    if (was_pruned) {
++      Version* pruned = gcq_.front().ver_;
++      // A3: stock pop only handles an old, detached version.
++      assert(
++          (pruned->ldAcqWts() < MinRts.load(std::memory_order_acquire) &&
++           !igc_on_chain(tuple, pruned)) ||
++          (std::fprintf(stderr,
++                        "A3 thid=%u ver=%p wts=%lu status=%u mark=%u "
++                        "minr=%lu latest=%p\n",
++                        thid_, static_cast<void*>(pruned), pruned->ldAcqWts(),
++                        static_cast<unsigned>(pruned->ldAcqStatus()),
++                        pruned->igc_pruned_.load(std::memory_order_acquire),
++                        MinRts.load(std::memory_order_acquire),
++                        static_cast<void*>(tuple->ldAcqLatest())),
++           false));
++      // Default mode 1 leaves detached versions unreused during this run.
++      // Experimental mode 0 reuse has caused SIGSEGV and hangs.
++      if (FLAGS_cicada_igc_debug_mode != 1) {
++        // Keep next intact until every tx active at pop has ended.
++        igc_retired_versions_.push_back(
++            {pruned, tuple, igc_epoch.load(std::memory_order_seq_cst),
++             IGC_RETIRE_TSC()});
++        IGC_COUNT_RETIRE(thid_, pruned);
++      }
++      tuple->returnGCRight();
++      gcq_.pop_front();
++      continue;
++    }
++#endif
++#line 822
+     // (b) v.wts > record.min_wts
+     if (gcq_.front().wts_ <= tuple->min_wts_) {
+       // releases the lock
+@@ -826,15 +1686,50 @@
+       gcq_.pop_front();
+       continue;
+     }
++#if CICADA_INTERVAL_GC
++    // Frozen links from pruned runs can still reach this stock tail,
++    // including inline storage. Wait for readers active at the last unlink.
++    const uint64_t last_prune =
++        tuple->igc_last_prune_epoch_.load(std::memory_order_seq_cst);
++    if (last_prune && igc_oldest_active_epoch() <= last_prune) {
++      tuple->returnGCRight();
++      break;
++    }
++#endif
++#line 829
+     // this pointer may be dangling.
+ 
+     Version* delTarget =
+         gcq_.front().ver_->next_.load(std::memory_order_acquire);
+ 
+     // the thread detaches the rest of the version list from v
++    IGC_ASSERT_A4(thid_, tuple, gcq_.front().ver_)
++#line 834
+     gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
+     // updates record.min_wts
+     tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
++#if CICADA_INTERVAL_GC
++    // A10: check every stock-discarded version, including inline storage.
++    assert(([&] {
++      for (Version* v = delTarget; v; v = v->ldAcqNext())
++        if (igc_on_chain(tuple, v)) return false;
++      return true;
++    }()));
++#endif
++#line 838
++#if CICADA_INTERVAL_COUNT
++    for (Version* v = delTarget; v; v = v->ldAcqNext()) {
++      if (v->ldAcqStatus() != VersionStatus::committed) continue;
++      ++igc_counts[thid_].stock_removed;
++      igc_counts[thid_].stock_removed_bytes += igc_bytes(v);
++      unsigned bucket = igc_retention_bucket(v);
++      if (bucket < 64)
++        ++igc_counts[thid_].stock_age[bucket];
++      else
++        ++igc_counts[thid_].retention_unknown;
++    }
++#endif
++#line 838
+     gcAfterThisVersion(tuple, delTarget);
+     // releases the lock
+     tuple->returnGCRight();
+@@ -911,12 +1806,26 @@
+   read_set_.clear();
+   write_set_.clear();
+   node_map_.clear();
++#if CICADA_INTERVAL_GC
++  igc_tx_start_epoch[thid_].store(0, std::memory_order_seq_cst);
++#endif
++#line 914
+ #if ADD_ANALYSIS
+   result_->local_commit_latency_ += rdtscp() - start;
+ #endif
+ }
+ 
+ bool TxExecutor::commit() {
++#if CICADA_INTERVAL_GC
++  struct IGCReadOnlyEpochEnd {
++    TxExecutor* tx;
++    ~IGCReadOnlyEpochEnd() {
++      if (tx->is_ronly_)
++        igc_tx_start_epoch[tx->thid_].store(0, std::memory_order_seq_cst);
++    }
++  } igc_read_only_epoch_end{this};
++#endif
++#line 920
+   /**
+    * Tanabe Optimization for analysis
+    */
+@@ -961,6 +1870,14 @@
+ 
+ void TxExecutor::leaderWork() {
+   cicadaLeaderWork();
++#if CICADA_INTERVAL_GC
++  IGC_COUNT_SET_MODE(FLAGS_cicada_igc_debug_mode);
++  igc_take_snapshot(thid_);
++#endif
++#if CICADA_INTERVAL_COUNT
++  igc_count_boundary(thid_);
++#endif
++#line 964
+ #if BACK_OFF
+   leaderBackoffWork(backoff_, CCBenchResults);
+ #endif

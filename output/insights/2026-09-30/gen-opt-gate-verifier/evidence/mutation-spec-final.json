@@ -1,0 +1,322 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "M0-comment-only",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "# U1 emitter names are deliberately centralized for the integration check.\n",
+     "new": "# Emitter names used by the D5 source check. M0\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-d1a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "(\"d1a\", set(writes) != q_write,",
+     "new": "(\"d1a\", False,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b2_unregistered_write_m1"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-d1b1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "(\"d1b1\", not first_read.issubset(reads),",
+     "new": "(\"d1b1\", False,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b1_missing_initial_read_m2_m15"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-d1b2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "(\"d1b2\", not set(reads).issubset(q_read),",
+     "new": "(\"d1b2\", False,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_trace_read_without_q_key_m3"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4a-d1c-mismatch",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "if txid is None or txid != frame_txid or q_thid != thid:",
+     "new": "if False:  # M4a"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[dash-txid]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[wrong-txid]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_thread_mismatch_is_d1c"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4b-d1c-missing-q",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            if row < len(columns.txn_txid):\n",
+     "new": "            if False:  # M4b\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[missing-q]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4c-d1c-extra-q",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "                        counts[\"d1c\"] += 1\n                        _gate_note(integrity, \"D1.c\", thid, txid, expected=\"no Q\", observed=\"extra Q\")\n",
+     "new": "                        pass  # M4c\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[extra-q]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-d2a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            if observed != expected:\n                counts[\"d2a\"] += 1\n",
+     "new": "            if False:  # M5\n                counts[\"d2a\"] += 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b5_later_reader_disagrees_with_stored_stamp",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b4_wrong_version_payload_m5"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-d2a-genesis",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "if obs != int(key, 16):",
+     "new": "if False:  # M6"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_second_external_read_wrong_stamp",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_genesis_wrong_payload_m6"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-d2b-i",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "if obs != last[key]:",
+     "new": "if False:  # M7"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b6_stale_own_read_m7"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-d2b-ii",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "and stamp != pending_v[(frame_txid, key)]):",
+     "new": "and False):  # M8"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_last_write_wins_m8"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-v-w",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if set(pending_v) != wanted_v:\n",
+     "new": "    if False:  # M9\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_v_missing_m9"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-thread-set",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if trace_ids != set(paths):\n",
+     "new": "    if False:  # M10\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_required_absent_m11_cli_rc",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_required_partial_thread_cli_rc",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_missing_thread_m10"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11-require-absent",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "gate_enabled = bool(gate_paths or bad_gate_names or require_gate_witness)",
+     "new": "gate_enabled = bool(gate_paths or bad_gate_names)  # M11"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_required_absent_m11_cli_rc"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12-d5-clean",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/model.py",
+     "old": "(not self.gate_witness_required or self.gate_d5 == \"pass\")",
+     "new": "True"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_wrong_include_target_d5_fails",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b7_emitter_missing_m12"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13-bad-name",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if bad:\n        raise ValueError(f\"invalid gate filename",
+     "new": "    if False:  # M13\n        raise ValueError(f\"invalid gate filename"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_invalid_filename_m13"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-legacy",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if gate_enabled:\n",
+     "new": "    if gate_enabled and isinstance(parsed, _CompactTrace):  # M14\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_legacy_parse_m14"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15-presence",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "gate_enabled = bool(gate_paths or bad_gate_names or require_gate_witness)",
+     "new": "gate_enabled = bool(bad_gate_names or require_gate_witness)  # M15"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[dash-txid]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_trace_read_without_q_key_m3",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[wrong-txid]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[missing-q]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b2_unregistered_write_m1",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b1_missing_initial_read_m2_m15",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_genesis_wrong_payload_m6",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b5_later_reader_disagrees_with_stored_stamp",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b4_wrong_version_payload_m5",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_frame_m4[extra-q]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_second_external_read_wrong_stamp",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_last_write_wins_m8",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_b6_stale_own_read_m7",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_legacy_parse_m14",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_v_missing_m9",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_n4_read_only_many",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_q_thread_mismatch_is_d1c",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_format_fail_closed[bad-key]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_format_fail_closed[unknown-tag]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_missing_thread_m10",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_format_fail_closed[r-missing-observed]",
+    "orchestrator/tests/test_verifier_gate_witness.py::test_gate_format_fail_closed[stamp-overflow]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
