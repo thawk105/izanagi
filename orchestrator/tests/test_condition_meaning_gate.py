@@ -51,6 +51,7 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_CICADA_VLIFE",
     "IZANAGI_CICADA_LONGTX",
     "SILO_POLICY_VARIANT",
+    "SILO_ORDER_VARIANT",
     "IZANAGI_SILO_POLICY_PROBE",
     "IZANAGI_BREAK_SILO_POLICY",
     "BACKOFF_NOINLINE",
@@ -122,6 +123,9 @@ _NEW_BRANCH_EXPECTATIONS = {
     ),
     "SILO_POLICY_VARIANT": (
         "cc/silo/transaction.cc", "#if SILO_POLICY_VARIANT", 15, 0,
+    ),
+    "SILO_ORDER_VARIANT": (
+        "cc/silo/transaction.cc", "#if SILO_ORDER_VARIANT", 14, 0,
     ),
     "IZANAGI_SILO_POLICY_PROBE": (
         "cc/silo/transaction.cc", "#if IZANAGI_SILO_POLICY_PROBE", 21, 0,
@@ -3572,6 +3576,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_CICADA_ROGC_WORKLOAD",
         "IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
         "SILO_POLICY_VARIANT", "IZANAGI_SILO_POLICY_PROBE", "IZANAGI_BREAK_SILO_POLICY",
+        "SILO_ORDER_VARIANT",
         "MOCC_TEMP_PREDICATE",
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
         "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
@@ -3611,6 +3616,10 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.DEFINE_SPECS["SILO_POLICY_VARIANT"] == G.DefineSpec(
         G.ROUTE_CMAKE_CACHE, ("cc/silo/transaction.cc",), "ycsb_silo.exe",
         "patches/silo-function-policy-variant.patch", inert_values=("0",),
+    )
+    assert G.DEFINE_SPECS["SILO_ORDER_VARIANT"] == G.DefineSpec(
+        G.ROUTE_CMAKE_CACHE, ("cc/silo/transaction.cc",), "ycsb_silo.exe",
+        "patches/silo-lock-order-variant.patch", inert_values=("0",),
     )
     for macro, patch in (
         ("IZANAGI_SILO_POLICY_PROBE", "instr-silo-function-policy-probe.patch"),
@@ -3687,8 +3696,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 57
-    assert len(G.MEANING_SUPPORTED_MACROS) == 58
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 58
+    assert len(G.MEANING_SUPPORTED_MACROS) == 59
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3899,9 +3908,9 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 
 def test_module_claim_names_the_exact_75_define_supply_domain() -> None:
-    assert "supply domain contains the 75 patch-derived defines" in G.__doc__
+    assert "supply domain contains the 76 patch-derived defines" in G.__doc__
     assert (
-        "Fifty-seven\nregistered macros additionally have a bounded compile-time witness"
+        "Fifty-eight\nregistered macros additionally have a bounded compile-time witness"
     ) in G.__doc__
     assert "(or an undefined\ncontrast for declared #ifdef witnesses)" in G.__doc__
     assert "Companion-file evidence is limited to the declared owner TU" in G.__doc__
