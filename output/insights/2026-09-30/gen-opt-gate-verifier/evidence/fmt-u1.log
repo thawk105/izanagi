@@ -1,0 +1,7 @@
+warning: remote HEAD refers to nonexistent ref, unable to checkout.
+
+checkout HEAD dcb9a41f3e538744298b0e5c42dc37349bac114e porcelain=0
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+check rc=0 2026-09-30 13:41:10 JST

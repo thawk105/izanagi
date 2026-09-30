@@ -468,6 +468,28 @@ Cicada の read-only commit は `mainte()` を通らず GC flag を立てない�
 - **driver:** `orchestrator/campaign/vhash_ro_gc_publish.py` の `smoke` / `verify` / `measure` / `throughput`。source copy ごとに macro なしの依存物 build (masstree の `config.h` を作る) → condition gate → 本 build の順。
 - **一次資料:** `output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`。
 
+## cicada-interval-gc-variant.patch / cicada-interval-gc-longtx.patch / broken-cicada-interval-gc-overprune.patch — Cicada の区間 GC (最小形・一般形)、長い tx 負荷、見える版まで外す壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_18)
+
+書き込み時 (Steam §4.3 と同じ契機) に、保護点 (実行中の各 thread の wts・rts と MinWts−1・MinRts) のどれからも見えない途中版を版の鎖から外す試作。
+最小形は各キーの最初の隙間だけ、一般形は全ての隙間を剪定する。外した版は既定 (`--cicada_igc_debug_mode=1`) では**走行中に再利用しない** (mode 0 の再利用は
+SIGSEGV・停止が実測で分かっている実験用)。blind write の install は tuple の `gc_lock_` の下で `latest_` から挿入位置を探し直す (剪定との競合を閉じるため。stock は不変)。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない** (検査の結果と、事前登録した壊し正例が不成立だったことは一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a`。variant は `cc/cicada/transaction.cc`・`include/transaction.hh`・`include/tuple.hh`・`include/version.hh`、
+  負荷は `cc/cicada/ycsb_cicada.cc`。性能・計数 build は pin → variant → longtx、正しさ検査 build は pin → `instr-cicada-trace.patch` → variant → longtx (→ 壊し) の順で当てる。
+- **macro (全て 0/1、未定義 = 0 = stock と同じ前処理結果。分岐は全て単独の `#if MACRO` 行、挿入後は `#line` で行番号を戻す):**
+  - `CICADA_INTERVAL_GC` (owner `cc/cicada/transaction.cc`、site 22 + companion header 5): 区間 GC の機構 (最小形)。YCSB の point read / update 以外の経路に入ったら異常終了。
+  - `CICADA_INTERVAL_GC_GENERAL` (companion `CICADA_INTERVAL_GC=1`): 一般形。
+  - `CICADA_INTERVAL_COUNT` (owner 同、stock でも数える): 鎖上・外した版の数と bytes、保持時間、境界年齢、site 別 hop、剪定の試行・成功・失敗、install の lock 待ちを数え、終了時に 1 行 JSON を出す。性能 build では使わない。
+  - `CICADA_INTERVAL_LONGTX` (owner `cc/cicada/ycsb_cicada.cc`): leader を除く末尾 L 本の thread に長い tx (wait_after_reads・many_ops・ronly_wait) を回させ、終了時に `CICADA_IGC_LONGTX_V1 {json}` を出す。
+    md_6 の `CICADA_LONGTX` (T-2904) とは独立。
+- **壊し正例:** `broken-cicada-interval-gc-overprune.patch` は variant の上に重ね、剪定条件 (b) から最小の保護点を除く (長い tx の可視版まで外しうる)。
+  発火ごとに `CICADA_OVERPRUNE_EVENT` を stderr に出す。登録 directive 行は足さない (既存の分岐の本文だけを変える)。
+- **登録:** 4 macro を `condition_meaning_gate.py` の許可ドメインへ登録し、`screening_driver.py` の既定値表、spawn site の define 交差表、materializer 登録簿
+  (`orchestrator.campaign.vhash_interval_gc._build_variant`) を追随。**`patches/ledger.json` には登録しない** (D2288 と同じ理由)。
+- **driver:** `orchestrator/campaign/vhash_interval_gc.py` の `smoke` / `build` / `plan-jobs` / `run-part` / `verify-part` / `aggregate`。
+- **一次資料:** `output/insights/2026-09-29/vhash-interval-gc/README.md`。
+
 ## cicada-forwarding-target.patch / cicada-forwarding-target-broken-ignore-mismatch.patch — 構成 C・E の前進先の選び方の knob と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_21)
 
 構成 C (md_6) と構成 E (md_14) の前進先 (目標時刻) の選び方を実行時 flag で切り替える試作。`cicada-forwarding-variant.patch` → `cicada-forwarding-gc.patch` の**上に重ねる** patch で、
@@ -490,6 +512,28 @@ Cicada の read-only commit は `mainte()` を通らず GC flag を立てない�
 - **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `target-run --workload normal|many_ops|wait_after_reads [--wait-us 1000|10000] [--skew 0|0.6|0.9] [--smoke]` / `target-aggregate --raw ...`。
   既存の `run` / `gc-run` / `aggregate` / `gc-aggregate` は変えていない。比較の Cicada 設定は md_11 の観測最良。
 - **一次資料:** `output/insights/2026-09-29/vhash-forwarding-target-policy/README.md`。
+
+## cicada-forwarding-early-abort.patch / cicada-forwarding-early-abort-broken-pending.patch — 構成 E の待機安全点で、commit できないと確定した長い tx を早く abort させる knob と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_31)
+
+構成 E の待機安全点で「abort が決まっている」の判定 D を評価し、真なら早く abort させる試作。`cicada-forwarding-variant.patch` → `-gc.patch` → `-target.patch` の**上に重ねる** patch で、
+**既定 flag (`off`) では md_21 と同じ挙動・同じ計数行になる。** 判定 D は、read-only でない tx の read set の各要素について、既読版より新しく自分の現在の ts より古い committed / deleted の版が版列にあれば真 (pending は含めない)。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない。この patch を使った値は「未検証の診断値」として扱う** (判定 D の健全性の確認は小モデル `tools/vhash_forwarding_model/early_abort.py`、検査の結果は一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a` に variant → gc → target を当てた木。trace patch → variant → gc → target → 本 patch の順でも当たる。
+  変更は `cc/cicada/transaction.cc` と `cc/cicada/ycsb_cicada.cc` だけで、既存の 4 patch と壊し patch は変えない。
+- **macro:** 新設なし。既存の `CICADA_GC_SAFEPOINT`・`CICADA_GC_COUNT`・`CICADA_GC_WAIT` の内側だけに足した (新しい `#if` 系 directive は 0)。条件 gate の登録簿 (`condition_meaning_gate.py`) は変えていない。
+  計数専用の変数は `CICADA_GC_COUNT` の無い build で未使用にならないよう `[[maybe_unused]]` にしてある (CCBench は `-Werror`)。
+- **実行時 flag (既定 = 現行):** `--cicada_gc_early_abort=off|doomed|fallback|shadow` (`CICADA_GC_SAFEPOINT` の内側)。`doomed` は `--cicada_gc_mode=hb` と組み、待機 slice の安全点ごとに D を評価して真なら中止。
+  `fallback` は `--cicada_gc_mode=e --cicada_gc_target=max` と組み、E-max の要求が `no_room` を返したときだけ D を評価して真なら中止。`shadow` は評価と計数だけで中止しない。
+  中止は安全点が返し、ycsb_cicada.cc の待機ループが `cicada_gc_hold_end` → 既存の `tx.abort()` → abort 計数 → RETRY を通る。D は共有状態 (ThreadRtsArray・ThreadWtsArray・版の rts・later_ver_) を書かない。
+  flag が off 以外の計器 build でだけ `CICADA_GC_ABORT_V1` 行 (D の評価・真・種類、早期 abort、shadow の予測後 commit、`no_room` の成功前 / 成功後、初回検出時間) を足す。既存の GC V1 / V2 行は変えない。
+  **計数入り build の throughput は性能値に使わない。**
+- **壊し正例 `cicada-forwarding-early-abort-broken-pending.patch`:** 本 patch の上に重ねる無マクロの無条件 patch (新しい `#if` を足さない)。D の witness に pending も含める単一の意味の変更で、ABORT 行の `witness` を `pending_too` にする。
+  検査は shadow で走らせ、pending による真 (`d_true_pending`) の到達と予測後 commit を観測値として記録する。検査専用で、計測には使わない (md_31 の検査では到達しなかった)。
+- **登録:** 条件 gate の登録簿は不変。`orchestrator/tests/test_ccbench_spawn_sites.py` の `_OVERLAY_BASE_DEFINE_INTERFACES` の `cicada-forwarding-gc.patch` の項に `CICADA_GC_WAIT` を足した (本 patch の文脈行に `#if CICADA_GC_WAIT` が入るため。期待件数は不変)。
+  **`patches/ledger.json` には登録しない** (D2288 と同じ理由)。
+- **driver:** `orchestrator/campaign/vhash_forwarding_prototype.py` の `abort-run --job s06|s08|s09|s095|focus|backoff [--smoke]` / `abort-aggregate --raw ...`。既存の subcommand は変えていない。比較の Cicada 設定は md_11 の観測最良 (backoff job の対照だけ BACK_OFF=1)。
+- **一次資料:** `output/insights/2026-09-30/vhash-early-abort-policy/README.md`。
 
 ## silo-sort-variant.patch — write_set 施錠順序 comparator 軸の骨格 (Phase 3 段 5, D41)
 

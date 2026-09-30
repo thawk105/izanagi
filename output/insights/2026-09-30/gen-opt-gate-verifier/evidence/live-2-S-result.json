@@ -1,0 +1,966 @@
+{
+  "builds": {
+    "S": {
+      "binary_sha256": "9c69ce9da152d313e4138381bf722640847857b05d4920099248b3b4913295f3",
+      "build": {
+        "build": {
+          "argv": [
+            "cmake",
+            "--build",
+            "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/trace-build",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "rc": 0,
+          "seconds": 4.334
+        },
+        "build_log_tail": [
+          "[  0%] Built target masstree_build",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+          "[ 64%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+          "[ 85%] Linking C static library libmimalloc.a",
+          "[ 85%] Built target mimalloc-static",
+          "[ 85%] Linking CXX static library libccbench_common.a",
+          "[ 85%] Built target ccbench_common",
+          "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+          "[100%] Linking CXX executable ycsb_silo.exe",
+          "[100%] Built target ycsb_silo.exe"
+        ],
+        "configure": {
+          "argv": [
+            "cmake",
+            "-S",
+            "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/ccbench",
+            "-B",
+            "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/trace-build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DCCBENCH_TRACE=1",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_WAL=0",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/dependencies/thirdparty-src/masstree",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/dependencies/thirdparty-src/mimalloc",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/dependencies/thirdparty-src/googletest"
+          ],
+          "rc": 0,
+          "seconds": 1.931
+        },
+        "configure_log_tail": [
+          "-- The CXX compiler identification is GNU 11.4.0",
+          "-- Detecting CXX compiler ABI info",
+          "-- Detecting CXX compiler ABI info - done",
+          "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+          "-- Detecting CXX compile features",
+          "-- Detecting CXX compile features - done",
+          "-- Looking for C++ include pthread.h",
+          "-- Looking for C++ include pthread.h - found",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+          "-- Found Threads: TRUE  ",
+          "-- Found gflags: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/dependencies/gflags-install/lib/libgflags.a  ",
+          "-- Found glog: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/dependencies/glog-install/lib/libglog.a  ",
+          "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+          "-- The C compiler identification is GNU 11.4.0",
+          "-- Detecting C compiler ABI info",
+          "-- Detecting C compiler ABI info - done",
+          "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+          "-- Detecting C compile features",
+          "-- Detecting C compile features - done",
+          "-- Found Git: /usr/bin/git (found version \"2.34.1\") ",
+          "-- ",
+          "-- Architecture: x64",
+          "-- Performing Test mi_has_libpthread",
+          "-- Performing Test mi_has_libpthread - Success",
+          "-- Performing Test mi_has_librt",
+          "-- Performing Test mi_has_librt - Success",
+          "-- Performing Test mi_has_libatomic",
+          "-- Performing Test mi_has_libatomic - Success",
+          "-- ",
+          "-- Library name     : mimalloc",
+          "-- Version          : 2.3.2",
+          "-- Build type       : release",
+          "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+          "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+          "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+          "-- Link libraries   : pthread;rt;atomic",
+          "-- Build targets    : static",
+          "-- ",
+          "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+          "-- Wrote protocol×workload matrix to /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/trace-build/PROTOCOL_MATRIX.md",
+          "-- Configuring done",
+          "-- Generating done",
+          "-- Build files have been written to: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/trace-build"
+        ]
+      },
+      "oid": "dcb9a41f3e538744298b0e5c42dc37349bac114e",
+      "prereg": {
+        "W-blind": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 1461,
+                "sample": [
+                  104,
+                  211,
+                  302,
+                  498,
+                  517,
+                  539,
+                  547,
+                  582,
+                  616,
+                  1217,
+                  1225,
+                  1277,
+                  1374,
+                  1389,
+                  1437,
+                  1452,
+                  1482,
+                  1529,
+                  1593,
+                  1783
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 16465,
+                "sample": [
+                  0,
+                  13,
+                  39,
+                  45,
+                  46,
+                  104,
+                  107,
+                  109,
+                  145,
+                  149,
+                  151,
+                  153,
+                  156,
+                  180,
+                  230,
+                  242,
+                  254,
+                  257,
+                  261,
+                  267
+                ],
+                "status": "violation"
+              }
+            },
+            "aborts": 10269,
+            "b1_fired": null,
+            "commits": 218547,
+            "conditions": {
+              "own_write_read_transactions": 16866,
+              "written_transactions": 211727
+            },
+            "gate_witness": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 1491,
+                "D2b_ii": 16611,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 527860,
+                "own_write_read_transactions": 16866,
+                "repeated_write_key_transactions": 16465,
+                "written_transactions": 211727
+              },
+              "required": true
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": false,
+              "gate_witness": {
+                "D5": "pass",
+                "counts": {
+                  "D1a": 0,
+                  "D1b1": 0,
+                  "D1b2": 0,
+                  "D1c": 0,
+                  "D2a": 0,
+                  "D2b_i": 1491,
+                  "D2b_ii": 16611,
+                  "unreachable": 0
+                },
+                "meaning_version": 2,
+                "occurrence": {
+                  "external_reads_checked": 527860,
+                  "own_write_read_transactions": 16866,
+                  "repeated_write_key_transactions": 16465,
+                  "written_transactions": 211727
+                },
+                "required": true
+              },
+              "integrity": {
+                "clean": false,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [
+                  "check=D2b.i thid=0 txid=211 key=0000000000000000 expected=281474976710804 observed=562949953424311",
+                  "check=D2b.ii thid=0 txid=242 key=000000000000000a expected=281474976710822 observed=281474976710821",
+                  "check=D2b.ii thid=0 txid=304 key=0000000000000005 expected=281474976710866 observed=281474976710864",
+                  "check=D2b.ii thid=0 txid=330 key=0000000000000002 expected=281474976710894 observed=281474976710893",
+                  "check=D2b.ii thid=0 txid=386 key=0000000000000002 expected=281474976710940 observed=281474976710937",
+                  "check=D2b.ii thid=0 txid=386 key=0000000000000000 expected=281474976710939 observed=281474976710938",
+                  "check=D2b.ii thid=0 txid=426 key=0000000000000000 expected=281474976710957 observed=281474976710956",
+                  "check=D2b.ii thid=0 txid=527 key=0000000000000002 expected=281474976711002 observed=281474976711000",
+                  "check=D2b.i thid=0 txid=539 key=0000000000000000 expected=281474976711013 observed=281474976711011",
+                  "check=D2b.ii thid=0 txid=587 key=0000000000000002 expected=281474976711056 observed=281474976711055",
+                  "check=D2b.ii thid=0 txid=594 key=0000000000000000 expected=281474976711060 observed=281474976711059",
+                  "check=D2b.i thid=0 txid=616 key=0000000000000007 expected=281474976711086 observed=281474976711085"
+                ],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1464068,
+                "keys": 200,
+                "reads": 511794,
+                "txns": 218547,
+                "writes": 529627
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/trace",
+              "verdict": "indeterminate"
+            },
+            "verifier_rc": 3
+          },
+          "status": "match"
+        },
+        "W-rmw": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 27604,
+                "sample": [
+                  4,
+                  19,
+                  23,
+                  27,
+                  34,
+                  36,
+                  40,
+                  64,
+                  71,
+                  74,
+                  78,
+                  81,
+                  82,
+                  88,
+                  101,
+                  109,
+                  123,
+                  125,
+                  137,
+                  142
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 14675,
+                "sample": [
+                  23,
+                  27,
+                  71,
+                  74,
+                  81,
+                  88,
+                  109,
+                  123,
+                  153,
+                  155,
+                  178,
+                  204,
+                  212,
+                  216,
+                  237,
+                  243,
+                  248,
+                  262,
+                  264,
+                  291
+                ],
+                "status": "violation"
+              }
+            },
+            "aborts": 8433,
+            "b1_fired": null,
+            "commits": 191315,
+            "conditions": {
+              "own_write_read_transactions": 27604,
+              "written_transactions": 185295
+            },
+            "gate_witness": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 30842,
+                "D2b_ii": 14819,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 925733,
+                "own_write_read_transactions": 27604,
+                "repeated_write_key_transactions": 14675,
+                "written_transactions": 185295
+              },
+              "required": true
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": false,
+              "gate_witness": {
+                "D5": "pass",
+                "counts": {
+                  "D1a": 0,
+                  "D1b1": 0,
+                  "D1b2": 0,
+                  "D1c": 0,
+                  "D2a": 0,
+                  "D2b_i": 30842,
+                  "D2b_ii": 14819,
+                  "unreachable": 0
+                },
+                "meaning_version": 2,
+                "occurrence": {
+                  "external_reads_checked": 925733,
+                  "own_write_read_transactions": 27604,
+                  "repeated_write_key_transactions": 14675,
+                  "written_transactions": 185295
+                },
+                "required": true
+              },
+              "integrity": {
+                "clean": false,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [
+                  "check=D2b.i thid=0 txid=4 key=0000000000000000 expected=281474976710663 observed=844424930131969",
+                  "check=D2b.i thid=0 txid=4 key=0000000000000000 expected=281474976710663 observed=844424930131969",
+                  "check=D2b.i thid=0 txid=40 key=0000000000000000 expected=281474976710694 observed=281474976710691",
+                  "check=D2b.i thid=0 txid=198 key=0000000000000001 expected=281474976710756 observed=562949953421494",
+                  "check=D2b.i thid=0 txid=204 key=0000000000000000 expected=281474976710764 observed=562949953421501",
+                  "check=D2b.ii thid=0 txid=204 key=0000000000000000 expected=281474976710767 observed=281474976710764",
+                  "check=D2b.i thid=0 txid=243 key=0000000000000000 expected=281474976710775 observed=844424930132099",
+                  "check=D2b.ii thid=0 txid=243 key=0000000000000000 expected=281474976710778 observed=281474976710775",
+                  "check=D2b.i thid=0 txid=256 key=0000000000000000 expected=281474976710800 observed=281474976710796",
+                  "check=D2b.i thid=0 txid=256 key=0000000000000000 expected=281474976710800 observed=281474976710796",
+                  "check=D2b.i thid=0 txid=258 key=000000000000000f expected=281474976710805 observed=1125899906842801",
+                  "check=D2b.i thid=0 txid=262 key=0000000000000000 expected=281474976710817 observed=281474976710815"
+                ],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1283167,
+                "keys": 200,
+                "reads": 897477,
+                "txns": 191315,
+                "writes": 462961
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/trace",
+              "verdict": "indeterminate"
+            },
+            "verifier_rc": 3
+          },
+          "status": "match"
+        }
+      },
+      "runs": {
+        "W-blind": {
+          "aborts": 10269,
+          "commits": 218547,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 1461,
+                "sample": [
+                  104,
+                  211,
+                  302,
+                  498,
+                  517,
+                  539,
+                  547,
+                  582,
+                  616,
+                  1217,
+                  1225,
+                  1277,
+                  1374,
+                  1389,
+                  1437,
+                  1452,
+                  1482,
+                  1529,
+                  1593,
+                  1783
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 16465,
+                "sample": [
+                  0,
+                  13,
+                  39,
+                  45,
+                  46,
+                  104,
+                  107,
+                  109,
+                  145,
+                  149,
+                  151,
+                  153,
+                  156,
+                  180,
+                  230,
+                  242,
+                  254,
+                  257,
+                  261,
+                  267
+                ],
+                "status": "violation"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 0,
+              "R_R_occurrences": 16849,
+              "R_R_transactions": 15975,
+              "R_W_R_occurrences": 768,
+              "R_W_R_transactions": 767,
+              "W_R_occurrences": 17049,
+              "W_R_transactions": 16866,
+              "W_W_occurrences": 16676,
+              "W_W_transactions": 15785,
+              "own_write_read_transactions": 16866,
+              "read_only_transactions": 6820,
+              "repeated_key_transactions": 59444,
+              "transactions": 218547,
+              "write_write_occurrences": 17416,
+              "write_write_transactions": 16465,
+              "written_transactions": 211727
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/gate_check_u1.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2884-gate-verifier",
+              "--out",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.313,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=false",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.006,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t0\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t10269\nbatch_abort_counts_:\t0\ncommit_counts_:\t218547\nbatch_commit_counts_:\t0\nmaxrss:\t56484 kB\nabort_rate:\t0.0449\nbatch_abort_rate:\t-nan\nlatency[ns]:\t18302.6992\nthroughput[tps]:\t218547\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/trace.tar.gz",
+          "trace_archive_sha256": "d59395b66a18353b0e9c11b0c1f31a372938da5fcd4c1d6cc5b01605feeded12",
+          "trace_files_bytes": {
+            "gate_0.log": 16905286,
+            "gate_1.log": 16237310,
+            "gate_2.log": 15197682,
+            "gate_3.log": 17212975,
+            "trace_0.log": 10898121,
+            "trace_1.log": 10460258,
+            "trace_2.log": 9829099,
+            "trace_3.log": 10900112
+          },
+          "verifier": {
+            "rc": 3,
+            "record": {
+              "certified_serializable": 0,
+              "indeterminate": 1,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": false,
+                  "gate_witness": {
+                    "D5": "pass",
+                    "counts": {
+                      "D1a": 0,
+                      "D1b1": 0,
+                      "D1b2": 0,
+                      "D1c": 0,
+                      "D2a": 0,
+                      "D2b_i": 1491,
+                      "D2b_ii": 16611,
+                      "unreachable": 0
+                    },
+                    "meaning_version": 2,
+                    "occurrence": {
+                      "external_reads_checked": 527860,
+                      "own_write_read_transactions": 16866,
+                      "repeated_write_key_transactions": 16465,
+                      "written_transactions": 211727
+                    },
+                    "required": true
+                  },
+                  "integrity": {
+                    "clean": false,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [
+                      "check=D2b.i thid=0 txid=211 key=0000000000000000 expected=281474976710804 observed=562949953424311",
+                      "check=D2b.ii thid=0 txid=242 key=000000000000000a expected=281474976710822 observed=281474976710821",
+                      "check=D2b.ii thid=0 txid=304 key=0000000000000005 expected=281474976710866 observed=281474976710864",
+                      "check=D2b.ii thid=0 txid=330 key=0000000000000002 expected=281474976710894 observed=281474976710893",
+                      "check=D2b.ii thid=0 txid=386 key=0000000000000002 expected=281474976710940 observed=281474976710937",
+                      "check=D2b.ii thid=0 txid=386 key=0000000000000000 expected=281474976710939 observed=281474976710938",
+                      "check=D2b.ii thid=0 txid=426 key=0000000000000000 expected=281474976710957 observed=281474976710956",
+                      "check=D2b.ii thid=0 txid=527 key=0000000000000002 expected=281474976711002 observed=281474976711000",
+                      "check=D2b.i thid=0 txid=539 key=0000000000000000 expected=281474976711013 observed=281474976711011",
+                      "check=D2b.ii thid=0 txid=587 key=0000000000000002 expected=281474976711056 observed=281474976711055",
+                      "check=D2b.ii thid=0 txid=594 key=0000000000000000 expected=281474976711060 observed=281474976711059",
+                      "check=D2b.i thid=0 txid=616 key=0000000000000007 expected=281474976711086 observed=281474976711085"
+                    ],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1464068,
+                    "keys": 200,
+                    "reads": 511794,
+                    "txns": 218547,
+                    "writes": 529627
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/trace",
+                  "verdict": "indeterminate"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "Command exited with non-zero status 3\n\tCommand being timed: \"/usr/bin/python3.10 -m orchestrator.verifier /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/trace --json --protocol silo --require-gate-witness --ccbench-root /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/ccbench --expected-commits 218547\"\n\tUser time (seconds): 14.66\n\tSystem time (seconds): 0.59\n\tPercent of CPU this job got: 138%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:11.03\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 502288\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 337416\n\tVoluntary context switches: 1098\n\tInvoluntary context switches: 50\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 16\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 3\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 0,\n  \"non_serializable\": 0,\n  \"indeterminate\": 1,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-blind/trace\",\n      \"verdict\": \"indeterminate\",\n      \"certified\": false,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 218547,\n        \"reads\": 511794,\n        \"writes\": 529627,\n        \"keys\": 200,\n        \"edges\": 1464068,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": false,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": [\n          \"check=D2b.i thid=0 txid=211 key=0000000000000000 expected=281474976710804 observed=562949953424311\",\n          \"check=D2b.ii thid=0 txid=242 key=000000000000000a expected=281474976710822 observed=281474976710821\",\n          \"check=D2b.ii thid=0 txid=304 key=0000000000000005 expected=281474976710866 observed=281474976710864\",\n          \"check=D2b.ii thid=0 txid=330 key=0000000000000002 expected=281474976710894 observed=281474976710893\",\n          \"check=D2b.ii thid=0 txid=386 key=0000000000000002 expected=281474976710940 observed=281474976710937\",\n          \"check=D2b.ii thid=0 txid=386 key=0000000000000000 expected=281474976710939 observed=281474976710938\",\n          \"check=D2b.ii thid=0 txid=426 key=0000000000000000 expected=281474976710957 observed=281474976710956\",\n          \"check=D2b.ii thid=0 txid=527 key=0000000000000002 expected=281474976711002 observed=281474976711000\",\n          \"check=D2b.i thid=0 txid=539 key=0000000000000000 expected=281474976711013 observed=281474976711011\",\n          \"check=D2b.ii thid=0 txid=587 key=0000000000000002 expected=281474976711056 observed=281474976711055\",\n          \"check=D2b.ii thid=0 txid=594 key=0000000000000000 expected=281474976711060 observed=281474976711059\",\n          \"check=D2b.i thid=0 txid=616 key=0000000000000007 expected=281474976711086 observed=281474976711085\"\n        ]\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": [],\n      \"gate_witness\": {\n        \"meaning_version\": 2,\n        \"required\": true,\n        \"counts\": {\n          \"unreachable\": 0,\n          \"D1a\": 0,\n          \"D1b1\": 0,\n          \"D1b2\": 0,\n          \"D1c\": 0,\n          \"D2a\": 0,\n          \"D2b_i\": 1491,\n          \"D2b_ii\": 16611\n        },\n        \"occurrence\": {\n          \"own_write_read_transactions\": 16866,\n          \"written_transactions\": 211727,\n          \"repeated_write_key_transactions\": 16465,\n          \"external_reads_checked\": 527860\n        },\n        \"D5\": \"pass\"\n      }\n    }\n  ]\n}\n"
+          }
+        },
+        "W-rmw": {
+          "aborts": 8433,
+          "commits": 191315,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 27604,
+                "sample": [
+                  4,
+                  19,
+                  23,
+                  27,
+                  34,
+                  36,
+                  40,
+                  64,
+                  71,
+                  74,
+                  78,
+                  81,
+                  82,
+                  88,
+                  101,
+                  109,
+                  123,
+                  125,
+                  137,
+                  142
+                ],
+                "status": "violation"
+              },
+              "ii": {
+                "count": 14675,
+                "sample": [
+                  23,
+                  27,
+                  71,
+                  74,
+                  81,
+                  88,
+                  109,
+                  123,
+                  153,
+                  155,
+                  178,
+                  204,
+                  212,
+                  216,
+                  237,
+                  243,
+                  248,
+                  262,
+                  264,
+                  291
+                ],
+                "status": "violation"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 14820,
+              "M_M_transactions": 14041,
+              "R_R_occurrences": 14982,
+              "R_R_transactions": 14182,
+              "R_W_R_occurrences": 15272,
+              "R_W_R_transactions": 14488,
+              "W_R_occurrences": 0,
+              "W_W_occurrences": 0,
+              "own_write_read_transactions": 27604,
+              "read_only_transactions": 6020,
+              "repeated_key_transactions": 51915,
+              "transactions": 191315,
+              "write_write_occurrences": 15492,
+              "write_write_transactions": 14675,
+              "written_transactions": 185295
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/gate_check_u1.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2884-gate-verifier",
+              "--out",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.274,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=true",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.008,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t1\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t8433\nbatch_abort_counts_:\t0\ncommit_counts_:\t191315\nbatch_commit_counts_:\t0\nmaxrss:\t42684 kB\nabort_rate:\t0.0422\nbatch_abort_rate:\t-nan\nlatency[ns]:\t20907.9267\nthroughput[tps]:\t191315\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/trace.tar.gz",
+          "trace_archive_sha256": "21ac7dc4f6d5cf9f17d93210b4946dfe9d6921ddb032178bf7bea7a96678b6c4",
+          "trace_files_bytes": {
+            "gate_0.log": 15387308,
+            "gate_1.log": 16222826,
+            "gate_2.log": 16026090,
+            "gate_3.log": 16482022,
+            "trace_0.log": 12404860,
+            "trace_1.log": 13098104,
+            "trace_2.log": 12937692,
+            "trace_3.log": 13025991
+          },
+          "verifier": {
+            "rc": 3,
+            "record": {
+              "certified_serializable": 0,
+              "indeterminate": 1,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": false,
+                  "gate_witness": {
+                    "D5": "pass",
+                    "counts": {
+                      "D1a": 0,
+                      "D1b1": 0,
+                      "D1b2": 0,
+                      "D1c": 0,
+                      "D2a": 0,
+                      "D2b_i": 30842,
+                      "D2b_ii": 14819,
+                      "unreachable": 0
+                    },
+                    "meaning_version": 2,
+                    "occurrence": {
+                      "external_reads_checked": 925733,
+                      "own_write_read_transactions": 27604,
+                      "repeated_write_key_transactions": 14675,
+                      "written_transactions": 185295
+                    },
+                    "required": true
+                  },
+                  "integrity": {
+                    "clean": false,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [
+                      "check=D2b.i thid=0 txid=4 key=0000000000000000 expected=281474976710663 observed=844424930131969",
+                      "check=D2b.i thid=0 txid=4 key=0000000000000000 expected=281474976710663 observed=844424930131969",
+                      "check=D2b.i thid=0 txid=40 key=0000000000000000 expected=281474976710694 observed=281474976710691",
+                      "check=D2b.i thid=0 txid=198 key=0000000000000001 expected=281474976710756 observed=562949953421494",
+                      "check=D2b.i thid=0 txid=204 key=0000000000000000 expected=281474976710764 observed=562949953421501",
+                      "check=D2b.ii thid=0 txid=204 key=0000000000000000 expected=281474976710767 observed=281474976710764",
+                      "check=D2b.i thid=0 txid=243 key=0000000000000000 expected=281474976710775 observed=844424930132099",
+                      "check=D2b.ii thid=0 txid=243 key=0000000000000000 expected=281474976710778 observed=281474976710775",
+                      "check=D2b.i thid=0 txid=256 key=0000000000000000 expected=281474976710800 observed=281474976710796",
+                      "check=D2b.i thid=0 txid=256 key=0000000000000000 expected=281474976710800 observed=281474976710796",
+                      "check=D2b.i thid=0 txid=258 key=000000000000000f expected=281474976710805 observed=1125899906842801",
+                      "check=D2b.i thid=0 txid=262 key=0000000000000000 expected=281474976710817 observed=281474976710815"
+                    ],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1283167,
+                    "keys": 200,
+                    "reads": 897477,
+                    "txns": 191315,
+                    "writes": 462961
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/trace",
+                  "verdict": "indeterminate"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "Command exited with non-zero status 3\n\tCommand being timed: \"/usr/bin/python3.10 -m orchestrator.verifier /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/trace --json --protocol silo --require-gate-witness --ccbench-root /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/ccbench --expected-commits 191315\"\n\tUser time (seconds): 16.39\n\tSystem time (seconds): 0.59\n\tPercent of CPU this job got: 147%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:11.54\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 600936\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 381184\n\tVoluntary context switches: 1206\n\tInvoluntary context switches: 55\n\tSwaps: 0\n\tFile system inputs: 24\n\tFile system outputs: 8\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 3\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 0,\n  \"non_serializable\": 0,\n  \"indeterminate\": 1,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/S/S/W-rmw/trace\",\n      \"verdict\": \"indeterminate\",\n      \"certified\": false,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 191315,\n        \"reads\": 897477,\n        \"writes\": 462961,\n        \"keys\": 200,\n        \"edges\": 1283167,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": false,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": [\n          \"check=D2b.i thid=0 txid=4 key=0000000000000000 expected=281474976710663 observed=844424930131969\",\n          \"check=D2b.i thid=0 txid=4 key=0000000000000000 expected=281474976710663 observed=844424930131969\",\n          \"check=D2b.i thid=0 txid=40 key=0000000000000000 expected=281474976710694 observed=281474976710691\",\n          \"check=D2b.i thid=0 txid=198 key=0000000000000001 expected=281474976710756 observed=562949953421494\",\n          \"check=D2b.i thid=0 txid=204 key=0000000000000000 expected=281474976710764 observed=562949953421501\",\n          \"check=D2b.ii thid=0 txid=204 key=0000000000000000 expected=281474976710767 observed=281474976710764\",\n          \"check=D2b.i thid=0 txid=243 key=0000000000000000 expected=281474976710775 observed=844424930132099\",\n          \"check=D2b.ii thid=0 txid=243 key=0000000000000000 expected=281474976710778 observed=281474976710775\",\n          \"check=D2b.i thid=0 txid=256 key=0000000000000000 expected=281474976710800 observed=281474976710796\",\n          \"check=D2b.i thid=0 txid=256 key=0000000000000000 expected=281474976710800 observed=281474976710796\",\n          \"check=D2b.i thid=0 txid=258 key=000000000000000f expected=281474976710805 observed=1125899906842801\",\n          \"check=D2b.i thid=0 txid=262 key=0000000000000000 expected=281474976710817 observed=281474976710815\"\n        ]\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": [],\n      \"gate_witness\": {\n        \"meaning_version\": 2,\n        \"required\": true,\n        \"counts\": {\n          \"unreachable\": 0,\n          \"D1a\": 0,\n          \"D1b1\": 0,\n          \"D1b2\": 0,\n          \"D1c\": 0,\n          \"D2a\": 0,\n          \"D2b_i\": 30842,\n          \"D2b_ii\": 14819\n        },\n        \"occurrence\": {\n          \"own_write_read_transactions\": 27604,\n          \"written_transactions\": 185295,\n          \"repeated_write_key_transactions\": 14675,\n          \"external_reads_checked\": 925733\n        },\n        \"D5\": \"pass\"\n      }\n    }\n  ]\n}\n"
+          }
+        }
+      },
+      "source_sha256": {
+        "cc/silo/transaction.cc": "f2d21f8e02802efd1dd9e9e6c13be02af7b514a95b81f083aa3939ac87541cb3",
+        "include/trace.hh": "6a4b42afb84cb907c681a4d7f9dbe57b0148d95a23f90d0a987cab565a2e7c6e",
+        "include/ycsb.hh": "6702d3b73b76d0a9f67a08716780c116a1c387d4191fd363ec4fc3e7432147e8"
+      }
+    }
+  },
+  "condition": "S",
+  "errors": [],
+  "finished": "2026-09-30T05:01:48.931462+00:00",
+  "host": "bnode141",
+  "started": "2026-09-30T04:59:39.482982+00:00",
+  "u1_oid": "dcb9a41f3e538744298b0e5c42dc37349bac114e"
+}

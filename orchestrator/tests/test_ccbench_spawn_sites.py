@@ -78,6 +78,10 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
 })
 
 _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
+    # Diagnostic interval GC perf and trace binaries use bounded wait4 launches.
+    ("campaign/vhash_interval_gc.py", "<module>.run_measured"): 1,
+    # Verify delegates its trace binary argv to run_measured.
+    ("campaign/vhash_interval_gc.py", "<module>.verify_binary"): 1,
     # Exploratory Cicada hot-block runs use a bounded wait4 loop and trace gate.
     ("campaign/vhash_cicada_hot_block.py", "<module>.run_one"): 1,
     ("campaign/vhash_ro_gc_publish.py", "<module>._checked"): 1,
@@ -162,6 +166,11 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # This helper runs CMake configure/build, a preprocessing compiler, and a
     # read-only Git HEAD query; the YCSB binary runs at _run_binary instead.
     ("campaign/vhash_forwarding_prototype.py", "<module>.checked"): 1,
+    # Configure/build, preprocess, patch, and read-only Git commands only.
+    ("campaign/vhash_interval_gc.py", "<module>.checked"): 1,
+    # Bounded gdb attach or rerun for a failed diagnostic; the YCSB launch
+    # is inventoried separately at run_measured.
+    ("campaign/vhash_interval_gc.py", "<module>.run_diagnostic.debugger_call"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
     # Pre-existing fork, now visible with T-1994's fork API coverage: runs
@@ -674,7 +683,9 @@ _OVERLAY_BASE_DEFINE_INTERFACES = {
     "patches/cicada-forwarding-variant.patch": frozenset({
         "CICADA_FWD_ENABLE", "CICADA_LONGTX", "CICADA_FWD_COUNT",
     }),
-    "patches/cicada-forwarding-gc.patch": frozenset({"CICADA_GC_SAFEPOINT"}),
+    "patches/cicada-forwarding-gc.patch": frozenset({
+        "CICADA_GC_SAFEPOINT", "CICADA_GC_WAIT",
+    }),
     "patches/instr-silo-function-policy-probe.patch": frozenset({
         "IZANAGI_SILO_POLICY_PROBE",
     }),
@@ -3614,10 +3625,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C, mocc/si controls, and Cicada probes cannot reach this sink.
-        "proven-unreachable": 71,
+        "proven-unreachable": 75,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 75})
+    assert classifications[s8b_sink] == Counter({"covered": 79})
     assert failures == []
 
 
@@ -3629,7 +3640,7 @@ def test_ro_gc_publish_build_sink_uses_complete_condition_gate_family():
         "orchestrator/campaign/vhash_ro_gc_publish.py",
         "<module>._build_variant", 216, "direct-cmake-target")
     assert classifications[sink] == Counter({
-        "covered": 4, "proven-unreachable": 71})
+        "covered": 4, "proven-unreachable": 75})
     assert failures == []
 
 
@@ -3653,7 +3664,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 61})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 65})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3662,7 +3673,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 61,
+        "failure-reachable": 14, "proven-unreachable": 65,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target

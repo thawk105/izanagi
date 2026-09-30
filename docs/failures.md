@@ -389,6 +389,10 @@
   — 裁定を根拠に引くときは、委任の連鎖 (D782 → D730) の末端の本文まで読む。
 
 - **再発: 2026-09-29 (near miss、3 件)** — md_16 の wave の親が、子 worktree で fix branch を切るときに短縮 SHA を**手で伸ばして書き**、`git checkout -b vhash-hlp-fix1 e5a825d57601547` と `git checkout -b vhash-hlp-fix3 ade14b4d1c` が「not a commit」で拒否された (もう 1 件は同じ形で rev-parse の出力に切り替えて回避)。git が拒否したので誤った commit から branch を切る実害はなかった。型は「一次資料 (rev-parse の出力) から転写せず手で書き直す」で、2026-09-20・21 の再発と同じ。恒久対応は変更なし (memory `worktree-discipline` の「sha は rev-parse の 40 hex をそのまま使う」) — branch を切るときは `HEAD` や `$(git rev-parse <短縮>)` の出力を使い、SHA を手で書かない。
+
+- **再発: 2026-09-30** — VHash md_18 の段 5 B1-11 指示で、親が段 4 裁定 S8 (壊し正例は ronly_wait cell、帰属は長い read-only tx を含む辺) を「期待した経路で検出が 1 つ以上」と手で言い換えた。
+  集計は、事前登録の正例が発火 0 のまま K・R の検出で verification=passed を出した。段 6 の敵対レビュー 2 本 (R1・B-01) が独立に must-fix として捕捉し、fix B1-12 で S8 の literal に戻した (D2324)。
+  恒久対応は memory `ruling-literals-in-prompts-point-to-the-file` (裁定 file を正本と指し、literal を手で再記述しない) のまま。今回は field 名でなく**判定条件**の言い換えで、正しさゲートを緩める方向に働いた点を追記した。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -5757,6 +5761,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   連鎖を pin するテストの新設は本 wave の scope 外として後続タスクへ送った。
 
 - **再発: 2026-09-26** — [T-2854] 単位 11 の計算 probe (job dir、repo 外) で、変異 H-line の判定器が TPC-C consumer を target 名 (`tpcc_` で始まる) で選んでいた。実際の 21 compile entry では該当が 12 件 (`tpcc_<p>.cc` 9 件 + silo・si・mocc の `transaction.cc` の tpcc target 3 件) で、正しく検出しても必ず「理由違い」になる形だった。selftest の合成 row が実構成 (source と target の組) を写しておらず、自己試験は緑、段 6 の敵対レビュー 2 本も見逃した。計算投入の前に親が前例の実測 JSON (単位 3 の `C1-preprocess.json`) と照合して見つけ、fix で TPC-C consumer を source で選び、selftest の row を実測の 21 組にし、旧 filter が正例を拒否する陰性 case を足した。near miss (計算前に是正、成果物の値は不変)。対応は実測の 21 組を selftest へ転記して代表性を改めたもので、実 artifact を直接入力する対策 (本エントリの恒久対応の形) は未実施 (probe は job dir の使い捨てで repo の gate ではないため)。記録は `output/insights/2026-09-26/t2854-unit11-combined/README.md` §6。
+
+- **再発: 2026-09-30** — 判定器の D5 (emitter の証拠面) の include 検査が `#include "ycsb.hh"` しか受けない正規表現で、test の fixture も実物と違うその簡略形を書いていたため、段 5・6 の test (200 件緑) と review 2 本・焦点再レビューが通した。実物の `cc/silo/ycsb_silo.cc` は `#include "../../include/ycsb.hh"` で、計算ノードの生死確認 (Silo 修正あり) で D1・D2 が 0 件なのに D5 が不成立になり certified にならなかった (向きは偽の赤)。include の path を `cc/silo/` から解決して `include/ycsb.hh` と同じ file のときだけ成立にし、fixture を実物の形にして別 file へ解決する負例を足した (`orchestrator/verifier/core.py` の `_gate_d5`、`orchestrator/tests/test_verifier_gate_witness.py::test_gate_wrong_include_target_d5_fails`)。再発検知は同 test と変異 M12、および実物の source で走る生死確認 (`output/insights/2026-09-30/gen-opt-gate-verifier/README.md` §4.3)。
 ### F110. 単独性の合格条件を「非自 process の CPU 時間ゼロ」にしたため、計算ノードでは決して満たせなかった [恒真ゲート] [計測汚染]
 
 - 事象: [T-419] の probe 因果実験を Pegasus 計算ノード bnode138 で走らせたところ、最初の arm (A0) で
@@ -10241,6 +10247,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** — VHash GC 接続の小モデル wave (dev-wave-vhash-gc-connection) で、親が fix3 の commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と、新 test file の所要計測の run_tests dispatch を同一 worktree からほぼ同時に投入し、監査の qsub 中の pending orphan hold (`phase: pending-qsub`) を所要計測が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。監査は request 34686.nqsv で走り切り rc=0、hold は監査の終端で自然に解除、所要計測は単独の再投入で 28 passed。qdel も hold の手動削除もしていない。既存恒久対応に修正すべき新事実はない。
 
 - **再発: 2026-09-29** — md_23 wave で、親が同じ detached 計測木から本走 6 job (perf 3・count 1・trace 2) を detach script で同時に投げ、1 本目の pending orphan hold を検知して 5 本が rc 16 (`child_started=false`、`reason=orphan-hold`) になった (親の操作ミス)。1 本目 (36631.nqsv) は走り切り、残り 5 本は同じ木から 1 本ずつ流す chain で通した。qdel も hold の手動削除もしていない。`DW-C00` の「同一 worktree の dispatch は全種直列」の読み落としで、既存の恒久対応に直すべき新事実はない。並列にしたい計測は、計測木を job の数だけ作ってから投げる。
+
+- **再発: 2026-09-30** — VHash md_31 で、親が fix1 commit 後の full-history provenance 監査 (計算ノードへ自動 dispatch する) と焦点走 2 を同一 worktree からほぼ同時に投入し、焦点走 2 の qsub 中の pending orphan hold を監査が検知して rc=16 (`child_started=false`、`reason=orphan-hold`) になった (`DW-C00` の「同一 worktree の dispatch は全種直列」違反、親の操作ミス)。焦点走 2 は request 37897 で走り切り、hold はその終端で自然に解除、監査は単独の再投入 (37907) で rc=0。qdel も hold の手動削除もしていない。既存の恒久対応に直すべき新事実はない。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -21574,6 +21582,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-29** — VHash md_21 で、C++ の計数行を新しく読む driver の解析を、実装子が推測で組んだ fixture だけで検査した。実物との食い違いが smoke 1 (`CICADA_LONGTX_V1` の top-level key に `schema` があった) と fix 後の焦点再レビュー (SAFEPOINT の無い build の GC 行の mode は `"none"`、driver は `"off"` を要求) で 1 巡に 1 件ずつ出て、fix を 2 巡追加した。どちらも login のテストと段 6 のレビュー 2 本では捕まらなかった。直した後は実 stdout の行を写した回帰テストと、build の macro 集合から期待を導く形にした。
+
+- **再発: 2026-09-30** — VHash md_31 で、実装子が推測で組んだ fixture と login のテスト・段 6 のレビュー 2 本では捕まらない欠陥が、実機で 1 巡に 1 件ずつ 3 件出た。smoke 1 で新 subcommand の起動枠が target-run の流れを写さず依存物 build を抜かし、条件 gate の前処理が `config.h` 無しで停止 (レビュー B は「起動枠の再記述」を nit として挙げていた)。smoke 2 で計器なし build の計数専用の変数が未使用になり `-Werror` で停止 (子の環境には gflags と生成 config.h が無く、構文検査が走らなかった)。検査 1 で repo 外起動器が hb の腕の GC V1 行 (`no_room` を持たない) にも `no_room` の分割照合を当てて落ちた。直した後、abort-run の順序を検査するテストを足し、変数と macro の組の表を子に出させた。md_21 の再発と同じく、新しく build・解析する経路は smoke を最初の fix 巡の前に出すのが最も安い。
 ### F723. 親が「逐語」と称した射影資料を省略記号で切り、子の fixture に同じ穴が空いた [テスト代表性] [手順漏れ]
 
 - 事象: 実 build の逐語を job dir へ射影する際、`.o.d` の中身を `...` で省略した。実装子は
@@ -28826,3 +28836,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 件数 pin は「集合の要素数」という派生値で、両側の追加が独立でも書き換え後の literal は一致しうる。3-way 合成は literal の一致を「同じ変更」と扱うので、派生値の合算が要る箇所を衝突として表に出さない。
 - 恒久対応: 両側が同じ登録簿へ追加した取り込みでは、衝突の有無にかかわらず、両側差分の数値 literal の変更を突き合わせ、同じ行を両側が同値へ書き換えた箇所を合成の対象として列挙し、合成後のコードから値を導出する (本 wave の段 6 追補裁定 FM-2、`output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`)。memory `acceptance-discipline` に手順を置く。
 - 再発検知: 取り込みの前に、merge-base から両側への差分で `-`/`+` の対になった数値 literal の変更を両側で比べ、同じ行が同じ新値へ変わっていれば赤として扱う。
+
+### F1080. 段 4 の親裁定が段 2 plan・段 3 相談の安全側の推奨を 3 度覆し、毎回実測の破損で差し戻された [手順漏れ]
+
+- 事象: VHash md_18 (区間 GC) の段 4 で、親は次の 3 点で段 2 plan・段 3 相談と違う設計を裁定した。いずれも smoke で SIGSEGV・停止を起こした。
+  - (1) 外した版の再利用条件を「stock の pop (wts < MinRts)」にした。推奨は「外した時点で走っていた全 tx の終了待ち」。
+  - (2) 剪定条件 (d) の足場を committed の可視版に限った。
+  - (3) blind write の install を lock なしの CAS のまま残した。推奨は lock 下の install。
+  補正 3・4・5 と A13 の 4 巡の診断走行 (smoke3〜9b) を費やし、最後は再利用そのものを諦めた (補正 6 = D2323)。
+- 根本原因: 裁定時に「費用が小さく性能を損なわない案」を優先した。子が挙げた反例 (read set の生ポインタ、足場の pending 版、削除と挿入の競合) を実走で確かめる前に退けた。
+  lock を使わない連結リストの削除という既知の難所で、推奨を覆す根拠 (反例の否定) を裁定文に書いていなかった。
+- 恒久対応: memory `ruling-override-needs-counterexample-refutation` — 段 4 で子の安全側推奨を覆すときは、子の反例を否定する論証を裁定文に書く。
+  書けないなら推奨を採り、費用は計測で後から削る。
+- 再発検知: 段 6 レビュー prompt に「段 4 裁定が段 2・3 の推奨を覆した箇所の列挙と、その根拠の有無」を検査項目として入れる (同 memory の How to apply)。
