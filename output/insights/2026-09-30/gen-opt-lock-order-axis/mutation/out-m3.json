@@ -1,0 +1,521 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/5722826a1b8715daa068e398d6595a27/izdw-5722826a1b.o37995",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/5722826a1b8715daa068e398d6595a27/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............                                                           [100%]\n14 passed in 10.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "88f3e287663a5689ad1662b23d70b50418f231cb37cdf72a217dfe30df69fd59"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+    "duration_s": 38.074,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "58d8d42a41d141662544521fe3d2e4040fd1a17d3e45b0225055f26c717ca0a2",
+    "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+    "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+    "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+    "status": "PASSED",
+    "test_output_sha256": "88f3e287663a5689ad1662b23d70b50418f231cb37cdf72a217dfe30df69fd59",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+  },
+  "date": "2026-09-30T05:20:56.250276+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/16b7280b9259e830836bb3030d996f33/izdw-16b7280b92.o37996",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/16b7280b9259e830836bb3030d996f33/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F...F.....                                                           [100%]\n=================================== FAILURES ===================================\n______________ test_forbidden_names_in_each_declaration_position _______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_forbidden_names_in_each_declaration_position():\n        for name in sorted(ORDER_POLICY_PROFILE.forbidden_identifiers):\n            field = POSITIVE.replace('uint32_t streak', 'uint32_t ' + name + ' = 0u; uint32_t streak')\n            local = POSITIVE.replace('return c.write_count >= 2u',\n                                     'uint32_t ' + name + ' = 1u; return c.write_count >= 2u')\n            helper = ('struct OrderState {};\\nuint32_t ' + name + '() noexcept { return 1u; }\\n' +\n                      HAND.read_text().split('struct OrderState {};\\n', 1)[1])\n            parameter = HAND.read_text().replace('bool order_enabled(OrderState&,',\n                                                 'bool order_enabled(OrderState& ' + name + ',', 1)\n            constant = POSITIVE.replace('struct OrderState', 'constexpr uint32_t ' + name + ' = 1u;\\nstruct OrderState')\n            for source in (field, local, helper, parameter, constant):\n>               assert not _accepted(source), (name, source)\nE               AssertionError: ('Masstrees', 'struct OrderState { uint32_t Masstrees = 0u; uint32_t streak = 0u; };\nE                 bool order_enabled(OrderState& s...(OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.streak = std::min(s.streak + 1u, 64u); }\nE                 ')\nE               assert not True\nE                +  where True = _accepted('struct OrderState { uint32_t Masstrees = 0u; uint32_t streak = 0u; };\\nbool order_enabled(OrderState& s, const izanag...t(OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.streak = std::min(s.streak + 1u, 64u); }\\n')\n\norchestrator/tests/test_silo_lock_order_grammar.py:51: AssertionError\n______________ test_existing_manifest_and_hand_policies_unchanged ______________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_existing_manifest_and_hand_policies_unchanged():\n        rows = json.loads((FIXTURES / 'manifest.json').read_text())\n        for row in rows:\n            source = (FIXTURES / row['file']).read_text()\n            decision = validate_policy(source)\n            explicit = validate_policy(source, FUNCTION_POLICY_PROFILE)\n            order = validate_policy(source, ORDER_POLICY_PROFILE)\n            assert (decision.accepted, decision.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id'])\n            assert (explicit.accepted, explicit.rule_id) == (decision.accepted, decision.rule_id)\n            assert not order.accepted, row['file']\n        hand = ROOT / 'orchestrator/campaign/silo_function_policy_hand'\n        for path in hand.glob('*.cpp'):\n            assert validate_policy(path.read_text()).accepted, path\n            assert not validate_policy(path.read_text(), ORDER_POLICY_PROFILE).accepted, path\n        assert not FUNCTION_POLICY_PROFILE.forbidden_identifiers\n        old = (hand / 'static5.cpp').read_text()\n        old = old.replace('struct PolicyState {', 'struct PolicyState { uint32_t result_ = 0u; ', 1)\n        assert _accepted(old, FUNCTION_POLICY_PROFILE)\n>       assert not _accepted(POSITIVE.replace('streak', 'result_'), ORDER_POLICY_PROFILE)\nE       AssertionError: assert not True\nE        +  where True = _accepted('struct OrderState { uint32_t result_ = 0u; };\\nbool order_enabled(OrderState& s, const izanagi_silo_order_api::TxnCon...OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.result_ = std::min(s.result_ + 1u, 64u); }\\n', PolicyProfile(types={'uint32_t': 'U32', 'uint64_t': 'U64', 'bool': 'bool', 'void': 'void', 'OrderState': 'OrderState',...skel', 'Masstrees', 'Tidword', 'read_set_', 'ReadElement', 'WriteElement', 'compareExchange', 'record_lock', 'body_'})))\nE        +    where 'struct OrderState { uint32_t result_ = 0u; };\\nbool order_enabled(OrderState& s, const izanagi_silo_order_api::TxnCon...OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.result_ = std::min(s.result_ + 1u, 64u); }\\n' = <built-in method replace of str object at 0x55c3ec4a69f0>('streak', 'result_')\nE        +      where <built-in method replace of str object at 0x55c3ec4a69f0> = 'struct OrderState { uint32_t streak = 0u; };\\nbool order_enabled(OrderState& s, const izanagi_silo_order_api::TxnCont...t(OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.streak = std::min(s.streak + 1u, 64u); }\\n'.replace\n\norchestrator/tests/test_silo_lock_order_grammar.py:100: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position\nFAILED orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged\n2 failed, 12 passed in 10.29s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2647 retained_bytes=2647 omitted_bytes=0 rendered_excerpt_bytes=2720 sha256=9ac447cbd0f16eba817e05bc6d89aa448ea260cfe6ca35d4dc2d1c2ed04b225a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_existing_manifest_and_hand_policies_unchanged():\n>         rows = json.loads((FIXTURES / 'manifest.json').read_text())\n>         for row in rows:\n>             source = (FIXTURES / row['file']).read_text()\n>             decision = validate_policy(source)\n>             explicit = validate_policy(source, FUNCTION_POLICY_PROFILE)\n>             order = validate_policy(source, ORDER_POLICY_PROFILE)\n>             assert (decision.accepted, decision.rule_id) == (row['grammar']['accepted'], row['grammar']['rule_id'])\n>             assert (explicit.accepted, explicit.rule_id) == (decision.accepted, decision.rule_id)\n>             assert not order.accepted, row['file']\n>         hand = ROOT / 'orchestrator/campaign/silo_function_policy_hand'\n>         for path in hand.glob('*.cpp'):\n>             assert validate_policy(path.read_text()).accepted, path\n>             assert not validate_policy(path.read_text(), ORDER_POLICY_PROFILE).accepted, path\n>         assert not FUNCTION_POLICY_PROFILE.forbidden_identifiers\n>         old = (hand / 'static5.cpp').read_text()\n>         old = old.replace('struct PolicyState {', 'struct PolicyState { uint32_t result_ = 0u; ', 1)\n>         assert _accepted(old, FUNCTION_POLICY_PROFILE)\n> >       assert not _accepted(POSITIVE.replace('streak', 'result_'), ORDER_POLICY_PROFILE)\n> E       AssertionError: assert not True\n> E        +  where True = _accepted('struct OrderState { uint32_t result_ = 0u; };\\x5cnbool order_enabled(OrderState& s, const izanagi_silo_order_api::TxnCon...OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.result_ = std::min(s.result_ + 1u, 64u); }\\x5cn', PolicyProfile(types={'uint32_t': 'U32', 'uint64_t': 'U64', 'bool': 'bool', 'void': 'void', 'OrderState': 'OrderState',...skel', 'Masstrees', 'Tidword', 'read_set_', 'ReadElement', 'WriteElement', 'compareExchange', 'record_lock', 'body_'})))\n> E        +    where 'struct OrderState { uint32_t result_ = 0u; };\\x5cnbool order_enabled(OrderState& s, const izanagi_silo_order_api::TxnCon...OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.result_ = std::min(s.result_ + 1u, 64u); }\\x5cn' = <built-in method replace of str object at 0x55c3ec4a69f0>('streak', 'result_')\n> E        +      where <built-in method replace of str object at 0x55c3ec4a69f0> = 'struct OrderState { uint32_t streak = 0u; };\\x5cnbool order_enabled(OrderState& s, const izanagi_silo_order_api::TxnCont...t(OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.streak = std::min(s.streak + 1u, 64u); }\\x5cn'.replace\n> \n> orchestrator/tests/test_silo_lock_order_grammar.py:100: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1754 retained_bytes=1754 omitted_bytes=0 rendered_excerpt_bytes=1815 sha256=67c27674ef9fc9b01a6671e610ff7168dd68284c96d02bbbebd7ead3d73976a8\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_forbidden_names_in_each_declaration_position():\n>         for name in sorted(ORDER_POLICY_PROFILE.forbidden_identifiers):\n>             field = POSITIVE.replace('uint32_t streak', 'uint32_t ' + name + ' = 0u; uint32_t streak')\n>             local = POSITIVE.replace('return c.write_count >= 2u',\n>                                      'uint32_t ' + name + ' = 1u; return c.write_count >= 2u')\n>             helper = ('struct OrderState {};\\x5cnuint32_t ' + name + '() noexcept { return 1u; }\\x5cn' +\n>                       HAND.read_text().split('struct OrderState {};\\x5cn', 1)[1])\n>             parameter = HAND.read_text().replace('bool order_enabled(OrderState&,',\n>                                                  'bool order_enabled(OrderState& ' + name + ',', 1)\n>             constant = POSITIVE.replace('struct OrderState', 'constexpr uint32_t ' + name + ' = 1u;\\x5cnstruct OrderState')\n>             for source in (field, local, helper, parameter, constant):\n> >               assert not _accepted(source), (name, source)\n> E               AssertionError: ('Masstrees', 'struct OrderState { uint32_t Masstrees = 0u; uint32_t streak = 0u; };\n> E                 bool order_enabled(OrderState& s...(OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.streak = std::min(s.streak + 1u, 64u); }\n> E                 ')\n> E               assert not True\n> E                +  where True = _accepted('struct OrderState { uint32_t Masstrees = 0u; uint32_t streak = 0u; };\\x5cnbool order_enabled(OrderState& s, const izanag...t(OrderState& s, const izanagi_silo_order_api::CommitContext&) noexcept { s.streak = std::min(s.streak + 1u, 64u); }\\x5cn')\n> \n> orchestrator/tests/test_silo_lock_order_grammar.py:51: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4401 retained_bytes=4401 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5707 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ca02deca9953c1dc8fe56811e7d167b298c2ea209e2a3583c6b11332d6463796"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+      "duration_s": 37.999,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "9a625697d84065a7b1bc46890b63c232ba8e26112ab67eacaf9df4765d621c59",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0f67a27f580de5c48fad762f0476b8c777967422572ccdda1d2fb7d185368b1c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "        if False and t.text in self.profile.forbidden_identifiers:\n            self.fail('order.forbidden-identifier', 'forbidden policy identifier')\n",
+          "old": "        if t.text in self.profile.forbidden_identifiers:\n            self.fail('order.forbidden-identifier', 'forbidden policy identifier')\n"
+        }
+      ],
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "KILLED",
+      "test_output_sha256": "ca02deca9953c1dc8fe56811e7d167b298c2ea209e2a3583c6b11332d6463796",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/b763b72a3f45a7973ab62c17b1a73186/izdw-b763b72a3f.o37998",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/b763b72a3f45a7973ab62c17b1a73186/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F.                                                           [100%]\n=================================== FAILURES ===================================\n______________________ test_sort_behavior_and_hook_counts ______________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\napplied = (PosixPath('/tmp/silo-lock-order-template-pvj_r8h1/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n\n    def test_sort_behavior_and_hook_counts(applied):\n        checkout, _ = applied\n        cxx = _cxx()\n        sort_body = _between((checkout / SOURCE).read_bytes(), SORT_BEGIN, SORT_END).decode()\n        unit = r'''\n    #include <algorithm>\n    #include <cstdint>\n    #include <string>\n    #include <tuple>\n    #include <utility>\n    #include <vector>\n    using std::sort;\n    enum class OpType { UPDATE, INSERT, DELETE };\n    struct Word { uint32_t epoch, tid; bool locked; };\n    struct Element {\n      OpType op_;\n      int storage_;\n      std::string key_;\n      Word rcdptr_;\n      int id;\n      bool operator<(const Element& b) const {\n        return std::tie(storage_, key_) < std::tie(b.storage_, b.key_);\n      }\n    };\n    namespace izanagi_silo_order_skel {\n    ''' + sort_body + r'''\n    }\n    int main() {\n      using namespace izanagi_silo_order_skel;\n      const std::vector<Element> base{\n          {OpType::UPDATE, 2, \"z\", {3, 1, false}, 1},\n          {OpType::UPDATE, 1, \"b\", {2, 1, true}, 2},\n          {OpType::UPDATE, 1, \"a\", {2, 1, false}, 3},\n          {OpType::UPDATE, 1, \"c\", {1, 1, false}, 4}};\n      auto ids = [](const auto& ws) {\n        std::vector<int> out;\n        for (const auto& e : ws) out.push_back(e.id);\n        return out;\n      };\n      auto original = ids(base);\n      sort(original.begin(), original.end());\n      auto run = [&](std::vector<Element> ws, bool use, int ec, int pc, int rc,\n                     std::vector<int> expected) {\n        int enabled_calls = 0, priority_calls = 0, read_calls = 0;\n        sort_write_set(ws,\n          [&](uint32_t count) { ++enabled_calls; return use && count == ws.size(); },\n          [&](Word w) { ++priority_calls; return (uint64_t(w.epoch) << 29u) | w.tid; },\n          [&](const Element& e) { ++read_calls; return e.rcdptr_; });\n        auto got = ids(ws);\n        auto members = got;\n        sort(members.begin(), members.end());\n        return got == expected && members == original &&\n               enabled_calls == ec && priority_calls == pc && read_calls == rc;\n      };\n      if (!run(base, true, 1, 4, 4, {1, 3, 2, 4})) return 1;\n      if (!run(base, false, 1, 0, 0, {3, 2, 4, 1})) return 2;\n      for (auto op : {OpType::INSERT, OpType::DELETE}) {\n        auto mixed = base;\n        mixed[0].op_ = op;\n        if (!run(mixed, true, 0, 0, 0, {3, 2, 4, 1})) return 3;\n      }\n      return 0;\n    }\n    '''\n        with tempfile.TemporaryDirectory(prefix=\"silo-lock-sort-\") as tmp:\n            source = Path(tmp) / \"sort.cc\"\n            binary = Path(tmp) / \"sort\"\n            source.write_text(unit)\n            build = subprocess.run([cxx, \"-std=c++17\", \"-Wall\", \"-Wextra\", \"-Werror\",\n                                    str(source), \"-o\", str(binary)], capture_output=True, text=True)\n>           assert build.returncode == 0, build.stderr\nE           AssertionError: /tmp/silo-lock-sort-5fjim033/sort.cc: In instantiation of ‘void izanagi_silo_order_skel::sort_write_set(Elements&, Enabled, Priority, ReadWord) [with Elements = std::vector<Element>; Enabled = main()::<lambda(std::vector<Element>, bool, int, int, int, std::vector<int>)>::<lambda(uint32_t)>; Priority = main()::<lambda(std::vector<Element>, bool, int, int, int, std::vector<int>)>::<lambda(Word)>; ReadWord = main()::<lambda(std::vector<Element>, bool, int, int, int, std::vector<int>)>::<lambda(const Element&)>]’:\nE             /tmp/silo-lock-sort-5fjim033/sort.cc:72:19:   required from here\nE             /tmp/silo-lock-sort-5fjim033/sort.cc:24:20: error: unused variable ‘e’ [-Werror=unused-variable]\nE                24 |   for (const auto& e : ws) {\nE                   |                    ^\nE             cc1plus: all warnings being treated as errors\nE             \nE           assert 1 == 0\nE            +  where 1 = CompletedProcess(args=['g++-12', '-std=c++17', '-Wall', '-Wextra', '-Werror', '/tmp/silo-lock-sort-5fjim033/sort.cc', ...\\n   24 |   for (const auto& e : ws) {\\n      |                    ^\\ncc1plus: all warnings being treated as errors\\n').returncode\n\norchestrator/tests/test_silo_lock_order_template.py:254: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts\n1 failed, 13 passed in 10.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=4293 retained_bytes=3915 omitted_bytes=378 rendered_excerpt_bytes=4096 sha256=72e914653b41a358170451a86f80c5e392280897f24246730617358f2e25dd61\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> r'''\n>     #include <algorithm>\n>     #include <cstdint>\n>     #include <string>\n>     #include <tuple>\n>     #include <utility>\n>     #include <vector>\n>     using std::sort;\n>     enum class OpType { UPDATE, INSERT, DELETE };\n>     struct Word { uint32_t epoch, tid; bool locked; };\n>     struct Element {\n>       OpType op_;\n>       int storage_;\n>       std::string key_;\n>       Word rcdptr_;\n>       int id;\n>       bool operator<(const Element& b) const {\n>         return std::tie(storage_, key_) < std::tie(b.storage_, b.key_);\n>       }\n>     };\n>     namespace izanagi_silo_order_skel {\n>     ''' + sort_body + r'''\n>     }\n>     int main() {\n>       using namespace izanagi_silo_order_skel;\n>       const std::vector<Element> base{\n>           {OpType::UPDATE, 2, \"z\", {3, 1, false}, 1},\n>           {OpType::UPDATE, 1, \"b\", {2, 1, true}, 2},\n>           {OpType::UPDATE, 1, \"a\", {2, 1, false}, 3},\n>           {OpType::UPDATE, 1, \"c\", {1, 1, false}, 4}};\n>       auto ids = [](const auto& ws) {\n>         std::vector<int> out;\n>         for (const auto& e : ws) out.push_back(e.id);\n>         return out;\n>       };\n>       auto original = ids(base);\n>       sort(original.begin(), original.end());\n>       auto run = [&](std::vector<Element> ws, bool use, int ec, int pc, int rc,\n>                      std::vector<int> expected) {\n>         int enabled_calls = 0, priority_calls = 0, read_calls = 0;\n>         sort_write_set(ws,\n>           [&](uint32_t count) { ++enabled_calls; return use && count == ws.size(); },\n>           [&](Word w) { ++priority_calls; return (uint64_t(w.epoch) << 29u) | w.tid; },\n>           [&](const Element& e) { ++read_calls; return e.rcdptr_; });\n>         auto got = ids(ws);\n>         auto members = got;\n>         sort(members.begin(), members.end());\n>         return got == expected && members == original &&\n>                enabled_calls == ec && priority_calls == pc && read_calls == rc;\n>       };\n>       if (!run(base, true, 1, 4, 4, {1, 3, 2, 4})) return 1;\n>       if (!run(base, false, 1, 0, 0, {3, 2, 4, 1})) return 2;\n>       for (auto op : {OpType::INSERT, OpType::DELETE}) {\n>         auto mixed = base;\n>         mixed[0].op_ = op;\n>         if (!run(mixed, true, 0, 0, 0, {3, 2, 4, 1})) return 3;\n>       }\n>       return 0;\n>     }\n>     '''\n>         with tempfile.TemporaryDirectory(prefix=\"silo-lock-sort-\") as tmp:\n>             source = Path(tmp) / \"sort.cc\"\n>             binary = Path(tmp) / \"sort\"\n>             source.write_text(unit)\n>             build = subprocess.run([cxx, \"-std=c++17\", \"-Wall\", \"-Wextra\", \"-Werror\",\n>                                     str(source), \"-o\", str(binary)], capture_output=True, text=True)\n> >           assert build.returncode == 0, build.stderr\n> E           AssertionError: /tmp/silo-lock-sort-5fjim033/sort.cc: In instantiation of \\u2018void izanagi_silo_order_skel::sort_write_set(Elements&, Enabled, Priority, ReadWord) [with Elements = std::vector<Element>; Enabled = main()::<lambda(std::vector<Element>, bool, int, int, int, std::vector<int>)>::<lambda(uint32_t)>; Priority = main()::<lambda(std::vector<Element>, bool, int, int, int, std::vector<int>)>::<lambda(Word)>; ReadWord = main()::<lambda(std::vector<Element>, bool, int, int, int, std::vector<int>)>::<lambda(const Element&)>]\\u2019:\n> E             /tmp/silo-lock-sort-5fjim033/sort.cc:72:19:   required from here\n> E             /tmp/silo-lock-sort-5fjim033/sort.cc:24:20: error: unused variable \\u2018e\\u2019 [-Werror=unused-variable]\n> E                24 |   for (const auto& e : ws) {\n> E                   |                    ^\n> E             cc1plus: all warnings being treated as errors\n> E             \n> E           assert 1 == 0\n> E            +  where 1 = CompletedProcess(args=['g++-12', '-std=c++17', '-Wall', '-Wextra', '-Werror', '/tmp/silo-lock-sort-5fjim033/sort.cc', ...\\x5cn   24 |   for (const auto& e : ws) {\\x5cn      |                    ^\\x5cncc1plus: all warnings being treated as errors\\x5cn').returncode\n> \n> orchestrator/tests/test_silo_lock_order_template.py:254: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4293 retained_bytes=3915 omitted_bytes=378 budget_bytes=49152 rendered_bytes=4814 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18c67d9300dc19f933c24ee8c7965fc8872ba0acf7e398af913662ed49de50aa"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+      "duration_s": 33.229,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "1f9593d68b12978b1d00fafdfe0b50787a90a8a854a5e50c90ed7d2a9f365d65",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "22ccd5f370c5986c0b511ea894f591b0bc4be86c15d27116495caffd8e743d43",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+    if (false) {\n",
+          "old": "+    if (e.op_ == OpType::INSERT || e.op_ == OpType::DELETE) {\n"
+        }
+      ],
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "KILLED",
+      "test_output_sha256": "18c67d9300dc19f933c24ee8c7965fc8872ba0acf7e398af913662ed49de50aa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/035c7f36b514032496ec3ffc717197f7/izdw-035c7f36b5.o37999",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/035c7f36b514032496ec3ffc717197f7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F.....                                                           [100%]\n=================================== FAILURES ===================================\n_______________________ test_required_flags_fail_closed ________________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\napplied = (PosixPath('/tmp/silo-lock-order-template-ef0k_wq8/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n\n    def test_required_flags_fail_closed(applied):\n        checkout, _ = applied\n        cxx = _cxx()\n        source = (checkout / SOURCE).read_text()\n        guards = \"#ifndef SILO_ORDER_VARIANT\" + source.split(\n            \"#ifndef SILO_ORDER_VARIANT\", 1)[1].split(\n            \"// SILO-LOCK-ORDER-API-BEGIN\", 1)[0] + \"#endif\\n\"\n        cases = [\n            ({}, \"SILO_ORDER_VARIANT must be supplied\", False),\n            ({\"SILO_ORDER_VARIANT\": 2}, \"SILO_ORDER_VARIANT must be 0 or 1\", False),\n            ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_OF_TICTOC\": 0},\n             \"NO_WAIT_LOCKING_IN_VALIDATION must be supplied\", False),\n            ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 0,\n              \"NO_WAIT_OF_TICTOC\": 0}, \"NO_WAIT_LOCKING_IN_VALIDATION must be 1\", False),\n            ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 1},\n             \"NO_WAIT_OF_TICTOC must be supplied\", False),\n            ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n              \"NO_WAIT_OF_TICTOC\": 1}, \"NO_WAIT_OF_TICTOC must be 0\", False),\n            ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n              \"NO_WAIT_OF_TICTOC\": 0}, \"\", True),\n            ({\"SILO_ORDER_VARIANT\": 0}, \"\", True),\n        ]\n        for defines, diagnostic, passes in cases:\n            command = [cxx, \"-std=c++17\", \"-E\", \"-x\", \"c++\", \"-o\", \"/dev/null\"]\n            command += [f\"-D{k}={v}\" for k, v in defines.items()]\n            command.append(\"-\")\n            result = subprocess.run(command, input=guards, cwd=checkout,\n                                    capture_output=True, text=True)\n>           assert (result.returncode == 0) == passes, (defines, result.stderr)\nE           AssertionError: ({'SILO_ORDER_VARIANT': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1}, '')\nE           assert (0 == 0) == False\nE            +  where 0 = CompletedProcess(args=['g++-12', '-std=c++17', '-E', '-x', 'c++', '-o', '/dev/null', '-DSILO_ORDER_VARIANT=1', '-DNO_WAIT_LOCKING_IN_VALIDATION=1', '-'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_silo_lock_order_template.py:126: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed\n1 failed, 13 passed in 10.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=2316 retained_bytes=2316 omitted_bytes=0 rendered_excerpt_bytes=2396 sha256=7ff6e43b53f88eb7b50d7aed7c428d52e3ec441b9783274a96588f6c928bfff1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n> applied = (PosixPath('/tmp/silo-lock-order-template-ef0k_wq8/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n> \n>     def test_required_flags_fail_closed(applied):\n>         checkout, _ = applied\n>         cxx = _cxx()\n>         source = (checkout / SOURCE).read_text()\n>         guards = \"#ifndef SILO_ORDER_VARIANT\" + source.split(\n>             \"#ifndef SILO_ORDER_VARIANT\", 1)[1].split(\n>             \"// SILO-LOCK-ORDER-API-BEGIN\", 1)[0] + \"#endif\\x5cn\"\n>         cases = [\n>             ({}, \"SILO_ORDER_VARIANT must be supplied\", False),\n>             ({\"SILO_ORDER_VARIANT\": 2}, \"SILO_ORDER_VARIANT must be 0 or 1\", False),\n>             ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_OF_TICTOC\": 0},\n>              \"NO_WAIT_LOCKING_IN_VALIDATION must be supplied\", False),\n>             ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 0,\n>               \"NO_WAIT_OF_TICTOC\": 0}, \"NO_WAIT_LOCKING_IN_VALIDATION must be 1\", False),\n>             ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 1},\n>              \"NO_WAIT_OF_TICTOC must be supplied\", False),\n>             ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n>               \"NO_WAIT_OF_TICTOC\": 1}, \"NO_WAIT_OF_TICTOC must be 0\", False),\n>             ({\"SILO_ORDER_VARIANT\": 1, \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n>               \"NO_WAIT_OF_TICTOC\": 0}, \"\", True),\n>             ({\"SILO_ORDER_VARIANT\": 0}, \"\", True),\n>         ]\n>         for defines, diagnostic, passes in cases:\n>             command = [cxx, \"-std=c++17\", \"-E\", \"-x\", \"c++\", \"-o\", \"/dev/null\"]\n>             command += [f\"-D{k}={v}\" for k, v in defines.items()]\n>             command.append(\"-\")\n>             result = subprocess.run(command, input=guards, cwd=checkout,\n>                                     capture_output=True, text=True)\n> >           assert (result.returncode == 0) == passes, (defines, result.stderr)\n> E           AssertionError: ({'SILO_ORDER_VARIANT': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1}, '')\n> E           assert (0 == 0) == False\n> E            +  where 0 = CompletedProcess(args=['g++-12', '-std=c++17', '-E', '-x', 'c++', '-o', '/dev/null', '-DSILO_ORDER_VARIANT=1', '-DNO_WAIT_LOCKING_IN_VALIDATION=1', '-'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_silo_lock_order_template.py:126: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2316 retained_bytes=2316 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3107 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "873ae9feb25e32dd4644979fdb083768351237755636d4b3b38fd94a02042269"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+      "duration_s": 32.744,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "06ec9e1246ab4ee46b75b4ced7a26a492ffd829537069bf93b6ded5fbdbd32fa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b93dcb2890f23790e091c705fc76c236d9d68297f1321b6cd8561ba85e954e80",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+#if 0 // mutant: skip missing NO_WAIT_OF_TICTOC guard\n",
+          "old": "+#ifndef NO_WAIT_OF_TICTOC\n"
+        }
+      ],
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "KILLED",
+      "test_output_sha256": "873ae9feb25e32dd4644979fdb083768351237755636d4b3b38fd94a02042269",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/28f61fd0c22ded87bb91cf379db3399d/izdw-28f61fd0c2.o38000",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/28f61fd0c22ded87bb91cf379db3399d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F.                                                           [100%]\n=================================== FAILURES ===================================\n______________________ test_sort_behavior_and_hook_counts ______________________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\napplied = (PosixPath('/tmp/silo-lock-order-template-4qdjblnf/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n\n    def test_sort_behavior_and_hook_counts(applied):\n        checkout, _ = applied\n        cxx = _cxx()\n        sort_body = _between((checkout / SOURCE).read_bytes(), SORT_BEGIN, SORT_END).decode()\n        unit = r'''\n    #include <algorithm>\n    #include <cstdint>\n    #include <string>\n    #include <tuple>\n    #include <utility>\n    #include <vector>\n    using std::sort;\n    enum class OpType { UPDATE, INSERT, DELETE };\n    struct Word { uint32_t epoch, tid; bool locked; };\n    struct Element {\n      OpType op_;\n      int storage_;\n      std::string key_;\n      Word rcdptr_;\n      int id;\n      bool operator<(const Element& b) const {\n        return std::tie(storage_, key_) < std::tie(b.storage_, b.key_);\n      }\n    };\n    namespace izanagi_silo_order_skel {\n    ''' + sort_body + r'''\n    }\n    int main() {\n      using namespace izanagi_silo_order_skel;\n      const std::vector<Element> base{\n          {OpType::UPDATE, 2, \"z\", {3, 1, false}, 1},\n          {OpType::UPDATE, 1, \"b\", {2, 1, true}, 2},\n          {OpType::UPDATE, 1, \"a\", {2, 1, false}, 3},\n          {OpType::UPDATE, 1, \"c\", {1, 1, false}, 4}};\n      auto ids = [](const auto& ws) {\n        std::vector<int> out;\n        for (const auto& e : ws) out.push_back(e.id);\n        return out;\n      };\n      auto original = ids(base);\n      sort(original.begin(), original.end());\n      auto run = [&](std::vector<Element> ws, bool use, int ec, int pc, int rc,\n                     std::vector<int> expected) {\n        int enabled_calls = 0, priority_calls = 0, read_calls = 0;\n        sort_write_set(ws,\n          [&](uint32_t count) { ++enabled_calls; return use && count == ws.size(); },\n          [&](Word w) { ++priority_calls; return (uint64_t(w.epoch) << 29u) | w.tid; },\n          [&](const Element& e) { ++read_calls; return e.rcdptr_; });\n        auto got = ids(ws);\n        auto members = got;\n        sort(members.begin(), members.end());\n        return got == expected && members == original &&\n               enabled_calls == ec && priority_calls == pc && read_calls == rc;\n      };\n      if (!run(base, true, 1, 4, 4, {1, 3, 2, 4})) return 1;\n      if (!run(base, false, 1, 0, 0, {3, 2, 4, 1})) return 2;\n      for (auto op : {OpType::INSERT, OpType::DELETE}) {\n        auto mixed = base;\n        mixed[0].op_ = op;\n        if (!run(mixed, true, 0, 0, 0, {3, 2, 4, 1})) return 3;\n      }\n      return 0;\n    }\n    '''\n        with tempfile.TemporaryDirectory(prefix=\"silo-lock-sort-\") as tmp:\n            source = Path(tmp) / \"sort.cc\"\n            binary = Path(tmp) / \"sort\"\n            source.write_text(unit)\n            build = subprocess.run([cxx, \"-std=c++17\", \"-Wall\", \"-Wextra\", \"-Werror\",\n                                    str(source), \"-o\", str(binary)], capture_output=True, text=True)\n            assert build.returncode == 0, build.stderr\n            result = subprocess.run([str(binary)], capture_output=True, text=True)\n>           assert result.returncode == 0, result\nE           AssertionError: CompletedProcess(args=['/tmp/silo-lock-sort-3zo_1l9m/sort'], returncode=1, stdout='', stderr='')\nE           assert 1 == 0\nE            +  where 1 = CompletedProcess(args=['/tmp/silo-lock-sort-3zo_1l9m/sort'], returncode=1, stdout='', stderr='').returncode\n\norchestrator/tests/test_silo_lock_order_template.py:256: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts\n1 failed, 13 passed in 10.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=3496 retained_bytes=3496 omitted_bytes=0 rendered_excerpt_bytes=3661 sha256=b3bcbf07c01fcc51bac94248df74da35c179e1d92df318b17e43ff52db7d6d70\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> applied = (PosixPath('/tmp/silo-lock-order-template-4qdjblnf/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n> \n>     def test_sort_behavior_and_hook_counts(applied):\n>         checkout, _ = applied\n>         cxx = _cxx()\n>         sort_body = _between((checkout / SOURCE).read_bytes(), SORT_BEGIN, SORT_END).decode()\n>         unit = r'''\n>     #include <algorithm>\n>     #include <cstdint>\n>     #include <string>\n>     #include <tuple>\n>     #include <utility>\n>     #include <vector>\n>     using std::sort;\n>     enum class OpType { UPDATE, INSERT, DELETE };\n>     struct Word { uint32_t epoch, tid; bool locked; };\n>     struct Element {\n>       OpType op_;\n>       int storage_;\n>       std::string key_;\n>       Word rcdptr_;\n>       int id;\n>       bool operator<(const Element& b) const {\n>         return std::tie(storage_, key_) < std::tie(b.storage_, b.key_);\n>       }\n>     };\n>     namespace izanagi_silo_order_skel {\n>     ''' + sort_body + r'''\n>     }\n>     int main() {\n>       using namespace izanagi_silo_order_skel;\n>       const std::vector<Element> base{\n>           {OpType::UPDATE, 2, \"z\", {3, 1, false}, 1},\n>           {OpType::UPDATE, 1, \"b\", {2, 1, true}, 2},\n>           {OpType::UPDATE, 1, \"a\", {2, 1, false}, 3},\n>           {OpType::UPDATE, 1, \"c\", {1, 1, false}, 4}};\n>       auto ids = [](const auto& ws) {\n>         std::vector<int> out;\n>         for (const auto& e : ws) out.push_back(e.id);\n>         return out;\n>       };\n>       auto original = ids(base);\n>       sort(original.begin(), original.end());\n>       auto run = [&](std::vector<Element> ws, bool use, int ec, int pc, int rc,\n>                      std::vector<int> expected) {\n>         int enabled_calls = 0, priority_calls = 0, read_calls = 0;\n>         sort_write_set(ws,\n>           [&](uint32_t count) { ++enabled_calls; return use && count == ws.size(); },\n>           [&](Word w) { ++priority_calls; return (uint64_t(w.epoch) << 29u) | w.tid; },\n>           [&](const Element& e) { ++read_calls; return e.rcdptr_; });\n>         auto got = ids(ws);\n>         auto members = got;\n>         sort(members.begin(), members.end());\n>         return got == expected && members == original &&\n>                enabled_calls == ec && priority_calls == pc && read_calls == rc;\n>       };\n>       if (!run(base, true, 1, 4, 4, {1, 3, 2, 4})) return 1;\n>       if (!run(base, false, 1, 0, 0, {3, 2, 4, 1})) return 2;\n>       for (auto op : {OpType::INSERT, OpType::DELETE}) {\n>         auto mixed = base;\n>         mixed[0].op_ = op;\n>         if (!run(mixed, true, 0, 0, 0, {3, 2, 4, 1})) return 3;\n>       }\n>       return 0;\n>     }\n>     '''\n>         with tempfile.TemporaryDirectory(prefix=\"silo-lock-sort-\") as tmp:\n>             source = Path(tmp) / \"sort.cc\"\n>             binary = Path(tmp) / \"sort\"\n>             source.write_text(unit)\n>             build = subprocess.run([cxx, \"-std=c++17\", \"-Wall\", \"-Wextra\", \"-Werror\",\n>                                     str(source), \"-o\", str(binary)], capture_output=True, text=True)\n>             assert build.returncode == 0, build.stderr\n>             result = subprocess.run([str(binary)], capture_output=True, text=True)\n> >           assert result.returncode == 0, result\n> E           AssertionError: CompletedProcess(args=['/tmp/silo-lock-sort-3zo_1l9m/sort'], returncode=1, stdout='', stderr='')\n> E           assert 1 == 0\n> E            +  where 1 = CompletedProcess(args=['/tmp/silo-lock-sort-3zo_1l9m/sort'], returncode=1, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_silo_lock_order_template.py:256: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3496 retained_bytes=3496 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4375 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6ebdd27f21194ca2fa9914be05877bd1d3a1bd3a6df372bc22c88f257968a8b8"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+      "duration_s": 32.462,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "3c1b5aa27019a9eb6e615c7b3b7ed75def59c347c723dacbc3072f0d0df3f5ea",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d88cbf70fc3c7db863101dcb306334b4e11eff07e3a6ecfdf279684d4f2ffb8f",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+    if (priorities[a] != priorities[b]) return priorities[a] < priorities[b];\n",
+          "old": "+    if (priorities[a] != priorities[b]) return priorities[a] > priorities[b];\n"
+        }
+      ],
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "KILLED",
+      "test_output_sha256": "6ebdd27f21194ca2fa9914be05877bd1d3a1bd3a6df372bc22c88f257968a8b8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/fc0c1c749b23fb68c26bbf8784e72ecf/izdw-fc0c1c749b.o38002",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/fc0c1c749b23fb68c26bbf8784e72ecf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F..F...F...                                                           [100%]\n=================================== FAILURES ===================================\n____________________ test_gate_rejects_grammar_before_write ____________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_gate_rejects_grammar_before_write():\n        body = HAND.read_text().replace('return true;', 'return 1u;', 1)\n        grammar, compiled = check_order_body(body, compiler=_compiler(), scratch_dir=tempfile.gettempdir())\n        assert not grammar.accepted and compiled is None\n        with tempfile.TemporaryDirectory() as tmp:\n            source = _source(Path(tmp))\n            before = source.read_bytes()\n            result, _ = order_gate(tmp, body, None, compiler=_compiler(), scratch_dir=tmp,\n                                   write=True, origin='initial')\n            assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_GRAMMAR\n            assert result.digest['template_diff_id'] == MARKER_ID\n>           assert source.read_bytes() == before\nE           AssertionError: assert b'// EVOLVE-B...rder-policy\\n' == b'// EVOLVE-B...rder-policy\\n'\nE             \nE             At index 185 diff: b'1' != b't'\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_lock_order_gate.py:49: AssertionError\n__________ test_real_patch_gate_rejects_forbidden_field_without_write __________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\napplied = (PosixPath('/tmp/silo-lock-order-template-wxpkog1t/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n\n    def test_real_patch_gate_rejects_forbidden_field_without_write(applied):\n        checkout, _ = applied\n        cxx = _cxx()\n        path = checkout / SOURCE\n        before = path.read_bytes()\n        body = HAND.read_text().replace(\"struct OrderState {};\",\n                                        \"struct OrderState { uint64_t write_set_; };\", 1)\n        assert body != HAND.read_text()\n        result, _ = order_gate(checkout, body, None, compiler=cxx,\n                               scratch_dir=str(checkout), write=True, origin=\"initial\")\n        assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_GRAMMAR\n>       assert path.read_bytes() == before\nE       AssertionError: assert b'#include <s...dif\\n  }\\n}\\n' == b'#include <s...dif\\n  }\\n}\\n'\nE         \nE         At index 1805 diff: b'u' != b'}'\nE         Use -v to get more diff\n\norchestrator/tests/test_silo_lock_order_template.py:181: AssertionError\n____________________ test_gate_rejects_compile_before_write ____________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_gate_rejects_compile_before_write():\n        body = HAND.read_text().replace('bool order_enabled(OrderState&', 'bool order_enabled(OrderState& unused', 1)\n        grammar, compiled = check_order_body(body, compiler=_compiler(), scratch_dir=tempfile.gettempdir())\n        assert grammar.accepted and compiled is not None and not compiled.accepted, (grammar, compiled)\n        with tempfile.TemporaryDirectory() as tmp:\n            source = _source(Path(tmp))\n            before = source.read_bytes()\n            result, _ = order_gate(tmp, body, None, compiler=_compiler(), scratch_dir=tmp,\n                                   write=True, origin='initial')\n            assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_COMPILE\n>           assert source.read_bytes() == before\nE           AssertionError: assert b'// EVOLVE-B...rder-policy\\n' == b'// EVOLVE-B...rder-policy\\n'\nE             \nE             At index 120 diff: b' ' != b','\nE             Use -v to get more diff\n\norchestrator/tests/test_silo_lock_order_gate.py:62: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write\nFAILED orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write\nFAILED orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write\n3 failed, 11 passed in 10.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1122 retained_bytes=1122 omitted_bytes=0 rendered_excerpt_bytes=1167 sha256=23148be0a1d0db35f714f36795e67fe0c86d77798213ad8d03b375b53b5b8205\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_gate_rejects_compile_before_write():\n>         body = HAND.read_text().replace('bool order_enabled(OrderState&', 'bool order_enabled(OrderState& unused', 1)\n>         grammar, compiled = check_order_body(body, compiler=_compiler(), scratch_dir=tempfile.gettempdir())\n>         assert grammar.accepted and compiled is not None and not compiled.accepted, (grammar, compiled)\n>         with tempfile.TemporaryDirectory() as tmp:\n>             source = _source(Path(tmp))\n>             before = source.read_bytes()\n>             result, _ = order_gate(tmp, body, None, compiler=_compiler(), scratch_dir=tmp,\n>                                    write=True, origin='initial')\n>             assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_COMPILE\n> >           assert source.read_bytes() == before\n> E           AssertionError: assert b'// EVOLVE-B...rder-policy\\x5cn' == b'// EVOLVE-B...rder-policy\\x5cn'\n> E             \n> E             At index 120 diff: b' ' != b','\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_lock_order_gate.py:62: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1098 retained_bytes=1098 omitted_bytes=0 rendered_excerpt_bytes=1161 sha256=e49211c79f706f228a6488845cef7b73cf6405ae49fdb74d0cabcc0b70c0a1a0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> applied = (PosixPath('/tmp/silo-lock-order-template-wxpkog1t/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n> \n>     def test_real_patch_gate_rejects_forbidden_field_without_write(applied):\n>         checkout, _ = applied\n>         cxx = _cxx()\n>         path = checkout / SOURCE\n>         before = path.read_bytes()\n>         body = HAND.read_text().replace(\"struct OrderState {};\",\n>                                         \"struct OrderState { uint64_t write_set_; };\", 1)\n>         assert body != HAND.read_text()\n>         result, _ = order_gate(checkout, body, None, compiler=cxx,\n>                                scratch_dir=str(checkout), write=True, origin=\"initial\")\n>         assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_GRAMMAR\n> >       assert path.read_bytes() == before\n> E       AssertionError: assert b'#include <s...dif\\x5cn  }\\x5cn}\\x5cn' == b'#include <s...dif\\x5cn  }\\x5cn}\\x5cn'\n> E         \n> E         At index 1805 diff: b'u' != b'}'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_silo_lock_order_template.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1096 retained_bytes=1096 omitted_bytes=0 rendered_excerpt_bytes=1143 sha256=0c3c566523012aca991d9a52365e2140b0ad67ef9e94f4ea059afd07af8e2485\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_gate_rejects_grammar_before_write():\n>         body = HAND.read_text().replace('return true;', 'return 1u;', 1)\n>         grammar, compiled = check_order_body(body, compiler=_compiler(), scratch_dir=tempfile.gettempdir())\n>         assert not grammar.accepted and compiled is None\n>         with tempfile.TemporaryDirectory() as tmp:\n>             source = _source(Path(tmp))\n>             before = source.read_bytes()\n>             result, _ = order_gate(tmp, body, None, compiler=_compiler(), scratch_dir=tmp,\n>                                    write=True, origin='initial')\n>             assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_GRAMMAR\n>             assert result.digest['template_diff_id'] == MARKER_ID\n> >           assert source.read_bytes() == before\n> E           AssertionError: assert b'// EVOLVE-B...rder-policy\\x5cn' == b'// EVOLVE-B...rder-policy\\x5cn'\n> E             \n> E             At index 185 diff: b'1' != b't'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_silo_lock_order_gate.py:49: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3316 retained_bytes=3316 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5064 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0c01584e3b61b03fd13cf73932733f7b1fa60348bbf2681747a977b0375d676c"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+      "duration_s": 32.824,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "8995e7ad8cd3fbd2709606989708210cacf994beca769636751f54fbd061802c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "01c18f644b891fb1292ccc9e2e5e1d8f9216493084a141ed89ecfddca5eee693",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_lock_order_gate.py",
+          "new": "    if result.passed and write:\n        (Path(sub) / axis.SOURCE_REL).write_text(edited, encoding='utf-8')\n    if result.passed:\n        grammar, compiled = check_order_body(\n",
+          "old": "    if result.passed:\n        grammar, compiled = check_order_body(\n"
+        }
+      ],
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "KILLED",
+      "test_output_sha256": "0c01584e3b61b03fd13cf73932733f7b1fa60348bbf2681747a977b0375d676c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/ecf9acd8d5552fdc18d3b55d97320d01/izdw-ecf9acd8d5.o38003",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/ecf9acd8d5552fdc18d3b55d97320d01/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F                                                           [100%]\n=================================== FAILURES ===================================\n__________________ test_off_resolves_stock_and_on_is_distinct __________________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\napplied = (PosixPath('/tmp/silo-lock-order-template-qkguyxu0/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n\n    def test_off_resolves_stock_and_on_is_distinct(applied):\n        checkout, head = applied\n        cxx = _cxx()\n        path = checkout / SOURCE\n        original = path.read_bytes()\n        default = _between(original, HOLE_BEGIN, HOLE_END)\n        version_desc = HAND.read_bytes()\n        for body in (default, version_desc):\n            path.write_bytes(original.replace(HOLE_BEGIN + default + HOLE_END,\n                                              HOLE_BEGIN + body + HOLE_END, 1))\n            for flag in (0, 1):\n                genome = _genome(flag)\n                source_digest.assert_includes_match_head(genome, head, str(checkout), cxx)\n                source_digest.assert_trace_diff_matches_head(genome, head, str(checkout), cxx)\n                token = source_digest.resolve(genome, head, str(checkout), cxx)\n>               assert (token == source_digest.STOCK) == (flag == 0)\nE               AssertionError: assert ('9cd4ed663149...cc6811595fa6c' == 'stock'\nE                 \nE                 - stock\nE                 + 9cd4ed663149a91307ce610e1c937251b3697203fdb79b57f65cc6811595fa6c) == (0 == 0)\n\norchestrator/tests/test_silo_lock_order_template.py:146: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct\n1 failed, 13 passed in 6.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1357 retained_bytes=1357 omitted_bytes=0 rendered_excerpt_bytes=1410 sha256=1002a748fe3b4c4e28a7e6fee89e50df99a6134bf7ec6131e9880772937ffb8f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n> applied = (PosixPath('/tmp/silo-lock-order-template-qkguyxu0/ccbench'), '68106660686232781bca3be792a750d3e19d7a8a')\n> \n>     def test_off_resolves_stock_and_on_is_distinct(applied):\n>         checkout, head = applied\n>         cxx = _cxx()\n>         path = checkout / SOURCE\n>         original = path.read_bytes()\n>         default = _between(original, HOLE_BEGIN, HOLE_END)\n>         version_desc = HAND.read_bytes()\n>         for body in (default, version_desc):\n>             path.write_bytes(original.replace(HOLE_BEGIN + default + HOLE_END,\n>                                               HOLE_BEGIN + body + HOLE_END, 1))\n>             for flag in (0, 1):\n>                 genome = _genome(flag)\n>                 source_digest.assert_includes_match_head(genome, head, str(checkout), cxx)\n>                 source_digest.assert_trace_diff_matches_head(genome, head, str(checkout), cxx)\n>                 token = source_digest.resolve(genome, head, str(checkout), cxx)\n> >               assert (token == source_digest.STOCK) == (flag == 0)\n> E               AssertionError: assert ('9cd4ed663149...cc6811595fa6c' == 'stock'\n> E                 \n> E                 - stock\n> E                 + 9cd4ed663149a91307ce610e1c937251b3697203fdb79b57f65cc6811595fa6c) == (0 == 0)\n> \n> orchestrator/tests/test_silo_lock_order_template.py:146: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1357 retained_bytes=1357 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2132 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0a8d38a24cf1027ffaabf24482949c2660ac07c487c34ee0cb54084db1b93c47"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "f214733bd193977b97159114c4458745af644b3898112034784b1b886bba2685",
+      "duration_s": 29.059,
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "741171f6e89abc3648ce343f86720da50973a43cd496a40b46f4f88be2bc0e1a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cf1061cfc83dc7d4dc5db16198abf0c6f12b32cfa760e343f31ce72d48e24c72",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "@@ -8,6 +8,122 @@\n",
+          "old": "@@ -8,6 +8,121 @@\n"
+        },
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+namespace izanagi_silo_order_skel { uint64_t off_probe; }\n+#if SILO_ORDER_VARIANT\n+} // namespace izanagi_silo_order\n+namespace izanagi_silo_order_skel {\n",
+          "old": "+#if SILO_ORDER_VARIANT\n+} // namespace izanagi_silo_order\n+namespace izanagi_silo_order_skel {\n"
+        }
+      ],
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "KILLED",
+      "test_output_sha256": "0a8d38a24cf1027ffaabf24482949c2660ac07c487c34ee0cb54084db1b93c47",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/9344565fb9af79aa4277b506e0134fca/izdw-9344565fb9.o37994",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/output/pegasus-dispatch/9344565fb9af79aa4277b506e0134fca/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_silo_lock_order_grammar.py::test_spec_positive_and_hand\norchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position\norchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_reference_position\norchestrator/tests/test_silo_lock_order_grammar.py::test_policy_cpp_v1_rejections\norchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged\norchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write\norchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write\norchestrator/tests/test_silo_lock_order_gate.py::test_gate_writes_only_after_all_checks\norchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine\norchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed\norchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct\norchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_writes_hand_body_only\norchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write\norchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts\n\n14 tests collected in 1.12s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "73eeaa08127d3dab490c6f6ab2c006d8e5017b3ea5bb0eed0031fb831866200a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_spec_positive_and_hand",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_reference_position",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_policy_cpp_v1_rejections",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_writes_only_after_all_checks",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_writes_hand_body_only",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "duration_s": 27.135,
+      "rc": 0,
+      "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+      "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+      "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+      "status": "PASSED",
+      "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+          "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9a625697d84065a7b1bc46890b63c232ba8e26112ab67eacaf9df4765d621c59",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_policy_grammar.py",
+            "new": "        if False and t.text in self.profile.forbidden_identifiers:\n            self.fail('order.forbidden-identifier', 'forbidden policy identifier')\n",
+            "old": "        if t.text in self.profile.forbidden_identifiers:\n            self.fail('order.forbidden-identifier', 'forbidden policy identifier')\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1f9593d68b12978b1d00fafdfe0b50787a90a8a854a5e50c90ed7d2a9f365d65",
+        "replacements": [
+          {
+            "file": "patches/silo-lock-order-variant.patch",
+            "new": "+    if (false) {\n",
+            "old": "+    if (e.op_ == OpType::INSERT || e.op_ == OpType::DELETE) {\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "06ec9e1246ab4ee46b75b4ced7a26a492ffd829537069bf93b6ded5fbdbd32fa",
+        "replacements": [
+          {
+            "file": "patches/silo-lock-order-variant.patch",
+            "new": "+#if 0 // mutant: skip missing NO_WAIT_OF_TICTOC guard\n",
+            "old": "+#ifndef NO_WAIT_OF_TICTOC\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3c1b5aa27019a9eb6e615c7b3b7ed75def59c347c723dacbc3072f0d0df3f5ea",
+        "replacements": [
+          {
+            "file": "patches/silo-lock-order-variant.patch",
+            "new": "+    if (priorities[a] != priorities[b]) return priorities[a] < priorities[b];\n",
+            "old": "+    if (priorities[a] != priorities[b]) return priorities[a] > priorities[b];\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+          "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+          "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8995e7ad8cd3fbd2709606989708210cacf994beca769636751f54fbd061802c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_lock_order_gate.py",
+            "new": "    if result.passed and write:\n        (Path(sub) / axis.SOURCE_REL).write_text(edited, encoding='utf-8')\n    if result.passed:\n        grammar, compiled = check_order_body(\n",
+            "old": "    if result.passed:\n        grammar, compiled = check_order_body(\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "741171f6e89abc3648ce343f86720da50973a43cd496a40b46f4f88be2bc0e1a",
+        "replacements": [
+          {
+            "file": "patches/silo-lock-order-variant.patch",
+            "new": "@@ -8,6 +8,122 @@\n",
+            "old": "@@ -8,6 +8,121 @@\n"
+          },
+          {
+            "file": "patches/silo-lock-order-variant.patch",
+            "new": "+namespace izanagi_silo_order_skel { uint64_t off_probe; }\n+#if SILO_ORDER_VARIANT\n+} // namespace izanagi_silo_order\n+namespace izanagi_silo_order_skel {\n",
+            "old": "+#if SILO_ORDER_VARIANT\n+} // namespace izanagi_silo_order\n+namespace izanagi_silo_order_skel {\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "58d8d42a41d141662544521fe3d2e4040fd1a17d3e45b0225055f26c717ca0a2",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_lock_order_grammar.py",
+      "orchestrator/tests/test_silo_lock_order_gate.py",
+      "orchestrator/tests/test_silo_lock_order_template.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 12600.0
+  },
+  "repo_head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_silo_lock_order_grammar.py",
+      "orchestrator/tests/test_silo_lock_order_gate.py",
+      "orchestrator/tests/test_silo_lock_order_template.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "7b0d2860c93d6ede77f3a82716f8b5fe3c9782b9",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0f9415cd3a3f19e240a04da76a231a29e4dfb6e161f4bcdb7043072219461812",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "8c2dff921c1044487cb5f6ef6af22abfcaab48137a09fa4d9f6b2a35823de271",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "a4a0e1ca2dcc63e40106e4d032b2d0041511892b2ff6df8dfb7ff37341e1479d",
+  "updated_at": "2026-09-30T05:27:45.730416+00:00"
+}

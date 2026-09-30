@@ -1,0 +1,19 @@
+== fix1 before=aa8e36f1669001e75a6d6da9609287dcc9f9d29b patch_sha256=eac73cb9900fb2bfad6c06a3e22ac5ee7ba2aec3797458845837208b034bde90
+fix1 commit=76159527681a726eaa855f66b5eca341517c38e5
+== fix2 before=76159527681a726eaa855f66b5eca341517c38e5 patch_sha256=64759cbba21dd60961ca4b93f9d4174cafb466df98c621fe4ed7f476f409eab8
+fix2 commit=938ee196ffbcf36ad8c5341f3bd5d3a3be09460f
+== fix3 before=938ee196ffbcf36ad8c5341f3bd5d3a3be09460f patch_sha256=beb381298f40ab0bcad76f0fcf8a42046260e82866bfdb73669e638a7c2a54f5
+fix3 commit=86228b400350c9cab8e2cf453a28c36c720d8a18
+== fix4 before=86228b400350c9cab8e2cf453a28c36c720d8a18 patch_sha256=a5575bd4babfba59b361c0ceebb4be9e95550ab9a896342c923d16545e94726b
+fix4 commit=16ad3eb8ca5f7bb3aea789bff99958e2192f6714
+/work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/tip.bundle is okay
+The bundle records a complete history.
+4b955c51d7aaa594b9f733f6de81e0d21fc3d94bb7cc3c6f7d8e955bbfba9d3d  /work/SFC/tanab/tmp/cicada-promotion-uaf-fix-2026-09-30/tip.bundle
+16ad3eb8c fix(cicada): initialize inserted tuples from the inserted version
+86228b400 fix(cicada): clean inserted versions before freeing tuples on abort
+938ee196f fix(cicada): apply updates after inline version promotion
+761595276 fix(cicada): avoid promotion in read-only transactions
+aa8e36f16 merge: combine the cicada build fix and the gc_records fix as a local base
+old tip 9da7016438839ebcedd7b1094ce4ffad4d1f0dc3 tree 29e2f42c7fa54fca6820257da95325b57694b7a7
+new tip 16ad3eb8ca5f7bb3aea789bff99958e2192f6714 tree 29e2f42c7fa54fca6820257da95325b57694b7a7
+tree identical

@@ -1,0 +1,52 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -390,6 +390,24 @@
+                [[maybe_unused]] uint64_t tx_wts, uint8_t thid) {
+   unsigned mode = static_cast<unsigned>(FLAGS_cicada_igc_debug_mode);
+   if (mode > 3) std::abort();
++  static std::atomic<uint64_t> overprune_fired{0};
++  struct OverpruneReport {
++    std::atomic<uint64_t>& count;
++    ~OverpruneReport() {
++      std::fprintf(stderr, "CICADA_OVERPRUNE_FIRED n=%llu\n",
++                   static_cast<unsigned long long>(count.load()));
++    }
++  };
++  static OverpruneReport overprune_report{overprune_fired};
++  auto hex_key = [&]() {
++    static constexpr char digits[] = "0123456789abcdef";
++    std::string out;
++    for (unsigned char c : key) {
++      out += digits[c >> 4];
++      out += digits[c & 15];
++    }
++    return out;
++  };
+   IGC_COUNT_MODE_CALL(thid, mode);
+   IGC_COUNT(thid, attempts);
+   if (!tuple->getGCRight(thid + 1)) {
+@@ -477,7 +495,7 @@
+     if (!in_gap || chain[n]->ldAcqWts() > snap.horizon) return false;
+     for (size_t j = 0; j < snap.count; ++j) {
+       // Condition (b): no protected timestamp in this visible interval.
+-      if (chain[i]->ldAcqWts() <= snap.points[j] &&
++      if (j != 0 && chain[i]->ldAcqWts() <= snap.points[j] &&
+           snap.points[j] < chain[n]->ldAcqWts())
+         return false;
+       // Keep both anchors: the first node at/below p may be pending, so
+@@ -526,6 +544,14 @@
+       for (size_t k = first; k < i; ++k) {
+         // gc_lock_ serializes this mark with gcq_ pop for this tuple.
+         chain[k]->igc_pruned_.store(1, std::memory_order_release);
++        if (k == p1) {
++          overprune_fired.fetch_add(1, std::memory_order_relaxed);
++          std::fprintf(
++              stderr,
++              "CICADA_OVERPRUNE_EVENT tx_wts=%llu key=%s removed_wts=%llu\n",
++              static_cast<unsigned long long>(tx_wts), hex_key().c_str(),
++              static_cast<unsigned long long>(chain[k]->ldAcqWts()));
++        }
+         IGC_COUNT_PRUNED(thid, chain[k]);
+         // A2: the detached run retains its internal links and every member
+         // still satisfies the predicate used to select it.

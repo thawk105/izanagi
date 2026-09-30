@@ -1,0 +1,9 @@
+tip=16ad3eb8ca5f7bb3aea789bff99958e2192f6714 checker_sha256=61e2df369c29af0c3559bda445a998665653ad6d16857cdbad471acd7cf53d29
+== login
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+== image latest sif_sha256=64132a2f3006ce8981c3181d6cc1e393a69067faee5b550ed4d7203484ff167e
+Ubuntu clang-format version 14.0.6
+format files=213
+format rc=0

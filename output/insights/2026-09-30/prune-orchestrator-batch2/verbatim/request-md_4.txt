@@ -1,0 +1,23 @@
+md_4: 不要コードの整理 第 2 束 — 使われていない提出 gate と一回限りの分析
+
+【投げる条件】md_3 (prune-tools-batch1) が main に land してから投げる (nodeid 台帳・allowlist・test_ccbench_spawn_sites を共有するため直列)。
+
+最初に同じ directory の common.txt を読むこと (特に §3 削除の条件と記録)。
+
+■ 目的
+本番経路から呼ばれていない orchestrator のコードと専用 test を削除し、git から引けるよう記録する。submission_gate 系の test は台帳で約 790 秒ぶん worker 時間を使っている。
+
+■ 候補 (機械集計。削除許可ではない。対象ごとに D1989・D2179 を現物で確かめる)
+- orchestrator/submission_gate/ (tests 以外から import 0 との集計) と test_t338_submission_gate_unit1..5、test_t139_submission_path。phase3.md は T-338 を「D205/D730 に従い active から除外」と書く。権威 D574・D578・D597 を読む。
+- orchestrator/campaign/ の一回限り分析: backoff_counterfactual_analysis、backoff_counterfactual_cohort2_analysis (D2179 は cohort2 の seeds を live test が照合先にすると記録、要注意)、backoff_nonmonotonicity_analysis (D2179 は別 wave の probe が library として再利用と記録、要注意)、backoff_policy_performance_analysis、backoff_sweep_report。結果が insight に凍結済みか、事前登録が解析器に契約を課していないかを確かめる。
+- 閉包上単独で消せる leaf: s8b_floor_evacuation、s8b_oracle_exploration、s8b_verdict (いずれも 8b 系。8c 系の s8c_gate_report は 8c の目標が残るので対象外)。
+
+■ やること
+md_3 と同じ手順 (4 分類・専用性・権威 D・nodeid 台帳の更新・残した理由の記録)。test_ccbench_spawn_sites の pin を同時に更新する。
+消した test が検査していた性質が、残る test のどこにも無くなるかを対象ごとに書く。
+
+■ 成果物
+prune(orchestrator) 題の commit、一次資料 output/insights/<着手日>/prune-orchestrator-batch2/README.md、spool fragment。
+
+■ 所有
+上の候補とその専用 test、test_ccbench_spawn_sites の該当行、nodeid 台帳・allowlist の該当行、docs/README.md の地図の該当行。所要台帳は編集しない。

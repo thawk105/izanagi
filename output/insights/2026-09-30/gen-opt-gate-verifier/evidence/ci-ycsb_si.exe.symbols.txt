@@ -1,0 +1,1 @@
+PASS /scr/u1-ci-build-FOspCnWj/ccbench/build/cc/si/ycsb_si.exe

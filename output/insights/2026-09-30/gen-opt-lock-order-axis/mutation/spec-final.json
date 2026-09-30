@@ -1,0 +1,113 @@
+{
+  "estimated_run_seconds": 180,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+        "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_policy_grammar.py",
+          "new": "        if False and t.text in self.profile.forbidden_identifiers:\n            self.fail('order.forbidden-identifier', 'forbidden policy identifier')\n",
+          "old": "        if t.text in self.profile.forbidden_identifiers:\n            self.fail('order.forbidden-identifier', 'forbidden policy identifier')\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+    if (false) {\n",
+          "old": "+    if (e.op_ == OpType::INSERT || e.op_ == OpType::DELETE) {\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+#if 0 // mutant: skip missing NO_WAIT_OF_TICTOC guard\n",
+          "old": "+#ifndef NO_WAIT_OF_TICTOC\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+    if (priorities[a] != priorities[b]) return priorities[a] < priorities[b];\n",
+          "old": "+    if (priorities[a] != priorities[b]) return priorities[a] > priorities[b];\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+        "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+        "orchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_lock_order_gate.py",
+          "new": "    if result.passed and write:\n        (Path(sub) / axis.SOURCE_REL).write_text(edited, encoding='utf-8')\n    if result.passed:\n        grammar, compiled = check_order_body(\n",
+          "old": "    if result.passed:\n        grammar, compiled = check_order_body(\n"
+        }
+      ]
+    },
+    {
+      "category": "positive",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6",
+      "replacements": [
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "@@ -8,6 +8,122 @@\n",
+          "old": "@@ -8,6 +8,121 @@\n"
+        },
+        {
+          "file": "patches/silo-lock-order-variant.patch",
+          "new": "+namespace izanagi_silo_order_skel { uint64_t off_probe; }\n+#if SILO_ORDER_VARIANT\n+} // namespace izanagi_silo_order\n+namespace izanagi_silo_order_skel {\n",
+          "old": "+#if SILO_ORDER_VARIANT\n+} // namespace izanagi_silo_order\n+namespace izanagi_silo_order_skel {\n"
+        }
+      ]
+    }
+  ],
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 12600
+}

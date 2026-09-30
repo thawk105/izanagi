@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -30,12 +31,17 @@ from .model import cmake_cache_variable_for_axis
 ROOT = Path(__file__).resolve().parents[2]
 PIN = "68106660686232781bca3be792a750d3e19d7a8a"
 VARIANT = "patches/cicada-vhash-hot-block-variant.patch"
+POST = "patches/cicada-vhash-hot-block-post.patch"
+COUNT_V2 = "patches/cicada-vhash-hot-block-count-v2.patch"
 TRACE = "patches/instr-cicada-trace.patch"
-BROKEN = {"B1": "patches/broken-cicada-vhash-stale-hot.patch",
-          "B2": "patches/broken-cicada-vhash-skip-pending.patch"}
+BROKEN = {"B1": "patches/broken-cicada-vhash-post-stale-hot.patch",
+          "B2": "patches/broken-cicada-vhash-post-skip-pending.patch",
+          "stale-gap": "patches/broken-cicada-vhash-post-stale-gap.patch"}
+B2_PROBE = "patches/broken-cicada-vhash-skip-pending-probe.patch"
 DRIVER_ID = "orchestrator.campaign.vhash_cicada_hot_block"
 MATERIALIZER = DRIVER_ID + "._build_one"
-KS = (0, 1, 2, 4, 8)
+ARMS = ("stock", "B-k1", "B-k8", "post-k1", "post-k8")
+ARM_K = {"stock": 0, "B-k1": 1, "B-k8": 8, "post-k1": 1, "post-k8": 8}
 CELLS = {f"ro{ro}-gc{gc}": {"ro": ro, "gc": gc, "rr": 50, "rmw": 0, "max_ope": 10}
          for ro in (0, 50, 95) for gc in (10, 1000, 100000)}
 CELLS.update({"rr5": {"ro": -1, "gc": 100, "rr": 5, "rmw": 0, "max_ope": 10},
@@ -51,6 +57,13 @@ GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
           "INLINE_VERSION_PROMOTION": 0, "REUSE_VERSION": 1,
           "WRITE_LATEST_ONLY": 0}
 COUNT_PREFIX = "CICADA_VHASH_COUNT_JSON "
+POST_COUNT_PREFIX = "CICADA_VHASH_POST_COUNT_JSON "
+PROBE_PREFIX = "CICADA_B2PROBE "
+PROBE_STATUS = {0: "invalid", 1: "pending", 2: "aborted",
+                3: "precommitted", 4: "committed", 5: "deleted", 6: "unused"}
+OMITTED_RE = re.compile(r"CICADA_BREAK_OMITTED slug=post-stale-gap omitted=(\d+)")
+UNDETERMINED_RE = re.compile(r"CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=(\d+)")
+DEAD_RE = re.compile(r"CICADA_BREAK_DEAD slug=([a-z-]+) dead=(\d+)")
 EVENT_RE = re.compile(r"CICADA_BREAK_EVENT slug=([a-z-]+) stage=(reached|changed|committed) tx_wts=(\d+) key=((?:[0-9a-f]{2})+) read_wts=(\d+)")
 FIRED_RE = re.compile(r"CICADA_BREAK_FIRED slug=([a-z-]+) reached=(\d+) changed=(\d+) committed=(\d+)")
 INTEGRITY_ZERO = ("orphan_reads", "version_dups", "dup_txids", "genesis_commits",
@@ -98,60 +111,69 @@ def probe():
 def build_specs():
     specs = {}
     for kind in ("perf", "count", "trace"):
-        for k in KS:
-            name = f"{kind}-k{k}"
-            patches = [VARIANT] if kind != "trace" else [TRACE, VARIANT]
-            specs[name] = {"kind": kind, "k": k, "patches": patches,
-                           "macros": {"CICADA_VHASH_K": k, "CICADA_VHASH_WL": 1,
+        for arm in ARMS:
+            name = f"{kind}-{arm}"
+            patches = ([TRACE] if kind == "trace" else []) + [VARIANT]
+            if arm.startswith("post-"):
+                patches.append(POST)
+            if kind == "count":
+                patches.append(COUNT_V2)
+            specs[name] = {"kind": kind, "arm": arm, "k": ARM_K[arm], "patches": patches,
+                           "macros": {"CICADA_VHASH_K": ARM_K[arm], "CICADA_VHASH_WL": 1,
                                       **({"CICADA_VHASH_COUNT": 1}
                                          if kind == "count" else {})},
                            "trace": int(kind == "trace")}
     for broken, patch in BROKEN.items():
-        specs[f"broken-{broken}"] = {"kind": "broken", "k": 4,
-             "patches": [TRACE, VARIANT, patch], "trace": 1,
-             "macros": {"CICADA_VHASH_K": 4, "CICADA_VHASH_WL": 1}}
+        specs[f"broken-{broken}"] = {"kind": "broken", "arm": "post-k8", "k": 8,
+             "patches": [TRACE, VARIANT, POST, patch], "trace": 1,
+             "macros": {"CICADA_VHASH_K": 8, "CICADA_VHASH_WL": 1}}
+    specs["broken-B2-probe"] = {"kind": "broken", "arm": "B-k4-probe", "k": 4,
+        "patches": [TRACE, VARIANT, B2_PROBE], "trace": 1,
+        "macros": {"CICADA_VHASH_K": 4, "CICADA_VHASH_WL": 1}}
     return specs
 
 
-def rotation(round_index, cell_index, ks=KS):
-    return tuple(ks[(round_index + cell_index + offset) % len(ks)]
-                 for offset in range(len(ks)))
+def rotation(round_index, cell_index, arms=ARMS):
+    return tuple(arms[(round_index + cell_index + offset) % len(arms)]
+                 for offset in range(len(arms)))
 
 
-def plan_perf(job_index, *, rounds=6, cells=None, ks=KS):
+def plan_perf(job_index, *, rounds=6, cells=None, arms=ARMS):
     if job_index not in (0, 1, 2):
         raise ValueError("job index must be 0, 1 or 2")
     if rounds not in (4, 6):
         raise ValueError("rounds must be 4 or 6")
     selected = list(CELLS if cells is None else cells)
-    if 0 not in ks:
+    if "stock" not in arms:
         raise ValueError("stock arm required")
     jobs = 2 if rounds == 4 else 3
     if job_index >= jobs:
         return []
-    return [{"cell": cell, "k": k, "round": round_index,
-             "order_index": order_index, "job_index": job_index, "build": f"perf-k{k}"}
+    return [{"cell": cell, "arm": arm, "k": ARM_K[arm], "round": round_index,
+             "order_index": order_index, "job_index": job_index, "build": f"perf-{arm}"}
             for round_index in range(job_index * 2, job_index * 2 + 2)
             for cell_index, cell in enumerate(selected)
-            for order_index, k in enumerate(rotation(round_index, cell_index, ks))]
+            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))]
 
 
-def plan_count(ks=KS):
-    return [{"cell": cell, "k": k, "round": 0, "order_index": i,
-             "build": f"count-k{k}"}
-            for cell in COUNT_CELLS for i, k in enumerate(ks)]
+def plan_count(arms=ARMS):
+    return [{"cell": cell, "arm": arm, "k": ARM_K[arm], "round": 0, "order_index": i,
+             "build": f"count-{arm}"}
+            for cell in COUNT_CELLS for i, arm in enumerate(arms)]
 
 
-def plan_trace(job_index, ks=KS):
+def plan_trace(job_index, arms=ARMS):
     if job_index not in (0, 1):
         raise ValueError("trace job index must be 0 or 1")
     cells = ("T1", "T2") if job_index == 0 else ("T3",)
-    runs = [{"cell": cell, "k": k, "round": 0, "order_index": i,
-             "build": f"trace-k{k}"} for cell in cells for i, k in enumerate(ks)]
+    runs = [{"cell": cell, "arm": arm, "k": ARM_K[arm], "round": 0, "order_index": i,
+             "build": f"trace-{arm}"} for cell in cells for i, arm in enumerate(arms)]
     if job_index == 0:
-        runs += [{"cell": cell, "k": 4, "round": 0, "order_index": len(ks) + i,
-                  "build": f"broken-{broken}"}
-                 for cell in cells for i, broken in enumerate(BROKEN)]
+        broken = (*BROKEN, "B2-probe")
+        runs += [{"cell": cell, "arm": "B-k4-probe" if name == "B2-probe" else "post-k8",
+                  "k": 4 if name == "B2-probe" else 8, "round": 0,
+                  "order_index": len(arms) + i, "build": f"broken-{name}"}
+                 for cell in cells for i, name in enumerate(broken)]
     return runs
 
 
@@ -169,26 +191,30 @@ def estimate(smoke):
     if min(build, perf_wall, trace_wall, smoke_wall) <= 0:
         raise ValueError("smoke durations must be positive")
     steps = []
-    configs = [(6, list(CELLS), KS), (4, list(CELLS), KS),
-               (4, [c for c in CELLS if c.startswith(("ro0-", "ro95-")) and
-                    CELLS[c]["gc"] in (10, 100000)] + ["rr5", "rr50", "rr95"], KS),
-               (4, [c for c in CELLS if c.startswith(("ro0-", "ro95-")) and
-                    CELLS[c]["gc"] in (10, 100000)] + ["rr5", "rr50", "rr95"], (0, 1, 8))]
-    for rounds, cells, ks in configs:
+    compact = [c for c in CELLS if c.startswith("ro") and CELLS[c]["gc"] in (10, 100000)]
+    compact += ["rr5", "rr50", "rr95"]
+    configs = [(6, list(CELLS)), (4, list(CELLS)), (4, compact)]
+    count_wall = float(smoke.get("max_count_run_seconds", perf_wall))
+    if count_wall <= 0:
+        raise ValueError("smoke durations must be positive")
+    for rounds, cells in configs:
         perf_jobs = rounds // 2
-        perf_runs_per_job = 2 * len(cells) * len(ks)
+        perf_runs_per_job = 2 * len(cells) * len(ARMS)
         perf_job = perf_runs_per_job * perf_wall + 60
-        count_runs = len(COUNT_CELLS) * len(ks)
-        count_job = count_runs * perf_wall + 60
-        trace_jobs = [len(plan_trace(j, ks)) for j in (0, 1)]
-        trace_job = max(trace_jobs) * trace_wall
-        total = smoke_wall + perf_jobs * perf_job + count_job + 2 * trace_job
-        entry = {"rounds": rounds, "cells": cells, "ks": list(ks), "perf_jobs": perf_jobs,
+        count_runs = len(COUNT_CELLS) * len(ARMS)
+        count_job = count_runs * count_wall + 60
+        trace_jobs = [len(plan_trace(j)) * trace_wall for j in (0, 1)]
+        extras = {"mutation": float(smoke.get("mutation_seconds", 650)),
+                  "focus_and_audit": float(smoke.get("focus_and_audit_seconds", 350))}
+        total = smoke_wall + build + perf_jobs * perf_job + count_job + sum(trace_jobs) + sum(extras.values())
+        entry = {"rounds": rounds, "cells": cells, "arms": list(ARMS), "perf_jobs": perf_jobs,
                  "perf_job_seconds": perf_job, "count_job_seconds": count_job,
-                 "trace_job_seconds_upper": trace_job, "total_node_seconds": total,
+                 "trace_job_seconds": trace_jobs, "extra_job_seconds": extras,
+                 "total_node_seconds": total,
                  "job_walltime_seconds": {"smoke": 2 * smoke_wall + 600,
-                    "perf": 2 * perf_job + 600, "count": 2 * count_job + 600,
-                    "trace": 2 * trace_job + 600}, "accepted": total < 7200}
+                    "build": 2 * build + 600, "perf": 2 * perf_job + 600,
+                    "count": 2 * count_job + 600,
+                    "trace": [2 * n + 600 for n in trace_jobs]}, "accepted": total <= 7200}
         steps.append(entry)
         if entry["accepted"]:
             break
@@ -279,11 +305,17 @@ def _tuple_size(source, build, entry):
 def inert_receipt(source, dependency_build):
     before = _compile_entries(dependency_build)
     left = {name: _preprocessed(entry) for name, entry in before.items()}
-    strict_patches(source, [VARIANT])
-    right = {name: _preprocessed(entry) for name, entry in before.items()}
-    if left != right:
-        raise RuntimeError(f"macro-free -E mismatch: {left} != {right}")
-    return {"pin": left, "patched": right, "matched": True,
+    receipts = {}
+    for names in ([VARIANT], [VARIANT, POST], [VARIANT, COUNT_V2],
+                  [VARIANT, POST, COUNT_V2]):
+        strict_patches(source, names)
+        right = {name: _preprocessed(entry) for name, entry in before.items()}
+        receipts["+".join(names)] = right
+        for name in reversed(names):
+            checked(["git", "-C", str(source), "apply", "--reverse", str(ROOT / name)])
+        if left != right:
+            raise RuntimeError(f"macro-free -E mismatch for {names}: {left} != {right}")
+    return {"pin": left, "patched": receipts, "matched": True,
             "normalization": "remove blank and # line-marker lines"}
 
 
@@ -397,7 +429,7 @@ def _capture(data):
             "truncated": len(data) > 65536}
 
 
-def parse_count(stdout):
+def parse_count(stdout, arm):
     lines = [line[len(COUNT_PREFIX):] for line in stdout.splitlines()
              if line.startswith(COUNT_PREFIX)]
     if len(lines) != 1:
@@ -405,14 +437,22 @@ def parse_count(stdout):
     value = json.loads(lines[0])
     if not isinstance(value, dict):
         raise ValueError("COUNT JSON must be an object")
-    return value
+    post = [line[len(POST_COUNT_PREFIX):] for line in stdout.splitlines()
+            if line.startswith(POST_COUNT_PREFIX)]
+    if len(post) != int(arm.startswith("post-")):
+        raise ValueError(f"POST COUNT JSON line mismatch for {arm}: {len(post)}")
+    return {"variant": value, "post": json.loads(post[0]) if post else None}
 
 
 COUNT_SCALARS = ("hot", "fallback_odd", "fallback_changed", "cold",
                  "ro_commit", "ro_abort", "update_commit", "update_abort",
                  "install_wait_cycles", "install_hold_cycles", "install_count",
-                 "gc_hold_cycles", "gc_count")
-COUNT_BUCKETS = {"hops": 7, "snapshot_lag_ts": 18}
+                 "gc_hold_cycles", "gc_count", "snapshot_lag_sum_cycles",
+                 "snapshot_lag_count")
+COUNT_BUCKETS = {"hops": 7, "snapshot_lag_cycles": 42}
+POST_SCALARS = ("hit_adj_ok", "adj_fail_head", "adj_fail_mid", "cold",
+                "fallback_odd", "fallback_changed", "cas_retry", "publish_wait_cycles",
+                "publish_hold_cycles", "publish_count", "publish_dropped")
 COUNT_DERIVED = {
     "install_hold_cycles_per_update_commit": "install_hold_cycles / update_commit (null when update_commit is zero)",
     "install_wait_cycles_per_update_commit": "install_wait_cycles / update_commit (null when update_commit is zero)",
@@ -421,13 +461,16 @@ COUNT_DERIVED = {
 }
 
 
-def aggregate_count(value, k):
+def aggregate_count(value, arm, *, clocks_per_us=2100):
     """Sum the patch's per-thread counters and expose defined diagnostic ratios."""
-    if (not isinstance(value, dict) or value.get("schema_version") != 1 or
+    k = ARM_K[arm]
+    if (not isinstance(value, dict) or value.get("schema_version") != 2 or
             value.get("k") != k or type(value.get("sizeof_tuple")) is not int or
             value["sizeof_tuple"] <= 0 or not isinstance(value.get("workers"), list) or
             len(value["workers"]) != 256):
         raise ValueError("invalid COUNT root")
+    if "snapshot_lag_ts" in value or any("snapshot_lag_ts" in w for w in value["workers"]):
+        raise ValueError("COUNT v1 lag field rejected")
     totals = {name: 0 for name in COUNT_SCALARS}
     totals.update({name: [0] * length for name, length in COUNT_BUCKETS.items()})
     for thid, worker in enumerate(value["workers"]):
@@ -452,8 +495,41 @@ def aggregate_count(value, k):
         "gc_hold_cycles_per_update_commit": totals["gc_hold_cycles"] / updates if updates else None,
         "realized_ro_commit_fraction": totals["ro_commit"] / commits if commits else None,
     })
-    return {"schema_version": 1, "k": k, "sizeof_tuple": value["sizeof_tuple"],
+    if type(clocks_per_us) is not int or clocks_per_us <= 0:
+        raise ValueError("invalid clocks_per_us")
+    boundaries = [{"lower_cycles": 0, "upper_cycles": 0, "lower_us": 0,
+                   "upper_us": 0}]
+    boundaries += [{"lower_cycles": 1 << j, "upper_cycles": (1 << (j + 1)) - 1,
+                    "lower_us": (1 << j) / clocks_per_us,
+                    "upper_us": ((1 << (j + 1)) - 1) / clocks_per_us} for j in range(40)]
+    boundaries.append({"lower_cycles": 1 << 40, "upper_cycles": None,
+                       "lower_us": (1 << 40) / clocks_per_us, "upper_us": None})
+    return {"schema_version": 2, "k": k, "sizeof_tuple": value["sizeof_tuple"],
+            "snapshot_lag_bucket_bounds": boundaries, "clocks_per_us": clocks_per_us,
             "worker_count": len(value["workers"]), **totals}
+
+
+def aggregate_post_count(value, arm, updates):
+    if not arm.startswith("post-"):
+        if value is not None:
+            raise ValueError("unexpected POST COUNT JSON")
+        return None
+    if (not isinstance(value, dict) or value.get("schema_version") != 1 or
+            value.get("k") != ARM_K[arm] or not isinstance(value.get("workers"), list) or
+            len(value["workers"]) != 256):
+        raise ValueError("invalid POST COUNT root")
+    totals = {name: 0 for name in POST_SCALARS}
+    for thid, worker in enumerate(value["workers"]):
+        if not isinstance(worker, dict) or worker.get("thid") != thid:
+            raise ValueError("invalid POST COUNT worker id")
+        for name in POST_SCALARS:
+            n = worker.get(name)
+            if type(n) is not int or n < 0:
+                raise ValueError(f"invalid POST COUNT counter: {name}")
+            totals[name] += n
+    for stem in ("publish_wait_cycles", "publish_hold_cycles"):
+        totals[stem + "_per_update_commit"] = totals[stem] / updates if updates else None
+    return totals
 
 
 def _trace_rows(directory):
@@ -475,7 +551,8 @@ def _trace_rows(directory):
 
 
 def _break_events(stderr, build):
-    slug = "stale-hot" if build == "broken-B1" else "skip-pending"
+    slug = ("stale-hot" if build == "broken-B1" else
+            "post-stale-gap" if build == "broken-stale-gap" else "skip-pending")
     events, fired = [], []
     stages = {stage: 0 for stage in ("reached", "changed", "committed")}
     for line in stderr.splitlines():
@@ -500,7 +577,106 @@ def _break_events(stderr, build):
         raise ValueError(f"expected one break summary: {build}")
     if stages != fired[0]:
         raise ValueError(f"break event/summary mismatch: {stages} != {fired[0]}")
-    return {"events": events, "event_stages": stages, "fired": fired[0]}
+    omitted = [OMITTED_RE.fullmatch(line) for line in stderr.splitlines()
+               if line.startswith("CICADA_BREAK_OMITTED ")]
+    undetermined = [UNDETERMINED_RE.fullmatch(line) for line in stderr.splitlines()
+                    if line.startswith("CICADA_BREAK_UNDETERMINED ")]
+    dead = [DEAD_RE.fullmatch(line) for line in stderr.splitlines()
+            if line.startswith("CICADA_BREAK_DEAD")]
+    if build in ("broken-B1", "broken-stale-gap"):
+        if len(dead) != 1 or dead[0] is None or dead[0][1] != slug:
+            raise ValueError(f"{build} dead summary missing, duplicated, or malformed")
+    elif dead:
+        raise ValueError("unexpected dead summary")
+    if build == "broken-stale-gap":
+        if len(omitted) != 1 or omitted[0] is None:
+            raise ValueError("stale-gap omitted summary missing or malformed")
+        if len(undetermined) != 1 or undetermined[0] is None:
+            raise ValueError("stale-gap undetermined summary missing or malformed")
+    elif omitted:
+        raise ValueError("unexpected omitted summary")
+    elif undetermined:
+        raise ValueError("unexpected undetermined summary")
+    return {"events": events, "event_stages": stages, "fired": fired[0],
+            "omitted": int(omitted[0][1]) if omitted else None,
+            "undetermined": int(undetermined[0][1]) if undetermined else None,
+            "dead": int(dead[0][2]) if dead else None}
+
+
+def _probe_events(stderr):
+    events = {}
+    for line in stderr.splitlines():
+        if not line.startswith(PROBE_PREFIX):
+            continue
+        fields = {}
+        for token in line[len(PROBE_PREFIX):].split():
+            if token.count("=") != 1:
+                raise ValueError(f"malformed B2 probe token: {token}")
+            key, value = token.split("=", 1)
+            if key in fields or not key or not value:
+                raise ValueError(f"duplicate/empty B2 probe key: {key}")
+            fields[key] = value
+        stage, event_id = fields.get("stage"), fields.get("id")
+        if stage not in ("read", "validate", "end") or not re.fullmatch(r"\d+:\d+", event_id or ""):
+            raise ValueError("invalid B2 probe stage/id")
+        for required in ({"is_ronly", "tx_wts", "rts", "key",
+                          "p_ptr", "p_wts", "p_status", "older_ptr", "older_wts",
+                          "read_index"}
+                         if stage == "read" else
+                         {"p_status", "p_wts", "start_ptr", "reached_ptr", "reached_eq_older"}
+                         if stage == "validate" else {"outcome"}):
+            if required not in fields:
+                raise ValueError(f"B2 probe missing {required}: {stage} {event_id}")
+        if stage in ("read", "validate"):
+            try:
+                fields["p_status"] = PROBE_STATUS[int(fields["p_status"])]
+            except (ValueError, KeyError) as exc:
+                raise ValueError(f"B2 probe invalid p_status: {stage} {event_id}") from exc
+        if stage == "read":
+            if not re.fullmatch(r"(?:[0-9a-f]{2})+", fields["key"]):
+                raise ValueError(f"B2 probe invalid key: {event_id}")
+            for name in ("tx_wts", "rts", "p_wts", "older_wts", "read_index"):
+                if not fields[name].isdigit():
+                    raise ValueError(f"B2 probe invalid {name}: {event_id}")
+        if stage == "validate":
+            if not fields["p_wts"].isdigit():
+                raise ValueError(f"B2 probe invalid p_wts: {event_id}")
+            if fields["reached_eq_older"] not in ("0", "1"):
+                raise ValueError(f"B2 probe invalid reached_eq_older: {event_id}")
+        if stage in events.setdefault(event_id, {}):
+            raise ValueError(f"duplicate B2 probe stage: {event_id} {stage}")
+        events[event_id][stage] = fields
+    result = {"committed": {k: 0 for k in "RAGMVU"},
+              "witness": {k: 0 for k in "RAGMVU"},
+              "m_start_versions": {}, "events": {}}
+    for event_id, stages in events.items():
+        read, end = stages.get("read"), stages.get("end")
+        if not read or not end:
+            raise ValueError(f"B2 probe incomplete event: {event_id}")
+        if end["outcome"] not in ("commit", "abort"):
+            raise ValueError(f"B2 probe invalid outcome: {event_id}")
+        validate = stages.get("validate")
+        if read["is_ronly"] not in ("0", "1"):
+            raise ValueError(f"B2 probe invalid is_ronly: {event_id}")
+        if read["is_ronly"] == "1":
+            label = "R"
+        elif validate and validate["p_status"] == "aborted" and validate["reached_eq_older"] == "1":
+            label = "A"
+        elif validate and int(validate["p_wts"]) != int(read["p_wts"]):
+            label = "G"
+        elif validate and validate["p_status"] == "committed" and validate["reached_eq_older"] == "1":
+            label = "M"
+        elif validate and validate["reached_eq_older"] == "0":
+            label = "V"
+        else:
+            label = "U"
+        result["events"][event_id] = {"class": label, "stages": stages}
+        if end["outcome"] == "commit":
+            result["committed"][label] += 1
+            if label == "M":
+                start = validate["start_ptr"]
+                result["m_start_versions"][start] = result["m_start_versions"].get(start, 0) + 1
+    return result
 
 
 def _attribute(record, versions, events, initial_wts):
@@ -522,8 +698,12 @@ def _attribute(record, versions, events, initial_wts):
                     if reason.get("u_ver") == version:
                         matches.append({"edge": edge, "event": event})
         if matches:
-            matching.append({"cycle": anomaly.get("cycle"), "matches": matches[:3]})
-    return {"witness_count": len(matching), "examples": matching[:3]}
+            matching.append({"cycle": anomaly.get("cycle"), "matches": matches})
+    return {"witness_count": len(matching),
+            "examples": [{"cycle": item["cycle"], "matches": item["matches"][:3]}
+                         for item in matching[:3]],
+            "witness_events": [item["event"] for cycle in matching
+                               for item in cycle["matches"]]}
 
 
 def _verify_trace(trace_dir, source, commits, stderr, build, build_kind):
@@ -555,6 +735,39 @@ def _verify_trace(trace_dir, source, commits, stderr, build, build_kind):
         if not match:
             raise ValueError("initial trace wts missing")
         result["break"] = {**event, **_attribute(record, versions, event["events"], int(match[1]))}
+        if build == "broken-B2-probe":
+            probe = _probe_events(stderr)
+            def event_key(item):
+                return item["tx_wts"], item["key"], item["read_wts"]
+
+            def probe_key(item):
+                read = item["stages"]["read"]
+                return int(read["tx_wts"]), read["key"], int(read["older_wts"])
+
+            changed = Counter(event_key(e) for e in event["events"]
+                              if e["stage"] == "changed")
+            reads = Counter(probe_key(item) for item in probe["events"].values())
+            if changed != reads:
+                reason = ("B2 probe has no changed break event" if reads - changed else
+                          "B2 probe/changed break event multiset mismatch")
+                raise ValueError(f"{reason}: "
+                                 f"events={changed}, reads={reads}")
+            committed = Counter(event_key(e) for e in event["events"]
+                                if e["stage"] == "committed")
+            ends = Counter(probe_key(item) for item in probe["events"].values()
+                           if item["stages"]["end"]["outcome"] == "commit")
+            if committed != ends:
+                raise ValueError(f"B2 probe/committed break event multiset mismatch: "
+                                 f"events={committed}, ends={ends}")
+            for item in probe["events"].values():
+                read = item["stages"]["read"]
+                if item["stages"]["end"]["outcome"] == "commit" and any(
+                        int(read["tx_wts"]) == match["tx_wts"] and
+                        read["key"] == match["key"] and
+                        int(read["older_wts"]) == match["read_wts"]
+                        for match in result["break"]["witness_events"]):
+                    probe["witness"][item["class"]] += 1
+            result["probe"] = probe
     return result
 
 
@@ -600,7 +813,7 @@ def run_one(manifest, spec, *, scratch, source=None):
         "compile_commands": entry["compile_commands"], "build": spec["build"],
         "gate_receipts": entry["gate_receipts"],
         "tuple_size_bytes": entry["tuple_size_bytes"],
-        "build_kind": entry["kind"], "cell": spec["cell"], "k": spec["k"],
+        "build_kind": entry["kind"], "cell": spec["cell"], "arm": spec["arm"], "k": spec["k"],
         "round": spec["round"], "order_index": spec["order_index"],
         "argv": argv, "rc": rc, "elapsed_seconds": wall,
         "stdout": _capture(stdout), "stderr": _capture(stderr),
@@ -611,7 +824,7 @@ def run_one(manifest, spec, *, scratch, source=None):
         "perf_eligible": entry["kind"] == "perf" and rc == 0,
         "competing_probe": probe_result}
     if rc == 0 and entry["kind"] == "count":
-        record["count"] = parse_count(stdout.decode("utf-8", "replace"))
+        record["count"] = parse_count(stdout.decode("utf-8", "replace"), spec["arm"])
     if rc == 0 and trace:
         if source is None or record["commits"] is None:
             raise RuntimeError("trace verification requires source and commit count")
@@ -625,23 +838,36 @@ def broken_verdict(record):
     trace = record["trace"]
     event = trace["break"]
     fired = event["fired"]
+    observed = {"reached": fired["reached"], "changed": fired["changed"],
+                "committed": fired["committed"],
+                "attributed_cycles": event["witness_count"]}
+    if event.get("dead") is not None:
+        observed["dead"] = event["dead"]
+    if record["build"] == "broken-stale-gap":
+        observed.update(omitted=event["omitted"], undetermined=event["undetermined"])
+        if event["omitted"] == 0 or fired["reached"] == 0:
+            return {"status": "unreached", **observed}
+        detected = (fired["committed"] > 0 and trace["total_cycles"] > 0 and
+                    event["witness_count"] > 0)
+        return {"status": "detected" if detected else
+                "undetected" if fired["committed"] > 0 else "validation-stopped", **observed}
     if record["build"] == "broken-B1":
         detected = (fired["committed"] >= 1 and trace["verdict"] == "non-serializable"
                     and trace["total_cycles"] > 0 and event["witness_count"] >= 1)
         return {"status": "detected" if detected else "undetected",
-                "needs_B3": fired["committed"] >= 1 and event["witness_count"] == 0}
-    predicted = fired["committed"] == 0 and not (
-        trace["verdict"] == "non-serializable" and trace["total_cycles"] > 0)
-    if record.get("cell") == "T1":
-        predicted = predicted and fired["reached"] == 0
-    elif record.get("cell") == "T2":
-        predicted = predicted and fired["reached"] == fired["changed"]
-    return {"status": "validation-stopped" if predicted and fired["changed"] else
-            "unreached" if predicted else "prediction-failed",
-            "prediction_met": predicted, "attributed_cycles": event["witness_count"]}
+                "needs_B3": fired["committed"] >= 1 and event["witness_count"] == 0,
+                **({"dead": event["dead"]} if event.get("dead") is not None else {})}
+    detected = (fired["committed"] > 0 and
+                trace["verdict"] == "non-serializable" and
+                trace["total_cycles"] > 0 and event["witness_count"] > 0)
+    return {"status": "unreached" if fired["reached"] == 0 else
+            "detected" if detected else
+            "undetected" if fired["committed"] > 0 else "validation-stopped",
+            **observed}
 
 
 BROKEN_CLASSIFICATION_CONDITIONS = {
+    "hung": "benchmark rc 124; verifier not run; no detection verdict",
     "detected-attributed-clean": "committed >= 1; verdict non-serializable; attributed witness >= 1; integrity clean",
     "detected-attributed-integrity-violation": "committed >= 1; verdict non-serializable; attributed witness >= 1; integrity violation",
     "integrity-violation-only": "at least one detection condition absent; integrity violation",
@@ -685,51 +911,51 @@ def _valid_trace_verdict(trace):
               trace.get("verdict") == "non-serializable")))
 
 
-def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
+def aggregate_jobs(jobs, *, rounds=6, cells=None, arms=ARMS):
     selected = list(CELLS if cells is None else cells)
     expected_jobs = set(range(rounds // 2))
     records = [r for job in jobs for r in job["records"]]
     perf = [r for r in records if r["build_kind"] == "perf"]
     traces = [r for r in records if r["build_kind"] in ("trace", "broken")]
     counts = [r for r in records if r["build_kind"] == "count"]
-    count_keys = {(r["cell"], r["k"]) for r in counts}
-    required_count = {(cell, k) for cell in COUNT_CELLS for k in ks}
+    count_keys = {(r["cell"], r["arm"]) for r in counts}
+    required_count = {(cell, arm) for cell in COUNT_CELLS for arm in arms}
     if count_keys != required_count or len(counts) != len(required_count):
         raise ValueError(f"COUNT coverage mismatch: missing={required_count-count_keys}")
     if any(r["rc"] != 0 or r.get("count") is None or
-           r.get("build") != f"count-k{r['k']}" for r in counts):
+           r.get("build") != f"count-{r['arm']}" for r in counts):
         raise ValueError("invalid COUNT run")
-    keys = [(j, round_index, cell, k) for j in expected_jobs
+    keys = [(j, round_index, cell, arm) for j in expected_jobs
             for round_index in range(j * 2, j * 2 + 2)
-            for cell in selected for k in ks]
+            for cell in selected for arm in arms]
     by_key = {}
     hashes = {}
     for r in perf:
-        key = (r["job_index"], r["round"], r["cell"], r["k"])
+        key = (r["job_index"], r["round"], r["cell"], r["arm"])
         if key in by_key or key not in keys:
             raise ValueError(f"duplicate or unexpected perf run: {key}")
         by_key[key] = r
-        if r["build"] != f"perf-k{r['k']}" or r["pin"] != PIN:
+        if r["build"] != f"perf-{r['arm']}" or r["pin"] != PIN or r["k"] != ARM_K[r["arm"]]:
             raise ValueError(f"wrong perf build/pin: {key}")
         if type(r.get("tuple_size_bytes")) is not int or r["tuple_size_bytes"] <= 0:
             raise ValueError(f"missing measured Tuple size: {key}")
         signature = (r["binary_sha256"], json.dumps(r["patch_sha256"], sort_keys=True))
-        if r["k"] in hashes and hashes[r["k"]] != signature:
-            raise ValueError(f"sha256 mismatch for K={r['k']}")
-        hashes[r["k"]] = signature
+        if r["arm"] in hashes and hashes[r["arm"]] != signature:
+            raise ValueError(f"sha256 mismatch for arm={r['arm']}")
+        hashes[r["arm"]] = signature
     if set(by_key) != set(keys):
         raise ValueError(f"missing perf runs: {sorted(set(keys)-set(by_key))[:3]}")
-    failed = {r["k"] for r in traces if r["build_kind"] == "trace" and
+    failed = {r["arm"] for r in traces if r["build_kind"] == "trace" and
               r.get("trace") and (r["trace"].get("rc") == 1 or
                                    r["trace"].get("total_cycles", 0) > 0)}
     trace_rows = [r for r in traces if r["build_kind"] == "trace"]
-    trace_keys = {(r["cell"], r["k"]) for r in trace_rows}
-    required_trace = {(cell, k) for cell in TRACE_CELLS for k in ks}
+    trace_keys = {(r["cell"], r["arm"]) for r in trace_rows}
+    required_trace = {(cell, arm) for cell in TRACE_CELLS for arm in arms}
     if trace_keys != required_trace or len(trace_rows) != len(required_trace):
         raise ValueError(f"trace coverage mismatch: missing={required_trace-trace_keys}")
     broken_rows = [r for r in traces if r["build_kind"] == "broken"]
     broken_keys = {(r["build"], r["cell"]) for r in broken_rows}
-    required_broken = {(f"broken-{name}", cell) for name in BROKEN
+    required_broken = {(f"broken-{name}", cell) for name in (*BROKEN, "B2-probe")
                        for cell in ("T1", "T2")}
     if broken_keys != required_broken or len(broken_rows) != len(required_broken):
         raise ValueError(f"broken trace coverage mismatch: missing={required_broken-broken_keys}")
@@ -738,56 +964,82 @@ def aggregate_jobs(jobs, *, rounds=6, cells=None, ks=KS):
               not r["trace"].get("clean") or
               not _valid_trace_verdict(r["trace"])):
             raise ValueError("invalid trace run")
+        if r["build_kind"] == "broken" and r["rc"] == 124:
+            continue
         if r["build_kind"] == "broken" and (r["rc"] != 0 or
               not r.get("trace") or type(r["trace"].get("clean")) is not bool or
               not _valid_trace_verdict(r["trace"]) or
               not r["trace"].get("break")):
             raise ValueError("invalid broken trace run")
-    if 0 in failed:
+    if "stock" in failed:
         raise ValueError("stock trace cycle invalidates every throughput ratio")
-    ratios = {cell: {str(k): [] for k in ks if k != 0 and k not in failed}
+    pairs = {f"{arm}/stock": (arm, "stock") for arm in arms
+             if arm != "stock" and arm not in failed}
+    pairs.update({f"{post}/B-k{ARM_K[post]}": (post, f"B-k{ARM_K[post]}")
+                  for post in arms if post.startswith("post-") and
+                  post not in failed and f"B-k{ARM_K[post]}" in arms and
+                  f"B-k{ARM_K[post]}" not in failed})
+    ratios = {cell: {name: [] for name in pairs}
               for cell in selected}
-    rss = {cell: {str(k): [] for k in ks if k != 0 and k not in failed}
+    rss = {cell: {name: [] for name in pairs}
            for cell in selected}
     for j in expected_jobs:
         for round_index in range(j * 2, j * 2 + 2):
             for cell in selected:
-                stock = by_key[j, round_index, cell, 0]
+                stock = by_key[j, round_index, cell, "stock"]
                 if (not stock["perf_eligible"] or stock["rc"] != 0 or
                         not isinstance(stock["throughput"], (int, float)) or
                         not math.isfinite(stock["throughput"]) or stock["throughput"] <= 0):
                     raise ValueError("ineligible stock performance run")
-                for k in ks:
-                    if k == 0 or k in failed:
-                        continue
-                    r = by_key[j, round_index, cell, k]
-                    if (not r.get("job_id") or r["job_id"] != stock.get("job_id") or
-                            r.get("node") != stock.get("node")):
-                        raise ValueError("K/stock pair crosses job or node")
+                for name, (arm, baseline) in pairs.items():
+                    r = by_key[j, round_index, cell, arm]
+                    ref = by_key[j, round_index, cell, baseline]
+                    if (not r.get("job_id") or r["job_id"] != ref.get("job_id") or
+                            r.get("node") != ref.get("node")):
+                        raise ValueError("arm pair crosses job or node")
                     if (not r["perf_eligible"] or r["rc"] != 0 or
                             not isinstance(r["throughput"], (int, float)) or
-                            not math.isfinite(r["throughput"]) or r["throughput"] <= 0):
+                            not math.isfinite(r["throughput"]) or r["throughput"] <= 0 or
+                            not ref["perf_eligible"] or ref["rc"] != 0 or
+                            not isinstance(ref["throughput"], (int, float)) or
+                            not math.isfinite(ref["throughput"]) or ref["throughput"] <= 0):
                         raise ValueError("ineligible performance run")
-                    ratios[cell][str(k)].append({"job_index": j, "round": round_index,
-                                                  "ratio": r["throughput"] / stock["throughput"]})
-                    if r.get("maxrss_kb") is not None and stock.get("maxrss_kb") is not None:
-                        rss[cell][str(k)].append(r["maxrss_kb"] - stock["maxrss_kb"])
-    result_cells = {cell: {k: {"points": values,
+                    ratios[cell][name].append({"job_index": j, "round": round_index,
+                         "node": r["node"], "ratio": r["throughput"] / ref["throughput"]})
+                    if r.get("maxrss_kb") is not None and ref.get("maxrss_kb") is not None:
+                        rss[cell][name].append(r["maxrss_kb"] - ref["maxrss_kb"])
+    result_cells = {cell: {name: {"points": values,
        "median": statistics.median(v["ratio"] for v in values),
        "min": min(v["ratio"] for v in values), "max": max(v["ratio"] for v in values),
-       "rss_delta_kb": rss[cell][k],
+       "by_node": {node: [v for v in values if v["node"] == node]
+                   for node in sorted({v["node"] for v in values})},
+       "rss_delta_kb": rss[cell][name],
        "tuple_delta_bytes_for_1m": 1000000 * (
-           by_key[0, 0, cell, int(k)]["tuple_size_bytes"] -
-           by_key[0, 0, cell, 0]["tuple_size_bytes"])}
-       for k, values in data.items()}
+           by_key[0, 0, cell, pairs[name][0]]["tuple_size_bytes"] -
+           by_key[0, 0, cell, pairs[name][1]]["tuple_size_bytes"])}
+       for name, values in data.items()}
        for cell, data in ratios.items()}
     breaks = {r["build"] + ":" + r["cell"]:
-              {**broken_verdict(r), **_broken_classification(r)}
+              ({"status": "hung", "classification": "hung", "rc": 124,
+                "classification_condition": BROKEN_CLASSIFICATION_CONDITIONS["hung"]}
+               if r["rc"] == 124 else
+               {**broken_verdict(r), **_broken_classification(r)})
               for r in traces if r["build_kind"] == "broken"}
-    count_rows = [{**r, "count_raw": r["count"],
-                   "count": aggregate_count(r["count"], r["k"])} for r in counts]
-    return {"schema": "vhash-hot-aggregate/v1", "pin": PIN, "cells": result_cells,
-            "disqualified_ks": sorted(failed), "broken": breaks,
+    count_rows = []
+    for r in counts:
+        raw = r["count"]
+        if not isinstance(raw, dict) or set(raw) != {"variant", "post"}:
+            raise ValueError("invalid COUNT JSON envelope")
+        clocks = next((int(arg.split("=")[1]) for arg in r.get("argv", [])
+                       if arg.startswith("-clocks_per_us=")), 2100)
+        count = aggregate_count(raw["variant"], r["arm"], clocks_per_us=clocks)
+        if r["arm"].startswith("post-") and any(count[name] for name in
+            ("install_wait_cycles", "install_hold_cycles", "install_count")):
+            raise ValueError("post arm unexpectedly used variant install counters")
+        post = aggregate_post_count(raw["post"], r["arm"], count["update_commit"])
+        count_rows.append({**r, "count_raw": raw, "count": count, "post_count": post})
+    return {"schema": "vhash-hot-aggregate/v2", "pin": PIN, "cells": result_cells,
+            "disqualified_arms": sorted(failed), "broken": breaks,
             "broken_classification_conditions": BROKEN_CLASSIFICATION_CONDITIONS,
             "count": count_rows, "count_derived_definitions": COUNT_DERIVED,
             "trace": traces, "conditions": {"threads": 48,
@@ -852,19 +1104,19 @@ def _run_job(args):
         selection = json.loads(args.selection.read_text())["selection"] if args.selection else None
         specs = plan_perf(args.job_index, rounds=selection["rounds"] if selection else 6,
                           cells=selection["cells"] if selection else None,
-                          ks=tuple(selection["ks"]) if selection else KS)
+                          arms=tuple(selection["arms"]) if selection else ARMS)
     elif args.command == "count":
         selection = json.loads(args.selection.read_text())["selection"] if args.selection else None
-        specs = plan_count(tuple(selection["ks"]) if selection else KS)
+        specs = plan_count(tuple(selection["arms"]) if selection else ARMS)
     elif args.command == "trace":
         selection = json.loads(args.selection.read_text())["selection"] if args.selection else None
-        specs = plan_trace(args.job_index, tuple(selection["ks"]) if selection else KS)
+        specs = plan_trace(args.job_index, tuple(selection["arms"]) if selection else ARMS)
     else:
-        specs = [{"cell": cell, "k": k, "round": 0, "order_index": i,
-                  "build": f"perf-k{k}"}
-                 for cell in ("ro95-gc100000", "rr5") for i, k in enumerate(KS)]
-        specs += [{"cell": "T1", "k": 8, "round": 0, "order_index": 0,
-                   "build": "trace-k8"}]
+        specs = [{"cell": cell, "arm": arm, "k": ARM_K[arm], "round": 0,
+                  "order_index": i, "build": f"perf-{arm}"}
+                 for cell in ("ro95-gc100000", "rr5") for i, arm in enumerate(ARMS)]
+        specs += [{"cell": "T1", "arm": "post-k8", "k": 8, "round": 0,
+                   "order_index": 0, "build": "trace-post-k8"}]
     if not specs:
         raise ValueError("job index has no rounds in selected budget")
     required_builds = (set(manifest["builds"]) if args.command == "smoke" else
@@ -941,7 +1193,7 @@ def main(argv=None):
         write_json(args.out / "aggregate.json", aggregate_jobs(jobs,
             rounds=selection["rounds"] if selection else 6,
             cells=selection["cells"] if selection else None,
-            ks=tuple(selection["ks"]) if selection else KS))
+            arms=tuple(selection["arms"]) if selection else ARMS))
         return 0
     if not all((args.third_party_cache, args.scratch_root, args.output)):
         parser.error("compute jobs require --third-party-cache, --scratch-root, --output")

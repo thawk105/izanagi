@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_publishes_both_keys_before_consumers"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "        _start_t080_visible_output_snapshot(node)\n        _start_t080_shared_base_prewarm(node)\n",
+          "new": "        _start_t080_visible_output_snapshot(node)\n        pass\n"
+        }
+      ]
+    }
+  ]
+}

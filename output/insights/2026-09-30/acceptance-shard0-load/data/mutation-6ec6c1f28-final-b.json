@@ -1,0 +1,290 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/bcbc7555af791124f9dd8ecfc3f31228/izdw-bcbc7555af.o38172",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/bcbc7555af791124f9dd8ecfc3f31228/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................                                      [100%]\n35 passed in 117.54s (0:01:57)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ce07513a43026b810c15f370f84be17c00fcc194fc620eea6d393abb2f46544b"
+    },
+    "artifact_error": null,
+    "collection_sha256": "378e7f54e9d5c31a6498499860a6586db3d2c99917c48f17f64fb497a0752017",
+    "duration_s": 233.403,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "960604e59a09a16d7f920cf583f1c2a7d809556bf6cfdce97727fd4454eb5396",
+    "repo_head": "6ec6c1f284702cdf0621c103524da06cb0a7210d",
+    "runner_sha256": "3cf35b475192b50741f19837281c95f21a45288fde06d32bff7a73a4214a863c",
+    "spec_sha256": "abf30429023475c3b6ca13c9d4a799848bf09566f607c4029f7874476ca43b0d",
+    "status": "PASSED",
+    "test_output_sha256": "ce07513a43026b810c15f370f84be17c00fcc194fc620eea6d393abb2f46544b",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "6d4c41fb2276f78464697c5f1e79b1f1d83c5027566043d8322c8b745c95214f"
+  },
+  "date": "2026-09-30T06:10:25.287073+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/af1d413821d7ceb5d4c021a706d77f02/izdw-af1d413821.o38183",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/af1d413821d7ceb5d4c021a706d77f02/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F..                                      [100%]\n=================================== FAILURES ===================================\n______ test_t080_shared_base_prewarm_controller_participation_keeps_tree _______\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_t080_shared_base_prewarm_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dc65532d10>\nt080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22936825309664'>\nt080_prewarm_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22936825309664'>\n\n    def test_t080_shared_base_prewarm_controller_participation_keeps_tree(\n            tmp_path, monkeypatch, t080_small_cache_builder, t080_prewarm_cache_builder):\n        suite, config, node, visible = _t080_prewarm_probe(tmp_path, monkeypatch)\n        _t080_publish_visible_result(visible)\n        suite._start_t080_shared_base_prewarm(node)\n        bases = config._izanagi_t080_shared_base_prewarm_job[\"bases\"]\n        worker = _T080SharedBases(bases.parent)\n        try:\n            for thread in config._izanagi_t080_shared_base_prewarm_job[\"threads\"]:\n                thread.join(5)\n                assert not thread.is_alive()\n            worker.close()\n>           assert list(bases.parent.glob(\"*/complete.json\"))\nE           AssertionError: assert []\nE            +  where [] = list(<generator object Path.glob at 0x14dc65001ee0>)\nE            +    where <generator object Path.glob at 0x14dc65001ee0> = glob('*/complete.json')\nE            +      where glob = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_t080_shared_base_prewarm_0/izanagi-t080-e2e-session-ac1ef0d6e61f16045089e7d39543e109e613df2d2b1a8bc9b44c21f0cc8587a3').glob\nE            +        where PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_t080_shared_base_prewarm_0/izanagi-t080-e2e-session-ac1ef0d6e61f16045089e7d39543e109e613df2d2b1a8bc9b44c21f0cc8587a3') = <orchestrator.tests.test_s8b_oracle_driver._T080SharedBases object at 0x14dc5e29e740>.parent\n\norchestrator/tests/test_s8b_oracle_driver.py:1338: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree\n1 failed, 34 passed in 116.90s (0:01:56)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1933 retained_bytes=1933 omitted_bytes=0 rendered_excerpt_bytes=1988 sha256=6433501d90572e3f73f5700a476d9f3b0a976ce4b49664d9e64a1ae0a6797777\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_t080_shared_base_prewarm_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dc65532d10>\n> t080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22936825309664'>\n> t080_prewarm_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22936825309664'>\n> \n>     def test_t080_shared_base_prewarm_controller_participation_keeps_tree(\n>             tmp_path, monkeypatch, t080_small_cache_builder, t080_prewarm_cache_builder):\n>         suite, config, node, visible = _t080_prewarm_probe(tmp_path, monkeypatch)\n>         _t080_publish_visible_result(visible)\n>         suite._start_t080_shared_base_prewarm(node)\n>         bases = config._izanagi_t080_shared_base_prewarm_job[\"bases\"]\n>         worker = _T080SharedBases(bases.parent)\n>         try:\n>             for thread in config._izanagi_t080_shared_base_prewarm_job[\"threads\"]:\n>                 thread.join(5)\n>                 assert not thread.is_alive()\n>             worker.close()\n> >           assert list(bases.parent.glob(\"*/complete.json\"))\n> E           AssertionError: assert []\n> E            +  where [] = list(<generator object Path.glob at 0x14dc65001ee0>)\n> E            +    where <generator object Path.glob at 0x14dc65001ee0> = glob('*/complete.json')\n> E            +      where glob = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_t080_shared_base_prewarm_0/izanagi-t080-e2e-session-ac1ef0d6e61f16045089e7d39543e109e613df2d2b1a8bc9b44c21f0cc8587a3').glob\n> E            +        where PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_t080_shared_base_prewarm_0/izanagi-t080-e2e-session-ac1ef0d6e61f16045089e7d39543e109e613df2d2b1a8bc9b44c21f0cc8587a3') = <orchestrator.tests.test_s8b_oracle_driver._T080SharedBases object at 0x14dc5e29e740>.parent\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1338: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1933 retained_bytes=1933 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2727 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e5f585ffd8d92b9a3b2ff4d55591c62c2c30f8eade31f7def1cecde3ba7dce1d"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "378e7f54e9d5c31a6498499860a6586db3d2c99917c48f17f64fb497a0752017",
+      "duration_s": 147.321,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "e2cc08a3d5fe909deba28dd56d4c15170e92d4e4f04c391dd36332cc98aeba00",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "39bf5884fbcb158e721dd3aaa17d91060bfa6b9ca3fbd915907c1c5fa3d6f39b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    bases = module._T080SharedBases(module._t080_session_path(run_id))\n    fcntl.flock(bases.lifetime, fcntl.LOCK_UN)\n",
+          "old": "    bases = module._T080SharedBases(module._t080_session_path(run_id))\n"
+        }
+      ],
+      "repo_head": "6ec6c1f284702cdf0621c103524da06cb0a7210d",
+      "runner_sha256": "3cf35b475192b50741f19837281c95f21a45288fde06d32bff7a73a4214a863c",
+      "spec_sha256": "abf30429023475c3b6ca13c9d4a799848bf09566f607c4029f7874476ca43b0d",
+      "status": "KILLED",
+      "test_output_sha256": "e5f585ffd8d92b9a3b2ff4d55591c62c2c30f8eade31f7def1cecde3ba7dce1d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6d4c41fb2276f78464697c5f1e79b1f1d83c5027566043d8322c8b745c95214f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/fe62d76886d9e13cb9a04d6048d2cbf9/izdw-fe62d76886.o38187",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/fe62d76886d9e13cb9a04d6048d2cbf9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FF.                                      [100%]\n=================================== FAILURES ===================================\n__________ test_t080_shared_base_prewarm_error_propagates_and_closes ___________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_t080_shared_base_prewarm_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cdada192d0>\nt080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22873598083616'>\nt080_prewarm_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22873598083616'>\n\n    def test_t080_shared_base_prewarm_error_propagates_and_closes(\n            tmp_path, monkeypatch, t080_small_cache_builder, t080_prewarm_cache_builder):\n        suite, config, node, visible = _t080_prewarm_probe(tmp_path, monkeypatch)\n        _t080_publish_visible_result(visible)\n        t080_small_cache_builder.side_effect = RuntimeError(\"builder failed\")\n        suite._start_t080_shared_base_prewarm(node)\n        bases = config._izanagi_t080_shared_base_prewarm_job[\"bases\"]\n>       with pytest.raises(RuntimeError, match=\"builder failed\"):\nE       Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_s8b_oracle_driver.py:1352: Failed\n____________ test_t080_shared_base_prewarm_waits_for_visible_output ____________\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_t080_shared_base_prewarm_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1464a74e56c0>\nt080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22422536218624'>\nt080_prewarm_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22422536218624'>\n\n    def test_t080_shared_base_prewarm_waits_for_visible_output(\n            tmp_path, monkeypatch, t080_small_cache_builder, t080_prewarm_cache_builder):\n        suite, config, node, visible = _t080_prewarm_probe(tmp_path, monkeypatch)\n        suite._start_t080_shared_base_prewarm(node)\n        try:\n            time.sleep(0.1)\n            assert t080_small_cache_builder.call_count == 0\n            _t080_publish_visible_result(visible, ok=False)\n>           with pytest.raises(RuntimeError, match=\"snapshot failed\"):\nE           Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_s8b_oracle_driver.py:1319: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output\n2 failed, 33 passed in 115.25s (0:01:55)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1067 retained_bytes=1067 omitted_bytes=0 rendered_excerpt_bytes=1104 sha256=cc211135aec4a7e1477c6660a77d95e68c1608dec88bb71d58ddc1531484770f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_t080_shared_base_prewarm_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14cdada192d0>\n> t080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22873598083616'>\n> t080_prewarm_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22873598083616'>\n> \n>     def test_t080_shared_base_prewarm_error_propagates_and_closes(\n>             tmp_path, monkeypatch, t080_small_cache_builder, t080_prewarm_cache_builder):\n>         suite, config, node, visible = _t080_prewarm_probe(tmp_path, monkeypatch)\n>         _t080_publish_visible_result(visible)\n>         t080_small_cache_builder.side_effect = RuntimeError(\"builder failed\")\n>         suite._start_t080_shared_base_prewarm(node)\n>         bases = config._izanagi_t080_shared_base_prewarm_job[\"bases\"]\n> >       with pytest.raises(RuntimeError, match=\"builder failed\"):\n> E       Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1352: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1040 retained_bytes=1040 omitted_bytes=0 rendered_excerpt_bytes=1079 sha256=c144ff30df12eed88afff1fa29e1719f6b098afe311caaee8e34bfb8ddf3a124\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_t080_shared_base_prewarm_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1464a74e56c0>\n> t080_small_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22422536218624'>\n> t080_prewarm_cache_builder = <MagicMock name='_build_t080_stub_free_e2e_repo' id='22422536218624'>\n> \n>     def test_t080_shared_base_prewarm_waits_for_visible_output(\n>             tmp_path, monkeypatch, t080_small_cache_builder, t080_prewarm_cache_builder):\n>         suite, config, node, visible = _t080_prewarm_probe(tmp_path, monkeypatch)\n>         suite._start_t080_shared_base_prewarm(node)\n>         try:\n>             time.sleep(0.1)\n>             assert t080_small_cache_builder.call_count == 0\n>             _t080_publish_visible_result(visible, ok=False)\n> >           with pytest.raises(RuntimeError, match=\"snapshot failed\"):\n> E           Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:1319: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2107 retained_bytes=2107 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3355 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fed12bf85ab88fb196e80e3145934a1cd8c06e1656f9246a965d1d13eda274ea"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "378e7f54e9d5c31a6498499860a6586db3d2c99917c48f17f64fb497a0752017",
+      "duration_s": 145.559,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "0cd1f13287b34bd6e4579bcc73f9f557bbbc6fb62e668e84ee0c2f194ac64aa6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "515d659c9c694740942e7c3f3c889cb07d7bb3504709ec9a81b175499a48b9e3",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "            if error is not None:\n                pass\n",
+          "old": "            if error is not None:\n                raise error\n"
+        }
+      ],
+      "repo_head": "6ec6c1f284702cdf0621c103524da06cb0a7210d",
+      "runner_sha256": "3cf35b475192b50741f19837281c95f21a45288fde06d32bff7a73a4214a863c",
+      "spec_sha256": "abf30429023475c3b6ca13c9d4a799848bf09566f607c4029f7874476ca43b0d",
+      "status": "KILLED",
+      "test_output_sha256": "fed12bf85ab88fb196e80e3145934a1cd8c06e1656f9246a965d1d13eda274ea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "6d4c41fb2276f78464697c5f1e79b1f1d83c5027566043d8322c8b745c95214f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/99b6c74c007bc770fb6bc5cddc21986a/izdw-99b6c74c00.o38162",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/output/pegasus-dispatch/99b6c74c007bc770fb6bc5cddc21986a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_publishes_both_keys_before_consumers\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_not_started_when_unselected\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_join_timeout_raises\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[False]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[True]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_without_completion_marker_is_rebuilt\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_waits_for_builder_lock\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_missing_session_uses_process_memo\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_keeps_all_four_key_fields_separate\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_only_last_participant_removes_tree\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[False]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[True]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[13]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[5]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[39]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_exhausted_disappearance_is_error\norchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":6,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n35/369 tests collected (334 deselected) in 2.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "3c362b843875346ccdcafee7434518f461783d6976e12e46bebe7f8ccc74d69a"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_visible_output_snapshot_starts_once_and_preserves_copy",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_publishes_both_keys_before_consumers",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_not_started_when_unselected",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_join_timeout_raises",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[False]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_start_failure_preserves_lifetime[True]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_unchanged_after_consumers_mutate_copies",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_returns_independent_repos_and_documents",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_without_completion_marker_is_rebuilt",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_waits_for_builder_lock",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_missing_session_uses_process_memo",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_keeps_all_four_key_fields_separate",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_only_last_participant_removes_tree",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[False]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_tolerates_real_disappearance[True]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[13]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[5]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_propagates_other_errors[39]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_cleanup_exhausted_disappearance_is_error",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 83.818,
+      "rc": 0,
+      "repo_head": "6ec6c1f284702cdf0621c103524da06cb0a7210d",
+      "runner_sha256": "3cf35b475192b50741f19837281c95f21a45288fde06d32bff7a73a4214a863c",
+      "spec_sha256": "abf30429023475c3b6ca13c9d4a799848bf09566f607c4029f7874476ca43b0d",
+      "status": "PASSED",
+      "tool_sha256": "6d4c41fb2276f78464697c5f1e79b1f1d83c5027566043d8322c8b745c95214f"
+    },
+    "hang_timeout_seconds": 12600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e2cc08a3d5fe909deba28dd56d4c15170e92d4e4f04c391dd36332cc98aeba00",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    bases = module._T080SharedBases(module._t080_session_path(run_id))\n    fcntl.flock(bases.lifetime, fcntl.LOCK_UN)\n",
+            "old": "    bases = module._T080SharedBases(module._t080_session_path(run_id))\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_error_propagates_and_closes",
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0cd1f13287b34bd6e4579bcc73f9f557bbbc6fb62e668e84ee0c2f194ac64aa6",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "            if error is not None:\n                pass\n",
+            "old": "            if error is not None:\n                raise error\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "960604e59a09a16d7f920cf583f1c2a7d809556bf6cfdce97727fd4454eb5396",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py",
+      "orchestrator/tests/test_acceptance_schedule_order.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "-k",
+      "(t080_shared_base or t080_visible_output or configure_node or early_memo) and not real_builder_once",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 12600.0
+  },
+  "repo_head": "6ec6c1f284702cdf0621c103524da06cb0a7210d",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8b_oracle_driver.py",
+      "orchestrator/tests/test_acceptance_schedule_order.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "-k",
+      "(t080_shared_base or t080_visible_output or configure_node or early_memo) and not real_builder_once",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "a2f33a6e006989270f4340528eb61f8f97366e00a5d1b602ac8672ea44fc56ae",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "5d95c8500c5f2d5ab8ccf841db9bb218dc592216",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "3cf35b475192b50741f19837281c95f21a45288fde06d32bff7a73a4214a863c",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "abf30429023475c3b6ca13c9d4a799848bf09566f607c4029f7874476ca43b0d",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/mutation/mutsrc2/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "6d4c41fb2276f78464697c5f1e79b1f1d83c5027566043d8322c8b745c95214f",
+  "updated_at": "2026-09-30T06:20:55.854249+00:00"
+}
