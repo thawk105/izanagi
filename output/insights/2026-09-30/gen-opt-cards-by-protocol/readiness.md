@@ -104,7 +104,7 @@
 | CC | (1) trace | (2) certified の証拠面 | (3) 性能計測 | (4) LLM の口 | (5) 比較基盤 | 合計 | 備考 |
 |---|---|---|---|---|---|---|---|
 | silo | 0 | **S** (子の提案 0 から変更) | 0 | 0 | 0 | **1** | 取引内の値の修正 (`silo-intra-txn-fix`) は branch のみ。正しさ関門の設計 (`gen-opt-correctness-gate` §3.5・D2b) が gen-opt の評価開始の前提条件と書くので、MOCC の修理 X と同じく pin 前進 1 本 (S) を数える |
-| mocc | 0 | S | S | M | 0 | **4** | 段 2 は修理 X (`f4a5169e`) を pin に入れるまで rr95 で stock が G2 を出す。段 4 は md_10 (並走中) の設計次第で L に上がりうる |
+| mocc | 0 | S | S | M | 0 | **4** | 段 2 は修理 X (`f4a5169e`) を pin に入れるまで rr95 で stock が G2 を出す。段 4 は md_10 の設計 (`output/insights/2026-09-30/gen-opt-mocc-policy-axis/README.md`、2026-09-30 着地) が検査器を核と表に分けて共有する形で、判定器の意味は変えない (M のまま)。実装 5 単位で、骨格の実証の計算は 2 node 時間を超えうる |
 | cicada | S | **L** | S | L (S) | S | **9** (7) | 中間案 M (D2305 項 4) は certified ではない。certified には判定器の protocol 別の門 (案 A) が要る |
 | tictoc | M | M | S | L (S) | S | **9** (7) | 単版・sort 後施錠で Silo の X/P を移せる見込み (未実証)。判定器の意味は変えない |
 | ermia | M | **L** | S | L (S) | S | **10** (8) | stock の readers bitmap の int shift (48 thread で未定義動作) を先に確かめる必要 |
