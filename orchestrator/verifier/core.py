@@ -52,10 +52,23 @@ def _gate_d5(ccbench_root: Optional[str | os.PathLike[str]]) -> str:
             (root / "cc/silo/ycsb_silo.cc").read_text())
     except Exception:
         return "unavailable"
+    driver_dir = root / "cc/silo"
+    expected_include = (root / "include/ycsb.hh").resolve()
+    includes_ycsb = False
+    for match in re.finditer(r'^[ \t]*#[ \t]*include[ \t]*"([^"\r\n]+)"[ \t]*$', driver, re.M):
+        include_path = Path(match.group(1))
+        if include_path.is_absolute():
+            continue
+        try:
+            if (driver_dir / include_path).resolve(strict=True) == expected_include:
+                includes_ycsb = True
+                break
+        except (OSError, RuntimeError):
+            continue
     if (GATE_EMITTER_CALLS[0] in _literal_trace_regions(ycsb)
             and all(call in _literal_trace_regions(transaction)
                     for call in GATE_EMITTER_CALLS[1:])
-            and re.search(r'^\s*#\s*include\s*[<"]ycsb\.hh[>"]', driver, re.M)):
+            and includes_ycsb):
         return "pass"
     return "fail"
 

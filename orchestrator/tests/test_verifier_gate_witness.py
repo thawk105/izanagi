@@ -32,7 +32,7 @@ def _source(root: Path, gate: bool = True) -> Path:
            if gate else "") + "#endif\n")
     (root / "include/ycsb.hh").write_text(
         "#if TRACE\n" + ("izanagi_trace::emit_steps(0);\n" if gate else "") + "#endif\n")
-    (silo / "ycsb_silo.cc").write_text('#include "ycsb.hh"\n')
+    (silo / "ycsb_silo.cc").write_text('#include "../../include/ycsb.hh"\n')
     return root
 
 
@@ -179,6 +179,16 @@ def test_gate_real_u1_emitter_names_d5_pass(tmp_path):
     assert res.integrity.gate_d5 == "pass"
     assert res.integrity.gate_unreachable == 0
     assert res.certified
+
+
+def test_gate_wrong_include_target_d5_fails(tmp_path):
+    res = _run(tmp_path, _write_trace(), _write_gate(), require=True)
+    (tmp_path / "source/cc/silo/ycsb_silo.cc").write_text('#include "ycsb.hh"\n')
+    res = verify_trace_dir(res.trace_dir, protocol="silo",
+                           ccbench_root=tmp_path / "source",
+                           require_gate_witness=True)
+    assert res.integrity.gate_d5 == "fail"
+    assert not res.certified
 
 
 def test_gate_q_thread_mismatch_is_d1c(tmp_path):
