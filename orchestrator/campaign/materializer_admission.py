@@ -125,6 +125,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "VHash forwarding smoke and measurement builds are diagnostic only and ineligible for certified selection",
         ),
+    "orchestrator.campaign.vhash_interval_gc._build_variant":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "VHash interval GC smoke, measurement, and trace builds are diagnostic only and ineligible for certified selection",
+        ),
     "orchestrator.campaign.s8a_trigger_coverage._build":
         MaterializerRegistration(
             ADMITTED_GATEWAY,
