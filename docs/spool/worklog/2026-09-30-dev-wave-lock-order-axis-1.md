@@ -16,7 +16,7 @@ title: [T-2886] gen-opt md_13: 段 A の軸 silo-lock-order-policy の受理文�
 - 事前登録の変異 M1〜M6 は独立 clone (2148b469a) で KILLED 6 / 6 (期待 node と完全一致)。1 回目は M5 の期待に login 自走の実行順依存の巻き添え node を入れていて MISMATCH、erratum で直して再走した (一次資料 §3.1)。
 - 段 6 の review-a 所見 1 (`-DSILO_ORDER_VARIANT=foo` が `#if` で 0 と評価される) は nit に降格: identity の前処理が `-Werror=undef` で走るので fail-closed で止まる。最初の降格理由 (「STOCK として記録」) は焦点再レビューで誤りと分かり、裁定 file に訂正を追記した。
 - 並行で着地した MOCC 版の軸の設計 (gen-opt-mocc-policy-axis §4.3) の「核 + 表」の核の最初の形がこの wave の `PolicyProfile`。同設計の凍結写しとの全 field 差分 test と、compile・IR module の表の分離はこの wave では作っていない。
-- 実装子の起動器の終端 commit が `worktree-commit failed reason=add-all` で 3 回失敗した (成果は未 commit で木に残り、親が所有 path 限定で取り出した)。同じ producer で 3 例、原因未調査。
+- 子の終端 commit が `worktree-commit failed reason=add-all` で 3 回失敗した。原因は子木の gitdir に 0 byte の `index.lock` が残っていたこと (F1078 の再発、failures fragment に記録)。成果は未 commit で木に残り、親が所有 path 限定で取り出した。lock は生存 process 0 件を確かめてから消した。
 - エージェント工数: Codex plan 1・consult 2・author 4 (A・B・C・変異準備)・fix 5 (B 件数・C 起動器・test 2 巡・件数と fixture)・review 2・focus 1。
 
 ## 次の一手差分
