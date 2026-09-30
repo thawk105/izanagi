@@ -263,5 +263,40 @@ def test_output_replace_failure_removes_this_runs_products(tmp_path, monkeypatch
         plot.run("k", prefix, sources)
     assert_empty(prefix)
 
+def test_m8_hot_block_write_wait_and_hold_and_v1(tmp_path, monkeypatch):
+    from tools.plotting import plot_vhash_cicada_hot_block as hot
+
+    captured = []
+    monkeypatch.setattr(hot, "_save",
+                        lambda fig, path, payload, source: captured.append(
+                            (path.name, fig.axes[-1], payload)))
+    source = tmp_path / "aggregate.json"
+    new = {"schema": "vhash-hot-aggregate/v2", "pin": "pin",
+           "conditions": {}, "disqualified_arms": [],
+           "cells": {"ro0-gc10": {"B-k1/stock": {"points": [{"ratio": .7}]},
+                                  "post-k1/stock": {"points": [{"ratio": .9}]}}},
+           "count": [
+               {"cell": "ro0-gc10", "arm": "B-k1", "count": {
+                   "install_wait_cycles_per_update_commit": 7,
+                   "install_hold_cycles_per_update_commit": 21}},
+               {"cell": "ro0-gc10", "arm": "post-k1", "count": {},
+                "post_count": {"publish_wait_cycles_per_update_commit": 10,
+                               "publish_hold_cycles_per_update_commit": 15}}]}
+    hot.make_figures(new, source, tmp_path)
+    assert [p.get_height() for p in captured[-1][1].patches] == [7, 10, 21, 15]
+    labels = captured[0][1].get_legend_handles_labels()[1]
+    assert any("B-k1" in label for label in labels)
+    assert any("post-k1" in label for label in labels)
+    captured.clear()
+    old = {"schema": "vhash-hot-aggregate/v1", "pin": "pin",
+           "conditions": {}, "disqualified_ks": [],
+           "cells": {"ro0-gc10": {"1": {"points": [{"ratio": .7}]}}},
+           "count": [{"cell": "ro0-gc10", "k": 1, "count": {
+               "install_wait_cycles_per_update_commit": 7,
+               "install_hold_cycles_per_update_commit": 21}}]}
+    hot.make_figures(old, source, tmp_path)
+    assert [p.get_height() for p in captured[-1][1].patches] == [7, 21]
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", *sys.argv[1:]]))

@@ -1,0 +1,130 @@
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -26,2 +26,53 @@
+ 
++namespace {
++struct VHashBreakEvent { uint64_t tx, read_wts; std::string key; };
++std::atomic<uint64_t> vh_break_reached{0}, vh_break_changed{0}, vh_break_committed{0};
++thread_local std::vector<VHashBreakEvent> vh_break_pending;
++struct VHashProbeEvent {
++  unsigned thid;
++  uint64_t id, tx_wts;
++  size_t read_index;
++  Version* pending;
++  Version* older;
++};
++thread_local uint64_t vh_probe_next_id=0;
++thread_local std::vector<VHashProbeEvent> vh_probe_pending;
++void vh_probe_end(const char* outcome) {
++  for (const auto& e : vh_probe_pending)
++    fprintf(stderr, "CICADA_B2PROBE stage=end id=%u:%llu outcome=%s\n",
++            e.thid, (unsigned long long)e.id, outcome);
++  vh_probe_pending.clear();
++}
++#line 25
++std::string vh_break_hex(std::string_view key) {
++  static constexpr char digits[] = "0123456789abcdef";
++  std::string out;
++  for (unsigned char c : key) { out += digits[c >> 4]; out += digits[c & 15]; }
++  return out;
++}
++void vh_break_log(const char* stage, uint64_t tx, std::string_view key,
++                  uint64_t read_wts) {
++  fprintf(stderr, "CICADA_BREAK_EVENT slug=skip-pending stage=%s tx_wts=%llu key=%s read_wts=%llu\n",
++          stage, (unsigned long long)tx, vh_break_hex(key).c_str(),
++          (unsigned long long)read_wts);
++}
++void vh_break_commit() {
++  vh_probe_end("commit");
++  for (const auto& e : vh_break_pending) {
++    ++vh_break_committed;
++    vh_break_log("committed", e.tx, e.key, e.read_wts);
++  }
++  vh_break_pending.clear();
++}
++struct VHashBreakReport {
++  ~VHashBreakReport() {
++    fprintf(stderr, "CICADA_BREAK_FIRED slug=skip-pending reached=%llu changed=%llu committed=%llu\n",
++            (unsigned long long)vh_break_reached.load(),
++            (unsigned long long)vh_break_changed.load(),
++            (unsigned long long)vh_break_committed.load());
++  }
++} vh_break_report;
++}
++#line 25
++
+ #if !defined(CICADA_VHASH_COUNT)
+@@ -96,2 +147,5 @@
+ void TxExecutor::begin() {
++  vh_break_pending.clear();
++  vh_probe_pending.clear();
++#line 35
+ #if CICADA_VHASH_WL
+@@ -229,2 +283,29 @@
+         later_ver=i ? ptr[i-1] : nullptr;
++        VersionStatus pending_read_status=ver->ldAcqStatus();
++        if (pending_read_status == VersionStatus::pending) {
++          uint64_t pending_read_wts=ver->ldAcqWts();
++          ++vh_break_reached;
++          vh_break_log("reached", wts_.ts_, key, ver->ldAcqWts());
++          Version* skipped=ver;
++          Version* older=i+1<n ? ptr[i+1] : ver->ldAcqNext();
++          while (older && older->ldAcqStatus() == VersionStatus::aborted)
++            older=older->ldAcqNext();
++          if (older && older->ldAcqStatus() == VersionStatus::committed) {
++            ver=older;
++            later_ver=skipped;
++            ++vh_break_changed;
++            vh_break_log("changed", wts_.ts_, key, ver->ldAcqWts());
++            vh_break_pending.push_back({wts_.ts_, ver->ldAcqWts(), std::string(key)});
++            uint64_t id=++vh_probe_next_id;
++            vh_probe_pending.push_back({thid_, id, wts_.ts_, read_set_.size(),
++                                        skipped, older});
++            fprintf(stderr, "CICADA_B2PROBE stage=read id=%u:%llu is_ronly=%u tx_wts=%llu rts=%llu p_ptr=%p p_wts=%llu p_status=%u older_ptr=%p older_wts=%llu read_index=%zu\n",
++                    unsigned(thid_), (unsigned long long)id, unsigned(is_ronly_),
++                    (unsigned long long)wts_.ts_, (unsigned long long)rts_,
++                    (void*)skipped, (unsigned long long)pending_read_wts,
++                    unsigned(pending_read_status), (void*)older,
++                    (unsigned long long)older->ldAcqWts(), read_set_.size());
++          }
++        }
++#line 107
+       } else {
+@@ -749,2 +830,3 @@
+       ver = (*itr).rcdptr_->ldAcqLatest();
++    Version* vh_probe_start=ver;
+ 
+@@ -761,2 +843,12 @@
+     }
++    size_t vh_probe_index=size_t(itr-read_set_.begin());
++    for (const auto& e : vh_probe_pending) {
++      if (e.read_index != vh_probe_index) continue;
++      fprintf(stderr, "CICADA_B2PROBE stage=validate id=%u:%llu p_status=%u p_wts=%llu start_ptr=%p reached_ptr=%p reached_eq_older=%u\n",
++              e.thid, (unsigned long long)e.id,
++              unsigned(e.pending->ldAcqStatus()),
++              (unsigned long long)e.pending->ldAcqWts(),
++              (void*)vh_probe_start, (void*)ver, unsigned(ver==e.older));
++    }
++#line 553
+     /**
+@@ -808,2 +900,4 @@
+ #endif // if ADD_ANALYSIS
++  if (!result) vh_probe_end("abort");
++#line 598
+   return result;
+@@ -946,2 +1040,5 @@
+ void TxExecutor::abort() {
++  vh_probe_end("abort");
++  vh_break_pending.clear();
++#line 745
+ #if CICADA_VHASH_COUNT
+@@ -1136,2 +1233,4 @@
+   read_set_.clear();
++  vh_break_commit();
++#line 912
+ #if CICADA_VHASH_COUNT
+@@ -1167,2 +1266,4 @@
+     read_set_.clear();
++    vh_break_commit();
++#line 936
+ #if CICADA_VHASH_COUNT

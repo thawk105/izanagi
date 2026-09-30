@@ -962,6 +962,14 @@ COUNT=1 は終了時に stdout へ `CICADA_VHASH_COUNT_JSON` を 1 行出す。s
 
 壊し patch は本 patch の上にだけ重ねる。`broken-cicada-vhash-stale-hot.patch` は ro の hot 採用で 1 件古い確定版を選ぶ。`broken-cicada-vhash-skip-pending.patch` は hot 採用の PENDING を待たずに後続の確定版へ進む。両方とも stderr に `CICADA_BREAK_EVENT` (reached / changed / committed、tx_wts、key、read_wts) を全件、終了時に `CICADA_BREAK_FIRED` を出す。trace v2 の行は変更しない。
 
+## cicada-vhash-hot-block-post.patch / cicada-vhash-hot-block-count-v2.patch — CAS 後の hot 更新 (2026-09-30)
+
+pin C → `cicada-vhash-hot-block-variant.patch` → `cicada-vhash-hot-block-post.patch` の順に重ねる。post は版列の CAS が成功してから guard を取得して wts 降順の hot に挿入する。同じ pointer は重複させず、満杯で最小より古い版は落とす。reader は seqlock の copy と再確認の後に hit の隣接を acquire load で検証し、失敗時は latest から stock 探索に戻る。cold は hot 末尾から stock 探索を続ける。GC の trim と切断は variant のまま。post の COUNT は `CICADA_VHASH_POST_COUNT_JSON` schema 1 の別行で、hit_adj_ok、adj_fail_head、adj_fail_mid、cold、fallback_odd、fallback_changed、cas_retry、publish_wait_cycles、publish_hold_cycles、publish_count、publish_dropped を thid 0〜255 ごとに出す。variant の `CICADA_VHASH_COUNT_JSON` の行は維持するが、post では variant の install_* は加算されず 0 のままになる。
+
+`cicada-vhash-hot-block-count-v2.patch` は variant または variant + post の最後に重ね、全腕の COUNT build に使う。`CICADA_VHASH_COUNT_JSON` を schema 2 とし、ro の begin で `(max(0,wts−rts) >> 8)` cycles を 42 bucket (0、2^0〜2^39 の各区間、2^40 以上) に数える。`snapshot_lag_cycles`、`snapshot_lag_sum_cycles`、`snapshot_lag_count` を出し、旧 `snapshot_lag_ts` は出さない。性能比較には COUNT=0・TRACE=0 の別 build を使う。
+
+post 用の壊しは trace → variant → post の最後に 1 本ずつ重ねる。`post-stale-hot` と `post-skip-pending` は隣接確認後の hit を壊す。`post-stale-gap` は writer の hot 挿入を thread ごとに 4 回に 1 回省き、reader の隣接失敗を無視する。`reached` は失敗した隣接検査、`changed` は同時点の latest 起点 stock 第 1 段と異なる返却、`committed` はその読取を含む commit。終了時に `CICADA_BREAK_OMITTED` も出す。`skip-pending-probe` は trace → variant の上で B2 と同じ破壊に加え、`CICADA_B2PROBE stage=read|validate|end` で read / validation の P と older を同じ ID に結ぶ。これらの壊しは correctness 診断専用である。
+
 ## instr-cicada-trace.patch / broken-cicada-{skip-read-recheck,no-rts-update,stale-read-ro}.patch — Cicada の trace と正例 (VHash 論文の前提 G0、2026-09-29)
 
 pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 の本来の置き場 (`izanagi-trace` 枝) への移送と pin 前進は
@@ -976,6 +984,10 @@ pin C (`68106660`) の `cc/cicada/` には `#if TRACE` の計装が無い。D16 
 | broken-cicada-stale-read-ro | なし | read-only txn の可視版選択で、txn 内の偶数番目の読みに限り可視版の 1 つ古い committed 版を選ぶ |
 | broken-cicada-vhash-stale-hot | なし | hot から選んだ版の 1 件古い確定版を ro 読みの一部に返す (variant の上だけ) |
 | broken-cicada-vhash-skip-pending | なし | hot から選んだ PENDING 版を待たずに次の確定版へ進む (variant の上だけ) |
+| broken-cicada-vhash-post-stale-hot | なし | post の隣接確認後、ro hit で 1 件古い確定版を返す |
+| broken-cicada-vhash-post-skip-pending | なし | post の隣接確認後、PENDING hit を飛ばす |
+| broken-cicada-vhash-post-stale-gap | なし | writer の hot 更新を 4 回に 1 回省き、reader の隣接失敗を無視する |
+| broken-cicada-vhash-skip-pending-probe | なし | variant の B2 に read / validation / end の事象 ID 計器を加える |
 
 - **重ね方:** md_3 の旧壊し 3 本は pin C → `instr-cicada-trace.patch` → 壊し patch の順に厳密適用する (touch set は壊しが `cc/cicada/transaction.cc` だけ、
   instr が `cc/cicada/` の 4 file)。壊しは裸マクロを持たない無条件 patch なので、既定で重ならず、正例の build にだけ当てる。
