@@ -15,13 +15,16 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from skiputil import Skip, skip
-from orchestrator.campaign import diff_quarantine, source_digest
+from orchestrator.campaign import axis_silo_lock_order, diff_quarantine, source_digest
 from orchestrator.campaign.model import Genome
+from orchestrator.campaign.diff_quarantine import DiffRejectSubtype
+from orchestrator.campaign.silo_lock_order_gate import order_gate
 
 PATCH = ROOT / "patches/silo-lock-order-variant.patch"
-PIN = "68106660"
+PIN = axis_silo_lock_order.PIN
 SOURCE = "cc/silo/transaction.cc"
-API_HEADER = Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/api-header-canonical.hh")
+API_HEADER = ROOT / axis_silo_lock_order.API_HEADER
+HAND = ROOT / axis_silo_lock_order.HAND_POLICY_DIR / "version_desc.cpp"
 API_BEGIN = b"// SILO-LOCK-ORDER-API-BEGIN\n"
 API_END = b"// SILO-LOCK-ORDER-API-END\n"
 HOLE_BEGIN = b"// EVOLVE-BLOCK-BEGIN silo-lock-order-policy\n#if SILO_ORDER_VARIANT\n"
@@ -131,15 +134,7 @@ def test_off_resolves_stock_and_on_is_distinct(applied):
     path = checkout / SOURCE
     original = path.read_bytes()
     default = _between(original, HOLE_BEGIN, HOLE_END)
-    version_desc = (
-        b"struct OrderState { };\n"
-        b"bool order_enabled(OrderState&, const izanagi_silo_order_api::TxnContext&) noexcept { return true; }\n"
-        b"uint64_t order_priority(OrderState&, const izanagi_silo_order_api::EntryContext& e) noexcept {\n"
-        b"  return (static_cast<uint64_t>(e.epoch) << 29u) | static_cast<uint64_t>(e.tid);\n"
-        b"}\n"
-        b"void order_after_abort(OrderState&, const izanagi_silo_order_api::AbortContext&) noexcept { }\n"
-        b"void order_on_commit(OrderState&, const izanagi_silo_order_api::CommitContext&) noexcept { }\n"
-    )
+    version_desc = HAND.read_bytes()
     for body in (default, version_desc):
         path.write_bytes(original.replace(HOLE_BEGIN + default + HOLE_END,
                                           HOLE_BEGIN + body + HOLE_END, 1))
@@ -150,6 +145,40 @@ def test_off_resolves_stock_and_on_is_distinct(applied):
             token = source_digest.resolve(genome, head, str(checkout), cxx)
             assert (token == source_digest.STOCK) == (flag == 0)
     path.write_bytes(original)
+
+
+def test_real_patch_gate_writes_hand_body_only(applied):
+    checkout, _ = applied
+    cxx = _cxx()
+    path = checkout / SOURCE
+    before = path.read_bytes()
+    default = _between(before, HOLE_BEGIN, HOLE_END)
+    body_bytes = HAND.read_bytes()
+    body = body_bytes.decode()
+    expected = before.replace(HOLE_BEGIN + default + HOLE_END,
+                              HOLE_BEGIN + body_bytes + b"\n" + HOLE_END, 1)
+    try:
+        result, _ = order_gate(checkout, body, None, compiler=cxx,
+                               scratch_dir=str(checkout), write=True, origin="initial")
+        assert result.passed, result
+        assert path.read_bytes() == expected
+        assert _between(path.read_bytes(), HOLE_BEGIN, HOLE_END) == body_bytes + b"\n"
+    finally:
+        path.write_bytes(before)
+
+
+def test_real_patch_gate_rejects_forbidden_field_without_write(applied):
+    checkout, _ = applied
+    cxx = _cxx()
+    path = checkout / SOURCE
+    before = path.read_bytes()
+    body = HAND.read_text().replace("struct OrderState {};",
+                                    "struct OrderState { uint64_t write_set_; };", 1)
+    assert body != HAND.read_text()
+    result, _ = order_gate(checkout, body, None, compiler=cxx,
+                           scratch_dir=str(checkout), write=True, origin="initial")
+    assert not result.passed and result.subtype == DiffRejectSubtype.POLICY_GRAMMAR
+    assert path.read_bytes() == before
 
 
 def test_sort_behavior_and_hook_counts(applied):
