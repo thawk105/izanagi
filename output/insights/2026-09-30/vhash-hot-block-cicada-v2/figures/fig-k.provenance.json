@@ -1,0 +1,6954 @@
+{
+  "schema": "vhash-hot-figure-provenance/v1",
+  "aggregate": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-hot-block-v2/extract/aggregate-head.json",
+  "aggregate_sha256": "e35b7d5d15ca0d5591a637bb8abc344622b6f1f574447be8bc42486dfa45d782",
+  "pin": "68106660686232781bca3be792a750d3e19d7a8a",
+  "conditions": {
+    "extime": 3,
+    "max_ope": 10,
+    "threads": 48,
+    "tuples": 1000000,
+    "zipf": 0.9
+  },
+  "figure": "fig-k",
+  "plotted_values": {
+    "ro0-gc10": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.25128449575656037,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.23038383751400834,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.22348259193750036,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.2329141355101924,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.21975169331672756,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.2209920087113628,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.25128449575656037,
+        "median": 0.22693321472575434,
+        "min": 0.21975169331672756,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.25128449575656037,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.23038383751400834,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.22348259193750036,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.2329141355101924,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.21975169331672756,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.2209920087113628,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -40728,
+          -54308,
+          -29608,
+          -29708,
+          -38560,
+          -24364
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.26063511755561536,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.22855094252065222,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.2139944344900299,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.2335382277329195,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.21942431410572538,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.22499958796072383,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.26063511755561536,
+        "median": 0.22677526524068803,
+        "min": 0.2139944344900299,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.26063511755561536,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.22855094252065222,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.2139944344900299,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.2335382277329195,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.21942431410572538,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.22499958796072383,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          94140,
+          71028,
+          79244,
+          100468,
+          95516,
+          89292
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 4.163948631762204,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 4.18999771578084,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 4.0030407595840645,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 4.017855202451431,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 4.192352604813157,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 4.254091288419921,
+              "round": 5
+            }
+          ]
+        },
+        "max": 4.254091288419921,
+        "median": 4.176973173771522,
+        "min": 4.0030407595840645,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 4.163948631762204,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 4.18999771578084,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 4.0030407595840645,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 4.017855202451431,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 4.192352604813157,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 4.254091288419921,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          39256,
+          31380,
+          25632,
+          24560,
+          40200,
+          25536
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.046335732288585,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.965307752936519,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.8946099245833069,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9358152710841041,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9212765838884849,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9401201790694278,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.046335732288585,
+        "median": 0.937967725076766,
+        "min": 0.8946099245833069,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.046335732288585,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.965307752936519,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.8946099245833069,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9358152710841041,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9212765838884849,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9401201790694278,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -1472,
+          -22928,
+          -3976,
+          -5148,
+          1640,
+          1172
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.734836468058914,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.9048162287047963,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.9741214986484596,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.791782316949561,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 3.027977062694118,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.974673904257684,
+              "round": 5
+            }
+          ]
+        },
+        "max": 3.027977062694118,
+        "median": 2.9394688636766277,
+        "min": 2.734836468058914,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.734836468058914,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.9048162287047963,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.9741214986484596,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.791782316949561,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 3.027977062694118,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.974673904257684,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          21764,
+          38516,
+          21076,
+          41480,
+          27044,
+          28080
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.7127944243479188,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.6638984869197676,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.6364454482079173,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.6519878945165042,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6644117901095258,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6693004027754965,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.7127944243479188,
+        "median": 0.6641551385146467,
+        "min": 0.6364454482079173,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.7127944243479188,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.6638984869197676,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.6364454482079173,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.6519878945165042,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6644117901095258,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6693004027754965,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          115904,
+          109544,
+          100320,
+          141948,
+          122560,
+          117372
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro0-gc1000": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.23420854233138666,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.23990746788988593,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.24704115552705735,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.23578997374826094,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.2241549109059049,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.2281877567696125,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.24704115552705735,
+        "median": 0.2349992580398238,
+        "min": 0.2241549109059049,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.23420854233138666,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.23990746788988593,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.24704115552705735,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.23578997374826094,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.2241549109059049,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.2281877567696125,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -22452,
+          -44016,
+          -46244,
+          -59556,
+          -51756,
+          -23256
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.24057238433533423,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.23827261635848984,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.2382706977985651,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.24080032328816142,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.2212634586823741,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.23653889417566626,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.24080032328816142,
+        "median": 0.2382716570785275,
+        "min": 0.2212634586823741,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.24057238433533423,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.23827261635848984,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.2382706977985651,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.24080032328816142,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.2212634586823741,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.23653889417566626,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          90216,
+          74756,
+          87560,
+          74312,
+          81448,
+          89864
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 3.935495528399869,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 3.986037609091082,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 3.8335986845863625,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 4.088101387046384,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 4.182123024129127,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 4.154818106441415,
+              "round": 5
+            }
+          ]
+        },
+        "max": 4.182123024129127,
+        "median": 4.037069498068734,
+        "min": 3.8335986845863625,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 3.935495528399869,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 3.986037609091082,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 3.8335986845863625,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 4.088101387046384,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 4.182123024129127,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 4.154818106441415,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          31196,
+          34064,
+          117240,
+          60412,
+          55588,
+          30296
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9217266710582237,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9562801897108965,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9470566488672221,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.963933318731896,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.937443413871198,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9480786234946357,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.963933318731896,
+        "median": 0.9475676361809289,
+        "min": 0.9217266710582237,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9217266710582237,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9562801897108965,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9470566488672221,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.963933318731896,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.937443413871198,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9480786234946357,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          8744,
+          -9952,
+          70996,
+          856,
+          3832,
+          7040
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.6697141111453333,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.654532250880312,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.7574677937512475,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.7139162182936203,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 3.0302029664324746,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.8576204587010343,
+              "round": 5
+            }
+          ]
+        },
+        "max": 3.0302029664324746,
+        "median": 2.735692006022434,
+        "min": 2.654532250880312,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.6697141111453333,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.654532250880312,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.7574677937512475,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.7139162182936203,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 3.0302029664324746,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.8576204587010343,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          56892,
+          58708,
+          55752,
+          55300,
+          56728,
+          56516
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.6422594892119203,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.6325023446252431,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.6570237753741796,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.6535119027420883,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6704731888624392,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6759383832749029,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.6759383832749029,
+        "median": 0.6552678390581339,
+        "min": 0.6325023446252431,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.6422594892119203,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.6325023446252431,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.6570237753741796,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.6535119027420883,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6704731888624392,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6759383832749029,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          147108,
+          133464,
+          143312,
+          129612,
+          138176,
+          146380
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro0-gc100000": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.387179682914053,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.3796620869869816,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.37543801598539983,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.3836474123966678,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.3667079622110488,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.37018562003246736,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.387179682914053,
+        "median": 0.3775500514861907,
+        "min": 0.3667079622110488,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.387179682914053,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.3796620869869816,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.37543801598539983,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.3836474123966678,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.3667079622110488,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.37018562003246736,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -402692,
+          -319888,
+          -201364,
+          -267312,
+          -506772,
+          -438080
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.3673300921039124,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.36014680000381405,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.3636616800494894,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.3660673818577141,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.3560092577285502,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.35056222168165097,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.3673300921039124,
+        "median": 0.3619042400266517,
+        "min": 0.35056222168165097,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.3673300921039124,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.36014680000381405,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.3636616800494894,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.3660673818577141,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.3560092577285502,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.35056222168165097,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -384020,
+          -108704,
+          -36684,
+          -266988,
+          -318392,
+          -371372
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.540640866308968,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.5118997106529672,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.6741877033991783,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.5140937646746977,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.641466515479504,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.5294886787290993,
+              "round": 5
+            }
+          ]
+        },
+        "max": 2.6741877033991783,
+        "median": 2.535064772519034,
+        "min": 2.5118997106529672,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.540640866308968,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.5118997106529672,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.6741877033991783,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.5140937646746977,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.641466515479504,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.5294886787290993,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          402428,
+          266476,
+          229364,
+          209908,
+          441264,
+          322356
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9836845250159911,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9536730864485008,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0039917257367403,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9645255673400448,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9686468031402086,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9363803349004384,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0039917257367403,
+        "median": 0.9665861852401267,
+        "min": 0.9363803349004384,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9836845250159911,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9536730864485008,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0039917257367403,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9645255673400448,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9686468031402086,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9363803349004384,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -264,
+          -53412,
+          28000,
+          -57404,
+          -65508,
+          -115724
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.2587403867927502,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.283632274498219,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.2619704260892415,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.192278024945533,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.3336726372836054,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.32320561695282,
+              "round": 5
+            }
+          ]
+        },
+        "max": 2.3336726372836054,
+        "median": 2.2728013502937303,
+        "min": 2.192278024945533,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.2587403867927502,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.283632274498219,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.2619704260892415,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.192278024945533,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.3336726372836054,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.32320561695282,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          238336,
+          -63248,
+          -100012,
+          51276,
+          116620,
+          147328
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.8297033143194076,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.8224428560459651,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.822591965373873,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.8025214768960116,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.8308090633807644,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.8144281225022713,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.8308090633807644,
+        "median": 0.8225174107099191,
+        "min": 0.8025214768960116,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.8297033143194076,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.8224428560459651,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.822591965373873,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.8025214768960116,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.8308090633807644,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.8144281225022713,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -145684,
+          -171952,
+          -136696,
+          -215712,
+          -201772,
+          -224044
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro50-gc10": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.6219311340659502,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.5751633302422295,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.6506880156531724,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.5812000193329302,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6793906869402944,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6282199548720383,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.6793906869402944,
+        "median": 0.6250755444689943,
+        "min": 0.5751633302422295,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.6219311340659502,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.5751633302422295,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.6506880156531724,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.5812000193329302,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6793906869402944,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6282199548720383,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -37504,
+          -27968,
+          -25764,
+          -40060,
+          -24768,
+          -44568
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.35357725001869184,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.3559115931625038,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.3399799806071568,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.34256011380550083,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.3239924838874718,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.33602368011213635,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.3559115931625038,
+        "median": 0.3412700472063288,
+        "min": 0.3239924838874718,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.35357725001869184,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.3559115931625038,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.3399799806071568,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.34256011380550083,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.3239924838874718,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.33602368011213635,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          78912,
+          75936,
+          104168,
+          90436,
+          106888,
+          103620
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.5706498390414119,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.6721760477000012,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.482952261459564,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.667908603083451,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.4142962711339162,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.5346663636163675,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.6721760477000012,
+        "median": 1.5526581013288898,
+        "min": 1.4142962711339162,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.5706498390414119,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.6721760477000012,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.482952261459564,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.667908603083451,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.4142962711339162,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.5346663636163675,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          44820,
+          31772,
+          31964,
+          50136,
+          10476,
+          29500
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9768360356155275,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.961774344346422,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9649392643175082,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9693885123576622,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9608597151827681,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9641080336947095,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9768360356155275,
+        "median": 0.9645236490061089,
+        "min": 0.9608597151827681,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9768360356155275,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.961774344346422,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9649392643175082,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9693885123576622,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9608597151827681,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9641080336947095,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          7316,
+          3804,
+          6200,
+          10076,
+          -14292,
+          -15068
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.4283157098707417,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.378071772966472,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.4143458782008618,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.391195111790029,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.6401677965764727,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.554628506635494,
+              "round": 5
+            }
+          ]
+        },
+        "max": 2.6401677965764727,
+        "median": 2.4213307940358018,
+        "min": 2.378071772966472,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.4283157098707417,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.378071772966472,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.4143458782008618,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.391195111790029,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.6401677965764727,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.554628506635494,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          42400,
+          40264,
+          -2364,
+          20524,
+          5872,
+          -9656
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.8585971908732845,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.8463833133712771,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.8208292648496979,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.8191280696259496,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.8553945222925248,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.8584156721190299,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.8585971908732845,
+        "median": 0.850888917831901,
+        "min": 0.8191280696259496,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.8585971908732845,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.8463833133712771,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.8208292648496979,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.8191280696259496,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.8553945222925248,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.8584156721190299,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          121312,
+          116200,
+          101804,
+          110960,
+          112760,
+          93964
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro50-gc1000": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0118960473023824,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.979652739981858,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9685987641965995,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9725943468001342,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9565745797336989,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9396712432694866,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0118960473023824,
+        "median": 0.9705965554983669,
+        "min": 0.9396712432694866,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0118960473023824,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.979652739981858,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9685987641965995,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9725943468001342,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9565745797336989,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9396712432694866,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -5660,
+          -6460,
+          -920,
+          9076,
+          -8648,
+          -7412
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.5069343473008839,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.46166138413104957,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.4685074560480636,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.47616062369364376,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.4978000594672544,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.455837644080915,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.5069343473008839,
+        "median": 0.47233403987085365,
+        "min": 0.455837644080915,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.5069343473008839,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.46166138413104957,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.4685074560480636,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.47616062369364376,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.4978000594672544,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.455837644080915,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          100616,
+          100164,
+          103988,
+          108240,
+          105748,
+          101208
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0090835388514297,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0016259549734876,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0297512487236802,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0090132491948365,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.011885511117196,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0173269655409614,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0297512487236802,
+        "median": 1.0104845249843128,
+        "min": 1.0016259549734876,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0090835388514297,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0016259549734876,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0297512487236802,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0090132491948365,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.011885511117196,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0173269655409614,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -7128,
+          8644,
+          13724,
+          -5876,
+          2756,
+          -1980
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0210876443616619,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9812456112267222,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9974157869436618,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.981360582013333,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.967943957535551,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9559528945214494,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0210876443616619,
+        "median": 0.9813030966200276,
+        "min": 0.9559528945214494,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0210876443616619,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9812456112267222,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9974157869436618,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.981360582013333,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.967943957535551,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9559528945214494,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -12788,
+          2184,
+          12804,
+          3200,
+          -5892,
+          -9392
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.8974502984453663,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.0207669998922793,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.9738160680103078,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.9390153568041304,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.7182866475568843,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.9927527403966308,
+              "round": 5
+            }
+          ]
+        },
+        "max": 2.0207669998922793,
+        "median": 1.9564157124072192,
+        "min": 1.7182866475568843,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.8974502984453663,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.0207669998922793,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.9738160680103078,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.9390153568041304,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.7182866475568843,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.9927527403966308,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          12748,
+          32124,
+          21180,
+          8940,
+          26980,
+          12092
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9618827285782693,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9329100901766181,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.924747544730301,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.923282761647408,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.8553631953356063,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9083717144181874,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9618827285782693,
+        "median": 0.9240151531888545,
+        "min": 0.8553631953356063,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9618827285782693,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9329100901766181,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.924747544730301,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.923282761647408,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.8553631953356063,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9083717144181874,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          113364,
+          132288,
+          125168,
+          117180,
+          132728,
+          113300
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro50-gc100000": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9967876740131588,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9975916023437583,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9948375534517937,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9939971922820766,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9912646195288806,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9927687264163307,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9975916023437583,
+        "median": 0.9944173728669352,
+        "min": 0.9912646195288806,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9967876740131588,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9975916023437583,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9948375534517937,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9939971922820766,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9912646195288806,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9927687264163307,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -3360,
+          -3548,
+          -2224,
+          368,
+          -9192,
+          -4388
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9757771151949833,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9690218147870164,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9709200744220953,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9754567395909586,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9726126684818945,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.966480246265201,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9757771151949833,
+        "median": 0.9717663714519948,
+        "min": 0.966480246265201,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9757771151949833,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9690218147870164,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9709200744220953,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9754567395909586,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9726126684818945,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.966480246265201,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          119488,
+          112568,
+          111840,
+          117392,
+          104888,
+          102060
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9994355430164074,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0012744385298094,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0081752808503157,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9977506141126256,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0004369522822691,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0005290125750494,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0081752808503157,
+        "median": 1.0004829824286592,
+        "min": 0.9977506141126256,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9994355430164074,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0012744385298094,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0081752808503157,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9977506141126256,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0004369522822691,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0005290125750494,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          8056,
+          3120,
+          -5268,
+          1536,
+          -1252,
+          8
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.996225030249403,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9988629715187994,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.002970629851703,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9917613090256675,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9916977548667164,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9932939135567207,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.002970629851703,
+        "median": 0.9947594719030619,
+        "min": 0.9916977548667164,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.996225030249403,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9988629715187994,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.002970629851703,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9917613090256675,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9916977548667164,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9932939135567207,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          4696,
+          -428,
+          -7492,
+          1904,
+          -10444,
+          -4380
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0192615988084703,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0207631575510565,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0216084453090954,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0108386464929167,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0088458633957196,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0227967616866551,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0227967616866551,
+        "median": 1.0200123781797634,
+        "min": 1.0088458633957196,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0192615988084703,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0207631575510565,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0216084453090954,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0108386464929167,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0088458633957196,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0227967616866551,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          1288,
+          8240,
+          9200,
+          1812,
+          5136,
+          3516
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9945721425143557,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.98914176739785,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9919001477497479,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.986029370360518,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9812162672842317,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9885128661141686,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9945721425143557,
+        "median": 0.9888273167560093,
+        "min": 0.9812162672842317,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9945721425143557,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.98914176739785,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9919001477497479,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.986029370360518,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9812162672842317,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9885128661141686,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          120776,
+          120808,
+          121040,
+          119204,
+          110024,
+          105576
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro95-gc10": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9779217797581283,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9763000277947755,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9726974914978507,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.94789258526861,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9783704598673942,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9839584588889656,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9839584588889656,
+        "median": 0.9771109037764519,
+        "min": 0.94789258526861,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9779217797581283,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9763000277947755,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9726974914978507,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.94789258526861,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9783704598673942,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9839584588889656,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          352,
+          536,
+          -2264,
+          1620,
+          -124,
+          460
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9802849895367176,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9869036148739835,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9872697150512919,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9789839363313472,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9816226027854106,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9861585107593791,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9872697150512919,
+        "median": 0.9838905567723948,
+        "min": 0.9789839363313472,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9802849895367176,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9869036148739835,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9872697150512919,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9789839363313472,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9816226027854106,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9861585107593791,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          126276,
+          125636,
+          123748,
+          125676,
+          125224,
+          126256
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9980830460533885,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9908714762263829,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0085088702616183,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0398027717766707,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.999333985707718,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9609527210513358,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0398027717766707,
+        "median": 0.9987085158805533,
+        "min": 0.9609527210513358,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9980830460533885,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9908714762263829,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0085088702616183,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0398027717766707,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.999333985707718,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9609527210513358,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -2568,
+          2688,
+          824,
+          -860,
+          -540,
+          -296
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9760471487429435,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9673878497808679,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9809740482568076,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9856213375088547,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9777188511579761,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9455375584708303,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9856213375088547,
+        "median": 0.9768829999504598,
+        "min": 0.9455375584708303,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9760471487429435,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9673878497808679,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9809740482568076,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9856213375088547,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9777188511579761,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9455375584708303,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -2216,
+          3224,
+          -1440,
+          760,
+          -664,
+          164
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9902414916590604,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9862183841475087,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.978842307096645,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9987086417520036,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9880990924079915,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9880892124278265,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9987086417520036,
+        "median": 0.988094152417909,
+        "min": 0.978842307096645,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9902414916590604,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9862183841475087,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.978842307096645,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9987086417520036,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9880990924079915,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9880892124278265,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -1456,
+          -16,
+          -312,
+          -960,
+          88,
+          108
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9707188702898256,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9733024883703553,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9663813656074538,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9777197173505097,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9699404028994347,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9744125862252333,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9777197173505097,
+        "median": 0.9720106793300904,
+        "min": 0.9663813656074538,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9707188702898256,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9733024883703553,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9663813656074538,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9777197173505097,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9699404028994347,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9744125862252333,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          124820,
+          125620,
+          123436,
+          124716,
+          125312,
+          126364
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro95-gc1000": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9821076579927862,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9813614125485753,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0073544098343095,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9830201846951498,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9910073147890923,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9851332031404221,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0073544098343095,
+        "median": 0.984076693917786,
+        "min": 0.9813614125485753,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9821076579927862,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9813614125485753,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0073544098343095,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9830201846951498,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9910073147890923,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9851332031404221,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -1696,
+          1144,
+          -2436,
+          -1288,
+          -1292,
+          -268
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9970337267622303,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9915102010116519,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0253358706352593,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9943078500656597,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9741570767299551,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9817511916958351,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0253358706352593,
+        "median": 0.9929090255386558,
+        "min": 0.9741570767299551,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9970337267622303,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9915102010116519,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0253358706352593,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9943078500656597,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9741570767299551,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9817511916958351,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          126468,
+          126972,
+          123664,
+          124800,
+          128760,
+          126352
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9786617506948321,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0044860447735968,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0077765033460357,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0011600836918715,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9969084165585111,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.003895993072207,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0077765033460357,
+        "median": 1.0025280383820392,
+        "min": 0.9786617506948321,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9786617506948321,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0044860447735968,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0077765033460357,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0011600836918715,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9969084165585111,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.003895993072207,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          1488,
+          256,
+          496,
+          2176,
+          384,
+          -396
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9611511999420215,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9857638437843484,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.01518810477303,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9841605703801951,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.987943532984296,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9889712752750581,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.01518810477303,
+        "median": 0.9868536883843222,
+        "min": 0.9611511999420215,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9611511999420215,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9857638437843484,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.01518810477303,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9841605703801951,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.987943532984296,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9889712752750581,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -208,
+          1400,
+          -1940,
+          888,
+          -908,
+          -664
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9819997235011124,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9883740141390075,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9917815894998503,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9894063748523176,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0147076223648077,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0035826616367447,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0147076223648077,
+        "median": 0.990593982176084,
+        "min": 0.9819997235011124,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9819997235011124,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9883740141390075,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9917815894998503,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9894063748523176,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0147076223648077,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0035826616367447,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -704,
+          -788,
+          -272,
+          -72,
+          -2232,
+          -944
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9790868440017939,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9799829174336605,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0169092395498502,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9837745254206661,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9884846111385044,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9852684740271522,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0169092395498502,
+        "median": 0.9845214997239091,
+        "min": 0.9790868440017939,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9790868440017939,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9799829174336605,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0169092395498502,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9837745254206661,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9884846111385044,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9852684740271522,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          125764,
+          126184,
+          123392,
+          124728,
+          126528,
+          125408
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "ro95-gc100000": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.994053791417197,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9996212404579313,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9961153118589975,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9947005643306539,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9920983219807074,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9984255294576942,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9996212404579313,
+        "median": 0.9954079380948258,
+        "min": 0.9920983219807074,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.994053791417197,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9996212404579313,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9961153118589975,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9947005643306539,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9920983219807074,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9984255294576942,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -1700,
+          -3776,
+          -536,
+          -636,
+          -2732,
+          280
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0053086110153286,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0079564649696144,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0077937768034253,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0073131334535574,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0073594428087347,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0012625264085502,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0079564649696144,
+        "median": 1.007336288131146,
+        "min": 1.0012625264085502,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0053086110153286,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0079564649696144,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0077937768034253,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0073131334535574,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0073594428087347,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0012625264085502,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          125404,
+          123188,
+          124084,
+          125180,
+          124308,
+          126672
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0034050942707822,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9977473348650869,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.001226040163493,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0034765673624317,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.005093075007506,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0018466416738778,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.005093075007506,
+        "median": 1.00262586797233,
+        "min": 0.9977473348650869,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0034050942707822,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9977473348650869,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.001226040163493,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0034765673624317,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.005093075007506,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0018466416738778,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          348,
+          408,
+          -2396,
+          4428,
+          932,
+          -456
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.997438638287201,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9973694285414332,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.997336589238807,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9981587078479984,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.997151153149376,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0002692636486543,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0002692636486543,
+        "median": 0.997404033414317,
+        "min": 0.997151153149376,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.997438638287201,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9973694285414332,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.997336589238807,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9981587078479984,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.997151153149376,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0002692636486543,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -1352,
+          -3368,
+          -2932,
+          3792,
+          -1800,
+          -176
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.005469538062416,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0016851947656678,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9941540871259235,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0009397908374127,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.994003511669795,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0071778920548593,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0071778920548593,
+        "median": 1.0013124928015402,
+        "min": 0.994003511669795,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.005469538062416,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0016851947656678,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9941540871259235,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0009397908374127,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.994003511669795,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0071778920548593,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -1836,
+          360,
+          -1000,
+          3272,
+          240,
+          1004
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0108071847277516,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0096550679284022,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.001902302189196,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0082597971067828,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.00131882366561,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0084494807416864,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0108071847277516,
+        "median": 1.0083546389242346,
+        "min": 1.00131882366561,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0108071847277516,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0096550679284022,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.001902302189196,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0082597971067828,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.00131882366561,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0084494807416864,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          123568,
+          123548,
+          123084,
+          128452,
+          124548,
+          127676
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "rr5": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.6701585451216169,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.7146850039612916,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.7033012110713999,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.7133503812238761,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6777505390838547,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.685156488397702,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.7146850039612916,
+        "median": 0.694228849734551,
+        "min": 0.6701585451216169,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.6701585451216169,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.7146850039612916,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.7033012110713999,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.7133503812238761,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6777505390838547,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.685156488397702,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -53768,
+          -16828,
+          -28228,
+          -21500,
+          -22392,
+          -39304
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.5299701824098397,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.5548439772764852,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.5543177765109157,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.5416951067385318,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.5248753884817768,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.537463901750848,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.5548439772764852,
+        "median": 0.5395795042446899,
+        "min": 0.5248753884817768,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.5299701824098397,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.5548439772764852,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.5543177765109157,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.5416951067385318,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.5248753884817768,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.537463901750848,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          80088,
+          103744,
+          73480,
+          109856,
+          115564,
+          80072
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.4325967640727886,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.4629430257656173,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.431917704475514,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.394463658865741,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.438070471118229,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.4409686116484612,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.4629430257656173,
+        "median": 1.435333617595509,
+        "min": 1.394463658865741,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.4325967640727886,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.4629430257656173,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.431917704475514,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.394463658865741,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.438070471118229,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.4409686116484612,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          53812,
+          42948,
+          29184,
+          37124,
+          17556,
+          43404
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9600669631569562,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.045543442164444,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.007069455712208,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9947411826547174,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9746530370409527,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9872889938483719,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.045543442164444,
+        "median": 0.9910150882515447,
+        "min": 0.9600669631569562,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9600669631569562,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.045543442164444,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.007069455712208,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9947411826547174,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9746530370409527,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9872889938483719,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          44,
+          26120,
+          956,
+          15624,
+          -4836,
+          4100
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.6068444387156822,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.5623224051743314,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.5850428149853686,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.627975787316882,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.7014232527847344,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.5564235568267468,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.7014232527847344,
+        "median": 1.5959436268505254,
+        "min": 1.5564235568267468,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.6068444387156822,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.5623224051743314,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.5850428149853686,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.627975787316882,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.7014232527847344,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.5564235568267468,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          33736,
+          27516,
+          61980,
+          25132,
+          23504,
+          57796
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.8515796402903866,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.8668451770750903,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.8786174088772922,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.8818665178783637,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.893035190777316,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.8365214776290361,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.893035190777316,
+        "median": 0.8727312929761912,
+        "min": 0.8365214776290361,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.8515796402903866,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.8668451770750903,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.8786174088772922,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.8818665178783637,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.893035190777316,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.8365214776290361,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          113824,
+          131260,
+          135460,
+          134988,
+          139068,
+          137868
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "rr50": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.23287289005806233,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.22387727307033453,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.22661716580772145,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.22489627126567963,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.21993207834328868,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.21995796656078762,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.23287289005806233,
+        "median": 0.22438677216800706,
+        "min": 0.21993207834328868,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.23287289005806233,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.22387727307033453,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.22661716580772145,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.22489627126567963,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.21993207834328868,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.21995796656078762,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -40936,
+          -42968,
+          -47920,
+          -51356,
+          -40208,
+          -48864
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.23440022102739358,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.2266689384981669,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.2234109127752779,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.227863755272376,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.21611364218214943,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.2145679051165016,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.23440022102739358,
+        "median": 0.2250399256367224,
+        "min": 0.2145679051165016,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.23440022102739358,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.2266689384981669,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.2234109127752779,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.227863755272376,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.21611364218214943,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.2145679051165016,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          51908,
+          35372,
+          97016,
+          76756,
+          55784,
+          102000
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 4.423527149578737,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 4.073234299957988,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 4.126999143338274,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 4.227911692625937,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 4.405919351726799,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 4.357491122870702,
+              "round": 5
+            }
+          ]
+        },
+        "max": 4.423527149578737,
+        "median": 4.29270140774832,
+        "min": 4.073234299957988,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 4.423527149578737,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 4.073234299957988,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 4.126999143338274,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 4.227911692625937,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 4.405919351726799,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 4.357491122870702,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          66672,
+          24184,
+          62784,
+          54424,
+          48620,
+          56396
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.030119551572703,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9119045876511473,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.935248849154214,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9508415749121414,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9690030000381901,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9584648866933226,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.030119551572703,
+        "median": 0.954653230802732,
+        "min": 0.9119045876511473,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.030119551572703,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9119045876511473,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.935248849154214,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9508415749121414,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9690030000381901,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9584648866933226,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          25736,
+          -18784,
+          14864,
+          3068,
+          8412,
+          7532
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.861369900753865,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 2.7846753810218092,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.7386229572735243,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 2.708399806395243,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 3.2075483800029323,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 2.970310424912499,
+              "round": 5
+            }
+          ]
+        },
+        "max": 3.2075483800029323,
+        "median": 2.823022640887837,
+        "min": 2.708399806395243,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.861369900753865,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 2.7846753810218092,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.7386229572735243,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 2.708399806395243,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 3.2075483800029323,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 2.970310424912499,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          75384,
+          59952,
+          26864,
+          40116,
+          87208,
+          17008
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.6707057371778372,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.631199412678192,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.611838254631809,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.6171461506641962,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6931949628778867,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.6373332854191806,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.6931949628778867,
+        "median": 0.6342663490486863,
+        "min": 0.611838254631809,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.6707057371778372,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.631199412678192,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.611838254631809,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.6171461506641962,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6931949628778867,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.6373332854191806,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          127292,
+          95324,
+          123880,
+          116872,
+          142992,
+          119008
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    },
+    "rr95": {
+      "B-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9902823006521138,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9840277989088089,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9737673175145842,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9768653419030355,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9753301060261151,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9809268046612468,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9902823006521138,
+        "median": 0.9788960732821412,
+        "min": 0.9737673175145842,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9902823006521138,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9840277989088089,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9737673175145842,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9768653419030355,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9753301060261151,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9809268046612468,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          216,
+          596,
+          -3064,
+          372,
+          -3064,
+          804
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "B-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9457898261601313,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9313277141695321,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9171338304311513,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9189125221892319,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9578885276155072,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9587247107352651,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9587247107352651,
+        "median": 0.9385587701648317,
+        "min": 0.9171338304311513,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9457898261601313,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9313277141695321,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9171338304311513,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9189125221892319,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9578885276155072,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9587247107352651,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          124244,
+          124664,
+          123564,
+          119592,
+          122444,
+          123428
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      },
+      "post-k1/B-k1": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.00953767571959,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0039392564204894,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0048887214247906,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.001419375866951,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0042355781288164,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9983746402076397,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.00953767571959,
+        "median": 1.0040874172746528,
+        "min": 0.9983746402076397,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.00953767571959,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0039392564204894,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0048887214247906,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.001419375866951,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0042355781288164,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9983746402076397,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          1668,
+          1356,
+          3640,
+          -448,
+          1084,
+          2008
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k1/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9997272921065832,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9879041367336006,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9785277946624786,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9782518809945935,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9794611928915754,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9793324456737019,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9997272921065832,
+        "median": 0.9793968192826387,
+        "min": 0.9782518809945935,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9997272921065832,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9879041367336006,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9785277946624786,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9782518809945935,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9794611928915754,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9793324456737019,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          1884,
+          1952,
+          576,
+          -76,
+          -1980,
+          2812
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/B-k8": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0219725584615023,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 1.0108213863837596,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.034232745200337,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 1.0440682476037453,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9979327663432472,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 1.0036979718112136,
+              "round": 5
+            }
+          ]
+        },
+        "max": 1.0440682476037453,
+        "median": 1.016396972422631,
+        "min": 0.9979327663432472,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0219725584615023,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 1.0108213863837596,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.034232745200337,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 1.0440682476037453,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9979327663432472,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 1.0036979718112136,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          -4376,
+          7300,
+          -5496,
+          -4,
+          -1184,
+          -812
+        ],
+        "tuple_delta_bytes_for_1m": 0
+      },
+      "post-k8/stock": {
+        "by_node": {
+          "bnode064": [
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9665712484077288,
+              "round": 0
+            },
+            {
+              "job_index": 0,
+              "node": "bnode064",
+              "ratio": 0.9414059712144641,
+              "round": 1
+            }
+          ],
+          "bnode068": [
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.94852983916291,
+              "round": 2
+            },
+            {
+              "job_index": 1,
+              "node": "bnode068",
+              "ratio": 0.9594073867432491,
+              "round": 3
+            }
+          ],
+          "bnode072": [
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.9559083482118031,
+              "round": 4
+            },
+            {
+              "job_index": 2,
+              "node": "bnode072",
+              "ratio": 0.962270047690278,
+              "round": 5
+            }
+          ]
+        },
+        "max": 0.9665712484077288,
+        "median": 0.9576578674775261,
+        "min": 0.9414059712144641,
+        "points": [
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9665712484077288,
+            "round": 0
+          },
+          {
+            "job_index": 0,
+            "node": "bnode064",
+            "ratio": 0.9414059712144641,
+            "round": 1
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.94852983916291,
+            "round": 2
+          },
+          {
+            "job_index": 1,
+            "node": "bnode068",
+            "ratio": 0.9594073867432491,
+            "round": 3
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.9559083482118031,
+            "round": 4
+          },
+          {
+            "job_index": 2,
+            "node": "bnode072",
+            "ratio": 0.962270047690278,
+            "round": 5
+          }
+        ],
+        "rss_delta_kb": [
+          119868,
+          131964,
+          118068,
+          119588,
+          121260,
+          122616
+        ],
+        "tuple_delta_bytes_for_1m": 128000000
+      }
+    }
+  },
+  "disqualified_ks": [],
+  "caption": "Exploratory same-time comparison; short YCSB transactions; 48 threads, 1M tuples, skew 0.9, extime 3 s. Dots show every paired-round ratio; bars show minimum to maximum; markers show medians. No significance claim."
+}
