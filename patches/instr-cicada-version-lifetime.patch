@@ -267,8 +267,8 @@ index efcf02d..e77a532 100644
 +  uint64_t scan_started = rdtscp();
 +  for (size_t key_id = 0; key_id < 8; ++key_id) {
 +    SimpleKey<8> key;
-+    YCSB::CreateKey(key_id, key.ptr());
-+    Tuple* tuple = Masstrees[get_storage(Storage::YCSB)].get_value(key.view());
++    assign_as_bigendian(static_cast<uint64_t>(key_id), key.ptr());
++    Tuple* tuple = Masstrees[0].get_value(key.view()); // YCSB is storage 0; other workloads may be missing/unavailable.
 +    if (!tuple) { vlife_hot_chains[key_id].status = 1; continue; }
 +    Version* ver = tuple->ldAcqLatest();
 +    size_t length = 0;
