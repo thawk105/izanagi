@@ -252,6 +252,7 @@ GC 間隔は §4.2 どおり R の中央値だけで選んだ: P1 100 µs・P2 1
   2 回目は M1・M2 の期待 node を dispatch の観測に改め、M8 は自走 probe の KILLED (期待 node と完全一致) を証拠に本走から外したが、親が同じ木から集計のために import して `__pycache__` を作ったため harness の復元検査が 8 本目の後で停止した (M1・M2・M9〜M14 は KILLED)。
   3 回目は残り 12 本 (M15〜M25b) で完走: KILLED 11・SURVIVED 1 (M25、登録どおり)。
   本走の合計: 26 本すべて登録どおり (M0・M3〜M7 は 1 回目、M1・M2・M9〜M14 は 2 回目、M15〜M25b は 3 回目)、M8 は自走 probe のみ。
+  **追記 (受入 2 回目の後):** subTest は受入の junit 合成も壊した (§12)。subTest を外した commit 9ea29f9df で、test が変わった M1・M2・M8 と等価対照 M0 を 4 回目の本走で取り直し (`mutation/ledger-sub.json`、spec sha256 `e2a29d54…`)、M0 生存・M1・M2・M8 KILLED で期待 node と完全一致した。M8 も dispatch の本走で KILLED になった。
 
 ## 10. main 取り込み後の確認
 
@@ -265,3 +266,8 @@ GC 間隔は §4.2 どおり R の中央値だけで選んだ: P1 100 µs・P2 1
 - **残る研究の芽:** 長い読み手が R に課す費用は大きい (R−LR / R が 1.5〜2.0)。これを取り戻すには長い読み手そのものの版保持を攻める機構が要り、今の VHash の構成 (read-write tx の前進、通常 worker の hot) はそれに触れない。
 - **比較相手の修正の効果:** stock に比べ修正入りの R は 2.6〜7.9 倍 (長い読み手あり)。論文で修正の効果と本案の効果を分けて書く方針 (D2322 項 2) の裏付けになる。
 - **限界:** 探索 (小標本)、判定の上限は indeterminate、U0 の実物 (構成 E) は欠測、区間 GC の SOTA は未比較、図はこの版では載せていない (§8)。
+
+## 12. 受入全走の記録
+
+- **1 回目** (2026-10-01 05:02〜05:31、tested main 0c56385b9、tested tip bbfc29a33): 赤 1 件 `orchestrator/tests/test_plot_b7_fixed5_regression.py::test_real_figure_passes_layout_check` (作図の文字の重なり)。本 wave も受入中の取り込み分 (docs・insight だけ) もこの test と作図器に触れておらず、計算ノードで同 file を単独再走して 42 passed (非再現) → 非帰属と判定した (DW-O18)。
+- **2 回目** (05:36〜06:03、tested tip 7ccb516e7): 3 shard とも赤 0 件 (4,319・12,121・12,338 件) だったが、受入の junit 合成が件数照合で落ちて受領証が出なかった (`acceptance shard gate failed: junit`、`dispatch-attestation-missing`)。shard-1 の suite 属性 `tests` は 12,136 で testcase 要素数 12,121 より 15 多く、差は本 wave の `orchestrator/tests/test_vhash_ceiling_vs_sota.py` の `subTest` 15 個 (pytest が subtest を `tests` に数える)。**本 wave に帰属する欠陥**で、Codex の fix (9ea29f9df、`subTest` を外すだけで検査の中身は不変) で直した。計算ノードの単独走 35 passed、subtest 表示なし。変異は §9 の追記のとおり取り直した。

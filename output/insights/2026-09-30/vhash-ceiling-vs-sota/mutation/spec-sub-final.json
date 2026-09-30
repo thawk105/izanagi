@@ -1,0 +1,76 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "M0-docstring-equivalent",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "Paired Cicada ceiling experiment",
+     "new": "Matched Cicada ceiling experiment"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-perf-define-exact",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "        if actual != expected:\n",
+     "new": "        if not expected.items() <= actual.items():\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-pair-pooled-not-same-round-node",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "key = (row[\"round\"], row[\"node\"], row[\"job_id\"])",
+     "new": "key = (0, \"\", \"\")"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-manifest-binary-sha-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "if any(manifest.get(key) != value for key, value in expected.items()):",
+     "new": "if any(manifest.get(key) != value for key, value in expected.items() if key == \"binary_sha256\"):"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

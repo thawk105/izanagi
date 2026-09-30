@@ -23,4 +23,4 @@ seq: 3
 
 ### F71
 
-- **再発: 2026-10-01** — md_42 の変異本走 1 回目で、`unittest` の `subTest` を使う test の失敗が pytest の `FAILED` 行に出ない (`-rf` の要約に test 名が載らない) ため、M1・M2 は他の test の赤だけが抽出されて node の不一致 (MISMATCH)、M8 は抽出 0 件で harness が停止した。login の自走 probe (`python3 <test>` の unittest 出力) では KILLED と完全一致だった。期待 node を dispatch の観測に改め、M8 は自走 probe の結果を証拠に本走から外した。
+- **再発: 2026-10-01** — md_42 の変異本走 1 回目で、`unittest` の `subTest` を使う test の失敗が pytest の `FAILED` 行に出ない (`-rf` の要約に test 名が載らない) ため、M1・M2 は他の test の赤だけが抽出されて node の不一致 (MISMATCH)、M8 は抽出 0 件で harness が停止した。login の自走 probe (`python3 <test>` の unittest 出力) では KILLED と完全一致だった。期待 node を dispatch の観測に改め、M8 は自走 probe の結果を証拠に本走から外した。同じ subTest は受入全走の junit 合成も壊した (pytest が subtest 15 個を suite の `tests` 属性に数え、`tools/acceptance_shards.py` の件数照合 `junit-tests` で受領証が出ない)。subTest を外して (9ea29f9df) M1・M2・M8 を取り直し、dispatch の本走で登録どおりになった。新しい test で subTest を使わない。
