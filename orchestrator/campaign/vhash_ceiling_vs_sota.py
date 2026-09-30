@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Paired Cicada ceiling experiment. All measurement jobs run on one isolated node."""
+"""Paired Cicada ceiling experiment. All measurement jobs run on one isolated node.
+
+Plans above 7,200 node seconds require consultation with the land coordinator
+and an explicit GO before submission, even when --allow-over-budget is used.
+"""
 from __future__ import annotations
 
 import argparse
@@ -112,7 +116,7 @@ def _definitions(row: dict) -> dict[str, str]:
 
 def expected_perf_defines(arm: str) -> dict[str, str]:
     tree = {"S": "base", "R": "base", "R-noLR": "base", "hot1": "hot",
-            "hot8": "hot", "fwd": "fwd", "igc1": "igc", "igc3": "igc"}[arm]
+            "hot8": "hot", "fwd": "fwd", "igc": "igc", "igc1": "igc", "igc3": "igc"}[arm]  # M24
     key = "R" if arm == "R-noLR" else "igc" if arm.startswith("igc") else arm
     result = {"ADD_ANALYSIS": "0", "BACK_OFF": "0", "KEY_SIZE": "8",
               "BOOST_ALL_NO_LIB": "1", "BOOST_FILESYSTEM_DYN_LINK": "1",
@@ -503,14 +507,18 @@ def aggregate(rows: list[dict], witnesses: dict | None = None) -> dict:
     next_arm = max(next_candidates, key=lambda a: (summary[rep][a]["ratio"], -M_ARMS.index(a))) \
         if next_candidates else None
     diagnostics = aggregate_diagnostics(rows)
+    residual_ratio = summary.get(rep, {}).get("R-noLR", {}).get("ratio")
     fallback = not summary.get(rep, {}).get(arm, {}).get("eligible", False)
     research_decision = ("判定不能 (代表腕が不適格)" if fallback else
-                         final_recommendation(compare, rep, neighbor, arm, diagnostics))  # M14
+                         final_recommendation(compare, rep, neighbor, arm, diagnostics,
+                                              residual_ratio))  # M14
     return {"gc": gc, "compare_gc": comparison_gc, "retune_R_medians": retune,
             "prelim": dict(summary), "representative": {"point": rep, "arm": arm},
             "neighbor": neighbor, "compare": dict(compare),
             "continuation": ("判定不能" if fallback else continuation(compare, rep, neighbor, arm)),
             "research_decision": research_decision, "diagnostics": diagnostics,
+            "residual_cost": {"R_noLR_over_R_prelim_median": residual_ratio,
+                              "R_diagnostics": diagnostics.get(rep, {}).get("R")},
             "representative_usable_for_continuation": not fallback,
             "representative_note": ("継続判定に使えない (適格候補なし)" if fallback else None),
             "comparison_note": ("適格な次点 M 腕なし: S・R・代表の 3 腕" if next_arm is None else None),
@@ -521,7 +529,8 @@ def aggregate(rows: list[dict], witnesses: dict | None = None) -> dict:
 
 
 def final_recommendation(compare: dict, representative: str, neighbor: str,
-                         arm: str, diagnostics: dict) -> str:  # M14
+                         arm: str, diagnostics: dict,
+                         residual_ratio: float | None = None) -> str:  # M14
     """Apply the preregistered 30-second thresholds to the same M arm."""
     if not compare:
         return "予備のみ (暫定): 30 秒比較待ち"
@@ -535,7 +544,10 @@ def final_recommendation(compare: dict, representative: str, neighbor: str,
     if a["ratio"] < 1.2:
         return "今の VHash を主論文候補から外す推奨"
     if a["ratio"] < 1.5:
-        return "残存費用の実測次第 (追加試作 1 度の条件)"
+        if representative == "P4" or residual_ratio is None:
+            return "材料不足 (R−LR / R の予備対内比なし)"
+        return ("残存費用が大きい (追加試作 1 度の材料)" if residual_ratio >= 1.5
+                else "残存費用は小さい (追加試作を推奨しない)")  # M23
     return "基準未達 (隣接点)"
 
 
@@ -568,8 +580,9 @@ def aggregate_diagnostics(rows: list[dict]) -> dict:
             if arm == "R":
                 data["ro_gcflag_raises"] = _counter(stdout, base.COUNT_PREFIX, "flag_raises")
         elif arm.startswith("hot"):
-            counts = hot.parse_count(stdout, "post-" + arm)["variant"]
-            totals = hot.aggregate_count(counts, "post-k" + arm[-1])
+            parser_arm = {"hot1": "post-k1", "hot8": "post-k8"}[arm]  # M20
+            counts = hot.parse_count(stdout, parser_arm)["variant"]
+            totals = hot.aggregate_count(counts, parser_arm)
             data = {key: totals[key] for key in ("hot", "cold", "fallback_odd", "fallback_changed")}
         elif arm == "fwd":
             from . import vhash_forwarding_prototype as fwd
@@ -593,58 +606,112 @@ def aggregate_diagnostics(rows: list[dict]) -> dict:
     return result
 
 
-def job_estimate(build_seconds: dict, wall_seconds: float) -> dict:
-    if wall_seconds <= 0 or not build_seconds or any(value <= 0 for value in build_seconds.values()):
+def job_estimate(build_seconds: dict, wall_seconds: float,
+                 preparation_seconds: dict | None = None,
+                 triggered_conditionals: set[int] | None = None) -> dict:
+    preparation_seconds = preparation_seconds or {}
+    if (wall_seconds < 1 or not build_seconds or
+            any(value <= 0 for value in build_seconds.values()) or
+            any(value < 0 for value in preparation_seconds.values())):
         raise ValueError("positive smoke timings required")
+    overhead = wall_seconds - 1  # Smoke uses an extime of one second.
+    run_seconds = lambda window: window + overhead  # M21
     grouped = defaultdict(list)
     for name, seconds in build_seconds.items():
         grouped[name.split(":", 1)[0]].append((name, seconds))
     jobs, oversized = [], []
     for tree, binaries in grouped.items():
+        prep = preparation_seconds.get(tree, 0)
         shard, total = [], 0.0
         for name, seconds in binaries:
-            if shard and total + seconds > 300:
+            if shard and prep + total + seconds > 300:
                 jobs.append({"kind": "build", "tree": tree, "binaries": shard,
-                             "conditions": len(shard), "estimated_s": total})
+                             "conditions": len(shard), "estimated_s": prep + total,
+                             "preparation_s": prep})
                 shard, total = [], 0.0
-            if seconds > 300:
+            if prep + seconds > 300:
                 oversized.append(name)
                 jobs.append({"kind": "build", "tree": tree, "binaries": [name],
-                             "conditions": 1, "estimated_s": seconds})
+                             "conditions": 1, "estimated_s": prep + seconds,
+                             "preparation_s": prep})
             else:
                 shard.append(name)
                 total += seconds
         if shard:
             jobs.append({"kind": "build", "tree": tree, "binaries": shard,
-                         "conditions": len(shard), "estimated_s": total})
+                         "conditions": len(shard), "estimated_s": prep + total,
+                         "preparation_s": prep})
     for point in ("P1", "P2", "P3", "P4"):
-        n = len(prelim_arms(point)) * 2
-        jobs += [{"kind": "prelim", "point": point, "round": r, "conditions": n,
-                  "estimated_s": n * wall_seconds} for r in range(1, 4)]
+        n = len(prelim_arms(point))
+        jobs += [{"kind": "prelim", "point": point, "round": r, "gc_inter_us": gc,
+                  "conditions": n, "estimated_s": n * run_seconds(10)}
+                 for r in range(1, 4) for gc in (10, 100)]
         jobs.append({"kind": "diag", "point": point, "conditions": len(prelim_arms(point)),
-                     "estimated_s": len(prelim_arms(point)) * max(1, wall_seconds-9)})
+                     "estimated_s": len(prelim_arms(point)) * run_seconds(10)})
     for arm in ("S", "R", "hot1", "hot8", "fwd", "igc1", "igc3", "igc-broken"):
         jobs.append({"kind": "verify", "arm": arm, "conditions": 2,
-                     "estimated_s": 2 * max(1, wall_seconds-9)})
+                     "estimated_s": 2 * run_seconds(3)})
     jobs += [{"kind": "compare", "point": point, "round": r, "conditions": 4,
-              "estimated_s": 4 * (20 + wall_seconds)} for point in ("representative", "neighbor")
+              "estimated_s": 4 * run_seconds(30)} for point in ("representative", "neighbor")
               for r in range(1, 7)]
     conditional = [{"kind": "R-retune", "round": r, "conditions": 4,
-                    "estimated_s": 4 * wall_seconds} for r in range(1, 4)]
+                    "estimated_s": 4 * run_seconds(10)} for r in range(1, 4)]
     conditional += [{"kind": "P4-plus-P4prime-compare", "point": point, "round": r,
-                     "conditions": 4, "estimated_s": 4 * (20 + wall_seconds)}
+                     "conditions": 4, "estimated_s": 4 * run_seconds(30)}
                     for point in ("P4", "P4prime") for r in range(1, 7)]
+    def split_runs(items: list[dict]) -> list[dict]:
+        result = []
+        for job in items:
+            if job["kind"] == "build" or job["estimated_s"] <= 300:
+                result.append(job)
+                continue
+            each = job["estimated_s"] / job["conditions"]
+            capacity = int(300 // each)
+            if capacity < 1:
+                result.append(job)  # The 300-second admission gate rejects this job.
+                continue
+            for offset in range(0, job["conditions"], capacity):
+                count = min(capacity, job["conditions"] - offset)
+                result.append({**job, "condition_offset": offset,
+                               "conditions": count, "estimated_s": count * each})
+        return result
+    jobs = split_runs(jobs)
+    conditional = split_runs(conditional)
+    triggered = set() if triggered_conditionals is None else set(triggered_conditionals)
+    if any(not isinstance(index, int) or isinstance(index, bool) or
+           index < 0 or index >= len(conditional) for index in triggered):
+        raise ValueError("unknown conditional job index")
     base_seconds = sum(j["estimated_s"] for j in jobs)
     full_seconds = base_seconds + sum(j["estimated_s"] for j in conditional)
+    committed_seconds = base_seconds + sum(conditional[index]["estimated_s"]
+                                           for index in triggered)
     return {"jobs": jobs, "conditional_jobs": conditional,
-            "node_seconds": base_seconds, "node_seconds_with_conditionals": full_seconds,
-            "over_2_node_hours": full_seconds > 7200,
+            "triggered_conditionals": sorted(triggered),
+            "node_seconds": committed_seconds, "node_seconds_with_conditionals": full_seconds,
+            "over_2_node_hours": committed_seconds > 7200,
             "build_over_5_minutes": oversized}
 
 
-def require_budget(plan: dict, allow_over_budget: bool = False) -> dict:  # M15
+def require_budget(plan: dict, allow_over_budget: bool = False,
+                   over_budget_reason: str | None = None) -> dict:  # M15, M25
+    reason = over_budget_reason.strip() if allow_over_budget and isinstance(
+        over_budget_reason, str) else None
+    active = plan["jobs"] + [plan["conditional_jobs"][index]
+                             for index in plan["triggered_conditionals"]]
+    for job in active:
+        if job["estimated_s"] <= 300:
+            continue
+        if not (allow_over_budget and reason and "分割できない" in reason and
+                job["kind"] == "build" and job["conditions"] == 1):
+            raise ValueError("estimated job exceeds 300 seconds; split the job")
+        job["over_budget_reason"] = reason
+    if allow_over_budget and not reason:
+        raise ValueError("--allow-over-budget requires --over-budget-reason")
     if plan["over_2_node_hours"] and not allow_over_budget:
         raise ValueError("estimated plan exceeds 7,200 node seconds; use --allow-over-budget")
+    plan["over_budget_reason"] = reason
+    plan["land_coordinator_go_required"] = ("投入前に land 調整役へ相談して GO を得ること"
+                                            if plan["over_2_node_hours"] else None)
     return plan
 
 
@@ -669,8 +736,10 @@ def _do_build(args, smoke: bool = False) -> dict:
         raise ValueError("--build-binaries must name binaries in --trees")
     with tempfile.TemporaryDirectory(prefix="vceil-build-") as td:
         scratch = Path(td)
+        shared_started = time.monotonic()
         deps = V.compute._prepare_dependencies(ROOT, policy,
             args.third_party_cache.resolve(strict=True), scratch, toolchain)
+        shared_preparation_s = time.monotonic() - shared_started
         if smoke:
             from . import vhash_cicada_hot_block as hot_block
             inert_source = base._source_copy(scratch / "src-inert")
@@ -695,9 +764,13 @@ def _do_build(args, smoke: bool = False) -> dict:
         for tree in args.trees.split(","):
             if tree not in TREES: raise ValueError(f"unknown tree {tree}")
             check_patch_order(tree)
+            preparation_started = time.monotonic()
             source = base._source_copy(scratch / f"src-{tree}")
             base._apply(source, TREE_PATCHES[tree])
             base._prepare_build_dependencies(source, scratch / f"deps-{tree}", toolchain, deps)
+            receipts[f"preparation:{tree}"] = {
+                "elapsed_s": time.monotonic() - preparation_started + shared_preparation_s}
+            shared_preparation_s = 0
             for arm, macros in variants(tree).items():
                 if selected is not None and f"{tree}:{arm}" not in selected:
                     continue
@@ -743,11 +816,17 @@ def _do_smoke(args, receipts: dict) -> dict:
                                           "binary_sha256": manifest["binary_sha256"]}
     wall = statistics.median(item["wall_s"] for item in runs.values())
     build = {key.rsplit("-", 1)[0] + ":" + key.rsplit("-", 1)[1]: item["elapsed_s"]
-             for key, item in receipts.items() if "elapsed_s" in item}
+             for key, item in receipts.items() if "elapsed_s" in item and
+             not key.startswith("preparation:")}
+    preparation = {key.split(":", 1)[1]: item["elapsed_s"] for key, item in receipts.items()
+                   if key.startswith("preparation:")}
     return {"runs": runs, "builds": receipts,
-            "timings": {"build_seconds": build, "wall_seconds": wall,
+            "timings": {"build_seconds": build, "preparation_seconds": preparation,
+                        "wall_seconds": wall,
                         "run_wall_seconds": {key: item["wall_s"] for key, item in runs.items()}},
-            "job_estimate": require_budget(job_estimate(build, wall), args.allow_over_budget)}
+            "job_estimate": require_budget(job_estimate(build, wall, preparation,
+                set(getattr(args, "triggered_conditional_job", []))),
+                args.allow_over_budget, args.over_budget_reason)}
 
 
 def _do_run(args) -> list[dict]:
@@ -867,6 +946,13 @@ def _verify_once(source: Path, binary: Path, manifest: dict, arm: str,
                             for p in sorted(trace_dir.glob("trace_*.log"))]}
 
 
+def broken_positive(report: dict) -> bool:
+    results = report.get("results")
+    return (report.get("runs") == 1 and isinstance(results, list) and len(results) == 1
+            and type(results[0].get("total_cycles")) is int
+            and results[0]["total_cycles"] > 0)  # M22
+
+
 def _do_verify(args) -> list[dict]:
     site = site_policy.current_site(require_evidence=True)
     if site_policy.refuses_heavy_work(site):
@@ -887,7 +973,7 @@ def _do_verify(args) -> list[dict]:
                     result = {"arm": arm, "status": "正例不成立", "error": str(exc)}
                     results.append(result)
                     continue
-                result["status"] = "壊し正例" if result["report"].get("non_serializable", 0) > 0 else "正例不成立"
+                result["status"] = "壊し正例" if broken_positive(result["report"]) else "正例不成立"
             else:
                 result = _verify_once(source, binary, manifest, arm, scratch, 1)
                 if not witness_ok(arm, result["counts"]):
@@ -916,6 +1002,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--witness", type=Path)
     parser.add_argument("--plan", action="store_true")
     parser.add_argument("--allow-over-budget", action="store_true")
+    parser.add_argument("--over-budget-reason")
+    parser.add_argument("--triggered-conditional-job", type=int, action="append", default=[],
+                        help="zero-based index of a conditional job that has fired")
     parser.add_argument("--smoke-timings", type=Path)
     parser.add_argument("--third-party-cache", type=Path)
     parser.add_argument("--policy", type=Path, default=ROOT / "tools/pegasus/mocc_trace_v1_policy.json")
@@ -941,8 +1030,10 @@ def main(argv: list[str] | None = None) -> int:
             if not args.smoke_timings: parser.error("--plan needs --smoke-timings")
             timing = json.loads(args.smoke_timings.read_text())
             timing = timing.get("timings", timing)
-            result = require_budget(job_estimate(timing["build_seconds"], timing["wall_seconds"]),
-                                    args.allow_over_budget)
+            result = require_budget(job_estimate(timing["build_seconds"], timing["wall_seconds"],
+                                                 timing.get("preparation_seconds", {}),
+                                                 set(args.triggered_conditional_job)),
+                                    args.allow_over_budget, args.over_budget_reason)
         else:
             if not args.raw: parser.error("aggregate needs --raw")
             rows = [json.loads(line) for line in args.raw.read_text().splitlines() if line.strip()]
