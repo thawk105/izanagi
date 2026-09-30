@@ -28,7 +28,7 @@ def _source(root: Path, gate: bool = True) -> Path:
         "#if TRACE\nizanagi_trace::emit_lock_violation(0,0,{},{});\n"
         "izanagi_trace::stream(0) << \"P \";\n"
         "izanagi_trace::emit_write_intent_violation(0,0,{},{});\n"
-        + ("izanagi_trace::emit_stored(0);\nizanagi_trace::gate_note_commit(0);\n"
+        + ("izanagi_trace::emit_stored(0);\nizanagi_trace::set_gate_txid(0);\n"
            if gate else "") + "#endif\n")
     (root / "include/ycsb.hh").write_text(
         "#if TRACE\n" + ("izanagi_trace::emit_steps(0);\n" if gate else "") + "#endif\n")
@@ -95,6 +95,22 @@ def test_gate_b4_wrong_version_payload_m5(tmp_path):
     _assert_only(_run(tmp_path, trace, gate), "gate_d2a")
 
 
+def test_gate_b5_later_reader_disagrees_with_stored_stamp(tmp_path):
+    trace = (_write_trace(L) + f"C 1 0 1 2 1 0\nR 1 {L} 1 1\nE 1\n")
+    gate = _write_gate(L) + f"Q 1 0 1 R:{L}:{S2}:-\n"
+    res = _run(tmp_path, trace, gate)
+    _assert_only(res, "gate_d2a")
+    assert res.integrity.gate_external_reads_checked == 1
+
+
+def test_gate_second_external_read_wrong_stamp(tmp_path):
+    trace = f"C 0 0 1 1 1 0\nR 0 {K} 1 0\nE 0\n"
+    gate = f"Q 0 0 2 R:{K}:1:- R:{K}:2:-\n"
+    res = _run(tmp_path, trace, gate)
+    _assert_only(res, "gate_d2a")
+    assert res.integrity.gate_external_reads_checked == 2
+
+
 def test_gate_genesis_wrong_payload_m6(tmp_path):
     trace = f"C 0 0 1 1 1 0\nR 0 {K} 1 0\nE 0\n"
     _assert_only(_run(tmp_path, trace, f"Q 0 0 1 R:{K}:2:-\n"), "gate_d2a")
@@ -133,6 +149,38 @@ def test_gate_required_absent_m11_cli_rc(tmp_path, capsys):
     assert main([res.trace_dir, "--protocol", "silo", "--ccbench-root",
                  str(tmp_path / "source"), "--require-gate-witness", "--json"]) == 3
     assert json.loads(capsys.readouterr().out)["results"][0]["certified"] is False
+
+
+def test_gate_required_partial_thread_cli_rc(tmp_path, capsys):
+    res = _run(tmp_path, "C 0 0 1 1 0 0\nE 0\n", "Q 0 0 0\n", require=True)
+    (Path(res.trace_dir) / "trace_1.log").write_text("C 1 1 1 2 0 0\nE 1\n")
+    assert main([res.trace_dir, "--protocol", "silo", "--ccbench-root",
+                 str(tmp_path / "source"), "--require-gate-witness", "--json"]) == 3
+    payload = json.loads(capsys.readouterr().out)["results"][0]
+    assert payload["certified"] is False
+    assert payload["gate_witness"]["counts"]["unreachable"] == 1
+
+
+def test_gate_required_unreadable_cli_rc(tmp_path, capsys):
+    res = _run(tmp_path, "C 0 0 1 1 0 0\nE 0\n", "Q 0 0 0\n", require=True)
+    (Path(res.trace_dir) / "gate_0.log").write_bytes(b"\xff\n")
+    assert main([res.trace_dir, "--protocol", "silo", "--ccbench-root",
+                 str(tmp_path / "source"), "--require-gate-witness", "--json"]) == 3
+    payload = json.loads(capsys.readouterr().out)["results"][0]
+    assert payload["certified"] is False
+    assert payload["gate_witness"]["counts"]["unreachable"] == 1
+
+
+def test_gate_real_u1_emitter_names_d5_pass(tmp_path):
+    res = _run(tmp_path, _write_trace(), _write_gate(), require=True)
+    assert res.integrity.gate_d5 == "pass"
+    assert res.integrity.gate_unreachable == 0
+    assert res.certified
+
+
+def test_gate_q_thread_mismatch_is_d1c(tmp_path):
+    res = _run(tmp_path, "C 0 0 1 1 0 0\nE 0\n", "Q 0 1 0\n")
+    _assert_only(res, "gate_d1c")
 
 
 def test_gate_b7_emitter_missing_m12(tmp_path):

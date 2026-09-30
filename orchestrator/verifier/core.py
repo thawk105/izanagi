@@ -36,7 +36,7 @@ from .report import result_to_dict
 GATE_EMITTER_CALLS = (
     "izanagi_trace::emit_steps(",
     "izanagi_trace::emit_stored(",
-    "izanagi_trace::gate_note_commit(",
+    "izanagi_trace::set_gate_txid(",
 )
 
 
@@ -68,21 +68,90 @@ def _gate_note(integrity, check, thid="-", txid="-", key="-",
             f"expected={expected} observed={observed}")
 
 
+def _gate_reachability(parsed, paths, bad):
+    if bad:
+        raise ValueError(f"invalid gate filename: {bad[0]}")
+    if not isinstance(parsed, _CompactTrace):
+        raise ValueError("gate witness requires compact trace parsing")
+    trace_ids = set()
+    for columns in parsed.files:
+        match = _CANONICAL_TRACE_NAME_RE.fullmatch(os.path.basename(columns.path))
+        if match is None:
+            raise ValueError(f"invalid trace filename: {columns.path}")
+        trace_ids.add(int(match.group(1)))
+    if not trace_ids or trace_ids != set(range(len(trace_ids))):
+        raise ValueError(f"invalid trace threads: {sorted(trace_ids)}")
+    if trace_ids != set(paths):
+        raise ValueError(f"thread files mismatch: trace={sorted(trace_ids)} gate={sorted(paths)}")
+    return trace_ids
+
+
+def _gate_require_v_matches_w(pending_v, frame_txid, writes, path, line_no):
+    wanted_v = {(frame_txid, key) for key in writes}
+    if set(pending_v) != wanted_v:
+        raise ValueError(f"{path}:{line_no}: V/UPDATE W mismatch: txid={frame_txid}")
+
+
+def _gate_d1(reads, writes, ops, counts, integrity, thid, txid):
+    q_write = {key for op, key, _, _ in ops if op in ("W", "M")}
+    q_read = {key for op, key, _, _ in ops if op in ("R", "M")}
+    first = {}
+    for op, key, _, _ in ops:
+        first.setdefault(key, op)
+    first_read = {key for key, op in first.items() if op in ("R", "M")}
+    checks = (
+        ("d1a", set(writes) != q_write, set(writes), q_write),
+        ("d1b1", not first_read.issubset(reads), set(reads), first_read),
+        ("d1b2", not set(reads).issubset(q_read), q_read, set(reads)),
+    )
+    for name, failed, expected, observed in checks:
+        if failed:
+            counts[name] += 1
+            _gate_note(integrity, "D1." + name[2:], thid, txid,
+                       key=next(iter(expected ^ observed), "-"),
+                       expected=sorted(expected), observed=sorted(observed))
+
+
+def _gate_d2(ops, reads, writes, pending_v, frame_txid, counts, occurrence,
+             unresolved, integrity, thid, txid):
+    last = {}
+    written_count = {}
+    own_read = False
+    for op, key, obs, wr in ops:
+        if op in ("R", "M"):
+            if key in last:
+                own_read = True
+                if obs != last[key]:
+                    counts["d2b_i"] += 1
+                    _gate_note(integrity, "D2b.i", thid, txid, key, last[key], obs)
+            elif key in reads and key not in written_count:
+                version = reads[key]
+                occurrence["external_reads_checked"] += 1
+                if version == (1, 0):
+                    if obs != int(key, 16):
+                        counts["d2a"] += 1
+                        _gate_note(integrity, "D2a", thid, txid, key, int(key, 16), obs)
+                else:
+                    unresolved.append((key, version, obs, thid, txid))
+        if op in ("W", "M"):
+            last[key] = wr
+            written_count[key] = written_count.get(key, 0) + 1
+    for key, stamp in last.items():
+        if (key in writes and (frame_txid, key) in pending_v
+                and stamp != pending_v[(frame_txid, key)]):
+            counts["d2b_ii"] += 1
+            _gate_note(integrity, "D2b.ii", thid, txid, key,
+                       stamp, pending_v[(frame_txid, key)])
+    occurrence["own_write_read_transactions"] += own_read
+    occurrence["written_transactions"] += bool(last)
+    occurrence["repeated_write_key_transactions"] += any(
+        n > 1 for n in written_count.values())
+
+
 def _check_gate(trace_dir, parsed, integrity, paths, bad):
     """Stream Q per thread; retain only producer stamps and unresolved reads."""
     try:
-        if bad:
-            raise ValueError(f"invalid gate filename: {bad[0]}")
-        if not isinstance(parsed, _CompactTrace):
-            raise ValueError("gate witness requires compact trace parsing")
-        trace_ids = set()
-        for columns in parsed.files:
-            match = _CANONICAL_TRACE_NAME_RE.fullmatch(os.path.basename(columns.path))
-            if match is None:
-                raise ValueError(f"invalid trace filename: {columns.path}")
-            trace_ids.add(int(match.group(1)))
-        if not trace_ids or trace_ids != set(paths) or trace_ids != set(range(len(trace_ids))):
-            raise ValueError(f"thread files mismatch: trace={sorted(trace_ids)} gate={sorted(paths)}")
+        trace_ids = _gate_reachability(parsed, paths, bad)
         counts = {name: 0 for name in ("d1a", "d1b1", "d1b2", "d1c", "d2a", "d2b_i", "d2b_ii")}
         occurrence = {name: 0 for name in (
             "own_write_read_transactions", "written_transactions",
@@ -91,6 +160,8 @@ def _check_gate(trace_dir, parsed, integrity, paths, bad):
         unresolved = []
         for columns in parsed.files:
             thid = int(_CANONICAL_TRACE_NAME_RE.fullmatch(os.path.basename(columns.path)).group(1))
+            if thid not in paths:
+                continue
             pending_v = {}
             row = 0
             with open(paths[thid], "r", encoding="ascii") as fh:
@@ -106,8 +177,6 @@ def _check_gate(trace_dir, parsed, integrity, paths, bad):
                         pending_v[ident] = value
                         continue
                     q_thid, ops = field, value
-                    if q_thid != thid:
-                        raise ValueError(f"Q thread mismatch: {q_thid} != {thid}")
                     if row >= len(columns.txn_txid):
                         counts["d1c"] += 1
                         _gate_note(integrity, "D1.c", thid, txid, expected="no Q", observed="extra Q")
@@ -128,70 +197,22 @@ def _check_gate(trace_dir, parsed, integrity, paths, bad):
                         if op != "U" or key in writes:
                             raise ValueError(f"non-UPDATE or duplicate W: txid={frame_txid} key={key}")
                         writes[key] = (columns.txn_commit_epoch[row], columns.txn_commit_tid[row])
-                    wanted_v = {(frame_txid, key) for key in writes}
-                    if set(pending_v) != wanted_v:
-                        raise ValueError(f"V/UPDATE W mismatch: txid={frame_txid}")
+                    _gate_require_v_matches_w(pending_v, frame_txid, writes,
+                                              paths[thid], line_no)
                     for key, version in writes.items():
                         ident = (key, version)
                         if ident in producers:
                             raise ValueError(f"duplicate producer: {ident}")
-                        producers[ident] = pending_v[(frame_txid, key)]
-                    if txid is None or txid != frame_txid:
+                        if (frame_txid, key) in pending_v:
+                            producers[ident] = pending_v[(frame_txid, key)]
+                    if txid is None or txid != frame_txid or q_thid != thid:
                         counts["d1c"] += 1
-                        _gate_note(integrity, "D1.c", thid, txid, expected=frame_txid, observed=txid)
+                        _gate_note(integrity, "D1.c", thid, txid,
+                                   expected=(frame_txid, thid), observed=(txid, q_thid))
                     else:
-                        q_write = {key for op, key, _, _ in ops if op in ("W", "M")}
-                        q_read = {key for op, key, _, _ in ops if op in ("R", "M")}
-                        first = {}
-                        for op, key, _, _ in ops:
-                            first.setdefault(key, op)
-                        first_read = {key for key, op in first.items() if op in ("R", "M")}
-                        for name, expected, observed in (
-                            ("d1a", set(writes), q_write),
-                            ("d1b1", reads.keys(), first_read),
-                            ("d1b2", q_read, reads.keys()),
-                        ):
-                            failed = ((expected != observed) if name == "d1a" else
-                                      (not set(observed).issubset(expected)))
-                            if failed:
-                                counts[name] += 1
-                                _gate_note(integrity, "D1." + name[2:], thid, txid,
-                                           key=next(iter(set(expected) ^ set(observed)), "-"),
-                                           expected=sorted(expected), observed=sorted(observed))
-                        last = {}
-                        written_count = {}
-                        external_seen = set()
-                        own_read = False
-                        for op, key, obs, wr in ops:
-                            if op in ("R", "M"):
-                                if key in last:
-                                    own_read = True
-                                    if obs != last[key]:
-                                        counts["d2b_i"] += 1
-                                        _gate_note(integrity, "D2b.i", thid, txid, key, last[key], obs)
-                                elif (key not in external_seen and first.get(key) in ("R", "M")
-                                      and key in reads and key not in written_count):
-                                    external_seen.add(key)
-                                    version = reads[key]
-                                    occurrence["external_reads_checked"] += 1
-                                    if version == (1, 0):
-                                        if obs != int(key, 16):
-                                            counts["d2a"] += 1
-                                            _gate_note(integrity, "D2a", thid, txid, key, int(key, 16), obs)
-                                    else:
-                                        unresolved.append((key, version, obs, thid, txid))
-                            if op in ("W", "M"):
-                                last[key] = wr
-                                written_count[key] = written_count.get(key, 0) + 1
-                        for key, stamp in last.items():
-                            if key in writes and stamp != pending_v[(frame_txid, key)]:
-                                counts["d2b_ii"] += 1
-                                _gate_note(integrity, "D2b.ii", thid, txid, key,
-                                           stamp, pending_v[(frame_txid, key)])
-                        occurrence["own_write_read_transactions"] += own_read
-                        occurrence["written_transactions"] += bool(last)
-                        occurrence["repeated_write_key_transactions"] += any(
-                            n > 1 for n in written_count.values())
+                        _gate_d1(reads, writes, ops, counts, integrity, thid, txid)
+                        _gate_d2(ops, reads, writes, pending_v, frame_txid,
+                                 counts, occurrence, unresolved, integrity, thid, txid)
                     pending_v.clear()
                     row += 1
             if pending_v:
