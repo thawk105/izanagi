@@ -1,0 +1,73 @@
+diff --git a/include/ycsb.hh b/include/ycsb.hh
+--- a/include/ycsb.hh
++++ b/include/ycsb.hh
+@@ -33,3 +33,7 @@
+ #endif
+ 
++#if IZANAGI_CICADA_CEILING_WORKLOAD
++DECLARE_int32(izanagi_ceiling_ronly_pct);
++#endif
++#line 35
+ enum class Storage : std::uint32_t {
+@@ -102,2 +106,32 @@
+     makeProcedure(tx.pro_set_, rnd_, zipf_);
++#if IZANAGI_CICADA_CEILING_WORKLOAD
++    if (FLAGS_izanagi_ceiling_ronly_pct < 0 ||
++        FLAGS_izanagi_ceiling_ronly_pct > 100 || FLAGS_batch_th_num > 1)
++      ERR;
++    if (tx.thid_ >= FLAGS_thread_num) {
++      tx.pro_set_.clear();
++      for (size_t i = 0; i < FLAGS_batch_max_ope; ++i)
++        tx.pro_set_.emplace_back(Ope::READ,
++                                 zipf_() % FLAGS_ycsb_tuple_num);
++      tx.pro_set_.front().ronly_ = true;
++      tx.pro_set_.front().wonly_ = false;
++    } else if (FLAGS_izanagi_ceiling_ronly_pct != 0) {
++      static thread_local Xoroshiro128Plus ceiling_draw;
++      const bool chosen_ro = ceiling_draw.next() % 100 <
++          uint64_t(FLAGS_izanagi_ceiling_ronly_pct);
++      if (chosen_ro) {
++        for (auto& op : tx.pro_set_) op.ope_ = Ope::READ;
++      } else {
++        bool has_write = false;
++        for (const auto& op : tx.pro_set_)
++          has_write |= op.ope_ != Ope::READ;
++        if (!has_write)
++          tx.pro_set_.front().ope_ = FLAGS_ycsb_rmw ?
++              Ope::READ_MODIFY_WRITE : Ope::WRITE;
++      }
++      tx.pro_set_.front().ronly_ = chosen_ro;
++      tx.pro_set_.front().wonly_ = false;
++    }
++#endif
++#line 103
+ #if ADD_ANALYSIS
+diff --git a/cc/cicada/ycsb_cicada.cc b/cc/cicada/ycsb_cicada.cc
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -53,2 +53,18 @@
+ 
++#if IZANAGI_CICADA_CEILING_WORKLOAD
++  uint64_t normal_commits = 0;
++  uint64_t batch_commits = 0;
++  for (size_t i = 0; i < FLAGS_thread_num; ++i)
++    normal_commits += CCBenchResults[i].local_commit_counts_;
++  for (size_t i = FLAGS_thread_num; i < TotalThreadNum; ++i)
++    batch_commits += CCBenchResults[i].local_commit_counts_;
++  cout << "IZANAGI_CICADA_CEILING_WORKLOAD_V1 {\"schema\":1,"
++       << "\"thread_num\":" << FLAGS_thread_num
++       << ",\"batch_threads\":" << FLAGS_batch_th_num
++       << ",\"batch_ops\":" << FLAGS_batch_max_ope
++       << ",\"ronly_pct\":" << FLAGS_izanagi_ceiling_ronly_pct
++       << ",\"normal_commits\":" << normal_commits
++       << ",\"batch_commits\":" << batch_commits << "}" << endl;
++#endif
++#line 54
+   return 0;
+@@ -55,1 +71,6 @@
+ } catch (const bad_alloc&) { ERR; }
++#if IZANAGI_CICADA_CEILING_WORKLOAD
++DEFINE_int32(izanagi_ceiling_ronly_pct, 0,
++             "Percent of normal YCSB procedures forced read-only.");
++#endif
++#line 56
