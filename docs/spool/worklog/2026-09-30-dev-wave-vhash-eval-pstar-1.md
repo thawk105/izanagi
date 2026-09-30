@@ -21,6 +21,8 @@ title: [T-2914] VHash の評価計画の草稿 v1 §5.5 を md_21・md_23 の結
   「c・e 対 A だけが判定語を持つ」が門未完了も判定語であることと食い違う、worklog の要約が広い)、3 巡目 GO (3 call、83 秒)。3 巡とも数値の再計算で p* = c・K* = 1 を覆す誤りは無く、残った所見は言い回しの量化だった。
 - セッション異常: `EnterWorktree(name)` が filter driver の文言で失敗し、`git worktree add --no-checkout` + lock + `reset --hard` で作った (1 回目で成功)。開始 gate は local main が 1 commit 進んでいて NG、`merge --ff-only main` 後に rc 0。
   隔離 session の guard が、変数を sed の file 引数に置く形と、glob を含む python heredoc を拒否した (Edit ツールと repo 外の .py に切り替えた)。
+  撤去を促す終了時 hook が、commit 0 本の未 land の木に「land 済み、撤去せよ」を 3 回出した。撤去せず未 land と 1 行書いて続けた ({{F:cleanup-stop-hook-ff-before-first-commit}}、段 8 の routing)。
+  wave 中に local main が 213d411c6 → 5b7134c5c へ進んだ (別 wave の記録と worklog のローテーションだけ)。最初の commit の前に ff-only で取り込み、T-2914 の base digest が変わらないことを確かめた。
 
 ## 次の一手差分
 
@@ -34,3 +36,5 @@ title: [T-2914] VHash の評価計画の草稿 v1 §5.5 を md_21・md_23 の結
 
 - {{T:vhash-c-now-target}} **P3・新規**: 評価計画の H3 (C 対 C_now) の処置 C_now (アクセス駆動の前進 C の前進先を「今」の時刻にする方策 a) が実装されていない。md_21 の `--cicada_fwd_target` は
   min|max|partial だけである (草稿 §15.7、§11 の P3)。target patch の既存の `#if` の内側の実行時 flag の値として足すか、H3 を確認段から外して追補に回すかを決める。docs と patch、計測なし。
+- {{T:cleanup-stop-hook-ff-false-positive}} **P2・新規**: `tools/dev_wave_cleanup_stop_hook.py` が、最初の commit の前に `DW-O20` の ff-only で main へ揃えただけの未 land の wave 木に
+  「land 済み、撤去せよ」を出す ({{F:cleanup-stop-hook-ff-before-first-commit}})。判定を直し、`orchestrator/tests/test_hooks.py` の `test_cleanup_stop_*` に負例を足す。コード + test。
