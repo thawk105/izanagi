@@ -1,0 +1,245 @@
+{
+ "files": {
+  "evidence/ci/build.log": {
+   "lines": [
+    [
+     34,
+     " "
+    ]
+   ],
+   "normalized_bytes": 24236,
+   "normalized_sha256": "346c830e39230c34a30dd7364012fabaa61c7ae108ee706ab90f51369f64d535",
+   "original_bytes": 24237,
+   "original_sha256": "a466ee49a3119f8c4be5ee2a358bce5fcd03cee5d38c86b9ddaa3a3af4f9f94f"
+  },
+  "evidence/ci/configure.log": {
+   "lines": [
+    [
+     10,
+     "  "
+    ],
+    [
+     11,
+     "  "
+    ],
+    [
+     12,
+     "  "
+    ],
+    [
+     13,
+     " "
+    ],
+    [
+     20,
+     " "
+    ],
+    [
+     21,
+     " "
+    ],
+    [
+     29,
+     " "
+    ],
+    [
+     38,
+     " "
+    ],
+    [
+     39,
+     " "
+    ]
+   ],
+   "normalized_bytes": 1904,
+   "normalized_sha256": "8afe6ccacca9faff2a64a2faba345e13479adb882dfe1bc33fb1445f54d82a43",
+   "original_bytes": 1916,
+   "original_sha256": "a7e050f23eb38488be76c14594e4cdcd0def0a785c1af48a464cb3b75c9e008c"
+  },
+  "evidence/cijudge-1.log": {
+   "lines": [
+    [
+     37,
+     " "
+    ]
+   ],
+   "normalized_bytes": 5595,
+   "normalized_sha256": "fb72224f73a7f4425349f66efda0211f9b47867f4d4806b27825c97a4e4243fc",
+   "original_bytes": 5596,
+   "original_sha256": "97b32152391ad0a2f6517626a420699ba0ced30cc0c61fafb05d246cc5e44a38"
+  },
+  "evidence/judge12-1.log": {
+   "lines": [
+    [
+     21,
+     " "
+    ],
+    [
+     35,
+     " "
+    ]
+   ],
+   "normalized_bytes": 5135,
+   "normalized_sha256": "6fd3fb755c5dbcbab72ccf89ed7a2ac699f35c6c8ade30c5ad65bfde9dd56bb8",
+   "original_bytes": 5137,
+   "original_sha256": "0ddbb9096cba57846ba400b84358f4c0148672d9dd83b508cf0b3402f9c3e252"
+  },
+  "evidence/predict.log": {
+   "lines": [
+    [
+     25,
+     " "
+    ],
+    [
+     26,
+     " "
+    ],
+    [
+     27,
+     " "
+    ],
+    [
+     40,
+     " "
+    ],
+    [
+     41,
+     " "
+    ],
+    [
+     42,
+     " "
+    ],
+    [
+     46,
+     " "
+    ],
+    [
+     47,
+     " "
+    ],
+    [
+     48,
+     " "
+    ],
+    [
+     55,
+     " "
+    ],
+    [
+     56,
+     " "
+    ],
+    [
+     57,
+     " "
+    ],
+    [
+     58,
+     " "
+    ],
+    [
+     59,
+     " "
+    ],
+    [
+     60,
+     " "
+    ],
+    [
+     62,
+     " "
+    ],
+    [
+     63,
+     " "
+    ],
+    [
+     64,
+     " "
+    ],
+    [
+     65,
+     " "
+    ],
+    [
+     66,
+     " "
+    ],
+    [
+     67,
+     " "
+    ],
+    [
+     68,
+     " "
+    ]
+   ],
+   "normalized_bytes": 1476,
+   "normalized_sha256": "3fc6c3957ee0cdd0b90415ea894c69a3670a89e40b581f8a2607b6004ca316aa",
+   "original_bytes": 1498,
+   "original_sha256": "49fd3cac4d9b481df541a98e3efdf145b8b5f837b57c846241c0de53918c2e0c"
+  },
+  "evidence/trace/trace-1.log": {
+   "lines": [
+    [
+     33,
+     " "
+    ]
+   ],
+   "normalized_bytes": 5241,
+   "normalized_sha256": "7513ade9947872420513b89d23a0f56e282139a950f8327d28f9db93429c0dfa",
+   "original_bytes": 5242,
+   "original_sha256": "8840a59a2bd191a3b986d5c9129f48a4f4f9193df156e4f5984045fb68bb6d89"
+  },
+  "verbatim/fix-1.md": {
+   "lines": [
+    [
+     8,
+     "  "
+    ],
+    [
+     24,
+     "  "
+    ],
+    [
+     32,
+     " "
+    ],
+    [
+     35,
+     " "
+    ],
+    [
+     36,
+     " "
+    ]
+   ],
+   "normalized_bytes": 3839,
+   "normalized_sha256": "c6be4aec6c22479030880b23249760476dce86aee1c04f86e2b4e2ab7f3e6063",
+   "original_bytes": 3846,
+   "original_sha256": "5918c6bc173a24449e37cdcf1d3af1259f3c5b3e68a5bca6bf2b6c0b4f5f264f"
+  },
+  "verbatim/review-a.md": {
+   "lines": [
+    [
+     3,
+     "  "
+    ],
+    [
+     6,
+     "  "
+    ],
+    [
+     9,
+     "  "
+    ]
+   ],
+   "normalized_bytes": 3234,
+   "normalized_sha256": "0fa968991bc9d7f890da0639b90d6ef951fdd9812deb467ec54b6144049bfa6b",
+   "original_bytes": 3240,
+   "original_sha256": "939d4d38766c668e8c6c53f1ce5ea2998d4dfa9f1cc1e3d81d73a623f5c662c0"
+  }
+ },
+ "rule": "strip trailing [ \\t] per line; restore by appending 'removed' to the listed 1-based lines"
+}

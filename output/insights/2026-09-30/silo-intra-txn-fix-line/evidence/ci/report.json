@@ -1,0 +1,123 @@
+{
+  "host": "bnode009",
+  "nproc": 48,
+  "new_oid": "dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43",
+  "apptainer_exec_mode": "--userns",
+  "sif_sha256": "cb8cd1c36d57f7c32e6d8a87c733fd55dd7f63d53fb1931505391828b606adc8",
+  "sif_inspect": {
+    "data": {
+      "attributes": {
+        "labels": {
+          "org.label-schema.build-arch": "amd64",
+          "org.label-schema.build-date": "Tuesday_29_September_2026_15:10:44_JST",
+          "org.label-schema.schema-version": "1.0",
+          "org.label-schema.usage.apptainer.version": "1.4.5",
+          "org.label-schema.usage.singularity.deffile.bootstrap": "docker",
+          "org.label-schema.usage.singularity.deffile.from": "ghcr.io/thawk105/ccbench-devcontainer:ci",
+          "org.opencontainers.image.version": "24.04"
+        }
+      }
+    },
+    "type": "container"
+  },
+  "versions": {
+    "g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+    "cmake": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+    "ccache": "ccache version 4.9.1\nFeatures: file-storage http-storage redis+unix-storage redis-storage\n\nCopyright (C) 2002-2007 Andrew Tridgell\nCopyright (C) 2009-2024 Joel Rosdahl and other contributors\n\nSee <https://ccache.dev/credits.html> for a complete list of contributors.\n\nThis program is free software; you can redistribute it and/or modify it under\nthe terms of the GNU General Public License as published by the Free Software\nFoundation; either version 3 of the License, or (at your option) any later\nversion.\n"
+  },
+  "dependencies": {
+    "masstree": {
+      "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+      "tree": "35d63b49005fa4875442a0539c2a523d9d8ee159",
+      "source_method": "git clone --no-local"
+    },
+    "mimalloc": {
+      "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+      "tree": "770ce32e97331fcc1735064e0cfdaf4777c80b82",
+      "source_method": "git clone --no-local"
+    },
+    "googletest": {
+      "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "tree": "747143d14ebee24861e6ec39ac58b482cc5523fd",
+      "source_method": "git clone --no-local"
+    }
+  },
+  "ci_configure_argv": [
+    "cmake",
+    "-S",
+    ".",
+    "-B",
+    "build",
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DENABLE_SANITIZER=OFF",
+    "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
+    "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+  ],
+  "extra_configure_argv": [
+    "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+    "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2854-ci-build-aiCEbrRC/masstree",
+    "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2854-ci-build-aiCEbrRC/mimalloc",
+    "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2854-ci-build-aiCEbrRC/googletest"
+  ],
+  "ci_build_argv": [
+    "cmake",
+    "--build",
+    "build",
+    "-j",
+    "48"
+  ],
+  "configure": {
+    "rc": 0,
+    "seconds": 1,
+    "log": "configure.log"
+  },
+  "build": {
+    "rc": 0,
+    "seconds": 22,
+    "log": "build.log"
+  },
+  "executables": {
+    "count": 38,
+    "names": [
+      "build/CMakeFiles/3.28.3/CMakeDetermineCompilerABI_C.bin",
+      "build/CMakeFiles/3.28.3/CMakeDetermineCompilerABI_CXX.bin",
+      "build/CMakeFiles/3.28.3/CompilerIdC/a.out",
+      "build/CMakeFiles/3.28.3/CompilerIdCXX/a.out",
+      "build/cc/cicada/bomb_cicada.exe",
+      "build/cc/cicada/sbomb_cicada.exe",
+      "build/cc/cicada/tpcc_cicada.exe",
+      "build/cc/cicada/ycsb_cicada.exe",
+      "build/cc/d2pl/dbomb_d2pl.exe",
+      "build/cc/d2pl/sbomb_d2pl.exe",
+      "build/cc/ermia/bomb_ermia.exe",
+      "build/cc/ermia/sbomb_ermia.exe",
+      "build/cc/ermia/tpcc_ermia.exe",
+      "build/cc/ermia/ycsb_ermia.exe",
+      "build/cc/mocc/bomb_mocc.exe",
+      "build/cc/mocc/sbomb_mocc.exe",
+      "build/cc/mocc/tpcc_mocc.exe",
+      "build/cc/mocc/ycsb_mocc.exe",
+      "build/cc/mvto/bomb_mvto.exe",
+      "build/cc/mvto/tpcc_mvto.exe",
+      "build/cc/oze/bomb_oze.exe",
+      "build/cc/oze/tpcc_oze.exe",
+      "build/cc/oze/ycsb_oze.exe",
+      "build/cc/si/bomb_si.exe",
+      "build/cc/si/sbomb_si.exe",
+      "build/cc/si/tpcc_si.exe",
+      "build/cc/si/ycsb_si.exe",
+      "build/cc/silo/bomb_silo.exe",
+      "build/cc/silo/replay_test.exe",
+      "build/cc/silo/sbomb_silo.exe",
+      "build/cc/silo/tpcc_silo.exe",
+      "build/cc/silo/ycsb_silo.exe",
+      "build/cc/ss2pl/bomb_ss2pl.exe",
+      "build/cc/ss2pl/tpcc_ss2pl.exe",
+      "build/cc/tictoc/bomb_tictoc.exe",
+      "build/cc/tictoc/sbomb_tictoc.exe",
+      "build/cc/tictoc/tpcc_tictoc.exe",
+      "build/cc/tictoc/ycsb_tictoc.exe"
+    ]
+  },
+  "ccache_stats": "Cacheable calls:    135 / 135 (100.0%)\n  Hits:              16 / 135 (11.85%)\n    Direct:          15 /  16 (93.75%)\n    Preprocessed:     1 /  16 ( 6.25%)\n  Misses:           119 / 135 (88.15%)\nLocal storage:\n  Cache size (GiB): 0.0 / 5.0 ( 0.09%)\n  Hits:              16 / 135 (11.85%)\n  Misses:           119 / 135 (88.15%)\n"
+}

@@ -1,0 +1,64 @@
+start 2026-09-30 12:40:39 JST
+message: /work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/msg-line.txt sha256=abb945462bc9d59593b67e13c12a4c287fe55ceca1a25ae39e78bb4d2b959a9f
+input: cc/silo/transaction.cc sha256=80d76560f9086c6439ce60c774125cf3ffe5373cbae48af0b1687c858900740e
+sub HEAD before: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+main checkout submodule ref izanagi-silo-intra-txn-fix = 7e5fa528037805dfc0459c742e4a21d6114c9799
+Preparing worktree (detached HEAD 7e5fa5280)
+Updating files:  31% (126/405)Updating files:  32% (130/405)Updating files:  33% (134/405)Updating files:  34% (138/405)Updating files:  35% (142/405)Updating files:  36% (146/405)Updating files:  37% (150/405)Updating files:  38% (154/405)Updating files:  39% (158/405)Updating files:  40% (162/405)Updating files:  41% (167/405)Updating files:  42% (171/405)Updating files:  43% (175/405)Updating files:  44% (179/405)Updating files:  45% (183/405)Updating files:  46% (187/405)Updating files:  47% (191/405)Updating files:  48% (195/405)Updating files:  49% (199/405)Updating files:  50% (203/405)Updating files:  51% (207/405)Updating files:  52% (211/405)Updating files:  53% (215/405)Updating files:  54% (219/405)Updating files:  55% (223/405)Updating files:  56% (227/405)Updating files:  57% (231/405)Updating files:  58% (235/405)Updating files:  59% (239/405)Updating files:  60% (243/405)Updating files:  61% (248/405)Updating files:  62% (252/405)Updating files:  63% (256/405)Updating files:  64% (260/405)Updating files:  65% (264/405)Updating files:  66% (268/405)Updating files:  67% (272/405)Updating files:  68% (276/405)Updating files:  69% (280/405)Updating files:  70% (284/405)Updating files:  71% (288/405)Updating files:  72% (292/405)Updating files:  73% (296/405)Updating files:  74% (300/405)Updating files:  75% (304/405)Updating files:  76% (308/405)Updating files:  77% (312/405)Updating files:  78% (316/405)Updating files:  79% (320/405)Updating files:  80% (324/405)Updating files:  81% (329/405)Updating files:  82% (333/405)Updating files:  83% (337/405)Updating files:  84% (341/405)Updating files:  85% (345/405)Updating files:  86% (349/405)Updating files:  87% (353/405)Updating files:  88% (357/405)Updating files:  89% (361/405)Updating files:  90% (365/405)Updating files:  91% (369/405)Updating files:  92% (373/405)Updating files:  93% (377/405)Updating files:  94% (381/405)Updating files:  95% (385/405)Updating files:  96% (389/405)Updating files:  96% (392/405)Updating files:  97% (393/405)Updating files:  98% (397/405)Updating files:  99% (401/405)Updating files: 100% (405/405)Updating files: 100% (405/405), done.
+HEAD is now at 7e5fa5280 fix(silo): preserve the latest value within a transaction
+Switched to a new branch 'izanagi-silo-intra-txn-fix'
+diff (worktree vs base):
+diff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc
+index eb06e88a3..005aaf361 100644
+--- a/cc/silo/transaction.cc
++++ b/cc/silo/transaction.cc
+@@ -669 +669 @@ void TxExecutor::writePhase() {
+-#line 635
++#line 638
+@@ -701 +701 @@ void TxExecutor::writePhase() {
+-#line 658
++#line 661
+@@ -731 +731 @@ void TxExecutor::writePhase() {
+-#line 679
++#line 682
+@@ -755 +755 @@ void TxExecutor::writePhase() {
+-#line 700
++#line 703
+changed lines: -#line 635|+#line 638|-#line 658|+#line 661|-#line 679|+#line 682|-#line 700|+#line 703|
+staged:
+:100644 100644 eb06e88a3 005aaf361 M	cc/silo/transaction.cc
+modes unchanged
+[izanagi-silo-intra-txn-fix dbac49b6d] fix(silo): preserve logical line numbers after update change
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+tip = dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 parents: dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 7e5fa528037805dfc0459c742e4a21d6114c9799 tree: 8fa00fea9c9465b79868293a68b8341c4f02a766
+diff-tree base..tip (raw):
+:100644 100644 eb06e88a335534c435986ab20482d4c09967e0c7 005aaf3616410c652acda6afb9de53bdc21ad621 M	cc/silo/transaction.cc
+diff --stat base..tip:
+ cc/silo/transaction.cc | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+message:
+fix(silo): preserve logical line numbers after update change
+
+The preceding commit added three lines to TxExecutor::update. Four
+#line directives after that change compensate for lines introduced by
+trace formatting so untraced source retains its logical line numbers.
+Their fixed values also canceled the three new update lines, causing
+TRACE=0 __LINE__ (and the line shown by ERR) to differ from the
+untraced source with the update fix.
+
+Increase those four directives by three to restore that identity.
+Execution semantics are unchanged; only diagnostic line numbers change.
+
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-sol; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-5-1m; reasoning=unknown; role=manager
+
+sub HEAD after: 68106660686232781bca3be792a750d3e19d7a8a porcelain=0
+local branch ref: dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43
+/work/1/SFC/tanab/tmp/silo-intra-txn-fix-line-2026-09-30/wave/line.bundle is okay
+The bundle contains this ref:
+dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 refs/heads/izanagi-silo-intra-txn-fix
+The bundle records a complete history.
+dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 refs/heads/izanagi-silo-intra-txn-fix
+bundle bytes: 3218832 sha256: 6e578792c5e72687394d43554b592b98b4202c04397cf407809b07c025ad1be1
+end 2026-09-30 12:41:01 JST

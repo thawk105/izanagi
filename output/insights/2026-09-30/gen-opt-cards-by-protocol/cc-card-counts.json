@@ -1,0 +1,2969 @@
+{
+ "definition_commit": "7648ea167",
+ "parent_corrections": 24,
+ "ccs": [
+  "tictoc",
+  "mocc",
+  "cicada",
+  "ermia",
+  "si",
+  "mvto",
+  "ss2pl",
+  "oze"
+ ],
+ "counts": {
+  "tictoc": {
+   "mismatch182": {
+    "fits": 1,
+    "minor": 2,
+    "no": 179,
+    "unknown": 0
+   },
+   "present80": {
+    "fits": 26,
+    "minor": 1,
+    "no": 53,
+    "unknown": 0
+   },
+   "feasible33": {
+    "fits": 8,
+    "minor": 12,
+    "no": 11,
+    "unknown": 2
+   },
+   "all295": {
+    "fits": 35,
+    "minor": 15,
+    "no": 243,
+    "unknown": 2
+   }
+  },
+  "mocc": {
+   "mismatch182": {
+    "fits": 1,
+    "minor": 4,
+    "no": 177,
+    "unknown": 0
+   },
+   "present80": {
+    "fits": 30,
+    "minor": 5,
+    "no": 45,
+    "unknown": 0
+   },
+   "feasible33": {
+    "fits": 6,
+    "minor": 13,
+    "no": 12,
+    "unknown": 2
+   },
+   "all295": {
+    "fits": 37,
+    "minor": 22,
+    "no": 234,
+    "unknown": 2
+   }
+  },
+  "cicada": {
+   "mismatch182": {
+    "fits": 4,
+    "minor": 10,
+    "no": 167,
+    "unknown": 1
+   },
+   "present80": {
+    "fits": 36,
+    "minor": 5,
+    "no": 39,
+    "unknown": 0
+   },
+   "feasible33": {
+    "fits": 6,
+    "minor": 11,
+    "no": 15,
+    "unknown": 1
+   },
+   "all295": {
+    "fits": 46,
+    "minor": 26,
+    "no": 221,
+    "unknown": 2
+   }
+  },
+  "ermia": {
+   "mismatch182": {
+    "fits": 2,
+    "minor": 12,
+    "no": 163,
+    "unknown": 5
+   },
+   "present80": {
+    "fits": 30,
+    "minor": 5,
+    "no": 45,
+    "unknown": 0
+   },
+   "feasible33": {
+    "fits": 5,
+    "minor": 11,
+    "no": 16,
+    "unknown": 1
+   },
+   "all295": {
+    "fits": 37,
+    "minor": 28,
+    "no": 224,
+    "unknown": 6
+   }
+  },
+  "si": {
+   "mismatch182": {
+    "fits": 6,
+    "minor": 10,
+    "no": 161,
+    "unknown": 5
+   },
+   "present80": {
+    "fits": 24,
+    "minor": 4,
+    "no": 52,
+    "unknown": 0
+   },
+   "feasible33": {
+    "fits": 5,
+    "minor": 11,
+    "no": 16,
+    "unknown": 1
+   },
+   "all295": {
+    "fits": 35,
+    "minor": 25,
+    "no": 229,
+    "unknown": 6
+   }
+  },
+  "mvto": {
+   "mismatch182": {
+    "fits": 3,
+    "minor": 9,
+    "no": 169,
+    "unknown": 1
+   },
+   "present80": {
+    "fits": 29,
+    "minor": 10,
+    "no": 40,
+    "unknown": 1
+   },
+   "feasible33": {
+    "fits": 6,
+    "minor": 11,
+    "no": 15,
+    "unknown": 1
+   },
+   "all295": {
+    "fits": 38,
+    "minor": 30,
+    "no": 224,
+    "unknown": 3
+   }
+  },
+  "ss2pl": {
+   "mismatch182": {
+    "fits": 0,
+    "minor": 3,
+    "no": 179,
+    "unknown": 0
+   },
+   "present80": {
+    "fits": 12,
+    "minor": 4,
+    "no": 64,
+    "unknown": 0
+   },
+   "feasible33": {
+    "fits": 6,
+    "minor": 8,
+    "no": 19,
+    "unknown": 0
+   },
+   "all295": {
+    "fits": 18,
+    "minor": 15,
+    "no": 262,
+    "unknown": 0
+   }
+  },
+  "oze": {
+   "mismatch182": {
+    "fits": 1,
+    "minor": 3,
+    "no": 173,
+    "unknown": 5
+   },
+   "present80": {
+    "fits": 29,
+    "minor": 5,
+    "no": 45,
+    "unknown": 1
+   },
+   "feasible33": {
+    "fits": 5,
+    "minor": 9,
+    "no": 17,
+    "unknown": 2
+   },
+   "all295": {
+    "fits": 35,
+    "minor": 17,
+    "no": 235,
+    "unknown": 8
+   }
+  }
+ },
+ "fitminor_effect": {
+  "tictoc": {
+   "cpu-cache": 8,
+   "delay-on-conflict": 5,
+   "version-lifetime": 0,
+   "none": 12
+  },
+  "mocc": {
+   "cpu-cache": 7,
+   "delay-on-conflict": 12,
+   "version-lifetime": 0,
+   "none": 13
+  },
+  "cicada": {
+   "cpu-cache": 8,
+   "delay-on-conflict": 9,
+   "version-lifetime": 8,
+   "none": 9
+  },
+  "ermia": {
+   "cpu-cache": 9,
+   "delay-on-conflict": 6,
+   "version-lifetime": 8,
+   "none": 12
+  },
+  "si": {
+   "cpu-cache": 10,
+   "delay-on-conflict": 5,
+   "version-lifetime": 8,
+   "none": 10
+  },
+  "mvto": {
+   "cpu-cache": 10,
+   "delay-on-conflict": 8,
+   "version-lifetime": 9,
+   "none": 11
+  },
+  "ss2pl": {
+   "cpu-cache": 7,
+   "delay-on-conflict": 7,
+   "version-lifetime": 1,
+   "none": 6
+  },
+  "oze": {
+   "cpu-cache": 10,
+   "delay-on-conflict": 6,
+   "version-lifetime": 0,
+   "none": 8
+  }
+ },
+ "fitminor_new": {
+  "tictoc": {
+   "all295": 25,
+   "mismatch182": 3
+  },
+  "mocc": {
+   "all295": 32,
+   "mismatch182": 5
+  },
+  "cicada": {
+   "all295": 34,
+   "mismatch182": 11
+  },
+  "ermia": {
+   "all295": 35,
+   "mismatch182": 14
+  },
+  "si": {
+   "all295": 33,
+   "mismatch182": 12
+  },
+  "mvto": {
+   "all295": 38,
+   "mismatch182": 9
+  },
+  "ss2pl": {
+   "all295": 21,
+   "mismatch182": 3
+  },
+  "oze": {
+   "all295": 24,
+   "mismatch182": 3
+  }
+ },
+ "stage_a": {
+  "tictoc": [
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "fits",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "TicToc は両 NO_WAIT flag を 0 にすると commit 時の施錠で読み直して spin 待ちする経路を持つ (cc-profiles tictoc 3)。その待ちに上限時間を付けて abort するだけで足りる。"
+   },
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "TicToc の Tuple は TsWord 2 語 + TupleBody (値は別確保) なので、値を tuple (版) の header と同じ cache line に置く配置変更で、YCSB は値長固定なので固定長の field 追加 (m1) で足りる。"
+   },
+   {
+    "card_id": "tskd-tsdefer-lockfree-probing",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。TsDefer 本体と一緒に入る部品として判定した。"
+   },
+   {
+    "card_id": "tskd-tsdefer-proactive-deferment",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。"
+   },
+   {
+    "card_id": "ding-thread-aware-reordering",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。TicToc は単版でデータ駆動の wts/rtsのままで正しさは CC が守る。"
+   },
+   {
+    "card_id": "abyss-wait-die",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "TicToc は開始時 timestamp を持たない。worker ごとの開始時刻 (m2)、lock 保持者の開始時刻を tuple に置く field (m1、TsWord に空き bit は無い)、commit 時施錠で年齢比較して待つか abort する分岐 (m3) で入る。直列化は commit_ts のまま。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "write phase (lock 中) で updater を適用する分岐 (m3) と、driver が RMW を blind write + updater として渡す口 (m4) で足りる。YCSB では updater が恒等写像。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "TsWord は lock/absent/delta/wts で埋まるので予約語を tuple に別に足し (m1)、取引 priority を worker に持ち (m2)、read/lock 取得/commit・abort 後に予約と判定を足す (m3)。abort 条件の追加で骨格は不変。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "TsWord は lock/absent/delta/wts で埋まるので予約語を tuple に別に足し (m1)、取引 priority を worker に持ち (m2)、read/lock 取得/commit・abort 後に予約と判定を足す (m3)。abort 条件の追加で骨格は不変。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "TsWord は lock/absent/delta/wts で埋まるので予約語を tuple に別に足し (m1)、取引 priority を worker に持ち (m2)、read/lock 取得/commit・abort 後に予約と判定を足す (m3)。abort 条件の追加で骨格は不変。"
+   }
+  ],
+  "mocc": [
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "fits",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "MOCC の lock 取得は blocking spin で、LOCK_TIMEOUT_US の定義も未使用のまま残る。待ちに上限時間を付けて abort するだけで足りる。"
+   },
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "MOCC の Tuple は Tidword・独立 line の Epotemp・TupleBody・rwlock なので、値を tuple (版) の header と同じ cache line に置く配置変更で、YCSB は値長固定なので固定長の field 追加 (m1) で足りる。"
+   },
+   {
+    "card_id": "tskd-tsdefer-lockfree-probing",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。TsDefer 本体と一緒に入る部品として判定した。"
+   },
+   {
+    "card_id": "tskd-tsdefer-proactive-deferment",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。"
+   },
+   {
+    "card_id": "brook2pl-read-write-constraint",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "delay-on-conflict",
+    "note": "原典は静的解析で R→W を見つけるが、YCSB は RMW 操作であることを開始前に pro_set_ に持つ (m4)。MOCC の read で read lock の代わりに write lock を直接取る分岐 (m3) で入り、施錠・検証の骨格は変えない。"
+   },
+   {
+    "card_id": "ding-thread-aware-reordering",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。MOCC は単版で Silo 型 TID と RW lockのままで正しさは CC が守る。"
+   },
+   {
+    "card_id": "abyss-wait-die",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "MOCC は RW lock と blocking 待ちを持つ。開始時刻 (m2)、保持者の開始時刻 (m1)、lock 取得での年齢比較の分岐 (m3) で入る。直列化は TID のまま。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "write phase (lock 中) で updater を適用する分岐 (m3) と、driver が RMW を blind write + updater として渡す口 (m4) で足りる。YCSB では updater が恒等写像。"
+   },
+   {
+    "card_id": "tebaldi-tso-promises",
+    "value": "minor",
+    "verifier": "conditional:TSO の timestamp 順を直列化順として trace に差し込むこと",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "delay-on-conflict",
+    "note": "YCSB の pro_set_ から書く key を渡し (m4)、begin で MOCC の既存 lock() で write lock を先に取る (m3) と読み手は write まで待つ。原典は TSO だが、待たせて後の書き手の abort を避ける効果は MOCC の OCC 検証の骨格を変えずに作れる。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語を足し (m1)、worker に priority (m2)、read・write lock 取得・終了時に予約と判定 (m3)。abort 条件の追加のみ。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "tuple に予約語を足し (m1)、worker に priority (m2)、read・write lock 取得・終了時に予約と判定 (m3)。abort 条件の追加のみ。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語を足し (m1)、worker に priority (m2)、read・write lock 取得・終了時に予約と判定 (m3)。abort 条件の追加のみ。"
+   }
+  ],
+  "cicada": [
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "minor",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "Cicada に lock は無いが、pending 版を spin で待つ所が lock 待ちに当たる。そこに上限時間で abort する分岐 (m3) を足す形で、正しさは変わらない。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "Cicada では値は Version の TupleBody (別確保) にあり、版 header (rts/wts/next/status) の line へ固定長で置けば同じ効果。骨格は変えない。"
+   },
+   {
+    "card_id": "tskd-tsdefer-lockfree-probing",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。TsDefer 本体と一緒に入る部品として判定した。"
+   },
+   {
+    "card_id": "tskd-tsdefer-proactive-deferment",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。"
+   },
+   {
+    "card_id": "ding-thread-aware-reordering",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。Cicada は多版で begin 時の ts に直列化し施錠なしのままで正しさは CC が守る。"
+   },
+   {
+    "card_id": "ermia-three-epoch-manager",
+    "value": "minor",
+    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "cicada は leader が全 thread の flag を見て MinRts を進める quiescence を持ち、3 本の epoch 状態 (m2) と条件付き quiescent 点の検査 (m3) を足せば回収経路を変えずに入る。"
+   },
+   {
+    "card_id": "rr-o4-version-prefetching",
+    "value": "minor",
+    "verifier": "conditional:多版の読んだ版の ID を trace に記録する差し込み点を合わせれば (prefetch 自体は正しさに関与しない)",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "版に jump pointer を足し (m1)、read の next_ 走査 (wts>ts を飛ばす) で prefetch を出す (m3)。設置時に pointer を張る。正しさには関与しない。"
+   },
+   {
+    "card_id": "tebaldi-tso-promises",
+    "value": "minor",
+    "verifier": "conditional:TSO の timestamp 順を直列化順として trace に差し込むこと",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "delay-on-conflict",
+    "note": "YCSB の pro_set_ から書く key を開始前に渡し (m4)、begin で pending 版を先に設置する (m3、設置の時点の前倒し)。Cicada の読み手は自 ts 以下の pending を既に待つので、宣言 key の読み手を write まで待たせる TO の待ちがそのまま得られる。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "lock は無いが、tuple に予約語 (m1)・worker に priority (m2)・read と pending 版設置の前に予約判定 (m3) を足せる。abort 条件の追加で ts 順序の正しさは不変。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "lock は無いが、tuple に予約語 (m1)・worker に priority (m2)・read と pending 版設置の前に予約判定 (m3) を足せる。abort 条件の追加で ts 順序の正しさは不変。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "lock は無いが、tuple に予約語 (m1)・worker に priority (m2)・read と pending 版設置の前に予約判定 (m3) を足せる。abort 条件の追加で ts 順序の正しさは不変。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "版に delta 印 (m1)、read 時の flatten と GC で delta の基底を切らない検査 (m3)、updater を渡す口 (m4)。ts 順の直列化はそのまま。"
+   }
+  ],
+  "ermia": [
+   {
+    "card_id": "abyss-ts-alloc-mutex",
+    "value": "fits",
+    "verifier": "observable (割当て方式の違いで読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "ERMIA は cstamp = ++Lsn の大域 atomic counter を持ち、その発行を mutex の critical section にするだけ (基準線で性能は下がる)。"
+   },
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "minor",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "ERMIA の install_version で先行 inflight 版を待つ所に上限時間で abort する分岐 (m3) を足す形で入る。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "ERMIA の値は Version の TupleBody にあり、版 header の line へ固定長で置く配置変更 (m1) で足りる。"
+   },
+   {
+    "card_id": "tskd-tsdefer-lockfree-probing",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。TsDefer 本体と一緒に入る部品として判定した。"
+   },
+   {
+    "card_id": "tskd-tsdefer-proactive-deferment",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。"
+   },
+   {
+    "card_id": "ding-thread-aware-reordering",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。ERMIA は多版で snapshot 読み + SSN 検査のままで正しさは CC が守る。"
+   },
+   {
+    "card_id": "ermia-three-epoch-manager",
+    "value": "minor",
+    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "ermia は leader が TMT の txid 範囲から閾値を決める回収経路を持ち、3 本の epoch 状態 (m2) と worker の quiescent 報告 (m3) で閾値の決め方を替える形で入る。"
+   },
+   {
+    "card_id": "rr-o4-version-prefetching",
+    "value": "minor",
+    "verifier": "conditional:多版の読んだ版の ID を trace に記録する差し込み点を合わせれば (prefetch 自体は正しさに関与しない)",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "版に jump pointer を足し (m1)、prev_ を辿る read 走査 (cstamp>txid や inflight を飛ばす) で prefetch する (m3)。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "版に delta 印 (m1)、read 時 flatten と GC の検査 (m3)、updater の口 (m4)。first-updater-wins の w-w abort は残るので利得は read-write 依存の削減だけ。"
+   }
+  ],
+  "si": [
+   {
+    "card_id": "abyss-ts-alloc-mutex",
+    "value": "fits",
+    "verifier": "observable (割当て方式の違いで読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "SI は cstamp = ++Lsn の大域 atomic counter を持ち、その発行を mutex の critical section にするだけ (基準線で性能は下がる)。"
+   },
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "minor",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "SI の先行 inflight 版を待つ所に上限時間で abort する分岐 (m3) を足す形で入る。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "SI の値は Version の TupleBody にあり、版 header の line へ固定長で置く配置変更 (m1) で足りる。"
+   },
+   {
+    "card_id": "tskd-tsdefer-lockfree-probing",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。TsDefer 本体と一緒に入る部品として判定した。"
+   },
+   {
+    "card_id": "tskd-tsdefer-proactive-deferment",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。"
+   },
+   {
+    "card_id": "ding-thread-aware-reordering",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。SI は多版で snapshot 読み、直列化の検査なしのままで正しさは CC が守る。"
+   },
+   {
+    "card_id": "ermia-three-epoch-manager",
+    "value": "minor",
+    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "si は leader が TMT の txid 範囲から閾値を決める回収経路を持ち、3 本の epoch 状態 (m2) と worker の quiescent 報告 (m3) で閾値の決め方を替える形で入る。"
+   },
+   {
+    "card_id": "rr-o4-version-prefetching",
+    "value": "minor",
+    "verifier": "conditional:多版の読んだ版の ID を trace に記録する差し込み点を合わせれば (prefetch 自体は正しさに関与しない)",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "版に jump pointer を足し (m1)、prev_ を辿る read 走査 (cstamp>txid や inflight を飛ばす) で prefetch する (m3)。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "版に delta 印 (m1)、read 時 flatten と GC の検査 (m3)、updater の口 (m4)。first-updater-wins の w-w abort は残るので利得は read-write 依存の削減だけ。"
+   }
+  ],
+  "mvto": [
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "minor",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "MVTO の pending 版の spin 待ちに上限時間で abort する分岐 (m3) を足す形で入る。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "MVTO の値は Version の TupleBody にあり、版 header の line へ固定長で置く配置変更 (m1) で足りる。"
+   },
+   {
+    "card_id": "ermia-three-epoch-manager",
+    "value": "minor",
+    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "mvto は leader が全 thread の flag を見て MinRts を進める quiescence を持ち、3 本の epoch 状態 (m2) と条件付き quiescent 点の検査 (m3) を足せば回収経路を変えずに入る。"
+   },
+   {
+    "card_id": "rr-o4-version-prefetching",
+    "value": "minor",
+    "verifier": "conditional:多版の読んだ版の ID を trace に記録する差し込み点を合わせれば (prefetch 自体は正しさに関与しない)",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "版に jump pointer を足し (m1)、read の next_ 走査 (wts>ts を飛ばす) で prefetch を出す (m3)。設置時に pointer を張る。正しさには関与しない。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "lock は無いが、tuple に予約語 (m1)・worker に priority (m2)・read と pending 版設置の前に予約判定 (m3) を足せる。abort 条件の追加で ts 順序の正しさは不変。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "lock は無いが、tuple に予約語 (m1)・worker に priority (m2)・read と pending 版設置の前に予約判定 (m3) を足せる。abort 条件の追加で ts 順序の正しさは不変。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "lock は無いが、tuple に予約語 (m1)・worker に priority (m2)・read と pending 版設置の前に予約判定 (m3) を足せる。abort 条件の追加で ts 順序の正しさは不変。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "版に delta 印 (m1)、read 時の flatten と GC で delta の基底を切らない検査 (m3)、updater を渡す口 (m4)。ts 順の直列化はそのまま。"
+   }
+  ],
+  "ss2pl": [
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "fits",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "SS2PL は DLR0 で上限なしに lock を待つ経路を持つ (既定は DLR1)。その待ちに上限時間を付けるだけで、DL_DETECT の timeout と同じ形になる。"
+   },
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "SS2PL の Tuple は RW lock + TupleBody なので、値を tuple (版) の header と同じ cache line に置く配置変更で、YCSB は値長固定なので固定長の field 追加 (m1) で足りる。"
+   },
+   {
+    "card_id": "abyss-wait-die",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "SS2PL は timestamp を持たない 2PL。開始時刻 (m2)、保持者の開始時刻を tuple に置く固定長 field (m1)、lock 待ちで年齢比較する分岐 (m3) で入り、2PL の骨格は変わらない。"
+   },
+   {
+    "card_id": "stov2-commit-time-updates",
+    "value": "minor",
+    "verifier": "conditional:updater が適用した直前版を trace に記録する差し込み点を足せば (read として記録しないと lost update が依存グラフに出ない)",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "書込みは commit まで buffer し lock 中に反映するので、反映時に updater を適用 (m3)、RMW を updater つき blind write で渡す口 (m4)。TPC-C の取引コード側の呼び方も変える。"
+   },
+   {
+    "card_id": "abyss-dl-detect",
+    "value": "minor",
+    "verifier": "conditional:2PL 系 (ss2pl) の trace で版 ID を書き手の commit TID に対応づけ、commit 順を差し込み点で記録すれば",
+    "minor_parts": 3,
+    "class": "absent-prereq-mismatch",
+    "effect": "delay-on-conflict",
+    "note": "SS2PL は tuple の RW lock の 2PL で、DLR0 なら待つ。保持者を示す固定長 field (m1)、waits-for graph と detector (m2)、lock 待ちの分岐 (m3) で入り、2PL の骨格は変わらない。TPC-C で効く。"
+   },
+   {
+    "card_id": "abyss-lockfree-partitioned-deadlock-detector",
+    "value": "minor",
+    "verifier": "conditional:2PL 系 (ss2pl) の trace で版 ID を書き手の commit TID に対応づけ、commit 順を差し込み点で記録すれば",
+    "minor_parts": 3,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "SS2PL (DLR0 の待ち) に DL_DETECT を入れた上での改良で、保持者 field (m1)、core ごとの waits-for queue (m2)、待ちの段での登録と lock なし走査 (m3) で入る。2PL の骨格は変わらない。"
+   }
+  ],
+  "oze": [
+   {
+    "card_id": "stov2-basis-transaction-internals",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
+   },
+   {
+    "card_id": "abyss-lock-wait-timeout",
+    "value": "minor",
+    "verifier": "observable (待ち方の変更で通す条件は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "非既定の OCC モードの blocking w_lock に上限時間で abort する分岐 (m3) を足す形で入る。既定の Oze モードは pending を待たない。"
+   },
+   {
+    "card_id": "silo-inline-record-data",
+    "value": "minor",
+    "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "Oze の値は Version の TupleBody にあり、版 header (TxID/next/status) の line へ固定長で置く配置変更 (m1) で足りる。"
+   },
+   {
+    "card_id": "tskd-tsdefer-lockfree-probing",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。TsDefer 本体と一緒に入る部品として判定した。"
+   },
+   {
+    "card_id": "tskd-tsdefer-proactive-deferment",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "CC は変えない前段で、予定集合は YCSB の pro_set_ で begin 前に得られる。足りないのは worker ごとの実行中集合を他 worker が読める共有領域と、取引の順を入れ替える worker 局所の queue (m2)。"
+   },
+   {
+    "card_id": "ding-thread-aware-reordering",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。Oze は多版で tuple ごとの依存グラフの cycle 検査のままで正しさは CC が守る。"
+   },
+   {
+    "card_id": "rr-o4-version-prefetching",
+    "value": "minor",
+    "verifier": "conditional:多版の読んだ版の ID を trace に記録する差し込み点を合わせれば (prefetch 自体は正しさに関与しない)",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "cpu-cache",
+    "note": "版に jump pointer を足し (m1)、先頭から committed まで辿る read 走査で prefetch する (m3)。forwarding の途中挿入時にも pointer を張り直す。"
+   },
+   {
+    "card_id": "polaris-abort-aware-priority-increment",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と write_validation に予約判定 (m3) を足す。abort 条件の追加のみ。 abort 回数の counter も worker 状態 (m2) で持つ。"
+   },
+   {
+    "card_id": "polaris-no-reserve-lowest-prio",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と write_validation に予約判定 (m3) を足す。abort 条件の追加のみ。 最低優先度の予約省略はその上の比較 1 つ。"
+   },
+   {
+    "card_id": "polaris-priority-reservation",
+    "value": "minor",
+    "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
+    "minor_parts": 3,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tuple に予約語 (m1)・worker に priority (m2)・read と write_validation に予約判定 (m3) を足す。abort 条件の追加のみ。"
+   }
+  ]
+ },
+ "stage_a_partial": {
+  "tictoc": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "thread ごとの pool と自動拡縮は CC の骨格に触れない確保器で、TicToc の write set の値の複製や insert の確保にそのまま使える。"
+   },
+   {
+    "card_id": "cicada-write-set-sort-by-contention",
+    "value": "fits",
+    "verifier": "observable (施錠順の変更で通す条件は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "tictoc は既定 no-wait 施錠で施錠順を key 順から外しても deadlock せず、tuple の wts を競合度の近似に使えるので比較子の差し替えだけで入る。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れない実装基盤で、TicToc でも前提 (thread の core 固定) だけで足せる。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC 側の前提は無く、scan を使わない表 (YCSB、TPC-C の warehouse/district/item/stock) の索引を hash 表にする storage 側の変更。node set 検査を持つ CC はその表で検査を省く分岐が付く。"
+   },
+   {
+    "card_id": "tictoc-preemptive-abort",
+    "value": "fits",
+    "verifier": "observable (abort を早めるだけで commit する取引の読み書きは変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "TicToc は TsWord の原子読みと appro_commit_ts_ を既に持つので、lock 取得前に read set を近似 commit ts で走査する検査をそのまま足せる (今は read 中の lock 時だけ)。"
+   },
+   {
+    "card_id": "stov2-basis-deadlock-avoidance",
+    "value": "minor",
+    "verifier": "observable (sort を外しても施錠と validation の意味は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "commit 段の write set の sort を外し、TsWord の lock CAS を上限回数の spin 後に abort する分岐 (m3)。commit 時施錠と validation の意味は不変。"
+   },
+   {
+    "card_id": "mocc-queuing-lock-mql",
+    "value": "minor",
+    "verifier": "observable (lock の実装差で読み書きの意味は変わらない)",
+    "minor_parts": 2,
+    "class": "ccbench-present",
+    "effect": "cpu-cache",
+    "note": "TicToc の lock は TsWord の lock bit。header に MQL の固定長 field を足し (m1)、read の一貫読みと commit の施錠でその状態を見る (m3) 形は MOCC が単版 OCC で示しており、commit 時施錠の骨格は変わらない。既定 no-wait なので待ち行列の利得は小さい見込み。"
+   }
+  ],
+  "mocc": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "thread ごとの pool と自動拡縮は CC の骨格に触れず、MOCC にもそのまま入る。"
+   },
+   {
+    "card_id": "plor-read-only-dynamic-validation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "ccbench-present",
+    "effect": "none",
+    "note": "OCC の validation 経路と RW lock による read lock 経路の両方があり、read-only 限定で abort 回数 3 を閾値に切り替える判定だけ足せばよい (RLL は温度と record 単位で別機構)。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、MOCC でもそのまま足せる。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC 側の前提は無く、scan を使わない表 (YCSB、TPC-C の warehouse/district/item/stock) の索引を hash 表にする storage 側の変更。node set 検査を持つ CC はその表で検査を省く分岐が付く。"
+   },
+   {
+    "card_id": "stov2-basis-deadlock-avoidance",
+    "value": "minor",
+    "verifier": "observable (sort を外しても施錠と validation の意味は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "アドレス順の CLL 取得と blocking spin を、上限回数で abort する取得に替える (m3)。順序による deadlock 回避を timeout に替える点が MOCC の施錠設計に触れるので判断は際どい。"
+   },
+   {
+    "card_id": "tictoc-preemptive-abort",
+    "value": "minor",
+    "verifier": "observable (abort を早めるだけで commit する取引の読み書きは変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "MOCC に rts・commit_ts は無いが、Silo と同じく施錠前に read set の TID を再読して変化で abort する早期検査 (validation 相の前段に分岐) に置き換えられる。本検証は残る。"
+   },
+   {
+    "card_id": "orthrus-planned-deadlock-free-locking",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "ccbench-present",
+    "effect": "delay-on-conflict",
+    "note": "YCSB の pro_set_ から開始前の key 集合を渡し (m4)、begin で全 record を MOCC の既存 lock() (Tuple* アドレス順、RLL と同じ事前 lock 経路) で取る (m3)。commit 時の OCC 検証は残るので骨格は変えない。TPC-C では集合が得られない。"
+   }
+  ],
+  "cicada": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "Cicada には事前確保の固定量の版 pool があるが自動拡縮は無い。確保器の差し替えは骨格に触れない。"
+   },
+   {
+    "card_id": "cicada-write-set-sort-by-contention",
+    "value": "fits",
+    "verifier": "observable (施錠順の変更で通す条件は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "cicada は precheck の partial_sort を (storage,key) 順で既に行い、最新版の wts もあるので比較子を競合度順へ替えるだけで入る。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、版を多く確保する Cicada でもそのまま足せる。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC 側の前提は無く、scan を使わない表 (YCSB、TPC-C の warehouse/district/item/stock) の索引を hash 表にする storage 側の変更。node set 検査を持つ CC はその表で検査を省く分岐が付く。"
+   },
+   {
+    "card_id": "tictoc-preemptive-abort",
+    "value": "minor",
+    "verifier": "observable (abort を早めるだけで commit する取引の読み書きは変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "Cicada は既に write set の precheck を持つ。pending 版設置の前に read set の可視版の変化を見る早期検査を足すのは相内の検査追加で、本検証 (iv) は残る。"
+   },
+   {
+    "card_id": "tebaldi-gc-epoch",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "Cicada は多版 TO (thread local clock・pending 版、lock なし)で多版と worker ごとの GC 経路はある。取引の GC epoch id と epoch 完了の確認 (m2) と、回収の下限を epoch 単位にする分岐 (m3) で入り、単一 CC なので全 CC の合意は自明。"
+   },
+   {
+    "card_id": "cicada-adaptive-skip-of-sort-precheck",
+    "value": "minor",
+    "verifier": "conditional:Cicada は開始時 timestamp の順が直列化順で commit 順と一致しないため、版 ID に書き手の wts を使い版順・直列化順を timestamp で取る差し込み点に合わせれば",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "delay-on-conflict",
+    "note": "cicada は省く対象の sort と precheck を持つが連続 commit の判定は record 単位で、thread 単位の連続 commit 数 (m2) を足して分岐させれば入る。"
+   },
+   {
+    "card_id": "steam-foreground-on-creation-pruning",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "version-lifetime",
+    "note": "cicada は commit 後に worker が自分の版を回収する foreground 型を持つので、周期の間引きを外し更新時に chain の古い尾を切る分岐 (m3) を足せば入る (中間版の刈り込みは EPO の別カード)。"
+   },
+   {
+    "card_id": "hana-global-sts-tracker",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "MinRts の leader 走査を、thread 数で上限のある共有の順序表 (m2) と begin/commit/abort での登録・削除 (m3) に置き換えるだけで、版・ts・施錠は変わらない。"
+   },
+   {
+    "card_id": "hana-group-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "cicada は thread ごとに commit 順の gcq を持つので、同じ commit の版群をまとめた束 (m2) と束ごとの 1 回の判定 (m3) で入る (group commit は無いので束は取引単位になる)。"
+   },
+   {
+    "card_id": "hyper-undo-buffer-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "cicada は thread 別 gcq と全体の最小値で回収するので、active 取引の最小値の保持 (m2) と commit ごとの取引単位の回収 (m3) で入る (undo buffer・tombstone の layout は移さない)。"
+   },
+   {
+    "card_id": "wu-gc-granularity-tuple-vs-txn",
+    "value": "minor",
+    "verifier": "conditional:多版方式は版 ID が commit TID と対応せず古い版を読むため、版 ID と版順・直列化順 (timestamp 順) を protocol の決定どおりに記録する差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "cicada は thread ごとの gcq に commit 順で版を積むので、取引単位の束 (m2) と束ごとの回収判定 (m3) に替えれば回収経路を保って入る。"
+   }
+  ],
+  "ermia": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "ERMIA にも事前確保の版の再利用列があるが自動拡縮の pool は無い。確保器の差し替えは骨格に触れない。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、ERMIA でもそのまま足せる。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC 側の前提は無く、scan を使わない表 (YCSB、TPC-C の warehouse/district/item/stock) の索引を hash 表にする storage 側の変更。node set 検査を持つ CC はその表で検査を省く分岐が付く。"
+   },
+   {
+    "card_id": "stov2-basis-deadlock-avoidance",
+    "value": "minor",
+    "verifier": "observable (sort を外しても施錠と validation の意味は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "install_version が先頭の inflight 版を上限なく spin 待ちする箇所に上限回数の abort を足す (m3)。write set の sort はもともと無い。"
+   },
+   {
+    "card_id": "tebaldi-gc-epoch",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "ERMIA は多版 (begin txid・commit 時 ++Lsn) で SSN 検査で多版と worker ごとの GC 経路はある。取引の GC epoch id と epoch 完了の確認 (m2) と、回収の下限を epoch 単位にする分岐 (m3) で入り、単一 CC なので全 CC の合意は自明。"
+   },
+   {
+    "card_id": "essn-read-from-policy",
+    "value": "minor",
+    "verifier": "conditional:snapshot_at_begin では読みの版が begin 時点の版になるため、その版 ID と直列化位置を trace に差し込むこと",
+    "minor_parts": 1,
+    "class": "absent-prereq-mismatch",
+    "effect": "none",
+    "note": "ERMIA は begin 時点の snapshot 読み固定 (transaction.cc:152-158)。SSN は commit 順の KTO と整合する read-from なら成り立つので、最新 commit 版を読む方針を read 相の分岐 (m3) で足せる。"
+   },
+   {
+    "card_id": "steam-foreground-on-creation-pruning",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "version-lifetime",
+    "note": "ermia は commit 後に worker が自分の版を回収する foreground 型を持つので、周期の間引きを外し更新時に chain の古い尾を切る分岐 (m3) を足せば入る (中間版の刈り込みは EPO の別カード)。"
+   },
+   {
+    "card_id": "ermia-tid-table-generations",
+    "value": "minor",
+    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "none",
+    "note": "ermia は inflight 版の cstamp_ に書き手 txid を置き TMT を引いて状態を得る形を持つので、TMT 要素に世代番号 (m2) と旧世代なら読み直す検査 (m3) を足せば入る。"
+   },
+   {
+    "card_id": "hana-global-sts-tracker",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "TMT の txid を leader が走査して閾値を決める経路を、共有の参照カウント付き順序表 (m2) と begin/終了時の登録・削除 (m3) に置き換える。骨格は不変。"
+   },
+   {
+    "card_id": "hana-group-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "ermia は thread ごとに commit 順の gcq を持つので、同じ commit の版群をまとめた束 (m2) と束ごとの 1 回の判定 (m3) で入る (group commit は無いので束は取引単位になる)。"
+   },
+   {
+    "card_id": "hyper-undo-buffer-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "ermia は thread 別 gcq と全体の最小値で回収するので、active 取引の最小値の保持 (m2) と commit ごとの取引単位の回収 (m3) で入る (undo buffer・tombstone の layout は移さない)。"
+   },
+   {
+    "card_id": "wu-gc-granularity-tuple-vs-txn",
+    "value": "minor",
+    "verifier": "conditional:多版方式は版 ID が commit TID と対応せず古い版を読むため、版 ID と版順・直列化順 (timestamp 順) を protocol の決定どおりに記録する差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "ermia は thread ごとの gcq に commit 順で版を積むので、取引単位の束 (m2) と束ごとの回収判定 (m3) に替えれば回収経路を保って入る。"
+   }
+  ],
+  "si": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "SI にも事前確保の版の再利用列があるが自動拡縮の pool は無い。確保器の差し替えは骨格に触れない。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、SI でもそのまま足せる。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC 側の前提は無く、scan を使わない表 (YCSB、TPC-C の warehouse/district/item/stock) の索引を hash 表にする storage 側の変更。node set 検査を持つ CC はその表で検査を省く分岐が付く。"
+   },
+   {
+    "card_id": "stov2-basis-deadlock-avoidance",
+    "value": "minor",
+    "verifier": "observable (sort を外しても施錠と validation の意味は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "install_version が先頭の inflight 版を上限なく spin 待ちする箇所に上限回数の abort を足す (m3)。write set の sort はもともと無い。"
+   },
+   {
+    "card_id": "tebaldi-gc-epoch",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "SI は多版 (ERMIA 同形) で直列化可能性の検査を持たないで多版と worker ごとの GC 経路はある。取引の GC epoch id と epoch 完了の確認 (m2) と、回収の下限を epoch 単位にする分岐 (m3) で入り、単一 CC なので全 CC の合意は自明。"
+   },
+   {
+    "card_id": "steam-foreground-on-creation-pruning",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "version-lifetime",
+    "note": "si は commit 後に worker が自分の版を回収する foreground 型を持つので、周期の間引きを外し更新時に chain の古い尾を切る分岐 (m3) を足せば入る (中間版の刈り込みは EPO の別カード)。"
+   },
+   {
+    "card_id": "ermia-tid-table-generations",
+    "value": "minor",
+    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "none",
+    "note": "si は inflight 版の cstamp_ に書き手 txid を置き TMT を引いて状態を得る形を持つので、TMT 要素に世代番号 (m2) と旧世代なら読み直す検査 (m3) を足せば入る。"
+   },
+   {
+    "card_id": "hana-global-sts-tracker",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "TMT の txid を leader が走査して閾値を決める経路を、共有の参照カウント付き順序表 (m2) と begin/終了時の登録・削除 (m3) に置き換える。骨格は不変。"
+   },
+   {
+    "card_id": "hana-group-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "si は thread ごとに commit 順の gcq を持つので、同じ commit の版群をまとめた束 (m2) と束ごとの 1 回の判定 (m3) で入る (group commit は無いので束は取引単位になる)。"
+   },
+   {
+    "card_id": "hyper-undo-buffer-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "si は thread 別 gcq と全体の最小値で回収するので、active 取引の最小値の保持 (m2) と commit ごとの取引単位の回収 (m3) で入る (undo buffer・tombstone の layout は移さない)。"
+   },
+   {
+    "card_id": "wu-gc-granularity-tuple-vs-txn",
+    "value": "minor",
+    "verifier": "conditional:多版方式は版 ID が commit TID と対応せず古い版を読むため、版 ID と版順・直列化順 (timestamp 順) を protocol の決定どおりに記録する差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "si は thread ごとの gcq に commit 順で版を積むので、取引単位の束 (m2) と束ごとの回収判定 (m3) に替えれば回収経路を保って入る。"
+   }
+  ],
+  "mvto": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "MVTO は回収した版を delete するので確保の頻度が高い。確保器の差し替えは骨格に触れない (TPC-C で測る)。"
+   },
+   {
+    "card_id": "cicada-write-set-sort-by-contention",
+    "value": "fits",
+    "verifier": "observable (施錠順の変更で通す条件は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "mvto は lock なしで版の wts を持ち、validation 冒頭の設置・検査順を競合度順に並べ替えるだけで入る (precheck が無いので早期失敗の利得は小さい)。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、MVTO でもそのまま足せる (TPC-C で効果を測る)。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "YCSB driver が無いが TPC-C の scan の無い表 (warehouse/district/item/stock) を hash 索引にでき、CC 側の前提は要らない。"
+   },
+   {
+    "card_id": "tictoc-preemptive-abort",
+    "value": "minor",
+    "verifier": "observable (abort を早めるだけで commit する取引の読み書きは変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "MVTO は commit 時に read set の可視版不変を検査するので、版設置の前にその早期検査を足す (m3) だけで足りる。TPC-C で効果を測る。"
+   },
+   {
+    "card_id": "tebaldi-gc-epoch",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "MVTO は多版 TO (pending 版、lock なし、YCSB driver なし)で多版と worker ごとの GC 経路はある。取引の GC epoch id と epoch 完了の確認 (m2) と、回収の下限を epoch 単位にする分岐 (m3) で入り、単一 CC なので全 CC の合意は自明。"
+   },
+   {
+    "card_id": "steam-foreground-on-creation-pruning",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "version-lifetime",
+    "note": "mvto は commit 後に worker が自分の版を回収する foreground 型を持つので、周期の間引きを外し更新時に chain の古い尾を切る分岐 (m3) を足せば入る (中間版の刈り込みは EPO の別カード)。"
+   },
+   {
+    "card_id": "wu-per-core-memory-spaces",
+    "value": "minor",
+    "verifier": "conditional:多版方式は版 ID が commit TID と対応せず古い版を読むため、版 ID と版順・直列化順 (timestamp 順) を protocol の決定どおりに記録する差し込み点に合わせれば",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "cpu-cache",
+    "note": "mvto は版を operator new で確保し再利用しないので、worker ごとの版確保領域 (m2) を足せば入る。"
+   },
+   {
+    "card_id": "cicada-adaptive-skip-of-sort-precheck",
+    "value": "minor",
+    "verifier": "conditional:Cicada は開始時 timestamp の順が直列化順で commit 順と一致しないため、版 ID に書き手の wts を使い版順・直列化順を timestamp で取る差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "ccbench-present",
+    "effect": "delay-on-conflict",
+    "note": "mvto には precheck が無いので validation 冒頭へ precheck を足し (m3)、thread 単位の連続 commit 数 (m2) で省く形になる。"
+   },
+   {
+    "card_id": "hana-global-sts-tracker",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "MinRts の leader 走査を、thread 数で上限のある共有の順序表 (m2) と begin/commit/abort での登録・削除 (m3) に置き換えるだけで、版・ts・施錠は変わらない。"
+   },
+   {
+    "card_id": "hana-group-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "mvto は thread ごとに commit 順の gcq を持つので、同じ commit の版群をまとめた束 (m2) と束ごとの 1 回の判定 (m3) で入る (group commit は無いので束は取引単位になる)。"
+   },
+   {
+    "card_id": "hyper-undo-buffer-gc",
+    "value": "minor",
+    "verifier": "conditional:多版の版 ID と直列化順の差し込み点を合わせれば、早すぎる回収で snapshot が別の版を読んだ場合は依存の食い違いとして見える。回収した版の再利用で値が化けた場合は read の値を記録しないため見えない",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "mvto は thread 別 gcq と全体の最小値で回収するので、active 取引の最小値の保持 (m2) と commit ごとの取引単位の回収 (m3) で入る (undo buffer・tombstone の layout は移さない)。"
+   },
+   {
+    "card_id": "wu-gc-granularity-tuple-vs-txn",
+    "value": "minor",
+    "verifier": "conditional:多版方式は版 ID が commit TID と対応せず古い版を読むため、版 ID と版順・直列化順 (timestamp 順) を protocol の決定どおりに記録する差し込み点に合わせれば",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "version-lifetime",
+    "note": "mvto は thread ごとの gcq に commit 順で版を積むので、取引単位の束 (m2) と束ごとの回収判定 (m3) に替えれば回収経路を保って入る。"
+   }
+  ],
+  "ss2pl": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "確保器の差し替えは SS2PL の骨格に触れない (TPC-C で測る)。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、SS2PL でもそのまま足せる (TPC-C で効果を測る)。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "YCSB driver が無いが TPC-C の scan の無い表 (warehouse/district/item/stock) を hash 索引にでき、CC 側の前提は要らない。"
+   },
+   {
+    "card_id": "plor-delayed-write-lock-acquisition",
+    "value": "minor",
+    "verifier": "observable",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "delay-on-conflict",
+    "note": "ss2pl は書込みを commit まで buffer しており、update 時の w_trylock/tryupgrade を commit 段へ移せば (m3) 2PL の成長相のまま DWA になる。no-wait なので deadlock も無い。"
+   },
+   {
+    "card_id": "stov2-basis-deadlock-avoidance",
+    "value": "minor",
+    "verifier": "observable (sort を外しても施錠と validation の意味は変わらない)",
+    "minor_parts": 1,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "ss2pl は既に sort せず no-wait (上限 0) なので、try lock を上限回数まで繰り返す分岐を足すだけ (m3)。"
+   },
+   {
+    "card_id": "mocc-queuing-lock-mql",
+    "value": "minor",
+    "verifier": "observable (lock の実装差で読み書きの意味は変わらない)",
+    "minor_parts": 2,
+    "class": "ccbench-present",
+    "effect": "cpu-cache",
+    "note": "SS2PL の tuple RW lock (int counter) を MQL に差し替えるのは header の固定長 field (m1) と worker ごとの qnode (m2) で足り、2PL の骨格は変わらない。既定 DLR1 は no-wait なので try 取得になる。"
+   },
+   {
+    "card_id": "silo-epoch-gc",
+    "value": "minor",
+    "verifier": "observable (回収は trace の読み書きに現れない)",
+    "minor_parts": 2,
+    "class": "ccbench-present",
+    "effect": "version-lifetime",
+    "note": "SS2PL は削除 tuple を積むだけで回収しない。大域 epoch と worker の local epoch (m2) を足し、commit 後の相で epoch 比較して回収する (m3) のは骨格を変えない。TPC-C Delivery の delete で効く。"
+   }
+  ],
+  "oze": [
+   {
+    "card_id": "abyss-custom-malloc",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "none",
+    "note": "確保器の差し替えは Oze の骨格に触れない (版とグラフの node の確保に効きうる)。"
+   },
+   {
+    "card_id": "silo-numa-aware-allocator",
+    "value": "fits",
+    "verifier": "observable (配置の変更で読み書きの意味は変わらない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "確保器・2MB superpage・pre-fault は CC の骨格に触れず、Oze でもそのまま足せる。"
+   },
+   {
+    "card_id": "stov2-basis-contention-regulation",
+    "value": "fits",
+    "verifier": "observable",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "delay-on-conflict",
+    "note": "abort 後に BACK_OFF で待つ位置が既にあり、待ち時間の決め方を worker ごとの乱数つき指数 backoff に替えるだけ (現行は全体共有の山登り)。"
+   },
+   {
+    "card_id": "stov2-basis-index-types",
+    "value": "fits",
+    "verifier": "observable (点読み・点書きに限る。scan を混ぜると phantom 保護が消えるので scan つき workload では使えない)",
+    "minor_parts": 0,
+    "class": "absent-silo-feasible",
+    "effect": "cpu-cache",
+    "note": "CC 側の前提は無く、scan を使わない表 (YCSB、TPC-C の warehouse/district/item/stock) の索引を hash 表にする storage 側の変更。node set 検査を持つ CC はその表で検査を省く分岐が付く。"
+   },
+   {
+    "card_id": "mocc-queuing-lock-mql",
+    "value": "minor",
+    "verifier": "observable (lock の実装差で読み書きの意味は変わらない)",
+    "minor_parts": 2,
+    "class": "ccbench-present",
+    "effect": "cpu-cache",
+    "note": "Oze の tuple RW lock (graph の latch、OCC モードの w_lock) を MQL に差し替えるのは固定長 field (m1) と worker ごとの qnode (m2) で足りる。"
+   },
+   {
+    "card_id": "wu-per-core-memory-spaces",
+    "value": "minor",
+    "verifier": "conditional:多版方式は版 ID が commit TID と対応せず古い版を読むため、版 ID と版順・直列化順 (timestamp 順) を protocol の決定どおりに記録する差し込み点に合わせれば",
+    "minor_parts": 1,
+    "class": "ccbench-present",
+    "effect": "cpu-cache",
+    "note": "oze は版を new で確保するので、worker ごとの版確保領域 (m2) を足せば入る (旧版の回収が無い点は別問題)。"
+   },
+   {
+    "card_id": "oze-dynamic-protocol-switching",
+    "value": "minor",
+    "verifier": "conditional:Oze は版順を validation で決め (order forwarding で commit 順と異なる直列化順を取る)、版順・直列化順を validation の決定どおりに記録する差し込み点に合わせれば。mode 遷移中の取引も同じ差し込み点を通す必要がある",
+    "minor_parts": 2,
+    "class": "absent-prereq-mismatch",
+    "effect": "none",
+    "note": "oze は mode 遷移の機構を持ち切替条件が常に false なので、長い取引の検出状態 (m2) と abort 後・一定期間後の判定 (m3) を足せば入る。"
+   }
+  ]
+ },
+ "no_reasons": {
+  "tictoc": {
+   "mv-required": 95,
+   "predeclared": 58,
+   "lock-regime": 47,
+   "ts-scheme": 29,
+   "partition": 18,
+   "platform": 9,
+   "other:no-ltx-mode": 7,
+   "other:predicate set と secondary index が無い": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:SSN が前提": 4,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:correctness-argument": 3,
+   "other:施錠順と no-wait で deadlock が起きない": 2,
+   "other:no-predicate-validation": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:serializable を弱める (規律2)": 1,
+   "other:取引対応表 (TMT) を持たない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:既に直列化可能な CC へ別の certifier を重ねる (正しさの論拠の置換)": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (IX 一覧・last-read time) が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1
+  },
+  "mocc": {
+   "mv-required": 95,
+   "predeclared": 57,
+   "lock-regime": 36,
+   "ts-scheme": 20,
+   "partition": 18,
+   "platform": 9,
+   "other:no-ltx-mode": 7,
+   "other:correctness-argument": 7,
+   "other:predicate set と secondary index が無い": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:SSN が前提": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 3,
+   "other:施錠順で deadlock が起きない": 2,
+   "other:no-predicate-validation": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:serializable を弱める (規律2)": 1,
+   "other:取引対応表 (TMT) を持たない": 1,
+   "other:blocking 施錠の大域アドレス順が deadlock 回避の根拠": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:既に直列化可能な CC へ別の certifier を重ねる (正しさの論拠の置換)": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:split (可換演算の slice 化) が前提": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (IX 一覧・last-read time) が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1
+  },
+  "cicada": {
+   "lock-regime": 57,
+   "predeclared": 57,
+   "ts-scheme": 43,
+   "partition": 18,
+   "platform": 9,
+   "gc-structure": 9,
+   "other:no-ltx-mode": 7,
+   "sv-required": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:SSN が前提": 3,
+   "other:MVSG のグラフが前提": 2,
+   "other:no-predicate-validation": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:validation 相で施錠しない": 1,
+   "other:serializable を弱める (規律2)": 1,
+   "other:tuple lock を持たない": 1,
+   "other:大域 epoch を持たない": 1,
+   "other:取引対応表 (TMT) を持たない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:版に書き手 TID を仮置きせず pending 状態で表す": 1,
+   "other:SSN の pstamp が前提": 1,
+   "other:正しさの論拠を MVSG へ置換": 1,
+   "other:OCC mode と MVSG mode の両実装が前提": 1,
+   "other:MVSG のグラフ統合が前提": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:版の置き場の変更 (time-travel/delta) は m1〜m4 の外": 1,
+   "other:record が属性に分かれず非 inline 属性が無い": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:版の置き場を in-place + undo delta へ替える (m1〜m4 の外)": 1,
+   "other:validation の論拠を述語照合へ置換": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:属性分割の delta 版と bulk insert の共有版が前提": 1,
+   "other:GC 方式一式の移植が前提 (m1〜m4 の外)": 1,
+   "other:no-rid-hash-table": 1,
+   "other:in-place-update-version-placement": 1,
+   "other:no-oltp-olap-distinction": 1,
+   "other:delta-version-storage": 1,
+   "other:vertical-partitioning-required": 1,
+   "other:no-write-lock-acquisition": 1,
+   "other:correctness-argument": 1,
+   "other:施錠が無く no-wait の lock 失敗が起きない": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (可変長の IX 一覧・range の last-read time) と range 読みの経路が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1
+  },
+  "ermia": {
+   "predeclared": 57,
+   "lock-regime": 54,
+   "ts-scheme": 32,
+   "partition": 18,
+   "platform": 9,
+   "gc-structure": 9,
+   "other:no-ltx-mode": 7,
+   "sv-required": 5,
+   "other:snapshot 読みで commit 時点の最新値を検証する OCC の validation が無い": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:correctness-argument": 4,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:前提の BCC が SSN と合わない": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:MVSG のグラフが前提": 2,
+   "other:no-predicate-validation": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:validation 相で施錠しない": 1,
+   "other:serializable を弱める (規律2)": 1,
+   "other:tuple lock を持たない": 1,
+   "other:SSN の readers 記録が正しさに要る": 1,
+   "other:大域 epoch を持たない": 1,
+   "other:first-updater-wins では待っても abort": 1,
+   "other:版を update 時に設置する": 1,
+   "other:版を操作時に設置し commit 時に並べる施錠・設置列が無い": 1,
+   "other:commit 時に版を再探索しない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:正しさの論拠を MVSG へ置換": 1,
+   "other:OCC mode と MVSG mode の両実装が前提": 1,
+   "other:MVSG のグラフ統合が前提": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:版の置き場の変更 (time-travel/delta) は m1〜m4 の外": 1,
+   "other:record が属性に分かれず非 inline 属性が無い": 1,
+   "other:SSN を backward validation へ置換 (正しさの論拠の変更)": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:版の置き場を in-place + undo delta へ替える (m1〜m4 の外)": 1,
+   "other:validation の論拠を述語照合へ置換": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:属性分割の delta 版と bulk insert の共有版が前提": 1,
+   "other:GC 方式一式の移植が前提 (m1〜m4 の外)": 1,
+   "other:no-rid-hash-table": 1,
+   "other:in-place-update-version-placement": 1,
+   "other:no-oltp-olap-distinction": 1,
+   "other:delta-version-storage": 1,
+   "other:eager-install-first-updater-wins": 1,
+   "other:vertical-partitioning-required": 1,
+   "other:safe-snapshot-needs-new-argument": 1,
+   "other:read の版不一致で abort せず修復の契機が無い": 1,
+   "other:前提の healing が入らない (read 不一致で abort しない)": 1,
+   "other:read の値を commit 時に検証しない (SSN の stamp で判定)": 1,
+   "other:commit 時の施錠順が無い (update 時に版を設置)": 1,
+   "other:前提の healing が入らない": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:SSN の stamp 窓の検査で read set の TID 変化を検証しない": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:直列化順が commit 順と一致しないため epoch/時刻での過去版 snapshot が直列化の prefix にならない": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (IX 一覧・last-read time) が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1
+  },
+  "si": {
+   "predeclared": 57,
+   "lock-regime": 54,
+   "ts-scheme": 28,
+   "partition": 18,
+   "platform": 9,
+   "gc-structure": 9,
+   "other:no-ltx-mode": 7,
+   "sv-required": 5,
+   "other:snapshot 読みで commit 時点の最新値を検証する OCC の validation が無い": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:SSN が無い": 4,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:SI は read を検証しない": 3,
+   "other:前提の BCC が入らない (read 検証が無い)": 3,
+   "other:SSN を足すと正しさの論拠が変わる (ermia と同一になる)": 2,
+   "other:MVSG のグラフが前提": 2,
+   "other:no-predicate-validation": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:SSN 検査が無い": 2,
+   "other:validation 相で施錠しない": 1,
+   "other:tuple lock を持たない": 1,
+   "other:大域 epoch を持たない": 1,
+   "other:first-updater-wins では待っても abort": 1,
+   "other:版を update 時に設置する": 1,
+   "other:版を操作時に設置し commit 時に並べる施錠・設置列が無い": 1,
+   "other:commit 時に版を再探索しない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:SSN が無く bitmap を読まない": 1,
+   "other:SSN が無く stamp を使わない": 1,
+   "other:SSN の pstamp が無い": 1,
+   "other:正しさの論拠を MVSG へ置換": 1,
+   "other:OCC mode と MVSG mode の両実装が前提": 1,
+   "other:MVSG のグラフ統合が前提": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:比較 4 方式のいずれでもない (SI は直列化可能でない)": 1,
+   "other:版の置き場の変更 (time-travel/delta) は m1〜m4 の外": 1,
+   "other:record が属性に分かれず非 inline 属性が無い": 1,
+   "other:SI に validation を足すと正しさの論拠が変わる": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:版の置き場を in-place + undo delta へ替える (m1〜m4 の外)": 1,
+   "other:validation の論拠を述語照合へ置換": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:属性分割の delta 版と bulk insert の共有版が前提": 1,
+   "other:GC 方式一式の移植が前提 (m1〜m4 の外)": 1,
+   "other:no-rid-hash-table": 1,
+   "other:in-place-update-version-placement": 1,
+   "other:no-oltp-olap-distinction": 1,
+   "other:delta-version-storage": 1,
+   "other:eager-install-first-updater-wins": 1,
+   "other:vertical-partitioning-required": 1,
+   "other:read の検証が無く修復の契機が無い": 1,
+   "other:前提の healing が入らない (read の検証が無い)": 1,
+   "other:read の検証が無い": 1,
+   "other:commit 時の施錠順が無い (update 時に版を設置)": 1,
+   "other:前提の healing が入らない": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:直列化の検査が無い (read set を検証しない)": 1,
+   "other:前提の BCC が入らない": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (IX 一覧・last-read time) が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1,
+   "other:SSN 検査 (直列化可能性の certifier) が無い": 1,
+   "other:SSN の π が無い (SI は検査なし)": 1,
+   "other:snapshot 読み以外は SI の意味を変える": 1
+  },
+  "mvto": {
+   "predeclared": 62,
+   "lock-regime": 56,
+   "ts-scheme": 45,
+   "partition": 18,
+   "platform": 9,
+   "gc-structure": 9,
+   "other:no-ltx-mode": 7,
+   "sv-required": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:SSN が前提": 3,
+   "other:MVSG のグラフが前提": 2,
+   "other:no-predicate-validation": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:validation 相で施錠しない": 1,
+   "other:serializable を弱める (規律2)": 1,
+   "other:tuple lock を持たない": 1,
+   "other:大域 epoch を持たない": 1,
+   "other:取引対応表 (TMT) を持たない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:版に書き手 TID を仮置きせず pending 状態で表す": 1,
+   "other:SSN の pstamp が前提": 1,
+   "other:正しさの論拠を MVSG へ置換": 1,
+   "other:OCC mode と MVSG mode の両実装が前提": 1,
+   "other:MVSG のグラフ統合が前提": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:版の置き場の変更 (time-travel/delta) は m1〜m4 の外": 1,
+   "other:record が属性に分かれず非 inline 属性が無い": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:版の置き場を in-place + undo delta へ替える (m1〜m4 の外)": 1,
+   "other:validation の論拠を述語照合へ置換": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:属性分割の delta 版と bulk insert の共有版が前提": 1,
+   "other:GC 方式一式の移植が前提 (m1〜m4 の外)": 1,
+   "other:no-rid-hash-table": 1,
+   "other:in-place-update-version-placement": 1,
+   "other:no-oltp-olap-distinction": 1,
+   "other:delta-version-storage": 1,
+   "other:vertical-partitioning-required": 1,
+   "other:no-node-set-phantom-check": 1,
+   "other:no-write-lock-acquisition": 1,
+   "other:correctness-argument": 1,
+   "other:施錠が無く no-wait の lock 失敗が起きない": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (可変長の IX 一覧・range の last-read time) と range 読みの経路が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1
+  },
+  "ss2pl": {
+   "mv-required": 95,
+   "predeclared": 63,
+   "lock-regime": 44,
+   "ts-scheme": 31,
+   "partition": 18,
+   "other:no-wound-wait-retire-dirty-read": 13,
+   "platform": 9,
+   "other:no-ltx-mode": 7,
+   "other:timestamp を使わない": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:SSN が前提": 4,
+   "other:no-reader-list-wound-wait": 4,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:中央 validator の batch validation": 4,
+   "other:conflict graph (SGT) が無い": 4,
+   "other:no-predicate-validation": 2,
+   "other:他取引の完了済み piece の未 commit 値 (stashed value) を読む": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:serializable を弱める (規律2)": 1,
+   "other:大域 epoch を持たない": 1,
+   "other:取引対応表 (TMT) を持たない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:既に直列化可能な CC へ別の certifier を重ねる (正しさの論拠の置換)": 1,
+   "other:phantom 回避の論拠の置換 (node version → scan 履歴)": 1,
+   "other:wait-for graph による deadlock 検出が無い (no-wait)": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "gc-structure": 1,
+   "other:no-node-set-phantom-check": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:commit 前の書き込みを他取引に見せる (早期可視)": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:TPC-C の再試行は別の query で abort 時の集合を再実行に使えない": 1,
+   "other:未 commit の書き込みを読む": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:複数 protocol と online 切替が無い": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (IX 一覧・last-read time) が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:lock の保持者を持たず wound できない": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:切り替える複数 protocol が無い": 1,
+   "other:複数 protocol と partition 単位の切替が無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1,
+   "other:施錠が各操作の時点で、取得順を並べ替える commit 時の施錠が無い": 1
+  },
+  "oze": {
+   "predeclared": 57,
+   "lock-regime": 55,
+   "ts-scheme": 44,
+   "gc-structure": 21,
+   "partition": 17,
+   "platform": 9,
+   "other:no-ltx-mode": 7,
+   "other:依存グラフの cycle 検査で LRV/GWV の validation が無い": 5,
+   "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
+   "other:中央 validator の batch validation": 4,
+   "sv-required": 3,
+   "other:前提の BCC が入らない (cycle 検査)": 3,
+   "other:SSN が前提": 2,
+   "other:no-predicate-validation": 2,
+   "other:依存グラフの cycle 検査で read の版不一致による abort が無い": 2,
+   "other:CC 専用 thread とメッセージ通信が無い": 2,
+   "other:TC/DC 分離が無い": 2,
+   "other:依存グラフで判定し上書きは abort 条件でない": 1,
+   "other:serializable を弱める (規律2)": 1,
+   "other:依存グラフへの記録が正しさに要る": 1,
+   "other:取引対応表 (TMT) を持たない": 1,
+   "other:index node を CC の record として持つ (Masstree の置換)": 1,
+   "other:版は書き手 TxID を恒久に持ち TID 表を引かない": 1,
+   "other:依存をグラフの辺で持つ": 1,
+   "other:SSN の pstamp が前提": 1,
+   "other:MVSG は比較 4 方式に含まれない": 1,
+   "other:版の置き場の変更 (time-travel/delta) は m1〜m4 の外": 1,
+   "other:record が属性に分かれず非 inline 属性が無い": 1,
+   "other:正しさの論拠が MVSG": 1,
+   "other:serializable 未満の分離水準の選択は正しさゲートを緩める": 1,
+   "other:版の置き場を in-place + undo delta へ替える (m1〜m4 の外)": 1,
+   "other:validation の論拠を述語照合へ置換": 1,
+   "other:属性の分割と述語 validation が前提": 1,
+   "other:述語 validation が前提": 1,
+   "other:列ストアの scan と生成コードが前提": 1,
+   "other:属性分割の delta 版と bulk insert の共有版が前提": 1,
+   "other:GC 方式一式の移植が前提 (m1〜m4 の外)": 1,
+   "other:no-rid-hash-table": 1,
+   "other:in-place-update-version-placement": 1,
+   "other:no-oltp-olap-distinction": 1,
+   "other:delta-version-storage": 1,
+   "other:forwarding-reorders-versions": 1,
+   "other:vertical-partitioning-required": 1,
+   "other:no-node-set-phantom-check": 1,
+   "other:no-write-lock-acquisition": 1,
+   "other:safe-snapshot-needs-new-argument": 1,
+   "other:前提の healing が入らない (cycle 検査)": 1,
+   "other:既定の Oze モードに commit 時の施錠順が無い": 1,
+   "other:前提の healing が入らない": 1,
+   "other:可換演算の宣言 API が無い": 1,
+   "other:依存グラフの cycle 検査で read set の TID 検証が無い": 1,
+   "other:前提の BCC が入らない": 1,
+   "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
+   "other:取引ごとの node と局所 lock の graph (Oze は tuple ごとの graph を latch 下で merge)": 1,
+   "other:辺の挿入先が SGT の取引 node (Oze は tuple graph の readBy_/writtenBy_ から辺を導出)": 1,
+   "other:SGT の graph node が前提": 1,
+   "other:取引 node の入辺集合で commit を遅らせる規則 (Oze は tuple graph で入辺の全体を持たない)": 1,
+   "other:graph の latch を共有 mode にすると tuple graph の並行更新と cycle 見落としの扱いが変わる": 1,
+   "other:graph 全体の位相順序 (conflict graph) が無い": 1,
+   "other:直列化順が commit 順と一致しないため epoch/時刻での過去版 snapshot が直列化の prefix にならない": 1,
+   "other:cluster ごとに複数 protocol を割り当てる枠組みが無い": 1,
+   "other:cluster 単位の複数 protocol 割当てが無い (Oze は thread 単位の OCC/Oze 2 mode で切替契機も未実装)": 1,
+   "other:CC 専用 thread と実行 thread のメッセージ通信 (lock 表を CC thread ごとに分割)": 1,
+   "other:range 資源 (IX 一覧・last-read time) が無い": 1,
+   "other:range MVCC と TC/DC 分離が無い": 1,
+   "other:range MVCC (last-read time・IX 投稿) が無い": 1,
+   "other:partition ごとの複数 protocol の枠組みが無い": 1,
+   "other:CC を木に組む階層的混在 CC": 1,
+   "other:Tebaldi の階層と中央 timestamp server": 1,
+   "other:Tebaldi の階層 (root SSI と group)": 1
+  }
+ },
+ "unknown_reasons": {
+  "tictoc": {
+   "card-underspecified": 2
+  },
+  "mocc": {
+   "card-underspecified": 2
+  },
+  "cicada": {
+   "card-underspecified": 2
+  },
+  "ermia": {
+   "cc-unverified": 4,
+   "card-underspecified": 2
+  },
+  "si": {
+   "cc-unverified": 4,
+   "card-underspecified": 2
+  },
+  "mvto": {
+   "card-underspecified": 2,
+   "cc-unverified": 1
+  },
+  "ss2pl": {},
+  "oze": {
+   "cc-unverified": 5,
+   "card-underspecified": 3
+  }
+ },
+ "workload_no": {
+  "tictoc": 32,
+  "mocc": 32,
+  "cicada": 32,
+  "ermia": 32,
+  "si": 32,
+  "mvto": 41,
+  "ss2pl": 40,
+  "oze": 32
+ },
+ "silo_column": {
+  "present": 22,
+  "port-candidate": 58,
+  "feasible": 33,
+  "mismatch": 182
+ },
+ "dropped_more_natural_on": [
+  {
+   "card_id": "cicada-clock-boost-on-abort",
+   "cc": "mvto",
+   "why": "parent-stage6 の訂正で fits でなくなった"
+  }
+ ],
+ "more_natural_on": {
+  "abyss-lock-wait-timeout": [
+   {
+    "cc": "mocc",
+    "why": "MOCC は tuple の RW lock を blocking で待つ施錠方式で、lock 待ちに上限を付ける前提が Silo (既定 no-wait) より直接にある (未使用の LOCK_TIMEOUT_US も残る)。"
+   },
+   {
+    "cc": "ss2pl",
+    "why": "原典の DL_DETECT は 2PL の lock 待ちが前提で、SS2PL は DLR0 の待つ経路を持つ 2PL (Silo は commit 時の CAS 施錠で既定 no-wait)。"
+   }
+  ],
+  "cicada-early-version-consistency-check": [
+   {
+    "cc": "mvto",
+    "why": "mvto は cicada と同じ版の wts/rts と開始時 ts を持ち、validation 冒頭の版設置の前に同じ検査を足すだけで入る。"
+   }
+  ],
+  "cicada-write-set-sort-by-contention": [
+   {
+    "cc": "cicada",
+    "why": "cicada は precheck の partial_sort を (storage,key) 順で既に行い、最新版の wts もあるので比較子を競合度順へ替えるだけで入る。"
+   },
+   {
+    "cc": "mvto",
+    "why": "mvto は lock なしで版の wts を持ち、validation 冒頭の設置・検査順を競合度順に並べ替えるだけで入る (precheck が無いので早期失敗の利得は小さい)。"
+   }
+  ],
+  "plor-read-only-dynamic-validation": [
+   {
+    "cc": "mocc",
+    "why": "MOCC は OCC の validation と RW lock の read lock の両経路を既に持つ hybrid で、Silo に無い read lock 経路という前提の核が一致する。"
+   }
+  ],
+  "tictoc-preemptive-abort": [
+   {
+    "cc": "tictoc",
+    "why": "原典が TicToc で、近似 commit ts に使う wts/rts と appro_commit_ts_ が TicToc にだけあり、Silo は TID 再読の代替形になる。"
+   }
+  ]
+ },
+ "natural_home": {
+  "abyss-distributed-validation": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "mvto",
+   "oze"
+  ],
+  "abyss-mvcc": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "oze"
+  ],
+  "abyss-no-wait": [
+   "tictoc",
+   "ss2pl"
+  ],
+  "abyss-occ": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "mvto",
+   "oze"
+  ],
+  "abyss-per-tuple-lock-table": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "ss2pl",
+   "oze"
+  ],
+  "abyss-ts-alloc-atomic-add": [
+   "ermia",
+   "si"
+  ],
+  "abyss-ts-alloc-clock": [
+   "cicada",
+   "mvto"
+  ],
+  "ccbench-adaptive-backoff": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "ss2pl",
+   "oze"
+  ],
+  "ccbench-assertive-version-reuse": [
+   "cicada",
+   "ermia",
+   "si"
+  ],
+  "ccbench-decentralized-ordering": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "mvto",
+   "ss2pl",
+   "oze"
+  ],
+  "ccbench-ermia-onedim-mapping-table": [
+   "ermia",
+   "si"
+  ],
+  "ccbench-fused-commit-tid-calculation": [
+   "tictoc"
+  ],
+  "ccbench-invisible-reads": [
+   "mocc"
+  ],
+  "ccbench-mocc-temperature-reset-epoch": [
+   "mocc"
+  ],
+  "ccbench-nowait-or-wait": [
+   "tictoc",
+   "ss2pl",
+   "oze"
+  ],
+  "ccbench-rapid-gc": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto"
+  ],
+  "ccbench-read-phase-extension": [
+   "tictoc"
+  ],
+  "ccbench-tictoc-skip-redundant-rts-update": [
+   "tictoc"
+  ],
+  "ccbench-version-overwriting": [
+   "tictoc",
+   "mocc",
+   "ss2pl"
+  ],
+  "cicada-best-effort-inlining": [
+   "cicada"
+  ],
+  "cicada-clock-boost-on-abort": [
+   "cicada"
+  ],
+  "cicada-contention-regulation": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "ss2pl",
+   "oze"
+  ],
+  "cicada-early-abort-and-latest-only": [
+   "cicada",
+   "ermia",
+   "si"
+  ],
+  "cicada-early-version-consistency-check": [
+   "cicada"
+  ],
+  "cicada-incremental-version-search": [
+   "cicada"
+  ],
+  "cicada-multi-clock-timestamps": [
+   "cicada",
+   "mvto"
+  ],
+  "cicada-mv-validation": [
+   "cicada",
+   "mvto"
+  ],
+  "cicada-rapid-gc": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto"
+  ],
+  "cicada-read-only-snapshot": [
+   "cicada",
+   "mvto"
+  ],
+  "cicada-spinwait-pending": [
+   "cicada",
+   "mvto",
+   "oze"
+  ],
+  "ermia-indirection-array": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "oze"
+  ],
+  "ermia-si-ssn-protocol": [
+   "ermia"
+  ],
+  "essn-read-time-shortcut": [
+   "ermia"
+  ],
+  "hdcc-reschedule-aborted-occ-o2": [
+   "mocc"
+  ],
+  "hekaton-lock-embedded-in-end-field": [
+   "tictoc",
+   "mocc",
+   "ermia",
+   "si",
+   "ss2pl",
+   "oze"
+  ],
+  "hekaton-mvo-backward-validation": [
+   "cicada",
+   "mvto"
+  ],
+  "leanstore-cooperative-gc-worker-lcb": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto"
+  ],
+  "mocc-approximate-counter-page-temperature": [
+   "mocc"
+  ],
+  "mocc-canonical-mode-lock-release-reacquire": [
+   "mocc"
+  ],
+  "mocc-queuing-lock-mql": [
+   "mocc"
+  ],
+  "mocc-retrospective-lock-list": [
+   "mocc"
+  ],
+  "mocc-temperature-selective-read-locks": [
+   "mocc"
+  ],
+  "oze-decentralized-mvsg": [
+   "oze"
+  ],
+  "oze-epoch-limited-graph-gc": [
+   "oze"
+  ],
+  "oze-order-forwarding": [
+   "oze"
+  ],
+  "oze-parallel-validation": [
+   "oze"
+  ],
+  "oze-precision-locking-phantom": [
+   "oze"
+  ],
+  "plor-delayed-write-lock-acquisition": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "mvto",
+   "oze"
+  ],
+  "silo-commit-protocol": [
+   "mocc",
+   "oze"
+  ],
+  "silo-decentralized-tid": [
+   "mocc",
+   "oze"
+  ],
+  "silo-epoch-gc": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "oze"
+  ],
+  "silo-epoch-serialization": [
+   "mocc",
+   "oze"
+  ],
+  "silo-inplace-overwrite": [
+   "tictoc",
+   "mocc",
+   "ss2pl"
+  ],
+  "silo-node-set-phantom-protection": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "oze"
+  ],
+  "silo-version-validated-reads": [
+   "tictoc",
+   "mocc"
+  ],
+  "ssn-exclusion-window-test": [
+   "ermia"
+  ],
+  "ssn-latch-free-parallel-commit": [
+   "ermia"
+  ],
+  "ssn-readers-bitmap": [
+   "ermia"
+  ],
+  "ssn-single-word-stamp": [
+   "ermia"
+  ],
+  "steam-thread-local-txn-lists": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "oze"
+  ],
+  "stov2-basis-abort-mechanism": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "ss2pl",
+   "oze"
+  ],
+  "stov2-basis-memory-allocation": [
+   "tictoc",
+   "mocc",
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "ss2pl",
+   "oze"
+  ],
+  "tcm-read-only-transaction-optimization": [
+   "cicada",
+   "si",
+   "mvto"
+  ],
+  "tictoc-data-driven-timestamp": [
+   "tictoc"
+  ],
+  "tictoc-nowait-validation": [
+   "tictoc",
+   "ss2pl"
+  ],
+  "tictoc-timestamp-history": [
+   "tictoc"
+  ],
+  "tictoc-ts-word-packing": [
+   "tictoc"
+  ],
+  "wu-cc-protocol": [
+   "cicada",
+   "ermia",
+   "mvto"
+  ],
+  "wu-gc-detection-vac-vs-coop": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto"
+  ],
+  "wu-index-pointers-logical-vs-physical": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "oze"
+  ],
+  "wu-per-core-memory-spaces": [
+   "cicada",
+   "ermia",
+   "si"
+  ],
+  "wu-version-chain-ordering": [
+   "cicada",
+   "ermia",
+   "si",
+   "mvto",
+   "oze"
+  ]
+ },
+ "spotcheck_sample": [
+  [
+   "ssn-read-mostly-cold-read-skipping",
+   "tictoc"
+  ],
+  [
+   "rr-o2-optimistic-read-descendant",
+   "oze"
+  ],
+  [
+   "drp-wild-rp",
+   "ss2pl"
+  ],
+  [
+   "ic3-online-analysis-transitional-scgraph",
+   "oze"
+  ],
+  [
+   "strife-allocate-stage",
+   "tictoc"
+  ],
+  [
+   "shirakami-on-demand-version-order",
+   "mocc"
+  ],
+  [
+   "abyss-per-tuple-lock-table",
+   "mocc"
+  ],
+  [
+   "aocc-threshold-T-fast-selection",
+   "oze"
+  ],
+  [
+   "wu-index-pointers-logical-vs-physical",
+   "cicada"
+  ],
+  [
+   "healing-transaction-healing",
+   "si"
+  ],
+  [
+   "ssn-safe-snapshot",
+   "cicada"
+  ],
+  [
+   "shirakami-wp-optimistic-lock-fixed-array",
+   "cicada"
+  ],
+  [
+   "abyss-ts-alloc-batched-atomic",
+   "si"
+  ],
+  [
+   "acc-partition-merge-clustering",
+   "mvto"
+  ],
+  [
+   "stov2-contention-aware-index",
+   "si"
+  ],
+  [
+   "bohm-batching",
+   "mocc"
+  ],
+  [
+   "cormcc-protocol-classifier",
+   "ss2pl"
+  ],
+  [
+   "tictoc-lower-isolation-levels",
+   "ss2pl"
+  ],
+  [
+   "nofalseneg-online-topological-order",
+   "ss2pl"
+  ],
+  [
+   "bcc-multilevel-circular-buffers",
+   "mocc"
+  ],
+  [
+   "oze-parallel-validation",
+   "mocc"
+  ],
+  [
+   "leanstore-osic-commit-protocol",
+   "tictoc"
+  ],
+  [
+   "bamboo-opt2-skip-retire-tail-writes",
+   "cicada"
+  ],
+  [
+   "rr-o1-latch-free-dependency-tracking",
+   "mvto"
+  ],
+  [
+   "aocc-glist-lockfree-circular-array",
+   "oze"
+  ],
+  [
+   "hana-global-sts-tracker",
+   "mvto"
+  ],
+  [
+   "abyss-dl-detect",
+   "oze"
+  ],
+  [
+   "strife-merge-stage-alpha",
+   "tictoc"
+  ],
+  [
+   "healing-validation-order-rearrangement",
+   "oze"
+  ],
+  [
+   "silo-inline-record-data",
+   "si"
+  ]
+ ]
+}
