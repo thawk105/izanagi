@@ -59,6 +59,23 @@ def short(cell):
     return cell.replace('rr50-', '').replace('rr95-', '').replace('-gc', '/').replace('wait10-two', 'wait10×2')
 
 
+def verification_text(verification):
+    status = verification['status']
+    positive = verification['positive_count']
+    auxiliary = verification['auxiliary_detection_count']
+    disqualified = len(verification['disqualified'])
+    if status == 'passed':
+        outcome = 'Normal arms passed; preregistered S8 positive met'
+    elif status == 'normal_arms_passed_s8_positive_unmet':
+        outcome = 'Normal arms passed; preregistered S8 positive unmet'
+    elif status == 'failed':
+        outcome = 'Verification failed'
+    else:
+        raise ValueError('unknown verification status: ' + str(status))
+    return (f'{outcome} (positive {positive}, auxiliary detections {auxiliary}, '
+            f'disqualified {disqualified}).')
+
+
 def collect(aggregate, raw):
     from orchestrator.campaign.vhash_interval_gc import aggregate as aggregate_jobs
     recomputed = aggregate_jobs(raw, require_parts=True)
@@ -119,9 +136,22 @@ def collect(aggregate, raw):
                     for arm, values in arms.items()} for cell, arms in tables.items() if '-ronly-' in cell}
     if any(v['boundary_samples'] or v['pruned'] for arms in ronly.values() for v in arms.values()):
         raise ValueError('read-only long transaction unexpectedly published boundary or pruned')
+    mechanism_cost_only = {
+        cell: {arm: {'throughput_ratio_to_stock': values['throughput']['ratio_to_stock_medians'],
+                     'install_lock_wait_fraction': values['gc_cost']['install_lock_wait_fraction'],
+                     'boundary_samples': values['boundary_samples'],
+                     'pruned': values['pruned'],
+                     'pruning_zero_confirmed': values['pruned'] == 0}
+               for arm, values in arms.items()} for cell, arms in tables.items() if '-ronly-' in cell}
+    verification_text(aggregate['verification'])
     return {'schema': 'vhash-interval-gc-figures/v1', 'cells': tables,
             'verification': aggregate['verification'], 'perf_status': aggregate['perf_status'],
-            'long_read_only_zero_work': ronly,
+            'long_read_only_zero_work': ronly, 'mechanism_cost_only_cells': mechanism_cost_only,
+            'caveats': [
+                'In long read-only transaction cells boundary publication and pruning are zero; throughput differences show install-path cost only.',
+                'Between-arm retention and hop totals are confounded by different installed-version counts (write volume). '
+                'The install count for each cell and arm is alongside the plotted values at cells[cell][arm].retention.installed.'
+            ],
             'part_hosts': {part: sorted(values) for part, values in sorted(hosts.items())},
             'missing': {'mean_hops_per_read': 'read counts are not recorded by CICADA_INTERVAL_COUNT',
                         'other': []},
@@ -131,19 +161,20 @@ def collect(aggregate, raw):
                             'paired_rep_ratios': 'same rep index variant TPS / stock TPS'}}
 
 
-def setup(title, caption, shape, size=(23, 12)):
+def setup(title, caption, shape, verification, size=(23, 12)):
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(*shape, figsize=size)
     fig.subplots_adjust(left=.065, right=.985, top=.79, bottom=.20, hspace=.68, wspace=.17)
     fig.suptitle(title, y=.975, fontsize=16)
     fig.text(.5, .94, '48 threads · N=1M · Zipf 0.9 · 10 ops · 3 s; external GC 10/100 µs; unlink without reuse', ha='center', fontsize=10)
-    fig.text(.5, .915, 'Correctness checks passed; performance remains unverified diagnostic data (indeterminate ceiling). Missing: per-read hop denominator.', ha='center', fontsize=10)
-    fig.text(.5, .06, caption, ha='center', va='center', fontsize=9)
+    status_line = verification_text(verification)
+    fig.text(.5, .915, status_line + ' Performance: unverified diagnostic data (indeterminate ceiling).', ha='center', fontsize=10)
+    fig.text(.5, .06, caption + '\nVerification: ' + status_line, ha='center', va='center', fontsize=9)
     return fig, axs
 
 
-def xaxis(ax, cells):
-    ax.set_xticks(range(len(cells)), [short(c) for c in cells], rotation=50, ha='right', fontsize=8)
+def xaxis(ax, cells, mark_ronly=False):
+    ax.set_xticks(range(len(cells)), [short(c) + ('*' if mark_ronly and '-ronly-' in c else '') for c in cells], rotation=50, ha='right', fontsize=8)
     ax.grid(axis='y', alpha=.25)
 
 
@@ -152,7 +183,7 @@ def plot_throughput(summary):
     cells = summary['cells']
     fig, axs = setup('(a) Throughput and stock-relative throughput',
         'Performance: 3 rotated reps per arm and cell; point = median TPS, whisker = rep min–max. Ratio = median variant / median stock; ratio whiskers = paired rep range.\n'
-        'Stock is the dashed 1× line. rr50 / rr95 are separate rows; wait10×2 has two long threads. Missing perf cells: none.', (2, 2))
+        'Stock is the dashed 1× line. * ronly: pruning 0; differences show install-path cost only. rr50 / rr95 are separate rows; wait10×2 has two long threads. Missing perf cells: none.', (2, 2), summary['verification'])
     for row, rr in enumerate(('rr50', 'rr95')):
         keys = [c for c in cells if c.startswith(rr)]
         x = np.arange(len(keys))
@@ -173,7 +204,7 @@ def plot_throughput(summary):
         right.axhline(1, ls='--', lw=1, color=COLORS['stock'])
         left.set_title(rr + ' · throughput'); right.set_title(rr + ' · relative to stock')
         left.set_ylabel('million tx/s'); right.set_ylabel('ratio')
-        xaxis(left, keys); xaxis(right, keys)
+        xaxis(left, keys, mark_ronly=True); xaxis(right, keys, mark_ronly=True)
     fig.legend(handles=axs[0, 0].get_legend_handles_labels()[0], labels=['stock', 'minimum', 'general'], loc='upper center', bbox_to_anchor=(.5, .895), ncol=3)
     return fig, list(axs.flat)
 
@@ -183,7 +214,7 @@ def plot_retention(summary):
     cells = summary['cells']; keys = list(cells)
     fig, axs = setup('(b) End-of-run versions and retained bytes',
         'Stack = chain-resident + unlinked but unreused. Top: millions of versions / MiB; bottom: versions or bytes per installed version.\n'
-        'Per-install = each run’s final count or bytes divided by that same run’s installed version count; count build 1 rep per arm. Missing cells: none.', (2, 2), (25, 13))
+        'Per-install = final count or bytes / that arm’s install count. Arm differences are confounded by install counts (write volume); each cell/arm count is alongside values at summary cells[cell][arm].retention.installed. Count build 1 rep; missing: none.', (2, 2), summary['verification'], (25, 13))
     for col, (on, off, scale, ylabel) in enumerate((('chain_versions', 'pruned_pending', 1e6, 'million versions'),
                                                      ('chain_bytes', 'pruned_pending_bytes', 2**20, 'MiB'))):
         for row, normalized in enumerate((False, True)):
@@ -210,7 +241,7 @@ def plot_hops(summary):
     cells = summary['cells']; keys = list(cells)
     fig, axs = setup('(c) Version-search hops by read site (count totals)',
         'Each counter increments once per skipped version in a read traversal. Panels split long thread / online and read-only / update.\n'
-        'The count build does not record reads at each site, so mean hops per read is unavailable; values are raw hop totals (symlog scale). Missing: per-read denominator in every cell.', (2, 2), (25, 13))
+        'Count build lacks reads by site, so mean hops/read is unavailable; raw totals use symlog. Arm differences are confounded by install counts (write volume); each cell/arm count accompanies values at summary cells[cell][arm].retention.installed. Missing: per-read denominator.', (2, 2), summary['verification'], (25, 13))
     for ax, (site, _, _) in zip(axs.flat, SITES):
         x = np.arange(len(keys))
         for j, arm in enumerate(ARMS):
@@ -227,7 +258,7 @@ def plot_cost(summary):
     cells = summary['cells']
     fig, axs = setup('(d) Interval GC cost in count runs',
         'Install lock fraction = rdtscp wait cycles / clocks_per_us / 1e6 / (3 s × 48 threads), summed over threads.\n'
-        'Pruning: circle = attempts, square = success, triangle = lock failure; solid = minimum, dashed = general. Stock is not applicable (0 for reference). Count build 1 rep; missing cells: none.', (2, 2))
+        'Pruning: circle = attempts, square = success, triangle = lock failure; solid = minimum, dashed = general. Stock is not applicable (0 for reference). Count build 1 rep; missing cells: none.', (2, 2), summary['verification'])
     for row, rr in enumerate(('rr50', 'rr95')):
         keys = [c for c in cells if c.startswith(rr)]
         x = np.arange(len(keys)); a, b = axs[row]

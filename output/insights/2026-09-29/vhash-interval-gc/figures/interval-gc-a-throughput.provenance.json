@@ -2,7 +2,7 @@
   "campaign_id": "vhash-interval-gc-2026-09-29",
   "figure": "a-throughput",
   "inputs": {
-    "/work/1/SFC/tanab/izanagi/.codex/worktrees/igc-a/output/insights/2026-09-29/vhash-interval-gc/data/aggregate.json": "ac9e65b9084ccebbb688d04967697039389336bae33932a4a8a07a734402cfcf",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/igc-a/output/insights/2026-09-29/vhash-interval-gc/data/aggregate.json": "c03cf03dc1cb4eaaa2466f4c5df1e5cc67f60bbb3ae785a76f3f2d4e3bc11803",
     "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc10-count/raw.jsonl": "76d503ab1e96acbc79dcfe2cae4b96572240ecb0bb167f10c7ca9f636e2a3a2f",
     "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc10-perf/raw.jsonl": "5d65093e30c65dc1181c06d532835ea2e1519bbd54477159fca6b53095d37efd",
     "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc100-count/raw.jsonl": "ba1ba45090d79a323b6ee30e4dbdd9a661a40509f442df81903bb1ad856dc15b",
@@ -3778,6 +3778,6 @@
     "mean_hops_per_read": "read counts are not recorded by CICADA_INTERVAL_COUNT",
     "other": []
   },
-  "verification": "passed",
+  "verification": "normal_arms_passed_s8_positive_unmet",
   "performance_status": "未検証の診断値"
 }

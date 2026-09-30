@@ -3709,8 +3709,150 @@
     }
   },
   "verification": {
-    "status": "passed",
-    "positive_count": 4,
+    "status": "normal_arms_passed_s8_positive_unmet",
+    "positive_count": 0,
+    "auxiliary_detection_count": 6,
+    "positive": [],
+    "auxiliary_detections": [
+      {
+        "cell": "K",
+        "thread": 4,
+        "classification": "期待した経路で検出",
+        "cycles": 15,
+        "fired": 21015,
+        "attributed_witnesses": 42645,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true,
+        "attribution_basis": "長い tx の無い cell で末尾 worker を代役にした事前登録外の帰属"
+      },
+      {
+        "cell": "K",
+        "thread": 8,
+        "classification": "期待した経路で検出",
+        "cycles": 16,
+        "fired": 21095,
+        "attributed_witnesses": 16512,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true,
+        "attribution_basis": "長い tx の無い cell で末尾 worker を代役にした事前登録外の帰属"
+      },
+      {
+        "cell": "R",
+        "thread": 4,
+        "classification": "期待した経路で検出",
+        "cycles": 1405,
+        "fired": 8298,
+        "attributed_witnesses": 6056,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true,
+        "attribution_basis": "長い tx の無い cell で末尾 worker を代役にした事前登録外の帰属"
+      },
+      {
+        "cell": "R",
+        "thread": 8,
+        "classification": "期待した経路で検出",
+        "cycles": 8523,
+        "fired": 35666,
+        "attributed_witnesses": 1609,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true,
+        "attribution_basis": "長い tx の無い cell で末尾 worker を代役にした事前登録外の帰属"
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 4,
+        "classification": "未検出または帰属不能",
+        "cycles": 4,
+        "fired": 1592,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true,
+        "attribution_basis": "帰属 0 の事前登録外の巡回検出"
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 8,
+        "classification": "未検出または帰属不能",
+        "cycles": 3,
+        "fired": 1902,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true,
+        "attribution_basis": "帰属 0 の事前登録外の巡回検出"
+      }
+    ],
     "disqualified": [],
     "controls": [
       {
@@ -4626,6 +4768,104 @@
       }
     }
   },
+  "mechanism_cost_only_cells": {
+    "rr50-ronly-gc10": {
+      "stock": {
+        "throughput_ratio_to_stock": 1.0,
+        "install_lock_wait_fraction": 0.0,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "min": {
+        "throughput_ratio_to_stock": 0.06197874871818946,
+        "install_lock_wait_fraction": 0.4620349543055555,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "gen": {
+        "throughput_ratio_to_stock": 0.062206137140157824,
+        "install_lock_wait_fraction": 0.4624705205489417,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      }
+    },
+    "rr50-ronly-gc100": {
+      "stock": {
+        "throughput_ratio_to_stock": 1.0,
+        "install_lock_wait_fraction": 0.0,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "min": {
+        "throughput_ratio_to_stock": 0.06236507062924234,
+        "install_lock_wait_fraction": 0.47120862302910044,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "gen": {
+        "throughput_ratio_to_stock": 0.061625389836727204,
+        "install_lock_wait_fraction": 0.4621068849801587,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      }
+    },
+    "rr95-ronly-gc10": {
+      "stock": {
+        "throughput_ratio_to_stock": 1.0,
+        "install_lock_wait_fraction": 0.0,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "min": {
+        "throughput_ratio_to_stock": 0.6857051618348121,
+        "install_lock_wait_fraction": 0.09860912614417988,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "gen": {
+        "throughput_ratio_to_stock": 0.6835737222133518,
+        "install_lock_wait_fraction": 0.0964686771957672,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      }
+    },
+    "rr95-ronly-gc100": {
+      "stock": {
+        "throughput_ratio_to_stock": 1.0,
+        "install_lock_wait_fraction": 0.0,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "min": {
+        "throughput_ratio_to_stock": 0.6920472824327459,
+        "install_lock_wait_fraction": 0.09601101763227513,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      },
+      "gen": {
+        "throughput_ratio_to_stock": 0.6837343638871115,
+        "install_lock_wait_fraction": 0.09359528865079365,
+        "boundary_samples": 0,
+        "pruned": 0,
+        "pruning_zero_confirmed": true
+      }
+    }
+  },
+  "caveats": [
+    "In long read-only transaction cells boundary publication and pruning are zero; throughput differences show install-path cost only.",
+    "Between-arm retention and hop totals are confounded by different installed-version counts (write volume). The install count for each cell and arm is alongside the plotted values at cells[cell][arm].retention.installed."
+  ],
   "part_hosts": {
     "run-rr50-many-gc10-count": [
       "bnode085"
@@ -4765,7 +5005,7 @@
     "d-gc-cost": "output/insights/2026-09-29/vhash-interval-gc/figures/interval-gc-d-gc-cost"
   },
   "inputs": {
-    "/work/1/SFC/tanab/izanagi/.codex/worktrees/igc-a/output/insights/2026-09-29/vhash-interval-gc/data/aggregate.json": "ac9e65b9084ccebbb688d04967697039389336bae33932a4a8a07a734402cfcf",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/igc-a/output/insights/2026-09-29/vhash-interval-gc/data/aggregate.json": "c03cf03dc1cb4eaaa2466f4c5df1e5cc67f60bbb3ae785a76f3f2d4e3bc11803",
     "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc10-count/raw.jsonl": "76d503ab1e96acbc79dcfe2cae4b96572240ecb0bb167f10c7ca9f636e2a3a2f",
     "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc10-perf/raw.jsonl": "5d65093e30c65dc1181c06d532835ea2e1519bbd54477159fca6b53095d37efd",
     "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc100-count/raw.jsonl": "ba1ba45090d79a323b6ee30e4dbdd9a661a40509f442df81903bb1ad856dc15b",
