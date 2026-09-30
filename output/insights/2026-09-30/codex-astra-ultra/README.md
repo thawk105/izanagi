@@ -52,23 +52,40 @@ ultra 5 本 (review 2・focus 1・consult 2) で委任は 0 件 (prompt に禁�
 ## 検証の実施状況 (未実施を含む)
 
 - check_docs: 統合後・fix 後とも違反なし。
-- **変異 matrix: 未実施。** 事前登録 (m0〜m7、`verbatim/s4-ruling.md` と `verbatim/mutation-spec-probe.json`) と置換元の一意性 (各 1 件) までは確認した。
-  `tools/mutation_harness.py --runner-mode local` は Pegasus login で拒否され、login での直接 pytest は `hooks/guard_bash.py` が拒否する。
-  依頼が「計算ノードは使わない」なので dispatch もしていない。回すなら計算ノードへの dispatch が要る。
+- **変異 matrix: 段 9 再開で実施し、8 件すべて期待どおり (m0 SURVIVED、m1〜m6・m7b KILLED)。** ユーザーが 2026-09-30 18:46 JST に
+  受入・変異の計算ノード使用を許可したので、local main d79fd3524 を取り込んだ wave tip `7a1da5e4d` で走らせた。
+  経路は `tools/mutation_worktree.py --runner-mode dispatch` (D1009 の独立 clone、runner は
+  `run_tests.py --force-dispatch` で `test_effort_levels.py`・`test_check_docs.py`・`test_dev_wave_launch_authority.py`・`test_dev_wave_codex.py`・`test_codex_worker_launch.py` の 5 file)。
+  台帳は `mutation/ledger-s9.json`、spec は `mutation/spec-probe3.json` と `mutation/spec-final-*.json`。
+  - probe (全件 SURVIVED 期待で観測 node を集める、DW-M07): 1 回目 (`spec-probe2`、job dir のみ) は spec の外側 timeout 4,800 秒が
+    dispatch 待機契約 (queue 5,400 + grace 5,400 秒) より短く、計算に入る前に harness が止めた。timeout を 12,600 秒にした `spec-probe3.json` で完走した。
+  - final: ユーザー指示 (2026-09-30 19:5x、land 調整役の中継「計算 job は 1 本 5 分目安に分割し並行投入」) に従い、変異 1 件ずつ 8 本を並行投入した。
+    m0・m6 は作業木の checkout が Lustre の割り込み (EINTR、rc=125) で失敗し判定前に止まった。m2 は期待の 359 node を全部落としたうえで
+    `test_codex_worker_launch.py` の 4 件が `subprocess.TimeoutExpired` で落ち MISMATCH になった。起動器は `tools/check_docs.py` の中身を読まない
+    (import 先にも無い) ので変異は届かず非帰属と判断し、DW-O18 に従い 1 回だけ単独で再走した。再投入 3 本 (`final2-*`) は m0 SURVIVED、m6 KILLED 2/2、m2 KILLED 359/359 で完全一致。
+  - 観測 node: m1 は DW-O01 権威行の drift 拒否 2 件、m3 は effort 語彙の完全一致と ultra の受理 2 件、m4・m5 は委任 (`spawn_agent`) の online / sealed 再検証 2 件、
+    m6 (namespace 全体を委任と見なす) は `wait_agent` を拒否しない正例と sealed 再検証 2 件、m2 は DW-S05-A の effort pin 系と、実 docs の走査が赤になることで落ちる 359 件。
 - 焦点走: 段 5 統合後に bash script 経由の直接 pytest (30 file) を login で走らせたが、これは guard_bash の login 重量検査をすり抜けていた
   (同種の直接コマンドは guard が拒否して判明)。結果は参考値: 失敗 103 件 → 一時 dir を repo 外にし並列を下げた再走で 102 件緑、残る 1 件
   `orchestrator/tests/test_campaign.py::test_layout_rejects_path_traversal` は変更面と無関係な output_root 偽赤 (login の `/tmp/.git`)。
   正式な検証は受入全走に寄せる予定だった。
-- **受入全走と land: 未実施 (land 保留)。** 受入全走の明示 shard 3 も `tools/acceptance_shards.py` の `run_parallel` から
+- **受入全走と land: 段 9 再開で、本記録 commit を含む tip に対して受入全走 (明示 shard 3、`tools/dev_wave_wait.py acceptance`) を取り、緑の受領証で land する。**
+  以下は段 9 前半 (保留時) の経緯。受入全走の明示 shard 3 も `tools/acceptance_shards.py` の `run_parallel` から
   `tools.pegasus.dispatch_compute` で**計算ノードへ投げる** (login で走るのは collection だけ)。land には受入全走が必須 (DW-S04) なので、
   依頼の「計算ノードは使わない」と両立しない。Codex に 2 レンズで相談し (`verbatim/s9-consult-decide.md`、`verbatim/s9-consult-attack.md`、いずれも ultra)、
   両者とも「最終行は対象を限定しない禁止で受入・変異も含む。land の必須条件は資源使用の許可を生まない」として land 保留を推奨、親もそれを採った。
-  wave branch は commit 済みで残す。受入・変異の実行 (計算ノード使用) の可否はユーザー裁定待ち。
+  wave branch は commit 済みで残した。受入・変異の実行 (計算ノード使用) は 2026-09-30 18:46 JST にユーザーが許可した。
 
 ### 訂正 (erratum)
 
 - `verbatim/s6-fix1-ruling.md` の「正式な検証は受入全走 (明示 shard 3、login で走る sanctioned 経路) に寄せる」は誤り。明示 shard は計算ノードへ
   dispatch する (上記)。当時の裁定文は逐語として残し、ここで訂正する。
+- 事前登録 m7 (`verbatim/s4-ruling.md` の `DEV_WAVE_L1_5_BYTES_MAX` 9_788 → 9_787、KILLED 期待「実 docs が予算超過」) は、段 6 fix1 が予算増枠を取り消して
+  定数を 9_696 に戻したため置換元が消えていた。元の意図を保ち、L1.5 の実 bytes 9,692 の 1 つ下へ置く m7b (9_696 → 9_691) に再照準した (DW-M02/M07)。
+  m7b を殺したのは定数を pin する `test_check_docs.py::test_dev_wave_layer_budget_contract_is_literal` の 1 件だけで、「実 docs が予算超過で拒否される」経路を
+  pytest で検出する test は上記 5 file に無かった。予算超過の拒否そのものは、親が `tools/check_docs.py` を予算 0 (メモリ上だけ) で走らせ
+  「L1.5 unique footprint 9692 bytes > 予算」の違反と rc=1 を得て確かめた (実 bytes の測定を兼ねる)。
+  また `verbatim/mutation-spec-probe.json` は `targets`・`note` を持ち harness の spec schema (key の完全一致) を満たさないので、正式 schema へ書き直して走らせた (内容の置換は m7 以外同一)。
 
 ## 残る限界
 
