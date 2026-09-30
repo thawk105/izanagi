@@ -74982,3 +74982,69 @@ T-2872・T-2905 は人間の手番が済んで完了 (gitlink は T-2919・T-291
 - 前日の md_11 J2 を 7 番目の窓として混ぜる — 反復数と job の構成が違い、A の選択に使った測定でもある。参考行として別掲するだけにした。
 - 正規性を仮定した CV の信頼上限を出す — 標準偏差の χ² の係数は CV の厳密な区間にならない。
 - 「0.030 を超える値なら f_T に代入してよい (δ_T を大きくする向きは安全)」とする — 段 4 ではそう裁定したが、段 6 レビュー (同等・悪化) と焦点再レビュー (A/A 判定・job 間の停止条件) が、上げる向きも採否を動かすことを示し、訂正した。
+
+## D2334. VHash で読み続ける read-only tx を前進させるなら、前進先を安定境界 (それ以下の時刻に新しい版がもう置かれない値) に限り、全既読がそこで見えることを確かめて snapshot を先に移し、その後に floor を上げる。試作へ進む前に実装なしの診断で前進の幅を確かめる (2026-09-30)
+
+**決定:**
+1. 読み続ける read-only tx (固定キーの point read だけ、昇格しない) の前進は、抽象仕様 RO-A とする。安全点で安定境界 σ を得る。各既読 v について (v.wts, σ] の最初の非 ABORTED 版を観測し、s = min(σ, その版の wts − 1) を求める。s が今の snapshot より大きければ、snapshot を s へ移してから floor を s 以下で公開する。確認は rts を書かない。失敗しても snapshot と floor は変えない。一次資料 `output/insights/2026-09-30/vhash-ro-continuing-feasibility/README.md`。
+2. 論証は紙の上の抽象仕様についてで、直列化 (最後の snapshot の位置に置く) と論理的な GC 安全を示した。D2319 の条件 RA は使わない。安定境界の条件 ST は、X1・X2 の書き手 (前進先より小さい時刻で、前進の時点でまだ活動中の書き手) をまさに除く。
+3. Cicada では `MinWts − 1` を安定境界とする。そのための条件 K1〜K5 (thread ごとの時刻と slot の単調性、集計の下限性、`group_commit = 0`、初期 MinWts、0 からの減算) はコード読解で、未確認を含む。前進の実装には「将来書かない」と「読んだ版を守る下限」を分ける。前者は ThreadWtsArray を自 thread の時計へ持ち上げること (localClock_ も進める)、後者は ThreadRtsArray である。GCFlag は tx の途中で立て、thread 0 なら leaderWork を呼ぶ。昇格は禁止する。
+4. 試作は今は作らない。md_42 の後に、実装なしの診断 (一次資料 §9 の D1〜D3) で前進できる幅が tx の後半まで残る負荷があるかを確かめてから決める。
+
+**理由:**
+- 安定な snapshot で読んだ版は、他 tx の後続の確定版が snapshot より上にしか来ない。これが読みの時期によらず成り立つので、md_26 の (I2) を確認に頼らず得られ、RA が要らなくなる。段 6 レビュー A は RO-A の定理の反例を作れなかった。
+- 各条件を外した紙の上の列がある。確認を外すと読みの skew の巡回 (C1)、前進先が安定でないと 3 tx の巡回と X1 型の回収 (C2)、floor を先に上げると D2317 が却下した形 (C3)、時計を進めずに持ち上げると他の read-only tx の安定境界の下に版が置かれる (C4)。したがって、floor だけで守り rts を書かない設計の類では、どの条件も外せない。
+- 効き目は細い見込み。前進の幅は既読のどれかに次の確定版が来るまでで頭打ちになる。md_29 の batchR (skew 0.99) の熱いキーからの粗い目安は約 2.7 µs。区間 GC に対する上積みは条件 (d′)(e) に左右され、上限を出せない。安全でない前進の速さを天井にしないためにも、先に幅を後から数える。
+
+**却下した選択肢:**
+- `rts_ = MinWts − 1` の再実行だけで前進する。長い read-only tx 自身の ThreadWtsArray・止まった GCFlag・thread 0 の leader が前進先を止めるので前進しない。確認なしなら C1 の巡回になる。
+- 前進先を自分の時計 (書き手型の E-max) にして既読の rts を上げる。読み続ける tx には RA を課せず、rts を書く読みは Cicada の read-only の設計 (共有の書き込みをしない) に反し、書き手を abort させる。
+- 読みごとに別の snapshot を許す。一貫 snapshot を壊し、C1 と同じ巡回になる。
+- ST の監視を確認の時点の PENDING の計数だけにする。確認の後に σ 以下へ遅れて置かれる版 (ST-1 の破れ) が見えない (段 6 レビュー A)。試作では設置の時刻と σ を後から照合する。
+
+## D2335. dev-wave・rulings・next-tasks の Codex 子を gpt-6-astra・reasoning=ultra へ改訂し (D2229 を supersede)、ultra の委任 (spawn_agent) をした attempt は起動器が受理しない (2026-10-01)
+
+**決定 (2026-09-30 ユーザー指示「dev-wave, rulings, next-tasks で codex を gpt-6-astra・reasoning=ultra で使う」):**
+
+1. model: `docs/dev-wave/operations.md` DW-O01 の権威行を `` `<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。 `` とする。V2 書式と `tools/dev_waves/launch_authority.py` の導出経路は D2229 決定 1 と同じで、slug だけを替える。`tools/check_docs.py` の literal とそれを pin するテストを揃える (D2229 決定 2 と同じ列挙)。
+2. effort: `docs/dev-wave/workers.md` の DW-S02 / DW-S03 / DW-S05-A / DW-S06-A / DW-S06-C を `reasoning=ultra` とし、check_docs の effort pin・負例 (旧 medium を拒否)・テストを揃える。rulings の相談は `tools/dev_wave_codex.py --stage consult` が `--reasoning` を呼び手の必須入力とし DW-S03 から自動導出しないため、`.claude/commands/rulings.md` の起動例に `--reasoning ultra` と DW-S03 参照を書く。
+3. 受理集合: `tools/dev_waves/effort_levels.py` の `CODEX_REASONING_EFFORTS` に `ultra` を足す。`CLAUDE_EFFORTS` は変えない。docstring に「ultra は luna 系が非対応 (依頼が指定した事実で独立実測ではない)、本 module は model×reasoning の互換を保証しない」と書く。
+4. **委任の受理規則:** ultra の Codex は委任 (collaboration namespace の `spawn_agent`) を自動で試みる。prompt で委任を禁じ、root rollout に `spawn_agent` の function_call が 1 件でもある attempt は、起動器 (`tools/codex_worker_launch.py`) が致命 evidence reason `delegation_detected` を記録して accepted にしない。online の tail と sealed 再検証は同じ消費関数を通る。receipt schema は V5 のまま、拒否は終了時。`wait_agent` など spawn 以外の collaboration 呼び出しだけでは拒否しない。DW-O01 に「ultraの委任(spawn_agent)はpromptで禁じ、委任したattemptは起動器が拒否する。」を 1 文足し、L1.5 予算 (9,696 bytes) は既存 3 文の意味等価な縮約で収めた (D782 の手順で、上限は引き上げていない)。
+5. next-tasks: repo 外の `/work/1/SFC/tanab/scripts/next_tasks_consult.sh` の codex 分岐に `-m gpt-6-astra` を明示し (利用者の `~/.codex/config.toml` の既定に依存させない)、`CONSULT_EFFORT` 既定を high → ultra、相談 prompt の前置きに「sub-agent を spawn しない」を足す。この script は起動器を通らないので委任の検出は無い (prompt の禁止と、read-only sandbox が委任先に継承されることだけに依る)。
+6. 切り替わりの時点は D2229 決定 4 と同じ: 起動器は投入時点の `--repo-root` の docs から model と effort を導出するので、本決定が local main へ着地した後に作られる wave (と、その wave が切る子 worktree) から astra・ultra になり、着地前に始まった wave は自分の木の docs どおり走り終える。next-tasks は script の設置時点 (2026-09-30 17:00 JST 前後) から切り替わった。
+7. 過去記録の gpt-6-sol / medium / high 表記 (output/insights、worklog、FOLDED、decisions 本文、受領証) は測定・実行時点の事実として残す (規律 7)。`test_s8b_ratified_freeze.py` の例示値、`.codex/role-adapters`、利用者の `~/.codex/config.toml`、`tools/codex_reasoning_ab.py`・`tools/t189_*` の許可リスト、Claude 側 effort は対象外。
+
+**理由:**
+- 生死確認: `codex exec -m gpt-6-astra -c model_reasoning_effort=ultra --sandbox read-only` をサブスク (ChatGPT) ログインで打ち rc=0・header `model: gpt-6-astra` / `reasoning effort: ultra`。改訂後の docs から導出した起動器実走 (段 6 の review 2 本) の受領証が requested / recorded とも astra・ultra、`outcome=accepted`、委任 issue なし。next-tasks の改訂版も rc=0・header astra / ultra・所要 119 秒 (締切 1,800 秒)・委任 0。
+- 委任を受理しない理由: ultra は developer message で proactive な委任を有効化し (medium は無効化を注入)、委任先は別 rollout file に記録され (`session_meta.session_id` は root の id)、`--json` の stdout には root の id しか出ない。このため改訂前の起動器は委任先の model call・token・model/effort/cwd を見ずに attempt を受理していた (検査は落ちずに素通り)。委任先を会計する案は、全履歴 fork で子 rollout に親の meta/context が複製される、manifest が 1 attempt 1 session を強制する、子の完了と seal 後追記が閉じない、という実物の障害を抱え、receipt・manifest の新世代と ledger まで波及する。さらに委任先に `.codex/hooks.json` の guard が効くことは未確認である (root では exec 経由の guard 拒否を本番 rollout で観測済み、委任先では拒否記録 0 件で有効とも無効とも言えない)。未確認の面で走った仕事を受理しないのが規律 6 に沿い、依頼の「検査を黙って緩めず、受理規則を明文化して直す」も満たす。
+- 設定で委任を止める手段は、この CLI (0.159.2)・exec 経路・明示 spawn 依頼で試した 3 設定 (`--disable multi_agent`、`agents.max_threads=1`、`agents.max_depth=0`) ではいずれも止まらなかった。
+
+**却下した選択肢:**
+- 委任を許して委任先を会計する — 上の障害で差分が 700〜1,100 行規模になり、委任先の guard 未確認のまま受理することになる。
+- 権威段だけ effort を max に留める — 全段 ultra のユーザー指示と非同値で、max が委任しない証拠も無い。
+- prompt で禁じるだけにする — 素通りが残る。
+- L1.5 予算を 9,788 bytes へ引き上げる — 既存 3 文の意味等価な縮約で収容できた (段 6 レビューの指摘)。
+
+**残る限界:** 事後拒否は委任先の実行・書込みを防ぐ機構ではない (workspace-write の author / fix で委任が起きると、子 worktree に guard 未確認の書込みが残りうる)。拒否された attempt の委任先 token は会計されない。委任先での guard 発火は未確認のまま (直接 probe は trust bypass flag の手打ちが auto mode に拒否され、未実施)。
+
+## D2336. Cicada の中間案 M は最良設定 (inline 版) まで範囲に含め、読み束縛は GC を止めない検出型の世代番号で照合し、壊しの帰属は tx 単位にする (2026-10-01)
+
+**決定:** D2305 項 4 の中間案 M を次の形で実装した (一次資料 `output/insights/2026-09-30/cicada-certified-m/README.md`)。
+1. 範囲に `INLINE_VERSION_OPT=1` (promotion 0) を含める。inline slot の返却・再取得を、非 inline 版の回収・再利用と同じ 3 関数 (`gcAfterThisVersion`・`newVersionGeneration`・`writeSetClean`) の分岐で世代の事象として数える。
+2. B (読み束縛) は版に TRACE 専用の世代番号を置き、事象を seqlock と同じ 2 段 (開始で奇数・終了で偶数) で進める。読み手は read set 登録の直前に「世代 → wts・status・所属 tuple → fence → 世代」の snapshot を取り、奇数・前後不一致・別 tuple・未確定・読み手より新しい版を `B_WINDOW`、tx の終わり (commit・read-only・abort) の世代の不一致を `B_RETIRED` とする。読み手は GC を止めない。
+3. U は設置 (validation の CAS 成功)・公開 (`cpv()` の store の前後の status 確認)・W 行の三者照合と、公開時の wts と C 行の版の照合。主張は `cpv()` を通る公開に限る。
+4. read 側 API は `read()` の呼び出し単位で照合する。
+5. 正例は壊し 3 本 (B = P5 型、U = 公開後に write set から外す、API = 登録を飛ばす)。B の帰属は (thread, tx 通番) が壊しで下限を実際に上げた tx であることで判定する。
+6. 合否は repo 外の起動器が決め、判定器 (`orchestrator/verifier/`)・campaign・既存 patch は変えない。
+
+**理由:**
+- 比較相手の観測最良設定と構成 E / E-max の実測がすべて `INLINE_VERSION_OPT=1` の上にあり、範囲外にすると D2305 項 4 (2) の性能値の地位をそれらに付けられない。inline の事象は同じ 3 関数に置けるので追加の費用は小さい。
+- 読み手が tuple の GC 権を握る排他は、`gc_versions()` が権利の取得に失敗した回収予定を捨てるので TRACE ビルドの回収挙動を変える。検出型の snapshot は回収を止めずに、登録前の窓で版が別 tuple・別状態・新しい版に化けた場合を検出する。残る場合 (同じ key の別の確定可視版として一貫した snapshot) は、その版の読みとして記録と実行が一致する。
+- 壊し B は tx 単位で読み取り下限を動かし、その tx が読んだ全版が回収の対象になるので、帰属の鍵は tx 単位が機序に合う (版単位の鍵は事象行が tx ごとに 1 版しか書かないので 1,925 / 6,988 件しか一致しない)。
+
+**却下した選択肢:**
+- inline 版を範囲外と明記する — 主比較の性能値を M の地位に上げられない。
+- 版の外の事象台帳 — 並行時の順序付けが重く、登録前の窓も台帳だけでは閉じない。
+- 読み手が GC 権を保持する排他 — 回収予定を捨てるので観測対象の挙動を変える。
+- B の帰属を (thread, tx 通番, 版) で判定する — 壊しの機序に合わず、発火した正例を不合格にする。
+- 判定器に新しい行種別を足して certified にする (案 A) — D2305 項 4 のとおり、Cicada を門に通す campaign の登録時に着手する。

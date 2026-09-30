@@ -9,9 +9,10 @@
 prompt非空・参照path実在・`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 wait側`--receipt-file`はworker launcher receiptと別pathにする。
-完了は`.done`とexit codeだけで判定し、grepも通知も待ち手rcも判定にしない。成果物は最終メッセージから読む（F23/F24）。
+完了判定は`.done`とexit codeだけ（grep・通知・待ち手rc不可）。成果物は最終メッセージから読む（F23/F24）。
 採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
-`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。
+`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。
+ultraの委任(spawn_agent)はpromptで禁じ、委任したattemptは起動器が拒否する。
 `--artifact-root`は先に作る。
 重い巡はcall/tokenを見積もる。未受理は未完了と記し次の子に監査させる。
 
@@ -41,9 +42,8 @@ heredoc と command substitution を併用してはならない。
 
 ## DW-O05 — read-only codex
 
-書込可能tmpがないため静的検査でよいと明記する。
-テスト実測は親が行い、子の非実走を緑と記録しない。予算が尽きそうなら途中結論を出力形式どおり
-書いて終われ、も入れる。
+静的検査可(書込可能tmpなし)、予算切迫時は途中結論を出力形式で書き終えよ、とpromptに書く。
+テスト実測は親が行い、子の非実走を緑と記録しない。
 
 ## DW-O06 — submodule 系 real-repo test
 

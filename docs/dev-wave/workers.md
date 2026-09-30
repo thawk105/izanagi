@@ -2,12 +2,12 @@
 
 ## DW-S02 — 段 2 プラン起草
 
-brief と関連コードの所在を渡し、codex `reasoning=medium`、`sandbox=read-only` で
+brief と関連コードの所在を渡し、codex `reasoning=ultra`、`sandbox=read-only` で
 file:line粒度のplanを起草させる。
 
 ## DW-S03 — 段 3 敵対相談
 
-codex `reasoning=medium`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
+codex `reasoning=ultra`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
 正しさ境界・整合・実効性と過剰・削除（研究前進・実測欠陥への対応、削除・局所修正の可否）に分け、
 親brief自身も検査対象だと明記する。briefのfile:line、前提、
 所有範囲、変異の帰属不成立、**親自身の実測値とその一般化**を探させる。
@@ -21,12 +21,11 @@ scope外の層を実装したふりにせず裁定パッケージ候補として
 投入直前にcdせず`tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0で停止。
 直後に段1のconsumer検索をlocal mainで再走し差を裁定へ(F1014)、gate実測NOTE≠0ならanchor再読。
 起動器はauthor/fixの全残差を終端commit、待ち手は`--commit-worktree <abs>`指定。記録のみ(D2044項16)。
-codex は `reasoning=medium`、`sandbox=workspace-write` とする。
+codex は `reasoning=ultra`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
 
-権限は入口の凍結境界に従う。親・他単位の成果物のlandまで意図的に赤になるテストを
-xfail化せず、既存テストの期待値も変えない。赤の内訳を報告に明記する。
+権限は入口の凍結境界に従う。親・他単位の成果物land待ちの意図的な赤はxfail化・既存テスト期待値変更をせず、赤の内訳を報告する。
 
 ## DW-S05-C — 段 5 実装子の検査・報告
 
@@ -43,7 +42,7 @@ xfail化せず、既存テストの期待値も変えない。赤の内訳を報
 
 ## DW-S06-A — 段 6 敵対レビュー
 
-実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。
+実装 wave は異なるレンズの敵対レビューを `reasoning=ultra` で必ず 2 本並列で行う。
 1本は`DW-S03`の過剰・削除レンズに固定する。
 実装面に Codex `role=author` のないハンクがあればレビューで代替せず停止する。
 
@@ -57,5 +56,5 @@ fixのpromptに**既存テストの期待値を変更しない**を明記する�
 
 ## DW-S06-C — 段 6 統合後の再検証
 
-並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。
+並列 fix の統合後、焦点再レビューは全体へ `reasoning=ultra` で 1 本でよい。
 親が変異matrixと受入を再走する。
