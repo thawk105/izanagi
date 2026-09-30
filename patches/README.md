@@ -951,6 +951,15 @@ pin 前進は人間の判断なので、ここでは out-of-tree patch として
   compile_commands の -D を照合する)。measure のレコード数は 1M 固定 (smoke の較正は参考記録)。作図 `tools/plotting/plot_vhash_readonly_share.py` (図 4 枚)。
   既定 inert は拡張後の patch でも smoke (35800.nqsv、patch sha256 `fafdd862…`) で成立。condition gate の VLIFE 分岐 witness は owner TU 37 / header 9。
   一次資料 `output/insights/2026-09-29/vhash-readonly-share/README.md`。
+- **md_29 の拡張 (計器行 schema 3、2026-09-30、VHash md_29・md_28)** — 新しい macro は足さず、分岐は owner TU `transaction.cc` と
+  header `include/transaction.hh` の中だけ (`ycsb_cicada.cc` は触らない)。W 条件 (driver の `WS-*`・`WO1-*`・`WO2-*`) の走は schema 3、旧条件は schema 2 のまま。
+  (a) abort 理由を 1 試行 1 件、最初に失敗を確定した箇所で `early_wts`・`early_rts`・`precheck`・`latest`・`read_match`・`write_rts_deleted`・`node_set`・`scan_node_set`・`other` の
+  9 分類 × 通常 / 長い tx の 18 値に数える (合計 = aborts を driver が検査)、(b) 走行末に zipf の頻度順位の上位 key 0〜7 の版の列の長さを、最後に破棄された
+  TxExecutor が全 worker のループ終了後に走査して記録する (`hot_chains` の status は ok / missing / error / unavailable、走査時間 `hot_scan_us`)、
+  (c) build に `val_size`・`sizeof_version`・`sizeof_ycsb` (値の確保単位の見積り) を echo する。driver は build キー (genome, `CCBENCH_VAL_SIZE`) ごとに 1 度 build して
+  compile command の `VAL_SIZE` を照合し、genome に `best100` (md_11 の 100 操作型の観測最良) を足し、各走の子 process の `maxrss_kb` を記録する。
+  condition gate の VLIFE 分岐 witness は owner TU 49 / header 12。作図 `tools/plotting/plot_vhash_workload_space.py`。
+  一次資料 `output/insights/2026-09-30/vhash-workload-space/README.md`。
 
 ---
 

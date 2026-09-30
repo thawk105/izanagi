@@ -1,7 +1,8 @@
 diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
+index dbaeb1b..47a72be 100644
 --- a/cc/cicada/include/transaction.hh
 +++ b/cc/cicada/include/transaction.hh
-@@ -35,6 +35,52 @@
+@@ -35,6 +35,54 @@ enum class TransactionStatus : uint8_t {
  
  class TxScanCallback;
  
@@ -36,6 +37,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +  uint64_t holder_units[5] = {}, holder_count = 0, holder_unresolved = 0;
 +  uint64_t age_create_us[42] = {}, age_overwrite_us[42] = {};
 +  uint64_t attempts[2] = {}, commits[2] = {}, aborts[2] = {};
++  uint64_t abort_reasons[18] = {};
 +  uint64_t operations[2] = {}, cycles[2] = {};
 +  uint64_t last_publish = 0;
 +  uint64_t last_publish_us = 0, last_min_rts = 0;
@@ -49,12 +51,13 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +  std::atomic<uint64_t> sequence{0}, rts{0};
 +  std::atomic<uint32_t> kind{0};
 +};
++void cicada_vlife_executor_done();
 +#endif
 +#line 38
  class TxExecutor {
  public:
    TransactionStatus status_ = TransactionStatus::invalid;
-@@ -55,6 +101,37 @@
+@@ -55,6 +103,42 @@ public:
    bool is_ronly_ = false;
    bool is_batch_ = false;
  
@@ -63,6 +66,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +  static inline CicadaVlifeSlot vlife_slots_[256][2];
 +  static inline CicadaVlifeHolder vlife_holders_[256];
 +  static inline std::atomic<uint64_t> vlife_epoch_{0};
++  static inline std::atomic<uint64_t> vlife_constructed_{0}, vlife_destroyed_{0};
 +  uint64_t vlife_start_ = 0, vlife_lower_ = 0, vlife_upper_ = UINT64_MAX;
 +  uint64_t vlife_reads_ = 0;
 +  size_t vlife_proc_index_ = 0;
@@ -70,6 +74,10 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +  bool vlife_long_ = false;
 +  bool vlife_new_procedure_ = true;
 +  bool vlife_abort_mainte_ = false;
++  uint8_t vlife_abort_reason_ = 8;
++  void vlife_reason(uint8_t reason) {
++    if (vlife_abort_reason_ == 8) vlife_abort_reason_ = reason;
++  }
 +  static size_t vlife_bucket(uint64_t x) {
 +    if (x <= 8) return size_t(x);
 +    size_t b = 9;
@@ -92,7 +100,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
    uint8_t thid_ = 0;
    uint64_t rts_;
    uint64_t start_, stop_;               // for one-sided synchronization
-@@ -65,6 +142,13 @@
+@@ -65,6 +149,14 @@ public:
        : result_(res), quit_(quit), callback_(TxScanCallback(this)),
          backoff_(backoff), thid_(thid) {
  
@@ -101,12 +109,24 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +      fprintf(stderr, "IZANAGI_CICADA_VLIFE: TotalThreadNum exceeds 256 workers\n");
 +      exit(1);
 +    }
++    vlife_constructed_.fetch_add(1, std::memory_order_relaxed);
 +#endif
 +#line 68
      // wait to initialize MinWts
      while (MinWts.load(memory_order_acquire) == 0)
        ;
-@@ -174,6 +258,17 @@
+@@ -104,6 +196,10 @@ public:
+     write_set_.clear();
+     gcq_.clear();
+     pro_set_.clear();
++#if IZANAGI_CICADA_VLIFE
++    cicada_vlife_executor_done();
++#endif
++#line 107
+   }
+ 
+   void abort();
+@@ -174,6 +270,17 @@ public:
      while (delTarget != nullptr) {
        // escape next pointer
        Version* tmp = delTarget->next_.load(std::memory_order_acquire);
@@ -124,7 +144,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
  
  #if INLINE_VERSION_OPT
        if (delTarget == &(tuple->inline_ver_)) {
-@@ -192,6 +287,7 @@
+@@ -192,6 +299,7 @@ public:
  #if ADD_ANALYSIS
            ++result_->local_gc_version_counts_;
  #endif
@@ -132,7 +152,7 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
        delTarget = tmp;
      }
    }
-@@ -262,12 +358,20 @@
+@@ -262,15 +370,33 @@ public:
       */
      for (auto itr = write_set_.begin();
           itr != write_set_.begin() + (write_set_.size() / 2); ++itr) {
@@ -150,10 +170,23 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +          vlife_site(4, 0, 0);
 +#endif
 +#line 271
++#if IZANAGI_CICADA_VLIFE
++          if (ver->ldAcqWts() > this->wts_.ts_ ||
++              ver->ldAcqRts() > this->wts_.ts_) {
++            vlife_reason(2);
++            return false;
++          }
++#else
++#line 271
            if (ver->ldAcqWts() > this->wts_.ts_ ||
                ver->ldAcqRts() > this->wts_.ts_)
              return false;
-@@ -279,11 +383,23 @@
++#endif
++#line 274
+         } else {
+           if ((*itr).later_ver_)
+             ver = (*itr).later_ver_;
+@@ -279,12 +405,33 @@ public:
            while (ver->ldAcqWts() > this->wts_.ts_) {
              (*itr).later_ver_ = ver;
              ver = ver->ldAcqNext();
@@ -174,10 +207,21 @@ diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
 +          vlife_site(4, vlife_precheck_hops, vlife_precheck_hops);
 +#endif
 +#line 287
++#if IZANAGI_CICADA_VLIFE
++          if (ver->ldAcqRts() > this->wts_.ts_) {
++            vlife_reason(2);
++            return false;
++          }
++#else
++#line 287
            if (ver->ldAcqRts() > this->wts_.ts_) return false;
++#endif
++#line 288
          }
        }
+     }
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index efcf02d..e77a532 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -16,6 +16,7 @@
@@ -188,7 +232,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  extern bool chkClkSpan(const uint64_t start, const uint64_t stop,
                         const uint64_t threshold);
  extern void displaySLogSet();
-@@ -24,6 +25,121 @@
+@@ -24,6 +25,175 @@ extern void cicadaLeaderWork();
  
  using namespace std;
  
@@ -210,7 +254,52 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +};
 +#endif
 +#if IZANAGI_CICADA_VLIFE
-+DEFINE_int32(izanagi_ronly_pct, -1, "New procedure read-only percentage; -1 preserves YCSB generation.");
++// Mirrors YCSB's aligned id and VAL_SIZE payload allocation unit.
++struct CicadaVlifeYcsbLayout {
++  alignas(CACHE_LINE_SIZE) uint64_t id;
++  char val[VAL_SIZE];
++};
++struct CicadaVlifeHotChain { uint8_t status = 3; size_t length = 0; };
++static CicadaVlifeHotChain vlife_hot_chains[8]; // 0 ok, 1 missing, 2 error, 3 unavailable
++static uint64_t vlife_hot_scan_us = 0;
++static void cicada_vlife_scan_hot() {
++  MasstreeWrapper<Tuple>::thread_init(0);
++  uint64_t scan_started = rdtscp();
++  for (size_t key_id = 0; key_id < 8; ++key_id) {
++    SimpleKey<8> key;
++    YCSB::CreateKey(key_id, key.ptr());
++    Tuple* tuple = Masstrees[get_storage(Storage::YCSB)].get_value(key.view());
++    if (!tuple) { vlife_hot_chains[key_id].status = 1; continue; }
++    Version* ver = tuple->ldAcqLatest();
++    size_t length = 0;
++    while (ver && length <= 100000000) { ++length; ver = ver->ldAcqNext(); }
++    vlife_hot_chains[key_id].status = (ver || length == 0) ? 2 : 0;
++    vlife_hot_chains[key_id].length = length;
++  }
++  vlife_hot_scan_us = (rdtscp() - scan_started) / FLAGS_clocks_per_us;
++}
++void cicada_vlife_executor_done() {
++  const uint64_t destroyed = TxExecutor::vlife_destroyed_.fetch_add(1, std::memory_order_acq_rel) + 1;
++  if (destroyed == TotalThreadNum &&
++      TxExecutor::vlife_constructed_.load(std::memory_order_acquire) == TotalThreadNum)
++    cicada_vlife_scan_hot();
++}
++static void cicada_vlife_hot_json() {
++  std::cout << ",\"hot_chains\":[";
++  for (size_t key_id = 0; key_id < 8; ++key_id) {
++    if (key_id) std::cout << ',';
++    const auto& chain = vlife_hot_chains[key_id];
++    std::cout << "{\"key\":" << key_id;
++    if (chain.status == 0)
++      std::cout << ",\"status\":\"ok\",\"length\":" << chain.length << '}';
++    else {
++      const char* status = chain.status == 1 ? "missing" : chain.status == 2 ? "error" : "unavailable";
++      std::cout << ",\"status\":\"" << status << "\",\"length\":null}";
++    }
++  }
++  std::cout << "],\"hot_scan_us\":" << vlife_hot_scan_us << '}' << std::endl;
++}
++DEFINE_int32(izanagi_ronly_pct, -1, "New procedure read-only percentage; -1 preserves YCSB generation."); DEFINE_int32(izanagi_vlife_schema, 2, "Version lifetime JSON schema (2 or 3).");
 +#if !IZANAGI_CICADA_LONGTX
 +DECLARE_bool(ycsb_rmw);
 +static int vlife_long_kind_flag() { return 0; }
@@ -224,7 +313,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    }
 +    std::cout << ']';
 +  };
-+  std::cout << "IZANAGI_CICADA_VLIFE_JSON {\"schema_version\":2,\"clocks_per_us\":"
++  std::cout << "IZANAGI_CICADA_VLIFE_JSON {\"schema_version\":" << FLAGS_izanagi_vlife_schema << ",\"clocks_per_us\":"
 +            << FLAGS_clocks_per_us
 +            << ",\"bucket_bounds\":[0,1,2,3,4,5,6,7,8,16,32,64,128,256,512,1024,2048,18446744073709551615],"
 +            << "\"time_bucket_bounds\":[1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,33554432,67108864,134217728,268435456,536870912,1073741824,2147483648,4294967296,8589934592,17179869184,34359738368,68719476736,137438953472,274877906944,549755813888,1099511627776,18446744073709551615],"
@@ -235,8 +324,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +            << ",\"inline_version_opt\":" << INLINE_VERSION_OPT
 +            << ",\"longtx\":" << IZANAGI_CICADA_LONGTX
 +            << ",\"izanagi_ronly_pct\":" << FLAGS_izanagi_ronly_pct
-+            << ",\"izanagi_long_kind\":" << vlife_long_kind_flag() << "},"
-+            << "\"workers\":[";
++            << ",\"izanagi_long_kind\":" << vlife_long_kind_flag();
++  if (FLAGS_izanagi_vlife_schema == 3) std::cout << ",\"val_size\":" << VAL_SIZE
++            << ",\"sizeof_version\":" << sizeof(Version)
++            << ",\"sizeof_ycsb\":" << sizeof(CicadaVlifeYcsbLayout);
++  std::cout << "},\"workers\":[";
 +  bool first = true;
 +  for (size_t worker = 0; worker < TotalThreadNum; ++worker) {
 +    const auto& v = TxExecutor::vlife_stats_[worker];
@@ -295,22 +387,34 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    std::cout << ",\"attempts\":"; arr(v.attempts,2);
 +    std::cout << ",\"commits\":"; arr(v.commits,2);
 +    std::cout << ",\"aborts\":"; arr(v.aborts,2);
++    if (FLAGS_izanagi_vlife_schema == 3) { std::cout << ",\"abort_reasons\":"; arr(v.abort_reasons,18); }
 +    std::cout << ",\"operations\":"; arr(v.operations,2);
 +    std::cout << ",\"cycles\":"; arr(v.cycles,2);
 +    std::cout << '}';
 +  }
-+  std::cout << "]}" << std::endl;
++  std::cout << ']';
++  if (FLAGS_izanagi_vlife_schema == 3) cicada_vlife_hot_json(); else std::cout << '}' << std::endl;
 +}
-+struct CicadaVlifeOutput {
-+  ~CicadaVlifeOutput() { vlife_json(); }
-+};
-+static CicadaVlifeOutput vlife_output;
++static bool vlife_json_emitted = false;
++static void cicada_vlife_finish() {
++  if (vlife_json_emitted) return;
++  vlife_json_emitted = true;
++  vlife_json();
++}
++struct CicadaVlifeOutputOnExit { ~CicadaVlifeOutputOnExit() { cicada_vlife_finish(); } };
++static CicadaVlifeOutputOnExit vlife_output_on_exit;
 +#endif
 +#line 27
  #define MSK_TID 0b11111111
  
  /**
-@@ -35,12 +151,110 @@
+@@ -32,15 +202,116 @@ using namespace std;
+  * @return void
+  */
+ void TxExecutor::begin() {
++#if IZANAGI_CICADA_VLIFE
++  vlife_abort_reason_ = 8;
++#endif
    /**
     * Allocate timestamp in read phase.
     */
@@ -421,7 +525,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /* one-sided synchronization
     * tanabe... disabled.
-@@ -82,9 +296,33 @@
+@@ -82,9 +353,33 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
    Version *ver, *later_ver;
    later_ver = nullptr;
  
@@ -455,7 +559,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /**
     * Choose the correct timestamp from write timestamp and read timestamp.
-@@ -99,10 +337,27 @@
+@@ -99,10 +394,27 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
    /**
     * Scan to the area to be viewed
     */
@@ -483,7 +587,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      if (ver == nullptr) return nullptr;
    }
    while (ver->status_.load(memory_order_acquire) != VersionStatus::committed &&
-@@ -111,19 +366,85 @@
+@@ -111,19 +423,85 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
       * Wait for the result of the pending version in the view.
       */
      while (ver->status_.load(memory_order_acquire) == VersionStatus::pending) {}
@@ -497,12 +601,11 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +    if (ver->status_.load(memory_order_acquire) == VersionStatus::aborted) {
 +#line 115
        ver = ver->ldAcqNext();
--    }
 +#if IZANAGI_CICADA_VLIFE
 +      if (ver) VLIFE_VISIT(ver);
 +#endif
 +#line 116
-+    }
+     }
 +#line 117
 +#if IZANAGI_CICADA_VLIFE
 +    if (ver == nullptr) vlife_site(is_ronly_ ? 1 : 0, vlife_hops, vlife_pos);
@@ -534,12 +637,12 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  }
 +#undef VLIFE_VISIT
 +#line 121
-   if (ver->ldAcqStatus() == VersionStatus::deleted) {
-     // TODO: try another version?
-     return nullptr;
-   }
- 
-   read_set_.emplace_back(s, key, tuple, later_ver, ver);
++  if (ver->ldAcqStatus() == VersionStatus::deleted) {
++    // TODO: try another version?
++    return nullptr;
++  }
++
++  read_set_.emplace_back(s, key, tuple, later_ver, ver);
 +  if (is_ronly_) {
 +    ++vlife().readonly_reads;
 +    for (size_t i=0; i<5; ++i) if (vlife_pos >= ks[i]) {
@@ -559,18 +662,18 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  }
 +#else
 +#line 121
-+  if (ver->ldAcqStatus() == VersionStatus::deleted) {
-+    // TODO: try another version?
-+    return nullptr;
-+  }
-+
-+  read_set_.emplace_back(s, key, tuple, later_ver, ver);
+   if (ver->ldAcqStatus() == VersionStatus::deleted) {
+     // TODO: try another version?
+     return nullptr;
+   }
+ 
+   read_set_.emplace_back(s, key, tuple, later_ver, ver);
 +#endif
 +#line 127
  
  #if INLINE_VERSION_OPT
  #if INLINE_VERSION_PROMOTION
-@@ -142,6 +463,13 @@
+@@ -142,6 +520,13 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
   * @param [in] key The key of key-value
   */
  Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
@@ -584,7 +687,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -194,6 +522,15 @@
+@@ -194,6 +579,15 @@ FINISH_READ:
   * @param [in] key The key of key-value
   */
  Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
@@ -600,7 +703,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if ADD_ANALYSIS
    uint64_t start = rdtscp();
  #endif // if ADD_ANALYSIS
-@@ -202,7 +539,16 @@
+@@ -202,7 +596,16 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
     * Update  from local write set.
     * Special treat due to performance.
     */
@@ -617,7 +720,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    Tuple* tuple;
    bool rmw;
-@@ -238,6 +584,10 @@
+@@ -238,6 +641,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
    Version *later_ver, *ver;
    later_ver = nullptr;
    ver = tuple->ldAcqLatest();
@@ -628,18 +731,27 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    if (rmw || WRITE_LATEST_ONLY) {
      /**
-@@ -267,8 +617,17 @@
+@@ -257,6 +664,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+        * if committed, it must be aborted in validaiton phase due to order of
+        * newest to oldest.
+        */
++      #if IZANAGI_CICADA_VLIFE
++      vlife_reason(0);
++      #endif
++#line 260
+       this->status_ = TransactionStatus::aborted;
+       goto FINISH_WRITE;
+     }
+@@ -267,8 +678,17 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
      while (ver->wts_.load(memory_order_acquire) > this->wts_.ts_) {
        later_ver = ver;
        ver = ver->ldAcqNext();
--    }
--  }
 +#if IZANAGI_CICADA_VLIFE
 +      ++vlife_write_hops;
 +#endif
 +#line 270
-+    }
-+  }
+     }
+   }
 +#if IZANAGI_CICADA_VLIFE
 +  if (!(rmw || WRITE_LATEST_ONLY))
 +    vlife_site(2, vlife_write_hops, vlife_write_hops);
@@ -648,7 +760,62 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  
    /**
     * Constraint from new to old.
-@@ -486,6 +845,10 @@
+@@ -278,6 +698,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+     /**
+      * It must be aborted in validation phase, so early abort.
+      */
++    #if IZANAGI_CICADA_VLIFE
++    vlife_reason(1);
++    #endif
++#line 281
+     this->status_ = TransactionStatus::aborted;
+     goto FINISH_WRITE;
+   }
+@@ -326,6 +750,10 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+       auto it = node_map_.find((void*) insert_info.node);
+       if (it != node_map_.end()) {
+         if (unlikely(it->second != insert_info.old_version)) {
++          #if IZANAGI_CICADA_VLIFE
++          vlife_reason(6);
++          #endif
++#line 329
+           status_ = TransactionStatus::aborted;
+           return Status::ERROR_CONCURRENT_WRITE_OR_DELETE;
+         }
+@@ -380,6 +808,10 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+      * if committed, it must be aborted in validaiton phase due to order of
+      * newest to oldest.
+      */
++    #if IZANAGI_CICADA_VLIFE
++    vlife_reason(0);
++    #endif
++#line 383
+     this->status_ = TransactionStatus::aborted;
+     goto FINISH_DELETE;
+   }
+@@ -392,6 +824,10 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+     /**
+      * It must be aborted in validation phase, so early abort.
+      */
++    #if IZANAGI_CICADA_VLIFE
++    vlife_reason(1);
++    #endif
++#line 395
+     this->status_ = TransactionStatus::aborted;
+     goto FINISH_DELETE;
+   }
+@@ -471,6 +907,10 @@ bool TxExecutor::validation() {
+    */
+   bool result(true);
+   if (!precheckInValidation()) {
++#if IZANAGI_CICADA_VLIFE
++    vlife_reason(2);
++#endif
++#line 474
+     result = false;
+     goto FINISH_VALIDATION;
+   }
+@@ -486,11 +926,19 @@ bool TxExecutor::validation() {
      // && ver != expected) condition. Initialize to silence -Wmaybe-uninitialized
      // without changing runtime behavior.
      Version *expected(nullptr), *ver, *pre_ver = nullptr;
@@ -659,7 +826,16 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      for (;;) {
        if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
            WRITE_LATEST_ONLY) {
-@@ -505,6 +868,10 @@
+         ver = expected = (*itr).rcdptr_->ldAcqLatest();
+         if (this->wts_.ts_ < ver->ldAcqWts()) {
++#if IZANAGI_CICADA_VLIFE
++          vlife_reason(3);
++#endif
++#line 494
+           result = false;
+           goto FINISH_VALIDATION;
+         }
+@@ -505,6 +953,10 @@ bool TxExecutor::validation() {
            (*itr).later_ver_ = ver;
            pre_ver = ver;
            ver = ver->ldAcqNext();
@@ -670,7 +846,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
          }
        }
  
-@@ -527,6 +894,11 @@
+@@ -527,6 +979,11 @@ bool TxExecutor::validation() {
          }
        }
      }
@@ -682,7 +858,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      (*itr).finish_version_install_ = true;
    }
  
-@@ -542,12 +914,25 @@
+@@ -542,12 +999,25 @@ bool TxExecutor::validation() {
     */
    for (auto itr = read_set_.begin(); itr != read_set_.end(); ++itr) {
      Version* ver;
@@ -708,7 +884,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // if write after read occured, it may happen "==".
  
      while (ver->ldAcqStatus() == VersionStatus::pending)
-@@ -555,6 +940,10 @@
+@@ -555,6 +1025,10 @@ bool TxExecutor::validation() {
      while (ver->ldAcqStatus() != VersionStatus::committed &&
             ver->ldAcqStatus() != VersionStatus::deleted) {
        ver = ver->ldAcqNext();
@@ -719,7 +895,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
        while (ver->ldAcqStatus() == VersionStatus::pending)
          ;
      }
-@@ -563,6 +952,10 @@
+@@ -563,7 +1037,15 @@ bool TxExecutor::validation() {
       * Checking that view is not broken.
       * The original implementation is buggy because it does not have this.
       */
@@ -728,9 +904,14 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#endif
 +#line 566
      if ((*itr).ver_ != ver) {
++#if IZANAGI_CICADA_VLIFE
++      vlife_reason(4);
++#endif
++#line 567
        result = false;
        goto FINISH_VALIDATION;
-@@ -576,15 +969,27 @@
+     }
+@@ -576,17 +1058,33 @@ bool TxExecutor::validation() {
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
      Version* ver = (*itr).new_ver_->ldAcqNext();
@@ -757,20 +938,38 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +#line 588
      if (ver->ldAcqRts() > this->wts_.ts_ ||
          ver->ldAcqStatus() == VersionStatus::deleted) {
++#if IZANAGI_CICADA_VLIFE
++      vlife_reason(5);
++#endif
++#line 590
        result = false;
-@@ -743,6 +1148,11 @@
+       goto FINISH_VALIDATION;
+     }
+@@ -596,6 +1094,10 @@ bool TxExecutor::validation() {
+   for (auto it : node_map_) {
+     auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
+     if (node->full_version_value() != it.second) {
++#if IZANAGI_CICADA_VLIFE
++      vlife_reason(6);
++#endif
++#line 599
+       result = false;
+       goto FINISH_VALIDATION;
+     }
+@@ -743,6 +1245,12 @@ void TxExecutor::gcpv() {
   * @return void
   */
  void TxExecutor::abort() {
 +#if IZANAGI_CICADA_VLIFE
 +  ++vlife().aborts[vlife_long_];
++  ++vlife().abort_reasons[2 * vlife_abort_reason_ + vlife_long_];
 +  vlife().cycles[vlife_long_] += rdtscp() - vlife_start_;
 +#endif
 +#line 746
    // remove inserted records
    for (auto& we : write_set_) {
      if (we.op_ == OpType::INSERT) {
-@@ -764,7 +1174,15 @@
+@@ -764,7 +1272,15 @@ void TxExecutor::abort() {
    /**
     * Maintenance phase
     */
@@ -786,7 +985,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #endif
  
  #if BACK_OFF
-@@ -833,6 +1251,10 @@
+@@ -833,6 +1349,10 @@ void TxExecutor::gc_versions() {
  
      // the thread detaches the rest of the version list from v
      gcq_.front().ver_->next_.store(nullptr, std::memory_order_release);
@@ -797,7 +996,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      // updates record.min_wts
      tuple->min_wts_.store(gcq_.front().ver_->wts_, memory_order_release);
      gcAfterThisVersion(tuple, delTarget);
-@@ -883,6 +1305,27 @@
+@@ -883,6 +1403,27 @@ void TxExecutor::mainte() {
    if (chkClkSpan(this->gcstart_, this->gcstop_,
                   FLAGS_gc_inter_us * FLAGS_clocks_per_us) &&
        (loadAcquire(GCFlag[thid_].obj_) == 0)) {
@@ -825,7 +1024,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      storeRelease(GCFlag[thid_].obj_, 1);
      this->gcstart_ = this->gcstop_;
    }
-@@ -917,6 +1360,15 @@
+@@ -917,6 +1458,15 @@ void TxExecutor::writePhase() {
  }
  
  bool TxExecutor::commit() {
@@ -841,7 +1040,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    /**
     * Tanabe Optimization for analysis
     */
-@@ -931,7 +1383,35 @@
+@@ -931,7 +1481,35 @@ bool TxExecutor::commit() {
     * A read-only transaction uses (thread.rts) instead, 
     * and does not track or validate the read set; 
     */
@@ -877,7 +1076,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      read_set_.clear();
      node_map_.clear();
      return true;
-@@ -953,6 +1433,12 @@
+@@ -953,6 +1531,12 @@ bool TxExecutor::commit() {
  #else
      mainte();
  #endif
@@ -890,7 +1089,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      return true;
    }
  }
-@@ -960,7 +1446,150 @@
+@@ -960,7 +1544,150 @@ bool TxExecutor::commit() {
  bool TxExecutor::isLeader() { return this->thid_ == 0; }
  
  void TxExecutor::leaderWork() {
@@ -1041,3 +1240,14 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #if BACK_OFF
    leaderBackoffWork(backoff_, CCBenchResults);
  #endif
+@@ -981,6 +1708,10 @@ void TxScanCallback::on_resp_node(const MasstreeWrapper<Tuple>::node_type* n,
+   if (it == tx_->node_map_.end()) {
+     tx_->node_map_.emplace_hint(it, (void*) n, version);
+   } else if ((*it).second != version) {
++#if IZANAGI_CICADA_VLIFE
++    tx_->vlife_reason(7);
++#endif
++#line 984
+     tx_->status_ = TransactionStatus::aborted;
+   }
+ }

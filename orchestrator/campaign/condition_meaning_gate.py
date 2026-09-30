@@ -592,7 +592,7 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
 }
 _CONDITIONAL_BRANCH_SITE_COUNTS = {
-    "IZANAGI_CICADA_VLIFE": 37,
+    "IZANAGI_CICADA_VLIFE": 49,
     "IZANAGI_CICADA_LONGTX": 3,
     "SILO_POLICY_VARIANT": 15,
     "IZANAGI_SILO_POLICY_PROBE": 21,
@@ -638,7 +638,7 @@ _CONDITIONAL_BRANCH_COMPANION_SITES = {
         ("include/ycsb.hh", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 7),
     ),
     "IZANAGI_CICADA_VLIFE": (
-        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 9),
+        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 12),
     ),
     "IZANAGI_CICADA_LONGTX": (),
     "BACKOFF_REQUESTED_US": (("include/backoff.hh", "#if BACKOFF_REQUESTED_US", 2),),
