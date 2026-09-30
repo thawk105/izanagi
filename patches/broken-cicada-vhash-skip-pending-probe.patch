@@ -60,7 +60,7 @@
 +  vh_probe_pending.clear();
 +#line 35
  #if CICADA_VHASH_WL
-@@ -229,2 +283,29 @@
+@@ -229,2 +283,30 @@
          later_ver=i ? ptr[i-1] : nullptr;
 +        VersionStatus pending_read_status=ver->ldAcqStatus();
 +        if (pending_read_status == VersionStatus::pending) {
@@ -80,9 +80,10 @@
 +            uint64_t id=++vh_probe_next_id;
 +            vh_probe_pending.push_back({thid_, id, wts_.ts_, read_set_.size(),
 +                                        skipped, older});
-+            fprintf(stderr, "CICADA_B2PROBE stage=read id=%u:%llu is_ronly=%u tx_wts=%llu rts=%llu p_ptr=%p p_wts=%llu p_status=%u older_ptr=%p older_wts=%llu read_index=%zu\n",
++            fprintf(stderr, "CICADA_B2PROBE stage=read id=%u:%llu is_ronly=%u tx_wts=%llu key=%s rts=%llu p_ptr=%p p_wts=%llu p_status=%u older_ptr=%p older_wts=%llu read_index=%zu\n",
 +                    unsigned(thid_), (unsigned long long)id, unsigned(is_ronly_),
-+                    (unsigned long long)wts_.ts_, (unsigned long long)rts_,
++                    (unsigned long long)wts_.ts_, vh_break_hex(key).c_str(),
++                    (unsigned long long)rts_,
 +                    (void*)skipped, (unsigned long long)pending_read_wts,
 +                    unsigned(pending_read_status), (void*)older,
 +                    (unsigned long long)older->ldAcqWts(), read_set_.size());

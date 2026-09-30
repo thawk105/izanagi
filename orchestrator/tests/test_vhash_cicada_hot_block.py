@@ -179,7 +179,7 @@ def test_m3_pair_uses_same_job_and_round():
     assert result["post-k1/stock"]["points"][1]["ratio"] == pytest.approx(1.3)
     raw[1]["records"][0]["throughput"] = 1000
     by_round = {p["round"]: p["ratio"] for p in aggregate(raw)["cells"]["rr5"]["B-k1/stock"]["points"]}
-    assert by_round[0] == 11
+    assert by_round[0] == pytest.approx(11)
     assert by_round[2] == pytest.approx(112.2 / 1000)
     assert set(result["post-k1/B-k1"]["by_node"]) == {"node-0", "node-1"}
     raw[0]["records"][3]["job_id"] = "wrong"
@@ -224,12 +224,85 @@ def test_m5_stale_gap_trace_and_verdict():
 
 def test_probe_join_and_missing_keys():
     probe = "\n".join([
-        "CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 tx_rts=3 key=0a01 read_wts=4 p_ptr=0x1 p_wts=6 p_status=pending older_ptr=0x2 older_wts=4 read_index=0",
-        "CICADA_B2PROBE stage=validate id=1:2 p_status=aborted p_wts=6 start_ver=6 reached_ver=4 older_ver=4",
+        "CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01",
+        "CICADA_B2PROBE stage=validate id=1:2 p_status=2 p_wts=6 start_ptr=0x1 reached_ptr=0x2 reached_eq_older=1",
         "CICADA_B2PROBE stage=end id=1:2 outcome=commit"])
     assert h._probe_events(probe)["committed"]["A"] == 1
     with pytest.raises(ValueError, match="missing"):
-        h._probe_events(probe.replace(" older_ver=4", ""))
+        h._probe_events(probe.replace(" reached_eq_older=1", ""))
+
+
+@pytest.mark.parametrize("label,ro,status,read_wts,validate_wts,reached", [
+    ("R", 1, 2, 6, 7, 0), ("A", 0, 2, 6, 7, 1),
+    ("G", 0, 4, 6, 7, 1), ("M", 0, 4, 6, 6, 1),
+    ("V", 0, 4, 6, 6, 0), ("U", 0, 1, 6, 6, 1),
+])
+def test_probe_actual_format_classification(label, ro, status, read_wts, validate_wts, reached):
+    lines = [
+        f"CICADA_B2PROBE stage=read id=1:2 is_ronly={ro} tx_wts=5 rts=3 p_ptr=0x1 p_wts={read_wts} p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01",
+        f"CICADA_B2PROBE stage=validate id=1:2 p_status={status} p_wts={validate_wts} start_ptr=0x3 reached_ptr=0x2 reached_eq_older={reached}",
+        "CICADA_B2PROBE stage=end id=1:2 outcome=commit",
+    ]
+    result = h._probe_events("\n".join(lines))
+    assert result["committed"] == {name: int(name == label) for name in "RAGMVU"}
+    assert result["events"]["1:2"]["stages"]["validate"]["p_status"] == h.PROBE_STATUS[status]
+    assert result["m_start_versions"] == ({"0x3": 1} if label == "M" else {})
+    if label == "U":
+        result = h._probe_events("\n".join((lines[0], lines[2])))
+        assert result["committed"]["U"] == 1
+
+
+def test_probe_actual_format_missing_key_and_invalid_status():
+    read = "CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01"
+    end = "CICADA_B2PROBE stage=end id=1:2 outcome=commit"
+    with pytest.raises(ValueError, match="B2 probe missing key"):
+        h._probe_events("\n".join((read.replace(" key=0a01", ""), end)))
+    with pytest.raises(ValueError, match="B2 probe invalid p_status"):
+        h._probe_events("\n".join((read.replace("p_status=1", "p_status=7"), end)))
+
+
+@pytest.mark.parametrize("status,name", [
+    (0, "invalid"), (1, "pending"), (2, "aborted"), (3, "precommitted"),
+    (4, "committed"), (5, "deleted"), (6, "unused"),
+])
+def test_probe_version_status_names(status, name):
+    probe = "\n".join((
+        f"CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status={status} older_ptr=0x2 older_wts=4 read_index=0 key=0a01",
+        "CICADA_B2PROBE stage=end id=1:2 outcome=abort",
+    ))
+    result = h._probe_events(probe)
+    assert result["events"]["1:2"]["stages"]["read"]["p_status"] == name
+    assert sum(result["committed"].values()) == 0
+
+
+def test_probe_actual_format_break_and_witness_join(tmp_path, monkeypatch):
+    monkeypatch.setattr(h, "_trace_rows", lambda _: ({"C": 1}, {}))
+    payload = {"results": [{"verdict": "indeterminate", "total_cycles": 0,
+                            "integrity": {name: 0 for name in h.INTEGRITY_ZERO}}]}
+    monkeypatch.setattr(h.subprocess, "run", lambda *_args, **_kwargs:
+                        SimpleNamespace(returncode=3, stdout=json.dumps(payload).encode(), stderr=b""))
+    witness = {"stage": "committed", "tx_wts": 5, "key": "0a01", "read_wts": 4}
+    monkeypatch.setattr(h, "_attribute", lambda *_args: {
+        "witness_count": 1, "examples": [], "witness_events": [witness]})
+    read = "CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01"
+    suffix = "\n".join((
+        "CICADA_B2PROBE stage=validate id=1:2 p_status=2 p_wts=6 start_ptr=0x1 reached_ptr=0x2 reached_eq_older=1",
+        "CICADA_B2PROBE stage=end id=1:2 outcome=commit",
+        "CICADA_BREAK_EVENT slug=skip-pending stage=changed tx_wts=5 key=0a01 read_wts=4",
+        "CICADA_BREAK_EVENT slug=skip-pending stage=committed tx_wts=5 key=0a01 read_wts=4",
+        "CICADA_BREAK_FIRED slug=skip-pending reached=0 changed=1 committed=1",
+        "CICADA_TRACE_INITIAL_WTS=1",
+    ))
+    result = h._verify_trace(tmp_path, tmp_path, 1, read + "\n" + suffix,
+                             "broken-B2-probe", "broken")
+    assert result["probe"]["committed"]["A"] == 1
+    assert result["probe"]["witness"]["A"] == 1
+    for changed in (read.replace("tx_wts=5", "tx_wts=8"),
+                    read.replace("key=0a01", "key=0a02"),
+                    read.replace("older_wts=4", "older_wts=9")):
+        with pytest.raises(ValueError, match="no changed break event"):
+            h._verify_trace(tmp_path, tmp_path, 1, changed + "\n" + suffix,
+                            "broken-B2-probe", "broken")
 
 
 def test_shared_binary_dependency_hashes(tmp_path, monkeypatch):

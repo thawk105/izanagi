@@ -61,6 +61,8 @@ GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
 COUNT_PREFIX = "CICADA_VHASH_COUNT_JSON "
 POST_COUNT_PREFIX = "CICADA_VHASH_POST_COUNT_JSON "
 PROBE_PREFIX = "CICADA_B2PROBE "
+PROBE_STATUS = {0: "invalid", 1: "pending", 2: "aborted",
+                3: "precommitted", 4: "committed", 5: "deleted", 6: "unused"}
 OMITTED_RE = re.compile(r"CICADA_BREAK_OMITTED slug=post-stale-gap omitted=(\d+)")
 EVENT_RE = re.compile(r"CICADA_BREAK_EVENT slug=([a-z-]+) stage=(reached|changed|committed) tx_wts=(\d+) key=((?:[0-9a-f]{2})+) read_wts=(\d+)")
 FIRED_RE = re.compile(r"CICADA_BREAK_FIRED slug=([a-z-]+) reached=(\d+) changed=(\d+) committed=(\d+)")
@@ -602,14 +604,30 @@ def _probe_events(stderr):
         stage, event_id = fields.get("stage"), fields.get("id")
         if stage not in ("read", "validate", "end") or not re.fullmatch(r"\d+:\d+", event_id or ""):
             raise ValueError("invalid B2 probe stage/id")
-        for required in ({"is_ronly", "tx_wts", "tx_rts", "key", "read_wts",
+        for required in ({"is_ronly", "tx_wts", "rts", "key",
                           "p_ptr", "p_wts", "p_status", "older_ptr", "older_wts",
                           "read_index"}
                          if stage == "read" else
-                         {"p_status", "p_wts", "reached_ver", "older_ver", "start_ver"}
+                         {"p_status", "p_wts", "start_ptr", "reached_ptr", "reached_eq_older"}
                          if stage == "validate" else {"outcome"}):
             if required not in fields:
                 raise ValueError(f"B2 probe missing {required}: {stage} {event_id}")
+        if stage in ("read", "validate"):
+            try:
+                fields["p_status"] = PROBE_STATUS[int(fields["p_status"])]
+            except (ValueError, KeyError) as exc:
+                raise ValueError(f"B2 probe invalid p_status: {stage} {event_id}") from exc
+        if stage == "read":
+            if not re.fullmatch(r"(?:[0-9a-f]{2})+", fields["key"]):
+                raise ValueError(f"B2 probe invalid key: {event_id}")
+            for name in ("tx_wts", "rts", "p_wts", "older_wts", "read_index"):
+                if not fields[name].isdigit():
+                    raise ValueError(f"B2 probe invalid {name}: {event_id}")
+        if stage == "validate":
+            if not fields["p_wts"].isdigit():
+                raise ValueError(f"B2 probe invalid p_wts: {event_id}")
+            if fields["reached_eq_older"] not in ("0", "1"):
+                raise ValueError(f"B2 probe invalid reached_eq_older: {event_id}")
         if stage in events.setdefault(event_id, {}):
             raise ValueError(f"duplicate B2 probe stage: {event_id} {stage}")
         events[event_id][stage] = fields
@@ -627,13 +645,13 @@ def _probe_events(stderr):
             raise ValueError(f"B2 probe invalid is_ronly: {event_id}")
         if read["is_ronly"] == "1":
             label = "R"
-        elif validate and validate["p_status"].lower() == "aborted" and validate["reached_ver"] == validate["older_ver"]:
+        elif validate and validate["p_status"] == "aborted" and validate["reached_eq_older"] == "1":
             label = "A"
-        elif validate and validate["p_wts"] != read["p_wts"]:
+        elif validate and int(validate["p_wts"]) != int(read["p_wts"]):
             label = "G"
-        elif validate and validate["p_status"].lower() == "committed" and validate["reached_ver"] == validate["older_ver"]:
+        elif validate and validate["p_status"] == "committed" and validate["reached_eq_older"] == "1":
             label = "M"
-        elif validate and validate["reached_ver"] != validate["older_ver"]:
+        elif validate and validate["reached_eq_older"] == "0":
             label = "V"
         else:
             label = "U"
@@ -641,7 +659,7 @@ def _probe_events(stderr):
         if end["outcome"] == "commit":
             result["committed"][label] += 1
             if label == "M":
-                start = validate["start_ver"]
+                start = validate["start_ptr"]
                 result["m_start_versions"][start] = result["m_start_versions"].get(start, 0) + 1
     return result
 
@@ -707,13 +725,13 @@ def _verify_trace(trace_dir, source, commits, stderr, build, build_kind):
             for item in probe["events"].values():
                 read = item["stages"]["read"]
                 if not any(int(read["tx_wts"]) == e["tx_wts"] and
-                           read["key"] == e["key"] and int(read["read_wts"]) == e["read_wts"]
+                           read["key"] == e["key"] and int(read["older_wts"]) == e["read_wts"]
                            for e in event["events"] if e["stage"] == "changed"):
                     raise ValueError("B2 probe has no changed break event")
                 if item["stages"]["end"]["outcome"] == "commit" and any(
                         int(read["tx_wts"]) == match["tx_wts"] and
                         read["key"] == match["key"] and
-                        int(read["read_wts"]) == match["read_wts"]
+                        int(read["older_wts"]) == match["read_wts"]
                         for match in result["break"]["witness_events"]):
                     probe["witness"][item["class"]] += 1
             result["probe"] = probe
