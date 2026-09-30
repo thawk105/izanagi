@@ -1,0 +1,352 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................................                                   [100%]\n38 passed in 6.64s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "d7653f9c01cf95c605cb43d934574aa86394331dd88db55e38622678254ce9c8"
+    },
+    "artifact_error": null,
+    "collection_sha256": "250b7793a016db6aced5fb7a2a17fc81d7339587afa935f6a511406b741d9000",
+    "duration_s": 7.312,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0754f327d7e3bb7df990b24e9229d055969db57b04222788a4f3e2c17a0062b3",
+    "repo_head": "8631dee79ccaff96f84fcbb8854eea712b11dbb7",
+    "runner_sha256": "5dce98a7e81511cbbdaa0b512a6adebf6cabe8c5147bced678f6327c40b852fb",
+    "spec_sha256": "e2b1d717a40c4e61a07dfc63e102d468ebe36f3e97fdd0267256e1b7da80cfec",
+    "status": "PASSED",
+    "test_output_sha256": "d7653f9c01cf95c605cb43d934574aa86394331dd88db55e38622678254ce9c8",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "97b66d05b4c38a5ed0e703dbe62db52b1f35a57aeea51785eab09362e2ed3439"
+  },
+  "date": "2026-09-30T18:14:29.105212+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................................                                   [100%]\n38 passed in 6.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "d6a4ae870ee901a0196a6ca66f930bab2c58926bdb9d3072ac3b9a338d700954"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "250b7793a016db6aced5fb7a2a17fc81d7339587afa935f6a511406b741d9000",
+      "duration_s": 7.325,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-comment-only",
+      "injection_diff_sha256": "ff3abd95c191a09e1d8d02ca96b2b10a3c1481b43419b01f67fb93a9ec3c2b15",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "8c6163925e76d33c87c2817b9a7170b47bd22d207a5eefe1f4bd9cd7e96d58ae",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+          "new": "    \"\"\"Accept extra scenarios, but reject counterexamples in every scenario. M0\"\"\"\n",
+          "old": "    \"\"\"Accept extra scenarios, but reject counterexamples in every scenario.\"\"\"\n"
+        }
+      ],
+      "repo_head": "8631dee79ccaff96f84fcbb8854eea712b11dbb7",
+      "runner_sha256": "5dce98a7e81511cbbdaa0b512a6adebf6cabe8c5147bced678f6327c40b852fb",
+      "spec_sha256": "e2b1d717a40c4e61a07dfc63e102d468ebe36f3e97fdd0267256e1b7da80cfec",
+      "status": "SURVIVED",
+      "test_output_sha256": "d6a4ae870ee901a0196a6ca66f930bab2c58926bdb9d3072ac3b9a338d700954",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "97b66d05b4c38a5ed0e703dbe62db52b1f35a57aeea51785eab09362e2ed3439"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n...................................FF.                                   [100%]\n=================================== FAILURES ===================================\n_______ test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit _______\n[gw8] linux -- Python 3.10.12 /usr/bin/python3\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x146910890c70>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw8/test_m13_build_exit_rechecks_r0')\n\n    def test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit(\n            monkeypatch, tmp_path):\n        import os\n        from types import SimpleNamespace\n        from orchestrator.campaign.build_admission import derive_build_admission\n        from orchestrator.tests import test_campaign as support\n        from orchestrator.tests.test_verifier_capability_gate_witness import _root\n        from orchestrator.verifier.model import capture_compiled_protocol_source_snapshot\n    \n        genome = Genome(\"silo\", {})\n        sub, head, _git = support._fake_ccbench_repo()\n        root = _root(Path(sub), emitter=True)\n        legacy_evidence = support._source_evidence(genome, head, source_root=sub)\n        evidence = replace(\n            legacy_evidence,\n            proof_source_snapshot=capture_compiled_protocol_source_snapshot(\n                \"silo\", root, require_gate_witness=True),\n        )\n        admission = derive_build_admission(support._BUILD_CONTEXT, evidence)\n        observed = []\n    \n        def resolve(candidate, commit, *, require_gate_witness=False, **kwargs):\n            observed.append(require_gate_witness)\n            return evidence if require_gate_witness else legacy_evidence\n    \n        def fake_run(cmd, what):\n            if what == \"build\":\n                staging = cmd[cmd.index(\"--build\") + 1]\n                binary = os.path.join(staging, \"cc\", \"silo\", \"ycsb_silo.exe\")\n                os.makedirs(os.path.dirname(binary), exist_ok=True)\n                with open(binary, \"w\") as stream:\n                    stream.write(\"fake-binary\")\n    \n        monkeypatch.setattr(buildcache, \"source_digest\", SimpleNamespace(\n            STOCK=\"stock\", resolve_evidence=resolve,\n            assert_worktree_within_allowlist=lambda *a, **k: None,\n            assert_trace_diff_matches_head=lambda *a, **k: None,\n        ))\n        monkeypatch.setattr(buildcache, \"_run\", fake_run)\n>       results = [\n            buildcache.build(\n                genome, head, trace=True, cache_root=str(tmp_path / \"cache\"),\n                ccbench_dir=sub, src_token=\"stock\",\n                build_context=support._BUILD_CONTEXT, admission=admission,\n                source_evidence=evidence,\n                require_gate_witness=True,\n            )\n            for _ in range(2)\n        ]\n\norchestrator/tests/test_pipeline_gate_witness.py:133: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_pipeline_gate_witness.py:134: in <listcomp>\n    buildcache.build(\norchestrator/campaign/buildcache.py:3597: in build\n    _recheck_source_evidence(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngenome = Genome(protocol='silo', flags={})\nccbench_commit = '0a7c5da2a7ebe05c469f7df6c6cb4b11f6854302'\nsub = '/tmp/izanagi_fakecc_y44af6d_', cxx = 'g++-13'\nexpected = SourceEvidence(schema_version='source-evidence/v1', source_root='/tmp/izanagi_fakecc_y44af6d_', ccbench_commit='0a7c5d...d_clean=True, tracked_diff_sha256='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', tracked_paths=())\nbdir = '/tmp/pytest-of-tanab/pytest-2/popen-gw8/test_m13_build_exit_rechecks_r0/cache/silo_f043119f35_t1.staging-419325-45fb0ce27e93870c890abd6d9f40377a'\nbuilt_fresh = True, backoff_grammar_version = None\nsort_oracle_contract_id = None, require_gate_witness = True\n\n    def _recheck_source_evidence(\n            genome: Genome, ccbench_commit: str, sub: str, cxx: str,\n            expected: SourceEvidence, bdir: str, built_fresh: bool, *,\n            backoff_grammar_version: Optional[int] = None,\n            sort_oracle_contract_id: Optional[str] = None,\n            require_gate_witness: bool = False,\n    ) -> None:\n        \"\"\"build 出口で current SourceEvidence 全体を exact 再照合する。\n    \n        再計算は resolve_evidence の単一窓口 —\n        tree が動いて allowlist 外改変が入ったケースも同時に捕える。数十 ms で規律4 に反しない\n        (phase3.md タスク定義)。新規ビルドの不一致は汚染バイナリの永続を防ぐため build dir を\n        破棄する。cache hit の不一致は既存 (過去の正当な) 成果物なので破棄せず停止のみ。\"\"\"\n        try:\n            source_options = {}\n            if backoff_grammar_version is not None:\n                source_options[\"backoff_grammar_version\"] = (\n                    backoff_grammar_version\n                )\n            if sort_oracle_contract_id is not None:\n                source_options[\"sort_oracle_contract_id\"] = (\n                    sort_oracle_contract_id\n                )\n            actual = source_digest.resolve_evidence(\n                genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,  # M13b\n                **source_options,\n            )\n        except RuntimeError:\n            # resolve 自体の失敗 (TOCTOU 汚染 / git・g++ の transient 障害を区別できない)。\n            # identity 不明のバイナリは共有キャッシュに残さない (偽 hit 防止 > 再ビルドコスト) —\n            # cache_key で次 run が再ビルドするので D25 の再評価可能性は保たれる (transient でも\n            # 消すのは意図的な非対称)。破棄の成否まで確認する (下の _discard)。\n            if built_fresh:\n                _discard_build_dir(bdir)\n            raise\n        if (actual != expected\n                or actual.proof_source_snapshot != expected.proof_source_snapshot\n                or actual.verification_variant != expected.verification_variant):\n            if built_fresh:\n                _discard_build_dir(bdir)\n>           raise RuntimeError(\n                f\"TOCTOU 検知: build {'後' if built_fresh else '(cache hit)'} の \"\n                \"SourceEvidence 再計算が resolve 時と不一致 — \"\n                \"resolve→build 間に working-tree が動いた。汚染バイナリを共有キャッシュに\"\n                f\"永続させないため{'破棄して' if built_fresh else ''}停止する \"\n                \"(fails-closed, phase3.md blocking / D30)\")\nE           RuntimeError: TOCTOU 検知: build 後 の SourceEvidence 再計算が resolve 時と不一致 — resolve→build 間に working-tree が動いた。汚染バイナリを共有キャッシュに永続させないため破棄して停止する (fails-closed, phase3.md blocking / D30)\n\norchestrator/campaign/buildcache.py:3706: RuntimeError\n_______________ test_m2_explicit_requirement_passes_run_campaign _______________\n[gw9] linux -- Python 3.10.12 /usr/bin/python3\n\n    def _capture_current_loader_binding(\n    ) -> contract_loader_binding.ContractLoaderBinding:\n        try:\n>           binding = contract_loader_binding.capture_contract_loader_binding()\n\norchestrator/campaign/ident.py:283: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def capture_contract_loader_binding() -> ContractLoaderBinding:\n        \"\"\"current HEAD blob と live closure bytes が一致する binding を取得する。\"\"\"\n        root = _validated_root()\n        commit = _head_commit(root)\n        digests: dict[str, str] = {}\n        for relative, blob in _iter_blobs(\n            root, commit, CONTRACT_LOADER_RELATIVE_PATHS,\n        ):\n            disk = _read_regular_file_no_follow(root, relative)\n            if disk != blob:\n>               raise ContractLoaderBindingError(\n                    f\"contract-loader-drift: disk bytes が HEAD blob と不一致: {relative}\"\n                )\nE               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/buildcache.py\n\norchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError\n\nThe above exception was the direct cause of the following exception:\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15271ab98c70>\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw9/test_m2_explicit_requirement_p0')\n\n    @pytest.mark.usefixtures(\"ratified_enforcement_source\")\n    def test_m2_explicit_requirement_passes_run_campaign(monkeypatch, tmp_path):\n        from orchestrator.tests import test_campaign as support\n    \n        support._refresh_certified_writer_authority()\n        genome = Genome(\"silo\", {\"SILO_ORDER_VARIANT\": 0})\n        observed = []\n        observed_source = []\n    \n        def evaluate(candidate, *_args, **kwargs):\n            observed.append(kwargs.get(\"require_gate_witness\"))\n            return EvalResult(\n                genome=candidate,\n                variant=pipeline.variant_id(candidate, kwargs[\"src_token\"]),\n                certified=True, aborted=False)\n    \n        monkeypatch.setattr(loop, \"evaluate\", evaluate)\n        source_stub = support._sd_mock(\"stock\")\n        original_resolve = source_stub.resolve_evidence\n    \n        def resolve(*args, require_gate_witness=False, **kwargs):\n            observed_source.append(require_gate_witness)\n            return original_resolve(*args, **kwargs)\n    \n        source_stub.resolve_evidence = resolve\n        monkeypatch.setattr(loop, \"source_digest\", source_stub)\n>       loop.run_campaign(\n            CampaignConfig(spec_slug=\"gate-witness-explicit\", search_tag=\"test\",\n                           spec_content=\"gate witness forwarding\", ccbench_commit=\"deadbeef\"),\n            [genome], PerfConfig(records=1, threads=1),\n            support._AUTH_CONTRACT.env_tag, support._AUTH_CONTRACT.clocks_per_us,\n            numactl=list(support._AUTH_CONTRACT.numactl), do_bench=False,\n            output_root=str(tmp_path / \"campaign\"), log=lambda *_args: None,\n            authorization_contract=support._AUTHORIZATION,\n            build_context=support._BUILD_CONTEXT, declared_use_class=\"official\",\n            require_gate_witness=True,\n        )\n\norchestrator/tests/test_pipeline_gate_witness.py:180: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/loop.py:747: in run_campaign\n    repair = ident.ensure_resumable_wal(\norchestrator/campaign/ident.py:484: in ensure_resumable_wal\n    ensure_campaign_identity(\norchestrator/campaign/ident.py:584: in ensure_campaign_identity\n    binding = _capture_current_loader_binding()\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def _capture_current_loader_binding(\n    ) -> contract_loader_binding.ContractLoaderBinding:\n        try:\n            binding = contract_loader_binding.capture_contract_loader_binding()\n            contract_loader_binding.verify_live_contract_loader_binding(binding)\n            return binding\n        except contract_loader_binding.ContractLoaderBindingError as exc:\n>           raise IdentityMismatch(\n                f\"contract-loader-drift: {exc}\",\n                reason=\"contract-loader-drift\",\n            ) from exc\nE           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/buildcache.py\n\norchestrator/campaign/ident.py:287: IdentityMismatch\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pipeline_gate_witness.py::test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit\nFAILED orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign\n2 failed, 36 passed in 6.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pipeline_gate_witness.py::test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=6718 retained_bytes=3024 omitted_bytes=3694 rendered_excerpt_bytes=4096 sha256=a77a3d9862d15d9aa66dca0502c43fc3633c4b296e370e0919e5a67355f489df\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> cxx: str,\n>             expected: SourceEvidence, bdir: str, built_fresh: bool, *,\n>             backoff_grammar_version: Optional[int] = None,\n>             sort_oracle_contract_id: Optional[str] = None,\n>             require_gate_witness: bool = False,\n>     ) -> None:\n>         \"\"\"build \\u51fa\\u53e3\\u3067 current SourceEvidence \\u5168\\u4f53\\u3092 exact \\u518d\\u7167\\u5408\\u3059\\u308b\\u3002\n>     \n>         \\u518d\\u8a08\\u7b97\\u306f resolve_evidence \\u306e\\u5358\\u4e00\\u7a93\\u53e3 \\u2014\n>         tree \\u304c\\u52d5\\u3044\\u3066 allowlist \\u5916\\u6539\\u5909\\u304c\\u5165\\u3063\\u305f\\u30b1\\u30fc\\u30b9\\u3082\\u540c\\u6642\\u306b\\u6355\\u3048\\u308b\\u3002\\u6570\\u5341 ms \\u3067\\u898f\\u5f8b4 \\u306b\\u53cd\\u3057\\u306a\\u3044\n>         (phase3.md \\u30bf\\u30b9\\u30af\\u5b9a\\u7fa9)\\u3002\\u65b0\\u898f\\u30d3\\u30eb\\u30c9\\u306e\\u4e0d\\u4e00\\u81f4\\u306f\\u6c5a\\u67d3\\u30d0\\u30a4\\u30ca\\u30ea\\u306e\\u6c38\\u7d9a\\u3092\\u9632\\u3050\\u305f\\u3081 build dir \\u3092\n>         \\u7834\\u68c4\\u3059\\u308b\\u3002cache hit \\u306e\\u4e0d\\u4e00\\u81f4\\u306f\\u65e2\\u5b58 (\\u904e\\u53bb\\u306e\\u6b63\\u5f53\\u306a) \\u6210\\u679c\\u7269\\u306a\\u306e\\u3067\\u7834\\u68c4\\u305b\\u305a\\u505c\\u6b62\\u306e\\u307f\\u3002\"\"\"\n>         try:\n>             source_options = {}\n>             if backoff_grammar_version is not None:\n>                 source_options[\"backoff_grammar_version\"] = (\n>                     backoff_grammar_version\n>                 )\n>             if sort_oracle_contract_id is not None:\n>                 source_options[\"sort_oracle_contract_id\"] = (\n>                     sort_oracle_contract_id\n>                 )\n>             actual = source_digest.resolve_evidence(\n>                 genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,  # M13b\n>                 **source_options,\n>             )\n>         except RuntimeError:\n>             # resolve \\u81ea\\u4f53\\u306e\\u5931\\u6557 (TOCTOU \\u6c5a\\u67d3 / git\\u30fbg++ \\u306e transient \\u969c\\u5bb3\\u3092\\u533a\\u5225\\u3067\\u304d\\u306a\\u3044)\\u3002\n>             # identity \\u4e0d\\u660e\\u306e\\u30d0\\u30a4\\u30ca\\u30ea\\u306f\\u5171\\u6709\\u30ad\\u30e3\\u30c3\\u30b7\\u30e5\\u306b\\u6b8b\\u3055\\u306a\\u3044 (\\u507d hit \\u9632\\u6b62 > \\u518d\\u30d3\\u30eb\\u30c9\\u30b3\\u30b9\\u30c8) \\u2014\n>             # cache_key \\u3067\\u6b21 run \\u304c\\u518d\\u30d3\\u30eb\\u30c9\\u3059\\u308b\\u306e\\u3067 D25 \\u306e\\u518d\\u8a55\\u4fa1\\u53ef\\u80fd\\u6027\\u306f\\u4fdd\\u305f\\u308c\\u308b (transient \\u3067\\u3082\n>             # \\u6d88\\u3059\\u306e\\u306f\\u610f\\u56f3\\u7684\\u306a\\u975e\\u5bfe\\u79f0)\\u3002\\u7834\\u68c4\\u306e\\u6210\\u5426\\u307e\\u3067\\u78ba\\u8a8d\\u3059\\u308b (\\u4e0b\\u306e _discard)\\u3002\n>             if built_fresh:\n>                 _discard_build_dir(bdir)\n>             raise\n>         if (actual != expected\n>                 or actual.proof_source_snapshot != expected.proof_source_snapshot\n>                 or actual.verification_variant != expected.verification_variant):\n>             if built_fresh:\n>                 _discard_build_dir(bdir)\n> >           raise RuntimeError(\n>                 f\"TOCTOU \\u691c\\u77e5: build {'\\u5f8c' if built_fresh else '(cache hit)'} \\u306e \"\n>                 \"SourceEvidence \\u518d\\u8a08\\u7b97\\u304c resolve \\u6642\\u3068\\u4e0d\\u4e00\\u81f4 \\u2014 \"\n>                 \"resolve\\u2192build \\u9593\\u306b working-tree \\u304c\\u52d5\\u3044\\u305f\\u3002\\u6c5a\\u67d3\\u30d0\\u30a4\\u30ca\\u30ea\\u3092\\u5171\\u6709\\u30ad\\u30e3\\u30c3\\u30b7\\u30e5\\u306b\"\n>                 f\"\\u6c38\\u7d9a\\u3055\\u305b\\u306a\\u3044\\u305f\\u3081{'\\u7834\\u68c4\\u3057\\u3066' if built_fresh else ''}\\u505c\\u6b62\\u3059\\u308b \"\n>                 \"(fails-closed, phase3.md blocking / D30)\")\n> E           RuntimeError: TOCTOU \\u691c\\u77e5: build \\u5f8c \\u306e SourceEvidence \\u518d\\u8a08\\u7b97\\u304c resolve \\u6642\\u3068\\u4e0d\\u4e00\\u81f4 \\u2014 resolve\\u2192build \\u9593\\u306b working-tree \\u304c\\u52d5\\u3044\\u305f\\u3002\\u6c5a\\u67d3\\u30d0\\u30a4\\u30ca\\u30ea\\u3092\\u5171\\u6709\\u30ad\\u30e3\\u30c3\\u30b7\\u30e5\\u306b\\u6c38\\u7d9a\\u3055\\u305b\\u306a\\u3044\\u305f\\u3081\\u7834\\u68c4\\u3057\\u3066\\u505c\\u6b62\\u3059\\u308b (fails-closed, phase3.md blocking / D30)\n> \n> orchestrator/campaign/buildcache.py:3706: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=4609 retained_bytes=3894 omitted_bytes=715 rendered_excerpt_bytes=4096 sha256=336126b22d6ac07221312dd13fb3675a2eedb0ae8246d4cbc889be049f09690c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> RELATIVE_PATHS,\n>         ):\n>             disk = _read_regular_file_no_follow(root, relative)\n>             if disk != blob:\n> >               raise ContractLoaderBindingError(\n>                     f\"contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: {relative}\"\n>                 )\n> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/buildcache.py\n> \n> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError\n> \n> The above exception was the direct cause of the following exception:\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15271ab98c70>\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw9/test_m2_explicit_requirement_p0')\n> \n>     @pytest.mark.usefixtures(\"ratified_enforcement_source\")\n>     def test_m2_explicit_requirement_passes_run_campaign(monkeypatch, tmp_path):\n>         from orchestrator.tests import test_campaign as support\n>     \n>         support._refresh_certified_writer_authority()\n>         genome = Genome(\"silo\", {\"SILO_ORDER_VARIANT\": 0})\n>         observed = []\n>         observed_source = []\n>     \n>         def evaluate(candidate, *_args, **kwargs):\n>             observed.append(kwargs.get(\"require_gate_witness\"))\n>             return EvalResult(\n>                 genome=candidate,\n>                 variant=pipeline.variant_id(candidate, kwargs[\"src_token\"]),\n>                 certified=True, aborted=False)\n>     \n>         monkeypatch.setattr(loop, \"evaluate\", evaluate)\n>         source_stub = support._sd_mock(\"stock\")\n>         original_resolve = source_stub.resolve_evidence\n>     \n>         def resolve(*args, require_gate_witness=False, **kwargs):\n>             observed_source.append(require_gate_witness)\n>             return original_resolve(*args, **kwargs)\n>     \n>         source_stub.resolve_evidence = resolve\n>         monkeypatch.setattr(loop, \"source_digest\", source_stub)\n> >       loop.run_campaign(\n>             CampaignConfig(spec_slug=\"gate-witness-explicit\", search_tag=\"test\",\n>                            spec_content=\"gate witness forwarding\", ccbench_commit=\"deadbeef\"),\n>             [genome], PerfConfig(records=1, threads=1),\n>             support._AUTH_CONTRACT.env_tag, support._AUTH_CONTRACT.clocks_per_us,\n>             numactl=list(support._AUTH_CONTRACT.numactl), do_bench=False,\n>             output_root=str(tmp_path / \"campaign\"), log=lambda *_args: None,\n>             authorization_contract=support._AUTHORIZATION,\n>             build_context=support._BUILD_CONTEXT, declared_use_class=\"official\",\n>             require_gate_witness=True,\n>         )\n> \n> orchestrator/tests/test_pipeline_gate_witness.py:180: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/loop.py:747: in run_campaign\n>     repair = ident.ensure_resumable_wal(\n> orchestrator/campaign/ident.py:484: in ensure_resumable_wal\n>     ensure_campaign_identity(\n> orchestrator/campaign/ident.py:584: in ensure_campaign_identity\n>     binding = _capture_current_loader_binding()\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n>     def _capture_current_loader_binding(\n>     ) -> contract_loader_binding.ContractLoaderBinding:\n>         try:\n>             binding = contract_loader_binding.capture_contract_loader_binding()\n>             contract_loader_binding.verify_live_contract_loader_binding(binding)\n>             return binding\n>         except contract_loader_binding.ContractLoaderBindingError as exc:\n> >           raise IdentityMismatch(\n>                 f\"contract-loader-drift: {exc}\",\n>                 reason=\"contract-loader-drift\",\n>             ) from exc\n> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/buildcache.py\n> \n> orchestrator/campaign/ident.py:287: IdentityMismatch\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=11327 retained_bytes=6918 omitted_bytes=4409 budget_bytes=49152 rendered_bytes=9381 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a6c3626df33a5bd3485477cc905ac37b9d916886e9a79cd61717d3244b70d2eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "250b7793a016db6aced5fb7a2a17fc81d7339587afa935f6a511406b741d9000",
+      "duration_s": 7.055,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pipeline_gate_witness.py::test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit",
+        "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+      ],
+      "hang_risk": false,
+      "id": "M13b-buildcache-exit-recheck",
+      "injection_diff_sha256": "b746a39a341e682313b3f98adcb6a7f4668356c5ecb7308bd9ef293fb4fd0d37",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "270f497f4bf5e14fd6171d19c525718e162865ed7c653e18decfe13ec980f97d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "        actual = source_digest.resolve_evidence(\n            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,  # M13b\n",
+          "old": "        actual = source_digest.resolve_evidence(\n            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,\n            **({\"require_gate_witness\": True}\n               if effective_gate_witness_requirement(\n                   genome, require_gate_witness) else {}),\n"
+        }
+      ],
+      "repo_head": "8631dee79ccaff96f84fcbb8854eea712b11dbb7",
+      "runner_sha256": "5dce98a7e81511cbbdaa0b512a6adebf6cabe8c5147bced678f6327c40b852fb",
+      "spec_sha256": "e2b1d717a40c4e61a07dfc63e102d468ebe36f3e97fdd0267256e1b7da80cfec",
+      "status": "MISMATCH",
+      "test_output_sha256": "a6c3626df33a5bd3485477cc905ac37b9d916886e9a79cd61717d3244b70d2eb",
+      "test_output_tail": [
+        ">         ):",
+        ">             disk = _read_regular_file_no_follow(root, relative)",
+        ">             if disk != blob:",
+        "> >               raise ContractLoaderBindingError(",
+        ">                     f\"contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: {relative}\"",
+        ">                 )",
+        "> E               orchestrator.campaign.contract_loader_binding.ContractLoaderBindingError: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/buildcache.py",
+        "> ",
+        "> orchestrator/campaign/contract_loader_binding.py:528: ContractLoaderBindingError",
+        "> ",
+        "> The above exception was the direct cause of the following exception:",
+        "> ",
+        "> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15271ab98c70>",
+        "> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw9/test_m2_explicit_requirement_p0')",
+        "> ",
+        ">     @pytest.mark.usefixtures(\"ratified_enforcement_source\")",
+        ">     def test_m2_explicit_requirement_passes_run_campaign(monkeypatch, tmp_path):",
+        ">         from orchestrator.tests import test_campaign as support",
+        ">     ",
+        ">         support._refresh_certified_writer_authority()",
+        ">         genome = Genome(\"silo\", {\"SILO_ORDER_VARIANT\": 0})",
+        ">         observed = []",
+        ">         observed_source = []",
+        ">     ",
+        ">         def evaluate(candidate, *_args, **kwargs):",
+        ">             observed.append(kwargs.get(\"require_gate_witness\"))",
+        ">             return EvalResult(",
+        ">                 genome=candidate,",
+        ">                 variant=pipeline.variant_id(candidate, kwargs[\"src_token\"]),",
+        ">                 certified=True, aborted=False)",
+        ">     ",
+        ">         monkeypatch.setattr(loop, \"evaluate\", evaluate)",
+        ">         source_stub = support._sd_mock(\"stock\")",
+        ">         original_resolve = source_stub.resolve_evidence",
+        ">     ",
+        ">         def resolve(*args, require_gate_witness=False, **kwargs):",
+        ">             observed_source.append(require_gate_witness)",
+        ">             return original_resolve(*args, **kwargs)",
+        ">     ",
+        ">         source_stub.resolve_evidence = resolve",
+        ">         monkeypatch.setattr(loop, \"source_digest\", source_stub)",
+        "> >       loop.run_campaign(",
+        ">             CampaignConfig(spec_slug=\"gate-witness-explicit\", search_tag=\"test\",",
+        ">                            spec_content=\"gate witness forwarding\", ccbench_commit=\"deadbeef\"),",
+        ">             [genome], PerfConfig(records=1, threads=1),",
+        ">             support._AUTH_CONTRACT.env_tag, support._AUTH_CONTRACT.clocks_per_us,",
+        ">             numactl=list(support._AUTH_CONTRACT.numactl), do_bench=False,",
+        ">             output_root=str(tmp_path / \"campaign\"), log=lambda *_args: None,",
+        ">             authorization_contract=support._AUTHORIZATION,",
+        ">             build_context=support._BUILD_CONTEXT, declared_use_class=\"official\",",
+        ">             require_gate_witness=True,",
+        ">         )",
+        "> ",
+        "> orchestrator/tests/test_pipeline_gate_witness.py:180: ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> orchestrator/campaign/loop.py:747: in run_campaign",
+        ">     repair = ident.ensure_resumable_wal(",
+        "> orchestrator/campaign/ident.py:484: in ensure_resumable_wal",
+        ">     ensure_campaign_identity(",
+        "> orchestrator/campaign/ident.py:584: in ensure_campaign_identity",
+        ">     binding = _capture_current_loader_binding()",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        ">     def _capture_current_loader_binding(",
+        ">     ) -> contract_loader_binding.ContractLoaderBinding:",
+        ">         try:",
+        ">             binding = contract_loader_binding.capture_contract_loader_binding()",
+        ">             contract_loader_binding.verify_live_contract_loader_binding(binding)",
+        ">             return binding",
+        ">         except contract_loader_binding.ContractLoaderBindingError as exc:",
+        "> >           raise IdentityMismatch(",
+        ">                 f\"contract-loader-drift: {exc}\",",
+        ">                 reason=\"contract-loader-drift\",",
+        ">             ) from exc",
+        "> E           orchestrator.campaign.ident.IdentityMismatch: contract-loader-drift: contract-loader-drift: disk bytes \\u304c HEAD blob \\u3068\\u4e0d\\u4e00\\u81f4: orchestrator/campaign/buildcache.py",
+        "> ",
+        "> orchestrator/campaign/ident.py:287: IdentityMismatch",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=11327 retained_bytes=6918 omitted_bytes=4409 budget_bytes=49152 rendered_bytes=9381 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "97b66d05b4c38a5ed0e703dbe62db52b1f35a57aeea51785eab09362e2ed3439"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\norchestrator/tests/test_verifier_capability_gate_witness.py::test_m5_unrequested_snapshot_legacy_bytes\norchestrator/tests/test_verifier_capability_gate_witness.py::test_m3_required_capability_rejects_absent_gate_file\norchestrator/tests/test_verifier_capability_gate_witness.py::test_m4_required_d5_uses_snapshot_not_disk\norchestrator/tests/test_verifier_capability_gate_witness.py::test_capability_rejects_nonbool_requirement\norchestrator/tests/test_verifier_capability_gate_witness.py::test_unrequested_capability_projection_matches_legacy\norchestrator/tests/test_verifier_capability_gate_witness.py::test_unrequested_verify_payload_keeps_legacy_bytes\norchestrator/tests/test_pipeline_gate_witness.py::test_m1_flag_forces_required_evaluate\norchestrator/tests/test_pipeline_gate_witness.py::test_required_repetition_reaches_capability\norchestrator/tests/test_pipeline_gate_witness.py::test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit\norchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign\norchestrator/tests/test_silo_lock_order_model_gate.py::test_m6_unregistered_registry_rejected\norchestrator/tests/test_silo_lock_order_model_gate.py::test_m7_result_digest_cannot_supply_expectation\norchestrator/tests/test_silo_lock_order_model_gate.py::test_m8_complete_max_states_is_incomplete\norchestrator/tests/test_silo_lock_order_model_gate.py::test_m9_required_scenario_missing\norchestrator/tests/test_silo_lock_order_model_gate.py::test_m10_counterexample_rejected\norchestrator/tests/test_silo_lock_order_model_gate.py::test_unregistered_scenario_exists_but_its_counterexample_rejects\norchestrator/tests/test_silo_lock_order_model_gate.py::test_matching_complete_model_passes\norchestrator/tests/test_silo_lock_order_model_gate.py::test_missing_and_malformed_result_fail_closed\norchestrator/tests/test_silo_lock_order_model_gate.py::test_coverage_witness_and_extra_scenarios\norchestrator/tests/test_silo_lock_order_model_gate.py::test_duplicate_scenario_and_counterexample_identity_rejected\norchestrator/tests/test_silo_lock_order_model_gate.py::test_bounded_result_and_counterexample_arrays\norchestrator/tests/test_silo_lock_order_model_gate.py::test_counterexample_extra_field_and_scenario_field_rejected\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_m12_required_false_cannot_certify\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_required_version_d5_and_certified_all_needed\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_gate_violation_projection_is_closed_and_counted\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_later_meaning_version_accepts_extra_count_key\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_m15_second_verify_record_required_false_rejects\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_m14_missing_gate_section_in_wal_rejects\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_attempt_requires_matching_record_and_campaign_certification\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_model_evidence_kind_follows_call_path\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_m11_counterexample_projection_has_exact_keys\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_history_keys_avoid_role_forbidden_tokens\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_intake_rejects_duplicate_and_extra_keys\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_named_control_reads_initial_source\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_missing_model_rejects_before_build_and_records_history\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_run_campaign_spy_requires_gate_witness_and_skips_terminal_variant\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_driver_uses_all_matching_wal_verify_records\norchestrator/tests/test_p3_s4_loop_lock_order.py::test_coder_input_rejects_free_text_history\n\n38 tests collected in 1.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "d62ef47858b60a57a0d1b8aed38ae4701b5bea1a6a07f6eab458c68a811b9a7d"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m5_unrequested_snapshot_legacy_bytes",
+        "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m3_required_capability_rejects_absent_gate_file",
+        "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m4_required_d5_uses_snapshot_not_disk",
+        "orchestrator/tests/test_verifier_capability_gate_witness.py::test_capability_rejects_nonbool_requirement",
+        "orchestrator/tests/test_verifier_capability_gate_witness.py::test_unrequested_capability_projection_matches_legacy",
+        "orchestrator/tests/test_verifier_capability_gate_witness.py::test_unrequested_verify_payload_keeps_legacy_bytes",
+        "orchestrator/tests/test_pipeline_gate_witness.py::test_m1_flag_forces_required_evaluate",
+        "orchestrator/tests/test_pipeline_gate_witness.py::test_required_repetition_reaches_capability",
+        "orchestrator/tests/test_pipeline_gate_witness.py::test_m13_build_exit_rechecks_required_snapshot_for_fresh_and_hit",
+        "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m6_unregistered_registry_rejected",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m7_result_digest_cannot_supply_expectation",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m8_complete_max_states_is_incomplete",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m9_required_scenario_missing",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m10_counterexample_rejected",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_unregistered_scenario_exists_but_its_counterexample_rejects",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_matching_complete_model_passes",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_missing_and_malformed_result_fail_closed",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_coverage_witness_and_extra_scenarios",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_duplicate_scenario_and_counterexample_identity_rejected",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_bounded_result_and_counterexample_arrays",
+        "orchestrator/tests/test_silo_lock_order_model_gate.py::test_counterexample_extra_field_and_scenario_field_rejected",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m12_required_false_cannot_certify",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_required_version_d5_and_certified_all_needed",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_gate_violation_projection_is_closed_and_counted",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_later_meaning_version_accepts_extra_count_key",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m15_second_verify_record_required_false_rejects",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m14_missing_gate_section_in_wal_rejects",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_attempt_requires_matching_record_and_campaign_certification",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_model_evidence_kind_follows_call_path",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m11_counterexample_projection_has_exact_keys",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_history_keys_avoid_role_forbidden_tokens",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_intake_rejects_duplicate_and_extra_keys",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_named_control_reads_initial_source",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_missing_model_rejects_before_build_and_records_history",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_run_campaign_spy_requires_gate_witness_and_skips_terminal_variant",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_driver_uses_all_matching_wal_verify_records",
+        "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_coder_input_rejects_free_text_history"
+      ],
+      "duration_s": 1.715,
+      "rc": 0,
+      "repo_head": "8631dee79ccaff96f84fcbb8854eea712b11dbb7",
+      "runner_sha256": "5dce98a7e81511cbbdaa0b512a6adebf6cabe8c5147bced678f6327c40b852fb",
+      "spec_sha256": "e2b1d717a40c4e61a07dfc63e102d468ebe36f3e97fdd0267256e1b7da80cfec",
+      "status": "PASSED",
+      "tool_sha256": "97b66d05b4c38a5ed0e703dbe62db52b1f35a57aeea51785eab09362e2ed3439"
+    },
+    "hang_timeout_seconds": 4800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-comment-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "ff3abd95c191a09e1d8d02ca96b2b10a3c1481b43419b01f67fb93a9ec3c2b15",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/silo_lock_order_model_gate.py",
+            "new": "    \"\"\"Accept extra scenarios, but reject counterexamples in every scenario. M0\"\"\"\n",
+            "old": "    \"\"\"Accept extra scenarios, but reject counterexamples in every scenario.\"\"\"\n"
+          }
+        ]
+      },
+      "M13b-buildcache-exit-recheck": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b746a39a341e682313b3f98adcb6a7f4668356c5ecb7308bd9ef293fb4fd0d37",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/buildcache.py",
+            "new": "        actual = source_digest.resolve_evidence(\n            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,  # M13b\n",
+            "old": "        actual = source_digest.resolve_evidence(\n            genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,\n            **({\"require_gate_witness\": True}\n               if effective_gate_witness_requirement(\n                   genome, require_gate_witness) else {}),\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0754f327d7e3bb7df990b24e9229d055969db57b04222788a4f3e2c17a0062b3",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_verifier_capability_gate_witness.py",
+      "orchestrator/tests/test_pipeline_gate_witness.py",
+      "orchestrator/tests/test_silo_lock_order_model_gate.py",
+      "orchestrator/tests/test_p3_s4_loop_lock_order.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "8631dee79ccaff96f84fcbb8854eea712b11dbb7",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_verifier_capability_gate_witness.py",
+      "orchestrator/tests/test_pipeline_gate_witness.py",
+      "orchestrator/tests/test_silo_lock_order_model_gate.py",
+      "orchestrator/tests/test_p3_s4_loop_lock_order.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_20-lock-order-loop/mutation-scratch-probe3/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c8cd355f63eaf8fd0fc9aac547c9bd09018a5e2a",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "5dce98a7e81511cbbdaa0b512a6adebf6cabe8c5147bced678f6327c40b852fb",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "e2b1d717a40c4e61a07dfc63e102d468ebe36f3e97fdd0267256e1b7da80cfec",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 1,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_20-lock-order-loop/mutation-scratch-probe3/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "97b66d05b4c38a5ed0e703dbe62db52b1f35a57aeea51785eab09362e2ed3439",
+  "updated_at": "2026-09-30T18:15:09.709642+00:00"
+}
