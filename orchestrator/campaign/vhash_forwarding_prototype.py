@@ -92,12 +92,12 @@ def checked(argv: list[str], *, timeout: int = 300, cwd: Path | None = None):
     return result
 
 
-def build_args(dependencies: dict, toolchain: dict, kind: str) -> list[str]:
+def build_args(dependencies: dict, toolchain: dict, kind: str, *, genome=None) -> list[str]:
     args = [a for a in compute._common_configure_args(trace=0, toolchain=toolchain,
              dependencies=dependencies) if a not in compute.STOCK_G.cmake_defines()]
     if kind.startswith("gc-"):
         args += [f"-D{cmake_cache_variable_for_axis('cicada', key)}={value}"
-                 for key, value in sorted(GC_GENOME.items())]
+                 for key, value in sorted((GC_GENOME if genome is None else genome).items())]
     return [*args, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
 
 
@@ -128,11 +128,11 @@ def _condition_gate(source: Path, macro: str, args: list[str], cxx: str) -> dict
 
 
 def _build_variant(source: Path, build: Path, kind: str, dependencies: dict,
-                   toolchain: dict) -> tuple[Path, list[dict], float]:
+                   toolchain: dict, *, genome=None) -> tuple[Path, list[dict], float]:
     """Single Cicada build sink, including the ungated dependency build."""
     non_admissible_materializer(MATERIALIZER)
     start = time.monotonic()
-    args = build_args(dependencies, toolchain, kind)
+    args = build_args(dependencies, toolchain, kind, genome=genome)
     receipts = [_condition_gate(source, macro, args, toolchain["cxx_path"])
                 for macro in MACROS[kind]]
     if len(receipts) != len(MACROS[kind]) or any(
@@ -496,6 +496,8 @@ def _probe() -> dict:
 
 
 def _argv(binary: Path, spec: dict) -> list[str]:
+    if spec.get("abort_job"):
+        return abort_argv(binary, spec)
     if spec.get("target_job"):
         return target_argv(binary, spec)
     if spec.get("gc_job"):
@@ -550,7 +552,7 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
     record = {**common, **spec, "schema_version": "vhash-forwarding-record/v1",
               "thread_num": 48, "long_threads": 0 if spec["workload"] == "normal" else 4,
               "perf_eligible": (not spec["build_kind"].endswith("-count")
-                                if spec.get("gc_job") or spec.get("target_job") else perf_eligible(spec["build_kind"])),
+                                if spec.get("gc_job") or spec.get("target_job") or spec.get("abort_job") else perf_eligible(spec["build_kind"])),
               "verification_status": "未検証の診断値", "argv": argv,
               "hostname": socket.gethostname(), "started": start, "ended": now(),
               "seconds": time.monotonic() - tick, "returncode": code,
@@ -560,23 +562,33 @@ def _run_binary(binary: Path, spec: dict, common: dict, gates: list[dict]) -> di
               "fwd_counters": None, "longtx_counters": None, "valid": False}
     if spec.get("gc_job"):
         record.update(build_macros=list(MACROS[spec["build_kind"]]), gc_counters=None)
-    if spec.get("target_job"):
+    if spec.get("target_job") or spec.get("abort_job"):
         record.update(schema_version="vhash-target-record/v1",
                       stdout={"sha256": sha_bytes(stdout), "text": stdout.decode("utf-8", "replace")},
                       stderr={"sha256": sha_bytes(stderr), "text": stderr.decode("utf-8", "replace")},
                       gc_counters=None)
+    if spec.get("abort_job"):
+        record.update(schema_version="vhash-abort-record/v1", abort_counters=None,
+                      build_macros=list(MACROS[spec["build_kind"]]))
     try:
         if code:
             raise ValueError(f"binary rc={code}")
         text = stdout.decode("utf-8", "replace")
-        if spec.get("target_job"):
-            fwd, gc, longtx = parse_target_lines(text, spec["arm"],
-                                                  spec["build_kind"].endswith("-count"))
+        if spec.get("target_job") or spec.get("abort_job"):
+            if spec.get("abort_job"):
+                fwd, gc, longtx, abort = parse_abort_lines(text, spec["arm"],
+                    spec["build_kind"].endswith("-count"))
+            else:
+                fwd, gc, longtx = parse_target_lines(text, spec["arm"],
+                                                      spec["build_kind"].endswith("-count"))
             metric = parse_bench_stdout(text).get("throughput[tps]")
             if metric is None or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", metric):
                 raise ValueError("missing throughput[tps] result line")
             record.update(throughput=float(metric), gc_counters=gc, fwd_counters=fwd,
                           longtx_counters=longtx, valid=True)
+            if spec.get("abort_job"):
+                record.update(schema_version="vhash-abort-record/v1", abort_counters=abort,
+                              build_macros=list(MACROS[spec["build_kind"]]))
             return record
         if spec.get("gc_job"):
             gc = parse_gc_line(text, spec["build_kind"].endswith("-count"))
@@ -741,7 +753,7 @@ def _write(path: Path, data: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("smoke", "run", "aggregate", "gc-smoke", "gc-run", "gc-aggregate", "target-run", "target-aggregate"))
+    parser.add_argument("command", choices=("smoke", "run", "aggregate", "gc-smoke", "gc-run", "gc-aggregate", "target-run", "target-aggregate", "abort-run", "abort-aggregate"))
     parser.add_argument("--third-party-cache", type=Path)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--workload", choices=WORKLOADS)
@@ -750,7 +762,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--smoke", action="store_true", help="target-run: GC 10, one rep per build, 1 s")
     parser.add_argument("--k-sweep", action="store_true")
     parser.add_argument("--raw", type=Path, action="append", help="explicit aggregate input JSON; repeat for each job")
+    parser.add_argument("--job", choices=("s06", "s08", "s09", "s095", "focus", "backoff"))
     args = parser.parse_args(argv)
+    if args.command.startswith("abort-"):
+        return abort_main(args, parser)
+    if args.job is not None:
+        parser.error("--job only applies to abort-run")
     if args.command.startswith("target-"):
         return target_main(args, parser)
     if args.smoke or args.skew == 0.6:
@@ -1362,6 +1379,271 @@ def target_main(args, parser) -> int:
                     _write(output, job)
                     if not record["valid"]:
                         raise RuntimeError("invalid target run: " + record.get("invalid_reason", "unknown"))
+                job["all_pass"] = True
+    except Exception as exc:
+        job["error"] = type(exc).__name__ + ": " + str(exc)
+        if hasattr(exc, "condition_gate_evidence"):
+            job["condition_gate_evidence"] = exc.condition_gate_evidence
+    job["ended"] = now()
+    _write(output, job)
+    print(output)
+    return 0 if job["all_pass"] else 1
+
+
+EARLY_ABORT_PATCH = ROOT / "patches/cicada-forwarding-early-abort.patch"
+ABORT_STACK = (PATCH, GC_PATCH, TARGET_PATCH, EARLY_ABORT_PATCH)
+ABORT_JOBS = {"s06": (.6, 10000, 10), "s08": (.8, 10000, 10),
+              "s09": (.9, 10000, 10), "s095": (.95, 10000, 10),
+              "focus": (.9, 1000, 1000), "backoff": (.9, 10000, 10)}
+ABORT_ARMS = ("stock", "E-hb", "E-max", "b", "c")
+ABORT_BACKOFF_ARMS = ("stock", "E-max", "stock-bo1", "E-max-bo1")
+ABORT_TOP = frozenset(("schema", "policy", "witness", "threads"))
+ABORT_THREAD = frozenset(("thid", "d_checks", "d_true", "d_true_committed",
+    "d_true_deleted", "d_true_pending", "txs_d_true", "early_aborts",
+    "shadow_predicted_commit", "no_room_before_success", "no_room_after_success",
+    "detect_clock_sum", "detect_hist", "abort_remaining_clock_sum"))
+
+
+def abort_base_arm(arm: str) -> str:
+    return {"b": "E-hb", "c": "E-max", "stock-bo1": "stock",
+            "E-max-bo1": "E-max"}.get(arm, arm)
+
+
+def abort_genome(arm: str) -> dict:
+    if arm not in ABORT_ARMS + ABORT_BACKOFF_ARMS:
+        raise ValueError("unknown abort arm")
+    genome = dict(GC_GENOME)
+    if arm.endswith("-bo1"):
+        genome["BACK_OFF"] = 1
+    if {k: v for k, v in genome.items() if k != "BACK_OFF"} != \
+            {k: v for k, v in GC_GENOME.items() if k != "BACK_OFF"}:
+        raise ValueError("BACK_OFF control changes another genome axis")
+    return genome
+
+
+def abort_arm_flags(arm: str, counted: bool) -> list[str]:
+    base = abort_base_arm(arm)
+    flags = target_arm_flags(base)
+    policy = {"b": "doomed", "c": "fallback"}.get(arm)
+    if policy is None and counted and base in ("E-hb", "E-max"):
+        policy = "shadow"
+    return flags + (["--cicada_gc_early_abort=" + policy] if policy else [])
+
+
+def abort_build_kind(arm: str, counted: bool) -> str:
+    return target_build_kind(abort_base_arm(arm), counted)
+
+
+def abort_plan_runs(job: str, *, smoke=False) -> list[dict]:
+    if job not in ABORT_JOBS:
+        raise ValueError("unexpected abort job")
+    skew, wait_us, gc_us = ABORT_JOBS[job]
+    arms = ABORT_BACKOFF_ARMS if job == "backoff" else ABORT_ARMS
+    specs = []
+    for counted in (False, True):
+        for rep in range(1 if smoke else 3):
+            for order, arm in enumerate(arms[rep:] + arms[:rep]):
+                specs.append({"abort_job": True, "job": job, "workload": "wait_after_reads",
+                    "wait_us": wait_us, "skew": skew, "gc_inter_us": gc_us,
+                    "arm": arm, "build_kind": abort_build_kind(arm, counted),
+                    "build_id": abort_build_kind(arm, counted) + ("-bo1" if arm.endswith("-bo1") else ""),
+                    "genome": abort_genome(arm), "rep": rep, "order_index": order,
+                    "extime": 1 if smoke else 3})
+    return specs
+
+
+def abort_argv(binary: Path, spec: dict) -> list[str]:
+    base = abort_base_arm(spec["arm"])
+    target_spec = {**spec, "abort_job": False, "target_job": True, "arm": base}
+    argv = target_argv(binary, target_spec)
+    return argv + abort_arm_flags(spec["arm"], spec["build_kind"].endswith("-count"))[len(target_arm_flags(base)):]
+
+
+def parse_abort_lines(stdout: str, arm: str, counted: bool) -> tuple[dict | None, dict | None, dict, dict | None]:
+    base = abort_base_arm(arm)
+    fwd, gc, longtx = parse_target_lines(stdout, base, counted)
+    policy = {"b": "doomed", "c": "fallback"}.get(arm)
+    if policy is None and counted and base in ("E-hb", "E-max"):
+        policy = "shadow"
+    counter = _target_json_line(stdout, "CICADA_GC_ABORT_V1 ", counted and policy is not None)
+    if counter is not None:
+        if type(counter) is not dict or counter.keys() != ABORT_TOP or \
+                type(counter["schema"]) is not int or counter["schema"] != 1 or \
+                counter["policy"] != policy or counter["witness"] != "committed_deleted" or \
+                type(counter["threads"]) is not list:
+            raise ValueError("abort top schema invalid")
+        ids = set()
+        gc_by_id = {row["thid"]: row for row in gc["threads"]}
+        for row in counter["threads"]:
+            if type(row) is not dict or row.keys() != ABORT_THREAD or any(
+                    type(v) is not int or v < 0 for k, v in row.items() if k != "detect_hist") or \
+                    type(row["detect_hist"]) is not list or len(row["detect_hist"]) != 42 or \
+                    any(type(v) is not int or v < 0 for v in row["detect_hist"]):
+                raise ValueError("abort thread schema invalid")
+            thid = row["thid"]
+            if thid in ids or thid not in gc_by_id:
+                raise ValueError("abort duplicate or unknown thid")
+            ids.add(thid)
+            if row["shadow_predicted_commit"]:
+                raise ValueError("shadow predicted commit in normal build")
+            if row["d_true_pending"]:
+                raise ValueError("pending witness in normal build")
+            if gc["mode"] == "e" and row["no_room_before_success"] + \
+                    row["no_room_after_success"] != gc_by_id[thid]["no_room"]:
+                raise ValueError("abort no_room partition mismatch")
+        if ids != gc_by_id.keys():
+            raise ValueError("abort thread set differs from GC")
+    return fwd, gc, longtx, counter
+
+
+def abort_aggregate_jobs(jobs: list[dict]) -> dict:
+    cells = {}
+    seen = set()
+    for job in jobs:
+        name = job.get("job")
+        if name not in ABORT_JOBS or name in seen or job.get("command") != "abort-run" or \
+                job.get("schema_version") != "vhash-abort-job/v1" or job.get("smoke") or \
+                not job.get("all_pass") or job.get("ccbench_pin") != pin.CURRENT_PIN or \
+                job.get("genome") != GC_GENOME or set(job.get("patch_sha256", {})) != \
+                {str(p.relative_to(ROOT)) for p in ABORT_STACK} or any(
+                    not re.fullmatch(r"[0-9a-f]{64}", v) for v in job["patch_sha256"].values()):
+            raise ValueError("invalid or duplicate abort job")
+        seen.add(name)
+        expected = abort_plan_runs(name)
+        keys = {(s["arm"], s["build_id"], s["rep"], s["order_index"]) for s in expected}
+        actual = set()
+        cell = {"condition": ABORT_JOBS[name], "arms": {arm: {"performance": [], "count": []}
+                for arm in (ABORT_BACKOFF_ARMS if name == "backoff" else ABORT_ARMS)}}
+        for record in job["records"]:
+            key = tuple(record[k] for k in ("arm", "build_id", "rep", "order_index"))
+            if key not in keys or key in actual:
+                raise ValueError("duplicate or unexpected abort record")
+            actual.add(key)
+            spec = next(s for s in expected if key == tuple(s[k] for k in
+                        ("arm", "build_id", "rep", "order_index")))
+            if any(record.get(k) != v for k, v in spec.items()) or not record.get("valid") or \
+                    record.get("perf_eligible") is spec["build_kind"].endswith("-count") or \
+                    record.get("build_macros") != list(MACROS[spec["build_kind"]]) or \
+                    record.get("argv") != abort_argv(Path(record["argv"][0]), spec) or \
+                    record["stdout"].get("sha256") != sha_bytes(record["stdout"]["text"].encode()):
+                raise ValueError("invalid abort record or provenance")
+            counted = spec["build_kind"].endswith("-count")
+            fwd, gc, longtx, abort = parse_abort_lines(record["stdout"]["text"], spec["arm"], counted)
+            if any(record.get(k) != v for k, v in (("fwd_counters", fwd), ("gc_counters", gc),
+                    ("longtx_counters", longtx), ("abort_counters", abort))):
+                raise ValueError("abort parsed counter differs from raw")
+            arm_data = cell["arms"][spec["arm"]]
+            if counted:
+                if sum(t["held_changed"] for t in gc["threads"]):
+                    raise ValueError("held version changed")
+                summary = _gc_summary(gc, longtx)
+                summary.pop("series")
+                long_rows = [r for r in longtx["threads"] if r["long"]]
+                commits = sum(r["commits"] for r in long_rows)
+                aborts = sum(r["aborts"] for r in long_rows)
+                totals = {k: sum(r[k] for r in abort["threads"]) for k in ABORT_THREAD
+                          if k not in ("thid", "detect_hist")} if abort else None
+                if totals is not None:
+                    totals["detect_hist"] = [sum(r["detect_hist"][i] for r in abort["threads"])
+                                             for i in range(42)]
+                    totals["d_reach_rate"] = totals["txs_d_true"] / (commits + aborts) \
+                        if commits + aborts else None
+                    totals["detect_clock_mean"] = totals["detect_clock_sum"] / totals["txs_d_true"] \
+                        if totals["txs_d_true"] else None
+                    totals["detect_mean_us"] = totals["detect_clock_mean"] / 2100 \
+                        if totals["detect_clock_mean"] is not None else None
+                    totals["abort_remaining_sum_us"] = totals["abort_remaining_clock_sum"] / 2100
+                arm_data["count"].append({"rep": spec["rep"], "diagnostic": "instrumented",
+                    "verification_status": "unverified", "gc": summary, "abort": totals,
+                    "long_completion_rate": commits / (commits + aborts) if commits + aborts else None,
+                    "long_abort_rate": aborts / (commits + aborts) if commits + aborts else None,
+                    "long_commit_per_s": commits / spec["extime"],
+                    "long_attempt_per_s": (commits + aborts) / spec["extime"]})
+            else:
+                short_commits = sum(r["commits"] for r in longtx["threads"] if not r["long"])
+                long_commits = sum(r["commits"] for r in longtx["threads"] if r["long"])
+                long_aborts = sum(r["aborts"] for r in longtx["threads"] if r["long"])
+                arm_data["performance"].append({"rep": spec["rep"],
+                    "throughput_tps": record["throughput"],
+                    "short_throughput_tps": short_commits / spec["extime"],
+                    "long_completion_rate": long_commits / (long_commits + long_aborts)
+                        if long_commits + long_aborts else None,
+                    "long_abort_rate": long_aborts / (long_commits + long_aborts)
+                        if long_commits + long_aborts else None,
+                    "long_commit_per_s": long_commits / spec["extime"],
+                    "long_attempt_per_s": (long_commits + long_aborts) / spec["extime"],
+                    "verification_status": "unverified"})
+        if actual != keys:
+            raise ValueError("missing abort arm or rep")
+        for arm_data in cell["arms"].values():
+            arm_data["throughput_median_tps"] = statistics.median(
+                r["throughput_tps"] for r in arm_data["performance"])
+            arm_data["short_throughput_median_tps"] = statistics.median(
+                r["short_throughput_tps"] for r in arm_data["performance"])
+        cells[name] = cell
+    if seen != ABORT_JOBS.keys():
+        raise ValueError("missing abort jobs")
+    return {"schema_version": "vhash-abort-aggregate/v1", "verification_status": "unverified", "cells": cells}
+
+
+def abort_main(args, parser) -> int:
+    if args.command == "abort-aggregate":
+        if not args.raw or args.job or args.smoke or args.third_party_cache or args.k_sweep or \
+                args.workload or args.wait_us or args.skew is not None:
+            parser.error("abort-aggregate requires --raw and no run options")
+        _write(args.output / "abort-aggregate.json", abort_aggregate_jobs(
+            [json.loads(path.read_text()) for path in args.raw]))
+        return 0
+    if not args.job or not args.third_party_cache or not args.third_party_cache.is_absolute() or \
+            args.raw or args.k_sweep or args.workload or args.wait_us or args.skew is not None:
+        parser.error("abort-run requires --job and absolute --third-party-cache")
+    specs = abort_plan_runs(args.job, smoke=args.smoke)
+    started = now()
+    job = {"schema_version": "vhash-abort-job/v1", "command": "abort-run", "job": args.job,
+        "smoke": args.smoke, "ccbench_pin": pin.CURRENT_PIN, "patch_sha256": {},
+        "genome": GC_GENOME, "verification_status": "unverified",
+        "job_id": socket.gethostname() + "-" + started, "hostname": socket.gethostname(),
+        "started": started, "records": [], "builds": {}, "all_pass": False}
+    output = args.output / ("raw-abort-" + args.job + "-" + started.replace(":", "-") + ".json")
+    try:
+        if re.fullmatch(r"pegasus0[0-9]", socket.gethostname()):
+            raise RuntimeError("measurement job must run on a compute node")
+        job["patch_sha256"] = {str(p.relative_to(ROOT)): sha_file(p) for p in ABORT_STACK}
+        job["git_head"] = checked(["git", "rev-parse", "HEAD"], cwd=ROOT).stdout.decode().strip()
+        job["competing_probe"] = _probe()
+        policy = compute._load_policy(ROOT / "tools/pegasus/mocc_trace_v1_policy.json")
+        toolchain = compute._resolve_toolchain(policy)
+        with tempfile.TemporaryDirectory(prefix="vhash-abort-") as temporary:
+            scratch = Path(temporary)
+            deps = compute._prepare_dependencies(ROOT, policy, args.third_party_cache, scratch, toolchain)
+            with patchharness.checkout(pin.CURRENT_PIN) as worktree:
+                source = Path(worktree)
+                for patch in ABORT_STACK:
+                    patchharness.apply_patch(str(patch), str(source))
+                binaries = {}
+                binary_specs = {spec["build_id"]: spec for spec in specs}
+                binary, gates, seconds = _build_variant(source, scratch / "build-abort-gc-dependency",
+                    "gc-dependency", deps, toolchain)
+                binaries["gc-dependency"] = (binary, gates)
+                job["builds"]["gc-dependency"] = {"binary_sha256": sha_file(binary),
+                    "seconds": seconds, "gate_receipts": gates}
+                for build_id, spec in binary_specs.items():
+                    binary, gates, seconds = _build_variant(source, scratch / ("build-abort-" + build_id),
+                        spec["build_kind"], deps, toolchain, genome=spec["genome"])
+                    binaries[build_id] = (binary, gates)
+                    job["builds"][build_id] = {"binary_sha256": sha_file(binary),
+                        "seconds": seconds, "gate_receipts": gates,
+                        "genome": spec["genome"], "build_macros": list(MACROS[spec["build_kind"]])}
+                common = {"job_id": job["job_id"], "ccbench_pin": pin.CURRENT_PIN,
+                    "patch_sha256": job["patch_sha256"]}
+                for spec in specs:
+                    build_id = spec["build_id"]
+                    binary, gates = binaries[build_id]
+                    record = _run_binary(binary, spec, common, gates)
+                    job["records"].append(record)
+                    _write(output, job)
+                    if not record["valid"]:
+                        raise RuntimeError("invalid abort run: " + record.get("invalid_reason", "unknown"))
                 job["all_pass"] = True
     except Exception as exc:
         job["error"] = type(exc).__name__ + ": " + str(exc)
