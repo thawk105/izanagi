@@ -10657,6 +10657,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   到達する前に赤になった。段 3・段 6 のレンズはいずれも「親確認済み」を前提にしており、検出したのは
   実走そのものだった (計算ノード job 1 本、46 秒を消費)。**「無い」の実測は全件を見ないと成立しない**型の
   再発で、是正は各祖先を 1 段ずつ `ls -ld` で実測してから別 root へ回避した。
+
+- **再発: 2026-09-30** — /rulings 第 42 回の起草で、項 1 (縮小受入の汎用名に `verbatim` を足すか) の推奨「足す」を、`git grep -l -i verbatim ... | head -30` の出力から「production code に insight の `verbatim/` を path で読む reader は無い」と書いて出した。出力は orchestrator/ 配下で 30 件に達して切れ、tools/ を見ていなかった。`tools/b5_llm_round.py` は `{materials_root}/verbatim/` を相対 path で読む。別系統モデルの相談 A が反証し、裁定前に推奨を「足さない」へ改めたので実害は無い (near miss)。恒久対応は memory `complete-search-not-truncated-for-absence` と `closure-and-search-discipline` から変更なし。/rulings の「推奨前に別系統モデルへ諮る」手順が再発検知として働いた (D2330 の相談の採否)。
 ### F288. 敵対レビュー依頼が防御目的を明記していても依頼の**形**で上流分類器に拒否された [手順漏れ]
 
 - 事象: 段 3 レンズ A が 17 分・39 model call まで進んだ後、上流分類器の
@@ -26078,6 +26080,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 6 統合時に関数名集合の差分を取る。削除が 1 件でもあれば、子の報告に
   その削除の明示的な申告と理由があることを確認する。
 
+
+- **再発: 2026-09-30** — md_37 (VHash hot block v2) の段 5 で、実装子 U2 (author) が driver の test file の基底 commit の test 関数 24 本のうち 23 本を消し 20 本を新設した。子は報告に「旧 test の一部を移植していない」と書いたが、削除の件数は書かなかった。親が F938 の恒久対応どおり基底と現行の test 関数名の集合を比べて見つけ、fix 子に旧名のまま性質を移植させた (欠け 0 本に戻した)。今回は恒久対応の検算が統合前に効いた。
 ### F939. 計測投入用の detached worktree で submodule を初期化せず、probe が外側 repo の HEAD を submodule の HEAD と読んだ [手順漏れ]
 
 - 事象: 更新間隔 10 µs の `Backoff_` trace 計測を投入したところ、job が 17 秒で終了し成果物が 0 件だった
@@ -28878,6 +28882,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「未 land なら 1 行書いて終えてよい」で止め、撤去しない。
 - 再発検知: 直す wave が `orchestrator/tests/test_hooks.py` の `test_cleanup_stop_*` に「作成後に main へ ff しただけで commit 0 本の木では block しない」負例を足す。
 
+
+- **再発: 2026-09-30** — md_37 (VHash hot block v2) の wave 木で、自分の commit が 0 (開始時に main へ ff しただけ) の間、終了時 hook が「land 済みの可能性、撤去せよ」を 6 回出した。いずれも「未 land のため撤去しない」と残置 path を 1 行返して続けた。実害なし。
 ### F1082. TPC-C の異常終了を genome の promotion 軸へ帰属させ、その軸だけを外した対照を置かなかった [手順漏れ] [テスト代表性]
 
 - 事象: 前 wave (2026-09-29、CCBench の build 修理) は INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1 の genome で TPC-C M・R2 が `std::bad_alloc` で落ちるのを観測し、「promotion 有効の 8 genome は失格」とまとめた。2026-09-30 の診断 (gdb の catch throw と一要因対照) で、原因は promotion ではなく INLINE_VERSION_OPT=1 の `Tuple::init` が insert の版を無視する欠陥で、promotion 無効の OPT=1 genome (T0p) でも同じく落ちると分かった。失格の範囲 (8 genome) と原因の帰属 (promotion) がともにずれていた。
@@ -28891,3 +28897,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 性能のための先行処理に、consumer が「間に合わなければ自分の test を赤にする」ための上限を流用した。consumer 側では上限超過はその test の赤で済むが、prewarm は consumer の有無にかかわらず全 shard で走るので、同じ上限が受入全体の赤に化けた。
 - 恒久対応: memory `prewarm-must-not-fail-consumerless-shards` (先行処理は前提の遅延・失敗では静かに終え停止 event で止める、consumer の無い shard で赤にならないことを test と混雑条件の実受入で確かめる)。実装側の修正は branch `worktree-dev-wave-acceptance-shard0-load` の commit 4258b0c76 (prewarm は写しを finish の停止 event まで待ち、遅延・失敗では構築しない。正例 `test_t080_shared_base_prewarm_stop_before_snapshot_is_quiet`) にあるが、実装自体は同時刻対照で land 条件を満たさず main へ入れていない (D2328)。
 - 再発検知: 受入の shard が `report-invalid` で落ち、dispatcher.log の traceback が session 終了処理 (`_finish_*`) を指すとき。先行処理を足す wave は、consumer の無い shard で先行処理が遅延・失敗しても session が赤にならないことを test で固定する。
+
+### F1084. 壊し patch が GC で切り離され再利用中の版を掴み、ベンチが 1 走 180 s の打ち切りまで終わらず集計全体が止まった [誤前提] [テスト代表性]
+
+- 事象: md_37 (VHash hot block v2) の計測で、B-post の上の壊し 3 走 (stale-gap の T1・T2、post-B1 の T2) が driver の 1 走 180 s の打ち切り (rc 124) になり、集計が `invalid broken trace run` で止まった。正例 15 走は完走していた。段 6 の焦点再レビューは直前に「post-B1 が GC で切り離された版を辿りうる」(F2) と指摘していたが、親は「REUSE_VERSION=1 は版を解放しないので use-after-free にならず、再利用された版を返すのは壊しの目的どおりの誤読」として限界に回していた。
+- 根本原因: 本体の設計の論証 (切り離し点は読み手の copy に居るので、選んだ版は再利用されない) は、書き足しを省く壊し・隣接確認を外す壊しでは成り立たない。そのとき読み手は再利用中 (status unused) の版を掴みうり、read_internal の第 2 段 (committed でも deleted でもない間回る) が終わらない。親の反論は「memory が解放されるか」だけを見て、「状態機械が進むか」を見ていなかった。
+- 恒久対応: 壊し patch 側で、第 2 段の待ちの中で status が unused / invalid になった読みを dead と数えて stock の走査へやり直し、終了時に `CICADA_BREAK_DEAD` を出す (`patches/broken-cicada-vhash-post-stale-hot.patch`・`patches/broken-cicada-vhash-post-stale-gap.patch`)。driver は壊しの走の rc 124 を分類 hung (判定なし) として集計を止めず、正例の rc 124 は従来どおり集計を止める (`orchestrator/campaign/vhash_cicada_hot_block.py`、変異 M14・M15 が test で固定)。
+- 再発検知: 壊しの走の DEAD 行の必須化 (driver が欠落を拒否) と、壊しの打ち切りが hung として一次資料の表に出ること。
