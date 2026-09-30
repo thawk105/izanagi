@@ -1,5 +1,6 @@
 {
  "definition_commit": "7648ea167",
+ "parent_corrections": 19,
  "ccs": [
   "tictoc",
   "mocc",
@@ -26,14 +27,14 @@
    },
    "feasible33": {
     "fits": 8,
-    "minor": 15,
-    "no": 8,
+    "minor": 14,
+    "no": 9,
     "unknown": 2
    },
    "all295": {
     "fits": 35,
-    "minor": 18,
-    "no": 240,
+    "minor": 17,
+    "no": 241,
     "unknown": 2
    }
   },
@@ -51,49 +52,49 @@
     "unknown": 0
    },
    "feasible33": {
-    "fits": 7,
-    "minor": 19,
-    "no": 5,
+    "fits": 6,
+    "minor": 15,
+    "no": 10,
     "unknown": 2
    },
    "all295": {
-    "fits": 38,
-    "minor": 28,
-    "no": 227,
+    "fits": 37,
+    "minor": 24,
+    "no": 232,
     "unknown": 2
    }
   },
   "cicada": {
    "mismatch182": {
     "fits": 4,
-    "minor": 12,
-    "no": 165,
+    "minor": 10,
+    "no": 167,
     "unknown": 1
    },
    "present80": {
     "fits": 36,
-    "minor": 6,
-    "no": 38,
+    "minor": 5,
+    "no": 39,
     "unknown": 0
    },
    "feasible33": {
     "fits": 6,
-    "minor": 12,
-    "no": 14,
+    "minor": 11,
+    "no": 15,
     "unknown": 1
    },
    "all295": {
     "fits": 46,
-    "minor": 30,
-    "no": 217,
+    "minor": 26,
+    "no": 221,
     "unknown": 2
    }
   },
   "ermia": {
    "mismatch182": {
-    "fits": 3,
-    "minor": 16,
-    "no": 158,
+    "fits": 2,
+    "minor": 12,
+    "no": 163,
     "unknown": 5
    },
    "present80": {
@@ -109,9 +110,9 @@
     "unknown": 1
    },
    "all295": {
-    "fits": 38,
-    "minor": 32,
-    "no": 219,
+    "fits": 37,
+    "minor": 28,
+    "no": 224,
     "unknown": 6
    }
   },
@@ -144,26 +145,26 @@
   "mvto": {
    "mismatch182": {
     "fits": 3,
-    "minor": 11,
-    "no": 167,
+    "minor": 9,
+    "no": 169,
     "unknown": 1
    },
    "present80": {
     "fits": 30,
-    "minor": 11,
-    "no": 38,
+    "minor": 10,
+    "no": 39,
     "unknown": 1
    },
    "feasible33": {
     "fits": 6,
-    "minor": 12,
-    "no": 14,
+    "minor": 11,
+    "no": 15,
     "unknown": 1
    },
    "all295": {
     "fits": 39,
-    "minor": 34,
-    "no": 219,
+    "minor": 30,
+    "no": 223,
     "unknown": 3
    }
   },
@@ -225,25 +226,25 @@
    "cpu-cache": 8,
    "delay-on-conflict": 5,
    "version-lifetime": 0,
-   "none": 15
+   "none": 14
   },
   "mocc": {
-   "cpu-cache": 8,
+   "cpu-cache": 7,
    "delay-on-conflict": 12,
    "version-lifetime": 0,
-   "none": 19
+   "none": 15
   },
   "cicada": {
-   "cpu-cache": 11,
+   "cpu-cache": 8,
    "delay-on-conflict": 9,
    "version-lifetime": 8,
-   "none": 10
+   "none": 9
   },
   "ermia": {
-   "cpu-cache": 10,
-   "delay-on-conflict": 7,
+   "cpu-cache": 9,
+   "delay-on-conflict": 6,
    "version-lifetime": 8,
-   "none": 15
+   "none": 12
   },
   "si": {
    "cpu-cache": 10,
@@ -252,10 +253,10 @@
    "none": 10
   },
   "mvto": {
-   "cpu-cache": 13,
+   "cpu-cache": 10,
    "delay-on-conflict": 9,
    "version-lifetime": 9,
-   "none": 12
+   "none": 11
   },
   "ss2pl": {
    "cpu-cache": 7,
@@ -272,28 +273,28 @@
  },
  "fitminor_new": {
   "tictoc": {
-   "all295": 28,
+   "all295": 27,
    "mismatch182": 3
   },
   "mocc": {
-   "all295": 39,
+   "all295": 34,
    "mismatch182": 5
   },
   "cicada": {
-   "all295": 38,
-   "mismatch182": 13
+   "all295": 34,
+   "mismatch182": 11
   },
   "ermia": {
-   "all295": 40,
-   "mismatch182": 19
+   "all295": 35,
+   "mismatch182": 14
   },
   "si": {
    "all295": 33,
    "mismatch182": 12
   },
   "mvto": {
-   "all295": 43,
-   "mismatch182": 11
+   "all295": 39,
+   "mismatch182": 9
   },
   "ss2pl": {
    "all295": 21,
@@ -379,15 +380,6 @@
     "note": "healing が前提。TicToc は単版でデータ駆動の wts/rtsで read set が tuple pointer と値の写しを持つので、記録済みアドレスの再利用は healing の access cache (worker 局所状態) を足すだけで満たせる。"
    },
    {
-    "card_id": "healing-false-invalidation-elimination",
-    "value": "minor",
-    "verifier": "conditional:値が一致して通した read の版 ID を新しい版の TID に付け替えて trace に記録すれば (元の版のままだと検査器が閉路を出し、付け替えを誤ると見逃す)",
-    "minor_parts": 1,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "TicToc の SetElement は値の写し body_ を持つが commit_ts を read 検証の前に決めるので、値一致で新しい wts を採るには commit_ts の再計算を validation 段に足す (相の中の順序の変更)。"
-   },
-   {
     "card_id": "healing-transaction-healing",
     "value": "minor",
     "verifier": "conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値を使った write が残ると見逃し)",
@@ -453,15 +445,6 @@
     "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
    },
    {
-    "card_id": "healing-false-invalidation-elimination",
-    "value": "fits",
-    "verifier": "conditional:値が一致して通した read の版 ID を新しい版の TID に付け替えて trace に記録すれば (元の版のままだと検査器が閉路を出し、付け替えを誤ると見逃す)",
-    "minor_parts": 0,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "MOCC の ReadElement は値の写し body_ と Tidword を持ち、commit TID は validation 後に read set の TID から計算するので、値一致なら新 TID で読んだとみなす扱いを既存の相に足すだけ。healing とは独立に値比較の validation として判定した (事前宣言は core 由来で本機構には不要)。"
-   },
-   {
     "card_id": "silo-inline-record-data",
     "value": "minor",
     "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
@@ -516,15 +499,6 @@
     "note": "MOCC は RW lock と blocking 待ちを持つ。開始時刻 (m2)、保持者の開始時刻 (m1)、lock 取得での年齢比較の分岐 (m3) で入る。直列化は TID のまま。"
    },
    {
-    "card_id": "bcc-multilevel-circular-buffers",
-    "value": "minor",
-    "verifier": "observable",
-    "minor_parts": 3,
-    "class": "absent-silo-feasible",
-    "effect": "cpu-cache",
-    "note": "BCC の履歴 hash table の memory 管理で、BCC 本体 (MOCC では m1・m2・m3 の小改造) を入れた後に thread ごとの 3 段 circular buffer を足す。"
-   },
-   {
     "card_id": "healing-access-cache",
     "value": "minor",
     "verifier": "conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値を使った write が残ると見逃し)",
@@ -541,15 +515,6 @@
     "class": "absent-silo-feasible",
     "effect": "none",
     "note": "MOCC は単版で Silo 型 TID と RW lockで read set に値の写しと TID/TsWord があり、YCSB の依存は TxExecutor の pro_set_ から固定で分かる。足りないのは演算ごとの access cache・bookmark (worker 局所の固定サイズ状態) だけで、TPC-C では依存グラフを開始前に渡せない。"
-   },
-   {
-    "card_id": "bcc-readset-history-hashtable",
-    "value": "minor",
-    "verifier": "conditional:BCC の validation と同じく commit 順と直列化順が違う取引が出るため、依存辺を版順から作ることが要る。履歴の解放漏れや検索の race で rw 依存を見落とした場合は commit 済み取引の G2 として検査器に出る",
-    "minor_parts": 2,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "BCC の rw 依存検出の部品。MOCC は単版のまま、thread ごとの history list と hash table (m2)、read 段の挿入後再読と validation の走査 (m3) を足せる。"
    },
    {
     "card_id": "stov2-commit-time-updates",
@@ -617,24 +582,6 @@
     "note": "Cicada に lock は無いが、pending 版を spin で待つ所が lock 待ちに当たる。そこに上限時間で abort する分岐 (m3) を足す形で、正しさは変わらない。"
    },
    {
-    "card_id": "abyss-ts-alloc-batched-atomic",
-    "value": "minor",
-    "verifier": "observable (割当て方式の違いで読み書きの意味は変わらない)",
-    "minor_parts": 1,
-    "class": "absent-prereq-mismatch",
-    "effect": "cpu-cache",
-    "note": "Cicada の timestamp は一意かつ thread 内単調なら足りる (cicada card の correctness) ので、begin 時 timestamp を共有 counter から batch で取り worker が位置を持つ (m2) 形で入る。restart で古い timestamp を使い続ける弱点は card どおり残る。"
-   },
-   {
-    "card_id": "abyss-ts-alloc-mutex",
-    "value": "minor",
-    "verifier": "observable (割当て方式の違いで読み書きの意味は変わらない)",
-    "minor_parts": 1,
-    "class": "absent-prereq-mismatch",
-    "effect": "cpu-cache",
-    "note": "Cicada は begin 時の timestamp を thread local clock で作る。同じ begin 時の一意な timestamp を mutex 付きの共有 counter から出すのは共有状態の追加 (m2) で、timestamp の意味は変わらない (性能は下がる基準線)。"
-   },
-   {
     "card_id": "silo-inline-record-data",
     "value": "minor",
     "verifier": "observable (配置の変更で読み書きの意味と trace の差し込み点は変わらない)",
@@ -669,15 +616,6 @@
     "class": "absent-silo-feasible",
     "effect": "none",
     "note": "CC は変えない前段。YCSB の操作列は begin 前に pro_set_ にあるので集合は得られ、足りないのは取引を batch に束ねて衝突の多いものを同じ worker に配る共有の入口 (m2) と、その集合を割当てへ渡す口 (m4)。Cicada は多版で begin 時の ts に直列化し施錠なしのままで正しさは CC が守る。"
-   },
-   {
-    "card_id": "healing-false-invalidation-elimination",
-    "value": "minor",
-    "verifier": "conditional:値が一致して通した read の版 ID を新しい版の TID に付け替えて trace に記録すれば (元の版のままだと検査器が閉路を出し、付け替えを誤ると見逃す)",
-    "minor_parts": 1,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "Cicada は read set に Version* を持ち値の写しは無いが、読んだ版と今見える版の値を比べられる。値一致なら新しい可視版の rts を自 ts まで上げ直す手順を validation の (iii)(iv) に足す。"
    },
    {
     "card_id": "ermia-three-epoch-manager",
@@ -763,15 +701,6 @@
     "note": "read/write set の線形探索を hash 表に替える取引内部のデータ構造の変更で、CC の前提に依らない。"
    },
    {
-    "card_id": "ssn-readonly-cstamp-at-snapshot",
-    "value": "fits",
-    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば",
-    "minor_parts": 0,
-    "class": "absent-prereq-mismatch",
-    "effect": "none",
-    "note": "ermia は begin の txid (snapshot 時刻) と SSN の pstamp を持ち、write set が空なら ++Lsn の代わりに snapshot 時刻を c(T) にする分岐だけで入る。"
-   },
-   {
     "card_id": "abyss-lock-wait-timeout",
     "value": "minor",
     "verifier": "observable (待ち方の変更で通す条件は変わらない)",
@@ -835,15 +764,6 @@
     "note": "版に jump pointer を足し (m1)、prev_ を辿る read 走査 (cstamp>txid や inflight を飛ばす) で prefetch する (m3)。"
    },
    {
-    "card_id": "ssn-read-mostly-cold-read-skipping",
-    "value": "minor",
-    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば。read set に入れない読みが差し込み点を通るか確かめる必要がある",
-    "minor_parts": 2,
-    "class": "absent-prereq-mismatch",
-    "effect": "none",
-    "note": "ermia は TMT の lastcstamp・readers bitmap・sstamp を持ち、sstamp の最上位 bit の lock (m1) と stale 版の read set 除外・updater 側の η 反映 (m3) で入る。SSN の論拠の近似版で正式な証明が無い点は注意。"
-   },
-   {
     "card_id": "polaris-abort-aware-priority-increment",
     "value": "minor",
     "verifier": "conditional:TID word を詰め直した後も trace が記録する版 ID が commit TID と対応し続けること (予約は abort 条件を足すだけ)",
@@ -869,15 +789,6 @@
     "class": "absent-silo-feasible",
     "effect": "none",
     "note": "tuple に予約語 (m1)・worker に priority (m2)・read と install_version の前に予約判定 (m3)。si は read validation が無いので効くのは書込み同士に限られる。"
-   },
-   {
-    "card_id": "ssn-safe-snapshot",
-    "value": "minor",
-    "verifier": "conditional:ERMIA (SI+SSN) の版 ID は cstamp で、SI は古い版を読むため、版 ID に書き手の cstamp を使い版順を cstamp で取る差し込み点に合わせれば。snapshot 取引の直列化位置も記録する必要がある",
-    "minor_parts": 3,
-    "class": "absent-prereq-mismatch",
-    "effect": "none",
-    "note": "ermia は多版 snapshot と SSN を持ち、safe snapshot の時刻 (m2)・read-only の SSN 追跡の省略と update の abort 条件 (m3)・YCSB の pro_set_ 由来の is_ronly_ を渡す口 (m4) で入る。"
    },
    {
     "card_id": "stov2-commit-time-updates",
@@ -1026,24 +937,6 @@
     "class": "absent-silo-feasible",
     "effect": "delay-on-conflict",
     "note": "MVTO の pending 版の spin 待ちに上限時間で abort する分岐 (m3) を足す形で入る。"
-   },
-   {
-    "card_id": "abyss-ts-alloc-batched-atomic",
-    "value": "minor",
-    "verifier": "observable (割当て方式の違いで読み書きの意味は変わらない)",
-    "minor_parts": 1,
-    "class": "absent-prereq-mismatch",
-    "effect": "cpu-cache",
-    "note": "MVTO の begin 時 timestamp を共有 counter から batch で取り worker が位置を持つ (m2) 形で入る。一意・thread 内単調は保たれる。"
-   },
-   {
-    "card_id": "abyss-ts-alloc-mutex",
-    "value": "minor",
-    "verifier": "observable (割当て方式の違いで読み書きの意味は変わらない)",
-    "minor_parts": 1,
-    "class": "absent-prereq-mismatch",
-    "effect": "cpu-cache",
-    "note": "MVTO の begin 時 timestamp を mutex 付きの共有 counter から出すのは共有状態の追加 (m2) で、timestamp の意味は変わらない (基準線)。"
    },
    {
     "card_id": "silo-inline-record-data",
@@ -1414,24 +1307,6 @@
     "class": "ccbench-present",
     "effect": "delay-on-conflict",
     "note": "YCSB の pro_set_ から開始前の key 集合を渡し (m4)、begin で全 record を MOCC の既存 lock() (Tuple* アドレス順、RLL と同じ事前 lock 経路) で取る (m3)。commit 時の OCC 検証は残るので骨格は変えない。TPC-C では集合が得られない。"
-   },
-   {
-    "card_id": "bcc-global-tid-vector-clock",
-    "value": "minor",
-    "verifier": "conditional:単独では判定を変えない。TID の配置を変えても trace の版 ID が writer の commit TID と対応し続けること。判定の正しさは BCC の validation 側の条件に従う",
-    "minor_parts": 2,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "MOCC の Tidword (absent・tid 31・epoch 32) は書いた thread の識別を持たないので field を足し (m1)、thread ごとの最新 TID の配列を共有状態として足す (m2)。単独では判定を変えず BCC の部品。"
-   },
-   {
-    "card_id": "bcc-essential-pattern-validation",
-    "value": "minor",
-    "verifier": "conditional:read set が変わっても commit する取引は後から commit しても前に直列化されるため、依存辺を版順 (writer の commit TID) から作り commit 順を直列化順と見なさないことが要る。全取引に TID を振っても trace の版 ID が writer の commit TID と対応し続けること",
-    "minor_parts": 3,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "MOCC は Silo と同じ単版・epoch+TID・read set の TID 検証なので原典の Silo 拡張がそのまま当たる。TID に thread 識別 (m1)、global TID vector と read set 履歴 (m2)、全取引への TID 付与と essential pattern の検査 (m3) を足す。"
    }
   ],
   "cicada": [
@@ -1634,15 +1509,6 @@
     "class": "absent-prereq-mismatch",
     "effect": "none",
     "note": "ermia は inflight 版の cstamp_ に書き手 txid を置き TMT を引いて状態を得る形を持つので、TMT 要素に世代番号 (m2) と旧世代なら読み直す検査 (m3) を足せば入る。"
-   },
-   {
-    "card_id": "essn-exclusion-test",
-    "value": "minor",
-    "verifier": "conditional:SSN より多く受理し commit 順と直列化順が一致しない取引が出るため、依存辺を版順から作ることが要る。版順 (VO) を commit 順と一致させるか、版順を trace に差し込むこと",
-    "minor_parts": 2,
-    "class": "absent-prereq-mismatch",
-    "effect": "delay-on-conflict",
-    "note": "ERMIA は多版・commit 順の cstamp (KTO)・版ごとの pstamp/sstamp の SSN をすでに持つ。版に作成者の π (crepi) を足し (m1)、commit 時の除外検査の η を伝播した ξ に替える (m3)。受理が増え commit 順と直列化順がずれうるため判定には迷いがある。"
    },
    {
     "card_id": "hana-global-sts-tracker",
@@ -2087,6 +1953,7 @@
    "other:属性の分割と述語 validation が前提": 1,
    "other:述語 validation が前提": 1,
    "other:列ストアの scan と生成コードが前提": 1,
+   "other:correctness-argument": 1,
    "other:可換演算の宣言 API が無い": 1,
    "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
    "other:SGT の graph node が前提": 1,
@@ -2112,6 +1979,7 @@
    "partition": 18,
    "platform": 9,
    "other:no-ltx-mode": 7,
+   "other:correctness-argument": 5,
    "other:predicate set と secondary index が無い": 5,
    "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
    "other:SSN が前提": 4,
@@ -2153,7 +2021,7 @@
   "cicada": {
    "lock-regime": 57,
    "predeclared": 57,
-   "ts-scheme": 40,
+   "ts-scheme": 43,
    "partition": 18,
    "platform": 9,
    "gc-structure": 9,
@@ -2196,6 +2064,7 @@
    "other:delta-version-storage": 1,
    "other:vertical-partitioning-required": 1,
    "other:no-write-lock-acquisition": 1,
+   "other:correctness-argument": 1,
    "other:施錠が無く no-wait の lock 失敗が起きない": 1,
    "other:可換演算の宣言 API が無い": 1,
    "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
@@ -2217,7 +2086,7 @@
   "ermia": {
    "predeclared": 57,
    "lock-regime": 54,
-   "ts-scheme": 31,
+   "ts-scheme": 32,
    "partition": 18,
    "platform": 9,
    "gc-structure": 9,
@@ -2225,6 +2094,7 @@
    "sv-required": 5,
    "other:snapshot 読みで commit 時点の最新値を検証する OCC の validation が無い": 5,
    "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
+   "other:correctness-argument": 4,
    "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
    "other:前提の BCC が SSN と合わない": 4,
    "other:中央 validator の batch validation": 4,
@@ -2375,7 +2245,7 @@
   "mvto": {
    "predeclared": 62,
    "lock-regime": 56,
-   "ts-scheme": 41,
+   "ts-scheme": 44,
    "partition": 18,
    "platform": 9,
    "gc-structure": 9,
@@ -2419,6 +2289,7 @@
    "other:vertical-partitioning-required": 1,
    "other:no-node-set-phantom-check": 1,
    "other:no-write-lock-acquisition": 1,
+   "other:correctness-argument": 1,
    "other:施錠が無く no-wait の lock 失敗が起きない": 1,
    "other:可換演算の宣言 API が無い": 1,
    "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
