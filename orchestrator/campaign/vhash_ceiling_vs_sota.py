@@ -63,11 +63,11 @@ TREE_PATCHES = {
     "fwd": (V_PATCH, FWD, W_PATCH),
     "igc": (V_PATCH, IGC, W_PATCH),
     "diag-base": (VLIFE, V_PATCH, W_PATCH),
-    "diag-hot": (V_PATCH, *HOT, W_PATCH, HOT_COUNT),
+    "diag-hot": (V_PATCH, *HOT, HOT_COUNT, W_PATCH),
     "diag-fwd": (V_PATCH, FWD, W_PATCH),
     "diag-igc": (V_PATCH, IGC, W_PATCH),
     "trace-base": (TRACE, V_PATCH, W_PATCH),
-    "trace-hot": (TRACE, V_PATCH, *HOT, W_PATCH, HOT_COUNT),
+    "trace-hot": (TRACE, V_PATCH, *HOT, HOT_COUNT, W_PATCH),
     "trace-fwd": (TRACE, V_PATCH, FWD, W_PATCH),
     "trace-igc": (TRACE, V_PATCH, IGC, W_PATCH),
     "trace-igc-broken": (TRACE, V_PATCH, IGC, W_PATCH, BROKEN),
@@ -153,7 +153,15 @@ def parse_workload(stdout: str, flags: dict | None = None) -> dict:
 
 
 def patch_manifest(tree: str) -> list[dict]:
+    check_patch_order(tree)
     return [{"name": path.name, "sha256": base.sha(path)} for path in TREE_PATCHES[tree]]
+
+
+def check_patch_order(tree: str) -> None:  # M18
+    patches = TREE_PATCHES[tree]
+    if tree in ("diag-hot", "trace-hot") and not (
+            patches.index(HOT_COUNT) < patches.index(W_PATCH)):
+        raise ValueError("hot count patch must precede ceiling workload patch")
 
 
 def _gates(source: Path, macros: tuple[str, ...], args: list[str], cxx: str) -> list[dict]:
@@ -237,7 +245,7 @@ def flags(point: str, arm: str, gc: int, extime: int, records: int = 1_000_000) 
     if arm == "fwd":
         result.update(cicada_fwd_k=1, cicada_fwd_policy="c")
     if arm.startswith("igc"):
-        result["cicada_igc_debug_mode"] = int(arm[-1])
+        result["cicada_igc_debug_mode"] = 1 if arm == "igc-broken" else int(arm[-1])  # M13
     return result
 
 
@@ -401,6 +409,12 @@ def certified_witness(arm: str, witness: dict) -> bool:
     return witness.get("status") == "certified" and witness_ok(arm, witness.get("counts", {}))
 
 
+def accepted_witness(arm: str, witness: dict) -> bool:
+    """Selection accepts an integrity-clean rc 0 or 3 and exercised mechanism."""
+    return witness.get("accepted") is True and witness.get("verifier_rc") in (0, 3) and \
+        witness_ok(arm, witness.get("counts", {}))
+
+
 def check_c_lines(all_commits: int, c_lines: int, batch_commits: int,
                   batch_c_lines: int) -> None:  # M7
     if all_commits != c_lines:
@@ -417,7 +431,7 @@ def choose_representative(summary: dict) -> tuple[str, str]:  # M4
     candidates = [(summary.get(point, {}).get(arm, {}).get("ratio", 0), point, arm)
                   for point in ("P2", "P3", "P1") for arm in M_ARMS
                   if summary.get(point, {}).get(arm, {}).get("eligible")]
-    if not candidates or max(item[0] for item in candidates) <= 1:
+    if not candidates:  # M17
         return "P2", max(M_ARMS, key=lambda arm: summary.get("P2", {}).get(arm, {}).get("ratio", 0))
     return max(candidates, key=lambda item: (item[0], -("P2", "P3", "P1").index(item[1]),
                                              -M_ARMS.index(item[2])))[1:]
@@ -450,7 +464,7 @@ def aggregate(rows: list[dict], witnesses: dict | None = None) -> dict:
                         if p["completion_ratio"] is not None) if point != "P4" else None,
                     "eligible": len(pairs) == 3 and {p["round"] for p in pairs} == {1, 2, 3}
                         and completion_ok(pairs, point) and
-                        (arm not in M_ARMS or certified_witness(arm, witnesses.get(arm, {}))),
+                        (arm not in M_ARMS or accepted_witness(arm, witnesses.get(arm, {}))),
                     "pairs": pairs}
     rep, arm = choose_representative(summary)
     neighbor = {"P1": "P2", "P2": "P3", "P3": "P2"}[rep]
@@ -479,37 +493,129 @@ def aggregate(rows: list[dict], witnesses: dict | None = None) -> dict:
                         if point in ("P1", "P2", "P3") else None,
                     "eligible": len(pairs) == 6 and {p["round"] for p in pairs} == set(range(1, 7))
                         and completion_ok(pairs, point) and
-                        certified_witness(candidate, witnesses.get(candidate, {})),
+                        accepted_witness(candidate, witnesses.get(candidate, {})),
                     "pairs": pairs}
     p4_add = any(summary.get("P4", {}).get(a, {}).get("ratio", 0) >= 1.3
                  for a in ("hot1", "hot8"))
-    next_candidates = [a for a in M_ARMS if a != arm]
-    next_arm = max(next_candidates, key=lambda a: summary.get(rep, {}).get(a, {}).get("ratio", 0))
-    prelim_rep = summary.get(rep, {}).get(arm, {})
-    if not prelim_rep.get("eligible"):
-        research_decision = "未判定 (機構が働かない負荷または正しさ未検証)"
-    elif prelim_rep["ratio"] < 1.2:
-        research_decision = "今の VHash を主論文候補から外す推奨"
-    elif prelim_rep["ratio"] < 1.5:
-        research_decision = "追加試作は残存費用の実測を条件に一度だけ検討"
-    else:
-        research_decision = "30 秒比較の継続基準を確認"
+    next_candidates = [a for a in M_ARMS if a != arm and
+                       summary.get(rep, {}).get(a, {}).get("eligible")]  # M16
+    next_arm = max(next_candidates, key=lambda a: (summary[rep][a]["ratio"], -M_ARMS.index(a))) \
+        if next_candidates else None
+    diagnostics = aggregate_diagnostics(rows)
+    fallback = not summary.get(rep, {}).get(arm, {}).get("eligible", False)
+    research_decision = ("判定不能 (代表腕が不適格)" if fallback else
+                         final_recommendation(compare, rep, neighbor, arm, diagnostics))  # M14
     return {"gc": gc, "compare_gc": comparison_gc, "retune_R_medians": retune,
             "prelim": dict(summary), "representative": {"point": rep, "arm": arm},
             "neighbor": neighbor, "compare": dict(compare),
-            "continuation": continuation(compare, rep, neighbor, arm),
-            "research_decision": research_decision,
+            "continuation": ("判定不能" if fallback else continuation(compare, rep, neighbor, arm)),
+            "research_decision": research_decision, "diagnostics": diagnostics,
+            "representative_usable_for_continuation": not fallback,
+            "representative_note": ("継続判定に使えない (適格候補なし)" if fallback else None),
+            "comparison_note": ("適格な次点 M 腕なし: S・R・代表の 3 腕" if next_arm is None else None),
             "decision_scope": "R (md_11 の観測最良設定 + 修正) に対する研究継続判断。lock なし区間 GC の SOTA は未比較",
             "retune_R": needs_retune,
             "add_P4_and_P4prime": p4_add,
-            "comparison_arms": ["S", "R", arm, next_arm]}
+            "comparison_arms": ["S", "R", arm] + ([next_arm] if next_arm else [])}
+
+
+def final_recommendation(compare: dict, representative: str, neighbor: str,
+                         arm: str, diagnostics: dict) -> str:  # M14
+    """Apply the preregistered 30-second thresholds to the same M arm."""
+    if not compare:
+        return "予備のみ (暫定): 30 秒比較待ち"
+    if representative not in compare or neighbor not in compare:
+        return "判定不能 (隣接点の 30 秒比較なし)"
+    a, b = compare[representative].get(arm), compare[neighbor].get(arm)
+    if not a or not b or not a["eligible"] or not b["eligible"]:
+        return "判定不能 (完了比または正しさ・機構 witness 不適格)"
+    if a["ratio"] >= 1.5 and b["ratio"] >= 1.3:
+        return "継続の材料"
+    if a["ratio"] < 1.2:
+        return "今の VHash を主論文候補から外す推奨"
+    if a["ratio"] < 1.5:
+        return "残存費用の実測次第 (追加試作 1 度の条件)"
+    return "基準未達 (隣接点)"
+
+
+def _json_counter_line(stdout: str, prefix: str) -> dict:
+    lines = [line[len(prefix):] for line in stdout.splitlines() if line.startswith(prefix)]
+    if len(lines) != 1:
+        raise ValueError(f"{prefix.strip()}: expected one diagnostic line")
+    value = json.loads(lines[0])
+    if not isinstance(value, dict):
+        raise ValueError("diagnostic JSON must be an object")
+    return value
+
+
+def aggregate_diagnostics(rows: list[dict]) -> dict:
+    """Summarize only separately built diagnostic runs, never their throughput."""
+    from . import vhash_cicada_hot_block as hot
+    from . import vhash_interval_gc as igc
+    result = {}
+    for row in rows:
+        if row["mode"] != "diag":
+            continue
+        arm, point, stdout = row["arm"], row["point"], row["stdout"]
+        if arm in ("S", "R"):
+            payload = V.parse_vlife_line(stdout)
+            summary = V.summarize(payload)
+            data = {key: summary.get(key) for key in (
+                "gc_publications", "gc_boundary_mean_us", "gc_boundary_p50_bucket_us",
+                "logical_version_delta")}
+            data["logical_live_versions"] = row["flags"]["tuple_num"] + summary["logical_version_delta"]
+            if arm == "R":
+                data["ro_gcflag_raises"] = _counter(stdout, base.COUNT_PREFIX, "flag_raises")
+        elif arm.startswith("hot"):
+            counts = hot.parse_count(stdout, "post-" + arm)["variant"]
+            totals = hot.aggregate_count(counts, "post-k" + arm[-1])
+            data = {key: totals[key] for key in ("hot", "cold", "fallback_odd", "fallback_changed")}
+        elif arm == "fwd":
+            from . import vhash_forwarding_prototype as fwd
+            payload, _ = fwd.parse_counter_lines(stdout, "count")
+            data = {key: sum(thread[key] for thread in payload["threads"])
+                    for key in ("attempts", "success")}
+        elif arm.startswith("igc"):
+            payload = _json_counter_line(stdout, "CICADA_INTERVAL_V1 ")
+            if arm == "igc1":
+                metrics = igc.interval_metrics(payload)
+                data = {key: metrics[key] for key in ("pruned", "chain_versions")}
+            else:
+                if payload.get("debug_mode") != 3 or type(payload.get("chain_versions")) is not int or \
+                        payload["chain_versions"] < 0:
+                    raise ValueError("invalid mode 3 interval diagnostic")
+                data = {"pruned": igc.counter_total(payload, "pruned"),
+                        "chain_versions": payload["chain_versions"]}
+        else:
+            continue
+        result.setdefault(point, {})[arm] = data
+    return result
 
 
 def job_estimate(build_seconds: dict, wall_seconds: float) -> dict:
-    if wall_seconds <= 0 or any(value <= 0 for value in build_seconds.values()):
+    if wall_seconds <= 0 or not build_seconds or any(value <= 0 for value in build_seconds.values()):
         raise ValueError("positive smoke timings required")
-    jobs = [{"kind": "build", "tree": tree, "conditions": 1, "estimated_s": sec}
-            for tree, sec in build_seconds.items()]
+    grouped = defaultdict(list)
+    for name, seconds in build_seconds.items():
+        grouped[name.split(":", 1)[0]].append((name, seconds))
+    jobs, oversized = [], []
+    for tree, binaries in grouped.items():
+        shard, total = [], 0.0
+        for name, seconds in binaries:
+            if shard and total + seconds > 300:
+                jobs.append({"kind": "build", "tree": tree, "binaries": shard,
+                             "conditions": len(shard), "estimated_s": total})
+                shard, total = [], 0.0
+            if seconds > 300:
+                oversized.append(name)
+                jobs.append({"kind": "build", "tree": tree, "binaries": [name],
+                             "conditions": 1, "estimated_s": seconds})
+            else:
+                shard.append(name)
+                total += seconds
+        if shard:
+            jobs.append({"kind": "build", "tree": tree, "binaries": shard,
+                         "conditions": len(shard), "estimated_s": total})
     for point in ("P1", "P2", "P3", "P4"):
         n = len(prelim_arms(point)) * 2
         jobs += [{"kind": "prelim", "point": point, "round": r, "conditions": n,
@@ -522,17 +628,23 @@ def job_estimate(build_seconds: dict, wall_seconds: float) -> dict:
     jobs += [{"kind": "compare", "point": point, "round": r, "conditions": 4,
               "estimated_s": 4 * (20 + wall_seconds)} for point in ("representative", "neighbor")
               for r in range(1, 7)]
-    conditional = [{"kind": "R-retune", "conditions": 12,
-                    "estimated_s": 12 * wall_seconds},
-                   {"kind": "P4-plus-P4prime-compare", "conditions": 48,
-                    "estimated_s": 48 * (20 + wall_seconds)}]
+    conditional = [{"kind": "R-retune", "round": r, "conditions": 4,
+                    "estimated_s": 4 * wall_seconds} for r in range(1, 4)]
+    conditional += [{"kind": "P4-plus-P4prime-compare", "point": point, "round": r,
+                     "conditions": 4, "estimated_s": 4 * (20 + wall_seconds)}
+                    for point in ("P4", "P4prime") for r in range(1, 7)]
     base_seconds = sum(j["estimated_s"] for j in jobs)
     full_seconds = base_seconds + sum(j["estimated_s"] for j in conditional)
     return {"jobs": jobs, "conditional_jobs": conditional,
             "node_seconds": base_seconds, "node_seconds_with_conditionals": full_seconds,
             "over_2_node_hours": full_seconds > 7200,
-            "build_over_5_minutes": [j["tree"] for j in jobs if j["kind"] == "build"
-                                           and j["estimated_s"] > 300]}
+            "build_over_5_minutes": oversized}
+
+
+def require_budget(plan: dict, allow_over_budget: bool = False) -> dict:  # M15
+    if plan["over_2_node_hours"] and not allow_over_budget:
+        raise ValueError("estimated plan exceeds 7,200 node seconds; use --allow-over-budget")
+    return plan
 
 
 def prelim_arms(point: str) -> tuple[str, ...]:
@@ -549,6 +661,11 @@ def _do_build(args, smoke: bool = False) -> dict:
     toolchain = V.compute._resolve_toolchain(policy)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     receipts = {}
+    selected = set(args.build_binaries.split(",")) if args.build_binaries else None
+    available = {f"{tree}:{arm}" for tree in args.trees.split(",") if tree in TREES
+                 for arm in variants(tree)}
+    if selected is not None and (not selected or not selected <= available):
+        raise ValueError("--build-binaries must name binaries in --trees")
     with tempfile.TemporaryDirectory(prefix="vceil-build-") as td:
         scratch = Path(td)
         deps = V.compute._prepare_dependencies(ROOT, policy,
@@ -576,10 +693,13 @@ def _do_build(args, smoke: bool = False) -> dict:
                                   "explicit_zero_sha256": zero_sha}
         for tree in args.trees.split(","):
             if tree not in TREES: raise ValueError(f"unknown tree {tree}")
+            check_patch_order(tree)
             source = base._source_copy(scratch / f"src-{tree}")
             base._apply(source, TREE_PATCHES[tree])
             base._prepare_build_dependencies(source, scratch / f"deps-{tree}", toolchain, deps)
             for arm, macros in variants(tree).items():
+                if selected is not None and f"{tree}:{arm}" not in selected:
+                    continue
                 build = scratch / f"build-{tree}-{arm}"
                 binary, receipt = _build_variant(source, build, "tuned", macros,
                     trace=tree.startswith("trace"), toolchain=toolchain, dependencies=deps,
@@ -621,11 +741,12 @@ def _do_smoke(args, receipts: dict) -> dict:
                 runs[f"{tree}-{arm}"] = {"wall_s": run["wall_s"], "workload": workload,
                                           "binary_sha256": manifest["binary_sha256"]}
     wall = statistics.median(item["wall_s"] for item in runs.values())
-    build = {tree: sum(item["elapsed_s"] for key, item in receipts.items()
-                       if key.startswith(tree + "-")) for tree in args.trees.split(",")}
+    build = {key.rsplit("-", 1)[0] + ":" + key.rsplit("-", 1)[1]: item["elapsed_s"]
+             for key, item in receipts.items() if "elapsed_s" in item}
     return {"runs": runs, "builds": receipts,
-            "timings": {"build_seconds": build, "wall_seconds": wall},
-            "job_estimate": job_estimate(build, wall)}
+            "timings": {"build_seconds": build, "wall_seconds": wall,
+                        "run_wall_seconds": {key: item["wall_s"] for key, item in runs.items()}},
+            "job_estimate": require_budget(job_estimate(build, wall), args.allow_over_budget)}
 
 
 def _do_run(args) -> list[dict]:
@@ -637,9 +758,9 @@ def _do_run(args) -> list[dict]:
     if args.mode == "prelim": arms = prelim_arms(args.point); intervals = (10, 100)
     elif args.mode == "compare":
         arms = tuple(args.arms.split(",")); intervals = (args.gc,)
-        if len(arms) != 4 or set(arms[:2]) != {"S", "R"} or \
-                len(set(arms)) != 4 or any(arm not in M_ARMS for arm in arms[2:]):
-            raise ValueError("compare requires S,R and two distinct M arms")
+        if len(arms) not in (3, 4) or set(arms[:2]) != {"S", "R"} or \
+                len(set(arms)) != len(arms) or any(arm not in M_ARMS for arm in arms[2:]):
+            raise ValueError("compare requires S,R and one or two distinct M arms")
     elif args.mode == "rtune": arms = ("R",); intervals = (1, 10, 100, 1000)
     else: arms = tuple(args.arms.split(",")); intervals = (args.gc,)
     if any(arm not in ARMS for arm in arms): raise ValueError("unknown arm")
@@ -785,6 +906,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--gc", type=int, default=10)
     parser.add_argument("--arms", default="S,R,hot1,hot8")
     parser.add_argument("--trees", default=",".join(TREES))
+    parser.add_argument("--build-binaries", help="comma-separated tree:arm names from plan")
     parser.add_argument("--records", type=int, default=1_000_000)
     parser.add_argument("--bin-dir", type=Path)
     parser.add_argument("--out-dir", type=Path)
@@ -792,6 +914,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--raw", type=Path)
     parser.add_argument("--witness", type=Path)
     parser.add_argument("--plan", action="store_true")
+    parser.add_argument("--allow-over-budget", action="store_true")
     parser.add_argument("--smoke-timings", type=Path)
     parser.add_argument("--third-party-cache", type=Path)
     parser.add_argument("--policy", type=Path, default=ROOT / "tools/pegasus/mocc_trace_v1_policy.json")
@@ -817,7 +940,8 @@ def main(argv: list[str] | None = None) -> int:
             if not args.smoke_timings: parser.error("--plan needs --smoke-timings")
             timing = json.loads(args.smoke_timings.read_text())
             timing = timing.get("timings", timing)
-            result = job_estimate(timing["build_seconds"], timing["wall_seconds"])
+            result = require_budget(job_estimate(timing["build_seconds"], timing["wall_seconds"]),
+                                    args.allow_over_budget)
         else:
             if not args.raw: parser.error("aggregate needs --raw")
             rows = [json.loads(line) for line in args.raw.read_text().splitlines() if line.strip()]

@@ -53,9 +53,12 @@ def make_figure(rows: list[dict], witnesses: dict | None = None):
     summary = C.aggregate(rows, witnesses)
     points = tuple(p for p in ("P1", "P2", "P3", "P4") if p in summary["gc"])
     arms = ("S", "R-noLR", "hot1", "hot8", "fwd", "igc1", "igc3")
-    fig, (ax, table_ax) = plt.subplots(2, 1, figsize=(13, 8.5),
-                                        gridspec_kw={"height_ratios": [3, 1.4]})
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.06, hspace=0.40)
+    has_compare = any(r["mode"] == "compare" for r in rows)
+    fig, axes = plt.subplots(3 if has_compare else 2, 1,
+                            figsize=(13, 10.5 if has_compare else 8.5),
+                            gridspec_kw={"height_ratios": [3, 2, 1.4] if has_compare else [3, 1.4]})
+    ax, table_ax = axes[0], axes[-1]
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.88, bottom=0.06, hspace=0.55)
     ax.axhline(1, linestyle="--", color="black", linewidth=1, label="R (read-only GC fix)")
     table_rows = []
     metrics = {}
@@ -85,6 +88,32 @@ def make_figure(rows: list[dict], witnesses: dict | None = None):
     ax.set_title("Cicada ceiling: paired preliminary ratios")
     ax.legend(loc="upper left", ncol=4, fontsize=8)
     ax.grid(axis="y", alpha=0.25)
+    compare_metrics = {}
+    if has_compare:
+        compare_ax = axes[1]
+        compare_ax.axhline(1, linestyle="--", color="black", linewidth=1)
+        compare_ax.axhline(1.5, linestyle=":", color="gray", linewidth=1)
+        compare_points = (summary["representative"]["point"], summary["neighbor"])
+        for i, point in enumerate(compare_points):
+            for j, arm in enumerate(C.M_ARMS):
+                item = summary["compare"].get(point, {}).get(arm)
+                if not item:
+                    continue
+                values = [pair["ratio"] for pair in item["pairs"]]
+                low, high = ci95(values)
+                median = statistics.median(values)
+                compare_ax.errorbar(i + (j-1)*0.13, median,
+                                    yerr=[[max(0, median-low)], [max(0, high-median)]],
+                                    marker="o", capsize=2, label=arm if i == 0 else None)
+                compare_metrics[f"{point}/{arm}"] = {"median_ratio": median,
+                    "t_spread_ci95": [low, high], "completion_median": item["completion_ratio"],
+                    "eligible": item["eligible"], "n": len(values)}
+        compare_ax.set_xticks(range(len(compare_points)), compare_points)
+        compare_ax.set_xlim(-0.5, len(compare_points)-0.5)
+        compare_ax.set_title("30-second paired comparison (same M arm)")
+        compare_ax.set_ylabel("Normal worker commits / R")
+        compare_ax.legend(loc="upper left", ncol=3, fontsize=8)
+        compare_ax.grid(axis="y", alpha=0.25)
     table_ax.axis("off")
     table_ax.set_title("Batch completion ratio (arm / R); 0.80 minimum", fontsize=10)
     table = table_ax.table(cellText=table_rows, colLabels=["Point", "Arm", "GC µs", "Completion"],
@@ -95,7 +124,8 @@ def make_figure(rows: list[dict], witnesses: dict | None = None):
     fig.text(0.08, 0.91, "1M records · 4 B values · 10 operations · tuned B0 O1 P0 R1 W0; "
              "P1–P3: 47 normal + 1 batch; P4: 12 normal", fontsize=9)
     check_layout(fig)
-    return fig, {"gc": summary["gc"], "metrics": metrics, "conditions": C.POINTS}
+    return fig, {"gc": summary["gc"], "metrics": metrics,
+                 "compare_metrics": compare_metrics, "conditions": C.POINTS}
 
 
 def render(raw: Path, out: Path, witnesses: Path | None = None) -> dict:

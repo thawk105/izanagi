@@ -50,6 +50,34 @@ class FigureTests(unittest.TestCase):
         self.assertGreater(high, 4)
         with self.assertRaises(ValueError): P.ci95([])
 
+    def test_comparison_panel_when_raw_30_second_pairs_exist(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        rows = []
+        for point in ("P1", "P2", "P3", "P4"):
+            for gc in (10, 100):
+                for round_no in range(1, 4):
+                    for arm in C.prelim_arms(point):
+                        rows.append(row(point, arm, gc, round_no,
+                                        tps=100 if arm == "R" else 130,
+                                        batch=0 if arm == "R-noLR" else 10))
+        for point in ("P2", "P3"):
+            for round_no in range(1, 7):
+                for arm in ("R", "hot1"):
+                    item = row(point, arm, 10, round_no, mode="compare",
+                               tps=100 if arm == "R" else 160)
+                    item["duration_s"] = 30
+                    item["normal_commits"] = item["throughput_tps"] * 30
+                    rows.append(item)
+        witness = {"hot1": {"accepted": True, "verifier_rc": 3,
+                            "counts": {"batch_c_lines": 1, "hot_hits": 1}}}
+        fig, details = P.make_figure(rows, witness)
+        self.assertEqual(len(fig.axes), 3)
+        self.assertEqual(details["compare_metrics"]["P2/hot1"]["median_ratio"], 1.6)
+        P.check_layout(fig)
+        plt.close(fig)
+
 
 def _run():
     unittest.main()
