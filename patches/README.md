@@ -468,6 +468,28 @@ Cicada の read-only commit は `mainte()` を通らず GC flag を立てない�
 - **driver:** `orchestrator/campaign/vhash_ro_gc_publish.py` の `smoke` / `verify` / `measure` / `throughput`。source copy ごとに macro なしの依存物 build (masstree の `config.h` を作る) → condition gate → 本 build の順。
 - **一次資料:** `output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`。
 
+## cicada-interval-gc-variant.patch / cicada-interval-gc-longtx.patch / broken-cicada-interval-gc-overprune.patch — Cicada の区間 GC (最小形・一般形)、長い tx 負荷、見える版まで外す壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_18)
+
+書き込み時 (Steam §4.3 と同じ契機) に、保護点 (実行中の各 thread の wts・rts と MinWts−1・MinRts) のどれからも見えない途中版を版の鎖から外す試作。
+最小形は各キーの最初の隙間だけ、一般形は全ての隙間を剪定する。外した版は既定 (`--cicada_igc_debug_mode=1`) では**走行中に再利用しない** (mode 0 の再利用は
+SIGSEGV・停止が実測で分かっている実験用)。blind write の install は tuple の `gc_lock_` の下で `latest_` から挿入位置を探し直す (剪定との競合を閉じるため。stock は不変)。
+**正しさの判定の上限は indeterminate で、serializable・certified とは書かない** (検査の結果と、事前登録した壊し正例が不成立だったことは一次資料)。
+
+- **preimage:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a`。variant は `cc/cicada/transaction.cc`・`include/transaction.hh`・`include/tuple.hh`・`include/version.hh`、
+  負荷は `cc/cicada/ycsb_cicada.cc`。性能・計数 build は pin → variant → longtx、正しさ検査 build は pin → `instr-cicada-trace.patch` → variant → longtx (→ 壊し) の順で当てる。
+- **macro (全て 0/1、未定義 = 0 = stock と同じ前処理結果。分岐は全て単独の `#if MACRO` 行、挿入後は `#line` で行番号を戻す):**
+  - `CICADA_INTERVAL_GC` (owner `cc/cicada/transaction.cc`、site 22 + companion header 5): 区間 GC の機構 (最小形)。YCSB の point read / update 以外の経路に入ったら異常終了。
+  - `CICADA_INTERVAL_GC_GENERAL` (companion `CICADA_INTERVAL_GC=1`): 一般形。
+  - `CICADA_INTERVAL_COUNT` (owner 同、stock でも数える): 鎖上・外した版の数と bytes、保持時間、境界年齢、site 別 hop、剪定の試行・成功・失敗、install の lock 待ちを数え、終了時に 1 行 JSON を出す。性能 build では使わない。
+  - `CICADA_INTERVAL_LONGTX` (owner `cc/cicada/ycsb_cicada.cc`): leader を除く末尾 L 本の thread に長い tx (wait_after_reads・many_ops・ronly_wait) を回させ、終了時に `CICADA_IGC_LONGTX_V1 {json}` を出す。
+    md_6 の `CICADA_LONGTX` (T-2904) とは独立。
+- **壊し正例:** `broken-cicada-interval-gc-overprune.patch` は variant の上に重ね、剪定条件 (b) から最小の保護点を除く (長い tx の可視版まで外しうる)。
+  発火ごとに `CICADA_OVERPRUNE_EVENT` を stderr に出す。登録 directive 行は足さない (既存の分岐の本文だけを変える)。
+- **登録:** 4 macro を `condition_meaning_gate.py` の許可ドメインへ登録し、`screening_driver.py` の既定値表、spawn site の define 交差表、materializer 登録簿
+  (`orchestrator.campaign.vhash_interval_gc._build_variant`) を追随。**`patches/ledger.json` には登録しない** (D2288 と同じ理由)。
+- **driver:** `orchestrator/campaign/vhash_interval_gc.py` の `smoke` / `build` / `plan-jobs` / `run-part` / `verify-part` / `aggregate`。
+- **一次資料:** `output/insights/2026-09-29/vhash-interval-gc/README.md`。
+
 ## cicada-forwarding-target.patch / cicada-forwarding-target-broken-ignore-mismatch.patch — 構成 C・E の前進先の選び方の knob と、その壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_21)
 
 構成 C (md_6) と構成 E (md_14) の前進先 (目標時刻) の選び方を実行時 flag で切り替える試作。`cicada-forwarding-variant.patch` → `cicada-forwarding-gc.patch` の**上に重ねる** patch で、

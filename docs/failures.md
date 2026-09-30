@@ -389,6 +389,10 @@
   — 裁定を根拠に引くときは、委任の連鎖 (D782 → D730) の末端の本文まで読む。
 
 - **再発: 2026-09-29 (near miss、3 件)** — md_16 の wave の親が、子 worktree で fix branch を切るときに短縮 SHA を**手で伸ばして書き**、`git checkout -b vhash-hlp-fix1 e5a825d57601547` と `git checkout -b vhash-hlp-fix3 ade14b4d1c` が「not a commit」で拒否された (もう 1 件は同じ形で rev-parse の出力に切り替えて回避)。git が拒否したので誤った commit から branch を切る実害はなかった。型は「一次資料 (rev-parse の出力) から転写せず手で書き直す」で、2026-09-20・21 の再発と同じ。恒久対応は変更なし (memory `worktree-discipline` の「sha は rev-parse の 40 hex をそのまま使う」) — branch を切るときは `HEAD` や `$(git rev-parse <短縮>)` の出力を使い、SHA を手で書かない。
+
+- **再発: 2026-09-30** — VHash md_18 の段 5 B1-11 指示で、親が段 4 裁定 S8 (壊し正例は ronly_wait cell、帰属は長い read-only tx を含む辺) を「期待した経路で検出が 1 つ以上」と手で言い換えた。
+  集計は、事前登録の正例が発火 0 のまま K・R の検出で verification=passed を出した。段 6 の敵対レビュー 2 本 (R1・B-01) が独立に must-fix として捕捉し、fix B1-12 で S8 の literal に戻した (D2324)。
+  恒久対応は memory `ruling-literals-in-prompts-point-to-the-file` (裁定 file を正本と指し、literal を手で再記述しない) のまま。今回は field 名でなく**判定条件**の言い換えで、正しさゲートを緩める方向に働いた点を追記した。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -28832,3 +28836,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 件数 pin は「集合の要素数」という派生値で、両側の追加が独立でも書き換え後の literal は一致しうる。3-way 合成は literal の一致を「同じ変更」と扱うので、派生値の合算が要る箇所を衝突として表に出さない。
 - 恒久対応: 両側が同じ登録簿へ追加した取り込みでは、衝突の有無にかかわらず、両側差分の数値 literal の変更を突き合わせ、同じ行を両側が同値へ書き換えた箇所を合成の対象として列挙し、合成後のコードから値を導出する (本 wave の段 6 追補裁定 FM-2、`output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`)。memory `acceptance-discipline` に手順を置く。
 - 再発検知: 取り込みの前に、merge-base から両側への差分で `-`/`+` の対になった数値 literal の変更を両側で比べ、同じ行が同じ新値へ変わっていれば赤として扱う。
+
+### F1080. 段 4 の親裁定が段 2 plan・段 3 相談の安全側の推奨を 3 度覆し、毎回実測の破損で差し戻された [手順漏れ]
+
+- 事象: VHash md_18 (区間 GC) の段 4 で、親は次の 3 点で段 2 plan・段 3 相談と違う設計を裁定した。いずれも smoke で SIGSEGV・停止を起こした。
+  - (1) 外した版の再利用条件を「stock の pop (wts < MinRts)」にした。推奨は「外した時点で走っていた全 tx の終了待ち」。
+  - (2) 剪定条件 (d) の足場を committed の可視版に限った。
+  - (3) blind write の install を lock なしの CAS のまま残した。推奨は lock 下の install。
+  補正 3・4・5 と A13 の 4 巡の診断走行 (smoke3〜9b) を費やし、最後は再利用そのものを諦めた (補正 6 = D2323)。
+- 根本原因: 裁定時に「費用が小さく性能を損なわない案」を優先した。子が挙げた反例 (read set の生ポインタ、足場の pending 版、削除と挿入の競合) を実走で確かめる前に退けた。
+  lock を使わない連結リストの削除という既知の難所で、推奨を覆す根拠 (反例の否定) を裁定文に書いていなかった。
+- 恒久対応: memory `ruling-override-needs-counterexample-refutation` — 段 4 で子の安全側推奨を覆すときは、子の反例を否定する論証を裁定文に書く。
+  書けないなら推奨を採り、費用は計測で後から削る。
+- 再発検知: 段 6 レビュー prompt に「段 4 裁定が段 2・3 の推奨を覆した箇所の列挙と、その根拠の有無」を検査項目として入れる (同 memory の How to apply)。
+
+### F1081. 撤去を促す終了時 hook が、最初の commit の前に main へ ff した未 land の wave 木に「land 済み、撤去せよ」と出る [テスト代表性]
+
+- 事象: 2026-09-30 の VHash md_34 wave (branch dev-wave-vhash-eval-pstar) で、段 6 の子を待つために turn を終えるたびに、`tools/dev_wave_cleanup_stop_hook.py` が
+  「この worktree の branch は local main に land 済みの可能性がある。DW-O28 に従い子木と wave 木を撤去する」を 3 回出した。wave の commit は 0 本で、未 land だった。
+  指示どおり撤去すれば、未 commit の草稿の変更と fragment を持つ作業中の木を消すところだった (親は未 land と 1 行書いて続けた)。
+- 根本原因: hook は「branch の reflog の最古 (作成時点) が HEAD と同じなら黙る」「HEAD が main の祖先なら land 済みとみなす」で判定する。開始 gate が NG を出したとき
+  `DW-O20` は `merge --ff-only main` で HEAD を揃えるよう求めるので、最初の commit の前に HEAD が作成時点から動き、しかも main の祖先のままになる。この状態は land 済みの木と区別できない。
+  EnterWorktree が origin 基準で木を切り local main より遅れること (worktree 規律の既知の型) で、この順序は背景 job の wave で常に起きうる。
+- 恒久対応: [T-2951] (hook の判定を「branch の reflog に commit 由来の項が 1 つ以上ある」などへ直し、ff だけの木を land 済みとみなさない)。それまでの運用は hook の文言にある
+  「未 land なら 1 行書いて終えてよい」で止め、撤去しない。
+- 再発検知: 直す wave が `orchestrator/tests/test_hooks.py` の `test_cleanup_stop_*` に「作成後に main へ ff しただけで commit 0 本の木では block しない」負例を足す。
