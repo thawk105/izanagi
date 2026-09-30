@@ -1,0 +1,173 @@
+{
+  "hostname": "bnode006",
+  "started_at": "2026-09-30T04:39:37.977611+00:00",
+  "wall_seconds": 433.50212090602145,
+  "runs": [
+    {
+      "stage": "warmup",
+      "round": 1,
+      "side": "old",
+      "started_at": "2026-09-30T04:40:38.500633+00:00",
+      "wall_seconds": 38.14252231499995,
+      "peak_rss_kib": 309148,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "warmup",
+      "round": 1,
+      "side": "new",
+      "started_at": "2026-09-30T04:41:16.645934+00:00",
+      "wall_seconds": 15.546983895008452,
+      "peak_rss_kib": 371260,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 1,
+      "side": "old",
+      "started_at": "2026-09-30T04:41:32.195331+00:00",
+      "wall_seconds": 37.698783009982435,
+      "peak_rss_kib": 308884,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 1,
+      "side": "new",
+      "started_at": "2026-09-30T04:42:09.896613+00:00",
+      "wall_seconds": 15.508650545001728,
+      "peak_rss_kib": 371244,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 2,
+      "side": "old",
+      "started_at": "2026-09-30T04:42:25.407740+00:00",
+      "wall_seconds": 37.52395076799439,
+      "peak_rss_kib": 309024,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 2,
+      "side": "new",
+      "started_at": "2026-09-30T04:43:02.934197+00:00",
+      "wall_seconds": 15.43629220398725,
+      "peak_rss_kib": 371680,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 3,
+      "side": "old",
+      "started_at": "2026-09-30T04:43:18.373410+00:00",
+      "wall_seconds": 37.232277687988244,
+      "peak_rss_kib": 308936,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 3,
+      "side": "new",
+      "started_at": "2026-09-30T04:43:55.608122+00:00",
+      "wall_seconds": 15.574054942990188,
+      "peak_rss_kib": 371204,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 4,
+      "side": "old",
+      "started_at": "2026-09-30T04:44:11.185149+00:00",
+      "wall_seconds": 37.39934673998505,
+      "peak_rss_kib": 309144,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 4,
+      "side": "new",
+      "started_at": "2026-09-30T04:44:48.587207+00:00",
+      "wall_seconds": 15.591681128978962,
+      "peak_rss_kib": 371596,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 5,
+      "side": "old",
+      "started_at": "2026-09-30T04:45:04.181914+00:00",
+      "wall_seconds": 37.57721848101937,
+      "peak_rss_kib": 309140,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 5,
+      "side": "new",
+      "started_at": "2026-09-30T04:45:41.761857+00:00",
+      "wall_seconds": 15.40448358701542,
+      "peak_rss_kib": 371380,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "summary": {
+    "old": {
+      "wall_median_seconds": 37.52395076799439,
+      "wall_min_seconds": 37.232277687988244,
+      "wall_max_seconds": 37.698783009982435,
+      "rss_median_kib": 309024,
+      "rss_min_kib": 308884,
+      "rss_max_kib": 309144
+    },
+    "new": {
+      "wall_median_seconds": 15.508650545001728,
+      "wall_min_seconds": 15.40448358701542,
+      "wall_max_seconds": 15.591681128978962,
+      "rss_median_kib": 371380,
+      "rss_min_kib": 371204,
+      "rss_max_kib": 371680
+    }
+  },
+  "new_old_median_wall_ratio": 0.4133000451069147,
+  "side_stable": {
+    "old": true,
+    "new": true
+  },
+  "cross_equal": true,
+  "profile_new": {
+    "path": "/work/SFC/tanab/tmp/check-docs-speed-2026-09-30/results/e3-r2-new.prof",
+    "started_at": "2026-09-30T04:45:57.169241+00:00",
+    "wall_seconds": 35.173121908010216,
+    "rc": 0,
+    "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "all_equal": true,
+  "exit_code": 0
+}
