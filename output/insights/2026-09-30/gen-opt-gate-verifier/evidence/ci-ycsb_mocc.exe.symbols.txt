@@ -1,0 +1,1 @@
+PASS /scr/u1-ci-build-FOspCnWj/ccbench/build/cc/mocc/ycsb_mocc.exe

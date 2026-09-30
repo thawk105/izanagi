@@ -1,0 +1,260 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "M0-comment-only",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "# U1 emitter names are deliberately centralized for the integration check.\n",
+     "new": "# Emitter names used by the D5 source check. M0\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-d1a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "(\"d1a\", set(writes) != q_write,",
+     "new": "(\"d1a\", False,"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-d1b1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "(\"d1b1\", not first_read.issubset(reads),",
+     "new": "(\"d1b1\", False,"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-d1b2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "(\"d1b2\", not set(reads).issubset(q_read),",
+     "new": "(\"d1b2\", False,"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4a-d1c-mismatch",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "if txid is None or txid != frame_txid or q_thid != thid:",
+     "new": "if False:  # M4a"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4b-d1c-missing-q",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            if row < len(columns.txn_txid):\n",
+     "new": "            if False:  # M4b\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4c-d1c-extra-q",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "                        counts[\"d1c\"] += 1\n                        _gate_note(integrity, \"D1.c\", thid, txid, expected=\"no Q\", observed=\"extra Q\")\n",
+     "new": "                        pass  # M4c\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-d2a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "            if observed != expected:\n                counts[\"d2a\"] += 1\n",
+     "new": "            if False:  # M5\n                counts[\"d2a\"] += 1\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-d2a-genesis",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "if obs != int(key, 16):",
+     "new": "if False:  # M6"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-d2b-i",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "if obs != last[key]:",
+     "new": "if False:  # M7"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8-d2b-ii",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "and stamp != pending_v[(frame_txid, key)]):",
+     "new": "and False):  # M8"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9-v-w",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if set(pending_v) != wanted_v:\n",
+     "new": "    if False:  # M9\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M10-thread-set",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if trace_ids != set(paths):\n",
+     "new": "    if False:  # M10\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M11-require-absent",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "gate_enabled = bool(gate_paths or bad_gate_names or require_gate_witness)",
+     "new": "gate_enabled = bool(gate_paths or bad_gate_names)  # M11"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M12-d5-clean",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/model.py",
+     "old": "(not self.gate_witness_required or self.gate_d5 == \"pass\")",
+     "new": "True"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M13-bad-name",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if bad:\n        raise ValueError(f\"invalid gate filename",
+     "new": "    if False:  # M13\n        raise ValueError(f\"invalid gate filename"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M14-legacy",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "    if gate_enabled:\n",
+     "new": "    if gate_enabled and isinstance(parsed, _CompactTrace):  # M14\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M15-presence",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/verifier/core.py",
+     "old": "gate_enabled = bool(gate_paths or bad_gate_names or require_gate_witness)",
+     "new": "gate_enabled = bool(bad_gate_names or require_gate_witness)  # M15"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
