@@ -1,0 +1,746 @@
+{
+  "builds": {
+    "X": {
+      "binary_sha256": "8e4d2fa2b0dab5e636d2623b1b1e060ef013098ef6e3a698360f591b530ee332",
+      "build": {
+        "build": {
+          "argv": [
+            "cmake",
+            "--build",
+            "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/trace-build",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "rc": 0,
+          "seconds": 4.351
+        },
+        "build_log_tail": [
+          "[  0%] Built target masstree_build",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o",
+          "[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o",
+          "[ 35%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o",
+          "[ 42%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o",
+          "[ 57%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o",
+          "[ 78%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o",
+          "[ 85%] Building C object _deps/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o",
+          "[ 85%] Linking C static library libmimalloc.a",
+          "[ 85%] Built target mimalloc-static",
+          "[ 85%] Linking CXX static library libccbench_common.a",
+          "[ 85%] Built target ccbench_common",
+          "[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o",
+          "[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o",
+          "[100%] Linking CXX executable ycsb_silo.exe",
+          "[100%] Built target ycsb_silo.exe"
+        ],
+        "configure": {
+          "argv": [
+            "cmake",
+            "-S",
+            "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/ccbench",
+            "-B",
+            "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/trace-build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DCCBENCH_TRACE=1",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_WAL=0",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/dependencies/thirdparty-src/masstree",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/dependencies/thirdparty-src/mimalloc",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/dependencies/thirdparty-src/googletest"
+          ],
+          "rc": 0,
+          "seconds": 1.889
+        },
+        "configure_log_tail": [
+          "-- The CXX compiler identification is GNU 11.4.0",
+          "-- Detecting CXX compiler ABI info",
+          "-- Detecting CXX compiler ABI info - done",
+          "-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped",
+          "-- Detecting CXX compile features",
+          "-- Detecting CXX compile features - done",
+          "-- Looking for C++ include pthread.h",
+          "-- Looking for C++ include pthread.h - found",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD",
+          "-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success",
+          "-- Found Threads: TRUE  ",
+          "-- Found gflags: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/dependencies/gflags-install/lib/libgflags.a  ",
+          "-- Found glog: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/dependencies/glog-install/lib/libglog.a  ",
+          "-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version \"1.74.0\") found components: filesystem ",
+          "-- The C compiler identification is GNU 11.4.0",
+          "-- Detecting C compiler ABI info",
+          "-- Detecting C compiler ABI info - done",
+          "-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped",
+          "-- Detecting C compile features",
+          "-- Detecting C compile features - done",
+          "-- Found Git: /usr/bin/git (found version \"2.34.1\") ",
+          "-- ",
+          "-- Architecture: x64",
+          "-- Performing Test mi_has_libpthread",
+          "-- Performing Test mi_has_libpthread - Success",
+          "-- Performing Test mi_has_librt",
+          "-- Performing Test mi_has_librt - Success",
+          "-- Performing Test mi_has_libatomic",
+          "-- Performing Test mi_has_libatomic - Success",
+          "-- ",
+          "-- Library name     : mimalloc",
+          "-- Version          : 2.3.2",
+          "-- Build type       : release",
+          "-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11",
+          "-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec",
+          "-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE",
+          "-- Link libraries   : pthread;rt;atomic",
+          "-- Build targets    : static",
+          "-- ",
+          "-- Found Python3: /usr/bin/python3.10 (found version \"3.10.12\") found components: Interpreter ",
+          "-- Wrote protocol×workload matrix to /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/trace-build/PROTOCOL_MATRIX.md",
+          "-- Configuring done",
+          "-- Generating done",
+          "-- Build files have been written to: /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/trace-build"
+        ]
+      },
+      "oid": "dcb9a41f3e538744298b0e5c42dc37349bac114e",
+      "prereg": {
+        "W-blind": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "aborts": 11493,
+            "b1_fired": null,
+            "commits": 220066,
+            "conditions": {
+              "own_write_read_transactions": 16847,
+              "written_transactions": 213261
+            },
+            "gate_witness": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 0,
+                "D2b_ii": 0,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 532006,
+                "own_write_read_transactions": 16847,
+                "repeated_write_key_transactions": 16673,
+                "written_transactions": 213261
+              },
+              "required": true
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "gate_witness": {
+                "D5": "pass",
+                "counts": {
+                  "D1a": 0,
+                  "D1b1": 0,
+                  "D1b2": 0,
+                  "D1c": 0,
+                  "D2a": 0,
+                  "D2b_i": 0,
+                  "D2b_ii": 0,
+                  "unreachable": 0
+                },
+                "meaning_version": 2,
+                "occurrence": {
+                  "external_reads_checked": 532006,
+                  "own_write_read_transactions": 16847,
+                  "repeated_write_key_transactions": 16673,
+                  "written_transactions": 213261
+                },
+                "required": true
+              },
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1474581,
+                "keys": 200,
+                "reads": 515701,
+                "txns": 220066,
+                "writes": 532915
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/trace",
+              "verdict": "serializable"
+            },
+            "verifier_rc": 0
+          },
+          "status": "match"
+        },
+        "W-rmw": {
+          "observed": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "aborts": 7991,
+            "b1_fired": null,
+            "commits": 190302,
+            "conditions": {
+              "own_write_read_transactions": 27539,
+              "written_transactions": 184481
+            },
+            "gate_witness": {
+              "D5": "pass",
+              "counts": {
+                "D1a": 0,
+                "D1b1": 0,
+                "D1b2": 0,
+                "D1c": 0,
+                "D2a": 0,
+                "D2b_i": 0,
+                "D2b_ii": 0,
+                "unreachable": 0
+              },
+              "meaning_version": 2,
+              "occurrence": {
+                "external_reads_checked": 920757,
+                "own_write_read_transactions": 27539,
+                "repeated_write_key_transactions": 14587,
+                "written_transactions": 184481
+              },
+              "required": true
+            },
+            "reachability": "pass",
+            "verifier": {
+              "anomalies": [],
+              "anomaly_count": 0,
+              "certified": true,
+              "gate_witness": {
+                "D5": "pass",
+                "counts": {
+                  "D1a": 0,
+                  "D1b1": 0,
+                  "D1b2": 0,
+                  "D1c": 0,
+                  "D2a": 0,
+                  "D2b_i": 0,
+                  "D2b_ii": 0,
+                  "unreachable": 0
+                },
+                "meaning_version": 2,
+                "occurrence": {
+                  "external_reads_checked": 920757,
+                  "own_write_read_transactions": 27539,
+                  "repeated_write_key_transactions": 14587,
+                  "written_transactions": 184481
+                },
+                "required": true
+              },
+              "integrity": {
+                "clean": true,
+                "dup_txids": 0,
+                "framing_violation_details": [],
+                "framing_violations": 0,
+                "genesis_commits": 0,
+                "lock_coverage_violations": 0,
+                "malformed_keys": 0,
+                "missing_txids": 0,
+                "notes": [],
+                "orphan_reads": 0,
+                "permutation_violation_details": {
+                  "counts": {
+                    "rcdptr-set-changed": 0,
+                    "size-changed": 0,
+                    "unknown": 0
+                  },
+                  "sample": [],
+                  "unknown_reason_sample": []
+                },
+                "permutation_violations": 0,
+                "version_dups": 0,
+                "write_intent_violations": 0,
+                "write_version_mismatch": 0
+              },
+              "serializable": true,
+              "stats": {
+                "abort_reasons": {},
+                "edges": 1276151,
+                "keys": 200,
+                "reads": 892660,
+                "txns": 190302,
+                "writes": 460429
+              },
+              "total_cycles": 0,
+              "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/trace",
+              "verdict": "serializable"
+            },
+            "verifier_rc": 0
+          },
+          "status": "match"
+        }
+      },
+      "runs": {
+        "W-blind": {
+          "aborts": 11493,
+          "commits": 220066,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 0,
+              "R_R_occurrences": 17040,
+              "R_R_transactions": 16138,
+              "R_W_R_occurrences": 737,
+              "R_W_R_transactions": 737,
+              "W_R_occurrences": 17045,
+              "W_R_transactions": 16847,
+              "W_W_occurrences": 16889,
+              "W_W_transactions": 15974,
+              "own_write_read_transactions": 16847,
+              "read_only_transactions": 6805,
+              "repeated_key_transactions": 59745,
+              "transactions": 220066,
+              "write_write_occurrences": 17629,
+              "write_write_transactions": 16673,
+              "written_transactions": 213261
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/gate_check_u1.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2884-gate-verifier",
+              "--out",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.382,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=false",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.006,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t0\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t11493\nbatch_abort_counts_:\t0\ncommit_counts_:\t220066\nbatch_commit_counts_:\t0\nmaxrss:\t56340 kB\nabort_rate:\t0.0496\nbatch_abort_rate:\t-nan\nlatency[ns]:\t18176.3653\nthroughput[tps]:\t220066\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/trace.tar.gz",
+          "trace_archive_sha256": "78e4f191e97a738607f21a2f7fb2e2592acfce010d0aa77be09d1a1184a189c8",
+          "trace_files_bytes": {
+            "gate_0.log": 17223259,
+            "gate_1.log": 16151232,
+            "gate_2.log": 15995998,
+            "gate_3.log": 16607616,
+            "trace_0.log": 11117497,
+            "trace_1.log": 10417733,
+            "trace_2.log": 10341331,
+            "trace_3.log": 10517814
+          },
+          "verifier": {
+            "rc": 0,
+            "record": {
+              "certified_serializable": 1,
+              "indeterminate": 0,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": true,
+                  "gate_witness": {
+                    "D5": "pass",
+                    "counts": {
+                      "D1a": 0,
+                      "D1b1": 0,
+                      "D1b2": 0,
+                      "D1c": 0,
+                      "D2a": 0,
+                      "D2b_i": 0,
+                      "D2b_ii": 0,
+                      "unreachable": 0
+                    },
+                    "meaning_version": 2,
+                    "occurrence": {
+                      "external_reads_checked": 532006,
+                      "own_write_read_transactions": 16847,
+                      "repeated_write_key_transactions": 16673,
+                      "written_transactions": 213261
+                    },
+                    "required": true
+                  },
+                  "integrity": {
+                    "clean": true,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1474581,
+                    "keys": 200,
+                    "reads": 515701,
+                    "txns": 220066,
+                    "writes": 532915
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/trace",
+                  "verdict": "serializable"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "\tCommand being timed: \"/usr/bin/python3.10 -m orchestrator.verifier /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/trace --json --protocol silo --require-gate-witness --ccbench-root /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/ccbench --expected-commits 220066\"\n\tUser time (seconds): 14.60\n\tSystem time (seconds): 0.50\n\tPercent of CPU this job got: 138%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:10.88\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 480340\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 1\n\tMinor (reclaiming a frame) page faults: 342086\n\tVoluntary context switches: 1137\n\tInvoluntary context switches: 45\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 16\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-blind/trace\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 220066,\n        \"reads\": 515701,\n        \"writes\": 532915,\n        \"keys\": 200,\n        \"edges\": 1474581,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": [],\n      \"gate_witness\": {\n        \"meaning_version\": 2,\n        \"required\": true,\n        \"counts\": {\n          \"unreachable\": 0,\n          \"D1a\": 0,\n          \"D1b1\": 0,\n          \"D1b2\": 0,\n          \"D1c\": 0,\n          \"D2a\": 0,\n          \"D2b_i\": 0,\n          \"D2b_ii\": 0\n        },\n        \"occurrence\": {\n          \"own_write_read_transactions\": 16847,\n          \"written_transactions\": 213261,\n          \"repeated_write_key_transactions\": 16673,\n          \"external_reads_checked\": 532006\n        },\n        \"D5\": \"pass\"\n      }\n    }\n  ]\n}\n"
+          }
+        },
+        "W-rmw": {
+          "aborts": 7991,
+          "commits": 190302,
+          "gate": {
+            "D1": {
+              "a": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b1": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "b2": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "D2b": {
+              "i": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              },
+              "ii": {
+                "count": 0,
+                "sample": [],
+                "status": "pass"
+              }
+            },
+            "occurrence": {
+              "M_M_occurrences": 14703,
+              "M_M_transactions": 13943,
+              "R_R_occurrences": 14711,
+              "R_R_transactions": 13969,
+              "R_W_R_occurrences": 15306,
+              "R_W_R_transactions": 14546,
+              "W_R_occurrences": 0,
+              "W_W_occurrences": 0,
+              "own_write_read_transactions": 27539,
+              "read_only_transactions": 5821,
+              "repeated_key_transactions": 51648,
+              "transactions": 190302,
+              "write_write_occurrences": 15381,
+              "write_write_transactions": 14587,
+              "written_transactions": 184481
+            },
+            "reachability": "pass",
+            "reasons": []
+          },
+          "gate_cmd": {
+            "argv": [
+              "/usr/bin/python3.10",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/u1-final/scripts/gate_check_u1.py",
+              "--trace-dir",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/trace",
+              "--repo-root",
+              "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2884-gate-verifier",
+              "--out",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/gate.json"
+            ],
+            "rc": 0,
+            "seconds": 13.151,
+            "stderr": "",
+            "stdout": ""
+          },
+          "run": {
+            "argv": [
+              "numactl",
+              "--interleave=all",
+              "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/trace-build/cc/silo/ycsb_silo.exe",
+              "-thread_num=4",
+              "-ycsb_tuple_num=200",
+              "-ycsb_zipf_skew=0.9",
+              "-ycsb_rratio=50",
+              "-ycsb_rmw=true",
+              "-ycsb_max_ope=5",
+              "-extime=1",
+              "-clocks_per_us=1800"
+            ],
+            "rc": 0,
+            "seconds": 1.009,
+            "stderr": "",
+            "stdout": "#FLAGS_clocks_per_us:\t1800\n#FLAGS_epoch_time:\t40\n#FLAGS_extime:\t\t1\n#FLAGS_thread_num:\t4\n#FLAGS_ycsb_max_ope:\t5\n#FLAGS_ycsb_rmw:\t1\n#FLAGS_ycsb_rratio:\t50\n#FLAGS_ycsb_tuple_num:\t200\n#FLAGS_ycsb_zipf_skew:\t0.9\n#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: KEY_SIZE 8: MASSTREE_USE 1: NO_WAIT_LOCKING_IN_VALIDATION 1: PARTITION_TABLE 0: PROCEDURE_SORT 0: SLEEP_READ_PHASE 0: VAL_SIZE 4: WAL 0\nactual_extime:\t1\nsuccess_forwarding_:\t0\nabort_counts_:\t7991\nbatch_abort_counts_:\t0\ncommit_counts_:\t190302\nbatch_commit_counts_:\t0\nmaxrss:\t42520 kB\nabort_rate:\t0.0403\nbatch_abort_rate:\t-nan\nlatency[ns]:\t21019.2221\nthroughput[tps]:\t190302\n"
+          },
+          "trace_archive": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/trace.tar.gz",
+          "trace_archive_sha256": "a5f691c7a77c25be5879828759a59069e6dcd5fd6ba7d97dd898471e8188d714",
+          "trace_files_bytes": {
+            "gate_0.log": 15397121,
+            "gate_1.log": 15518087,
+            "gate_2.log": 16396732,
+            "gate_3.log": 16462415,
+            "trace_0.log": 12429329,
+            "trace_1.log": 12519766,
+            "trace_2.log": 13245279,
+            "trace_3.log": 13014574
+          },
+          "verifier": {
+            "rc": 0,
+            "record": {
+              "certified_serializable": 1,
+              "indeterminate": 0,
+              "non_serializable": 0,
+              "results": [
+                {
+                  "anomalies": [],
+                  "anomaly_count": 0,
+                  "certified": true,
+                  "gate_witness": {
+                    "D5": "pass",
+                    "counts": {
+                      "D1a": 0,
+                      "D1b1": 0,
+                      "D1b2": 0,
+                      "D1c": 0,
+                      "D2a": 0,
+                      "D2b_i": 0,
+                      "D2b_ii": 0,
+                      "unreachable": 0
+                    },
+                    "meaning_version": 2,
+                    "occurrence": {
+                      "external_reads_checked": 920757,
+                      "own_write_read_transactions": 27539,
+                      "repeated_write_key_transactions": 14587,
+                      "written_transactions": 184481
+                    },
+                    "required": true
+                  },
+                  "integrity": {
+                    "clean": true,
+                    "dup_txids": 0,
+                    "framing_violation_details": [],
+                    "framing_violations": 0,
+                    "genesis_commits": 0,
+                    "lock_coverage_violations": 0,
+                    "malformed_keys": 0,
+                    "missing_txids": 0,
+                    "notes": [],
+                    "orphan_reads": 0,
+                    "permutation_violation_details": {
+                      "counts": {
+                        "rcdptr-set-changed": 0,
+                        "size-changed": 0,
+                        "unknown": 0
+                      },
+                      "sample": [],
+                      "unknown_reason_sample": []
+                    },
+                    "permutation_violations": 0,
+                    "version_dups": 0,
+                    "write_intent_violations": 0,
+                    "write_version_mismatch": 0
+                  },
+                  "serializable": true,
+                  "stats": {
+                    "abort_reasons": {},
+                    "edges": 1276151,
+                    "keys": 200,
+                    "reads": 892660,
+                    "txns": 190302,
+                    "writes": 460429
+                  },
+                  "total_cycles": 0,
+                  "trace_dir": "/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/trace",
+                  "verdict": "serializable"
+                }
+              ],
+              "runs": 1
+            },
+            "stderr": "\tCommand being timed: \"/usr/bin/python3.10 -m orchestrator.verifier /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/trace --json --protocol silo --require-gate-witness --ccbench-root /work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/ccbench --expected-commits 190302\"\n\tUser time (seconds): 16.21\n\tSystem time (seconds): 0.58\n\tPercent of CPU this job got: 147%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:11.37\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 600836\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 379808\n\tVoluntary context switches: 1224\n\tInvoluntary context switches: 33\n\tSwaps: 0\n\tFile system inputs: 0\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\n",
+            "stdout": "{\n  \"runs\": 1,\n  \"certified_serializable\": 1,\n  \"non_serializable\": 0,\n  \"indeterminate\": 0,\n  \"results\": [\n    {\n      \"trace_dir\": \"/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_14-gate-verifier/runs/live-2/X/X/W-rmw/trace\",\n      \"verdict\": \"serializable\",\n      \"certified\": true,\n      \"serializable\": true,\n      \"stats\": {\n        \"txns\": 190302,\n        \"reads\": 892660,\n        \"writes\": 460429,\n        \"keys\": 200,\n        \"edges\": 1276151,\n        \"abort_reasons\": {}\n      },\n      \"integrity\": {\n        \"clean\": true,\n        \"orphan_reads\": 0,\n        \"version_dups\": 0,\n        \"dup_txids\": 0,\n        \"genesis_commits\": 0,\n        \"missing_txids\": 0,\n        \"write_version_mismatch\": 0,\n        \"malformed_keys\": 0,\n        \"framing_violations\": 0,\n        \"framing_violation_details\": [],\n        \"lock_coverage_violations\": 0,\n        \"write_intent_violations\": 0,\n        \"permutation_violations\": 0,\n        \"permutation_violation_details\": {\n          \"counts\": {\n            \"size-changed\": 0,\n            \"rcdptr-set-changed\": 0,\n            \"unknown\": 0\n          },\n          \"sample\": [],\n          \"unknown_reason_sample\": []\n        },\n        \"notes\": []\n      },\n      \"anomaly_count\": 0,\n      \"total_cycles\": 0,\n      \"anomalies\": [],\n      \"gate_witness\": {\n        \"meaning_version\": 2,\n        \"required\": true,\n        \"counts\": {\n          \"unreachable\": 0,\n          \"D1a\": 0,\n          \"D1b1\": 0,\n          \"D1b2\": 0,\n          \"D1c\": 0,\n          \"D2a\": 0,\n          \"D2b_i\": 0,\n          \"D2b_ii\": 0\n        },\n        \"occurrence\": {\n          \"own_write_read_transactions\": 27539,\n          \"written_transactions\": 184481,\n          \"repeated_write_key_transactions\": 14587,\n          \"external_reads_checked\": 920757\n        },\n        \"D5\": \"pass\"\n      }\n    }\n  ]\n}\n"
+          }
+        }
+      },
+      "source_sha256": {
+        "cc/silo/transaction.cc": "c034e6df5840bec125893f286d37c22a96a4fbca8606ac661b0f601a8de5eb85",
+        "include/trace.hh": "6a4b42afb84cb907c681a4d7f9dbe57b0148d95a23f90d0a987cab565a2e7c6e",
+        "include/ycsb.hh": "6702d3b73b76d0a9f67a08716780c116a1c387d4191fd363ec4fc3e7432147e8"
+      }
+    }
+  },
+  "condition": "X",
+  "errors": [],
+  "finished": "2026-09-30T05:03:58.584409+00:00",
+  "host": "bnode141",
+  "started": "2026-09-30T05:01:49.005739+00:00",
+  "u1_oid": "dcb9a41f3e538744298b0e5c42dc37349bac114e"
+}
