@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import replace
 import hashlib
 import os
+import re
+from pathlib import Path
 from typing import Dict, Optional
 
 from .dsg import DSG
@@ -18,12 +20,200 @@ from .model import (
     AnomalyV3, EdgeReasonV3, object_label,
     CompiledProtocolSourceSnapshot,
     VerifyResult,
+    _literal_trace_regions, _normalize_compiled_source_text,
     assess_compiled_protocol_source_snapshot,
     assess_protocol_proof_surfaces,
 )
-from .parse import _CompactTrace, _LegacyTrace, _parse_trace_dir_compact
+from .parse import (
+    _CompactTrace, _LegacyTrace, _parse_trace_dir_compact, _gate_paths,
+    _gate_row, _token_at, _CANONICAL_TRACE_NAME_RE,
+)
 from .commit_receipt import CommitReceiptError, _domain_digest
 from .report import result_to_dict
+
+
+# U1 emitter names are deliberately centralized for the integration check.
+GATE_EMITTER_CALLS = (
+    "izanagi_trace::emit_steps(",
+    "izanagi_trace::emit_stored(",
+    "izanagi_trace::gate_note_commit(",
+)
+
+
+def _gate_d5(ccbench_root: Optional[str | os.PathLike[str]]) -> str:
+    if ccbench_root is None:
+        return "unavailable"
+    root = Path(ccbench_root)
+    try:
+        ycsb = _normalize_compiled_source_text((root / "include/ycsb.hh").read_text())
+        transaction = _normalize_compiled_source_text(
+            (root / "cc/silo/transaction.cc").read_text())
+        driver = _normalize_compiled_source_text(
+            (root / "cc/silo/ycsb_silo.cc").read_text())
+    except Exception:
+        return "unavailable"
+    if (GATE_EMITTER_CALLS[0] in _literal_trace_regions(ycsb)
+            and all(call in _literal_trace_regions(transaction)
+                    for call in GATE_EMITTER_CALLS[1:])
+            and re.search(r'^\s*#\s*include\s*[<"]ycsb\.hh[>"]', driver, re.M)):
+        return "pass"
+    return "fail"
+
+
+def _gate_note(integrity, check, thid="-", txid="-", key="-",
+               expected="-", observed="-"):
+    if sum(note.startswith("check=") for note in integrity.notes) < 12:
+        integrity.notes.append(
+            f"check={check} thid={thid} txid={txid} key={key} "
+            f"expected={expected} observed={observed}")
+
+
+def _check_gate(trace_dir, parsed, integrity, paths, bad):
+    """Stream Q per thread; retain only producer stamps and unresolved reads."""
+    try:
+        if bad:
+            raise ValueError(f"invalid gate filename: {bad[0]}")
+        if not isinstance(parsed, _CompactTrace):
+            raise ValueError("gate witness requires compact trace parsing")
+        trace_ids = set()
+        for columns in parsed.files:
+            match = _CANONICAL_TRACE_NAME_RE.fullmatch(os.path.basename(columns.path))
+            if match is None:
+                raise ValueError(f"invalid trace filename: {columns.path}")
+            trace_ids.add(int(match.group(1)))
+        if not trace_ids or trace_ids != set(paths) or trace_ids != set(range(len(trace_ids))):
+            raise ValueError(f"thread files mismatch: trace={sorted(trace_ids)} gate={sorted(paths)}")
+        counts = {name: 0 for name in ("d1a", "d1b1", "d1b2", "d1c", "d2a", "d2b_i", "d2b_ii")}
+        occurrence = {name: 0 for name in (
+            "own_write_read_transactions", "written_transactions",
+            "repeated_write_key_transactions", "external_reads_checked")}
+        producers = {}
+        unresolved = []
+        for columns in parsed.files:
+            thid = int(_CANONICAL_TRACE_NAME_RE.fullmatch(os.path.basename(columns.path)).group(1))
+            pending_v = {}
+            row = 0
+            with open(paths[thid], "r", encoding="ascii") as fh:
+                for line_no, line in enumerate(fh, 1):
+                    try:
+                        tag, txid, field, value = _gate_row(line, len(trace_ids))
+                    except ValueError as exc:
+                        raise ValueError(f"{paths[thid]}:{line_no}: {exc}") from exc
+                    if tag == "V":
+                        ident = (txid, field)
+                        if ident in pending_v:
+                            raise ValueError(f"duplicate V: {ident}")
+                        pending_v[ident] = value
+                        continue
+                    q_thid, ops = field, value
+                    if q_thid != thid:
+                        raise ValueError(f"Q thread mismatch: {q_thid} != {thid}")
+                    if row >= len(columns.txn_txid):
+                        counts["d1c"] += 1
+                        _gate_note(integrity, "D1.c", thid, txid, expected="no Q", observed="extra Q")
+                        continue
+                    frame_txid = columns.txn_txid[row]
+                    read_start, read_end = columns.txn_read_offsets[row:row + 2]
+                    write_start, write_end = columns.txn_write_offsets[row:row + 2]
+                    reads = {}
+                    for i in range(read_start, read_end):
+                        key = _token_at(columns, columns.read_key_id[i])
+                        if key in reads:
+                            raise ValueError(f"ambiguous R key: txid={frame_txid} key={key}")
+                        reads[key] = (columns.read_ver_epoch[i], columns.read_ver_tid[i])
+                    writes = {}
+                    for i in range(write_start, write_end):
+                        key = _token_at(columns, columns.write_key_id[i])
+                        op = _token_at(columns, columns.write_op_id[i])
+                        if op != "U" or key in writes:
+                            raise ValueError(f"non-UPDATE or duplicate W: txid={frame_txid} key={key}")
+                        writes[key] = (columns.txn_commit_epoch[row], columns.txn_commit_tid[row])
+                    wanted_v = {(frame_txid, key) for key in writes}
+                    if set(pending_v) != wanted_v:
+                        raise ValueError(f"V/UPDATE W mismatch: txid={frame_txid}")
+                    for key, version in writes.items():
+                        ident = (key, version)
+                        if ident in producers:
+                            raise ValueError(f"duplicate producer: {ident}")
+                        producers[ident] = pending_v[(frame_txid, key)]
+                    if txid is None or txid != frame_txid:
+                        counts["d1c"] += 1
+                        _gate_note(integrity, "D1.c", thid, txid, expected=frame_txid, observed=txid)
+                    else:
+                        q_write = {key for op, key, _, _ in ops if op in ("W", "M")}
+                        q_read = {key for op, key, _, _ in ops if op in ("R", "M")}
+                        first = {}
+                        for op, key, _, _ in ops:
+                            first.setdefault(key, op)
+                        first_read = {key for key, op in first.items() if op in ("R", "M")}
+                        for name, expected, observed in (
+                            ("d1a", set(writes), q_write),
+                            ("d1b1", reads.keys(), first_read),
+                            ("d1b2", q_read, reads.keys()),
+                        ):
+                            failed = ((expected != observed) if name == "d1a" else
+                                      (not set(observed).issubset(expected)))
+                            if failed:
+                                counts[name] += 1
+                                _gate_note(integrity, "D1." + name[2:], thid, txid,
+                                           key=next(iter(set(expected) ^ set(observed)), "-"),
+                                           expected=sorted(expected), observed=sorted(observed))
+                        last = {}
+                        written_count = {}
+                        external_seen = set()
+                        own_read = False
+                        for op, key, obs, wr in ops:
+                            if op in ("R", "M"):
+                                if key in last:
+                                    own_read = True
+                                    if obs != last[key]:
+                                        counts["d2b_i"] += 1
+                                        _gate_note(integrity, "D2b.i", thid, txid, key, last[key], obs)
+                                elif (key not in external_seen and first.get(key) in ("R", "M")
+                                      and key in reads and key not in written_count):
+                                    external_seen.add(key)
+                                    version = reads[key]
+                                    occurrence["external_reads_checked"] += 1
+                                    if version == (1, 0):
+                                        if obs != int(key, 16):
+                                            counts["d2a"] += 1
+                                            _gate_note(integrity, "D2a", thid, txid, key, int(key, 16), obs)
+                                    else:
+                                        unresolved.append((key, version, obs, thid, txid))
+                            if op in ("W", "M"):
+                                last[key] = wr
+                                written_count[key] = written_count.get(key, 0) + 1
+                        for key, stamp in last.items():
+                            if key in writes and stamp != pending_v[(frame_txid, key)]:
+                                counts["d2b_ii"] += 1
+                                _gate_note(integrity, "D2b.ii", thid, txid, key,
+                                           stamp, pending_v[(frame_txid, key)])
+                        occurrence["own_write_read_transactions"] += own_read
+                        occurrence["written_transactions"] += bool(last)
+                        occurrence["repeated_write_key_transactions"] += any(
+                            n > 1 for n in written_count.values())
+                    pending_v.clear()
+                    row += 1
+            if pending_v:
+                raise ValueError(f"V without Q: thid={thid}")
+            if row < len(columns.txn_txid):
+                counts["d1c"] += len(columns.txn_txid) - row
+                _gate_note(integrity, "D1.c", thid, columns.txn_txid[row],
+                           expected="Q", observed="missing Q")
+        for key, version, observed, thid, txid in unresolved:
+            expected = producers.get((key, version))
+            if expected is None:
+                raise ValueError(f"missing producer stamp: txid={txid} key={key} version={version}")
+            if observed != expected:
+                counts["d2a"] += 1
+                _gate_note(integrity, "D2a", thid, txid, key, expected, observed)
+        for name, value in counts.items():
+            setattr(integrity, "gate_" + name, value)
+        for name, value in occurrence.items():
+            setattr(integrity, "gate_" + name, value)
+    except (OSError, UnicodeError, ValueError) as exc:
+        integrity.gate_unreachable += 1
+        _gate_note(integrity, "reachability", observed=str(exc))
 
 
 def verify_trace_dir(
@@ -32,9 +222,12 @@ def verify_trace_dir(
         workers: Optional[int] = None,
         protocol: Optional[str] = None,
         ccbench_root: Optional[str | os.PathLike[str]] = None,
+        require_gate_witness: bool = False,
         _proof_source_snapshot: Optional[CompiledProtocolSourceSnapshot] = None,
 ) -> VerifyResult:
     """1 run を検証する。source context 未指定・不読は認証不能にする。"""
+    gate_paths, bad_gate_names = _gate_paths(trace_dir) if os.path.isdir(trace_dir) else ({}, [])
+    gate_enabled = bool(gate_paths or bad_gate_names or require_gate_witness)
     parsed = _parse_trace_dir_compact(trace_dir, workers=workers)
     if isinstance(parsed, _CompactTrace):
         issues = parsed.issues
@@ -58,6 +251,14 @@ def verify_trace_dir(
             _proof_source_snapshot,
         )
     dsg.integrity.proof_surfaces = assessment
+    if gate_enabled:
+        dsg.integrity.gate_witness_enabled = True
+        dsg.integrity.gate_witness_required = require_gate_witness
+        _check_gate(trace_dir, parsed, dsg.integrity, gate_paths, bad_gate_names)
+        if require_gate_witness:
+            dsg.integrity.gate_d5 = _gate_d5(ccbench_root)
+            if dsg.integrity.gate_d5 != "pass":
+                _gate_note(dsg.integrity, "D5", observed=dsg.integrity.gate_d5)
     if expected_commits is not None:
         # witness は trace 外の CCBench counter。片側だけの部分状態を作らず、
         # expected/observed を持つ新しい Integrity へ一度で差し替える。

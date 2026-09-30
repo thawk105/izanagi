@@ -51,6 +51,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="proof-surface assessment 対象 protocol")
     p.add_argument("--ccbench-root", default=None,
                    help="対象 protocol の cc/ を含む CCBench source root")
+    p.add_argument("--require-gate-witness", action="store_true",
+                   help="gate witness と TRACE emitter source を必須にする")
     p.add_argument("--lenient", action="store_true",
                    help="integrity 不良 (indeterminate) を失敗扱いにしない "
                         "(グラフ判定のみ見たいとき。既定は安全側=失敗)")
@@ -72,6 +74,7 @@ def main(argv: List[str] | None = None) -> int:
                 expected_commits=args.expected_commits,
                 protocol=args.protocol,
                 ccbench_root=args.ccbench_root,
+                require_gate_witness=args.require_gate_witness,
             ))
     except ParseError as e:
         print(f"parse error: {e}", file=sys.stderr)
@@ -105,6 +108,6 @@ def main(argv: List[str] | None = None) -> int:
     # 安全側のゲート: 確定異常=1、認証不能(integrity 不良)=3。--lenient で後者を無視。
     if n_anom > 0:
         return 1
-    if n_indet > 0 and not args.lenient:
+    if n_indet > 0 and (not args.lenient or args.require_gate_witness):
         return 3
     return 0
