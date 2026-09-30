@@ -115,6 +115,7 @@ def expected_perf_defines(arm: str) -> dict[str, str]:
             "hot8": "hot", "fwd": "fwd", "igc1": "igc", "igc3": "igc"}[arm]
     key = "R" if arm == "R-noLR" else "igc" if arm.startswith("igc") else arm
     result = {"ADD_ANALYSIS": "0", "BACK_OFF": "0", "KEY_SIZE": "8",
+              "BOOST_ALL_NO_LIB": "1", "BOOST_FILESYSTEM_DYN_LINK": "1",
               "MASSTREE_USE": "1", "VAL_SIZE": "4", "TRACE": "0",
               "INLINE_VERSION_OPT": "1", "INLINE_VERSION_PROMOTION": "0",
               "REUSE_VERSION": "1", "SINGLE_EXEC": "0", "WRITE_LATEST_ONLY": "0",

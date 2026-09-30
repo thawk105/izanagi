@@ -65,6 +65,27 @@ class CeilingTests(unittest.TestCase):
             with self.subTest(macro=macro), self.assertRaises(ValueError):
                 C.check_perf_defines(bad, "hot8")
 
+    def test_m19_measured_perf_defines_exact(self):
+        # Literal compile definitions from the base S build, independent of
+        # expected_perf_defines so removal of BOOST_ALL_NO_LIB fails here.
+        defines = (
+            "-DADD_ANALYSIS=0 -DBACK_OFF=0 -DBOOST_ALL_NO_LIB=1 "
+            "-DBOOST_FILESYSTEM_DYN_LINK=1 -DKEY_SIZE=8 -DMASSTREE_USE=1 "
+            "-DVAL_SIZE=4 -DTRACE=0 -DINLINE_VERSION_OPT=1 "
+            "-DINLINE_VERSION_PROMOTION=0 -DREUSE_VERSION=1 -DSINGLE_EXEC=0 "
+            "-DWRITE_LATEST_ONLY=0 -DWORKER1_INSERT_DELAY_RPHASE=0 "
+            "-DPARTITION_TABLE=0 -DLinux=1 -DNDEBUG=1 "
+            "-DIZANAGI_CICADA_CEILING_WORKLOAD=1"
+        )
+        rows = [{"file": f"/x/{name}",
+                 "command": f"c++ {defines} CMakeFiles/ycsb_cicada.exe.dir/ -c {name}"}
+                for name in ("transaction.cc", "util.cc", "ycsb_cicada.cc")]
+        C.check_perf_defines(rows, "S")
+        extra = copy.deepcopy(rows)
+        extra[0]["command"] += " -DUNRELATED_DEFINE=1"
+        with self.assertRaisesRegex(ValueError, "perf -D mismatch"):
+            C.check_perf_defines(extra, "S")
+
     def test_m8_manifest_all_fields(self):
         with tempfile.TemporaryDirectory() as td:
             binary = Path(td) / "binary"

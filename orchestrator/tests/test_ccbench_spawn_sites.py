@@ -3629,7 +3629,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
         "proven-unreachable": 77,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 80})
+    assert classifications[s8b_sink] == Counter({"covered": 81})
     assert failures == []
 
 
