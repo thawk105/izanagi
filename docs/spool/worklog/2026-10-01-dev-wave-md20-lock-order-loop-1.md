@@ -16,6 +16,7 @@ title: [T-2946] gen-opt の段 A の軸 (競合度順の施錠) を探索ルー�
 - 変異: 事前登録 16 本 (等価 1 + 負 15) の本走が完全一致 (KILLED 15・SURVIVED 1、40203.nqsv)。M2 (loop.py の運搬) は閉包 file のため contract-loader-drift の赤しか出ず owner の証拠なし。M13 は置換位置が test の経路外で、M13b へ狙い直した (`mutation/erratum-1.md`)。親が probe の完全 SHA を手打ちで誤転記し 1 回空振りした (5 s)。
 - 段 3 相談 2 本 (A NO-GO・B 条件付き GO)、段 6 レビュー 2 本 (A NO-GO・B 条件付き GO) と焦点再レビュー 1 本 (NO-GO)。real で直した最重要: 要求つき build が build 出口の再照合で必ず不一致になる (buildcache が要求を知らない)、成功時の検証結果が driver に届かない (pipeline が反復ごとに verify_result を捨てる → WAL の verify_done に gate 節を載せ driver が全件を照合)。refuted: 登録外の場面の反例で拒否するのは過剰 (拒否は安全側)。backlog: 要求つき local 並列検証の受信側 (N1、fail-closed)、WAL 記録数と期待反復数の照合 (N2)。
 - セッション異常: 段 5 の実装子 2 本が子の sandbox で試験を走らせようとして rc=16 で同時に途中停止した (親の prompt の書き漏れ、{{F:author-stop-rule-hits-untestable-sandbox}})。継続子で完了。2026-10-01 00:4x〜03:10 は利用上限で一時停止 (land 調整役の指示)。
+- 段 8 (自己改善): 候補は `DW-S05-C` への 1 行 (子は `run_tests.py` も pytest も走らない、試験不能を停止理由にしない)。当てると dev-wave の L1.5 層が 9,785 bytes で予算 9,696 を 89 bytes 超え、同じ層の既存記述は意味を保って縮められなかったので、D782 に従い実施しない。恒久対応は memory `codex-child-discipline` の既存節と {{F:author-stop-rule-hits-untestable-sandbox}} が担う。
 - 工数: Codex plan 1・consult 2・author 2 + 継続 2・起動器 author 1・fix 3・review 2・focus 1 (計 14 本)。計算ノード 約 0.44 node 時間 (焦点走 3・生死確認 2・変異 4 の job 合計、受入を除く)。
 - D442: 判定器 (core.py・model.py) の bytes が変わったので、変更前に作った campaign lock は land 後の main から読むと drift になる (md_14 と同じ帰結。生成器対照の本走は submit checkout)。
 
