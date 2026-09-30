@@ -27,6 +27,7 @@ from . import (backoff_hole_grammar, buildcache, campaign_claim,
                env_attestation, execution_guard, ident, reservation,
                source_digest, wal)
 from .build_admission import BuildRunContext
+from .source_digest import effective_gate_witness_requirement
 from .env_contract import AuthorizedContract, ExecutionEnvironmentContract
 from .layout import (campaign_layout, env_scope_dir,
                      campaign_lock_path,
@@ -553,11 +554,11 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                      HoldoutObservationAdmission
                  ] = None,
                  held_campaign_lock: Optional[HeldCampaignLock] = None,
+                 require_gate_witness: bool = False,
                  verify_fanout_hosts: tuple[str, ...] = (),
                  result_evidence_context: Optional[
                      reflux_result_evidence.ResultEvidenceIssuanceContext
                  ] = None,
-                 require_gate_witness: bool = False,
                  ) -> CampaignSummary:
     """`ccbench_dir`/`cache_root` (段5 git worktree 隔離): pipeline.evaluate と同じ実行時
     引数の素通し。`declared_use_class` は official / exploration の閉じた
@@ -827,8 +828,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                     g, cfg.ccbench_commit, ccbench_dir=ccbench_dir,
                     cxx=evidence_cxx,
                     **({"require_gate_witness": True}
-                       if (require_gate_witness or (g.protocol == "silo" and
-                           g.flags.get("SILO_ORDER_VARIANT", 0) != 0)) else {}),
+                       if effective_gate_witness_requirement(
+                           g, require_gate_witness) else {}),
                     **source_options,
                 )
                 src_tok = source_evidence.src_token

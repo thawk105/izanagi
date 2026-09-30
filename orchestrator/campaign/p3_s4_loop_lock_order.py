@@ -16,14 +16,14 @@ if __package__ in {None, ''}:
 
 from . import p3_s4_loop_policy as P
 from . import axis_silo_lock_order as axis
-from . import env_contract, ident, p3_s4_loop as L, site_policy
+from . import env_contract, ident, p3_s4_loop as L, site_policy, wal
 from .auditor_gate import parse_auditor_dict
 from .build_admission import (BuildAdmissionError, GeneratorId,
                               add_registered_coder_build_authority_argument,
                               build_run_context)
 from .layout import exploration_campaign_layout
 from .loop import run_campaign
-from .model import CampaignConfig, Genome
+from .model import CampaignConfig, Genome, STAGE_VERIFY_DONE
 from .pipeline import SEARCH_CONFIG_VERIFY_KEY, VERIFY_LEGACY_PLUS_PERFORMANCE
 from .silo_lock_order_gate import order_gate
 from .silo_lock_order_compile import find_compiler
@@ -43,6 +43,7 @@ HISTORY_KEYS = frozenset({
     'measurement_campaign_id',
 })
 _VERIFIER_KEYS = frozenset({'verdict', 'certified', 'gate_counts', 'D5'})
+_EVIDENCE_KINDS = frozenset({'registered', 'fixture', 'unregistered'})
 _ATOMIC = re.compile(r'[A-Za-z0-9_.:-]{1,128}\Z')
 _REJECT_CODES = frozenset({
     'order-gate-rejected', 'gate-witness-missing', 'gate-witness-not-required',
@@ -122,14 +123,17 @@ def _counterexample_projection(model: ModelDecision):
 
 
 def _row(iteration, proposal, model, *, outcome, reject_code=None,
-         variant_id=None, verifier_digest=None, measurement_campaign_id=None):
+         variant_id=None, verifier_digest=None, measurement_campaign_id=None,
+         model_evidence_kind='unregistered'):
+    if model_evidence_kind not in _EVIDENCE_KINDS:
+        raise ValueError('invalid model evidence kind')
     row = {
         'schema': 'silo-lock-order-history/1', 'iteration': iteration,
         'axis': axis.MARKER_ID,
         'proposal_digest': 'sha256:' + sha256(proposal.implementation.encode()).hexdigest(),
         'variant_id': variant_id, 'outcome': outcome, 'reject_code': reject_code,
         'model_specification_digest': model.specification_digest,
-        'model_evidence_kind': 'registered' if production_registry().specification_digest is not None else 'fixture',
+        'model_evidence_kind': model_evidence_kind,
         'model_scenario_ids': list(model.scenario_ids),
         'counterexamples': _counterexample_projection(model),
         'verifier_digest': verifier_digest,
@@ -140,14 +144,18 @@ def _row(iteration, proposal, model, *, outcome, reject_code=None,
 
 
 def history_row_from_verification(verification, *, iteration, proposal, model,
-                                  variant_id=None, measurement_campaign_id=None):
-    """Project a VerifyResult or result_to_dict value into a closed history row."""
+                                  variant_id=None, measurement_campaign_id=None,
+                                  model_evidence_kind=None):
+    """Project one result; the standalone route labels registered fixtures as fixture."""
+    if model_evidence_kind is None:
+        model_evidence_kind = ('unregistered' if model.reject_code == 'model-unregistered'
+                               else 'fixture')
     data = result_to_dict(verification) if not isinstance(verification, dict) else verification
     if type(data) is not dict:
         raise ValueError('invalid verification')
     gate = data.get('gate_witness')
     counts = gate.get('counts') if type(gate) is dict else None
-    closed_counts = (type(counts) is dict and set(counts) == set(_COUNTS)
+    closed_counts = (type(counts) is dict and set(_COUNTS) <= set(counts)
                      and all(type(counts[key]) is int and counts[key] >= 0 for key in _COUNTS))
     digest = {'verdict': data.get('verdict') if data.get('verdict') in
               ('serializable', 'indeterminate', 'non-serializable') else 'indeterminate',
@@ -175,7 +183,50 @@ def history_row_from_verification(verification, *, iteration, proposal, model,
     return _row(iteration, proposal, model,
                 outcome='certified' if code is None else 'rejected', reject_code=code,
                 variant_id=variant_id, verifier_digest=digest,
-                measurement_campaign_id=measurement_campaign_id)
+                measurement_campaign_id=measurement_campaign_id,
+                model_evidence_kind=model_evidence_kind)
+
+
+def history_row_from_attempt(layout, *, attempt_id, variant_id, iteration,
+                             proposal, model, measurement_campaign_id,
+                             result_certified):
+    """Check every verify_done record for one variant and build attempt."""
+    base = dict(iteration=iteration, proposal=proposal, model=model,
+                variant_id=variant_id, measurement_campaign_id=measurement_campaign_id,
+                model_evidence_kind='registered')
+    try:
+        records = [record for record in wal.read_records(layout)
+                   if record.variant == variant_id and record.stage == STAGE_VERIFY_DONE
+                   and record.payload.get('build_attempt_id') == attempt_id]
+    except (OSError, ValueError, UnicodeError):
+        records = []
+    if not records:
+        return _row(**base, outcome='rejected', reject_code='verifier-result-missing')
+    projected = [history_row_from_verification({
+        'verdict': record.payload.get('verdict'),
+        'certified': record.payload.get('certified'),
+        'gate_witness': record.payload.get('gate_witness'),
+    }, **base) for record in records]
+    row = projected[0]
+    # Sum the eight validated counters across all repetitions.
+    digests = [item['verifier_digest'] for item in projected]
+    if all(digest['gate_counts'] is not None for digest in digests):
+        row['verifier_digest']['gate_counts'] = {
+            key: sum(digest['gate_counts'][key] for digest in digests)
+            for key in _COUNTS}
+    else:
+        row['verifier_digest']['gate_counts'] = None
+    if any(digest['D5'] != 'pass' for digest in digests):
+        row['verifier_digest']['D5'] = next(
+            digest['D5'] for digest in digests if digest['D5'] != 'pass')
+    failure = next((item['reject_code'] for item in projected
+                    if item['reject_code'] is not None), None)
+    if failure is None and result_certified is not True:
+        failure = 'campaign-not-certified'
+    row['outcome'] = 'certified' if failure is None else 'rejected'
+    row['reject_code'] = failure
+    row['verifier_digest']['certified'] = failure is None
+    return row
 
 
 def _append_history(layout, row):
@@ -196,7 +247,7 @@ def _closed_history_row(row):
             or row['outcome'] not in ('certified', 'rejected', 'skipped', 'dry-pass')
             or row['reject_code'] is not None and
             (type(row['reject_code']) is not str or row['reject_code'] not in _REJECT_CODES)
-            or row['model_evidence_kind'] not in ('registered', 'fixture')
+            or row['model_evidence_kind'] not in _EVIDENCE_KINDS
             or row['model_specification_digest'] is not None and
             (type(row['model_specification_digest']) is not str or not re.fullmatch(
                 r'sha256:[0-9a-fA-F]{64}', row['model_specification_digest']))):
@@ -263,24 +314,28 @@ def run_one_iteration(cfg, perf, proposal, sub, model_result_bytes, *, layout,
                                 compiler=compiler, scratch_dir=scratch_dir, write=False,
                                 origin=proposal.origin)
         if not preview.passed:
-            model = ModelDecision(False, 'model-result-missing',
-                                  production_registry().specification_digest)
+            model = check_model_result(None, production_registry())
             row = _row(iteration, proposal, model, outcome='rejected',
-                       reject_code='order-gate-rejected')
+                       reject_code='order-gate-rejected',
+                       model_evidence_kind='unregistered' if
+                       model.reject_code == 'model-unregistered' else 'registered')
         else:
             model = check_model_result(model_result_bytes, production_registry())
+            evidence_kind = ('unregistered' if model.reject_code == 'model-unregistered'
+                             else 'registered')
             if not model.passed:
                 row = _row(iteration, proposal, model, outcome='rejected',
-                           reject_code=model.reject_code)
+                           reject_code=model.reject_code, model_evidence_kind=evidence_kind)
             elif not do_build:
-                row = _row(iteration, proposal, model, outcome='dry-pass')
+                row = _row(iteration, proposal, model, outcome='dry-pass',
+                           model_evidence_kind=evidence_kind)
             else:
                 written, _ = order_gate(sub, proposal.implementation, proposal.auditor,
                                     compiler=compiler, scratch_dir=scratch_dir,
                                     write=True, origin=proposal.origin)
                 if not written.passed:
                     row = _row(iteration, proposal, model, outcome='rejected',
-                           reject_code='order-gate-rejected')
+                           reject_code='order-gate-rejected', model_evidence_kind=evidence_kind)
                 else:
                     genome = Genome('silo', dict(BASE))
                     options = P._measurement_options(build_context=build_context,
@@ -297,25 +352,21 @@ def run_one_iteration(cfg, perf, proposal, sub, model_result_bytes, *, layout,
                                    reject_code='campaign-skipped',
                                    variant_id=summary.skipped_variants[0]
                                    if summary.skipped_variants else None,
-                                   measurement_campaign_id=campaign_id)
+                                   measurement_campaign_id=campaign_id,
+                                   model_evidence_kind=evidence_kind)
                     elif summary.results:
                         result = summary.results[0]
-                        if result.verify_result is None:
-                            row = _row(iteration, proposal, model, outcome='rejected',
-                                       reject_code='verifier-result-missing',
-                                       variant_id=result.variant,
-                                       measurement_campaign_id=campaign_id)
-                        else:
-                            row = history_row_from_verification(result.verify_result,
-                                iteration=iteration, proposal=proposal, model=model,
-                                variant_id=result.variant, measurement_campaign_id=campaign_id)
-                            if result.aborted or result.certified is not True:
-                                row['outcome'] = 'rejected'
-                                row['reject_code'] = 'campaign-not-certified'
+                        row = history_row_from_attempt(layout,
+                            attempt_id=result.build_attempt_id,
+                            variant_id=result.variant, iteration=iteration,
+                            proposal=proposal, model=model,
+                            measurement_campaign_id=campaign_id,
+                            result_certified=result.certified is True and not result.aborted)
                     else:
                         row = _row(iteration, proposal, model, outcome='rejected',
                                    reject_code='campaign-result-missing',
-                                   measurement_campaign_id=campaign_id)
+                                   measurement_campaign_id=campaign_id,
+                                   model_evidence_kind=evidence_kind)
     if do_build or row['outcome'] == 'rejected':
         _append_history(layout, row)
     return row

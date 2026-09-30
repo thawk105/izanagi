@@ -74,7 +74,7 @@ def _registered(registry):
 
 
 def check_model_result(result_bytes: bytes | None, registry: ModelRegistry) -> ModelDecision:
-    """Return one closed reason; a passed result is only structural evidence."""
+    """Accept extra scenarios, but reject counterexamples in every scenario."""
     if not _registered(registry):
         return ModelDecision(False, 'model-unregistered', None)
     digest = registry.specification_digest

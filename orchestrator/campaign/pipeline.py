@@ -45,6 +45,7 @@ from ..verifier import (                                        # noqa: E402
     verify_trace_dir_with_capability,
 )
 from ..verifier.core import result_to_dict_v3                 # noqa: E402
+from ..verifier.report import result_to_dict                 # noqa: E402
 from ..verifier.commit_receipt import (                          # noqa: E402
     admit_remote_verification_receipt,
     campaign_lock_sha256_or_absent,
@@ -69,6 +70,7 @@ from .build_admission import (  # noqa: E402
     derive_build_admission,
     require_build_admission,
 )
+from .source_digest import effective_gate_witness_requirement
 from .buildcache import (_resolve_site as _buildcache_resolve_site,  # noqa: E402
                          require_heavy_work_site)
 from .layout import CampaignLayout                              # noqa: E402
@@ -720,6 +722,8 @@ def _execute_verification_repetition(
         "workload": {"tag": receipt_workload_tag},
         "proof_surfaces": verify_result.integrity.proof_surfaces.as_record(),
     }
+    if require_gate_witness:
+        verify_payload["gate_witness"] = result_to_dict(verify_result)["gate_witness"]
     if include_qualification_evidence:
         verify_payload.update({
             "argv": (
@@ -1745,10 +1749,8 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     bench_build_workload = workload
     if type(require_gate_witness) is not bool:
         raise TypeError("require_gate_witness must be bool")
-    require_gate_witness = (require_gate_witness or (
-        genome.protocol == "silo" and
-        genome.flags.get("SILO_ORDER_VARIANT", 0) != 0
-    ))
+    require_gate_witness = effective_gate_witness_requirement(
+        genome, require_gate_witness)
     if a1_source_context is not None and canonical_build_pin is None:
         raise ValueError("A1 source context requires canonical build pin")
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
@@ -2116,12 +2118,16 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     ccbench_dir=ccbench_dir, cache_root=cache_root,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
+                    **({"require_gate_witness": True} if require_gate_witness else {}),
                     **build_options,
                 )
             if qualification_policy is None:
-                return buildcache.build_v2(genome, trace=trace, workload=bench_build_workload, **common)
+                return buildcache.build_v2(genome, trace=trace, workload=bench_build_workload,
+                                           **({"require_gate_witness": True} if require_gate_witness else {}),
+                                           **common)
             return buildcache.build_v2(
                 genome, trace=trace, workload=bench_build_workload,
+                **({"require_gate_witness": True} if require_gate_witness else {}),
                 timeout_s=qualification_policy.build_timeout_s, **common,
             )
 

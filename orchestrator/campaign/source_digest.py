@@ -59,7 +59,6 @@ Phase 3 では coder (LLM) が CCBench の EVOLVE-BLOCK 領域を書き換える
   照合と違う)。g++ 不在・rc≠0・git show 失敗・allowlist 外改変は全て RuntimeError で停止。
 """
 from __future__ import annotations
-
 import difflib
 import hashlib
 import os
@@ -73,6 +72,14 @@ from ..verifier.model import (
     capture_compiled_protocol_source_snapshot,
 )
 from .model import Genome
+
+
+def effective_gate_witness_requirement(genome: Genome, requested: bool) -> bool:
+    """Return the effective D5 requirement for one candidate."""
+    if type(requested) is not bool:
+        raise TypeError("require_gate_witness must be bool")
+    return requested or (genome.protocol == "silo" and
+                         genome.flags.get("SILO_ORDER_VARIANT", 0) != 0)
 
 # ---- 対象集合 (kickoff の固定集合。動的なマーカー走査はマーカー導入後に格上げ) ----
 OPTIONS_CMAKE = "cmake/Options.cmake"

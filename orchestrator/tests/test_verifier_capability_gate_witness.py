@@ -10,6 +10,7 @@ import pytest
 from orchestrator.campaign.build_admission import GeneratorId, build_run_context, derive_build_admission
 from orchestrator.campaign.pipeline import _TraceRunResult, _execute_verification_repetition
 from orchestrator.campaign.model import Genome
+from orchestrator.campaign.pin import CURRENT_PIN
 from orchestrator.campaign.source_digest import (
     EMPTY_TRACKED_DIFF_SHA256, SOURCE_EVIDENCE_SCHEMA, SourceEvidence,
     deserialize_compiled_protocol_source_snapshot,
@@ -26,8 +27,8 @@ TRACE = Path(__file__).parent / "fixtures/g1_serial"
 
 
 def _root(path: Path, *, emitter: bool) -> Path:
-    (path / "include").mkdir(parents=True)
-    (path / "cc/silo").mkdir(parents=True)
+    (path / "include").mkdir(parents=True, exist_ok=True)
+    (path / "cc/silo").mkdir(parents=True, exist_ok=True)
     (path / "cc/silo/CMakeLists.txt").write_text(
         "ccbench_add_protocol(silo SOURCES transaction.cc WORKLOADS ycsb)\n")
     (path / "include/ycsb.hh").write_text(
@@ -49,7 +50,7 @@ def _binding(root: Path, *, gate: bool):
         "silo", root, require_gate_witness=gate)
     source = SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA, source_root=str(root),
-        ccbench_commit="fixture", genome_sha256=hashlib.sha256(
+        ccbench_commit=CURRENT_PIN, genome_sha256=hashlib.sha256(
             genome.canonical().encode()).hexdigest(), src_token="stock",
         source_bytes_sha256=hashlib.sha256(b"fixture").hexdigest(),
         tracked_clean=True, tracked_diff_sha256=EMPTY_TRACKED_DIFF_SHA256,
@@ -69,12 +70,18 @@ def test_m5_unrequested_snapshot_legacy_bytes(tmp_path):
     root = _root(tmp_path / "source", emitter=True)
     snap = capture_compiled_protocol_source_snapshot("silo", root)
     body = serialize_compiled_protocol_source_snapshot(snap)
-    assert json.dumps(body, sort_keys=True, separators=(",", ":")).encode() == (
-        json.dumps({"schema": "compiled-protocol-source-snapshot/v1",
-                    "protocol": "silo",
-                    "ccbench_root": str(root),
-                    "normalized_sources": body["normalized_sources"]},
-                   sort_keys=True, separators=(",", ":")).encode())
+    expected_source = (
+        '#if TRACE\nizanagi_trace::emit_lock_violation(0,0,{},{});\n'
+        'izanagi_trace::stream(0) << "P ";\n'
+        'izanagi_trace::emit_write_intent_violation(0,0,{},{});\n'
+        'izanagi_trace::emit_stored(0);\nizanagi_trace::set_gate_txid(0);\n#endif\n'
+    )
+    expected_bytes = (
+        b'{"ccbench_root":' + json.dumps(str(root)).encode() +
+        b',"normalized_sources":' + json.dumps([expected_source], separators=(",", ":")).encode() +
+        b',"protocol":"silo","schema":"compiled-protocol-source-snapshot/v1"}'
+    )
+    assert json.dumps(body, sort_keys=True, separators=(",", ":")).encode() == expected_bytes
     assert "gate_d5_sources" not in body
     assert deserialize_compiled_protocol_source_snapshot(body) == snap
     for changed in ({key: value for key, value in body.items() if key != "protocol"},

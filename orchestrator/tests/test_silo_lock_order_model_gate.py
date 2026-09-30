@@ -36,7 +36,11 @@ def _counterexample():
             'judgment_id': 'J1', 'steps': [{
                 'number': 1, 'thread': 'T1', 'name': 'write', 'key': 'K1',
                 'version_id': 'V1', 'observed_value': None}],
-            'cycle_txns': None, 'cycle_edges': None, 'rule_ids': ['R1']}
+            'cycle_txns': ['T1', 'T2'], 'cycle_edges': [
+                {'source': 'T1', 'target': 'T2', 'kind': 'rw', 'key': 'K1',
+                 'from_version': 'V1', 'to_version': 'V2'},
+                {'source': 'T2', 'target': 'T1', 'kind': 'rw', 'key': 'K1',
+                 'from_version': 'V2', 'to_version': 'V1'}], 'rule_ids': ['R1']}
 
 
 def test_m6_unregistered_registry_rejected():
@@ -67,6 +71,17 @@ def test_m10_counterexample_rejected():
     result = _check(value)
     assert result.reject_code == 'model-counterexample'
     assert len(result.counterexamples) == 1
+
+
+def test_unregistered_scenario_exists_but_its_counterexample_rejects():
+    value = _result()
+    value['scenarios'].append({**value['scenarios'][0],
+                               'scenario_id': 'EXTRA', 'counterexamples': []})
+    assert _check(value).passed
+    example = _counterexample()
+    example['scenario_id'] = 'EXTRA'
+    value['scenarios'][1]['counterexamples'] = [example]
+    assert _check(value).reject_code == 'model-counterexample'
 
 
 def test_matching_complete_model_passes():

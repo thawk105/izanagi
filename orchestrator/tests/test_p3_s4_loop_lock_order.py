@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from orchestrator.campaign import p3_s4_loop_lock_order as D  # noqa: E402
 from orchestrator.campaign import patchharness  # noqa: E402
+from orchestrator.campaign.model import WalRecord, STAGE_VERIFY_DONE  # noqa: E402
 from orchestrator.campaign.silo_lock_order_model_gate import (  # noqa: E402
     ModelDecision, ModelRegistry, check_model_result,
 )
@@ -78,13 +79,77 @@ def test_gate_violation_projection_is_closed_and_counted():
     assert digest['D5'] == 'pass'
 
 
+def test_later_meaning_version_accepts_extra_count_key():
+    data = _verify()
+    data['gate_witness']['meaning_version'] = 3
+    data['gate_witness']['counts']['future_gate'] = 7
+    row = D.history_row_from_verification(data, iteration=1,
+        proposal=_proposal(), model=_model())
+    assert row['outcome'] == 'certified'
+    assert set(row['verifier_digest']['gate_counts']) == set(D._COUNTS)
+
+
+def _record(gate, *, attempt='attempt-1', variant='variant-1'):
+    return WalRecord(variant=variant, stage=STAGE_VERIFY_DONE,
+        env_tag='linux-baremetal', ts=0.0,
+        payload={'build_attempt_id': attempt, 'verdict': 'serializable',
+                 'certified': True, 'gate_witness': gate})
+
+
+def _attempt_row(records, *, certified=True):
+    with patch.object(D.wal, 'read_records', return_value=records):
+        return D.history_row_from_attempt(object(), attempt_id='attempt-1',
+            variant_id='variant-1', iteration=1, proposal=_proposal(),
+            model=_model(), measurement_campaign_id='campaign-1',
+            result_certified=certified)
+
+
+def test_m15_second_verify_record_required_false_rejects():
+    first = _verify()['gate_witness']
+    second = _verify(False)['gate_witness']
+    first['counts']['D2b_i'] = 2
+    second['counts']['D2b_i'] = 3
+    row = _attempt_row([_record(first), _record(second)])
+    assert row['outcome'] == 'rejected'
+    assert row['reject_code'] == 'gate-witness-not-required'
+    assert row['verifier_digest']['gate_counts']['D2b_i'] == 5
+
+
+def test_m14_missing_gate_section_in_wal_rejects():
+    row = _attempt_row([_record(_verify()['gate_witness']), _record(None)])
+    assert row['outcome'] == 'rejected'
+    assert row['reject_code'] == 'gate-witness-missing'
+
+
+def test_attempt_requires_matching_record_and_campaign_certification():
+    good = _record(_verify()['gate_witness'])
+    other = _record(_verify()['gate_witness'], attempt='attempt-2')
+    assert _attempt_row([other])['reject_code'] == 'verifier-result-missing'
+    assert _attempt_row([good], certified=False)['reject_code'] == 'campaign-not-certified'
+    assert _attempt_row([good])['outcome'] == 'certified'
+
+
+def test_model_evidence_kind_follows_call_path():
+    public = D.history_row_from_verification(_verify(), iteration=1,
+        proposal=_proposal(), model=_model())
+    assert public['model_evidence_kind'] == 'fixture'
+    assert _attempt_row([_record(_verify()['gate_witness'])])['model_evidence_kind'] == 'registered'
+    assert D._row(1, _proposal(), ModelDecision(False, 'model-unregistered', None),
+                  outcome='rejected', reject_code='model-unregistered')[
+                      'model_evidence_kind'] == 'unregistered'
+
+
 def test_m11_counterexample_projection_has_exact_keys():
     example = {'schema': 'cc-model-counterexample/1',
                'specification_digest': DIGEST, 'scenario_id': 'L1',
                'judgment_id': 'J1', 'steps': [{
                    'number': 1, 'thread': 'T1', 'name': 'read', 'key': 'K1',
                    'version_id': 'V1', 'observed_value': None}],
-               'cycle_txns': None, 'cycle_edges': None, 'rule_ids': ['R1']}
+               'cycle_txns': ['T1', 'T2'], 'cycle_edges': [
+                   {'source': 'T1', 'target': 'T2', 'kind': 'rw', 'key': 'K1',
+                    'from_version': 'V1', 'to_version': 'V2'},
+                   {'source': 'T2', 'target': 'T1', 'kind': 'rw', 'key': 'K1',
+                    'from_version': 'V2', 'to_version': 'V1'}], 'rule_ids': ['R1']}
     validated = validate_counterexample(example)
     model = ModelDecision(False, 'model-counterexample', DIGEST, ('L1',),
                           (validated,))
@@ -195,6 +260,24 @@ def test_run_campaign_spy_requires_gate_witness_and_skips_terminal_variant():
         assert calls[0][1]['declared_use_class'] == 'exploration'
         assert row['outcome'] == 'skipped' and row['reject_code'] == 'campaign-skipped'
         assert row['variant_id'] == 'v1'
+        assert json.loads((Path(tmp) / D.HISTORY_NAME).read_text()) == row
+
+
+def test_driver_uses_all_matching_wal_verify_records():
+    with tempfile.TemporaryDirectory() as tmp:
+        def campaign(*_args, **_kwargs):
+            result = SimpleNamespace(variant='variant-1', build_attempt_id='attempt-1',
+                                     certified=True, aborted=False, verify_result=None)
+            return SimpleNamespace(results=[result], skipped=0, identity_skipped=0)
+        stack, layout, contract = _iteration_patches(tmp, campaign=campaign)
+        records = [_record(_verify()['gate_witness']),
+                   _record(_verify(False)['gate_witness'])]
+        with stack, patch.object(D.wal, 'read_records', return_value=records):
+            row = D.run_one_iteration(object(), object(), _proposal(), tmp,
+                _model_bytes(), layout=layout, iteration=1, compiler='c++',
+                scratch_dir=tmp, build_context=object(), contract=contract)
+        assert row['reject_code'] == 'gate-witness-not-required'
+        assert row['outcome'] == 'rejected'
         assert json.loads((Path(tmp) / D.HISTORY_NAME).read_text()) == row
 
 
