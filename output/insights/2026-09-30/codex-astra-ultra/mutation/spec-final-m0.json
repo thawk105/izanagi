@@ -1,0 +1,22 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 12600,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_waves/effort_levels.py",
+     "old": "    \"ultra\",\n",
+     "new": "    \"ultra\",  # equivalent mutation marker\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

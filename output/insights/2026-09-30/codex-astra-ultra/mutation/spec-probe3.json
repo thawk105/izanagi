@@ -1,0 +1,120 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 12600,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_waves/effort_levels.py",
+     "old": "    \"ultra\",\n",
+     "new": "    \"ultra\",  # equivalent mutation marker\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-checkdocs-literal-sol",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "    \"`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。\"\n",
+     "new": "    \"`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-checkdocs-s05a-expected-medium",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "            \"DW-S05-A\",\n            \"ultra\",\n",
+     "new": "            \"DW-S05-A\",\n            \"medium\",\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-effort-levels-drop-ultra",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_waves/effort_levels.py",
+     "old": "    \"ultra\",\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-detect-always-false",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_worker_launch.py",
+     "old": "        and payload.get(\"name\") == \"spawn_agent\"\n",
+     "new": "        and payload.get(\"name\") == \"spawn_agent\"\n        and False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-sealed-skip-spawn",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_worker_launch.py",
+     "old": "                continue\n            _consume_rollout_event(\n",
+     "new": "                continue\n            if _is_delegation_event(event):\n                continue\n            _consume_rollout_event(\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-detect-whole-namespace",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_worker_launch.py",
+     "old": "        and payload.get(\"name\") == \"spawn_agent\"\n",
+     "new": "        and payload.get(\"namespace\") == \"collaboration\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7b-l15-budget-below-actual",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "DEV_WAVE_L1_5_BYTES_MAX = 9_696\n",
+     "new": "DEV_WAVE_L1_5_BYTES_MAX = 9_691\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
