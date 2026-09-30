@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "M3",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_controller_participation_keeps_tree"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    bases = module._T080SharedBases(module._t080_session_path(run_id))\n",
+          "new": "    bases = module._T080SharedBases(module._t080_session_path(run_id))\n    fcntl.flock(bases.lifetime, fcntl.LOCK_UN)\n"
+        }
+      ]
+    }
+  ]
+}
