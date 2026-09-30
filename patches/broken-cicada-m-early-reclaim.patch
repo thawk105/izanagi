@@ -2,7 +2,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 index e3693fd..935c578 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -1134,2 +1134,37 @@ bool TxExecutor::commit() {
+@@ -1134,2 +1134,38 @@ bool TxExecutor::commit() {
      cicada_m::tick(thid_, cicada_m::tx_commit_ronly);
 +    struct BreakStats {
 +      std::atomic<unsigned long long> reached{0}, changed{0}, committed{0}, rts_raised{0}, gcflag_set{0};
@@ -26,7 +26,8 @@ index e3693fd..935c578 100644
 +      storeRelease(GCFlag[thid_].obj_, 1);
 +      ++break_stats.gcflag_set;
 +      for (unsigned wait = 0; wait < 100; ++wait) {
-+        clock_delay(50 * FLAGS_clocks_per_us);
++        const uint64_t spin_start = rdtscp();
++        while (rdtscp() - spin_start < 50 * FLAGS_clocks_per_us) {}
 +        storeRelease(GCFlag[thid_].obj_, 1);
 +      }
 +      const auto after = MinRts.load(std::memory_order_acquire);
