@@ -36,10 +36,11 @@
 2. **M を min 型 GC の Cicada と比べた差は SOTA への勝ちではない。** min 型の回収境界は長い読み手 1 本で止まるが、それを止めない既知の解 (精密 GC) がある。
 3. **M 単独 (精密 GC なし) には、任意の途中の版を回収する保証が無い。** 前進した時刻より新しい途中の版は min 型 GC では残る (§5.3)。
    ただし前進が現在時刻近くまで届く場面では、M 単独が固定 snapshot の精密 GC より古い版を多く外しうる (段 6 レビューの反例) ので、「常に負ける」とは言えない。
-4. **新しさ (K1): 本文を読んだ論文 15 本と製品文書 3 件 (§9) の読んだ節では、A1〜A5 を同時に満たす方式は無かった。** 最も近いのは、
+4. **新しさ (K1): 比較表のために本文を読んだ論文 16 本と製品文書 3 件 (§9) の読んだ節では、A1〜A5 を同時に満たす方式は無かった。** 最も近いのは、
    前進はするが回収へ反映しない LSA・SI-STM・CockroachDB、読み手を動かさずに回収する Steam・HANA・vDriver、
    長い背景読み手に rts の頻繁な更新を求めるが一貫した snapshot を保たない Cicada の checkpointer、safe snapshot と確定した read-only tx が commit 前に SIREAD lock を捨てる PostgreSQL の SSI である (§3)。
-   **索引検索の完走状況と、それが許す不在の文は §4。**
+   **索引検索 (§4):** 3 索引・事前登録の 9 式がすべて完走し、A の検出は 0 件だったが、要旨で決められない要裁定が 20 件残るので、A について索引に基づく「見当たらなかった」は書けない。
+   U1′ (版探索の費用を timestamp 調整の入力にする) は範囲つきで書ける (§4.3)。
 5. 他論文の throughput の数値を引くだけでは SOTA に勝ったとは言えない (§6 K5)。勝ちの主張は同一負荷・同一機体・同一測定窓の同時刻の直接比較でだけ書く。
 
 ```mermaid
@@ -70,7 +71,7 @@ flowchart LR
 
 | 確かめたこと | 確かめていないこと |
 |---|---|
-| 論文 15 本と製品文書 3 件の本文を 6 観点で読み、A1〜A5 を判定した (§3。抽出は読み取り役 4 本、逐語は親が機械照合、§9) | DIVA・OneShotGC の本文 (ACM が機械取得に 403、EPFL は人間確認)。要旨の範囲だけで「未確認」の行に置いた |
+| 論文 16 本と製品文書 3 件の本文を 6 観点で読み、A1〜A5 を判定した (§3。抽出は読み取り役 4 本と親、逐語は親が機械照合、§9)。索引検索の判定のために 3 本の本文を確かめた (§4) | DIVA・OneShotGC の本文 (ACM が機械取得に 403、EPFL は人間確認)。要旨の範囲だけで「未確認」の行に置いた |
 | 事前登録した検索式 R01〜R09 の索引検索 (§4) | 判定は要旨の範囲 (本文を読んだのは §3 の対象だけ) |
 | 比較相手の実装の公開状況 (§7) | 本案 A (読み続ける tx の前進) の実物・性能。既存の実測 (構成 E) は読み取り後に待つ tx だけ |
 | 精密 GC と本案の保持の差を、定義から導出した (§5.3。段 6 の独立レビューの反例 2 件を反映) | その差の大きさの実測 (本 wave は計算 0) |
@@ -121,6 +122,7 @@ flowchart LR
 | Silo (SOSP 2013 §4.1・§4.8・§4.9・§5.5) | snapshot tx は abort しない | 固定 (開始時の snapshot epoch sew) | 旧版を前版ポインタで保持 | `min sew − 1` 以下の epoch の版 | epoch で解放。長い tx は ew を定期更新せよ (直列化位置は動かさない) | snapshot ありが 1.19 倍 (stock-level 50%)、空間 +3.4% |
 | ERMIA (SIGMOD 2016) | read-mostly の長い tx を生かす | 固定 (begin timestamp) | first-updater-wins、SSN で commit 時 abort | 「どの tx にも要らない版」(基準は記述なし) | epoch (RCU 型) | 記述なし (図のみ) |
 | Mühe ほか (CIDR 2013) | 長い tx を snapshot 上で実行 | 固定 (refresh は新しい snapshot を作る) | apply transaction で検証 | 記述なし (fork の copy-on-write) | 古い snapshot は queue が終わるまで並存 | 暫定実行 0.1〜1% で HyPer の約 80% |
+| LeanStore の SI (Alhomssi・Leis PVLDB 16 2023 §1・§2、索引検索の近傍から追加) | 許す (長い OLAP scan の下でも OLTP を保つのが目的) | 固定 (SI の snapshot) | SI の可視性 | 細粒度 GC。長い読み手だけが要る削除済みの行を Graveyard Index へ移し、OLTP は最古の OLTP tx の下限、全体は最古の tx の下限で purge | 記述は読んだ節 (§1・§2・図 2) の範囲で、読み手への安全策は未確認 | 長い OLAP scan と並行で TPC-C 約 200 万 tx/秒 (原典の報告、SI・log あり) |
 | Oracle ORA-01555 / PostgreSQL old_snapshot_threshold (製品文書) | **失効させる** (snapshot too old) | 固定 (期限後は error) | — | 保持期間・時間上限で回収を進める | undo の上書き / vacuum | PostgreSQL 17 で old_snapshot_threshold は削除 |
 | **多版の精密 GC** (Wei・Blelloch ほか PPoPP 2023、arXiv 2212.13557 v2 §1–3・§6) | 許す (長い rtx を打ち切らない) | 固定 (rtx は開始時に timestamp を 1 つ取り announce する) | 並行データ構造の多版 (versioned CAS)。rtx は t 以前の最新版を読む | **range-tracking**: announce されたどの timestamp も区間に入らない版を列から外す (途中の版も)。最新版は常に needed。**到達可能な版の総数 O(H + P² log P)** (H = needed 版数の最大、P = process 数。論理の上界) | 列から外した後の解放は Java の GC に任せる (解放の遅れの上界は示されない) | Java・128 hyperthread で EBR は最大 10 倍の空間、Steam は tree で最大 8 倍。更新 throughput は Steam・EBR が概して良く、「決定的に最良の方式は無い」と結論 |
 
@@ -156,6 +158,7 @@ flowchart LR
 | Cicada (checkpointer) | 満たす | — | **満たさない** (一貫 snapshot でない) | 近い (rts を頻繁に更新) | 近い (min_rts を止めない) |
 | ERMIA | 満たす | 満たさない (read-mostly) | 部分 | 満たさない | 記述なし |
 | Mühe ほか | 満たす | 部分 | 部分 | 満たさない | 記述なし |
+| LeanStore の SI 2023 | 満たす | 限定なし (OLAP の読み手) | 自明 (固定) | 満たさない | 記述なし (下限は最古の tx) |
 | Oracle / PostgreSQL | 満たさない (失効) | 記述なし | 満たさない | 記述なし | 記述なし |
 | 多版の精密 GC (Wei ほか) | 満たす | 満たす (rtx) | 自明 (固定) | 満たさない | 満たさない (保護は rtx の終了で外れる) |
 | DIVA・OneShotGC | 未確認 | 未確認 | 未確認 | 未確認 | 未確認 |
@@ -180,7 +183,63 @@ md_9 の登録検索では「近傍 (U0)」として要旨だけで判定され�
 
 ## 4. 追加検索 (R01〜R09) の結果
 
-(索引の再開後に本走し、ここに書く。凍結時は OpenAlex・arXiv とも停止中だった)
+事前記述 (凍結 `b9c429cc8`) の式 R01〜R09 を、変更していない実行器 (md_9 の repo 外 script、SHA-256 は `SHA256SUMS` と一致を確認) と凍結時の `queries.json` で流した。
+凍結後の出来事は事前記述の「追記」にある: arXiv の「停止」は私の確認手順 (`max_results=0`) の欠陥による誤認で、arXiv だけを先に本走した (逸脱として記録)。
+
+### 4.1 取得の記録
+
+- **DBLP:** 2026-09-30 22:40〜23:59 JST、md_9 と同じ全件書き出し (SHA-256 `4ed8c461…caf01`、Last-Modified 2026-09-28 20:23:37 GMT)。全 8,686,819 件 (article 4,462,395・inproceedings 3,973,668・
+  phdthesis 157,869・incollection 71,215・book 21,645・mastersthesis 27) を走査、題名が空の record 0、未解決の entity 0。rc=0。
+- **arXiv:** 2026-10-01 00:02〜00:03 JST、9 式すべて `complete` (宣言総数 = 取得した一意 ID 数)。
+- **OpenAlex:** 2026-10-01 00:15〜00:19 JST、9 式すべて `complete` (request 14、宣言総数 = 取得した一意 ID 数、同じ ID の重複出現 1)。
+  22:30〜00:14 は匿名検索が 503 → 429 で、00:14 に 200 を確かめてから本走した。構文の生死確認は 1 件目 (`photosynthesis OR chlorophyll AND algae` 12,887 件) の後が 429 で取れず、
+  式の解釈の差 (事前記述 §3) は記録できていない。
+- 要旨の無い OpenAlex の 67 件は Semantic Scholar の一括 API で要旨・自動要約を補い (40 件)、残り 27 件は題名と掲載先で決められなければ要裁定にした。
+- 判定: arXiv 46 件と DBLP 2 件は親、OpenAlex 505 件は読み取り役 3 本 (Claude sonnet、事前記述 §2 の逐語を渡した) が判定し、親が全件の整合 (件数・式の列・重複) と、
+  検出・要裁定の全件、回収と snapshot の語を両方含む除外 33 件、要旨も要約も無い除外 23 件を確かめた。焦点再レビュー (§10) が 2 件を要裁定へ戻した。親の補正は 5 件 (要旨なしを題名だけで除外した 1 件を要裁定へ、同じ論文の別レコード 1 件と
+  本文を読んだ LSA の 2 レコードを近傍へ、arXiv 側と揃えて多版 STM の 1 件を近傍へ)。判定は `judgements.tsv` (索引固有の ID ごとに 1 行)。
+- 生応答は repo 外 `/work/1/SFC/tanab/tmp/vhash-ro-novelty-sota-2026-09-30/search/run1/` にある (repo に置かない)。
+
+### 4.2 結果
+
+セルは「hit 件数: 検出 / 要裁定 / 近傍 / 除外」。
+
+| 式 | 支える主張 | OpenAlex | arXiv | DBLP |
+|---|---|---|---|---|
+| R01 | A | 21: 0 / 0 / 0 / 21 | 3: 0 / 0 / 0 / 3 | 0 |
+| R02 | A | 33: 0 / **2** / 18 / 13 | 10: 0 / 0 / 4 / 6 | 0 |
+| R03 | A | 269: 0 / **1** / 13 / 255 | 16: 0 / 0 / 2 / 14 | 0 |
+| R04 | A | 153: 0 / **4** / 14 / 135 | 22: 0 / 0 / 3 / 19 | 2: 0 / **1** / 1 / 0 |
+| R05 | A | 49: 0 / **14** / 15 / 20 | 2: 0 / 0 / 2 / 0 | 0 |
+| R06 | U1′ | 44: 0 / 0 / 2 / 42 | 1: 0 / 0 / 0 / 1 | 0 |
+| R07 | A | 0 | 0 | 0 |
+| R08 | A | 0 | 0 | 0 |
+| R09 | A | 3: 0 / 0 / 1 / 2 | 0 | 0 |
+
+- 一意のレコード数: OpenAlex 505 (検出 0・要裁定 19・近傍 50・除外 436)、arXiv 46 (0・0・8・38)、DBLP 2 (0・1・1・0)。
+- **検出は 3 索引とも 0。**
+- **要裁定 20 件** (OpenAlex 19・DBLP 1) は、要旨で A3・A4 に近い仕組み (read-only の snapshot の延長・多版の read-only 最適化・分散の一貫 snapshot・実時間 DB の直列化順の動的調整) を述べるが
+  回収側への反映 (A5) を要旨で決められないもの、または要旨も要約も無いものである。内訳は LSA の雑誌版とみられる「Time-Based Software Transactional Memory」、
+  GMU (2 レコード)・SCORe・分散 SI (Incremental)・read-only の投機・stricter serializability の TM・汎用多版 STM・TM の多版化、実時間・移動 DB の read-only の系 (4 件)、
+  部分 rollback、read-safe snapshot の別版 (要旨なし)、GPU の依存グラフ (要旨なし)、1-Copy-Snapshot Isolation (要旨なし)、多層多版 DBMS の大域 timestamp の直列化 (2007)、
+  Hegner 2018 (OpenAlex と DBLP の 2 レコード)。一覧は `judgements.tsv` の `要裁定` 行。
+- 近傍の主な系: 精密 GC と長い読み手の GC (Steam・HANA・vDriver・Wei ほか・Ben-David ほか・LeanStore の SI 2023)、read-only の snapshot の系 (SSI・read-safe snapshot・DFV・HyPer の snapshot)、
+  直列化位置の調整 (Time-Warp・MVOCC の動的調整・ESSN・LSA)、版の配置・探索 (DIVA・cMVBT・MVLevelDB・kV-Indirection・版の索引)。
+- **陽性対照:** OpenAlex で Steam・HANA・vDriver が R02、Ports・Grittner が R05 に出た (4 本すべて期待どおり)。取りこぼし対照の CockroachDB はどの式にも出なかった (期待どおり)。
+  もう 1 本の取りこぼし対照の LSA は、期待に反して OpenAlex の R04 に出た (取りこぼし側の予想が外れただけで、網羅の証拠にはしない)。arXiv では Ports・Grittner が R03〜R05 に出た。
+
+### 4.3 この結果が許す文
+
+事前記述 §3 の「使い方」: 主張について「見当たらなかった」と書けるのは、支える式が 3 索引すべてで完走し、検出 0 かつ要裁定 0 のときだけ。
+
+- **A: 書けない。** 3 索引とも完走し検出 0 だが、要裁定が 20 件 (OpenAlex 19・DBLP 1) 残る。要裁定を不在側へ倒さない (7.7.5)。
+  書けるのは「OpenAlex (題名 + 要旨、2026-10-01 00:15〜00:19 JST 取得)・arXiv (all、同 00:02〜00:03 JST)・DBLP (題名、2026-09-28 20:23 GMT の全件書き出し) を事前登録した式
+  R01〜R05・R07〜R09 で調べ、検出は 0 件、要旨で決められない 20 件が未解決」という事実の記述までである。§3 の原典の比較 (A1〜A5 を同時に満たす方式は読んだ節に無い) とは別の根拠として扱う。
+- **U1′: 範囲つきで書ける。** 「版探索の費用を tx の timestamp を調整する判断の入力に使う方式は、OpenAlex (題名 + 要旨、2026-10-01 00:15〜00:19 JST 取得)・arXiv (all、同 00:02〜00:03 JST 取得)・
+  DBLP (題名、Last-Modified 2026-09-28 20:23:37 GMT の全件書き出し) を事前登録した式 R06 で調べた範囲、および md_9 の式 N06〜N08 (OpenAlex は 2026-09-29 09:51〜10:20 JST 取得、arXiv は同 09:49〜09:50 JST 取得、DBLP は同じ全件書き出し、いずれも検出 0・要裁定 0、md_9 §4.3・§5.2) の範囲では見当たらなかった。
+  ただし実時間・移動 DB の多版の直列化順の動的調整の 2 件 (OpenAlex W1977800003・W2374998066、要旨で決められず要裁定) と OCC-TI 1997 を除く。」
+  成熟度は索引別の RW2 (事前記述 §3)。無限定の「初めて」は書かない。
+- 未解決の要裁定を解くには本文が要る。本文の取得は上限の無い作業になりうるので本 wave では行わず、§8 の取り寄せ候補に回した。
 
 ---
 
@@ -197,7 +256,8 @@ md_9 の登録検索では「近傍 (U0)」として要旨だけで判定され�
 
 ### 5.2 K1 (新しさの残存) と K2 (SOTA)
 
-- **K1:** 読んだ原典 (§3) では A1〜A5 を同時に満たすものは無い。索引検索の結果と不在の文は §4。
+- **K1:** 読んだ原典 (§3) では A1〜A5 を同時に満たすものは無く、索引検索でも検出 0 件だった。ただし要裁定 20 件が未解決なので、K1 の「既知として採用しない」には当たらない一方、
+  「先行が無い」とも書けない (§4.3)。
 - **K2:** 候補は、読み手を固定したまま「必要な版だけ残す」精密 GC の系である (Steam の EPO・HANA の区間 GC・vDriver の dead zone・Wei ほかの range-tracking)。
   理想的に必要な情報 (活動中の読み手の時刻に見える版 + 最新版) は共通だが、**実装が実際に残す版はそれより多い** — HANA は周期実行、vDriver は segment 内の不要版を残し、
   Steam は差分の before-image を必要な版へ merge し、更新されない列は掃除しない (dusty corners)、Wei ほかの上界は必要版数との等号ではなく到達可能な版数の上界である。
@@ -208,6 +268,9 @@ md_9 の登録検索では「近傍 (U0)」として要旨だけで判定され�
   - **Wei ほか (range-tracking):** 到達可能な版数の上界を証明し、Steam の dusty corners による空間の悪化 (tree で最大 8 倍) を示した。ただし原典は「決定的に最良の方式は無い」と結論し、
     更新中心では Steam 側が概して速い。対象は並行データ構造 (Java)。
   - HANA (10 秒周期・global mutex の tracker)、vDriver (disk-based、ZT の周期更新と segment 単位で完全性を捨てる) は、C (主記憶) では上の 2 つより弱いと読む。
+  - LeanStore の SI (Alhomssi・Leis PVLDB 16 2023、索引検索の近傍から追加): 長い読み手 1 本で OLTP が崩れる問題を、細粒度 GC に加えて、長い読み手だけが要る削除済みの行を
+    OLTP の経路から退避する Graveyard Index と、OLTP と全体で別の下限 (最古の OLTP tx と最古の tx) を使って扱う。out-of-memory の設計で SI、読み手の snapshot は固定。
+    精密 GC だけでは索引の tombstone を飛ばす費用が残ると原典は述べる。C (主記憶) では別の軸 (長い読み手用の版を OLTP の探索から外す) の対抗候補として引用する。
   - DIVA・OneShotGC は本文未確認で順位に入れていない。
   **SOTA = 精密 GC の系。C での単独の最強は決めず、Steam 型と range-tracking 型の 2 つを候補として残す。** 直接実装の相手は強さと移植の忠実度を別に記録して選ぶ (§7)。
   Steam 型を相手にするなら dusty corners を掃除する処理を足し、「更新されない列の旧版」で本案が勝つ不公平を作らない。
@@ -290,6 +353,8 @@ Steam の txn/s (6,554 → 30,580)、HANA の overhead 0.8%、vDriver の鎖長 
 ## 8. 限界
 
 - DIVA・OneShotGC は本文を読めていない (§3 の「未確認」)。OneShotGC は主記憶 OLTP の GC で、長い読み手の下での振る舞いによっては K2 の順位が変わりうる。
+  **図書館経由の取り寄せ候補 (人間の手番):** OneShotGC (10.1145/3588699、ACM の OA だが機械取得は 403)、DIVA (既存の取り寄せ一覧 md_9 §6 の 2)、
+  Hegner 2018 (Thalheim 記念論文集 pp.122–145)。**A の索引検索の要裁定 20 件** (`judgements.tsv` の `要裁定` 行) は、A について索引に基づく不在の文を書くには全件の本文確認が要る。
 - 精密 GC と M の差の導出 (§5.3) は定義からの導出で、実測ではない。Cicada の版の列・inline slot・pool の実装の事情は含めていない。
 - 読み続ける read-only tx の前進の正しさ (不在の読み・範囲読み取り) は未解決で、本 wave の推奨はその解決を前提にしている。
 - 本案 A (読み続ける tx の前進と公開の組) の実物はまだ無い。既存の実測は待機型の構成 E と、公開を伴わない構成 C (アクセス駆動の前進) である。
@@ -324,7 +389,7 @@ Steam の txn/s (6,554 → 30,580)、HANA の overhead 0.8%、vDriver の鎖長 
 ### 9.2 書誌と取得物
 
 取得物は repo 外 (md_1・md_9 の `/work/1/SFC/tanab/tmp/vhash-related-work-2026-09-29/src/`・`/work/1/SFC/tanab/tmp/vhash-novelty-2026-09-29/`、本 wave の
-`/work/1/SFC/tanab/tmp/vhash-ro-novelty-sota-2026-09-30/src/`) にあり、repo に複製しない。本文を読んだ論文 15 本:
+`/work/1/SFC/tanab/tmp/vhash-ro-novelty-sota-2026-09-30/src/`) にあり、repo に複製しない。比較表のために本文を読んだ論文 16 本:
 
 | 文献 | venue | 本 wave の取得 |
 |---|---|---|
@@ -342,9 +407,11 @@ Steam の txn/s (6,554 → 30,580)、HANA の overhead 0.8%、vDriver の鎖長 
 | Lim ほか, Cicada: Dependably Fast Multi-Core In-Memory Transactions | SIGMOD 2017 | md_1 |
 | Kim ほか, ERMIA: Fast Memory-Optimized Database System for Heterogeneous Workloads | SIGMOD 2016 | md_1 |
 | Mühe・Kemper・Neumann, Executing Long-Running Transactions in Synchronization-Free Main Memory Database Systems | CIDR 2013 | md_9 |
+| Alhomssi・Leis, Scalable and Robust Snapshot Isolation for High-Performance Storage Engines (LeanStore) | PVLDB 16 2023 | md_1 の取得物 (本 wave は §1・§2・図 2 だけ読んだ) |
 | Wei・Blelloch・Fatourou・Ruppert, Practically and Theoretically Efficient Garbage Collection for Multiversioning | PPoPP 2023 (arXiv 2212.13557 v2) | **本 wave** (arxiv.org) |
 
 製品文書 3 件: Oracle ORA-01555、PostgreSQL 9.6 と 17 の release notes (md_27 系の取得物)。
+索引検索の判定のために本文を確かめたもの: EXCITE-VM (PACT 2016、著者頁 PDF)、Non-Monotonic Snapshot Isolation (arXiv 1306.3906)、Serializable HTAP with Abort-/Wait-free Snapshot Read (arXiv 2201.07993)。
 本文未取得: DIVA (10.1145/3514221.3526135)、OneShotGC (10.1145/3588699)。試行の記録は repo 外 `retrieval-attempts.md`。
 本 wave で取得した PDF の SHA-256: Ports・Grittner 2012 `29ea89b404b68db56c801abf0550cef46ec7e1ca94f07005811702f1c685850a`、
 Wei ほか arXiv 2212.13557 v2 `ab82f511c57fa524fbe3558973957cc24765219a4c8401aa0fe7b014ab03c854`。
@@ -359,6 +426,8 @@ md_1 の取得物のうち 2 段組の `-layout` 版 (Steam・HANA・vDriver・C
 
 ## 10. 独立レビューの採否
 
+### 10.1 段 6 レビュー
+
 草稿を別系統モデル (read-only、段 6) 1 本に攻撃させた (出力は repo 外 `codex/review-1/out.md`)。7 件すべて real と裁定して反映した。
 
 | # | 重大度 | 所見 | 反映 |
@@ -370,6 +439,13 @@ md_1 の取得物のうち 2 段組の `-layout` 版 (Steam・HANA・vDriver・C
 | 5 | should-fix | Wei ほかを C の単独の最強とする根拠が不足 (原典は決定的な最良なしと結論)。公表方式の保証は SI / RR | Steam 型と range-tracking 型の 2 候補を残し、公表方式と Cicada 上の移植の保証を分けた (§5.2・§7) |
 | 6 | should-fix | 「M 単独は区間 GC に構造上勝てない」は全称として誤り (反例あり) | 「任意の途中の版を回収する保証が無い」に限定し、反例を書いた (§0・§5.3) |
 | 7 | should-fix | Wei ほかの上界を物理の欄に置いた | 論理の欄へ移し、物理の欄は Java の GC 任せ・遅れの上界なしとした (§3.1) |
+
+### 10.2 焦点再レビュー (索引検索の結果を書いた後)
+
+別系統モデル (read-only) 1 本。前回の 7 件は closed 6・partial 1 (所見 1 の不在キーの条件は、本 wave では未解決と明記するところまでで、条件と実装は後続の項目)。
+§4.2 の全セルと一意件数を判定表から再計算して一致を確かめた。新しい所見 3 件はすべて real と裁定して反映した:
+(1) must-fix — 要旨の無い「1-Copy-Snapshot Isolation」を題名だけで除外していた → 要裁定。(2) must-fix — 「tx がより新しい版を読める」と述べる要旨を位置が動かないと断定して除外していた → 要裁定。
+(3) should-fix — U1′ の文に md_9 の N06〜N08 の取得時刻が無かった → 追記。親は要旨も要約も無い除外 23 件を全件見て、同じ型が他に無いことを確かめた。
 
 ## 付属ファイル
 
