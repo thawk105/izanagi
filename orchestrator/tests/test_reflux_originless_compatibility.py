@@ -785,7 +785,7 @@ _extend_t2865_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 def _extend_t2890_role_source_baseline(baseline):
     """Follow the reviewed T-2890 auditor source pin in live originless output."""
     old = "1780945a475cdd036a1fccf52d179f69500c18d0b45d2cf8c5b8969aad54495b"
-    new = "c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6"
+    new = "2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14"
     rows = baseline["journals/*/*/provenance/role_file_sha256"]
     replaced = 0
     for row in rows:
