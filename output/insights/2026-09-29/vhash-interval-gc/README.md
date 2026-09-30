@@ -244,3 +244,35 @@ stock はこの型で、鎖上 2.17〜2.22 GB (キー 100 万件の 11 倍)・RS
 - 集計: `aggregate --raw <parts3 の 40 part の raw.jsonl> --output <repo 外>` → `data/aggregate.json` (sha256 `c03cf03dc1cb4eaaa2466f4c5df1e5cc67f60bbb3ae785a76f3f2d4e3bc11803`)。
 - 図と要約: `make_figures.py --aggregate data/aggregate.json --raw <40 part> --output-prefix figures/... --summary data/summary.json`。生成器は raw から集計を再計算し、`data/aggregate.json` と一致しなければ止まる。
 - 計算量 (計算ノード): smoke 群 5,712 s、build 1 回 178 s、本計測 40 part の driver 実時間 1,259 s (約 2 node 時間)。本計測は 40 job に分け、6 分 01 秒で完了した。
+
+## 11. 変異台帳 (driver と条件 gate の検出力、段 6)
+
+事前登録は job dir `s4-ruling.md` の「変異の事前登録」(M1〜M7・EQ1) と「変異の追加登録」(M8・M9、段 6 の fix 後・走行前)。
+対象 commit は段 7 記録 commit `e9294bdab`。DW-M07 の独立 clone (job dir `mutation/source/`) で、`tools/mutation_harness.py --runner-mode dispatch --detached` を使った。
+runner は `run_tests.py --force-dispatch -q -rf` で、本走は計算ノード 14 job・約 217 秒だった。
+期待 node は login self-run で集めた (注入 → 自走 → 復元、復元後の sha256 と `--porcelain` 空を全件照合)。
+本走は runner の file 選択だけを 2 本に分けた。driver 変異と EQ1 は `test_vhash_interval_gc.py`、M7 は `test_condition_meaning_gate.py` である。
+分ける前に、driver 変異が gate test を赤にしないこと、M7 が driver test を赤にしないことを probe で観測した。
+
+| ID | 置換 (要旨) | 期待 | 結果 | 観測 node |
+|---|---|---|---|---|
+| M1 | perf 適格を `kind == 'perf'` → `kind in ('perf','count')` | 赤 | KILLED | test_count_never_perf_eligible |
+| M2 | 腕の順序回転 → 固定順 | 赤 | KILLED | test_order_rotation |
+| M3 | gate receipt 欠落の拒否 → 受理 | 赤 | KILLED | test_gate_receipt_missing_rejected |
+| M4 | 競合 PID の検出を無視 | 赤 | KILLED | test_competing_pid_rejected |
+| M5 | stock 腕にも区間 GC の macro を渡す | 赤 | KILLED | test_arm_macro_sets |
+| M6 | 計画 cell の欠落を許す | 赤 | KILLED | test_aggregate_missing_cells_rejected |
+| M7 | 条件 gate の `CICADA_INTERVAL_GC` site 数 22 → 21 | 赤 | KILLED | test_condition_meaning_gate.py の 4 node (総数 pin と site 数不一致) |
+| M8 | S8 正例の `ronly_wait` 判定を外す (段 6 R1・B-01 の欠陥の再現) | 赤 | KILLED | test_aggregate_verification_positive_and_disqualification、test_aggregate_full_parts_enforces_positive_and_controls |
+| M9 | 正常腕の失格理由から verdict 非 indeterminate を外す | 赤 | KILLED | test_s8_ronly_positive_and_control_fields |
+| EQ1 | `CELLS` の `wait_us` 定数 `1000`/`10000` → `10**3`/`10**4` (import 時に評価される同値表現) | 赤なし | SURVIVED (注入 diff は実在) | なし |
+
+全変異とも置換対象は対象 commit の逐語 1 箇所で、赤理由は 1 つに絞れた。out の sha256 は次のとおり。
+- `out-finalA.json`: `c9fdeaacf5e1e366165e0be99cac6f94034fc10c30508928b966a888e01cb268`
+- `out-finalB.json`: `6747641052f016a65dabe1e08829f27d798e037cc9d29995f671ac60bd6d34c5`
+
+spec の sha256 は次のとおり。
+- `spec-A.json`: `97c03ba42cc4f094f6a39affa477f78cf4348e044e4716d60cbc3a5d8b4e2dbd`
+- `spec-B.json`: `5e8b173dcd202000581eea3f2c6d47c2a33470ac95a6ab2c878196678ed99326`
+
+全文は job dir `mutation/result.md`。C++ 側 (区間 GC の剪定条件) の検出力は変異ではなく壊し patch で見た (§5、事前登録の正例は不成立)。
