@@ -387,7 +387,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
     machine_name = W.CANDIDATES[0][0]
     seen = []
     passed = SimpleNamespace(passed=True)
-    expected_pin = "6810666"  # repo policy から逆算しない独立 pin
+    expected_pin = "25898d0"  # repo policy から逆算しない独立 pin
 
     def evidence_for(genome, commit, source_root):
         assert commit == expected_pin == W.PIN

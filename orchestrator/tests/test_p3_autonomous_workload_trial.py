@@ -68,8 +68,11 @@ _T816_NO_BUILD_CAMPAIGN_ID = (
 _T2304_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-d567badf"
 )
-_CURRENT_NO_BUILD_CAMPAIGN_ID = (
+_T2858_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-7e44fb98"
+)
+_CURRENT_NO_BUILD_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-aed38117"
 )
 _T530_NO_BUILD_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-4bf2256c"
@@ -83,7 +86,10 @@ assert _T530_PEGASUS_CONTRACT.contract_sha256 == (
     "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
 )
 # T-671 で契約 H が identity から外れ、C01 の golden も H なし preimage へ戻る。
-_T816_C01_OTHER_CAMPAIGN_ID = (
+_T816_T2858_C01_OTHER_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-841e8a89"
+)
+_C01_OTHER_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-841e8a89"
 )
 # T-2304 admission-policy epoch.
@@ -93,7 +99,10 @@ _T2304_C01_OTHER_CAMPAIGN_ID = (
 _C01_OTHER_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-0c1663e7"
 )
-_T816_C01_PEGASUS_CAMPAIGN_ID = (
+_T816_T2858_C01_PEGASUS_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-7b2f2838"
+)
+_C01_PEGASUS_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-7b2f2838"
 )
 # T-2304 admission-policy epoch.
@@ -433,6 +442,7 @@ def test_no_build_campaign_identity_binds_shared_policy_context() -> None:
         "p3-t178-ycsb-a-workload-conditioned-autonomous-948f4c43"
     )
     assert str(A.ident.campaign_id(cfg)) != _T816_NO_BUILD_CAMPAIGN_ID
+    assert str(A.ident.campaign_id(cfg)) != _T2858_NO_BUILD_CAMPAIGN_ID
     assert str(A.ident.campaign_id(cfg)) != _T2304_NO_BUILD_CAMPAIGN_ID
     assert str(A.ident.campaign_id(cfg)) != _T530_NO_BUILD_CAMPAIGN_ID
 
@@ -919,6 +929,7 @@ def test_pegasus_workload_identity_layout_and_drive_use_pegasus_contract(
     tmp_path, monkeypatch,
 ) -> None:
     assert _C01_PEGASUS_CAMPAIGN_ID != _T816_C01_PEGASUS_CAMPAIGN_ID
+    assert _C01_PEGASUS_CAMPAIGN_ID != _T2858_C01_PEGASUS_CAMPAIGN_ID
     assert _C01_PEGASUS_CAMPAIGN_ID != _T2304_C01_PEGASUS_CAMPAIGN_ID
     _assert_workload_campaign_uses_site_contract(
         tmp_path,
@@ -936,6 +947,7 @@ def test_other_workload_identity_layout_and_drive_use_linux_contract(
     tmp_path, monkeypatch,
 ) -> None:
     assert _C01_OTHER_CAMPAIGN_ID != _T816_C01_OTHER_CAMPAIGN_ID
+    assert _C01_OTHER_CAMPAIGN_ID != _T2858_C01_OTHER_CAMPAIGN_ID
     assert _C01_OTHER_CAMPAIGN_ID != _T2304_C01_OTHER_CAMPAIGN_ID
     _assert_workload_campaign_uses_site_contract(
         tmp_path,
