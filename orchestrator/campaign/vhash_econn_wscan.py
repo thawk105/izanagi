@@ -34,7 +34,7 @@ PATCHES = {("count", "pre"): VGT, ("count", "fix"): (*VGT, CAP),
            ("repro", "broken"): (*VGT, PROBE, CAP, BROKEN)}
 WSCAN_FIELDS = frozenset(("thid", "eligible", "delayed", "insertion_reached", "rounds_sum",
     "rounds_max", "rounds_ge2", "detached", "post_scan_detached", "probe_aborts",
-    "k1_redirects", "k1_read_collisions", "k2_flag_raises"))
+    "k1_redirects", "k1_read_collisions", "k2_flag_raises", "reach_both", "detached_reach_both"))
 CAP_FIELDS = frozenset(("thid", "publishes", "cap_limited", "cap_delta_clock_sum", "cap_no_raise"))
 
 
@@ -54,24 +54,31 @@ def require_external(path):
     return path
 
 
-def plan_runs(job, smoke=False):
+def plan_runs(job, extra=False):
     if job not in ("repro", "count"):
         raise ValueError(job)
     specs = []
     if job == "repro":
-        for rep in range(3):
-            if rep < 2:
-                for variant in (("pre", "fix") if rep == 0 else ("fix", "pre")):
-                    for delay in (0, 1000):
-                        specs.append(dict(job=job, group="N", variant=variant, arm="E-max", delay_us=delay,
-                                          k1=False, k2=False, rep=rep, skew=.9))
-            # Rotate the K1/K12 treatment order, so shard assignment mixes treatments.
-            for variant in (("pre", "fix", "broken") if rep == 0 else
-                            ("fix", "broken", "pre") if rep == 1 else ("broken", "pre", "fix")):
-                specs.append(dict(job=job, group="K12", variant=variant, arm="E-max", delay_us=1000,
-                                  k1=True, k2=True, rep=rep, skew=.9))
-            specs.append(dict(job=job, group="K1", variant="pre", arm="E-max", delay_us=1000,
-                              k1=True, k2=False, rep=rep, skew=.9))
+        if extra:
+            for rep in range(3):
+                for variant in (("pre", "fix", "broken") if rep == 0 else
+                                ("fix", "broken", "pre") if rep == 1 else ("broken", "pre", "fix")):
+                    specs.append(dict(job=job, group="K12", variant=variant, arm="E-max", delay_us=10000,
+                                      k1=True, k2=True, rep=rep, skew=.9))
+        else:
+            for rep in range(3):
+                if rep < 2:
+                    for variant in (("pre", "fix") if rep == 0 else ("fix", "pre")):
+                        for delay in (0, 1000):
+                            specs.append(dict(job=job, group="N", variant=variant, arm="E-max", delay_us=delay,
+                                              k1=False, k2=False, rep=rep, skew=.9))
+                # Rotate the K1/K12 treatment order, so shard assignment mixes treatments.
+                for variant in (("pre", "fix", "broken") if rep == 0 else
+                                ("fix", "broken", "pre") if rep == 1 else ("broken", "pre", "fix")):
+                    specs.append(dict(job=job, group="K12", variant=variant, arm="E-max", delay_us=1000,
+                                      k1=True, k2=True, rep=rep, skew=.9))
+                specs.append(dict(job=job, group="K1", variant="pre", arm="E-max", delay_us=1000,
+                                  k1=True, k2=False, rep=rep, skew=.9))
     else:
         for rep in range(3):
             for skew in ((.9, 0) if rep % 2 == 0 else (0, .9)):
@@ -81,8 +88,8 @@ def plan_runs(job, smoke=False):
                                       delay_us=0, k1=False, k2=False, rep=rep, skew=skew))
     for i, spec in enumerate(specs):
         spec["order"] = i
-        spec["id"] = f"{job}-{i:02d}"
-    return specs[:4] if smoke else specs
+        spec["id"] = f"{job}{'-extra' if extra else ''}-{i:02d}"
+    return specs
 
 
 def argv_for(binary, spec):
@@ -127,11 +134,20 @@ def _unique(pairs):
     return result
 
 
-def parse_lines(stdout, job, variant, arm):
+def parse_lines(stdout, job, variant, arm, spec=None):
     fwd, gc, longtx = base.parse_target_lines(stdout, arm, True)
     wscan = (_line(stdout, "CICADA_WSCAN_V1", WSCAN_FIELDS,
               frozenset(("schema", "delay_us", "k1", "k2", "k1_key", "gc_detach_matches", "threads")))
              if job == "repro" else None)
+    if wscan is not None:
+        for key in ("k1", "k2"):
+            if type(wscan[key]) is not bool:
+                raise ValueError(f"CICADA_WSCAN_V1: invalid {key}")
+        for key in ("delay_us", "k1_key", "gc_detach_matches"):
+            if type(wscan[key]) is not int or wscan[key] < 0:
+                raise ValueError(f"CICADA_WSCAN_V1: invalid {key}")
+        if spec is not None and any(wscan[key] != spec[key] for key in ("delay_us", "k1", "k2")):
+            raise ValueError("CICADA_WSCAN_V1: argv settings mismatch")
     cap = (_line(stdout, "CICADA_WSCAN_CAP_V1", CAP_FIELDS, frozenset(("schema", "threads")))
            if variant in ("fix", "broken") else None)
     return dict(gc=gc, fwd=fwd, longtx=longtx, wscan=wscan, cap=cap)
@@ -187,28 +203,51 @@ def _binary(binaries, job, variant):
     if (receipt["job"], receipt["variant"], receipt["pin"], receipt["kind"], receipt["patches"]) != (
             job, variant, pin.CURRENT_PIN, "gc-e-count", list(PATCHES[(job, variant)])):
         raise ValueError("build receipt mismatch")
+    if receipt["genome"] != base.GC_GENOME:
+        raise ValueError("build receipt genome mismatch")
+    if set(receipt["patch_sha256"]) != set(receipt["patches"]):
+        raise ValueError("build receipt patch sha256 keys mismatch")
     if sha(binary) != receipt["binary_sha256"]:
         raise ValueError("binary sha256 mismatch")
     return binary, receipt
 
 
-def run(job, binaries, shard, shards, output, smoke=False):
+def _compare_provenance(receipts):
+    reference = receipts[0]
+    for receipt in receipts:
+        if any(receipt[key] != reference[key] for key in ("pin", "kind", "genome", "head")):
+            raise ValueError("build receipt provenance mismatch")
+        shared = receipt["patch_sha256"].keys() & reference["patch_sha256"].keys()
+        if any(receipt["patch_sha256"][key] != reference["patch_sha256"][key] for key in shared):
+            raise ValueError("shared patch sha256 mismatch")
+        for name in ("gate_receipts", "dependency_gate_receipts"):
+            gates = receipt[name]
+            expected = len(base.MACROS[receipt["kind"] if name == "gate_receipts" else "gc-dependency"])
+            if type(gates) is not list or len(gates) != expected or any(
+                    g["admission"]["admitted"] is not True for g in gates):
+                raise ValueError(f"{name}: nonadmitted gate")
+
+
+def run(job, binaries, shard, shards, output, extra=False):
     require_compute()
     binaries, output = require_external(binaries), require_external(output)
     if shards < 1 or not 0 <= shard < shards:
         raise ValueError("invalid shard")
-    specs = plan_runs(job, smoke)
-    if any(not {s["variant"] for s in specs[i::shards]} >= {"pre", "fix"}
+    if extra and job != "repro":
+        raise ValueError("extra matrix is repro only")
+    specs = plan_runs(job, extra)
+    if not extra and any(not {s["variant"] for s in specs[i::shards]} >= {"pre", "fix"}
            for i in range(shards)):
         raise ValueError("every shard must mix pre and fix treatments")
     selected = specs[shard::shards]
     if not selected:
         raise ValueError("empty shard")
-    verified = {variant: _binary(binaries, job, variant) for variant in {s["variant"] for s in selected}}
+    verified = {variant: _binary(binaries, job, variant) for variant in {s["variant"] for s in specs}}
+    _compare_provenance([receipt for _, receipt in verified.values()])
     output.mkdir(parents=True, exist_ok=True)
-    path = output / f"{job}-shard-{shard}-of-{shards}.json"
+    path = output / f"{job}{'-extra' if extra else ''}-shard-{shard}-of-{shards}.json"
     raw = dict(schema="vhash-econn-wscan-raw/v1", job=job, shard=shard, shards=shards,
-               smoke=smoke, planned_ids=[s["id"] for s in selected], hostname=socket.gethostname(), runs=[])
+               extra=extra, planned_ids=[s["id"] for s in selected], hostname=socket.gethostname(), runs=[])
     def save():
         path.write_text(json.dumps(raw, indent=2, ensure_ascii=False) + "\n")
     save()
@@ -233,7 +272,7 @@ def run(job, binaries, shard, shards, output, smoke=False):
             stderr={"sha256": hashlib.sha256(stderr).hexdigest(), "tail": stderr[-65536:].decode("utf-8", "replace")},
             counters=None, parse_error=None)
         try:
-            record["counters"] = parse_lines(stdout.decode("utf-8", "replace"), job, spec["variant"], spec["arm"])
+            record["counters"] = parse_lines(stdout.decode("utf-8", "replace"), job, spec["variant"], spec["arm"], spec)
         except (ValueError, TypeError, KeyError) as exc:
             record["parse_error"] = f"{type(exc).__name__}: {exc}"
         raw["runs"].append(record)
@@ -245,6 +284,10 @@ def _sum(counter, key):
     return sum(row[key] for row in counter["threads"])
 
 
+def _max(counter, key):
+    return max(row[key] for row in counter["threads"])
+
+
 def repro_verdict(group, variant, records, same_job_triggered):
     if not records or any(r["rc"] != 0 or r["parse_error"] or not r["counters"] or not r["counters"]["wscan"] or
                           (r["spec"]["delay_us"] > 0 and
@@ -252,26 +295,46 @@ def repro_verdict(group, variant, records, same_job_triggered):
                             _sum(r["counters"]["wscan"], "delayed") == 0)) for r in records):
         return "invalid"
     counter = {key: sum(_sum(r["counters"]["wscan"], key) for r in records)
-               for key in WSCAN_FIELDS if key != "thid"}
-    fired = counter["detached"] + counter["post_scan_detached"] > 0
-    reached = counter["insertion_reached"] > 0 and counter["rounds_ge2"] > 0
+               for key in WSCAN_FIELDS if key != "thid" and key != "rounds_max"}
+    fired = any(_sum(r["counters"]["wscan"], "detached_reach_both") > 0 for r in records)
+    reached = any(_sum(r["counters"]["wscan"], "reach_both") > 0 for r in records)
     if group == "K12" and variant in ("pre", "broken"):
         return "fired" if reached and fired else "reached_not_fired" if reached else "positive_unestablished"
     if group == "K12" and variant == "fix":
-        return "repair_success" if not fired and reached and same_job_triggered else "indeterminate"
-    if counter["rounds_max"] >= 2:
+        clean_reached = any(_sum(r["counters"]["wscan"], "reach_both") > 0 and
+                            _sum(r["counters"]["wscan"], "detached") +
+                            _sum(r["counters"]["wscan"], "post_scan_detached") == 0 for r in records)
+        return "repair_success" if clean_reached and same_job_triggered else "indeterminate"
+    if max(_max(r["counters"]["wscan"], "rounds_max") for r in records) >= 2:
         return "P1_refuted"
-    if fired:
+    if counter["detached"] + counter["post_scan_detached"] > 0:
         return "unexpected_detach"
     return "Z_reached_barrier" if group == "K1" and counter["insertion_reached"] > 0 else "no_Z_reached" if group == "K1" else "P1_consistent"
+
+
+def extra_round_required(records):
+    return not any(r.get("counters") and r["counters"].get("wscan") and
+                   _sum(r["counters"]["wscan"], "reach_both") > 0
+                   for r in records if r["spec"]["group"] == "K12" and
+                   r["spec"]["variant"] in ("pre", "broken"))
 
 
 def aggregate(raws):
     if not raws:
         raise ValueError("no raw shards")
-    job, shards, smoke = raws[0]["job"], raws[0]["shards"], raws[0]["smoke"]
-    if any(r["job"] != job or r["shards"] != shards or r["smoke"] != smoke for r in raws):
+    job, shards, extra = raws[0]["job"], raws[0]["shards"], raws[0].get("extra", False)
+    if any(r["job"] != job or r["shards"] != shards or r.get("extra", False) != extra for r in raws):
         raise ValueError("mixed raw jobs")
+    provenance = [record for raw in raws for record in raw["runs"]]
+    provenance_fields = ("pin", "head", "kind", "genome", "patch_sha256")
+    if provenance and all(all(key in record for key in provenance_fields) for record in provenance):
+        reference = provenance[0]
+        for record in provenance:
+            if any(record[key] != reference[key] for key in ("pin", "head", "kind", "genome")):
+                raise ValueError("raw provenance mismatch")
+            shared = record["patch_sha256"].keys() & reference["patch_sha256"].keys()
+            if any(record["patch_sha256"][key] != reference["patch_sha256"][key] for key in shared):
+                raise ValueError("raw shared patch sha256 mismatch")
     by_id = {}
     duplicate = []
     for raw in raws:
@@ -279,19 +342,23 @@ def aggregate(raws):
             key = record["spec"]["id"]
             if key in by_id:
                 duplicate.append(key)
-            by_id[key] = record
-    expected = plan_runs(job, smoke)
+            by_id[key] = dict(record, shard=raw.get("shard", 0))
+    expected = plan_runs(job, extra)
     missing = [s["id"] for s in expected if s["id"] not in by_id]
     invalid = [key for key, r in by_id.items() if
                key not in {s["id"] for s in expected} or
                r["spec"] != next((s for s in expected if s["id"] == key), None) or
+               not all(field in r for field in provenance_fields) or
+               r.get("patches") != list(PATCHES.get((job, r["spec"].get("variant")), ())) or
+               set(r.get("patch_sha256", {})) != set(r.get("patches", ())) or
                r["rc"] != 0 or r["parse_error"] or not r["counters"] or
                not r["counters"].get("gc") or not r["counters"].get("longtx") or
                (job == "repro" and not r["counters"].get("wscan")) or
                (r["spec"]["variant"] in ("fix", "broken") and not r["counters"].get("cap"))]
-    output = dict(schema="vhash-econn-wscan-aggregate/v1", job=job, smoke=smoke,
+    output = dict(schema="vhash-econn-wscan-aggregate/v1", job=job, extra=extra,
                   missing=missing, duplicate=duplicate, invalid=invalid, complete=not (missing or duplicate or invalid), arms={})
     if job == "repro":
+        output["extra_round_required"] = extra_round_required(list(by_id.values())) if not extra else False
         for group in ("N", "K1", "K12"):
             variants = ("pre", "fix") if group == "N" else ("pre",) if group == "K1" else ("pre", "fix", "broken")
             for variant in variants:
@@ -299,12 +366,23 @@ def aggregate(raws):
                 planned = sum(s["group"] == group and s["variant"] == variant for s in expected)
                 triggered = False
                 if group == "K12" and variant == "fix":
-                    triggered = any(repro_verdict("K12", candidate,
-                        [by_id[s["id"]] for s in expected if s["group"] == "K12" and s["variant"] == candidate and s["id"] in by_id], False) == "fired"
-                        for candidate in ("pre", "broken"))
+                    triggered = any(
+                        any(_sum(r["counters"]["wscan"], "reach_both") > 0 and
+                            _sum(r["counters"]["wscan"], "detached") +
+                            _sum(r["counters"]["wscan"], "post_scan_detached") == 0
+                            for r in rows if r.get("counters") and r["counters"].get("wscan") and
+                            r.get("shard") == shard) and
+                        any(_sum(r["counters"]["wscan"], "detached_reach_both") > 0
+                            for r in by_id.values() if r["spec"]["group"] == "K12" and
+                            r["spec"]["variant"] in ("pre", "broken") and
+                            r.get("shard") == shard and r.get("counters") and r["counters"].get("wscan"))
+                        for shard in range(shards))
                 verdict = repro_verdict(group, variant, rows, triggered) if len(rows) == planned else "invalid"
                 output["arms"][f"{group}:{variant}"] = dict(planned=planned, observed=len(rows), verdict=verdict,
-                    totals={key: sum(_sum(r["counters"]["wscan"], key) for r in rows if r.get("counters") and r["counters"].get("wscan"))
+                    p1_run_ids=[r["spec"]["id"] for r in rows if r.get("counters") and r["counters"].get("wscan") and
+                                _max(r["counters"]["wscan"], "rounds_max") >= 2] if verdict == "P1_refuted" else [],
+                    totals={key: (max((_max(r["counters"]["wscan"], key) for r in rows if r.get("counters") and r["counters"].get("wscan")), default=0)
+                                  if key == "rounds_max" else sum(_sum(r["counters"]["wscan"], key) for r in rows if r.get("counters") and r["counters"].get("wscan")))
                             for key in WSCAN_FIELDS if key != "thid"})
     else:
         for skew in (.9, 0):
@@ -319,11 +397,11 @@ def aggregate(raws):
                     (variant != "fix" or r["counters"].get("cap")) for r in rows)
                 metrics = None
                 if valid:
-                    values = [base._gc_summary(r["counters"]["gc"], r["counters"]["longtx"]) for r in rows]
-                    metrics = {field: (max(v[field] for v in values) if field == "lag_rts_max_us" else
-                                       sum(v[field] for v in values) / len(values)
-                                       if all(v[field] is not None for v in values) else None)
-                               for field in ("lag_rts_mean_us", "lag_rts_max_us", "live_mean")}
+                    uniform = [r["counters"]["gc"]["uniform"] for r in rows]
+                    count = sum(u["count"] for u in uniform)
+                    metrics = dict(lag_rts_mean_us=sum(u["lag_rts_sum_us"] for u in uniform) / count if count else None,
+                                   lag_rts_max_us=max(u["lag_rts_max_us"] for u in uniform),
+                                   live_mean=sum(u["live_sum"] for u in uniform) / count if count else None)
                 output["arms"][key] = dict(planned=len(specs), observed=len(rows), diagnostic_instrumented_build=metrics,
                                             cap_totals={field: sum(_sum(r["counters"]["cap"], field) for r in rows)
                                                 for field in CAP_FIELDS if field != "thid"} if valid and variant == "fix" else None)
@@ -356,7 +434,7 @@ def main(argv=None):
     r.add_argument("--shard", required=True, type=int)
     r.add_argument("--shards", required=True, type=int)
     r.add_argument("--output", required=True, type=Path)
-    r.add_argument("--smoke", action="store_true")
+    r.add_argument("--extra", action="store_true")
     a = commands.add_parser("aggregate")
     a.add_argument("--raw", nargs="+", required=True, type=Path)
     a.add_argument("--output", required=True, type=Path)
@@ -364,7 +442,7 @@ def main(argv=None):
     if args.command == "build":
         build(args.job, args.variant, args.out, args.third_party_cache)
     elif args.command == "run":
-        run(args.job, args.binaries, args.shard, args.shards, args.output, args.smoke)
+        run(args.job, args.binaries, args.shard, args.shards, args.output, args.extra)
     else:
         result = aggregate([json.loads(path.read_text()) for path in args.raw])
         path = require_external(args.output)

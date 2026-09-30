@@ -14,7 +14,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #line 9
  #include "include/common.hh"
  #include "include/scan_callback.hh"
-@@ -189,6 +195,61 @@
+@@ -189,6 +195,64 @@
  #endif
  
  #if CICADA_GC_SAFEPOINT
@@ -33,6 +33,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +  uint64_t rounds_sum = 0, rounds_max = 0, rounds_ge2 = 0;
 +  uint64_t detached = 0, post_scan_detached = 0, probe_aborts = 0;
 +  uint64_t k1_redirects = 0, k1_read_collisions = 0, k2_flag_raises = 0;
++  uint64_t reach_both = 0, detached_reach_both = 0;
 +};
 +WscanSlot wscan_slots[256];
 +std::mutex wscan_mu;
@@ -64,7 +65,9 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +                << ",\"probe_aborts\":" << c.probe_aborts
 +                << ",\"k1_redirects\":" << c.k1_redirects
 +                << ",\"k1_read_collisions\":" << c.k1_read_collisions
-+                << ",\"k2_flag_raises\":" << c.k2_flag_raises << '}';
++                << ",\"k2_flag_raises\":" << c.k2_flag_raises
++                << ",\"reach_both\":" << c.reach_both
++                << ",\"detached_reach_both\":" << c.detached_reach_both << '}';
 +    }
 +    std::cout << "]}" << std::endl;
 +  }
@@ -76,7 +79,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  DEFINE_string(cicada_gc_mode, "off", "GC safe point mode: off, hb, or e.");
  DEFINE_string(cicada_gc_target, "now", "E forward target: now or max.");
  DEFINE_bool(cicada_gc_once, false, "Try E forwarding once per transaction.");
-@@ -695,6 +756,23 @@
+@@ -695,6 +759,23 @@
    /**
     * Allocate timestamp in read phase.
     */
@@ -100,7 +103,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
    this->status_ = TransactionStatus::inflight;
    this->wts_.generateTimeStamp(thid_);
    __atomic_store_n(&(ThreadWtsArray[thid_].obj_), this->wts_.ts_,
-@@ -1486,7 +1564,54 @@
+@@ -1486,7 +1567,91 @@
     */
    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
      if ((*itr).op_ == OpType::INSERT) { continue; }
@@ -137,10 +140,14 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +      ws.rounds_sum += rounds;
 +      ws.rounds_max = std::max(ws.rounds_max, rounds);
 +      if (rounds >= 2) ++ws.rounds_ge2;
-+      if ((*itr).new_ver_->ldAcqNext() != ver) ++ws.insertion_reached;
++      const bool insertion_reached = (*itr).new_ver_->ldAcqNext() != ver;
++      if (insertion_reached) ++ws.insertion_reached;
++      const bool reach_both = insertion_reached && rounds >= 2;
++      if (reach_both) ++ws.reach_both;
 +      wscan_scan_lock = std::unique_lock<std::mutex>(wscan_mu);
 +      if (ws.hit) {
 +        ++ws.detached;
++        if (reach_both) ++ws.detached_reach_both;
 +        ++ws.probe_aborts;
 +        ws.watch = nullptr;
 +        --wscan_active;
@@ -148,49 +155,63 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 +        result = false;
 +        goto FINISH_VALIDATION;
 +      }
++      bool scan_failed = false;
++      for (;;) {
++        VersionStatus status = ver->ldAcqStatus();
++        while (status == VersionStatus::pending) {
++          wscan_scan_lock.unlock();
++          std::this_thread::yield();
++          wscan_scan_lock.lock();
++          if (ws.hit) break;
++          status = ver->ldAcqStatus();
++        }
++        if (ws.hit) break;
++        if (status == VersionStatus::committed ||
++            status == VersionStatus::deleted) {
++          scan_failed = ver->ldAcqRts() > this->wts_.ts_ ||
++                        status == VersionStatus::deleted;
++          break;
++        }
++        ver = ver->ldAcqNext();
++        ws.watch = ver;
++      }
++      if (ws.hit) {
++        ++ws.post_scan_detached;
++        if (reach_both) ++ws.detached_reach_both;
++        ++ws.probe_aborts;
++      }
++      const bool scan_hit = ws.hit;
++      ws.watch = nullptr;
++      --wscan_active;
 +      wscan_scan_lock.unlock();
++      if (scan_hit || scan_failed) {
++        result = false;
++        goto FINISH_VALIDATION;
++      }
++      continue;
 +    }
 +#endif
 +#line 579
      while (ver->ldAcqStatus() == VersionStatus::pending)
        ;
      while (ver->ldAcqStatus() != VersionStatus::committed &&
-@@ -1496,13 +1621,32 @@
+@@ -1496,13 +1661,14 @@
          ;
      }
  
-+#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
-+    if (wscan_eligible && FLAGS_cicada_wscan_delay_us != 0) {
-+      wscan_scan_lock.lock();
-+      if (ws.hit) {
-+        ++ws.post_scan_detached;
-+        ++ws.probe_aborts;
-+        ws.watch = nullptr;
-+        --wscan_active;
-+        wscan_scan_lock.unlock();
-+        result = false;
-+        goto FINISH_VALIDATION;
-+      }
-+      ws.watch = nullptr;
-+      --wscan_active;
-+      wscan_scan_lock.unlock();
-+    }
-+#endif
 +#line 588
      if (ver->ldAcqRts() > this->wts_.ts_ ||
          ver->ldAcqStatus() == VersionStatus::deleted) {
        result = false;
        goto FINISH_VALIDATION;
      }
--  }
+   }
 -
-+  }
-+
 +#line 595
    // validate the node set
    for (auto it : node_map_) {
      auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
-@@ -1745,6 +1889,12 @@
+@@ -1745,6 +1911,12 @@
      }
      // this pointer may be dangling.
  
@@ -203,7 +224,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
      Version* delTarget =
          gcq_.front().ver_->next_.load(std::memory_order_acquire);
  
-@@ -1755,6 +1905,24 @@
+@@ -1755,6 +1927,24 @@
      for (Version* v = delTarget; v; v = v->ldAcqNext()) ++detached_count;
      gc_report.detached(thid_, rdtscp(), gcq_.front().ver_, delTarget);
      GC_DETACH(thid_, detached_count);
@@ -228,7 +249,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
  #endif
  #line 836
      // updates record.min_wts
-@@ -1898,6 +2066,11 @@
+@@ -1898,6 +2088,11 @@
  #if CICADA_GC_COUNT
    uint64_t now = rdtscp();
    if (before && loadAcquire(GCFlag[0].obj_) == 0) gc_report.published(now);

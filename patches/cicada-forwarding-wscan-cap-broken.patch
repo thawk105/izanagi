@@ -1,8 +1,7 @@
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -646,8 +646,8 @@
-   if (cap_floor <= __atomic_load_n(&ThreadRtsArray[thid].obj_,
+@@ -712,7 +712,7 @@
                                      __ATOMIC_ACQUIRE))
      GC_INC(thid, cap_no_raise);
  #endif
