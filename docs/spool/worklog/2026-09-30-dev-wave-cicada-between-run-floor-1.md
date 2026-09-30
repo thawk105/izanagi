@@ -1,0 +1,24 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-09-30
+wave: dev-wave-cicada-between-run-floor
+seq: 1
+title: [T-2915] Cicada の throughput の時間窓間ばらつきを関門の対象外の診断経路で日内 6 窓にわたって測った — 主 GC の A で Y5 0.69%・Y50 1.05%・Y95 0.70%、いずれも D19 の下限 3% より小さい (計測データ + insight、branch worktree-dev-wave-cicada-between-run-floor)
+---
+
+## 本文
+
+- 依頼 md_35 (`/work/1/SFC/tanab/tmp/vhash-2026-09-29/md_35.txt`)。道の比較と裁定は {{D:cicada-window-cv-diagnostic-path}}、一次資料 `output/insights/2026-09-30/cicada-between-run-floor/README.md`。
+- 段 3 相談 2 本 (A: 正しさ境界、B: 過剰・統計) の must-fix 5 件を含む 15 所見をすべて real と裁定した。中心は A1「関門を通らない値を f_T・floor と名乗らない」で、名前を「日内 6 窓・診断経路」とし、[T-2915] を完了でなく更新にした。
+- 段 2 (codex の plan 起草) は省き、plan を段 1 brief と段 4 裁定に含めた。repo の実装面の差分はゼロ (driver は無改変、集計 script は Codex author が job dir に書いた) で、変異 matrix は免除。
+- 実行した手順: 窓 1 を 15:18 JST に投入、以後 series script が 60 分おきに 20:19 まで投入。18 job すべて rc=0・検査合格、代替窓は使っていない。Elapse 合計 2,275 s。
+- author の初回起動 (author-1) は起動器に `--max-attempts 2` を付けて dry-run 前に投入し rc=2 (workspace-write では不可)。起動前の失敗で、author-2 で正しく走った。DW-O01 の「dry-run の argv を先に検査」を省いた手順違反で、規則の不足ではない。
+- 利用上限で 20:21〜21:41 JST に中断し、同じ session で再開した (計測は中断前に全窓完了)。
+
+## 次の一手差分
+
+### 更新
+
+- [T-2915] **P3・更新 (Y の 3 動作点は測定済み、残りは日を跨ぐ窓と他の cell)**: Cicada の throughput の f_T は、関門 (D1373) の対象外の診断経路で「Cicada A の時間窓間 session-median CV (日内 6 窓・診断経路)」として測った ({{D:cicada-window-cv-diagnostic-path}}、一次資料 `output/insights/2026-09-30/cicada-between-run-floor/README.md`)。主 GC の A で Y5 0.69%・Y50 1.05%・Y95 0.70% で、いずれも 3% より小さく、これらの署名では δ_T = ln 1.03 のまま (D19 の下限で決まる)。残り: (1) 日を跨ぐ窓 (同じ spec 形・起動器で別の日に数窓足す、1 窓 3 job で約 6 node 分)、(2) R・L-w・100 操作型の cell (R は性能用 build の ro 指定率の生成器が無い)。評価計画 §8.3 の二択 (下限だけで発効 / floor を待つ) は、発効の wave が本値を添えてユーザーに諮る。
+  base: 50ca92f6addd27e6672fa3cc4dcf54a169f7d9984cbfe5c6d3353fbea1a2b944
