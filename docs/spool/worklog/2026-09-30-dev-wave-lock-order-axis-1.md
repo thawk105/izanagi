@@ -13,6 +13,7 @@ title: [T-2886] gen-opt md_13: 段 A の軸 silo-lock-order-policy の受理文�
 - 生死確認 (request 37881.nqsv、bnode052、Elapse 81 s): 名前つき対照 (版が新しいほど先に施錠) が gate を通り、trace・性能 build とも成功、既存判定器は RMW あり / なしとも serializable (certified の根拠ではない)。commit した UPDATE だけの複数書き取引のうち key 順と違う順で施錠したものが 39.17% / 39.24%。1 回目 (37865.nqsv、7 s) は起動器が短縮 PIN を完全 SHA と比べて preflight で止まり、起動器を直して再投入した。計算の合計は 2 node 時間を大きく下回る。
 - 段 3 の相談が「禁止名が参照では拒否されるが宣言名 (状態 field 等) としては通る」ことを見つけ、新 profile にだけ宣言位置・参照位置の両方の禁止識別子検査を入れた。既定 profile (関数方策の軸) の受理集合は変えていない。
 - 段 4 で、新 macro の登録に従属する件数の固定値と共有 fixture (`condition_gate_test_support.py` の Options.cmake) を列挙し漏れ、実装子の報告と親の焦点走 (7 failed) で見つけて追補裁定 2 本で直した。
+- 受入全走 attempt 2 が 1 failed / 28,423 passed: `screening_driver._CONDITION_DEFAULTS` と `DEFINE_SPECS` の集合一致の test。新 macro の登録に従属する consumer を焦点走から落としていた (自分起因、追補裁定 3 で既定値 1 行を追記)。attempt 1 は main 前進との postcheck 競走で test 未実行。
 - 事前登録の変異 M1〜M6 は独立 clone (2148b469a) で KILLED 6 / 6 (期待 node と完全一致)。1 回目は M5 の期待に login 自走の実行順依存の巻き添え node を入れていて MISMATCH、erratum で直して再走した (一次資料 §3.1)。
 - 段 6 の review-a 所見 1 (`-DSILO_ORDER_VARIANT=foo` が `#if` で 0 と評価される) は nit に降格: identity の前処理が `-Werror=undef` で走るので fail-closed で止まる。最初の降格理由 (「STOCK として記録」) は焦点再レビューで誤りと分かり、裁定 file に訂正を追記した。
 - 並行で着地した MOCC 版の軸の設計 (gen-opt-mocc-policy-axis §4.3) の「核 + 表」の核の最初の形がこの wave の `PolicyProfile`。同設計の凍結写しとの全 field 差分 test と、compile・IR module の表の分離はこの wave では作っていない。

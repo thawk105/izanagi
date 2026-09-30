@@ -71,6 +71,11 @@ f1 の赤 7 件はすべて、新 macro を条件意味 gate に 1 つ登録し�
 
 既存 4 軸の受理集合が変わらないことの証拠: (1) 既存の `test_silo_policy_grammar.py`・`test_silo_policy_compile.py`・`test_silo_policy_smoke_entry.py`・`test_silo_function_policy_template.py`・`test_p3_s4_loop.py` を無変更で緑、(2) 新 test が既存の文法 corpus (manifest の全件と手書き方策) を既定 profile に通して `(accepted, rule_id)` が期待どおり、明示の `FUNCTION_POLICY_PROFILE` でも同じ、新 profile ではすべて拒否されること、既定 profile の禁止集合が空であること (関数方策の軸では状態 field `result_` が今までどおり受理される) を確かめる。backoff・sort・trigger-gating の軸の検査器は変えていない (`p3_s4_loop.quarantine` は無変更)。
 
+受入全走 (`tools/dev_wave_wait.py acceptance`、全 test):
+
+- attempt 1 (tip `c3adf2175`): `stage=postcheck rc=70`。受入ツールが local main を取り込んでいる間に main がさらに進んだ競走で、test は 1 件も走っていない。
+- attempt 2 (tip `562fec6d1`、取り込んだ main `213d411c6`): **1 failed / 28,423 passed / 74 skipped**。赤は `test_screening_driver.py::test_screening_condition_requests_cover_exact_define_specs` で、`screening_driver._CONDITION_DEFAULTS` の macro 集合が条件意味 gate の `DEFINE_SPECS` と一致することを要求する。新 macro の登録に従属するこの consumer を、段 1〜6 の consumer 列挙と焦点走の file 集合から落としていた (自分起因)。追補裁定 3 (verbatim/s4-ruling-addendum-3.md) で既定値表に `SILO_ORDER_VARIANT: 0` を 1 行足すことだけを許し、Codex が直した。`DEFINE_SPECS` を読む他の consumer (backoff_sweep・s1_direct_comparison・silo_ladder_rung1 と各 test) は attempt 2 で緑だった。
+
 ### 3.1 変異検査 (事前登録 M1〜M6、`mutation/`)
 
 段 4 で実装前に登録した 6 変異 (verbatim/s4-ruling.md の表) を、対象 commit `2148b469a` を main に固定した独立 clone (D1009) に `tools/mutation_harness.py` を当て、runner を計算ノードへ直列 dispatch して走らせた。期待 node は login の自走 probe (`mutation/probe-p1.json`、Codex author の probe を親が実行、baseline 緑・各変異の注入と復元の sha256 と porcelain 空を照合) の観測から取った。
