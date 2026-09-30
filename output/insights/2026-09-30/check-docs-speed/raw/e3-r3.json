@@ -1,0 +1,173 @@
+{
+  "hostname": "bnode007",
+  "started_at": "2026-09-30T05:12:28.009755+00:00",
+  "wall_seconds": 415.15054080000846,
+  "runs": [
+    {
+      "stage": "warmup",
+      "round": 1,
+      "side": "old",
+      "started_at": "2026-09-30T05:13:10.113532+00:00",
+      "wall_seconds": 37.86693878797814,
+      "peak_rss_kib": 309132,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "warmup",
+      "round": 1,
+      "side": "new",
+      "started_at": "2026-09-30T05:13:47.984572+00:00",
+      "wall_seconds": 15.58337751799263,
+      "peak_rss_kib": 318344,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 1,
+      "side": "old",
+      "started_at": "2026-09-30T05:14:03.570707+00:00",
+      "wall_seconds": 37.458878572972026,
+      "peak_rss_kib": 309044,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 1,
+      "side": "new",
+      "started_at": "2026-09-30T05:14:41.032056+00:00",
+      "wall_seconds": 15.52327529998729,
+      "peak_rss_kib": 318336,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 2,
+      "side": "old",
+      "started_at": "2026-09-30T05:14:56.557926+00:00",
+      "wall_seconds": 37.573126829985995,
+      "peak_rss_kib": 309100,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 2,
+      "side": "new",
+      "started_at": "2026-09-30T05:15:34.133780+00:00",
+      "wall_seconds": 15.908874278014991,
+      "peak_rss_kib": 318320,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 3,
+      "side": "old",
+      "started_at": "2026-09-30T05:15:50.045075+00:00",
+      "wall_seconds": 37.60199573400314,
+      "peak_rss_kib": 308868,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 3,
+      "side": "new",
+      "started_at": "2026-09-30T05:16:27.649722+00:00",
+      "wall_seconds": 15.520517308992567,
+      "peak_rss_kib": 318172,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 4,
+      "side": "old",
+      "started_at": "2026-09-30T05:16:43.172674+00:00",
+      "wall_seconds": 37.48772585799452,
+      "peak_rss_kib": 309180,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 4,
+      "side": "new",
+      "started_at": "2026-09-30T05:17:20.662943+00:00",
+      "wall_seconds": 15.556683743023314,
+      "peak_rss_kib": 318080,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 5,
+      "side": "old",
+      "started_at": "2026-09-30T05:17:36.222258+00:00",
+      "wall_seconds": 37.29137069202261,
+      "peak_rss_kib": 308856,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "measure",
+      "round": 5,
+      "side": "new",
+      "started_at": "2026-09-30T05:18:13.516125+00:00",
+      "wall_seconds": 15.513211926008807,
+      "peak_rss_kib": 318288,
+      "rc": 0,
+      "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "summary": {
+    "old": {
+      "wall_median_seconds": 37.48772585799452,
+      "wall_min_seconds": 37.29137069202261,
+      "wall_max_seconds": 37.60199573400314,
+      "rss_median_kib": 309044,
+      "rss_min_kib": 308856,
+      "rss_max_kib": 309180
+    },
+    "new": {
+      "wall_median_seconds": 15.52327529998729,
+      "wall_min_seconds": 15.513211926008807,
+      "wall_max_seconds": 15.908874278014991,
+      "rss_median_kib": 318288,
+      "rss_min_kib": 318080,
+      "rss_max_kib": 318336
+    }
+  },
+  "new_old_median_wall_ratio": 0.41408954383603513,
+  "side_stable": {
+    "old": true,
+    "new": true
+  },
+  "cross_equal": true,
+  "profile_new": {
+    "path": "/work/SFC/tanab/tmp/check-docs-speed-2026-09-30/results/e3-r3-new.prof",
+    "started_at": "2026-09-30T05:18:29.032144+00:00",
+    "wall_seconds": 35.607730486022774,
+    "rc": 0,
+    "stdout_sha256": "2130ef988b3b4c8a5d9a982e67759e10dc4ef06e30e5ffe9aff26ecf9349bd31",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "all_equal": true,
+  "exit_code": 0
+}
