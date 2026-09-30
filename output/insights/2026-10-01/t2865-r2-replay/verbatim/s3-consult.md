@@ -1,0 +1,25 @@
+## 指摘
+
+- **[refuted] 中 — 「同じ campaign ID なので別 checkout でも衝突する」は不成立。** claim は出力 root ごとで、R2 と bootstrap は `evaluation_purpose` も異なる（[loop.py:388](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/loop.py:388)、[p3_s4_loop_policy.py:186](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/p3_s4_loop_policy.py:186)）；6 本は区別できるが、insight を ID 単独で結合すると別観測が混ざる。
+- **[real] 低 — 「2 本目は必ず ClaimError」は条件不足。** policy gate 拒否は claim 取得より前に返るため、「同一設定の先行実行が claim を取得済み」が必要（[p3_s4_loop_policy.py:478](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/p3_s4_loop_policy.py:478)、[loop.py:698](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/loop.py:698)）；無条件に一般化すると gate 拒否と claim 拒否の分類を誤る。
+- **[real] 中 — P2 は stock 呼出し時の環境切替を明記すべき。** `IZANAGI_S4_POLICY_PROPOSAL_PATH` は空文字でも存在すれば stock が拒否し、scratch 名は生の PBS_JOBID ではなく `:` を `_` に置換する（[p3_s4_loop_pegasus.sh:254](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/tools/pegasus/p3_s4_loop_pegasus.sh:254)、[同:333](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/tools/pegasus/p3_s4_loop_pegasus.sh:333)）；切替・退避を誤ると候補だけ測れて stock 比が欠測になる。
+- **[refuted] 中 — 同じ nonce の再使用だけで2回目が拒否される根拠はない。** nonce は非空値として読み、再使用台帳はなく、各呼出しは同じ scheduler 開始時刻から deadline を導出する（[reservation.py:55](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/reservation.py:55)、[p3_s4_loop_pegasus.sh:521](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/tools/pegasus/p3_s4_loop_pegasus.sh:521)）；ただし残り1秒検査は存在確認にすぎず、stock 完走の保証として扱うと未完了観測を過大に見込む（[loop.py:381](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/loop.py:381)）。
+- **[要実測] 中 — 二重呼出しの完走は未証明。** HEAD・CCBench clean、単独性、前処理、receipt、trace 必須検査は各回に残る（[p3_s4_loop_pegasus.sh:414](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/tools/pegasus/p3_s4_loop_pegasus.sh:414)、[同:684](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/tools/pegasus/p3_s4_loop_pegasus.sh:684)、[p3_s4_loop_policy.py:1008](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/p3_s4_loop_policy.py:1008)）；smoke は候補だけでなく stock 終了と両側の証拠・trace 保全まで確認しないと、成立観測数を誤る。
+- **[real] 中 — P3 の「2 node 時間未満」はまだ成立していない。** 元記録の706・696・807秒は stock 込みの pair 全体であり、候補単独の R2 単価ではない（[元記録:93](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/output/insights/2026-09-29/t2865-silo-policy-series-c/README.md:93)）；さらに runbook は検査込みのタスク合計を要求する（[runbook:31](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/docs/phase3-silo-policy-runbook.md:31)）ため、受入全走を除いた見積りでは投入可能な観測数の判断が変わる。
+- **[real] 中 — P4 の候補単位の失格と round 単位の欠測を分ける必要がある。** 「その round の比は取らない」だけでは、別 round が緑だった候補の最終分類が曖昧（[s1-brief.md:14](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/artifacts/s1-brief.md:14)）；anomaly が一度でも出た候補を再現成功集合に戻すと、依頼の受理集合を広げる。
+- **[refuted] 低 — pair mode 流用は今回の R2 の代替にならない。** `--stock-control` は `--run-iteration` 専用で、pair は loop state と iteration を消費する（[p3_s4_loop_policy.py:936](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/p3_s4_loop_policy.py:936)、[同:1074](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/orchestrator/campaign/p3_s4_loop_policy.py:1074)）；流用すると成果物を `evaluation_purpose=r2` の再測定と分類できない。
+
+## 親 brief の (P1)〜(P5) への判定
+
+- **P1：支持。** 別 checkout による6観測は実コードと整合する。D2270 の識別子追加は「同じ checkout で繰り返す必要」がある場合で、今回は必須ではない（[decisions.md:73079](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2865-r2-replay/docs/decisions.md:73079)）。共有 driver の編集を避ける方が依頼に合う。既存 insight の表に候補・round・checkout 絶対 path・campaign dir・job の対応を残せば足り、新しい台帳は不要。
+- **P2：修正。** 逐次 `bash` 呼出し、呼出し別 evidence／archive、実際の scratch 名の退避、stock 側 proposal 変数の `unset` を具体化する。claim は退避しない。既存の系列 C `submit-policy.sh` は replay 非対応なので無修正流用できない（[submit-policy.sh:27](/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/submit-policy.sh:27)）。共通 gate と評価経路を弱める変更は見当たらないが、TRACE 除去ビルド・保全された trace・両呼出しの結果の成立は smoke で確認する。
+- **P3：修正。** smoke は候補2の round 1として数え、二重呼出し全体の Elapse で積算する。候補間の所要差と受入検査を含めて2 node時間を再判定してから残りを投入する。5ノード並列化は待ち時間を縮めるが、node時間は減らさない。
+- **P4：修正。** 両側の同一 attempt に属する WAL と構造化された outcome を照合し、候補・stock とも成立した round だけ比を示す。anomaly は候補全体を失格とし、既に得た別 round の観測事実は残しても候補を復活させない。候補→stock 固定は元測定の再測定として妥当だが、逐次対照であり、順序効果を除いた差とは呼ばない。比の水準・並びは観測された一致／不一致として記述し、最高水準への優位や安定した順位の証明へ広げない。
+- **P5：支持。** 今回直接踏む入口の誤記訂正は scope 内。ただし「Pegasus では、同一設定の既存 claim がある場合、候補を問わず terminal 判定より前の claim 取得で拒否される」と条件を限定する。関連しない runbook 改訂へ広げない。
+
+## 総括
+
+P1 の6 checkout 案を支持し、共有 driver への識別子追加は不要と判断する。
+P2 は環境切替を具体化したうえで、候補→stock 全体を smoke の成立単位にする。
+P3 は検査込みの費用、P4 は候補単位の失格を明記する必要がある。
+静的検査では正しさ gate の緩和は見当たらない。実走・trace 保全・性能構成の成立は未実測である。
