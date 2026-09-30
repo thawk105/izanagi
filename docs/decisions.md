@@ -74851,3 +74851,51 @@ md_23 (`output/insights/2026-09-29/vhash-hot-block-cicada/README.md`) の一次�
 - 既定設定を相手に伸びしろの大きい領域を選ぶ — 既定は最良より 2〜4.5 倍遅く (md_11)、審査で意味が無い。
 - 規則を満たさなかった「最良設定だけで u1 ≥ 0.05」の高偏り領域を候補に加える — 登録した規則 (両 genome) を結果を見て変えることになる。
   最良設定だけの近い領域として一次資料 §4 に記録するに留める。
+
+## D2330. 全 5 項の裁定 — 縮小受入の汎用名に verbatim を足さず、ultra の委任先に guard が効くかの probe を 1 回だけ許し、CCBench の Cicada 修理 branch の push を人間に依頼する (2026-09-30)
+
+**決定 (ユーザー裁定):** 索引 5 項の説明と推奨に対し、ユーザーは 2026-09-30 に「推奨通りで」と回答した (逐語)。5 項すべて推奨どおり。下の番号は会話の索引番号と一致する。
+本決定は裁定記録であり、実装・記帳・送信・投入が完了したことを意味しない。各処置は名指しの変更に限定し、付随する gate・台帳・汎用化を足さない。規律 1・2 は不変。
+
+**窓と収集:** 窓は entry 1977〜1989 (第 41 回 D2322 が見た entry 1976 の次) と D2320〜D2329、稼働中 wave の未 land fragment。収集は main `d79fd3524` (entry 1989) で行った。
+次の一手 162 項を carry 鎖の実体まで解決した (未解決 0)。裁定済み未実装 (見出しが裁定済み・既裁定・承認済み・了承・ユーザー裁定の型) は 49。GitHub の状態は HTTPS の ls-remote と公開 API の check-runs で読んだ。
+材料・相談の出力は repo 外 `/work/1/SFC/tanab/dev-wave-jobs/rulings-all-20260930c/` (`materials.md`・`artifacts/`・`index-final.md`)、控えは `rulings-inbox/2026-09-30-rulings-full42-verdicts.md`。
+
+**相談の採否:** 別系統モデル (read-only、`--lane sol`、medium) を 2 本、どちらも受理。ユーザー指示 (2026-09-30) の gpt-6-astra・ultra は、それを実装する wave が未 land で main の起動器が対応していないため使えなかった。
+A (推奨の当否) は項 1 に反対し、`tools/b5_llm_round.py` が `{materials_root}/verbatim/` を相対 path で読む reader を示した → 現物で確かめて採用し、項 1 の推奨を「足す」から「足さない」へ改めた (起草時の検索が先頭 30 件で切れて tools/ を見ていなかった)。項 2〜5 と索引外の判断には同意。
+A の項 3 の izanagi main の push は、収集の途中でユーザーが push した (GitHub の main = `d79fd3524`、未 push 0) ので索引から外した。B (索引漏れ) は漏れなし・索引外の誤りなし。
+
+### 項 1 — T-2941: 縮小受入の汎用名に `verbatim` を足さない
+
+対象: T-2941。資料: D2316 決定 3、worklog entry 1977、`output/insights/2026-09-30/prune-orchestrator-batch2/verbatim/scoped-plan.json`、`tools/scoped_acceptance.py` の `GENERIC`、`tools/b5_llm_round.py`。
+
+**決定:** 現状維持。`verbatim` は README.md・index.md と同じ汎用名に加えない。wave が逐語の写しを `verbatim/` 以外の dir 名に置いて縮小受入に乗ることは D2316 決定 3 の規則どおりで妨げない (規則・手順書の慣行は変えない)。
+
+**理由:** `tools/b5_llm_round.py` は実行時に渡された資料の根の下の `verbatim/critic-*.md`・`verbatim/planner-*.json`・`verbatim/coder-*.json` を読む。資料の根は引数なので祖先 path の鍵では拾えず、`verbatim` の 1 語だけがこの reader を拾う。外すと正しさの門の入力を全受入へ倒す原則 (過大除外側) が崩れる。改名した dir は、その名前が production code に現れない限り読み手がいないので、規則の判定どおり縮小受入でよい。
+
+**却下した選択肢:** `verbatim` を足す — 本物の reader を見落とす。`summary.json` なども外す — producer・reader が実在しうる名前でなお危険。production の英単語を書き換える — reader が残るので効果が無い。
+
+### 項 2 — astra-ultra の委任先 guard の probe を 1 回だけ許す
+
+対象: 稼働中 wave `dev-wave-codex-astra-ultra` の未採番の新規項 (委任先の guard の probe)。資料: 同 branch の worklog・decisions fragment、`hooks/README.md`、`tools/check_codex_hooks.py`。
+
+**決定:** 使い捨て repo で、ultra の root と委任先 (sub-agent) に保護 path への書込みを試させる probe を 1 回だけ許す。login のみ・計算ノードなし・flag は `tools/check_codex_hooks.py` と同じ `--dangerously-bypass-hook-trust` で、sandbox の迂回はしない。実行は、その 1 手だけ auto mode を外した会話で AI が起動するか、AI が用意した script をユーザーが `!` で 1 回走らせる。結果が「効かない」なら、そのとき workspace-write 段での委任の扱いを改めて諮る。今は新しい防壁を足さない。
+
+**理由:** 改訂後の起動器は委任した attempt を受理しないが、受理しないことは子 worktree への書込みを消さない。guard が委任先に効くかは未確認で、確認は実在する穴の測定に当たる。
+
+**却下した選択肢:** 許可しない — 穴の有無が分からないまま全段 ultra の運用が続く。workspace-write 段だけ ultra をやめる — 全段 ultra のユーザー指示と非同値 (同 wave の decisions fragment も不採用)、穴の有無が分かる前の過剰策。
+
+### 項 3 — Git: CCBench の `izanagi-cicada-promotion-uaf-fix` の push は人間
+
+**決定:** 主 checkout で `cd external/ccbench && git push origin izanagi-cicada-promotion-uaf-fix` (T-2959、tip `16ad3eb8`、別名の新 branch で force 不要) を行い、GitHub の Actions の build・format の緑を確かめるのは人間 (D16)。上流 PR は D2305 項 10 のとおり。`izanagi-gate-witness-trace` (T-2945) は Silo 修正と統合した tip を作ってからなので今回は依頼しない。
+
+**収集時の実測:** D2322 項 6 で依頼した `izanagi-silo-intra-txn-fix` (`dbac49b6`)・`izanagi-mocc-validation-fix` (`f4a5169e`) は GitHub にあり、check-runs は build・format-check とも success (2026-09-30 06:2xZ)。前提の Cicada 2 本 (`eb93423b`・`81fc4a84`) も push 済み。push 後、AI が F への pin 前進 (T-2854) と修正を積んだ tip への前進を行い、束ねた tip は改めて push を依頼する。
+
+### 項 4・項 5 — 変更なし
+
+T-2895 (VHash の関連研究 5 本の取り寄せ、1・2・5 を優先、D2305 項 12) と収載維持 7 件 (T-793 / T-1234 / T-1660 / T-2000 / T-580 / T-1702 / T-1708、D1836・D1911・D2305 項 13) は変更なし。
+
+### 覆う ID と既裁定の照合
+
+T-2872・T-2905 は人間の手番が済んで完了 (gitlink は T-2919・T-2917)、T-2885・T-2917・T-2919 は前提の push・CI 緑の充足を更新。T-2962 (d) と T-2958 が引く「ユーザー確認待ち」「D2318 項 3 が案 1・案 3 なら」は D2322 項 1・2 で決着済み (D2329 項 3 の同じ記述も D2322 項 2 で決着済み、D2329 の本文は改めない)。
+稼働中 wave が所有する項のうち、astra-ultra の「計算ノードで受入・変異を回して land するか」は 2026-09-30 18:50 JST にユーザーが同 wave で許可済み (同 wave が記録する)。
