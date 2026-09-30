@@ -33,6 +33,9 @@ title: [T-2867] 関数方策の軸の生成器対照を発効させ 4 arm × 12 
   焦点走に driver の consumer であるこの試験を入れていなかった親の見落とし (DW-O26)。段 6 裁定 4 (一次資料 `verbatim/s6-ruling-4-spawn-sites.md`) でこの 2 つの数値だけの変更を許し、
   Codex fix が 455 に合わせた (commit b4495e27f)。焦点走 (login の上限付き local 実行) で spawn-sites 5 件は緑、赤 4 件は `test_p3_s4_loop_policy.py` の
   `IZANAGI_EXPLORATION_OUTPUT_ROOT は repository 外` (login の `/tmp/.git` による既知の偽赤、受入の全走では緑)。
+- 受入 acc2 (07:43〜08:08、tip `df9d528e6`): 2 failed / 28,704 passed / 74 skipped。赤は `test_b5_contrast_launch.py::test_v2_three_429s_restart_stock_then_accept_same_a_and_evaluate`
+  (5,000 tick を 1 ms 間隔で回す loop が「first evaluation did not finish」で時間切れ) と `test_plot_b7_fixed5_regression.py::test_bbox_overlap_is_a_failure` (文字配置の重なり検査)。
+  どちらも acc1 から後の本 wave の差分 (spawn-sites の行番号 2 つと docs) から到達せず、acc1 では緑。単独再走で 2 件とも緑 (非再現) → 非帰属と判定し (DW-O18)、受入を取り直した。
 - 計算ノード: 本走 579 job・63.53 node 時間 (見積り 61〜70)。前走・自己試験・焦点走・変異で約 3 node 時間。LLM は 249 機会 (直列 45.1 時間)。
 - 子の工数: Codex author 2 (駆動 loop・driver 修正)、review 1、fix 2、焦点再レビュー 1。Claude role `auditor` 1 (公平性の目視)。
 
