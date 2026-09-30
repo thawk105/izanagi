@@ -459,9 +459,13 @@ def test_aggregate_verification_positive_and_disqualification():
                                 'overprune': {'fired': fired},
                                 'attributed_edges': [{'edge': {}}] if detected else [],
                                 'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
-                                'trace_counts': {'C': 5}, 'commit_count': 5})
+                                'trace_counts': {'C': 5}, 'commit_count': 5,
+                                'read_wts_mismatch': 0})
     summary = d.aggregate_verification(records)
-    assert summary['status'] == 'passed' and summary['positive_count'] == 4
+    assert (summary['status'] == 'normal_arms_passed_s8_positive_unmet'
+            and summary['positive_count'] == 0
+            and summary['auxiliary_detection_count'] == 4)
+    assert '末尾 worker' in summary['auxiliary_detections'][0]['attribution_basis']
     classified = {(r['cell'], r['thread']): r for r in summary['broken']}
     assert classified['K', 4]['classification'] == '期待した経路で検出'
     assert classified['W', 8]['classification'] == '未検出または帰属不能'
@@ -504,9 +508,13 @@ def test_aggregate_full_parts_enforces_positive_and_controls():
                           'overprune': {'fired': int(detected)},
                           'attributed_edges': [{'edge': {}}] if detected else [],
                           'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
-                          'trace_counts': {'C': 5}, 'commit_count': 5}
+                          'trace_counts': {'C': 5}, 'commit_count': 5,
+                          'read_wts_mismatch': 0}
             records.append(record)
-    assert d.aggregate(records, require_parts=True)['verification']['positive_count'] == 2
+    result = d.aggregate(records, require_parts=True)
+    assert (result['verification']['positive_count'] == 0
+            and result['verification']['auxiliary_detection_count'] == 2)
+    assert result['status'] == 'normal_arms_passed_s8_positive_unmet'
     undetected = [{**r, 'verdict': 'indeterminate', 'total_cycles': 0,
                    'attributed_edges': []} if r['arm'] == 'broken' else r for r in records]
     raises(ValueError, d.aggregate, undetected, require_parts=True)
@@ -514,6 +522,59 @@ def test_aggregate_full_parts_enforces_positive_and_controls():
         changed = [{**r, 'total_cycles': 1} if r.get('thread') == 4 and r['cell'] == 'K'
                    and r['arm'] == arm else r for r in records]
         raises(ValueError, d.aggregate, changed, require_parts=True)
+
+
+def test_s8_ronly_positive_and_control_fields():
+    records = []
+    for arm in (*d.ARMS, 'broken'):
+        broken = arm == 'broken'
+        records.append({'cell': 'ronly_wait', 'thread': 4, 'arm': arm,
+                        'verdict': 'non-serializable' if broken else 'indeterminate',
+                        'total_cycles': int(broken), 'overprune': {'fired': int(broken)},
+                        'attributed_edges': [{'edge': {}}] if broken else [],
+                        'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
+                        'trace_counts': {'C': 5}, 'commit_count': 5,
+                        'read_wts_mismatch': 0})
+    summary = d.aggregate_verification(records)
+    assert summary['status'] == 'passed'
+    assert summary['positive_count'] == 1
+    assert summary['auxiliary_detection_count'] == 0
+    for update, reason in (({'verdict': 'serializable'}, 'verdict'),
+                           ({'read_wts_mismatch': 1}, 'read_wts_mismatch'),
+                           ({'read_wts_mismatch': None}, 'read_wts_mismatch')):
+        changed = [{**r, **update} if r['arm'] == 'min' else r for r in records]
+        failed = d.aggregate_verification(changed)
+        assert failed['status'] == 'failed'
+        assert reason in failed['disqualified'][0]['reasons']
+    missing = [{k: v for k, v in r.items() if k != 'read_wts_mismatch'}
+               if r['arm'] == 'gen' else r for r in records]
+    assert d.aggregate_verification(missing)['disqualified'][0]['arm'] == 'gen'
+
+
+def test_aggregate_cli_requires_part_ids():
+    with tempfile.TemporaryDirectory() as tmp:
+        raw = Path(tmp) / 'raw.jsonl'
+        raw.write_text(json.dumps({'cell': next(iter(d.CELLS)), 'valid': True}) + '\n')
+        raises(ValueError, d.main, ['aggregate', '--raw', str(raw),
+                                    '--output', str(Path(tmp) / 'aggregate')])
+
+
+def test_unattributed_wait_cycles_are_auxiliary_only():
+    records = []
+    for arm in (*d.ARMS, 'broken'):
+        broken = arm == 'broken'
+        records.append({'cell': 'wait_after_reads', 'thread': 4, 'arm': arm,
+                        'verdict': 'non-serializable' if broken else 'indeterminate',
+                        'total_cycles': 3 if broken else 0,
+                        'overprune': {'fired': int(broken)}, 'attributed_edges': [],
+                        'integrity': {key: 0 for key in d.INTEGRITY_NUMERIC},
+                        'trace_counts': {'C': 5}, 'commit_count': 5,
+                        'read_wts_mismatch': 0})
+    summary = d.aggregate_verification(records)
+    assert summary['status'] == 'normal_arms_passed_s8_positive_unmet'
+    assert summary['positive_count'] == 0
+    assert summary['auxiliary_detection_count'] == 1
+    assert '帰属 0' in summary['auxiliary_detections'][0]['attribution_basis']
 
 
 def test_aggregate_missing_cells_rejected():

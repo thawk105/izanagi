@@ -1,0 +1,4810 @@
+{
+  "schema": "vhash-interval-gc-figures/v1",
+  "cells": {
+    "rr50-many-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            3560961.0,
+            3510586.0,
+            3419047.0
+          ],
+          "median_tps": 3510586.0,
+          "rep_min_tps": 3419047.0,
+          "rep_max_tps": 3560961.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1001424,
+          "chain_bytes": 192273408,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 41926116,
+          "installed_bytes": 8049814272,
+          "reuse_pool": 291172,
+          "per_install": {
+            "chain_versions": 0.02388544648400057,
+            "chain_bytes": 4.58600572492811,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 911354,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 968422,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1286053,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 19738,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            988821.0,
+            979629.0,
+            959747.0
+          ],
+          "median_tps": 979629.0,
+          "rep_min_tps": 959747.0,
+          "rep_max_tps": 988821.0,
+          "ratio_to_stock_medians": 0.2790499933629314,
+          "paired_rep_ratios": [
+            0.2776837488531888,
+            0.2790499933629314,
+            0.28070599789941464
+          ],
+          "paired_ratio_min": 0.2776837488531888,
+          "paired_ratio_max": 0.28070599789941464
+        },
+        "retention": {
+          "chain_versions": 1003987,
+          "chain_bytes": 192765504,
+          "pruned_pending": 1087652,
+          "pruned_pending_bytes": 208829184,
+          "installed": 11637932,
+          "installed_bytes": 2234482944,
+          "reuse_pool": 61220,
+          "per_install": {
+            "chain_versions": 0.08626850543550177,
+            "chain_bytes": 16.56355304361634,
+            "pruned_pending": 0.0934574974316743,
+            "pruned_pending_bytes": 17.943839506881464
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 164444,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 240465,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 88410,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 184840013756,
+          "install_lock_wait_seconds": 88.01905416952381,
+          "install_lock_wait_fraction": 0.6112434317328043,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 11637932,
+          "success": 596963,
+          "lock_fail": 576959,
+          "cas_fail": 0
+        },
+        "boundary_samples": 11555,
+        "pruned": 1087652,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            901343.0,
+            854244.0,
+            915781.0
+          ],
+          "median_tps": 901343.0,
+          "rep_min_tps": 854244.0,
+          "rep_max_tps": 915781.0,
+          "ratio_to_stock_medians": 0.2567500126759464,
+          "paired_rep_ratios": [
+            0.2531179083399116,
+            0.24333373402617112,
+            0.2678468590809076
+          ],
+          "paired_ratio_min": 0.24333373402617112,
+          "paired_ratio_max": 0.2678468590809076
+        },
+        "retention": {
+          "chain_versions": 1001708,
+          "chain_bytes": 192327936,
+          "pruned_pending": 1100720,
+          "pruned_pending_bytes": 211338240,
+          "installed": 12688607,
+          "installed_bytes": 2436212544,
+          "reuse_pool": 49480,
+          "per_install": {
+            "chain_versions": 0.07894546659061945,
+            "chain_bytes": 15.157529585398933,
+            "pruned_pending": 0.08674868722784149,
+            "pruned_pending_bytes": 16.655747947745564
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 92515,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 222885,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 223519,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 120852364518,
+          "install_lock_wait_seconds": 57.54874500857143,
+          "install_lock_wait_fraction": 0.39964406255952384,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 12688607,
+          "success": 694169,
+          "lock_fail": 747269,
+          "cas_fail": 0
+        },
+        "boundary_samples": 18666,
+        "pruned": 1100720,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-many-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            3432812.0,
+            3486115.0,
+            3272140.0
+          ],
+          "median_tps": 3432812.0,
+          "rep_min_tps": 3272140.0,
+          "rep_max_tps": 3486115.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1003815,
+          "chain_bytes": 192732480,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 41129066,
+          "installed_bytes": 7896780672,
+          "reuse_pool": 265445,
+          "per_install": {
+            "chain_versions": 0.024406462330070905,
+            "chain_bytes": 4.686040767373614,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 1147743,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 1178094,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1250119,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 9323,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            962587.0,
+            982345.0,
+            975320.0
+          ],
+          "median_tps": 975320.0,
+          "rep_min_tps": 962587.0,
+          "rep_max_tps": 982345.0,
+          "ratio_to_stock_medians": 0.28411692804616157,
+          "paired_rep_ratios": [
+            0.28040772404664166,
+            0.281787892826255,
+            0.2980679310787436
+          ],
+          "paired_ratio_min": 0.28040772404664166,
+          "paired_ratio_max": 0.2980679310787436
+        },
+        "retention": {
+          "chain_versions": 1005599,
+          "chain_bytes": 193075008,
+          "pruned_pending": 942822,
+          "pruned_pending_bytes": 181021824,
+          "installed": 12737373,
+          "installed_bytes": 2445575616,
+          "reuse_pool": 55874,
+          "per_install": {
+            "chain_versions": 0.07894869687807682,
+            "chain_bytes": 15.15814980059075,
+            "pruned_pending": 0.07402012958245001,
+            "pruned_pending_bytes": 14.2118648798304
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 130110,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 236999,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 186066,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 143865172990,
+          "install_lock_wait_seconds": 68.50722523333333,
+          "install_lock_wait_fraction": 0.4757446196759259,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 12737373,
+          "success": 505956,
+          "lock_fail": 726162,
+          "cas_fail": 0
+        },
+        "boundary_samples": 13454,
+        "pruned": 942822,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            747911.0,
+            783718.0,
+            803659.0
+          ],
+          "median_tps": 783718.0,
+          "rep_min_tps": 747911.0,
+          "rep_max_tps": 803659.0,
+          "ratio_to_stock_medians": 0.22830204508723462,
+          "paired_rep_ratios": [
+            0.21787123792389446,
+            0.22481128706310607,
+            0.2456065449522331
+          ],
+          "paired_ratio_min": 0.21787123792389446,
+          "paired_ratio_max": 0.2456065449522331
+        },
+        "retention": {
+          "chain_versions": 1003309,
+          "chain_bytes": 192635328,
+          "pruned_pending": 875537,
+          "pruned_pending_bytes": 168103104,
+          "installed": 11448408,
+          "installed_bytes": 2198094336,
+          "reuse_pool": 57781,
+          "per_install": {
+            "chain_versions": 0.08763742522104384,
+            "chain_bytes": 16.826385642440417,
+            "pruned_pending": 0.07647674681056091,
+            "pruned_pending_bytes": 14.683535387627694
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 76259,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 511834,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 265124,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 98154042236,
+          "install_lock_wait_seconds": 46.740020112380954,
+          "install_lock_wait_fraction": 0.3245834730026455,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 11448408,
+          "success": 484798,
+          "lock_fail": 725178,
+          "cas_fail": 0
+        },
+        "boundary_samples": 15183,
+        "pruned": 875537,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-ronly-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            676569.0,
+            681653.0,
+            692031.0
+          ],
+          "median_tps": 681653.0,
+          "rep_min_tps": 676569.0,
+          "rep_max_tps": 692031.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 11325045,
+          "chain_bytes": 2174408640,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 10325045,
+          "installed_bytes": 1982408640,
+          "reuse_pool": 10031,
+          "per_install": {
+            "chain_versions": 1.0968518781274077,
+            "chain_bytes": 210.59556060046228,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 15006880,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 219428960,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 572873,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            42248.0,
+            42731.0,
+            41997.0
+          ],
+          "median_tps": 42248.0,
+          "rep_min_tps": 41997.0,
+          "rep_max_tps": 42731.0,
+          "ratio_to_stock_medians": 0.06197874871818946,
+          "paired_rep_ratios": [
+            0.06244448090290865,
+            0.06268732038148442,
+            0.06068658773956658
+          ],
+          "paired_ratio_min": 0.06068658773956658,
+          "paired_ratio_max": 0.06268732038148442
+        },
+        "retention": {
+          "chain_versions": 1633770,
+          "chain_bytes": 313683840,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 633770,
+          "installed_bytes": 121683840,
+          "reuse_pool": 10009,
+          "per_install": {
+            "chain_versions": 2.577859475835082,
+            "chain_bytes": 494.9490193603358,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 4780761,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 1587384,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 11334,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 139719370182,
+          "install_lock_wait_seconds": 66.53303342,
+          "install_lock_wait_fraction": 0.4620349543055555,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 633770,
+          "success": 0,
+          "lock_fail": 43327,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            42403.0,
+            42408.0,
+            42004.0
+          ],
+          "median_tps": 42403.0,
+          "rep_min_tps": 42004.0,
+          "rep_max_tps": 42408.0,
+          "ratio_to_stock_medians": 0.062206137140157824,
+          "paired_rep_ratios": [
+            0.06267357800904269,
+            0.0622134722505439,
+            0.060696702893367496
+          ],
+          "paired_ratio_min": 0.060696702893367496,
+          "paired_ratio_max": 0.06267357800904269
+        },
+        "retention": {
+          "chain_versions": 1634035,
+          "chain_bytes": 313734720,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 634035,
+          "installed_bytes": 121734720,
+          "reuse_pool": 10000,
+          "per_install": {
+            "chain_versions": 2.5771999968456,
+            "chain_bytes": 494.8223993943552,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 4961214,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 1529288,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 10949,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 139851085414,
+          "install_lock_wait_seconds": 66.59575495904761,
+          "install_lock_wait_fraction": 0.4624705205489417,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 634035,
+          "success": 0,
+          "lock_fail": 42565,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-ronly-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            681913.0,
+            678209.0,
+            681375.0
+          ],
+          "median_tps": 681375.0,
+          "rep_min_tps": 678209.0,
+          "rep_max_tps": 681913.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 11549447,
+          "chain_bytes": 2217493824,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 10549447,
+          "installed_bytes": 2025493824,
+          "reuse_pool": 10041,
+          "per_install": {
+            "chain_versions": 1.0947916985601236,
+            "chain_bytes": 210.20000612354372,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 16157881,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 222525725,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 596292,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            42494.0,
+            42585.0,
+            42320.0
+          ],
+          "median_tps": 42494.0,
+          "rep_min_tps": 42320.0,
+          "rep_max_tps": 42585.0,
+          "ratio_to_stock_medians": 0.06236507062924234,
+          "paired_rep_ratios": [
+            0.06231586727339118,
+            0.06279037877704366,
+            0.06210970464135021
+          ],
+          "paired_ratio_min": 0.06210970464135021,
+          "paired_ratio_max": 0.06279037877704366
+        },
+        "retention": {
+          "chain_versions": 1626189,
+          "chain_bytes": 312228288,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 626189,
+          "installed_bytes": 120228288,
+          "reuse_pool": 10000,
+          "per_install": {
+            "chain_versions": 2.5969619396060932,
+            "chain_bytes": 498.6166924043699,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 4887367,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 1434406,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 10775,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 142493487604,
+          "install_lock_wait_seconds": 67.85404171619047,
+          "install_lock_wait_fraction": 0.47120862302910044,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 626189,
+          "success": 0,
+          "lock_fail": 42307,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            41990.0,
+            41803.0,
+            42221.0
+          ],
+          "median_tps": 41990.0,
+          "rep_min_tps": 41803.0,
+          "rep_max_tps": 42221.0,
+          "ratio_to_stock_medians": 0.061625389836727204,
+          "paired_rep_ratios": [
+            0.061576770057177384,
+            0.06163734188133747,
+            0.06196441019996331
+          ],
+          "paired_ratio_min": 0.061576770057177384,
+          "paired_ratio_max": 0.06196441019996331
+        },
+        "retention": {
+          "chain_versions": 1627055,
+          "chain_bytes": 312394560,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 627055,
+          "installed_bytes": 120394560,
+          "reuse_pool": 10007,
+          "per_install": {
+            "chain_versions": 2.594756440822575,
+            "chain_bytes": 498.1932366379345,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 4652169,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 1981060,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 11160,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 139741122018,
+          "install_lock_wait_seconds": 66.54339143714286,
+          "install_lock_wait_fraction": 0.4621068849801587,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 627055,
+          "success": 0,
+          "lock_fail": 42434,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-wait1-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            3442953.0,
+            3317265.0,
+            3310786.0
+          ],
+          "median_tps": 3317265.0,
+          "rep_min_tps": 3310786.0,
+          "rep_max_tps": 3442953.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1023960,
+          "chain_bytes": 196600320,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 42084188,
+          "installed_bytes": 8080164096,
+          "reuse_pool": 337046,
+          "per_install": {
+            "chain_versions": 0.02433122863152308,
+            "chain_bytes": 4.671595897252431,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 2155034,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 288,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1323884,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 3004,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            747022.0,
+            729635.0,
+            702494.0
+          ],
+          "median_tps": 729635.0,
+          "rep_min_tps": 702494.0,
+          "rep_max_tps": 747022.0,
+          "ratio_to_stock_medians": 0.21995077269979937,
+          "paired_rep_ratios": [
+            0.21697130341308754,
+            0.21995077269979937,
+            0.2121834513012922
+          ],
+          "paired_ratio_min": 0.2121834513012922,
+          "paired_ratio_max": 0.21995077269979937
+        },
+        "retention": {
+          "chain_versions": 1005552,
+          "chain_bytes": 193065984,
+          "pruned_pending": 1818749,
+          "pruned_pending_bytes": 349199808,
+          "installed": 10834868,
+          "installed_bytes": 2080294656,
+          "reuse_pool": 51065,
+          "per_install": {
+            "chain_versions": 0.09280703742768255,
+            "chain_bytes": 17.81895118611505,
+            "pruned_pending": 0.1678607436657281,
+            "pruned_pending_bytes": 32.22926278381979
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 245075,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 2026,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 154514,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 136851277338,
+          "install_lock_wait_seconds": 65.16727492285715,
+          "install_lock_wait_fraction": 0.45255052029761905,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 10834868,
+          "success": 861240,
+          "lock_fail": 630330,
+          "cas_fail": 0
+        },
+        "boundary_samples": 3366,
+        "pruned": 1818749,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            283576.0,
+            316360.0,
+            274016.0
+          ],
+          "median_tps": 283576.0,
+          "rep_min_tps": 274016.0,
+          "rep_max_tps": 316360.0,
+          "ratio_to_stock_medians": 0.08548487986338144,
+          "paired_rep_ratios": [
+            0.08236417981889384,
+            0.09536772009471658,
+            0.08276463655458251
+          ],
+          "paired_ratio_min": 0.08236417981889384,
+          "paired_ratio_max": 0.09536772009471658
+        },
+        "retention": {
+          "chain_versions": 1014293,
+          "chain_bytes": 194744256,
+          "pruned_pending": 590482,
+          "pruned_pending_bytes": 113372544,
+          "installed": 4274007,
+          "installed_bytes": 820609344,
+          "reuse_pool": 133747,
+          "per_install": {
+            "chain_versions": 0.23731664454456908,
+            "chain_bytes": 45.56479575255726,
+            "pruned_pending": 0.13815653554147198,
+            "pruned_pending_bytes": 26.526054823962617
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 43877,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 2352,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 76068,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 137905340104,
+          "install_lock_wait_seconds": 65.66920957333333,
+          "install_lock_wait_fraction": 0.4560361775925926,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 4274007,
+          "success": 350636,
+          "lock_fail": 254943,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2919,
+        "pruned": 590482,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-wait1-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            3432889.0,
+            3387591.0,
+            3370034.0
+          ],
+          "median_tps": 3387591.0,
+          "rep_min_tps": 3370034.0,
+          "rep_max_tps": 3432889.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1019980,
+          "chain_bytes": 195836160,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 40721343,
+          "installed_bytes": 7818497856,
+          "reuse_pool": 333392,
+          "per_install": {
+            "chain_versions": 0.02504779864455846,
+            "chain_bytes": 4.809177339755224,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 2015542,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 227,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1187709,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2946,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            716841.0,
+            735960.0,
+            725672.0
+          ],
+          "median_tps": 725672.0,
+          "rep_min_tps": 716841.0,
+          "rep_max_tps": 735960.0,
+          "ratio_to_stock_medians": 0.21421476205362452,
+          "paired_rep_ratios": [
+            0.2088156651729782,
+            0.21725172844065296,
+            0.215330765208897
+          ],
+          "paired_ratio_min": 0.2088156651729782,
+          "paired_ratio_max": 0.21725172844065296
+        },
+        "retention": {
+          "chain_versions": 1007641,
+          "chain_bytes": 193467072,
+          "pruned_pending": 1747961,
+          "pruned_pending_bytes": 335608512,
+          "installed": 10949182,
+          "installed_bytes": 2102242944,
+          "reuse_pool": 46878,
+          "per_install": {
+            "chain_versions": 0.09202888398420996,
+            "chain_bytes": 17.669545724968312,
+            "pruned_pending": 0.15964306739992085,
+            "pruned_pending_bytes": 30.6514689407848
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 249519,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 4515,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 150321,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 136959132488,
+          "install_lock_wait_seconds": 65.21863451809524,
+          "install_lock_wait_fraction": 0.45290718415343917,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 10949182,
+          "success": 833904,
+          "lock_fail": 643398,
+          "cas_fail": 0
+        },
+        "boundary_samples": 3169,
+        "pruned": 1747961,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            286063.0,
+            294766.0,
+            298491.0
+          ],
+          "median_tps": 294766.0,
+          "rep_min_tps": 286063.0,
+          "rep_max_tps": 298491.0,
+          "ratio_to_stock_medians": 0.08701345587469089,
+          "paired_rep_ratios": [
+            0.08333010476015974,
+            0.08701345587469089,
+            0.0885721034268497
+          ],
+          "paired_ratio_min": 0.08333010476015974,
+          "paired_ratio_max": 0.0885721034268497
+        },
+        "retention": {
+          "chain_versions": 1005953,
+          "chain_bytes": 193142976,
+          "pruned_pending": 600848,
+          "pruned_pending_bytes": 115362816,
+          "installed": 4382643,
+          "installed_bytes": 841467456,
+          "reuse_pool": 110144,
+          "per_install": {
+            "chain_versions": 0.22953112995970695,
+            "chain_bytes": 44.06997695226374,
+            "pruned_pending": 0.13709718085639191,
+            "pruned_pending_bytes": 26.322658724427246
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 44471,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 884,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 83511,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 133122391892,
+          "install_lock_wait_seconds": 63.39161518666667,
+          "install_lock_wait_fraction": 0.4402195499074074,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 4382643,
+          "success": 344427,
+          "lock_fail": 267050,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2865,
+        "pruned": 600848,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-wait10-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            2785239.0,
+            2805879.0,
+            2794465.0
+          ],
+          "median_tps": 2794465.0,
+          "rep_min_tps": 2785239.0,
+          "rep_max_tps": 2805879.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1216536,
+          "chain_bytes": 233574912,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 35610875,
+          "installed_bytes": 6837288000,
+          "reuse_pool": 331954,
+          "per_install": {
+            "chain_versions": 0.034161923850509146,
+            "chain_bytes": 6.559089379297757,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 11508480,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 29,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1185565,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 298,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            291945.0,
+            301517.0,
+            273183.0
+          ],
+          "median_tps": 291945.0,
+          "rep_min_tps": 273183.0,
+          "rep_max_tps": 301517.0,
+          "ratio_to_stock_medians": 0.1044725913546958,
+          "paired_rep_ratios": [
+            0.10481865290554958,
+            0.10745901729903534,
+            0.09775860495658382
+          ],
+          "paired_ratio_min": 0.09775860495658382,
+          "paired_ratio_max": 0.10745901729903534
+        },
+        "retention": {
+          "chain_versions": 1020723,
+          "chain_bytes": 195978816,
+          "pruned_pending": 1055407,
+          "pruned_pending_bytes": 202638144,
+          "installed": 4138338,
+          "installed_bytes": 794560896,
+          "reuse_pool": 66528,
+          "per_install": {
+            "chain_versions": 0.24665046692657777,
+            "chain_bytes": 47.35688964990293,
+            "pruned_pending": 0.25503160930789126,
+            "pruned_pending_bytes": 48.966068987115115
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 268725,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 77,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 70295,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 139699018130,
+          "install_lock_wait_seconds": 66.52334196666666,
+          "install_lock_wait_fraction": 0.4619676525462963,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 4138338,
+          "success": 418099,
+          "lock_fail": 255408,
+          "cas_fail": 0
+        },
+        "boundary_samples": 313,
+        "pruned": 1055407,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            77947.0,
+            78936.0,
+            79915.0
+          ],
+          "median_tps": 78936.0,
+          "rep_min_tps": 77947.0,
+          "rep_max_tps": 79915.0,
+          "ratio_to_stock_medians": 0.028247267366025338,
+          "paired_rep_ratios": [
+            0.02798574915833076,
+            0.028132360661311483,
+            0.02859760276117253
+          ],
+          "paired_ratio_min": 0.02798574915833076,
+          "paired_ratio_max": 0.02859760276117253
+        },
+        "retention": {
+          "chain_versions": 1024862,
+          "chain_bytes": 196773504,
+          "pruned_pending": 227750,
+          "pruned_pending_bytes": 43728000,
+          "installed": 1143833,
+          "installed_bytes": 219615936,
+          "reuse_pool": 104873,
+          "per_install": {
+            "chain_versions": 0.8959891872327517,
+            "chain_bytes": 172.02992394868832,
+            "pruned_pending": 0.19911123389515778,
+            "pruned_pending_bytes": 38.22935690787029
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 30666,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 122,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 16189,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 154725745646,
+          "install_lock_wait_seconds": 73.67892649809525,
+          "install_lock_wait_fraction": 0.5116592117923281,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 1143833,
+          "success": 135634,
+          "lock_fail": 69589,
+          "cas_fail": 0
+        },
+        "boundary_samples": 318,
+        "pruned": 227750,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-wait10-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            2719376.0,
+            2776485.0,
+            2726710.0
+          ],
+          "median_tps": 2726710.0,
+          "rep_min_tps": 2719376.0,
+          "rep_max_tps": 2776485.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1119253,
+          "chain_bytes": 214896576,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 36120612,
+          "installed_bytes": 6935157504,
+          "reuse_pool": 447750,
+          "per_install": {
+            "chain_versions": 0.030986545853652757,
+            "chain_bytes": 5.949416803901329,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 11933347,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 12,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1203378,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 299,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            306760.0,
+            286558.0,
+            312020.0
+          ],
+          "median_tps": 306760.0,
+          "rep_min_tps": 286558.0,
+          "rep_max_tps": 312020.0,
+          "ratio_to_stock_medians": 0.1125018795544814,
+          "paired_rep_ratios": [
+            0.11280529062549643,
+            0.10320891342830954,
+            0.11443094425149723
+          ],
+          "paired_ratio_min": 0.10320891342830954,
+          "paired_ratio_max": 0.11443094425149723
+        },
+        "retention": {
+          "chain_versions": 1014539,
+          "chain_bytes": 194791488,
+          "pruned_pending": 1169406,
+          "pruned_pending_bytes": 224525952,
+          "installed": 4542861,
+          "installed_bytes": 872229312,
+          "reuse_pool": 48188,
+          "per_install": {
+            "chain_versions": 0.22332600535213382,
+            "chain_bytes": 42.878593027609696,
+            "pruned_pending": 0.257416196533418,
+            "pruned_pending_bytes": 49.42390973441626
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 293930,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 49,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 70560,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 142711450406,
+          "install_lock_wait_seconds": 67.95783352666668,
+          "install_lock_wait_fraction": 0.4719293994907408,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 4542861,
+          "success": 463153,
+          "lock_fail": 279450,
+          "cas_fail": 0
+        },
+        "boundary_samples": 316,
+        "pruned": 1169406,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            88309.0,
+            73939.0,
+            70394.0
+          ],
+          "median_tps": 73939.0,
+          "rep_min_tps": 70394.0,
+          "rep_max_tps": 88309.0,
+          "ratio_to_stock_medians": 0.02711656171723432,
+          "paired_rep_ratios": [
+            0.03247399403392543,
+            0.026630433803892333,
+            0.02581646012960674
+          ],
+          "paired_ratio_min": 0.02581646012960674,
+          "paired_ratio_max": 0.03247399403392543
+        },
+        "retention": {
+          "chain_versions": 1059556,
+          "chain_bytes": 203434752,
+          "pruned_pending": 282299,
+          "pruned_pending_bytes": 54201408,
+          "installed": 1374930,
+          "installed_bytes": 263986560,
+          "reuse_pool": 73930,
+          "per_install": {
+            "chain_versions": 0.7706254136574225,
+            "chain_bytes": 147.96007942222514,
+            "pruned_pending": 0.20531881623064446,
+            "pruned_pending_bytes": 39.42121271628374
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 34558,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 20,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 22187,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 157184461040,
+          "install_lock_wait_seconds": 74.84974335238094,
+          "install_lock_wait_fraction": 0.5197898843915343,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 1374930,
+          "success": 169582,
+          "lock_fail": 85358,
+          "cas_fail": 0
+        },
+        "boundary_samples": 310,
+        "pruned": 282299,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr50-wait10-two-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            2814481.0,
+            2665556.0,
+            2690381.0
+          ],
+          "median_tps": 2690381.0,
+          "rep_min_tps": 2665556.0,
+          "rep_max_tps": 2814481.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1192341,
+          "chain_bytes": 228929472,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 34637256,
+          "installed_bytes": 6650353152,
+          "reuse_pool": 470951,
+          "per_install": {
+            "chain_versions": 0.034423656423591985,
+            "chain_bytes": 6.609342033329661,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 17806897,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 20,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1099582,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 296,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            206870.0,
+            222169.0,
+            252364.0
+          ],
+          "median_tps": 222169.0,
+          "rep_min_tps": 206870.0,
+          "rep_max_tps": 252364.0,
+          "ratio_to_stock_medians": 0.08257901018480282,
+          "paired_rep_ratios": [
+            0.07350200623134426,
+            0.08334808947926811,
+            0.09380232762571547
+          ],
+          "paired_ratio_min": 0.07350200623134426,
+          "paired_ratio_max": 0.09380232762571547
+        },
+        "retention": {
+          "chain_versions": 1016479,
+          "chain_bytes": 195163968,
+          "pruned_pending": 802992,
+          "pruned_pending_bytes": 154174464,
+          "installed": 3274562,
+          "installed_bytes": 628715904,
+          "reuse_pool": 75350,
+          "per_install": {
+            "chain_versions": 0.3104167824582341,
+            "chain_bytes": 59.60002223198095,
+            "pruned_pending": 0.24522119294122388,
+            "pruned_pending_bytes": 47.08246904471499
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 216939,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 194,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 49253,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 139463902444,
+          "install_lock_wait_seconds": 66.41138211619048,
+          "install_lock_wait_fraction": 0.4611901535846561,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 3274562,
+          "success": 313976,
+          "lock_fail": 204698,
+          "cas_fail": 0
+        },
+        "boundary_samples": 297,
+        "pruned": 802992,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            68537.0,
+            66702.0,
+            66069.0
+          ],
+          "median_tps": 66702.0,
+          "rep_min_tps": 66069.0,
+          "rep_max_tps": 68537.0,
+          "ratio_to_stock_medians": 0.024792770986711548,
+          "paired_rep_ratios": [
+            0.024351558955274525,
+            0.025023672359537747,
+            0.024557488326002897
+          ],
+          "paired_ratio_min": 0.024351558955274525,
+          "paired_ratio_max": 0.025023672359537747
+        },
+        "retention": {
+          "chain_versions": 1071032,
+          "chain_bytes": 205638144,
+          "pruned_pending": 202401,
+          "pruned_pending_bytes": 38860992,
+          "installed": 1012740,
+          "installed_bytes": 194446080,
+          "reuse_pool": 97840,
+          "per_install": {
+            "chain_versions": 1.0575587021348025,
+            "chain_bytes": 203.0512708098821,
+            "pruned_pending": 0.19985484922092542,
+            "pruned_pending_bytes": 38.37213105041768
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 26849,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 389,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 13720,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 160669057952,
+          "install_lock_wait_seconds": 76.5090752152381,
+          "install_lock_wait_fraction": 0.5313130223280423,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 1012740,
+          "success": 123337,
+          "lock_fail": 64028,
+          "cas_fail": 0
+        },
+        "boundary_samples": 289,
+        "pruned": 202401,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-many-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            10668993.0,
+            10848970.0,
+            10685673.0
+          ],
+          "median_tps": 10685673.0,
+          "rep_min_tps": 10668993.0,
+          "rep_max_tps": 10848970.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1000478,
+          "chain_bytes": 192091776,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 14127052,
+          "installed_bytes": 2712393984,
+          "reuse_pool": 87408,
+          "per_install": {
+            "chain_versions": 0.07082001255463631,
+            "chain_bytes": 13.59744241049017,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 334321684,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 757153,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 397141,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 34756,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            7094669.0,
+            6916994.0,
+            7006798.0
+          ],
+          "median_tps": 7006798.0,
+          "rep_min_tps": 6916994.0,
+          "rep_max_tps": 7094669.0,
+          "ratio_to_stock_medians": 0.65571892383381,
+          "paired_rep_ratios": [
+            0.6649801907265287,
+            0.6375714929620047,
+            0.65571892383381
+          ],
+          "paired_ratio_min": 0.6375714929620047,
+          "paired_ratio_max": 0.6649801907265287
+        },
+        "retention": {
+          "chain_versions": 1000983,
+          "chain_bytes": 192188736,
+          "pruned_pending": 135792,
+          "pruned_pending_bytes": 26072064,
+          "installed": 10637029,
+          "installed_bytes": 2042309568,
+          "reuse_pool": 56258,
+          "per_install": {
+            "chain_versions": 0.09410362611590135,
+            "chain_bytes": 18.067896214253057,
+            "pruned_pending": 0.012765970648383116,
+            "pruned_pending_bytes": 2.451066364489558
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 220499894,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 169909,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 271973,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 24995736256,
+          "install_lock_wait_seconds": 11.90273155047619,
+          "install_lock_wait_fraction": 0.082657857989418,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 10637029,
+          "success": 68006,
+          "lock_fail": 277556,
+          "cas_fail": 0
+        },
+        "boundary_samples": 41410,
+        "pruned": 135792,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            6809614.0,
+            7057812.0,
+            7083338.0
+          ],
+          "median_tps": 7057812.0,
+          "rep_min_tps": 6809614.0,
+          "rep_max_tps": 7083338.0,
+          "ratio_to_stock_medians": 0.660492979712181,
+          "paired_rep_ratios": [
+            0.6382621115226151,
+            0.6505513426620223,
+            0.6628817857331026
+          ],
+          "paired_ratio_min": 0.6382621115226151,
+          "paired_ratio_max": 0.6628817857331026
+        },
+        "retention": {
+          "chain_versions": 1000454,
+          "chain_bytes": 192087168,
+          "pruned_pending": 175268,
+          "pruned_pending_bytes": 33651456,
+          "installed": 10408062,
+          "installed_bytes": 1998347904,
+          "reuse_pool": 66441,
+          "per_install": {
+            "chain_versions": 0.09612298620050495,
+            "chain_bytes": 18.45561335049695,
+            "pruned_pending": 0.016839638349579394,
+            "pruned_pending_bytes": 3.2332105631192434
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 158989077,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 180805,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 253615,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 30473588708,
+          "install_lock_wait_seconds": 14.511232718095238,
+          "install_lock_wait_fraction": 0.10077244943121694,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 10408062,
+          "success": 98254,
+          "lock_fail": 292595,
+          "cas_fail": 0
+        },
+        "boundary_samples": 43827,
+        "pruned": 175268,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-many-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            11041598.0,
+            10831403.0,
+            10792893.0
+          ],
+          "median_tps": 10831403.0,
+          "rep_min_tps": 10792893.0,
+          "rep_max_tps": 11041598.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1001809,
+          "chain_bytes": 192347328,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 14080119,
+          "installed_bytes": 2703382848,
+          "reuse_pool": 73215,
+          "per_install": {
+            "chain_versions": 0.07115060604246314,
+            "chain_bytes": 13.660916360152923,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 410093688,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 50697,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 384992,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 18656,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            6380035.0,
+            6445938.0,
+            6253426.0
+          ],
+          "median_tps": 6380035.0,
+          "rep_min_tps": 6253426.0,
+          "rep_max_tps": 6445938.0,
+          "ratio_to_stock_medians": 0.5890312640015333,
+          "paired_rep_ratios": [
+            0.5778180839403861,
+            0.5951157020009319,
+            0.5794022047656732
+          ],
+          "paired_ratio_min": 0.5778180839403861,
+          "paired_ratio_max": 0.5951157020009319
+        },
+        "retention": {
+          "chain_versions": 1000868,
+          "chain_bytes": 192166656,
+          "pruned_pending": 123437,
+          "pruned_pending_bytes": 23699904,
+          "installed": 9434678,
+          "installed_bytes": 1811458176,
+          "reuse_pool": 84324,
+          "per_install": {
+            "chain_versions": 0.10608395962215139,
+            "chain_bytes": 20.368120247453067,
+            "pruned_pending": 0.013083329393965538,
+            "pruned_pending_bytes": 2.5119992436413834
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 253147211,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 252691,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 222958,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 51973788456,
+          "install_lock_wait_seconds": 24.749423074285716,
+          "install_lock_wait_fraction": 0.17187099357142857,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 9434678,
+          "success": 61904,
+          "lock_fail": 352689,
+          "cas_fail": 0
+        },
+        "boundary_samples": 20748,
+        "pruned": 123437,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            5781840.0,
+            5793698.0,
+            5564490.0
+          ],
+          "median_tps": 5781840.0,
+          "rep_min_tps": 5564490.0,
+          "rep_max_tps": 5793698.0,
+          "ratio_to_stock_medians": 0.5338034232499704,
+          "paired_rep_ratios": [
+            0.5236415960805674,
+            0.5348982029382527,
+            0.5155698291459019
+          ],
+          "paired_ratio_min": 0.5155698291459019,
+          "paired_ratio_max": 0.5348982029382527
+        },
+        "retention": {
+          "chain_versions": 1001615,
+          "chain_bytes": 192310080,
+          "pruned_pending": 194527,
+          "pruned_pending_bytes": 37349184,
+          "installed": 8604235,
+          "installed_bytes": 1652013120,
+          "reuse_pool": 123346,
+          "per_install": {
+            "chain_versions": 0.11640953553686063,
+            "chain_bytes": 22.35063082307724,
+            "pruned_pending": 0.02260828533855712,
+            "pruned_pending_bytes": 4.340790785002967
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 218481135,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 153702,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 200353,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 65766236494,
+          "install_lock_wait_seconds": 31.317255473333333,
+          "install_lock_wait_fraction": 0.21748094078703703,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 8604235,
+          "success": 102634,
+          "lock_fail": 355748,
+          "cas_fail": 0
+        },
+        "boundary_samples": 19131,
+        "pruned": 194527,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-ronly-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            394056.0,
+            395983.0,
+            394569.0
+          ],
+          "median_tps": 394569.0,
+          "rep_min_tps": 394056.0,
+          "rep_max_tps": 395983.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1586517,
+          "chain_bytes": 304611264,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 586517,
+          "installed_bytes": 112611264,
+          "reuse_pool": 10000,
+          "per_install": {
+            "chain_versions": 2.704980418299896,
+            "chain_bytes": 519.35624031358,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 2159869,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 4243047290,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 818,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            270558.0,
+            269350.0,
+            272991.0
+          ],
+          "median_tps": 270558.0,
+          "rep_min_tps": 269350.0,
+          "rep_max_tps": 272991.0,
+          "ratio_to_stock_medians": 0.6857051618348121,
+          "paired_rep_ratios": [
+            0.6865978439612644,
+            0.680205968438039,
+            0.6918713837123545
+          ],
+          "paired_ratio_min": 0.680205968438039,
+          "paired_ratio_max": 0.6918713837123545
+        },
+        "retention": {
+          "chain_versions": 1412564,
+          "chain_bytes": 271212288,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 412564,
+          "installed_bytes": 79212288,
+          "reuse_pool": 24311,
+          "per_install": {
+            "chain_versions": 3.4238663577045014,
+            "chain_bytes": 657.3823406792643,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 3216556,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 3620083134,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 2053,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 29819399746,
+          "install_lock_wait_seconds": 14.199714164761904,
+          "install_lock_wait_fraction": 0.09860912614417988,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 412564,
+          "success": 0,
+          "lock_fail": 12881,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            271184.0,
+            268959.0,
+            269717.0
+          ],
+          "median_tps": 269717.0,
+          "rep_min_tps": 268959.0,
+          "rep_max_tps": 271184.0,
+          "ratio_to_stock_medians": 0.6835737222133518,
+          "paired_rep_ratios": [
+            0.6881864506567594,
+            0.6792185523115891,
+            0.6835737222133518
+          ],
+          "paired_ratio_min": 0.6792185523115891,
+          "paired_ratio_max": 0.6881864506567594
+        },
+        "retention": {
+          "chain_versions": 1411078,
+          "chain_bytes": 270926976,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 411078,
+          "installed_bytes": 78926976,
+          "reuse_pool": 26572,
+          "per_install": {
+            "chain_versions": 3.4326283576352905,
+            "chain_bytes": 659.0646446659758,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 2772898,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 3635568534,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 2091,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 29172127984,
+          "install_lock_wait_seconds": 13.891489516190477,
+          "install_lock_wait_fraction": 0.0964686771957672,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 411078,
+          "success": 0,
+          "lock_fail": 13039,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-ronly-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            392281.0,
+            392012.0,
+            392477.0
+          ],
+          "median_tps": 392281.0,
+          "rep_min_tps": 392012.0,
+          "rep_max_tps": 392477.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1591452,
+          "chain_bytes": 305558784,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 591452,
+          "installed_bytes": 113558784,
+          "reuse_pool": 10000,
+          "per_install": {
+            "chain_versions": 2.690754279299081,
+            "chain_bytes": 516.6248216254236,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 2423902,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 4237542590,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 700,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            273466.0,
+            271477.0,
+            266628.0
+          ],
+          "median_tps": 271477.0,
+          "rep_min_tps": 266628.0,
+          "rep_max_tps": 273466.0,
+          "ratio_to_stock_medians": 0.6920472824327459,
+          "paired_rep_ratios": [
+            0.6971176274150418,
+            0.6925221676887442,
+            0.6793468152273892
+          ],
+          "paired_ratio_min": 0.6793468152273892,
+          "paired_ratio_max": 0.6971176274150418
+        },
+        "retention": {
+          "chain_versions": 1412347,
+          "chain_bytes": 271170624,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 412347,
+          "installed_bytes": 79170624,
+          "reuse_pool": 25270,
+          "per_install": {
+            "chain_versions": 3.4251419314315372,
+            "chain_bytes": 657.6272508348551,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 2929961,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 3620984503,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 2177,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 29033731732,
+          "install_lock_wait_seconds": 13.825586539047618,
+          "install_lock_wait_fraction": 0.09601101763227513,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 412347,
+          "success": 0,
+          "lock_fail": 13107,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            268076.0,
+            269974.0,
+            268216.0
+          ],
+          "median_tps": 268216.0,
+          "rep_min_tps": 268076.0,
+          "rep_max_tps": 269974.0,
+          "ratio_to_stock_medians": 0.6837343638871115,
+          "paired_rep_ratios": [
+            0.6833774768597001,
+            0.6886881013846515,
+            0.6833929121961287
+          ],
+          "paired_ratio_min": 0.6833774768597001,
+          "paired_ratio_max": 0.6886881013846515
+        },
+        "retention": {
+          "chain_versions": 1414860,
+          "chain_bytes": 271653120,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 414860,
+          "installed_bytes": 79653120,
+          "reuse_pool": 23946,
+          "per_install": {
+            "chain_versions": 3.4104517186520753,
+            "chain_bytes": 654.8067299811985,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 3312269,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 3650822401,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 1947,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 28303215288,
+          "install_lock_wait_seconds": 13.477721565714287,
+          "install_lock_wait_fraction": 0.09359528865079365,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 414860,
+          "success": 0,
+          "lock_fail": 12840,
+          "cas_fail": 0
+        },
+        "boundary_samples": 0,
+        "pruned": 0,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-wait1-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            9785099.0,
+            9939910.0,
+            9938490.0
+          ],
+          "median_tps": 9938490.0,
+          "rep_min_tps": 9785099.0,
+          "rep_max_tps": 9939910.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1007427,
+          "chain_bytes": 193425984,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 12302672,
+          "installed_bytes": 2362113024,
+          "reuse_pool": 91098,
+          "per_install": {
+            "chain_versions": 0.08188684539423631,
+            "chain_bytes": 15.72227431569337,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 908425846,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 246671,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2950,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            5129404.0,
+            5122231.0,
+            5027615.0
+          ],
+          "median_tps": 5122231.0,
+          "rep_min_tps": 5027615.0,
+          "rep_max_tps": 5129404.0,
+          "ratio_to_stock_medians": 0.5153932840904403,
+          "paired_rep_ratios": [
+            0.5242056314402134,
+            0.515319655811773,
+            0.5058731255955382
+          ],
+          "paired_ratio_min": 0.5058731255955382,
+          "paired_ratio_max": 0.5242056314402134
+        },
+        "retention": {
+          "chain_versions": 1003553,
+          "chain_bytes": 192682176,
+          "pruned_pending": 1221140,
+          "pruned_pending_bytes": 234458880,
+          "installed": 7879417,
+          "installed_bytes": 1512848064,
+          "reuse_pool": 82511,
+          "per_install": {
+            "chain_versions": 0.12736386461079544,
+            "chain_bytes": 24.453862005272725,
+            "pruned_pending": 0.15497847112292698,
+            "pruned_pending_bytes": 29.755866455601982
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 802541727,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 9,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 107719,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 94714905076,
+          "install_lock_wait_seconds": 45.102335750476186,
+          "install_lock_wait_fraction": 0.3132106649338624,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 7879417,
+          "success": 449381,
+          "lock_fail": 269654,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2970,
+        "pruned": 1221140,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            2345130.0,
+            2766814.0,
+            2773504.0
+          ],
+          "median_tps": 2766814.0,
+          "rep_min_tps": 2345130.0,
+          "rep_max_tps": 2773504.0,
+          "ratio_to_stock_medians": 0.2783938002654327,
+          "paired_rep_ratios": [
+            0.23966339022221442,
+            0.2783540293624389,
+            0.27906694075256905
+          ],
+          "paired_ratio_min": 0.23966339022221442,
+          "paired_ratio_max": 0.27906694075256905
+        },
+        "retention": {
+          "chain_versions": 1005589,
+          "chain_bytes": 193073088,
+          "pruned_pending": 571479,
+          "pruned_pending_bytes": 109723968,
+          "installed": 4237183,
+          "installed_bytes": 813539136,
+          "reuse_pool": 177876,
+          "per_install": {
+            "chain_versions": 0.23732489250523284,
+            "chain_bytes": 45.56637936100471,
+            "pruned_pending": 0.13487239045375193,
+            "pruned_pending_bytes": 25.89549896712037
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 288212084,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 163,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 67175,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 137679225314,
+          "install_lock_wait_seconds": 65.56153586380952,
+          "install_lock_wait_fraction": 0.45528844349867725,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 4237183,
+          "success": 300365,
+          "lock_fail": 190608,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2697,
+        "pruned": 571479,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-wait1-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            9755468.0,
+            9990260.0,
+            9972985.0
+          ],
+          "median_tps": 9972985.0,
+          "rep_min_tps": 9755468.0,
+          "rep_max_tps": 9990260.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1006366,
+          "chain_bytes": 193222272,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 12000712,
+          "installed_bytes": 2304136704,
+          "reuse_pool": 85616,
+          "per_install": {
+            "chain_versions": 0.083858857707776,
+            "chain_bytes": 16.100900679892995,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 879479214,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 3,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 235069,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2948,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            5006487.0,
+            5316831.0,
+            5084551.0
+          ],
+          "median_tps": 5084551.0,
+          "rep_min_tps": 5006487.0,
+          "rep_max_tps": 5316831.0,
+          "ratio_to_stock_medians": 0.509832412261725,
+          "paired_rep_ratios": [
+            0.5131980341691449,
+            0.5322014642261563,
+            0.509832412261725
+          ],
+          "paired_ratio_min": 0.509832412261725,
+          "paired_ratio_max": 0.5322014642261563
+        },
+        "retention": {
+          "chain_versions": 1003471,
+          "chain_bytes": 192666432,
+          "pruned_pending": 1114764,
+          "pruned_pending_bytes": 214034688,
+          "installed": 7726187,
+          "installed_bytes": 1483427904,
+          "reuse_pool": 74195,
+          "per_install": {
+            "chain_versions": 0.12987920173301526,
+            "chain_bytes": 24.93680673273893,
+            "pruned_pending": 0.14428384920012938,
+            "pruned_pending_bytes": 27.70249904642484
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 801231137,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 12,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 110622,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 91993281500,
+          "install_lock_wait_seconds": 43.80632452380952,
+          "install_lock_wait_fraction": 0.3042105869708995,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 7726187,
+          "success": 421179,
+          "lock_fail": 283911,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2939,
+        "pruned": 1114764,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            2690307.0,
+            2905015.0,
+            2873526.0
+          ],
+          "median_tps": 2873526.0,
+          "rep_min_tps": 2690307.0,
+          "rep_max_tps": 2905015.0,
+          "ratio_to_stock_medians": 0.28813098585829616,
+          "paired_rep_ratios": [
+            0.27577426321320514,
+            0.2907847243214891,
+            0.28813098585829616
+          ],
+          "paired_ratio_min": 0.27577426321320514,
+          "paired_ratio_max": 0.2907847243214891
+        },
+        "retention": {
+          "chain_versions": 1004648,
+          "chain_bytes": 192892416,
+          "pruned_pending": 575375,
+          "pruned_pending_bytes": 110472000,
+          "installed": 4474675,
+          "installed_bytes": 859137600,
+          "reuse_pool": 152853,
+          "per_install": {
+            "chain_versions": 0.22451865219261735,
+            "chain_bytes": 43.10758122098253,
+            "pruned_pending": 0.12858475755222445,
+            "pruned_pending_bytes": 24.688273450027097
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 307701242,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 178,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 74166,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 135727248068,
+          "install_lock_wait_seconds": 64.63202288952381,
+          "install_lock_wait_fraction": 0.4488334922883598,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 4474675,
+          "success": 281945,
+          "lock_fail": 213165,
+          "cas_fail": 0
+        },
+        "boundary_samples": 2839,
+        "pruned": 575375,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-wait10-gc10": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            6341519.0,
+            6316111.0,
+            6309468.0
+          ],
+          "median_tps": 6316111.0,
+          "rep_min_tps": 6309468.0,
+          "rep_max_tps": 6341519.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1046915,
+          "chain_bytes": 201007680,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 7885413,
+          "installed_bytes": 1513999296,
+          "reuse_pool": 92277,
+          "per_install": {
+            "chain_versions": 0.13276603267324108,
+            "chain_bytes": 25.49107827326229,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 2967589175,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 76960,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 299,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            1809566.0,
+            1480247.0,
+            1620493.0
+          ],
+          "median_tps": 1620493.0,
+          "rep_min_tps": 1480247.0,
+          "rep_max_tps": 1809566.0,
+          "ratio_to_stock_medians": 0.2565649970369425,
+          "paired_rep_ratios": [
+            0.2853521372403047,
+            0.23436051076366454,
+            0.25683512460955504
+          ],
+          "paired_ratio_min": 0.23436051076366454,
+          "paired_ratio_max": 0.2853521372403047
+        },
+        "retention": {
+          "chain_versions": 1020560,
+          "chain_bytes": 195947520,
+          "pruned_pending": 577223,
+          "pruned_pending_bytes": 110826816,
+          "installed": 2482498,
+          "installed_bytes": 476639616,
+          "reuse_pool": 167089,
+          "per_install": {
+            "chain_versions": 0.411102043183922,
+            "chain_bytes": 78.93159229131302,
+            "pruned_pending": 0.23251700504894668,
+            "pruned_pending_bytes": 44.64326496939776
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 927032238,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 26086,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 189518905390,
+          "install_lock_wait_seconds": 90.2470978047619,
+          "install_lock_wait_fraction": 0.6267159569775133,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 2482498,
+          "success": 158168,
+          "lock_fail": 100399,
+          "cas_fail": 0
+        },
+        "boundary_samples": 299,
+        "pruned": 577223,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            1027429.0,
+            847786.0,
+            755543.0
+          ],
+          "median_tps": 847786.0,
+          "rep_min_tps": 755543.0,
+          "rep_max_tps": 1027429.0,
+          "ratio_to_stock_medians": 0.13422595011392294,
+          "paired_rep_ratios": [
+            0.1620162298654313,
+            0.13422595011392294,
+            0.11974749693635026
+          ],
+          "paired_ratio_min": 0.11974749693635026,
+          "paired_ratio_max": 0.1620162298654313
+        },
+        "retention": {
+          "chain_versions": 1039831,
+          "chain_bytes": 199647552,
+          "pruned_pending": 222566,
+          "pruned_pending_bytes": 42732672,
+          "installed": 1145598,
+          "installed_bytes": 219954816,
+          "reuse_pool": 121581,
+          "per_install": {
+            "chain_versions": 0.9076752927292122,
+            "chain_bytes": 174.27365620400874,
+            "pruned_pending": 0.1942793196217172,
+            "pruned_pending_bytes": 37.301629367369706
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 206410414,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 3,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 13530,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 218945734634,
+          "install_lock_wait_seconds": 104.2598736352381,
+          "install_lock_wait_fraction": 0.724026900244709,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 1145598,
+          "success": 110476,
+          "lock_fail": 59753,
+          "cas_fail": 0
+        },
+        "boundary_samples": 291,
+        "pruned": 222566,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    },
+    "rr95-wait10-gc100": {
+      "stock": {
+        "throughput": {
+          "rep_tps": [
+            6337824.0,
+            6320329.0,
+            6319247.0
+          ],
+          "median_tps": 6320329.0,
+          "rep_min_tps": 6319247.0,
+          "rep_max_tps": 6337824.0,
+          "ratio_to_stock_medians": 1.0,
+          "paired_rep_ratios": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "paired_ratio_min": 1.0,
+          "paired_ratio_max": 1.0
+        },
+        "retention": {
+          "chain_versions": 1028735,
+          "chain_bytes": 197517120,
+          "pruned_pending": 0,
+          "pruned_pending_bytes": 0,
+          "installed": 7939467,
+          "installed_bytes": 1524377664,
+          "reuse_pool": 106559,
+          "per_install": {
+            "chain_versions": 0.12957230000452172,
+            "chain_bytes": 24.877881600868168,
+            "pruned_pending": 0.0,
+            "pruned_pending_bytes": 0.0
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 3010934433,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 1,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 78810,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 0,
+          "install_lock_wait_seconds": 0.0,
+          "install_lock_wait_fraction": 0.0,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 0,
+          "success": 0,
+          "lock_fail": 0,
+          "cas_fail": 0
+        },
+        "boundary_samples": 299,
+        "pruned": 0,
+        "gc_status": "absent",
+        "debug_mode": -1
+      },
+      "min": {
+        "throughput": {
+          "rep_tps": [
+            1681239.0,
+            1928740.0,
+            1854142.0
+          ],
+          "median_tps": 1854142.0,
+          "rep_min_tps": 1681239.0,
+          "rep_max_tps": 1928740.0,
+          "ratio_to_stock_medians": 0.29336162721908937,
+          "paired_rep_ratios": [
+            0.2652706985867705,
+            0.3051644938103697,
+            0.29341185745706727
+          ],
+          "paired_ratio_min": 0.2652706985867705,
+          "paired_ratio_max": 0.3051644938103697
+        },
+        "retention": {
+          "chain_versions": 1006116,
+          "chain_bytes": 193174272,
+          "pruned_pending": 663629,
+          "pruned_pending_bytes": 127416768,
+          "installed": 2862618,
+          "installed_bytes": 549622656,
+          "reuse_pool": 168097,
+          "per_install": {
+            "chain_versions": 0.35146708362764434,
+            "chain_bytes": 67.48168005650771,
+            "pruned_pending": 0.2318259020239515,
+            "pruned_pending_bytes": 44.51057318859869
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 1094200877,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 24382,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 184757240542,
+          "install_lock_wait_seconds": 87.97963835333334,
+          "install_lock_wait_fraction": 0.6109697107870371,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 2862618,
+          "success": 180717,
+          "lock_fail": 110292,
+          "cas_fail": 0
+        },
+        "boundary_samples": 300,
+        "pruned": 663629,
+        "gc_status": "measured",
+        "debug_mode": 1
+      },
+      "gen": {
+        "throughput": {
+          "rep_tps": [
+            969843.0,
+            763393.0,
+            752348.0
+          ],
+          "median_tps": 763393.0,
+          "rep_min_tps": 752348.0,
+          "rep_max_tps": 969843.0,
+          "ratio_to_stock_medians": 0.12078374401079438,
+          "paired_rep_ratios": [
+            0.15302460276587043,
+            0.12078374401079438,
+            0.11905659012853904
+          ],
+          "paired_ratio_min": 0.11905659012853904,
+          "paired_ratio_max": 0.15302460276587043
+        },
+        "retention": {
+          "chain_versions": 1017410,
+          "chain_bytes": 195342720,
+          "pruned_pending": 217350,
+          "pruned_pending_bytes": 41731200,
+          "installed": 1127719,
+          "installed_bytes": 216522048,
+          "reuse_pool": 24469,
+          "per_install": {
+            "chain_versions": 0.9021839660411858,
+            "chain_bytes": 173.21932147990768,
+            "pruned_pending": 0.19273418289485236,
+            "pruned_pending_bytes": 37.00496311581165
+          }
+        },
+        "hops": {
+          "long_ro": {
+            "total": 0,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_ro": {
+            "total": 187959877,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "long_update": {
+            "total": 39,
+            "reads": null,
+            "mean_per_read": null
+          },
+          "online_update": {
+            "total": 13778,
+            "reads": null,
+            "mean_per_read": null
+          }
+        },
+        "gc_cost": {
+          "install_lock_wait_tsc": 209656659600,
+          "install_lock_wait_seconds": 99.83650457142856,
+          "install_lock_wait_fraction": 0.6933090595238095,
+          "duration_seconds": 3,
+          "threads": 48,
+          "attempts": 1127719,
+          "success": 106990,
+          "lock_fail": 61811,
+          "cas_fail": 0
+        },
+        "boundary_samples": 308,
+        "pruned": 217350,
+        "gc_status": "measured",
+        "debug_mode": 1
+      }
+    }
+  },
+  "verification": {
+    "status": "passed",
+    "positive_count": 4,
+    "disqualified": [],
+    "controls": [
+      {
+        "cell": "K",
+        "thread": 4,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "K",
+        "thread": 4,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "K",
+        "thread": 4,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "K",
+        "thread": 8,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "K",
+        "thread": 8,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "K",
+        "thread": 8,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "R",
+        "thread": 4,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "R",
+        "thread": 4,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "R",
+        "thread": 4,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "R",
+        "thread": 8,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "R",
+        "thread": 8,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "R",
+        "thread": 8,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "W",
+        "thread": 4,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "W",
+        "thread": 4,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "W",
+        "thread": 4,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "W",
+        "thread": 8,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "W",
+        "thread": 8,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "W",
+        "thread": 8,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 4,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 4,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 4,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 8,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 8,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 8,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 4,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 4,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 4,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 8,
+        "arm": "stock",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 8,
+        "arm": "min",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 8,
+        "arm": "gen",
+        "cycles": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "disqualified": false,
+        "reasons": []
+      }
+    ],
+    "broken": [
+      {
+        "cell": "K",
+        "thread": 4,
+        "classification": "期待した経路で検出",
+        "cycles": 15,
+        "fired": 21015,
+        "attributed_witnesses": 42645,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "K",
+        "thread": 8,
+        "classification": "期待した経路で検出",
+        "cycles": 16,
+        "fired": 21095,
+        "attributed_witnesses": 16512,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "R",
+        "thread": 4,
+        "classification": "期待した経路で検出",
+        "cycles": 1405,
+        "fired": 8298,
+        "attributed_witnesses": 6056,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "R",
+        "thread": 8,
+        "classification": "期待した経路で検出",
+        "cycles": 8523,
+        "fired": 35666,
+        "attributed_witnesses": 1609,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "W",
+        "thread": 4,
+        "classification": "未検出または帰属不能",
+        "cycles": 0,
+        "fired": 22966,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "W",
+        "thread": 8,
+        "classification": "未検出または帰属不能",
+        "cycles": 0,
+        "fired": 24728,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 4,
+        "classification": "発火 0",
+        "cycles": 0,
+        "fired": 0,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "ronly_wait",
+        "thread": 8,
+        "classification": "発火 0",
+        "cycles": 0,
+        "fired": 0,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 4,
+        "classification": "未検出または帰属不能",
+        "cycles": 4,
+        "fired": 1592,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      },
+      {
+        "cell": "wait_after_reads",
+        "thread": 8,
+        "classification": "未検出または帰属不能",
+        "cycles": 3,
+        "fired": 1902,
+        "attributed_witnesses": 0,
+        "integrity": {
+          "dup_txids": 0,
+          "framing_violations": 0,
+          "genesis_commits": 0,
+          "lock_coverage_violations": 0,
+          "malformed_keys": 0,
+          "missing_txids": 0,
+          "orphan_reads": 0,
+          "permutation_violations": 0,
+          "version_dups": 0,
+          "write_intent_violations": 0,
+          "write_version_mismatch": 0
+        },
+        "commit_rows_match": true
+      }
+    ]
+  },
+  "perf_status": "未検証の診断値",
+  "long_read_only_zero_work": {
+    "rr50-ronly-gc10": {
+      "stock": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "min": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "gen": {
+        "boundary_samples": 0,
+        "pruned": 0
+      }
+    },
+    "rr50-ronly-gc100": {
+      "stock": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "min": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "gen": {
+        "boundary_samples": 0,
+        "pruned": 0
+      }
+    },
+    "rr95-ronly-gc10": {
+      "stock": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "min": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "gen": {
+        "boundary_samples": 0,
+        "pruned": 0
+      }
+    },
+    "rr95-ronly-gc100": {
+      "stock": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "min": {
+        "boundary_samples": 0,
+        "pruned": 0
+      },
+      "gen": {
+        "boundary_samples": 0,
+        "pruned": 0
+      }
+    }
+  },
+  "part_hosts": {
+    "run-rr50-many-gc10-count": [
+      "bnode085"
+    ],
+    "run-rr50-many-gc10-perf": [
+      "bnode087"
+    ],
+    "run-rr50-many-gc100-count": [
+      "bnode090"
+    ],
+    "run-rr50-many-gc100-perf": [
+      "bnode088"
+    ],
+    "run-rr50-ronly-gc10-count": [
+      "bnode077"
+    ],
+    "run-rr50-ronly-gc10-perf": [
+      "bnode089"
+    ],
+    "run-rr50-ronly-gc100-count": [
+      "bnode094"
+    ],
+    "run-rr50-ronly-gc100-perf": [
+      "bnode095"
+    ],
+    "run-rr50-wait1-gc10-count": [
+      "bnode077"
+    ],
+    "run-rr50-wait1-gc10-perf": [
+      "bnode078"
+    ],
+    "run-rr50-wait1-gc100-count": [
+      "bnode076"
+    ],
+    "run-rr50-wait1-gc100-perf": [
+      "bnode016"
+    ],
+    "run-rr50-wait10-gc10-count": [
+      "bnode080"
+    ],
+    "run-rr50-wait10-gc10-perf": [
+      "bnode079"
+    ],
+    "run-rr50-wait10-gc100-count": [
+      "bnode086"
+    ],
+    "run-rr50-wait10-gc100-perf": [
+      "bnode081"
+    ],
+    "run-rr50-wait10-two-gc10-count": [
+      "bnode080"
+    ],
+    "run-rr50-wait10-two-gc10-perf": [
+      "bnode087"
+    ],
+    "run-rr95-many-gc10-count": [
+      "bnode089"
+    ],
+    "run-rr95-many-gc10-perf": [
+      "bnode094"
+    ],
+    "run-rr95-many-gc100-count": [
+      "bnode078"
+    ],
+    "run-rr95-many-gc100-perf": [
+      "bnode079"
+    ],
+    "run-rr95-ronly-gc10-count": [
+      "bnode077"
+    ],
+    "run-rr95-ronly-gc10-perf": [
+      "bnode091"
+    ],
+    "run-rr95-ronly-gc100-count": [
+      "bnode095"
+    ],
+    "run-rr95-ronly-gc100-perf": [
+      "bnode088"
+    ],
+    "run-rr95-wait1-gc10-count": [
+      "bnode090"
+    ],
+    "run-rr95-wait1-gc10-perf": [
+      "bnode091"
+    ],
+    "run-rr95-wait1-gc100-count": [
+      "bnode085"
+    ],
+    "run-rr95-wait1-gc100-perf": [
+      "bnode096"
+    ],
+    "run-rr95-wait10-gc10-count": [
+      "bnode016"
+    ],
+    "run-rr95-wait10-gc10-perf": [
+      "bnode081"
+    ],
+    "run-rr95-wait10-gc100-count": [
+      "bnode080"
+    ],
+    "run-rr95-wait10-gc100-perf": [
+      "bnode086"
+    ],
+    "verify-K": [
+      "bnode090"
+    ],
+    "verify-R": [
+      "bnode085"
+    ],
+    "verify-W": [
+      "bnode089"
+    ],
+    "verify-ronly_wait-t4": [
+      "bnode016"
+    ],
+    "verify-ronly_wait-t8": [
+      "bnode094"
+    ],
+    "verify-wait_after_reads": [
+      "bnode086"
+    ]
+  },
+  "missing": {
+    "mean_hops_per_read": "read counts are not recorded by CICADA_INTERVAL_COUNT",
+    "other": []
+  },
+  "conversions": {
+    "lock_wait_seconds": "install_lock_wait_tsc / clocks_per_us / 1e6",
+    "lock_wait_fraction": "lock_wait_seconds / (extime seconds × thread_num)",
+    "per_install": "end-of-run count or bytes / installed versions",
+    "paired_rep_ratios": "same rep index variant TPS / stock TPS"
+  },
+  "figure_prefixes": {
+    "a-throughput": "output/insights/2026-09-29/vhash-interval-gc/figures/interval-gc-a-throughput",
+    "b-retention": "output/insights/2026-09-29/vhash-interval-gc/figures/interval-gc-b-retention",
+    "c-hops": "output/insights/2026-09-29/vhash-interval-gc/figures/interval-gc-c-hops",
+    "d-gc-cost": "output/insights/2026-09-29/vhash-interval-gc/figures/interval-gc-d-gc-cost"
+  },
+  "inputs": {
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/igc-a/output/insights/2026-09-29/vhash-interval-gc/data/aggregate.json": "ac9e65b9084ccebbb688d04967697039389336bae33932a4a8a07a734402cfcf",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc10-count/raw.jsonl": "76d503ab1e96acbc79dcfe2cae4b96572240ecb0bb167f10c7ca9f636e2a3a2f",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc10-perf/raw.jsonl": "5d65093e30c65dc1181c06d532835ea2e1519bbd54477159fca6b53095d37efd",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc100-count/raw.jsonl": "ba1ba45090d79a323b6ee30e4dbdd9a661a40509f442df81903bb1ad856dc15b",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-many-gc100-perf/raw.jsonl": "a460f7cd20593f5db27f272d6e0ea1adadd890ff10ba3428dd98d58d640fa355",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-ronly-gc10-count/raw.jsonl": "db03622499d3d82abee565303563fb634af4a7cc1639f2eff71c4c72b83c9296",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-ronly-gc10-perf/raw.jsonl": "49d46a8cc818ee79e7a94bb6d3f04b50eaea179ff5fc0105f0edfd1682c933f5",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-ronly-gc100-count/raw.jsonl": "e8db4e3ea6aceaaad1fdca0f31aa43428e76eb7e88bc2647fd244a2a0cbae6b2",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-ronly-gc100-perf/raw.jsonl": "c323b11de039b33a2c93559db2ec1757578c9fdb10e43158c98b2b5744b2fc5a",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait1-gc10-count/raw.jsonl": "dff87162ac78f051b377c7c677b7b4b702f2a58a8896aa94ad635f81985b6772",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait1-gc10-perf/raw.jsonl": "4bf367608949ceea1cb7981039b3e7483a5e6ed92714dfc6128395cd32ee7de5",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait1-gc100-count/raw.jsonl": "c0e19d489f349c60ea9c90aa937670c81db698c24c9ebeac7c6bc50cf5ae9df3",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait1-gc100-perf/raw.jsonl": "8b478c3698e827e702e7aa62eb14a77258dc2a93798a3c43cbcc3e0add44b159",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait10-gc10-count/raw.jsonl": "75bebfab912cf5da4c2e9c53ab3e0b336ea64579f7d4de5a973f9e66e1b72fc8",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait10-gc10-perf/raw.jsonl": "008cc04379314f7ab0bfdb41c214290494bddc2f3321db8568d90414944c0dc1",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait10-gc100-count/raw.jsonl": "7bd604482275e02b01e2a7d316d345d207f55e6d825345d2a209031d2663a4b3",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait10-gc100-perf/raw.jsonl": "b8e7d11fd84eb300b58672cfc34ebb1d32358dc4377801d3ae032f42316b9d30",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait10-two-gc10-count/raw.jsonl": "be5f84d3f32864f3897bfc1a34e609b44d9f8c5bcc53fd171fae998b337b22d5",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr50-wait10-two-gc10-perf/raw.jsonl": "6472a8cb5f87393ddd1b3342e7a63d9d0c2fbca93c83a346ea75debab9d267f4",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-many-gc10-count/raw.jsonl": "124d49a1d6c3bddbd17d3df969ab84380f6a0050d835d2888bce8e9850f27413",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-many-gc10-perf/raw.jsonl": "19ee019a246f622827d41b4cc31a7d46ebd5d09330f0733e37ef9b98b8ad6c88",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-many-gc100-count/raw.jsonl": "9af442084b914629706f9c913059298b9bec2910adb46825b06ecd14622ec653",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-many-gc100-perf/raw.jsonl": "686c177230ff74343530730d3a9692fa45d739d68323c498347fe9d48540d9f1",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-ronly-gc10-count/raw.jsonl": "3b9ebf2f6563fe4641b9906014d36c694bd46b780d7afa1d3504e54c222267f7",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-ronly-gc10-perf/raw.jsonl": "93c8e8471e01a0abe7117b7c9e7a6a0e8308de6415a538c7ab88595418e39a62",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-ronly-gc100-count/raw.jsonl": "3f4b9fab61ea6567dee81c9381214f0ad0e0801471dc481fcd470e10203fc434",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-ronly-gc100-perf/raw.jsonl": "c1751b97c8b3802eb1a7b34820941747cfe4cc4bf999f3f496f754b653743707",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait1-gc10-count/raw.jsonl": "1c62173493adf9bd025219c4cd3e8916f6576e462642e863a04214206cf01c51",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait1-gc10-perf/raw.jsonl": "8109945acdda9b174b321a1cb5dd6cbad9ef3ec1ba4242273ace6d1fd7ba8cef",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait1-gc100-count/raw.jsonl": "238554617a1455f00f5daa3222eb4b26845a82a5c0d172303c8594aa165e08f7",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait1-gc100-perf/raw.jsonl": "4bbe56cb7d632bcb3824f4fed8ec3ba97bfa6c67da4405daeb56883ac968e821",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait10-gc10-count/raw.jsonl": "8c9b89e50c2a35a560447de0346baa04e39001b2d21f1e7b04fd2c080ba74ff3",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait10-gc10-perf/raw.jsonl": "7481d8f9007ba03c4322c259f19228ec7d92cf5fd515b6818ffd09eeac26f9be",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait10-gc100-count/raw.jsonl": "37d47f5b93a4e0a7eada111691e8656ab2fe6d2fcbc468d73ae9839dea5f3c06",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/run-rr95-wait10-gc100-perf/raw.jsonl": "4d33ef35f9bb009629390ba28a81d623b91cba65e33b8d47c45c5967e3021a91",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/verify-K/raw.jsonl": "a4b909aa64f07efd534d048cbb52e7b23c1e66b739f326db93c84c9fdcf9729a",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/verify-R/raw.jsonl": "ff910af0aad9db1c1fe00494db67d64186c5b0874fcc0d6cbe5c404a353e4991",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/verify-W/raw.jsonl": "ec3804201c2635f8e4c98071b1d31d1c47035e69a372c96afa82148a889202da",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/verify-ronly_wait-t4/raw.jsonl": "6480c9b1718ca2e8c5e0ff1521f7494aff4ba492e4726ccce20083a95325d422",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/verify-ronly_wait-t8/raw.jsonl": "dd296126e090954ed2a306a8346768fb3a705fe1cb26d9a235c15d19054a56cf",
+    "/work/1/SFC/tanab/tmp/vhash-interval-gc-2026-09-29/parts3/verify-wait_after_reads/raw.jsonl": "d43d185f072758c6428293480367e1c77b1994dd57b731b80a8aff4ff70a988d"
+  }
+}

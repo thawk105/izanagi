@@ -675,7 +675,7 @@ def aggregate(records, *, no_gen_perf=False, require_parts=False):
             if len(actual) != len(planned) or {key(r) for r in actual} != {key(r) for r in planned}:
                 raise ValueError(f'incomplete or duplicate part records: {part}')
     verification = aggregate_verification(records) if require_parts else None
-    if verification and verification['status'] != 'passed':
+    if verification and verification['status'] == 'failed':
         raise ValueError('correctness verification failed: ' +
                          json.dumps(verification, ensure_ascii=False, sort_keys=True))
     planned = set(CELLS)
@@ -710,7 +710,8 @@ def aggregate(records, *, no_gen_perf=False, require_parts=False):
                 raise ValueError(f'missing count {key}/{arm}')
         result[key] = {'perf_median_tps': medians, 'count': cell['count']}
     return {'schema': 'vhash-interval-gc-aggregate/v1', 'cells': result,
-            'verification': verification, 'complete': True,
+            'verification': verification, 'status': verification['status'] if verification else None,
+            'complete': True,
             'perf_status': '未検証の診断値'}
 
 
@@ -973,6 +974,10 @@ def aggregate_verification(records):
                 reasons.append('integrity')
             if record.get('trace_counts', {}).get('C') != record.get('commit_count'):
                 reasons.append('commit_rows')
+            if record.get('verdict') != 'indeterminate':
+                reasons.append('verdict')
+            if record.get('read_wts_mismatch') != 0:
+                reasons.append('read_wts_mismatch')
             controls.append({'cell': cell, 'thread': thread, 'arm': arm,
                              'cycles': record.get('total_cycles'),
                              'integrity': record.get('integrity'),
@@ -987,10 +992,23 @@ def aggregate_verification(records):
                             'integrity': broken.get('integrity'),
                             'commit_rows_match': broken.get('trace_counts', {}).get('C') ==
                                                  broken.get('commit_count')})
-    positives = [r for r in broken_rows if r['classification'] == '期待した経路で検出']
+    detected = [r for r in broken_rows if r['classification'] == '期待した経路で検出']
+    positives = [r for r in detected if r['cell'] == 'ronly_wait']
+    auxiliary = [{**r, 'attribution_basis':
+                  ('長い tx の無い cell で末尾 worker を代役にした事前登録外の帰属'
+                   if r['cell'] in ('K', 'W', 'R') and r['attributed_witnesses'] else
+                   '帰属 0 の事前登録外の巡回検出' if not r['attributed_witnesses'] else
+                   '事前登録外の cell での帰属')}
+                 for r in broken_rows if r['cell'] != 'ronly_wait'
+                 and r['cycles'] is not None and r['cycles'] > 0
+                 and by_cell[r['cell'], r['thread'], 'broken'].get('verdict') == 'non-serializable']
     disqualified = [r for r in controls if r['disqualified']]
-    return {'status': 'passed' if positives and not disqualified else 'failed',
-            'positive_count': len(positives), 'disqualified': disqualified,
+    status = ('failed' if disqualified or not (positives or auxiliary) else
+              'passed' if positives else 'normal_arms_passed_s8_positive_unmet')
+    return {'status': status, 'positive_count': len(positives),
+            'auxiliary_detection_count': len(auxiliary),
+            'positive': positives, 'auxiliary_detections': auxiliary,
+            'disqualified': disqualified,
             'controls': controls, 'broken': broken_rows}
 
 
@@ -1396,7 +1414,7 @@ def main(argv=None):
     parser.add_argument('--third-party-cache', type=Path)
     parser.add_argument('--scratch-root', type=Path)
     parser.add_argument('--output', type=Path)
-    parser.add_argument('--raw', type=Path, action='append')
+    parser.add_argument('--raw', type=Path, nargs='+', action='extend')
     parser.add_argument('--part')
     parser.add_argument('--binaries', type=Path)
     args = parser.parse_args(argv)
@@ -1418,7 +1436,7 @@ def main(argv=None):
             parser.error('aggregate --output must be absolute and outside the repository')
         records = [json.loads(line) for path in args.raw for line in path.read_text().splitlines()]
         write_x(args.output / 'aggregate.json', aggregate(records, no_gen_perf=args.no_gen_perf,
-                                                         require_parts=any('part_id' in r for r in records)))
+                                                         require_parts=True))
         return 0
     if args.command in ('run-part', 'verify-part'):
         if args.part not in plan_parts() or args.binaries is None or args.output is None:
