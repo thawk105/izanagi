@@ -15,6 +15,7 @@ title: [T-2906] VHash md_36: forwarding と GC 接続の論証が置いた仮定
 - 段 4 で親が境界の読みの列 G1 を書いた後、初稿の列の段 4 が矛盾する (W@40 が活動中に公開される MinWts は 40 以下) ことに気づき、試作では前進しない thread 0 が MinRts を MinWts_{r−1}−1 以下に抑えることを見つけた。これで段 2 の起草と段 3 相談 A の「同じ round で MinRts > MinWts」の列は試作では起きず、G1 はどの thread も前進しうる一般の構成 E の列になった。
 - 段 6 のレビュー 2 本 (read-only codex) の所見はすべて real として親が直した。レンズ A は §4.3 の順序の一文の誤りと read-only の値破損の条件を、レンズ B は RC を「満たす」とした誤り (実装は PENDING を除く検査を持たない。stock と試作では floor の条件から導ける) と、列の非 RMW の条件・group commit の出典・A2 の一般化を指摘した。焦点再レビューは 2 巡使った。1 巡目 (NO-GO) は RC 行の新しい導出の書き漏れ (古い slot の読みと PENDING 版の設置時刻) と §3.2 の過剰な一文を、2 巡目 (GO) は不等号 1 か所 (< を ≤ へ、結論は不変) を指摘し、親が直した。
 - 棄却した所見: なし。
+- セッション異常 (実害なし): 開始直後に DW-O20 どおり `--ff-only` で local main へ揃えたため、自分の commit が無い間の終了ごとに Stop hook `tools/dev_wave_cleanup_stop_hook.py` が「land 済みの可能性」と止めた (6 回)。hook は branch が作成点から前進し tip が main の祖先なら止めるので、ff で前進しただけの wave と land 済みの wave を区別しない。1 行の未 land 報告で通過できた。
 - 実 repo を読む検査: 記録 commit の前に `python3 tools/check_docs.py` 違反なし、`python3 tools/spool_fold.py --dry-run` rc=0。受入は縮小受入 (D2316) を land の前に取る。
 - エージェント工数: Codex plan 1・consult 2・review 2・focus 2 (いずれも gpt-6-sol、read-only)。実装子なし (実装面の差分ゼロのため変異 matrix は免除)。
 
@@ -33,3 +34,4 @@ title: [T-2906] VHash md_36: forwarding と GC 接続の論証が置いた仮定
 - {{T:cicada-ts-duplicate}} **P3・新規**: stock Cicada の時刻生成が、abort 後の上乗せが残ったまま次の tx が commit すると同じ thread の続く tx に同じ時刻を返す (A2) 頻度を trace で数え、thread 内で厳密に増やすかを決める。CCBench の挙動を変えるので D16 / D18 / D20 の分類が要る。根拠: 同 §5。
 - {{T:vhash-impl-atomicity-lemma}} **P3・新規**: VHash の直列化の定理を Cicada の実行に当てはめるための置換補題 (観測の線形化点を最後に読んだ next pointer に置く、status の順次確定、論理版 ID と物理アドレスの分離、書き手側の記憶順序) を書く。根拠: 同 §2・§6。
 - {{T:vhash-model-boundary-read}} **P3・新規**: VHash の小モデルに、GC の境界の非原子な読みと thread 内の floor の下降を足して、G1 と FS-b の列の witness を取るかを判断する ([T-2939] の途中入場とは別の軸。途中入場だけでは G1 は出ない)。根拠: 同 §7。
+- {{T:stop-hook-ff-false-positive}} **P3・新規**: dev-wave の Stop hook `tools/dev_wave_cleanup_stop_hook.py` が、開始時に `--ff-only` で main へ揃えただけで自分の commit がまだ無い wave を「land 済みの可能性」として毎回止める誤検出を直す (例: branch の reflog に main の祖先でない commit が一度でもあったことを条件に加える)。実装面の変更なので Codex author の wave で行う。放置すると各 wave の初期の段で終了のたびに不要な 1 往復が起きる。根拠: worklog の本エントリのセッション異常。
