@@ -1,0 +1,64 @@
+== S rc=0 host=bnode141 started=2026-09-30T04:59:39.482982+00:00 finished=2026-09-30T05:01:48.931462+00:00 errors=[]
+  build S oid=dcb9a41f3e538744298b0e5c42dc37349bac114e binary_sha256=9c69ce9da152d313e4138381bf722640847857b05d4920099248b3b4913295f3
+   W-blind: status=match reason=None commits=218547 aborts=10269
+      counts unreachable=0 D1a=0 D1b1=0 D1b2=0 D1c=0 D2a=0 D2b_i=1491 D2b_ii=16611 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 527860, 'own_write_read_transactions': 16866, 'repeated_write_key_transactions': 16465, 'written_transactions': 211727}
+      verdict=indeterminate certified=False cycles=0 txns=218547 verifier_rc=3
+      b1_fired=None
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 0, "sample": [], "status": "pass"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 1461, "sample": [104, 211, 302, 498, 517, 539, 547, 582, 616, 1217, 1225, 1277, 1374, 1389, 1437, 1452, 1482, 1529, 1593, 1783], "status": "violation"}, "ii": {"count": 16465, "sample": [0, 13, 39, 45, 46, 104, 107, 109, 145, 149, 151, 153, 156, 180, 230, 242, 254, 257, 261, 267], "status": "violation"}}, "occurrence": {"M_M_occurrences": 0, "R_R_occurrences": 16849, "R_R_transactions": 15975, "R_W_R_occurrences": 768, "R_W_R_transactions": 767, "W_R_occurrences": 17049, "W_R_transactions": 16866, "W_W_occur
+      trace_archive_sha256=d59395b66a18353b0e9c11b0c1f31a372938da5fcd4c1d6cc5b01605feeded12
+   W-rmw: status=match reason=None commits=191315 aborts=8433
+      counts unreachable=0 D1a=0 D1b1=0 D1b2=0 D1c=0 D2a=0 D2b_i=30842 D2b_ii=14819 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 925733, 'own_write_read_transactions': 27604, 'repeated_write_key_transactions': 14675, 'written_transactions': 185295}
+      verdict=indeterminate certified=False cycles=0 txns=191315 verifier_rc=3
+      b1_fired=None
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 0, "sample": [], "status": "pass"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 27604, "sample": [4, 19, 23, 27, 34, 36, 40, 64, 71, 74, 78, 81, 82, 88, 101, 109, 123, 125, 137, 142], "status": "violation"}, "ii": {"count": 14675, "sample": [23, 27, 71, 74, 81, 88, 109, 123, 153, 155, 178, 204, 212, 216, 237, 243, 248, 262, 264, 291], "status": "violation"}}, "occurrence": {"M_M_occurrences": 14820, "M_M_transactions": 14041, "R_R_occurrences": 14982, "R_R_transactions": 14182, "R_W_R_occurrences": 15272, "R_W_R_transactions": 14488, "W_R_occurrences": 0, "W_W_occurrences": 0, "own_writ
+      trace_archive_sha256=21ac7dc4f6d5cf9f17d93210b4946dfe9d6921ddb032178bf7bea7a96678b6c4
+== X rc=0 host=bnode141 started=2026-09-30T05:01:49.005739+00:00 finished=2026-09-30T05:03:58.584409+00:00 errors=[]
+  build X oid=dcb9a41f3e538744298b0e5c42dc37349bac114e binary_sha256=8e4d2fa2b0dab5e636d2623b1b1e060ef013098ef6e3a698360f591b530ee332
+   W-blind: status=match reason=None commits=220066 aborts=11493
+      counts unreachable=0 D1a=0 D1b1=0 D1b2=0 D1c=0 D2a=0 D2b_i=0 D2b_ii=0 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 532006, 'own_write_read_transactions': 16847, 'repeated_write_key_transactions': 16673, 'written_transactions': 213261}
+      verdict=serializable certified=True cycles=0 txns=220066 verifier_rc=0
+      b1_fired=None
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 0, "sample": [], "status": "pass"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 0, "sample": [], "status": "pass"}, "ii": {"count": 0, "sample": [], "status": "pass"}}, "occurrence": {"M_M_occurrences": 0, "R_R_occurrences": 17040, "R_R_transactions": 16138, "R_W_R_occurrences": 737, "R_W_R_transactions": 737, "W_R_occurrences": 17045, "W_R_transactions": 16847, "W_W_occurrences": 16889, "W_W_transactions": 15974, "own_write_read_transactions": 16847, "read_only_transactions": 6805, "repeated_key_transactions": 59745, "transactions": 220066, "write_write_occurrences": 17629, "write_writ
+      trace_archive_sha256=78e4f191e97a738607f21a2f7fb2e2592acfce010d0aa77be09d1a1184a189c8
+   W-rmw: status=match reason=None commits=190302 aborts=7991
+      counts unreachable=0 D1a=0 D1b1=0 D1b2=0 D1c=0 D2a=0 D2b_i=0 D2b_ii=0 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 920757, 'own_write_read_transactions': 27539, 'repeated_write_key_transactions': 14587, 'written_transactions': 184481}
+      verdict=serializable certified=True cycles=0 txns=190302 verifier_rc=0
+      b1_fired=None
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 0, "sample": [], "status": "pass"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 0, "sample": [], "status": "pass"}, "ii": {"count": 0, "sample": [], "status": "pass"}}, "occurrence": {"M_M_occurrences": 14703, "M_M_transactions": 13943, "R_R_occurrences": 14711, "R_R_transactions": 13969, "R_W_R_occurrences": 15306, "R_W_R_transactions": 14546, "W_R_occurrences": 0, "W_W_occurrences": 0, "own_write_read_transactions": 27539, "read_only_transactions": 5821, "repeated_key_transactions": 51648, "transactions": 190302, "write_write_occurrences": 15381, "write_write_transactions": 14587, "wr
+      trace_archive_sha256=a5f691c7a77c25be5879828759a59069e6dcd5fd6ba7d97dd898471e8188d714
+== B rc=0 host=bnode141 started=2026-09-30T05:03:58.656943+00:00 finished=2026-09-30T05:06:03.567380+00:00 errors=[]
+  build B oid=dcb9a41f3e538744298b0e5c42dc37349bac114e binary_sha256=efb9888c6171d2084a557efd2d1db2444cfa18af84772e10596c730c35ad9de5
+   W-blind: status=match reason=None commits=236501 aborts=10691
+      counts unreachable=0 D1a=0 D1b1=183155 D1b2=0 D1c=0 D2a=0 D2b_i=983 D2b_ii=18439 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 262018, 'own_write_read_transactions': 18221, 'repeated_write_key_transactions': 18273, 'written_transactions': 229249}
+      verdict=indeterminate certified=False cycles=0 txns=236501 verifier_rc=3
+      b1_fired={'committed': 183155, 'reached': 320451}
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 183155, "sample": [0, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23], "status": "violation"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 956, "sample": [126, 386, 611, 967, 1138, 1274, 1617, 1681, 1696, 1730, 1825, 1910, 2026, 2856, 2967, 3350, 3376, 3459, 3611, 4386], "status": "violation"}, "ii": {"count": 18273, "sample": [23, 40, 44, 58, 60, 78, 105, 126, 147, 154, 167, 181, 221, 243, 249, 264, 266, 269, 311, 322], "status": "violation"}}, "occurrence": {"M_M_occurrences": 0, "R_R_occurrences": 18180, "R_R_transactions": 17247, "R_W_R_occurrences": 772, "R_W_R
+      trace_archive_sha256=54e7c5ec84ec608df63d7ae8a04edd54d4e9d8325078e9fb5dd5652822e928ca
+   W-rmw: status=match reason=None commits=209869 aborts=7166
+      counts unreachable=0 D1a=0 D1b1=205887 D1b2=0 D1c=0 D2a=0 D2b_i=11214 D2b_ii=16284 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 464648, 'own_write_read_transactions': 30454, 'repeated_write_key_transactions': 16119, 'written_transactions': 203536}
+      verdict=indeterminate certified=False cycles=0 txns=209869 verifier_rc=3
+      b1_fired={'committed': 205887, 'reached': 568547}
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 205887, "sample": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20], "status": "violation"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 10564, "sample": [42, 61, 87, 139, 172, 179, 193, 194, 198, 214, 216, 234, 246, 260, 299, 302, 355, 392, 413, 449], "status": "violation"}, "ii": {"count": 16119, "sample": [0, 34, 46, 61, 77, 83, 87, 91, 111, 127, 144, 154, 179, 193, 194, 214, 229, 246, 260, 284], "status": "violation"}}, "occurrence": {"M_M_occurrences": 16322, "M_M_transactions": 15405, "R_R_occurrences": 16252, "R_R_transactions": 15421, "R_W_R_occurrences": 16
+      trace_archive_sha256=14437568518e4362b096bca1b7f2019c3c0d6d3aa80525c90f498eb4b8692fc0
+== N rc=0 host=bnode141 started=2026-09-30T05:06:03.639338+00:00 finished=2026-09-30T05:08:01.035590+00:00 errors=[]
+  build N oid=dcb9a41f3e538744298b0e5c42dc37349bac114e binary_sha256=ff4639bcbb132dcb0829faf893246a5b7759a5a8efabb7a736897cf298e85614
+   W-blind: status=descriptive reason=None commits=217548 aborts=10340
+      counts unreachable=1 D1a=0 D1b1=0 D1b2=0 D1c=0 D2a=0 D2b_i=0 D2b_ii=0 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 0, 'own_write_read_transactions': 0, 'repeated_write_key_transactions': 0, 'written_transactions': 0}
+      verdict=indeterminate certified=False cycles=0 txns=217548 verifier_rc=3
+      b1_fired=None
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 0, "sample": [], "status": "pass"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 882, "sample": [283, 532, 664, 720, 745, 1109, 1160, 1198, 1779, 1830, 1955, 2010, 2336, 3387, 3677, 3795, 4003, 4099, 4103, 4393], "status": "violation"}, "ii": {"count": 9285, "sample": [46, 87, 91, 104, 143, 191, 234, 239, 284, 311, 324, 353, 361, 414, 419, 468, 532, 545, 565, 577], "status": "violation"}}, "occurrence": {"M_M_occurrences": 0, "R_R_occurrences": 16859, "R_R_transactions": 16005, "R_W_R_occurrences": 713, "R_W_R_transactions": 713, "W_R_occurrences": 16737, "W_R_transactions": 16560, "W_W_
+      trace_archive_sha256=8c138278fd451a6fc3f4dfcee7c4ec682c3d5d7e3628dc8d3dc1c8021e286035
+   W-rmw: status=descriptive reason=None commits=193882 aborts=8173
+      counts unreachable=1 D1a=0 D1b1=0 D1b2=0 D1c=0 D2a=0 D2b_i=0 D2b_ii=0 D5=pass v=2 required=True
+      occurrence {'external_reads_checked': 0, 'own_write_read_transactions': 0, 'repeated_write_key_transactions': 0, 'written_transactions': 0}
+      verdict=indeterminate certified=False cycles=0 txns=193882 verifier_rc=3
+      b1_fired=None
+      U0 checker (診断): {"D1": {"a": {"count": 0, "sample": [], "status": "pass"}, "b1": {"count": 0, "sample": [], "status": "pass"}, "b2": {"count": 0, "sample": [], "status": "pass"}}, "D2b": {"i": {"count": 23904, "sample": [156, 162, 200, 220, 235, 241, 255, 264, 283, 284, 293, 313, 315, 321, 325, 327, 329, 395, 403, 408], "status": "violation"}, "ii": {"count": 10135, "sample": [156, 241, 255, 264, 313, 321, 329, 403, 409, 428, 432, 449, 451, 452, 459, 461, 504, 525, 530, 535], "status": "violation"}}, "occurrence": {"M_M_occurrences": 15055, "M_M_transactions": 14265, "R_R_occurrences": 15052, "R_R_transactions": 14257, "R_W_R_occurrences": 15705, "R_W_R_transactions": 14875, "W_R_occurrences": 0, "W_W_occur
+      trace_archive_sha256=b82edf33b9652aa3eca5092bc4d37ac03f7bbd566104be1273d5debe81298395

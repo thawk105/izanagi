@@ -42,6 +42,78 @@ from typing import Dict, List, Literal, Optional, Sequence, Union
 from .model import ObjectIdentity, Read, Txn, Write, ReadV3, TxnV3, WriteV3
 
 _KEY_RE = re.compile(r"^(?:[0-9a-f]{2})+$")   # 小文字 hex・偶数長 (trace.hh key_to_hex)
+_GATE_NAME_RE = re.compile(r"gate_(0|[1-9][0-9]*)\.log\Z")
+_GATE_KEY_RE = re.compile(r"[0-9a-f]{16}\Z")
+_GATE_UINT_RE = re.compile(r"0|[1-9][0-9]*\Z")
+_GATE_MAX = (1 << 64) - 1
+
+
+def _gate_paths(trace_dir: str) -> tuple[dict[int, str], list[str]]:
+    """Enumerate the whole gate namespace, including malformed names."""
+    paths: dict[int, str] = {}
+    bad: list[str] = []
+    with os.scandir(trace_dir) as entries:
+        for entry in entries:
+            if not entry.name.startswith("gate_"):
+                continue
+            match = _GATE_NAME_RE.fullmatch(entry.name)
+            if match is None or not entry.is_file():
+                bad.append(entry.name)
+            else:
+                paths[int(match.group(1))] = entry.path
+    return paths, bad
+
+
+def _gate_uint(token: str) -> int:
+    if _GATE_UINT_RE.fullmatch(token) is None:
+        raise ValueError(f"invalid decimal {token!r}")
+    value = int(token)
+    if value > _GATE_MAX:
+        raise ValueError(f"uint64 overflow {token!r}")
+    return value
+
+
+def _gate_stamp(token: str, threads: int, *, written: bool) -> int:
+    value = _gate_uint(token)
+    writer, sequence = value >> 48, value & ((1 << 48) - 1)
+    if written:
+        if not (1 <= writer <= threads and sequence):
+            raise ValueError(f"invalid writer stamp {token!r}")
+    elif writer and not (1 <= writer <= threads and sequence):
+        raise ValueError(f"invalid observed stamp {token!r}")
+    return value
+
+
+def _gate_row(line: str, threads: int):
+    """Parse one Q/V row without retaining another whole trace."""
+    words = line.rstrip("\n").split(" ")
+    if not words or any(not word for word in words):
+        raise ValueError("blank or noncanonical spacing")
+    if words[0] == "V":
+        if len(words) != 4 or _GATE_KEY_RE.fullmatch(words[2]) is None:
+            raise ValueError("malformed V")
+        return "V", _gate_uint(words[1]), words[2], _gate_stamp(
+            words[3], threads, written=True)
+    if words[0] != "Q" or len(words) < 4:
+        raise ValueError("malformed Q/tag")
+    txid = None if words[1] == "-" else _gate_uint(words[1])
+    thid, n = _gate_uint(words[2]), _gate_uint(words[3])
+    if n != len(words) - 4:
+        raise ValueError("Q operation count mismatch")
+    ops = []
+    for word in words[4:]:
+        parts = word.split(":")
+        if len(parts) != 4:
+            raise ValueError("malformed Q operation")
+        op, key, observed, written = parts
+        if op not in {"R", "W", "M"} or _GATE_KEY_RE.fullmatch(key) is None:
+            raise ValueError("invalid Q operation/key")
+        if (op == "W") != (observed == "-") or (op == "R") != (written == "-"):
+            raise ValueError("invalid Q stamp sentinel")
+        obs = None if observed == "-" else _gate_stamp(observed, threads, written=False)
+        wr = None if written == "-" else _gate_stamp(written, threads, written=True)
+        ops.append((op, key, obs, wr))
+    return "Q", txid, thid, ops
 
 
 class ParseError(Exception):
