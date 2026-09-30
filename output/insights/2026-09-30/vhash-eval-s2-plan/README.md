@@ -149,9 +149,15 @@ md_39 の着地、修理の型の条件 (smoke)、重ねた build と条件 gate
 
 ## 7. 工程
 
-- dev-wave 軽量版 (段 2・3 なし、実装面なし)。段 6 の read-only review 1 本の結果は §8 に書く。
+- dev-wave 軽量版 (段 2・3 なし、実装面なし、変異 matrix は実装面の差分ゼロで免除)。段 6 の read-only review 1 本と焦点再レビュー 2 巡の結果は §8 に書く。
 - 子: 事実抽出の Explore 3 本 (sonnet、read-only)。計算ノードは使っていない。
 
 ## 8. 段 6 レビュー
 
-(段 6 の後に記入する)
+Codex (gpt-6-sol、medium、read-only) の review 1 本と焦点再レビュー 2 巡。出力は job dir の `stage6/review-out.md`・`focus1-out.md`・`focus2-out.md`。
+
+| 巡 | call / 秒 | 判定 | 所見と親の裁定 |
+|---|---|---|---|
+| review | 7 / 299 | NO-GO (must-fix 2・should 3・nit 1) | A1: S2 の発効の後に族へ判定を足して読み直す手順が §8.4 (数え直しは発効の前に限る) と両立しない → real。発効の後に足す判定は別の族にし、m′ ≤ 25 は参考に下げた。A2: §7.2 規則 4 と「測らない判定も m に残す」の衝突、門の範囲 → real。§7.2 の読みを §16.1 に明記。A3 (判定器の rc)・A4 (A_fix の経路の到達を門の走行全体の合計で)・B1 (smoke 0 回の調べ方) → real。B2 (草稿と本書の重複) → 本書 §5 を縮めた |
+| 焦点 1 | 6 / 223 | NO-GO (must-fix 1) | 前回 6 件は closed。新規: smoke の通過条件「前進の成功」は公開への到達を保証しない → real。「開始時より上げた公開の回数 ≥ 1」に替え、計数用 build がこの回数を出すことも条件にした |
+| 焦点 2 | 3 / 82 | GO (must-fix 0) | 前回の 1 件は closed |
