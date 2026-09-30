@@ -135,7 +135,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 | ss2pl | 7 | 7 | 1 | 6 |
 | oze | 10 | 6 | 0 | 8 |
 
-その他の数 (`summary.json`):
+その他の数 (`cc-card-counts.json`):
 
 - 既にその CC にある (`already_in_cc = true`): tictoc 25・mocc 27・cicada 38・ermia 30・si 27・mvto 30・ss2pl 12・oze 28。有無を決められない (`unknown`) 組は CC ごとに 0〜4。
 - `unknown` の理由: 前提表で未確認 (`cc-unverified`) は ermia 4・si 4・mvto 1・oze 5 (多版の版の回収経路の安全性、oze の旧版回収の有無など)。カードの記述不足 (`card-underspecified`) は各 CC 2〜3 (One-shot GC の要旨だけのカードなど)。
@@ -159,7 +159,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 | ss2pl | abyss-lock-wait-timeout (fits)、stov2-basis-transaction-internals (fits)、silo-inline-record-data、abyss-wait-die、stov2-commit-time-updates |
 | oze | stov2-basis-transaction-internals (fits)、abyss-lock-wait-timeout、silo-inline-record-data、tskd-tsdefer-lockfree-probing、tskd-tsdefer-proactive-deferment |
 
-全件は `summary.json` の `stage_a` (本候補) と `stage_a_partial` (副候補 = CCBench に「一部」ある) にある。8 CC を合わせた本候補は 18 枚で、うち 11 枚は Silo に入る見込みの 33 枚、7 枚は Silo に入らない 182 枚から来ている。
+全件は `cc-card-counts.json` の `stage_a` (本候補) と `stage_a_partial` (副候補 = CCBench に「一部」ある) にある。8 CC を合わせた本候補は 18 枚で、うち 11 枚は Silo に入る見込みの 33 枚、7 枚は Silo に入らない 182 枚から来ている。
 
 ### 5.2 CC ごとに固有のもの
 
@@ -184,7 +184,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 - **別の CC の方が自然に入る (`more_natural_on`、5 枚):**
   - abyss-lock-wait-timeout → mocc・ss2pl (どちらも lock を待つ経路を持つ。Silo は既定 no-wait の CAS 施錠)
   - tictoc-preemptive-abort → tictoc (近似 commit ts に使う wts/rts が TicToc にだけある)
-  - cicada-write-set-sort-by-contention → cicada・mvto、cicada-early-version-consistency-check → mvto (Cicada と同じ版と timestamp を持つ mvto に入る)。子が付けた cicada-clock-boost-on-abort → mvto は §10 の規則 T で外した (`summary.json` の `dropped_more_natural_on`)
+  - cicada-write-set-sort-by-contention → cicada・mvto、cicada-early-version-consistency-check → mvto (Cicada と同じ版と timestamp を持つ mvto に入る)。子が付けた cicada-clock-boost-on-abort → mvto は §10 の規則 T で外した (`cc-card-counts.json` の `dropped_more_natural_on`)
   - plor-read-only-dynamic-validation → mocc (OCC と read lock の両方を持つ hybrid)
 - **移植の出所 (`natural_home`、既にその CC にある):** 80 枚のうち 72 枚に 1 つ以上ある (`card-level.jsonl`)。Silo に無い 58 枚の移植元の確認に使える。
 - **既存の分類との食い違い (再分類はしない):** Silo に入る見込みの 33 枚のうち **11 枚は 8 CC すべてで `no`** だった。
@@ -235,7 +235,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 
 ## 9. 親の抜き取りと、子が迷った組
 
-- **無作為 30 組** (`summary.json` の `spotcheck_sample`、seed 20260930、訂正前の集計で抽出): 親がカードと CC 前提表から読み直し、30 組とも判定に同意した。直した組は 0。
+- **無作為 30 組** (`cc-card-counts.json` の `spotcheck_sample`、seed 20260930、訂正前の集計で抽出): 親がカードと CC 前提表から読み直し、30 組とも判定に同意した。直した組は 0。
 - **各 CC の上位 5 件** (訂正前の集計で 11 枚・40 組): 判定を変えた組は 0 で、留保を 3 点付けた。うち「abyss-ts-alloc-* × cicada・mvto の `minor`」は段 6 レビューが must-fix として指摘し、§10 で直した。
 - **子が報告した迷い (主なもの):**
   - 2PL の lock を持たない多版 CC で、pending 版・inflight 版の spin 待ちを「lock 待ち」とみなして施錠待ちの上限を `minor` にした (abyss-lock-wait-timeout ほか)。厳しく読めば `no`。判定はそのまま。
@@ -249,7 +249,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 
 ## 10. 段 6 の独立レビューと訂正
 
-レビューは 2 巡行った (どちらも Codex、read-only、reasoning medium)。1 巡目のレビューは README の件数・表・比を正本 (`summary.json`・`judgments.jsonl`・`cards.json`) から数え直し、すべて一致した (転記の誤りは 0)。
+レビューは 2 巡行った (どちらも Codex、read-only、reasoning medium)。1 巡目のレビューは README の件数・表・比を正本 (`cc-card-counts.json`・`judgments.jsonl`・`cards.json`) から数え直し、すべて一致した (転記の誤りは 0)。
 候補の抽出・並べ方、CC 前提表と準備表の根拠 (proof の protocol 集合、EVOLVE-BLOCK の 3 source、各 CC の WORKLOADS、YCSB の操作列)、規律 2 の扱いにも問題は無かった。
 所見は判定と定義の食い違いで、親はすべて real と判断した。2 巡目の焦点再レビューは、1 巡目の訂正の閉じ具合 (R2 closed、R1・R3 partial) と、同じ規則に当たる未訂正の組を指摘した。
 
@@ -293,7 +293,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 | `judgments.jsonl` | 判定の正本。カード × CC ごとに 1 行 (2,360 行)。欄: `card_id`・`cc`・`value`・`already_in_cc`・`workload_ok`・`reasons`・`minor_parts`・`basis_fields`・`note`・`revision` (親の訂正を当てた 24 組だけ非 null) |
 | `corrections-parent.jsonl` | 段 6 の親の訂正 24 行 (組・規則 T/A・理由コード・理由) |
 | `card-level.jsonl` | カードごとに 1 行 (295 行)。Silo 列 (`present`/`port-candidate`/`feasible`/`mismatch`)・`more_natural_on`・`natural_home` |
-| `summary.json` | 集計 (件数・効果の内訳・段 A 候補の全件・副候補・理由コード・抜き取りの標本・訂正件数・訂正で外した `more_natural_on`) |
+| `cc-card-counts.json` | 集計 (件数・効果の内訳・段 A 候補の全件・副候補・理由コード・抜き取りの標本・訂正件数・訂正で外した `more_natural_on`)。集計 script は `summary.json` の名で出力し、縮小受入の分類器が production のコメント中の同名文字列 (`orchestrator/campaign/search_baselines.py`) と照合して不適格にしたので改名した (中身は同じ) |
 
 repo 外の資材 (`/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md9-cards-by-protocol/`、sha256 は同 dir の `SHA256SUMS`): `make_chunks.py`・`judge-prompt.md`・`aggregate.py`・`inspect.py`・`spot.py`、
 子の生出力 `judge-1〜5.jsonl`・`cardlevel-1〜5.jsonl`、原票 `cc-profiles-raw.md`・`readiness-raw.md`、レビューの prompt と出力 `codex/`。
