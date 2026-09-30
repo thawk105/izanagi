@@ -836,6 +836,31 @@ smoke は 5 case・30 check すべて真 (stock と 4 方策が legacy / 性能�
 
 ---
 
+## silo-lock-order-variant.patch — 段 A の軸 silo-lock-order-policy (競合度順の施錠) の骨格 ([T-2886]、2026-09-30)
+
+LLM が「write set をどの順で施錠するか」を関数単位で書く軸の骨格 (template patch)。仕様の正本 =
+`output/insights/2026-09-29/gen-opt-stage-a-candidate/README.md` §4、実装の記録 =
+`output/insights/2026-09-30/gen-opt-lock-order-axis/README.md`。軸定数は `orchestrator/campaign/axis_silo_lock_order.py`、
+api header の単一正本は `orchestrator/campaign/silo_lock_order_api.hh`、名前つき対照は `orchestrator/campaign/silo_lock_order_hand/`、
+提案文字列の検疫・文法・単独 compile は `orchestrator/campaign/silo_lock_order_gate.py` の `order_gate`。
+
+- `cmake/Options.cmake` の universal 相乗り (`CCBENCH_SILO_ORDER_VARIANT`、既定 0) と `cc/silo/transaction.cc`。**既定 0 で inert**
+  (追加の宣言・骨格・呼出し点・要因記録・並べ替え関数がすべて `#if SILO_ORDER_VARIANT` の内側で、preprocess 後に原文一致 →
+  src_token="stock")。未定義と 0 / 1 以外は `#error`、軸 ON で `NO_WAIT_LOCKING_IN_VALIDATION` と `NO_WAIT_OF_TICTOC` の
+  未定義または 1 / 0 以外も `#error`。
+- 軸 ON: api block の埋込み、単一 marker (id=`silo-lock-order-policy`) の hole (`izanagi_silo_order` の本体、既定本文 =
+  並べ替えない)、骨格所有の thread_local 状態・要因・PRNG・4 hook の noipa wrapper、`validationPhase` の stock の
+  `sort(write_set_)` 1 行だけを並べ替え関数 (`SILO-LOCK-ORDER-SORT-BEGIN/END` で区切った template) の呼び出しに置換。
+  並べ替え関数は、INSERT か DELETE を含む write set では stock の sort をして順序 hook を呼ばない。UPDATE だけなら
+  `order_enabled` を 1 回呼び、true のとき各要素の TID word を 1 回だけ読んで `order_priority` を 1 回ずつ呼び、
+  (優先度 降順, storage 昇順, key 昇順) の全順序で要素を並べ直す (要素の集合は変えず、既存の pre/post sort 検査は外側に残る)。
+  abort 後と commit 成功後の通知 hook は取引の種類によらず呼ぶ。要因記録は関数方策の骨格と同じ 7 点。
+- **排他:** `silo-sort-variant.patch` と同じ sort 行を置き換え、`silo-function-policy-variant.patch` と同じ file の同じ場所を
+  触るので、どちらとも同時に当てない (`axis_silo_lock_order.EXCLUSIVE_PATCHES`)。PIN 前進はしない。
+- 条件意味 gate (`condition_meaning_gate.py`) に `SILO_ORDER_VARIANT` を inert_values=("0",)、branch site 14 で登録。
+
+---
+
 ## broken-silo-{read-lock-check,…} 11 本 / control-silo-{double-abort-backoff,reverse-write-order,conservative-abort} 3 本 — 検出期待表の新規 silo 変異 ([T-2847])
 
 verifier が何を検出し何を判定しないかを実測で示すための変異 14 本。設計 (期待の層と発生条件) は

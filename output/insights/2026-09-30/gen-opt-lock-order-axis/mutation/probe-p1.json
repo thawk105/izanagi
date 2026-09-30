@@ -1,0 +1,401 @@
+{
+  "baseline": {
+    "orchestrator/tests/test_silo_lock_order_gate.py": {
+      "nodes": [],
+      "rc": 0,
+      "seconds": 1.3,
+      "stdout_sha256": "23656df95b7f6f9bb0ae49691b542d66563c6a18c7b1e86f9d488dfbc39935fe",
+      "summary": [
+        "3 passed, 0 failed, 0 skipped"
+      ]
+    },
+    "orchestrator/tests/test_silo_lock_order_grammar.py": {
+      "nodes": [],
+      "rc": 0,
+      "seconds": 0.8,
+      "stdout_sha256": "5dbe4d0c2533575b2132a2ab512f73097f2db1f2ca6db880a7a3f316bf0bff68",
+      "summary": [
+        "5 passed, 0 failed, 0 skipped"
+      ]
+    },
+    "orchestrator/tests/test_silo_lock_order_template.py": {
+      "nodes": [],
+      "rc": 0,
+      "seconds": 10.9,
+      "stdout_sha256": "284dca2f2069d575382cece015d562cddfcd263021375622121adbffe673bba3",
+      "summary": [
+        "6 passed, 0 failed, 0 skipped"
+      ]
+    }
+  },
+  "final_porcelain": "",
+  "head": "2148b469a4e7526f89706190cb4f5f197a5c2370",
+  "mutations": {
+    "M1": {
+      "diff_stat": " orchestrator/campaign/silo_policy_grammar.py | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "expectation": {
+        "contains_expected": true,
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+        ],
+        "failed_by_file": {
+          "orchestrator/tests/test_silo_lock_order_grammar.py": [
+            "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+            "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+          ]
+        },
+        "observed_nodes": [
+          "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+          "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+        ],
+        "only_expected_files_failed": true,
+        "other_files_failed": []
+      },
+      "porcelain_after_restore": "",
+      "restored_sha256": {
+        "orchestrator/campaign/silo_policy_grammar.py": "1de1a4d0a86cfc60cd0c31f286475e1c47daa99b4c8bba14f76e3fdb543f4b98"
+      },
+      "runs": {
+        "orchestrator/tests/test_silo_lock_order_gate.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.4,
+          "stdout_sha256": "23656df95b7f6f9bb0ae49691b542d66563c6a18c7b1e86f9d488dfbc39935fe",
+          "summary": [
+            "3 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_grammar.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+            "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+          ],
+          "rc": 1,
+          "seconds": 0.6,
+          "stdout_sha256": "baf35869f47a1d90d29efb16f5948a5805734a71c8fedb3719a8034405ccbaa7",
+          "summary": [
+            "3 passed, 2 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_template.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 10.5,
+          "stdout_sha256": "284dca2f2069d575382cece015d562cddfcd263021375622121adbffe673bba3",
+          "summary": [
+            "6 passed, 0 failed, 0 skipped"
+          ]
+        }
+      }
+    },
+    "M2": {
+      "diff_stat": " patches/silo-lock-order-variant.patch | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "expectation": {
+        "contains_expected": true,
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+        ],
+        "failed_by_file": {
+          "orchestrator/tests/test_silo_lock_order_template.py": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+          ]
+        },
+        "observed_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+        ],
+        "only_expected_files_failed": true,
+        "other_files_failed": []
+      },
+      "porcelain_after_restore": "",
+      "restored_sha256": {
+        "patches/silo-lock-order-variant.patch": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d"
+      },
+      "runs": {
+        "orchestrator/tests/test_silo_lock_order_gate.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.1,
+          "stdout_sha256": "23656df95b7f6f9bb0ae49691b542d66563c6a18c7b1e86f9d488dfbc39935fe",
+          "summary": [
+            "3 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_grammar.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 0.4,
+          "stdout_sha256": "5dbe4d0c2533575b2132a2ab512f73097f2db1f2ca6db880a7a3f316bf0bff68",
+          "summary": [
+            "5 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_template.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+          ],
+          "rc": 1,
+          "seconds": 9.4,
+          "stdout_sha256": "d150f6c0e4201abc88854afdac3fc3af64ac7beee556f07cfe327b9d1b644d0b",
+          "summary": [
+            "5 passed, 1 failed, 0 skipped"
+          ]
+        }
+      }
+    },
+    "M3": {
+      "diff_stat": " patches/silo-lock-order-variant.patch | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "expectation": {
+        "contains_expected": true,
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+        ],
+        "failed_by_file": {
+          "orchestrator/tests/test_silo_lock_order_template.py": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+          ]
+        },
+        "observed_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+        ],
+        "only_expected_files_failed": true,
+        "other_files_failed": []
+      },
+      "porcelain_after_restore": "",
+      "restored_sha256": {
+        "patches/silo-lock-order-variant.patch": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d"
+      },
+      "runs": {
+        "orchestrator/tests/test_silo_lock_order_gate.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.4,
+          "stdout_sha256": "23656df95b7f6f9bb0ae49691b542d66563c6a18c7b1e86f9d488dfbc39935fe",
+          "summary": [
+            "3 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_grammar.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.3,
+          "stdout_sha256": "5dbe4d0c2533575b2132a2ab512f73097f2db1f2ca6db880a7a3f316bf0bff68",
+          "summary": [
+            "5 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_template.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+          ],
+          "rc": 1,
+          "seconds": 16.0,
+          "stdout_sha256": "02e9c39076f599c21414e13594e697baa74a0b791c2e3c7b820100d1c24b9241",
+          "summary": [
+            "5 passed, 1 failed, 0 skipped"
+          ]
+        }
+      }
+    },
+    "M4": {
+      "diff_stat": " patches/silo-lock-order-variant.patch | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "expectation": {
+        "contains_expected": true,
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+        ],
+        "failed_by_file": {
+          "orchestrator/tests/test_silo_lock_order_template.py": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+          ]
+        },
+        "observed_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+        ],
+        "only_expected_files_failed": true,
+        "other_files_failed": []
+      },
+      "porcelain_after_restore": "",
+      "restored_sha256": {
+        "patches/silo-lock-order-variant.patch": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d"
+      },
+      "runs": {
+        "orchestrator/tests/test_silo_lock_order_gate.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.2,
+          "stdout_sha256": "23656df95b7f6f9bb0ae49691b542d66563c6a18c7b1e86f9d488dfbc39935fe",
+          "summary": [
+            "3 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_grammar.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 0.9,
+          "stdout_sha256": "5dbe4d0c2533575b2132a2ab512f73097f2db1f2ca6db880a7a3f316bf0bff68",
+          "summary": [
+            "5 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_template.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+          ],
+          "rc": 1,
+          "seconds": 11.3,
+          "stdout_sha256": "cfc27fcd41fb33abfdac88a9e0aa2062a3b5d391bcaf87114122f9b2bae3208c",
+          "summary": [
+            "5 passed, 1 failed, 0 skipped"
+          ]
+        }
+      }
+    },
+    "M5": {
+      "diff_stat": " orchestrator/campaign/silo_lock_order_gate.py | 2 ++\n 1 file changed, 2 insertions(+)\n",
+      "expectation": {
+        "contains_expected": true,
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+          "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write"
+        ],
+        "failed_by_file": {
+          "orchestrator/tests/test_silo_lock_order_gate.py": [
+            "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+            "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write"
+          ],
+          "orchestrator/tests/test_silo_lock_order_template.py": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+            "orchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine"
+          ]
+        },
+        "observed_nodes": [
+          "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+          "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+          "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+          "orchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine"
+        ],
+        "only_expected_files_failed": true,
+        "other_files_failed": []
+      },
+      "porcelain_after_restore": "",
+      "restored_sha256": {
+        "orchestrator/campaign/silo_lock_order_gate.py": "b6843ea2288fc8683d5ec6065230e29f45c9028dbf33c3c1be083e43227d67fa"
+      },
+      "runs": {
+        "orchestrator/tests/test_silo_lock_order_gate.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+            "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write"
+          ],
+          "rc": 1,
+          "seconds": 1.2,
+          "stdout_sha256": "11d6568231ce195a9bd0518027ebb4001280a0aba4b0314b058ab09b513ffb3d",
+          "summary": [
+            "1 passed, 2 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_grammar.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 0.4,
+          "stdout_sha256": "5dbe4d0c2533575b2132a2ab512f73097f2db1f2ca6db880a7a3f316bf0bff68",
+          "summary": [
+            "5 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_template.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+            "orchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine"
+          ],
+          "rc": 1,
+          "seconds": 12.6,
+          "stdout_sha256": "10b1057d21730472c763de56ca3d0da8aca4d114751eb07ea385ebd4bbf4b828",
+          "summary": [
+            "4 passed, 2 failed, 0 skipped"
+          ]
+        }
+      }
+    },
+    "M6": {
+      "diff_stat": " patches/silo-lock-order-variant.patch | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)\n",
+      "expectation": {
+        "contains_expected": true,
+        "expected_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+        ],
+        "failed_by_file": {
+          "orchestrator/tests/test_silo_lock_order_template.py": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+          ]
+        },
+        "observed_nodes": [
+          "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+        ],
+        "only_expected_files_failed": true,
+        "other_files_failed": []
+      },
+      "porcelain_after_restore": "",
+      "restored_sha256": {
+        "patches/silo-lock-order-variant.patch": "d7a119aaa6c032c239ee7cddfdfae246f4f5a065d5a410830179448a55165c1d"
+      },
+      "runs": {
+        "orchestrator/tests/test_silo_lock_order_gate.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.7,
+          "stdout_sha256": "23656df95b7f6f9bb0ae49691b542d66563c6a18c7b1e86f9d488dfbc39935fe",
+          "summary": [
+            "3 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_grammar.py": {
+          "nodes": [],
+          "rc": 0,
+          "seconds": 1.0,
+          "stdout_sha256": "5dbe4d0c2533575b2132a2ab512f73097f2db1f2ca6db880a7a3f316bf0bff68",
+          "summary": [
+            "5 passed, 0 failed, 0 skipped"
+          ]
+        },
+        "orchestrator/tests/test_silo_lock_order_template.py": {
+          "nodes": [
+            "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+          ],
+          "rc": 1,
+          "seconds": 5.1,
+          "stdout_sha256": "282cada6d2f96a52eb0e1be8b444e57dd1741b132938becf3cbdc0b8ea4766ad",
+          "summary": [
+            "5 passed, 1 failed, 0 skipped"
+          ]
+        }
+      }
+    }
+  },
+  "observed": {
+    "M1": [
+      "orchestrator/tests/test_silo_lock_order_grammar.py::test_existing_manifest_and_hand_policies_unchanged",
+      "orchestrator/tests/test_silo_lock_order_grammar.py::test_forbidden_names_in_each_declaration_position"
+    ],
+    "M2": [
+      "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+    ],
+    "M3": [
+      "orchestrator/tests/test_silo_lock_order_template.py::test_required_flags_fail_closed"
+    ],
+    "M4": [
+      "orchestrator/tests/test_silo_lock_order_template.py::test_sort_behavior_and_hook_counts"
+    ],
+    "M5": [
+      "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_compile_before_write",
+      "orchestrator/tests/test_silo_lock_order_gate.py::test_gate_rejects_grammar_before_write",
+      "orchestrator/tests/test_silo_lock_order_template.py::test_real_patch_gate_rejects_forbidden_field_without_write",
+      "orchestrator/tests/test_silo_lock_order_template.py::test_touch_markers_api_and_quarantine"
+    ],
+    "M6": [
+      "orchestrator/tests/test_silo_lock_order_template.py::test_off_resolves_stock_and_on_is_distinct"
+    ]
+  },
+  "repo": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-lock-order-axis/mutation/source",
+  "spec_sha256": "02d5385dc17dc3efeea10940ad2ae0e58bfd76620acc8485dbe70ae08e7ae299"
+}
