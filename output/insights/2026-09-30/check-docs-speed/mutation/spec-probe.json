@@ -1,0 +1,104 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "m0-comment-only",
+   "category": "positive",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "    # 既存 lstat で観測できる identity が変わった場合だけ stale と判定する。\n",
+     "new": "    # 既存 lstat で観測できる identity が変わった場合だけ stale と判定する。 M0\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-line-number-bisect-right",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "    return bisect_left(_newline_positions(text), end) + 1\n",
+     "new": "    return bisect_left(_newline_positions(text), end + 1) + 1  # M1\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-line-number-negative-offset",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "    end = offset if offset >= 0 else len(text) + offset\n",
+     "new": "    end = offset  # M2\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-worklog-sink-uses-section-ids",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "                entries[i], sources[i], entries[i + 1], entry_ids[i + 1],\n",
+     "new": "                entries[i], sources[i], entries[i + 1], list(sources[i + 1]),  # M3\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-archive-boundary-sink-uses-left",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "                right.first_entry_ids,\n",
+     "new": "                left.first_entry_ids,  # M4\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-raw-slice-ignores-cr",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "_RAW_LINE_BREAK_RE = re.compile(r\"[\\r\\n]\")\n",
+     "new": "_RAW_LINE_BREAK_RE = re.compile(r\"\\n\")  # M5\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-visible-shortcut-ignores-comment-state",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "        if not in_comment and \"<!--\" not in line:\n",
+     "new": "        if \"<!--\" not in line:  # M6\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-archive-order-uses-left-first-entry",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_docs.py",
+     "old": "            left_date, left_order = entry_points[i][1]\n",
+     "new": "            left_date, left_order = entry_points[i][0]  # M7\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

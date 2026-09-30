@@ -1,0 +1,108 @@
+Wed Sep 30 14:19:04 2026    /work/SFC/tanab/tmp/check-docs-speed-2026-09-30/results/e3-r3-new.prof
+
+         93249895 function calls (93236854 primitive calls) in 34.677 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1363 to 60 due to restriction <60>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    477/1    0.025    0.000   35.516   35.516 {built-in method builtins.exec}
+        1    0.000    0.000   35.516   35.516 tools/check_docs.py:1(<module>)
+        1    0.000    0.000   35.366   35.366 tools/check_docs.py:6685(main)
+        1    0.140    0.140   35.363   35.363 tools/check_docs.py:6696(_main)
+        1    1.000    1.000   30.942   30.942 tools/check_docs.py:2882(_check_backlog_guard)
+        1    0.560    0.560   15.868   15.868 tools/check_docs.py:2254(_validate_entry_universe)
+   958894    2.515    0.000   15.307    0.000 tools/check_docs.py:2018(_iter_carry_references)
+  3908974    1.787    0.000   10.058    0.000 tools/check_docs.py:1940(_top_level_items)
+     4386    1.081    0.000    6.852    0.002 tools/check_docs.py:1949(_top_level_ids)
+     8374    4.146    0.000    6.757    0.001 tools/check_docs.py:1495(_visible_markdown_lines)
+     2009    0.916    0.000    5.025    0.003 tools/check_docs.py:2070(_validate_next_action_items)
+  1933522    1.444    0.000    3.531    0.000 tools/check_docs.py:1394(_line_number)
+ 14473906    3.141    0.000    3.141    0.000 {method 'fullmatch' of 're.Pattern' objects}
+   958893    1.630    0.000    2.748    0.000 tools/check_docs.py:1976(_top_level_item_raw_slice)
+   969282    1.483    0.000    2.621    0.000 tools/check_docs.py:2001(_is_carry_candidate)
+        1    0.463    0.463    2.001    2.001 tools/check_docs.py:2759(_check_literal_placeholder_guard)
+        1    0.000    0.000    1.461    1.461 tools/check_docs.py:1863(_check_n_pilot_role_decision_pin)
+   960878    0.736    0.000    1.451    0.000 tools/check_docs.py:2743(_placeholder_line_digest)
+       28    0.000    0.000    1.340    0.048 tools/check_docs.py:1554(_visible_dispatch_inventory_text)
+       41    0.382    0.009    1.333    0.033 /work/1/SFC/tanab/tmp/check-docs-speed-2026-09-30/scratch/bench_abab_9av51u1t/tree/tools/dev_waves/launch_authority.py:154(visible_top_level_lines)
+       35    0.000    0.000    1.332    0.038 tools/check_docs.py:1489(_dispatch_visible_markdown_lines)
+        1    0.001    0.001    1.309    1.309 tools/check_docs.py:1750(_r33_decision_contract_in_text)
+  5424489    1.280    0.000    1.280    0.000 {method 'match' of 're.Pattern' objects}
+       12    0.000    0.000    1.274    0.106 tools/check_docs.py:1577(_visible_h2_section_slices)
+  8785638    1.094    0.000    1.094    0.000 {method 'group' of 're.Match' objects}
+     3568    0.042    0.000    1.004    0.000 tools/check_docs.py:1175(_safe_read_text)
+14474624/14472554    0.892    0.000    0.893    0.000 {built-in method builtins.len}
+     3267    0.500    0.000    0.827    0.000 tools/check_docs.py:1384(_newline_positions)
+  2045798    0.732    0.000    0.732    0.000 {method 'search' of 're.Pattern' objects}
+     2182    0.708    0.000    0.720    0.000 tools/check_docs.py:1469(_extract_next_action)
+  4180366    0.522    0.000    0.522    0.000 {method 'find' of 'str' objects}
+  8513907    0.511    0.000    0.511    0.000 {method 'append' of 'list' objects}
+  1933522    0.495    0.000    0.495    0.000 {built-in method _bisect.bisect_left}
+   415197    0.146    0.000    0.397    0.000 /usr/lib/python3.10/re.py:187(match)
+   775691    0.230    0.000    0.389    0.000 /usr/lib/python3.10/re.py:288(_compile)
+     1918    0.002    0.000    0.381    0.000 /usr/lib/python3.10/pathlib.py:1111(open)
+     1920    0.376    0.000    0.379    0.000 {built-in method io.open}
+  4171845    0.356    0.000    0.356    0.000 {method 'rstrip' of 'str' objects}
+   960880    0.331    0.000    0.331    0.000 {method 'hexdigest' of '_hashlib.HASH' objects}
+  1937324    0.321    0.000    0.321    0.000 {built-in method builtins.min}
+    82495    0.021    0.000    0.308    0.000 {built-in method builtins.next}
+    82492    0.056    0.000    0.286    0.000 /work/1/SFC/tanab/tmp/check-docs-speed-2026-09-30/scratch/bench_abab_9av51u1t/tree/tools/dev_waves/launch_authority.py:236(<genexpr>)
+  1933914    0.276    0.000    0.276    0.000 {built-in method builtins.max}
+    29098    0.011    0.000    0.270    0.000 /usr/lib/python3.10/pathlib.py:1092(stat)
+    29429    0.202    0.000    0.261    0.000 {built-in method posix.stat}
+     1856    0.001    0.000    0.253    0.000 tools/check_docs.py:2737(_placeholder_logical_lines)
+     1856    0.001    0.000    0.253    0.000 /usr/lib/python3.10/re.py:222(split)
+   960881    0.252    0.000    0.252    0.000 {built-in method _hashlib.openssl_sha256}
+     1856    0.250    0.000    0.250    0.000 {method 'split' of 're.Pattern' objects}
+     2181    0.120    0.000    0.233    0.000 tools/check_docs.py:3025(check_transition)
+    21405    0.010    0.000    0.208    0.000 /usr/lib/python3.10/pathlib.py:1217(lstat)
+     1645    0.160    0.000    0.200    0.000 tools/check_docs.py:1437(_extract_archive_entries)
+     8497    0.199    0.000    0.199    0.000 {method 'splitlines' of 'str' objects}
+    17829    0.014    0.000    0.198    0.000 /usr/lib/python3.10/pathlib.py:1353(is_symlink)
+        1    0.001    0.001    0.196    0.196 tools/check_docs.py:4069(_check_dispatch_inventory)
+     1969    0.190    0.000    0.190    0.000 {method '__exit__' of '_io._IOBase' objects}
+   247649    0.047    0.000    0.189    0.000 /usr/lib/python3.10/re.py:249(compile)
+  1166661    0.187    0.000    0.187    0.000 tools/check_docs.py:2800(<dictcomp>)
+     1645    0.082    0.000    0.185    0.000 tools/check_docs.py:3190(<listcomp>)
+  1930532    0.184    0.000    0.184    0.000 {method 'start' of 're.Match' objects}
+
+
+Wed Sep 30 14:19:04 2026    /work/SFC/tanab/tmp/check-docs-speed-2026-09-30/results/e3-r3-new.prof
+
+         93249895 function calls (93236854 primitive calls) in 34.677 seconds
+
+   Ordered by: internal time
+   List reduced from 1363 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     8374    4.146    0.000    6.757    0.001 tools/check_docs.py:1495(_visible_markdown_lines)
+ 14473906    3.141    0.000    3.141    0.000 {method 'fullmatch' of 're.Pattern' objects}
+   958894    2.515    0.000   15.307    0.000 tools/check_docs.py:2018(_iter_carry_references)
+  3908974    1.787    0.000   10.058    0.000 tools/check_docs.py:1940(_top_level_items)
+   958893    1.630    0.000    2.748    0.000 tools/check_docs.py:1976(_top_level_item_raw_slice)
+   969282    1.483    0.000    2.621    0.000 tools/check_docs.py:2001(_is_carry_candidate)
+  1933522    1.444    0.000    3.531    0.000 tools/check_docs.py:1394(_line_number)
+  5424489    1.280    0.000    1.280    0.000 {method 'match' of 're.Pattern' objects}
+  8785638    1.094    0.000    1.094    0.000 {method 'group' of 're.Match' objects}
+     4386    1.081    0.000    6.852    0.002 tools/check_docs.py:1949(_top_level_ids)
+        1    1.000    1.000   30.942   30.942 tools/check_docs.py:2882(_check_backlog_guard)
+     2009    0.916    0.000    5.025    0.003 tools/check_docs.py:2070(_validate_next_action_items)
+14474624/14472554    0.892    0.000    0.893    0.000 {built-in method builtins.len}
+   960878    0.736    0.000    1.451    0.000 tools/check_docs.py:2743(_placeholder_line_digest)
+  2045798    0.732    0.000    0.732    0.000 {method 'search' of 're.Pattern' objects}
+     2182    0.708    0.000    0.720    0.000 tools/check_docs.py:1469(_extract_next_action)
+        1    0.560    0.560   15.868   15.868 tools/check_docs.py:2254(_validate_entry_universe)
+  4180366    0.522    0.000    0.522    0.000 {method 'find' of 'str' objects}
+  8513907    0.511    0.000    0.511    0.000 {method 'append' of 'list' objects}
+     3267    0.500    0.000    0.827    0.000 tools/check_docs.py:1384(_newline_positions)
+  1933522    0.495    0.000    0.495    0.000 {built-in method _bisect.bisect_left}
+        1    0.463    0.463    2.001    2.001 tools/check_docs.py:2759(_check_literal_placeholder_guard)
+       41    0.382    0.009    1.333    0.033 /work/1/SFC/tanab/tmp/check-docs-speed-2026-09-30/scratch/bench_abab_9av51u1t/tree/tools/dev_waves/launch_authority.py:154(visible_top_level_lines)
+     1920    0.376    0.000    0.379    0.000 {built-in method io.open}
+  4171845    0.356    0.000    0.356    0.000 {method 'rstrip' of 'str' objects}
+   960880    0.331    0.000    0.331    0.000 {method 'hexdigest' of '_hashlib.HASH' objects}
+  1937324    0.321    0.000    0.321    0.000 {built-in method builtins.min}
+  1933914    0.276    0.000    0.276    0.000 {built-in method builtins.max}
+   960881    0.252    0.000    0.252    0.000 {built-in method _hashlib.openssl_sha256}
+     1856    0.250    0.000    0.250    0.000 {method 'split' of 're.Pattern' objects}

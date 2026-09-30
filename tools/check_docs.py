@@ -21,9 +21,11 @@ import re
 import stat
 import sys
 import time
+from bisect import bisect_left
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from dev_waves.launch_authority import (
@@ -1101,6 +1103,7 @@ class _ArchiveWorklog:
     entries: list[tuple[str, str, int]]
     next_actions: list[tuple[str, int] | None]
     sources: list[set[str]]
+    first_entry_ids: list[str]
 
 
 @dataclass(frozen=True)
@@ -1378,8 +1381,20 @@ def _current_pin(findings: list[str]) -> str | None:
     return m.group(1) if m else None
 
 
+@lru_cache(maxsize=4)
+def _newline_positions(text: str) -> tuple[int, ...]:
+    positions: list[int] = []
+    cursor = text.find("\n")
+    while cursor >= 0:
+        positions.append(cursor)
+        cursor = text.find("\n", cursor + 1)
+    return tuple(positions)
+
+
 def _line_number(text: str, offset: int) -> int:
-    return text.count("\n", 0, offset) + 1
+    end = offset if offset >= 0 else len(text) + offset
+    end = max(0, min(len(text), end))
+    return bisect_left(_newline_positions(text), end) + 1
 
 
 def _extract_current_entries(
@@ -1510,7 +1525,10 @@ def _visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:
                 offset += len(raw_line)
                 continue
 
-        visible, in_comment = _mask_html_comments(line, in_comment)
+        if not in_comment and "<!--" not in line:
+            visible = line
+        else:
+            visible, in_comment = _mask_html_comments(line, in_comment)
         fence_match = FENCE_OPEN_RE.fullmatch(visible)
         if fence_match is not None:
             marker = fence_match.group("marker")
@@ -1939,6 +1957,11 @@ def _top_level_ids(body: str) -> list[str]:
     return ids
 
 
+_RAW_LINE_BREAK_RE = re.compile(r"[\r\n]")
+_CARRY_DIGIT_RE = re.compile(r"[0-9]")
+_CARRY_PAREN_RE = re.compile(r"[ \t]*\((?=[ \t0-9]*[0-9])[ \t0-9]*\)")
+
+
 def _entry_h2_raw_line(
     whole_text: str,
     entry: tuple[str, str, int],
@@ -1954,9 +1977,8 @@ def _top_level_item_raw_slice(body: str, item_offset: int) -> str:
     """list marker から継続物理行の終端までの raw slice を返す。"""
 
     assert 0 <= item_offset < len(body)
-    line_end = item_offset
-    while line_end < len(body) and body[line_end] not in "\r\n":
-        line_end += 1
+    line_break = _RAW_LINE_BREAK_RE.search(body, item_offset)
+    line_end = line_break.start() if line_break is not None else len(body)
     raw_end = line_end
     cursor = line_end
     while cursor < len(body):
@@ -1966,12 +1988,8 @@ def _top_level_item_raw_slice(body: str, item_offset: int) -> str:
                 cursor += 1
         elif body[cursor] == "\n":
             cursor += 1
-        continuation_end = cursor
-        while (
-            continuation_end < len(body)
-            and body[continuation_end] not in "\r\n"
-        ):
-            continuation_end += 1
+        next_break = _RAW_LINE_BREAK_RE.search(body, cursor)
+        continuation_end = next_break.start() if next_break is not None else len(body)
         continuation = body[cursor:continuation_end]
         if not continuation.startswith((" ", "\t")):
             break
@@ -1991,15 +2009,10 @@ def _is_carry_candidate(item_text: str) -> bool:
     if (
         unchanged_at >= 0
         and reference_at > unchanged_at
-        and re.search(
-            r"[0-9]", item_text[unchanged_at:reference_at]
-        ) is not None
+        and _CARRY_DIGIT_RE.search(item_text[unchanged_at:reference_at]) is not None
     ):
         return True
-    return re.fullmatch(
-        r"[ \t]*\((?=[ \t0-9]*[0-9])[ \t0-9]*\)",
-        item_text[task.end():],
-    ) is not None
+    return _CARRY_PAREN_RE.fullmatch(item_text[task.end():]) is not None
 
 
 def _iter_carry_references(
@@ -2970,6 +2983,7 @@ def _check_backlog_guard(
     ]
     sources = [set(_top_level_ids(section[0])) if section is not None else set()
                for section in next_actions]
+    entry_ids = [_top_level_ids(entry[1]) for entry in entries]
     for entry, section, source_ids in zip(entries, next_actions, sources):
         match = WORKLOG_ENTRY_TITLE_RE.fullmatch(entry[0])
         assert match is not None
@@ -2986,7 +3000,7 @@ def _check_backlog_guard(
     for i, (entry, section) in enumerate(zip(entries, next_actions)):
         if section is None:
             continue
-        if _top_level_ids(entry[1]) or i == len(entries) - 1:
+        if entry_ids[i] or i == len(entries) - 1:
             _validate_next_action_items(
                 "docs/worklog.md",
                 worklog_text,
@@ -3012,11 +3026,12 @@ def _check_backlog_guard(
         source_entry: tuple[str, str, int],
         source_ids: set[str],
         sink_entry: tuple[str, str, int],
+        sink_entry_ids: list[str],
         source_rel: str,
     ) -> None:
         if not source_ids or ledger_ids is None:
             return
-        sink_ids = set(_top_level_ids(sink_entry[1])) | ledger_ids
+        sink_ids = set(sink_entry_ids) | ledger_ids
         for task_id in sorted(source_ids):
             if task_id not in sink_ids:
                 findings.append(
@@ -3027,7 +3042,10 @@ def _check_backlog_guard(
 
     for i in range(len(entries) - 1):
         if next_actions[i] is not None:
-            check_transition(entries[i], sources[i], entries[i + 1], "docs/worklog.md")
+            check_transition(
+                entries[i], sources[i], entries[i + 1], entry_ids[i + 1],
+                "docs/worklog.md",
+            )
 
     archive_worklogs: list[_ArchiveWorklog] = []
     numbered_archive_entries: dict[str, frozenset[int] | None] = {}
@@ -3116,9 +3134,12 @@ def _check_backlog_guard(
 
         archive_next_actions: list[tuple[str, int] | None] = []
         archive_sources: list[set[str]] = []
+        archive_entry_ids: list[list[str]] = []
         for i, entry in enumerate(archive_entries):
             raw_sections = list(NEXT_ACTION_RE.finditer(entry[1]))
-            entry_has_id = bool(_top_level_ids(entry[1]))
+            body_ids = _top_level_ids(entry[1])
+            archive_entry_ids.append(body_ids)
+            entry_has_id = bool(body_ids)
             # ID 導入前の古い archive には inline の「次の一手」しかない entry がある。
             # source が存在しない非末尾 entry だけは空遷移として扱い、ID を持つ entry、
             # archive 境界を担う末尾 entry、複数節は構造を必ず検査する。
@@ -3166,6 +3187,7 @@ def _check_backlog_guard(
             archive_entries,
             archive_next_actions,
             archive_sources,
+            [sys.intern(task_id) for task_id in archive_entry_ids[0]],
         )
         archive_worklogs.append(archive)
         for i in range(len(archive_entries) - 1):
@@ -3174,6 +3196,7 @@ def _check_backlog_guard(
                     archive_entries[i],
                     archive_sources[i],
                     archive_entries[i + 1],
+                    archive_entry_ids[i + 1],
                     archive_rel,
                 )
 
@@ -3187,9 +3210,19 @@ def _check_backlog_guard(
     )
     ambiguous_order = False
     if archive_input_complete:
+        entry_points = [
+            (_archive_entry_point(archive.entries[0][0]),
+             _archive_entry_point(archive.entries[-1][0]))
+            for archive in archive_worklogs
+        ]
         for i, left in enumerate(archive_worklogs):
-            for right in archive_worklogs[i + 1:]:
-                if _archive_is_before(left, right):
+            left_date, left_order = entry_points[i][1]
+            for j in range(i + 1, len(archive_worklogs)):
+                right = archive_worklogs[j]
+                right_date, right_order = entry_points[j][0]
+                if (left_date < right_date if left_date != right_date else
+                    left_order is not None and right_order is not None
+                    and left_order < right_order):
                     continue
                 ambiguous_order = True
                 findings.append(
@@ -3204,6 +3237,7 @@ def _check_backlog_guard(
                 left.entries[-1],
                 left.sources[-1],
                 right.entries[0],
+                right.first_entry_ids,
                 str(left.path.relative_to(REPO)),
             )
 
@@ -3219,6 +3253,7 @@ def _check_backlog_guard(
                 latest_archive.entries[-1],
                 latest_archive.sources[-1],
                 entries[0],
+                entry_ids[0],
                 str(latest_archive.path.relative_to(REPO)),
             )
 
@@ -6655,6 +6690,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _main(argv)
     finally:
         _READ_TEXT_CACHE.reset(cache_token)
+        _newline_positions.cache_clear()
 
 
 def _main(argv: Sequence[str] | None = None) -> int:

@@ -5754,3 +5754,9 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-30","base":"df1c85c0c8b9002ac64d15d21a80f566692318cd","content_sha256":"dec46fbfdeab9e0afa3cd8a57db2cca48707a626ba158703dea7e18e2a1dc7a1","seq":3,"tested_tip":"5745fccf98a98bb19a7b2a76ab69878650b5c868","wave":"dev-wave-md26-vhash-gc-connection-proof","wave_ref":"refs/heads/worktree-dev-wave-md26-vhash-gc-connection-proof"}
 
 - {"allocations":{},"authored":"2026-09-30","base":"a63853bf16730d58649a918e6a73282da0edad13","content_sha256":"9776cca6bce0958d3470c84732e38f55f16a48920a20fef5bb7406d70fcde59c","seq":1,"tested_tip":"e948dbbdfacb9b8b6c0de3c9b3a174d3b518068c","wave":"dev-wave-silo-intra-txn-fix-line","wave_ref":"refs/heads/worktree-dev-wave-silo-intra-txn-fix-line"}
+
+- {"allocations":{"T:mocc-gen-opt-base-prep":"[T-2940]"},"authored":"2026-09-30","base":"a272102974c5b0494c32274f5d94a37dd8ebfe07","content_sha256":"6e546c92ba3960ad1c3bbd973d95dab48fc884135c0abc29b5a554053509f607","seq":1,"tested_tip":"fc4e8eab3dcce54733656d8fdbf8384114fe3274","wave":"dev-wave-gen-opt-cards-by-protocol","wave_ref":"refs/heads/worktree-dev-wave-gen-opt-cards-by-protocol"}
+
+- {"allocations":{"T:scoped-acceptance-verbatim-key":"[T-2941]"},"authored":"2026-09-30","base":"213d411c6d9d7a2fadfece6814a215c666acad36","content_sha256":"b7804868606ac8b636ee99a7d50d0359dac8ee5c8f4d323d61d3168fc1f22b8e","seq":1,"tested_tip":"229dee745c0bba2ee8858ff36f539184aa16fc46","wave":"dev-wave-prune-orchestrator-batch2","wave_ref":"refs/heads/worktree-dev-wave-prune-orchestrator-batch2"}
+
+- {"allocations":{"T:check-docs-carry-scan":"[T-2942]"},"authored":"2026-09-30","base":"5b7134c5c16725dfc483b78619c18ac30919e1b8","content_sha256":"bd80fbbdbe7ba355b3e511f640028753be857b69138125b865688d158f365c63","seq":1,"tested_tip":"f2f62dd0232070425ef190f883904e19f9f0c43a","wave":"dev-wave-check-docs-speed","wave_ref":"refs/heads/worktree-dev-wave-check-docs-speed"}

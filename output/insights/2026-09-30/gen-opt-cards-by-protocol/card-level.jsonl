@@ -1,0 +1,295 @@
+{"card_id": "silo-commit-protocol", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["mocc", "oze"]}
+{"card_id": "silo-decentralized-tid", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["mocc", "oze"]}
+{"card_id": "silo-epoch-serialization", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["mocc", "oze"]}
+{"card_id": "silo-version-validated-reads", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc"]}
+{"card_id": "silo-inplace-overwrite", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "ss2pl"]}
+{"card_id": "silo-inline-record-data", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "silo-snapshot-transactions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "silo-epoch-gc", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "oze"]}
+{"card_id": "silo-node-set-phantom-protection", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "oze"]}
+{"card_id": "silo-epoch-group-durability", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "silo-numa-aware-allocator", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "tictoc-data-driven-timestamp", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc"]}
+{"card_id": "tictoc-ts-word-packing", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc"]}
+{"card_id": "tictoc-nowait-validation", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "ss2pl"]}
+{"card_id": "tictoc-preemptive-abort", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [{"cc": "tictoc", "why": "原典が TicToc で、近似 commit ts に使う wts/rts と appro_commit_ts_ が TicToc にだけあり、Silo は TID 再読の代替形になる。"}], "natural_home": []}
+{"card_id": "tictoc-timestamp-history", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc"]}
+{"card_id": "tictoc-lower-isolation-levels", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "mocc-temperature-selective-read-locks", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "mocc-approximate-counter-page-temperature", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "mocc-retrospective-lock-list", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "mocc-canonical-mode-lock-release-reacquire", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "mocc-queuing-lock-mql", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "ccbench-decentralized-ordering", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "mvto", "ss2pl", "oze"]}
+{"card_id": "ccbench-invisible-reads", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "ccbench-nowait-or-wait", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "ss2pl", "oze"]}
+{"card_id": "ccbench-adaptive-backoff", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "ss2pl", "oze"]}
+{"card_id": "ccbench-read-phase-extension", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc"]}
+{"card_id": "ccbench-assertive-version-reuse", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si"]}
+{"card_id": "ccbench-rapid-gc", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto"]}
+{"card_id": "ccbench-aggressive-gc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ccbench-version-overwriting", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "ss2pl"]}
+{"card_id": "ccbench-non-visible-write", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "ccbench-silo-epoch-cacheline-padding", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": []}
+{"card_id": "ccbench-fused-commit-tid-calculation", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc"]}
+{"card_id": "ccbench-tictoc-skip-redundant-rts-update", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc"]}
+{"card_id": "ccbench-mocc-temperature-reset-epoch", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "ccbench-ermia-onedim-mapping-table", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia", "si"]}
+{"card_id": "abyss-dl-detect", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-no-wait", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "ss2pl"]}
+{"card_id": "abyss-wait-die", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-basic-to", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-mvcc", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto", "oze"]}
+{"card_id": "abyss-occ", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "mvto", "oze"]}
+{"card_id": "abyss-hstore", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-ts-alloc-mutex", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-ts-alloc-atomic-add", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia", "si"]}
+{"card_id": "abyss-ts-alloc-batched-atomic", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-ts-alloc-clock", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto"]}
+{"card_id": "abyss-ts-alloc-hardware-counter", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-per-tuple-lock-table", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "ss2pl", "oze"]}
+{"card_id": "abyss-custom-malloc", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-lockfree-partitioned-deadlock-detector", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "abyss-lock-wait-timeout", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [{"cc": "mocc", "why": "MOCC は tuple の RW lock を blocking で待つ施錠方式で、lock 待ちに上限を付ける前提が Silo (既定 no-wait) より直接にある (未使用の LOCK_TIMEOUT_US も残る)。"}, {"cc": "ss2pl", "why": "原典の DL_DETECT は 2PL の lock 待ちが前提で、SS2PL は DLR0 の待つ経路を持つ 2PL (Silo は commit 時の CAS 施錠で既定 no-wait)。"}], "natural_home": []}
+{"card_id": "abyss-distributed-validation", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "mvto", "oze"]}
+{"card_id": "abyss-hstore-local-partitions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "cicada-multi-clock-timestamps", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto"]}
+{"card_id": "cicada-mv-validation", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto"]}
+{"card_id": "cicada-best-effort-inlining", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada"]}
+{"card_id": "cicada-early-abort-and-latest-only", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si"]}
+{"card_id": "cicada-spinwait-pending", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto", "oze"]}
+{"card_id": "cicada-write-set-sort-by-contention", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [{"cc": "cicada", "why": "cicada は precheck の partial_sort を (storage,key) 順で既に行い、最新版の wts もあるので比較子を競合度順へ替えるだけで入る。"}, {"cc": "mvto", "why": "mvto は lock なしで版の wts を持ち、validation 冒頭の設置・検査順を競合度順に並べ替えるだけで入る (precheck が無いので早期失敗の利得は小さい)。"}], "natural_home": []}
+{"card_id": "cicada-early-version-consistency-check", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [{"cc": "mvto", "why": "mvto は cicada と同じ版の wts/rts と開始時 ts を持ち、validation 冒頭の版設置の前に同じ検査を足すだけで入る。"}], "natural_home": ["cicada"]}
+{"card_id": "cicada-adaptive-skip-of-sort-precheck", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": []}
+{"card_id": "cicada-incremental-version-search", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada"]}
+{"card_id": "cicada-rapid-gc", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto"]}
+{"card_id": "cicada-contention-regulation", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "ss2pl", "oze"]}
+{"card_id": "cicada-clock-boost-on-abort", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada"]}
+{"card_id": "cicada-multiversion-index-deferred-update", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "cicada-read-only-snapshot", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto"]}
+{"card_id": "ermia-si-ssn-protocol", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}
+{"card_id": "ermia-indirection-array", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto", "oze"]}
+{"card_id": "ermia-three-epoch-manager", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ermia-single-faa-log-manager", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ermia-tid-table-generations", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ssn-exclusion-window-test", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}
+{"card_id": "ssn-latch-free-parallel-commit", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}
+{"card_id": "ssn-readers-bitmap", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}
+{"card_id": "ssn-single-word-stamp", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}
+{"card_id": "ssn-safe-snapshot", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ssn-readonly-cstamp-at-snapshot", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ssn-read-mostly-cold-read-skipping", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ssn-hierarchical-tracking", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "oze-decentralized-mvsg", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["oze"]}
+{"card_id": "oze-order-forwarding", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["oze"]}
+{"card_id": "oze-dynamic-protocol-switching", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "oze-parallel-validation", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["oze"]}
+{"card_id": "oze-precision-locking-phantom", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["oze"]}
+{"card_id": "oze-epoch-limited-graph-gc", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["oze"]}
+{"card_id": "wu-cc-protocol", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "mvto"]}
+{"card_id": "wu-version-storage", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "wu-version-chain-ordering", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto", "oze"]}
+{"card_id": "wu-noninline-attribute-sharing", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "wu-per-core-memory-spaces", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si"]}
+{"card_id": "wu-gc-detection-vac-vs-coop", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto"]}
+{"card_id": "wu-gc-granularity-tuple-vs-txn", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "wu-index-pointers-logical-vs-physical", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto", "oze"]}
+{"card_id": "hekaton-mvo-backward-validation", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto"]}
+{"card_id": "hekaton-mvl-pessimistic-locking", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hekaton-speculative-read-commit-dependency", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hekaton-eager-update-wait-for-dependency", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hekaton-lock-embedded-in-end-field", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "ermia", "si", "ss2pl", "oze"]}
+{"card_id": "hekaton-isolation-level-pay-as-you-go", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hyper-inplace-update-undo-buffer-versions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hyper-precision-locking-validation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hyper-attribute-level-predicate-log", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hyper-predicate-tree-validation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hyper-versioned-positions-synopsis", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hyper-undo-buffer-gc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "steam-eager-pruning-of-obsolete-versions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "steam-thread-local-txn-lists", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "oze"]}
+{"card_id": "steam-foreground-on-creation-pruning", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": []}
+{"card_id": "steam-version-record-layout", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "steam-active-timestamp-set-reuse", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "steam-gc-design-dimensions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-interval-gc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-group-gc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-table-gc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-hybridgc-combination", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-global-sts-tracker", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-indirect-cid-assignment", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hana-is-versioned-flag", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vdriver-dead-zone-version-pruning", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vdriver-siro-versioning", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vdriver-version-classification", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vdriver-segment-cleaning-vcutter", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vdriver-collaborative-cleaning-tas", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "leanstore-osic-commit-protocol", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "leanstore-graveyard-index", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "leanstore-adaptive-version-storage-fattuple", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "leanstore-separate-oltp-olap-watermarks", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "leanstore-cooperative-gc-worker-lcb", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto"]}
+{"card_id": "leanstore-early-lock-release", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-lock-retire", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-commit-semaphore-cascading-abort", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-retire-point-synthesis", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-opt1-no-latch-read-retire", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-opt2-skip-retire-tail-writes", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-opt3-no-raw-abort", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bamboo-opt4-dynamic-timestamp", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-passive-retire", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-rebirth", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-parents-children-dependency-lists", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-o1-latch-free-dependency-tracking", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-o2-optimistic-read-descendant", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-o3-assign-larger-timestamps", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "rr-o4-version-prefetching", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "polaris-priority-reservation", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "polaris-no-reserve-lowest-prio", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "polaris-abort-aware-priority-increment", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "plor-optimistic-reading", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "plor-delayed-conflict-detection", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "plor-latch-free-locker", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "plor-delayed-write-lock-acquisition", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "mvto", "oze"]}
+{"card_id": "plor-read-only-dynamic-validation", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [{"cc": "mocc", "why": "MOCC は OCC の validation と RW lock の read lock の両経路を既に持つ hybrid で、Silo に無い read lock 経路という前提の核が一致する。"}], "natural_home": []}
+{"card_id": "plor-atomic-ctx-word", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-commit-time-updates", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-timestamp-splitting", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-contention-aware-index", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-basis-memory-allocation", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "ss2pl", "oze"]}
+{"card_id": "stov2-basis-contention-regulation", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-basis-abort-mechanism", "class": "ccbench-present", "silo": "present", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "ss2pl", "oze"]}
+{"card_id": "stov2-basis-index-types", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-basis-deadlock-avoidance", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "stov2-basis-transaction-internals", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-write-preservation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-reader-epoch-metadata", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-wp-optimistic-lock-fixed-array", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-order-forwarding", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-read-area-declaration", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-on-demand-version-order", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-epoch-lower-bound", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-safe-snapshot", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "shirakami-reuse-deleted-records", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "mv3c-predicate-graph-repair", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "mv3c-write-write-conflict-tolerance", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "mv3c-attribute-level-validation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "mv3c-result-set-fixing", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "healing-transaction-healing", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "healing-access-cache", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "healing-false-invalidation-elimination", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "healing-validation-order-rearrangement", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "healing-independent-txn-merged-validate-write", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "ic3-constrained-interleaving", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ic3-optimistic-constraint", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ic3-commutative-operation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ic3-rendezvous-piece", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ic3-online-analysis-transitional-scgraph", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "doppel-phase-reconciliation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "doppel-splittable-commutative-operations", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "doppel-contention-classification", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "doppel-adaptive-phase-scheduling", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bohm-separated-cc-and-execution", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bohm-partitioned-cc-threads", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bohm-batching", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bohm-read-set-version-annotation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bohm-batch-low-watermark-gc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tcm-timestamp-range", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tcm-block-instead-of-abort", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tcm-range-deadlock-detection", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tcm-read-only-transaction-optimization", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "si", "mvto"]}
+{"card_id": "pwv-early-write-visibility", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "pwv-rvp-commit-protocol", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "pwv-coarse-grained-conflict-specification", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bcc-essential-pattern-validation", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "bcc-global-tid-vector-clock", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "bcc-readset-history-hashtable", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "bcc-readonly-snapshot-sync-point", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "bcc-multilevel-circular-buffers", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "aocc-query-level-adaptive", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aocc-txn-level-adaptive", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aocc-glist-lockfree-circular-array", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aocc-threshold-T-fast-selection", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aocc-defer-choice-nonpredictable-query", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ding-storage-batching", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ding-validator-batching-ibvr", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ding-thread-aware-reordering", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "ding-prevalidation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ding-parallel-validator-pipeline", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "ding-tail-latency-policies", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tskd-tspar-scheduling", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tskd-tsdefer-proactive-deferment", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "tskd-tsdefer-lockfree-probing", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "hdcc-calvin-occ-hybrid", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hdcc-lock-sharing", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hdcc-global-validation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hdcc-two-log-interleaving", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hdcc-rule-assignment-o1", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "hdcc-reschedule-aborted-occ-o2", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["mocc"]}
+{"card_id": "hdcc-immediate-read-deferred-commit-o3", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aria-batch-reservation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aria-deterministic-reordering", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "aria-fallback-strategy", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vll-core", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "vll-sca", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "det-ordered-locking", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "det-dependent-txn-decomposition", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-sgt-txlocal-graph", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-tuple-access-history", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-node-address-txid", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-delayed-node-deletion", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-reduced-dfs-cycle-check", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-online-topological-order", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "nofalseneg-msgt-epoch-readonly-versions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "strife-batch-clustering-scheduling", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "strife-spot-stage", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "strife-allocate-stage", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "strife-merge-stage-alpha", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "strife-readonly-item-pruning", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "acc-domcc-mixed-cc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "acc-protocol-selection-model", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "acc-contention-mark-detect-counters", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "acc-partition-merge-clustering", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "orthrus-partitioned-functionality", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "orthrus-planned-deadlock-free-locking", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": []}
+{"card_id": "orthrus-cc-thread-request-forwarding", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "orthrus-async-lock-requests", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "orthrus-split-partitioned-index", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "deut-range-mvcc-ix-lastread", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "deut-logical-range-partitions", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "deut-six-scan-and-update", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "deut-tc-dc-scan-merge", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "deut-timestamp-late-insert-filter", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "brook2pl-slw-graph-deadlock-free-2pl", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "brook2pl-lock-manipulation", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "brook2pl-read-write-constraint", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "brook2pl-partial-chopping", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "brook2pl-dynamic-transaction-priority", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-epoch-deterministic-cc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-batch-append", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-split-on-demand", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-version-array", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-insert-append-range-update", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-gc-minor-major", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "caracal-early-write-visibility", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "cormcc-mixed-cc-framework", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "cormcc-mediated-switching", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "cormcc-protocol-classifier", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tebaldi-hierarchical-mcc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tebaldi-batching-for-consistent-ordering", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tebaldi-root-ssi-readonly-optimization", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tebaldi-tso-promises", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tebaldi-phase-batched-rpc", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "tebaldi-gc-epoch", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "essn-exclusion-test", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "essn-kto-begin-ordered-commit-stall", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "essn-previous-edge-only-metadata", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "essn-read-time-shortcut", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}
+{"card_id": "essn-read-from-policy", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "drp-core", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "drp-tame-rp", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
+{"card_id": "drp-wild-rp", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "drp-intentions", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "drp-nullify-intentions", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "drp-rank-tuning", "class": "absent-silo-feasible", "silo": "feasible", "more_natural_on": [], "natural_home": []}
+{"card_id": "oneshotgc-temporal-version-clustering", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
