@@ -322,9 +322,31 @@ def extra_round_required(records):
 def aggregate(raws):
     if not raws:
         raise ValueError("no raw shards")
-    job, shards, extra = raws[0]["job"], raws[0]["shards"], raws[0].get("extra", False)
-    if any(r["job"] != job or r["shards"] != shards or r.get("extra", False) != extra for r in raws):
+    job, shards, extra = raws[0]["job"], raws[0].get("shards"), raws[0].get("extra", False)
+    if any(r["job"] != job or r.get("extra", False) != extra for r in raws):
         raise ValueError("mixed raw jobs")
+    expected = plan_runs(job, extra)
+    expected_by_id = {spec["id"]: spec for spec in expected}
+    invalid = []
+    valid_shards = type(shards) is int and shards > 0
+    seen_shards = set()
+    for index, raw in enumerate(raws):
+        shard = raw.get("shard")
+        if type(raw.get("shards")) is not int or raw["shards"] != shards or not valid_shards:
+            invalid.append(f"raw[{index}]:shards")
+        if type(shard) is not int or not valid_shards or not 0 <= shard < shards:
+            invalid.append(f"raw[{index}]:shard")
+            continue
+        if shard in seen_shards:
+            invalid.append(f"raw[{index}]:duplicate_shard")
+        seen_shards.add(shard)
+        planned_ids = [spec["id"] for spec in expected[shard::shards]]
+        if raw.get("planned_ids") != planned_ids:
+            invalid.append(f"raw[{index}]:planned_ids")
+        for record in raw["runs"]:
+            record_id = record["spec"]["id"]
+            if record_id not in planned_ids:
+                invalid.append(record_id)
     provenance = [record for raw in raws for record in raw["runs"]]
     provenance_fields = ("pin", "head", "kind", "genome", "patch_sha256")
     if provenance and all(all(key in record for key in provenance_fields) for record in provenance):
@@ -342,19 +364,18 @@ def aggregate(raws):
             key = record["spec"]["id"]
             if key in by_id:
                 duplicate.append(key)
-            by_id[key] = dict(record, shard=raw.get("shard", 0))
-    expected = plan_runs(job, extra)
+            by_id[key] = dict(record, shard=raw.get("shard"))
     missing = [s["id"] for s in expected if s["id"] not in by_id]
-    invalid = [key for key, r in by_id.items() if
-               key not in {s["id"] for s in expected} or
-               r["spec"] != next((s for s in expected if s["id"] == key), None) or
+    invalid.extend(key for key, r in by_id.items() if
+               key not in expected_by_id or
+               r["spec"] != expected_by_id.get(key) or
                not all(field in r for field in provenance_fields) or
                r.get("patches") != list(PATCHES.get((job, r["spec"].get("variant")), ())) or
                set(r.get("patch_sha256", {})) != set(r.get("patches", ())) or
                r["rc"] != 0 or r["parse_error"] or not r["counters"] or
                not r["counters"].get("gc") or not r["counters"].get("longtx") or
                (job == "repro" and not r["counters"].get("wscan")) or
-               (r["spec"]["variant"] in ("fix", "broken") and not r["counters"].get("cap"))]
+               (r["spec"]["variant"] in ("fix", "broken") and not r["counters"].get("cap")))
     output = dict(schema="vhash-econn-wscan-aggregate/v1", job=job, extra=extra,
                   missing=missing, duplicate=duplicate, invalid=invalid, complete=not (missing or duplicate or invalid), arms={})
     if job == "repro":
@@ -366,7 +387,7 @@ def aggregate(raws):
                 planned = sum(s["group"] == group and s["variant"] == variant for s in expected)
                 triggered = False
                 if group == "K12" and variant == "fix":
-                    triggered = any(
+                    triggered = not invalid and any(
                         any(_sum(r["counters"]["wscan"], "reach_both") > 0 and
                             _sum(r["counters"]["wscan"], "detached") +
                             _sum(r["counters"]["wscan"], "post_scan_detached") == 0
@@ -376,8 +397,8 @@ def aggregate(raws):
                             for r in by_id.values() if r["spec"]["group"] == "K12" and
                             r["spec"]["variant"] in ("pre", "broken") and
                             r.get("shard") == shard and r.get("counters") and r["counters"].get("wscan"))
-                        for shard in range(shards))
-                verdict = repro_verdict(group, variant, rows, triggered) if len(rows) == planned else "invalid"
+                        for shard in range(shards if valid_shards else 0))
+                verdict = repro_verdict(group, variant, rows, triggered) if len(rows) == planned and not invalid else "invalid"
                 output["arms"][f"{group}:{variant}"] = dict(planned=planned, observed=len(rows), verdict=verdict,
                     p1_run_ids=[r["spec"]["id"] for r in rows if r.get("counters") and r["counters"].get("wscan") and
                                 _max(r["counters"]["wscan"], "rounds_max") >= 2] if verdict == "P1_refuted" else [],
@@ -391,7 +412,7 @@ def aggregate(raws):
                 specs = [s for s in expected if s["skew"] == skew and s["arm"] == arm and s["variant"] == variant]
                 rows = [by_id[s["id"]] for s in specs if s["id"] in by_id]
                 key = f"{skew:g}:{arm}:{variant}"
-                valid = len(rows) == len(specs) and all(
+                valid = not invalid and len(rows) == len(specs) and all(
                     r["rc"] == 0 and not r["parse_error"] and r["counters"] and
                     r["counters"].get("gc") and r["counters"].get("longtx") and
                     (variant != "fix" or r["counters"].get("cap")) for r in rows)

@@ -73,6 +73,20 @@ def test_counter_schema_missing_field_rejected():
         raise AssertionError("missing field accepted")
 
 
+def test_patch_ordered_wscan_thread_line_parses():
+    line = ('CICADA_WSCAN_V1 {"schema":"CICADA_WSCAN_V1","delay_us":1000,'
+            '"k1":true,"k2":true,"k1_key":1,"gc_detach_matches":0,"threads":[{'
+            '"thid":0,"eligible":1,"delayed":1,"insertion_reached":1,'
+            '"rounds_sum":2,"rounds_max":2,"rounds_ge2":1,"detached":1,'
+            '"post_scan_detached":0,"probe_aborts":0,"k1_redirects":0,'
+            '"k1_read_collisions":0,"k2_flag_raises":0,"reach_both":1,'
+            '"detached_reach_both":1}]}')
+    spec = next(s for s in w.plan_runs("repro") if s["group"] == "K12")
+    with patch.object(w.base, "parse_target_lines", return_value=(None, {}, {})):
+        parsed = w.parse_lines(line, "repro", "pre", "E-max", spec)
+    assert parsed["wscan"]["threads"][0]["detached_reach_both"] == 1
+
+
 def test_positive_requires_reach_mb1():
     spec = next(s for s in w.plan_runs("repro") if s["group"] == "K12" and s["variant"] == "pre")
     assert w.repro_verdict("K12", "pre", [_record(spec, detached=1)], False) == "positive_unestablished"
@@ -111,7 +125,8 @@ def test_missing_cap_line_cannot_complete_count():
     rows = [{"spec": spec, "rc": 0, "parse_error": None,
              "counters": {"gc": gc, "longtx": longtx, "cap": None}}
             for spec in specs]
-    result = w.aggregate([{"job": "count", "shards": 1, "smoke": False, "runs": rows}])
+    result = w.aggregate([{"job": "count", "shards": 1, "shard": 0,
+                           "planned_ids": [s["id"] for s in specs], "runs": rows}])
     assert result["complete"] is False
     assert result["arms"]["0.9:E-max:fix"]["diagnostic_instrumented_build"] is None
 
@@ -133,6 +148,7 @@ def _full_record(spec, *, reach=0, fired=0, rounds_max=0):
 
 def _repro_raws(records, shards=1):
     return [{"job": "repro", "shards": shards, "shard": shard, "extra": False,
+             "planned_ids": [s["id"] for s in w.plan_runs("repro")[shard::shards]],
              "runs": [r for r, index in records if index == shard]}
             for shard in range(shards)]
 
@@ -148,6 +164,29 @@ def test_rounds_max_uses_max_mb5():
     result = w.aggregate(_repro_raws(rows))
     assert result["arms"]["N:pre"]["verdict"] == "P1_refuted"
     assert target["spec"]["id"] in result["arms"]["N:pre"]["p1_run_ids"]
+
+
+def test_aggregate_rejects_invalid_shard_assignments():
+    specs = w.plan_runs("repro")
+    rows = [(_full_record(spec), spec["order"] % 2) for spec in specs]
+    fix = next(r for r, shard in rows if shard == 1 and r["spec"]["group"] == "K12" and r["spec"]["variant"] == "fix")
+    trigger = next(r for r, shard in rows if shard == 1 and r["spec"]["group"] == "K12" and r["spec"]["variant"] == "pre")
+    fix["counters"]["wscan"]["threads"][0]["reach_both"] = 1
+    trigger["counters"]["wscan"]["threads"][0].update(reach_both=1, detached_reach_both=1, detached=1)
+    valid = _repro_raws(rows, 2)
+    assert w.aggregate(valid)["arms"]["K12:fix"]["verdict"] == "repair_success"
+    for change in (lambda raws: raws[1].pop("shard"),
+                   lambda raws: raws[1].pop("shards"),
+                   lambda raws: raws[1].update(shard=0),
+                   lambda raws: raws[1].update(shard=2),
+                   lambda raws: raws[1].update(shards=3),
+                   lambda raws: raws[1]["planned_ids"].pop(),
+                   lambda raws: raws[1]["runs"].append(raws[0]["runs"].pop())):
+        raws = _repro_raws(rows, 2)
+        change(raws)
+        result = w.aggregate(raws)
+        assert result["invalid"] and result["complete"] is False
+        assert result["arms"]["K12:fix"]["verdict"] == "invalid"
 
 
 def test_wscan_top_types_and_argv_mb6():
@@ -176,15 +215,15 @@ def test_repair_requires_same_shard_mb7():
     specs = w.plan_runs("repro")
     rows = []
     for spec in specs:
-        shard = 0 if spec["variant"] == "fix" else 1
-        rows.append((_full_record(spec, reach=1 if spec["group"] == "K12" and spec["variant"] == "fix" else 0,
+        shard = spec["order"] % 2
+        rows.append((_full_record(spec, reach=1 if spec["group"] == "K12" and spec["variant"] == "fix" and shard == 1 else 0,
                                   fired=0), shard))
-    trigger = next(r for r, shard in rows if shard == 1 and r["spec"]["group"] == "K12")
+    trigger = next(r for r, shard in rows if shard == 0 and r["spec"]["group"] == "K12" and r["spec"]["variant"] == "pre")
     trigger["counters"]["wscan"]["threads"][0].update(reach_both=1, detached_reach_both=1, detached=1)
     result = w.aggregate(_repro_raws(rows, 2))
     assert result["arms"]["K12:fix"]["verdict"] == "indeterminate"
-    rows.append((_full_record(trigger["spec"], reach=1, fired=1), 0))
-    rows.remove((trigger, 1))
+    same_shard_trigger = next(r for r, shard in rows if shard == 1 and r["spec"]["group"] == "K12" and r["spec"]["variant"] == "pre")
+    same_shard_trigger["counters"]["wscan"]["threads"][0].update(reach_both=1, detached_reach_both=1, detached=1)
     result = w.aggregate(_repro_raws(rows, 2))
     assert result["arms"]["K12:fix"]["verdict"] == "repair_success"
 
@@ -232,6 +271,7 @@ def test_count_mean_uses_sample_count():
     target["counters"]["gc"]["uniform"].update(count=9, lag_rts_sum_us=900,
                                                   live_sum=1800, lag_rts_max_us=100)
     result = w.aggregate([{"job": "count", "shards": 1, "shard": 0, "extra": False,
+                           "planned_ids": [s["id"] for s in specs],
                            "runs": [r for r, _ in records]}])
     metrics = result["arms"]["0.9:E-max:fix"]["diagnostic_instrumented_build"]
     assert metrics == {"lag_rts_mean_us": 920 / 11, "lag_rts_max_us": 100,
