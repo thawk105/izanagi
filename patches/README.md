@@ -1110,6 +1110,32 @@ CCBench の C1' `6aa7a58f` (pin C の子、header 2 file だけ) にある。md_
 - **限界:** INLINE_VERSION_OPT=1 の insert 経路では空 key が残りうる (修理前と同じ)。`abort()` が insert した tuple を解放した後に
   `writeSetClean()` が書く use-after-free (既存、ASan で検出) は直していない。記録は `output/insights/2026-09-29/vhash-cicada-gc-records-fix/`。
 
+## broken-cicada-promotion-ronly-stale-recheck.patch — Cicada の promotion 修理の正例 ([T-2922]、2026-09-30)
+
+CCBench の local branch `izanagi-cicada-promotion-uaf-fix` (土台 `aa8e36f1` = `izanagi-cicada-build-fix` G と `izanagi-cicada-gc-records-fix` の merge、
+その上に修理 4 commit、tip `9da70164`、push と pin の前進は人間の手番) の修理 1 本目 (読み取り専用 tx では promotion しない) を狙った壊し。
+修理そのものは branch にだけ置き、out-of-tree の修理 patch は作らない。`patches/ledger.json` には登録しない (entries 1 件固定、上の cicada 節と同じ)。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| broken-cicada-promotion-ronly-stale-recheck | なし (無条件) | `inlineVersionPromotion()` の「読み取り専用 tx は promotion しない」条件だけを外し、読み取り専用 tx を promotion で読み書き tx に転換する修理前の挙動に戻す。rts で読んだ要素の `later_ver_` を出発点にする validation の再検査はそのまま (修理前と同じ) |
+
+- **欠陥 (修理 1 本目が直したもの):** 読み取り専用 tx は rts で可視版を選び、`later_ver_` を rts 基準で記録する。promotion で読み書き tx に転換すると、
+  validation の読み取り再検査は `later_ver_` から wts 未満まで下る。`later_ver_` が aborted で、その手前に rts と wts の間の確定版が入ると、
+  再検査はそれを飛ばして読んだ版に行き着き、古い読みが通る (原論文 §3.1 は読み取り専用 tx を rts の snapshot で読み読み取り集合を検証しないと定め、
+  §3.3 の promotion は「可視版として読んだ版の読みを RMW へ格上げ」で、rts で読む tx の格上げは書いていない)。
+- **重ね方:** 修理後 tip → (`instr-cicada-trace.patch`、または promotion の `#error` 1 行だけを外した repo 外の診断変種) → (`instr-cicada-trace-tpcc.patch`) → 壊し、
+  の順で厳密適用する。`instr-cicada-trace.patch` は INLINE_VERSION_OPT ∧ INLINE_VERSION_PROMOTION と TRACE=1 の組を `#error` で止めるので、
+  promotion genome の trace は repo 外の診断変種で取る (標準の計器で保証された観測ではない)。新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない。
+- **発火診断 (壊しだけ):** promotion した read 要素で、再検査の `later_ver_` 起点と最新版起点が食い違ったまま commit した tx だけを
+  `CICADA_BREAK_EVENT slug=promotion-ronly-stale-recheck tx_wts= key= a_wts= b_wts=` に出し、終了時に `CICADA_BREAK_FIRED slug= reached= changed= committed=`。
+  判定器の判定には使わず、repo 外起動器の帰属解析 (witness の辺の端点と key の照合) だけに使う。
+- **実証:** 修理前 (土台) の代表 promotion genome (BACK_OFF=0・REUSE_VERSION=1・WRITE_LATEST_ONLY=0) の YCSB は K で巡回 9・R で 359。修理後 tip は
+  promotion 有効の 8 genome × YCSB K・W・R・P と TPC-C M・R2 がすべて巡回 0 (上限 indeterminate)。修理後 tip + 本 patch の R は non-serializable (巡回 308)、
+  代表 witness 20 件中 18 件で巡回の辺の端点が壊した経路の commit tx、辺の key が event の key (`CICADA_BREAK_FIRED ... reached=189 changed=183 committed=176`)。
+  integrity 数値項目 0・C 行 = commit 数で、巡回だけが赤の理由。記録は `output/insights/2026-09-30/ccbench-cicada-promotion-uaf-fix/`。
+- **pin 前進時:** pin が branch `izanagi-cicada-promotion-uaf-fix` を含む tip へ進んだら、厳密適用と生死確認を取り直す。pin C には修理 1 が無いので本 patch は当たらない。
+
 ---
 
 ## トレース形式 (verifier = タスク2 の入力契約)

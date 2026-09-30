@@ -5228,6 +5228,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-29** (実害: session が約 15 分止まりユーザー手番を要した) — [T-2911] VHash md_22 wave の親が段 5 の実装子の dry-run を `cd <Codex author の子 worktree> && python3 tools/dev_wave_codex.py … --dry-run` で打ち、harness の追跡 cwd が子 worktree へ移って以後の全 Bash が隔離 guard に拒否された。これまでの復帰手順 `EnterWorktree(path=<自分の wave worktree>)` は、login の load average 約 45 の下で内部の `git worktree list` が 10 秒の上限を超え、11 回連続で時間切れになった。子エージェントも同じ cwd を継ぐので代行できず、ユーザーの `! cd` も同じ guard に拒否された。ユーザーの許可を得て `ExitWorktree(keep)` で抜け、元の作業場所から実装子を起動し、約 20 分後に負荷が下がって同じ worktree で作業を続けた。書き込みの取り違えは無い。同型: `dev_wave_codex.py` は `--repo-root` を取るので `cd` は要らない。高負荷時は `EnterWorktree(path)` が効かないことがあるので、そもそも `cd` を前置しない (memory `worktree-discipline` の「cwd の罠」、本エントリの 2026-09-18 の 3 件と同型)。
 
 - **再発: 2026-09-30** (near miss、実害なし) — VHash md_26 wave の親が、worklog fragment の `base:` を land 先の local main の台帳で取るために Bash で `cd <主 checkout> && python3 tools/spool_fold.py --base-digest …` (読み取りだけ) を実行し、harness の追跡 cwd が主 checkout へ移って以後の Bash が隔離 guard に拒否された。`EnterWorktree(path=<自分の wave worktree>)` で即復帰 (HEAD・clean 不変、書き込みなし)。同型: `spool_fold.py --base-digest` は cwd の台帳を読み、対象 repo を指定する引数が無いので、`docs/spool/worklog/README.md` の「digest は land 先の local main の現物に対して取る」を隔離 session で実行すると `cd` を誘う。主 checkout での lookup は job dir の `.sh` に閉じ込める。
+
+- **再発: 2026-09-30** (near miss、実害なし) — VHash md_32 wave の親が、段 5 の診断 job の `--dry-run` を `cd <計測用の detached 子 worktree> && /usr/bin/python3.10 … --dry-run` で打ち、harness の追跡 cwd が子 worktree へ移って以後の Bash が拒否された。`EnterWorktree(path=<自分の wave worktree>)` で 1 回で復帰 (login の load 約 20)。以後の dry-run は `cd` を前置せず `--repo-root` の絶対 path で打った。書き込みは発生していない。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -17605,6 +17607,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 実装子 prompt に「`external/ccbench/` を触るな。拒否されたら迂回せず停止しろ。
   shell 経由で書き込んで guard を回避してはならない」を明記し、編集面を作業場の絶対パスで渡す。
 
+
+- **再発: 2026-09-30** — VHash md_32 wave の段 5 で、CCBench の修理を Codex author に「submodule の作業木に実装せよ」と指示し、`cc/cicada/include/transaction.hh` への直接編集が guard_write に拒否された (子は迂回せず正しく停止、author 1 本を空費)。F546 の恒久対応 (使い捨て clone を編集面にし親が適用) が入口・reference に無く、親が prompt に書き忘れた。子木内の使い捨て clone (`md32-scratch/ccb`) で修理して差分を出す形で投げ直した。
 ### F547. 取り込んだ protocol と workload が同じ abort counter を二重加算し、測定値が 2 倍になりかけた [計測汚染]
 
 - 事象: CCBench の SS2PL を YCSB workload へ載せたところ、
@@ -28861,3 +28865,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: [T-2951] (hook の判定を「branch の reflog に commit 由来の項が 1 つ以上ある」などへ直し、ff だけの木を land 済みとみなさない)。それまでの運用は hook の文言にある
   「未 land なら 1 行書いて終えてよい」で止め、撤去しない。
 - 再発検知: 直す wave が `orchestrator/tests/test_hooks.py` の `test_cleanup_stop_*` に「作成後に main へ ff しただけで commit 0 本の木では block しない」負例を足す。
+
+### F1082. TPC-C の異常終了を genome の promotion 軸へ帰属させ、その軸だけを外した対照を置かなかった [手順漏れ] [テスト代表性]
+
+- 事象: 前 wave (2026-09-29、CCBench の build 修理) は INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1 の genome で TPC-C M・R2 が `std::bad_alloc` で落ちるのを観測し、「promotion 有効の 8 genome は失格」とまとめた。2026-09-30 の診断 (gdb の catch throw と一要因対照) で、原因は promotion ではなく INLINE_VERSION_OPT=1 の `Tuple::init` が insert の版を無視する欠陥で、promotion 無効の OPT=1 genome (T0p) でも同じく落ちると分かった。失格の範囲 (8 genome) と原因の帰属 (promotion) がともにずれていた。
+- 根本原因: 観測した genome が 2 つの軸 (OPT と PROMO) を同時に 1 にしており、異常の帰属先を後から付いた軸 (promotion の build が初めて通った) に置いた。「その軸だけを外した genome (OPT=1・PROMO=0) でも起きるか」の対照を置かず、送出点の backtrace も取らないまま、切り分けの対象を計装の有無と前 wave の自分の変更 (重複登録の除去) に限った。
+- 恒久対応: 異常を genome の軸へ帰属させる記録は、(a) 送出点・最初の報告 (gdb の catch throw、ASan) と、(b) 疑う軸だけを外した genome の対照の両方を取ってから書く。md_32 の一次資料 (`output/insights/2026-09-30/ccbench-cicada-promotion-uaf-fix/README.md` §4) で帰属を訂正し、段 4 の事前登録 (追補 1) に「T0p (OPT=1・PROMO=0) も落ちる」を採否条件として置いた。memory `hub-evidence-and-check-design` に 1 行を足す。
+- 再発検知: 段 3 の相談で「帰属先の軸だけを外した対照があるか」を正しさ境界レンズの確認項目にする (DW-S03 の「親自身の実測値とその一般化」の具体例)。
