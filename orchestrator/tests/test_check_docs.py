@@ -8238,7 +8238,7 @@ def _replace_workers_section_literal(text, section_id, replacement):
     literal = {
         "DW-S02": check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_LITERAL,
         "DW-S03": check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_LITERAL,
-        "DW-S05-A": "`reasoning=medium`",
+        "DW-S05-A": "`reasoning=ultra`",
         "DW-S06-A": check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_LITERAL,
         "DW-S06-C": check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_LITERAL,
     }[section_id]
@@ -8422,13 +8422,29 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_high():
         shutil.rmtree(root, ignore_errors=True)
 
 
+@pytest.mark.parametrize("section_id, finding", [
+    ("DW-S02", check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING),
+    ("DW-S03", check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING),
+    ("DW-S05-A", check_docs.DEV_WAVE_DW_S05_A_REASONING_XHIGH_FINDING),
+    ("DW-S06-A", check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING),
+    ("DW-S06-C", check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING),
+], ids=["DW-S02", "DW-S03", "DW-S05-A", "DW-S06-A", "DW-S06-C"])
+def test_dev_wave_reasoning_effort_pin_rejects_previous_medium(section_id, finding):
+    root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
+    try:
+        text = _mutated_workers_text(root, section_id, "`reasoning=medium`")
+        assert _reasoning_effort_pin_findings(text) == [finding]
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _assert_reasoning_effort_decoys_rejected(section_id, finding):
     replacements = (
-        "`reasoning=high` <!-- `reasoning=medium` -->",
-        "`reasoning=high`\n\n```\n`reasoning=medium`\n```\ncontinuation",
-        "`reasoning=high`\n\n> `reasoning=medium`\n\ncontinuation",
-        "`reasoning=medium` and `reasoning=high`",
-        "`reasoning=medium` and `reasoning=medium`",
+        "`reasoning=high` <!-- `reasoning=ultra` -->",
+        "`reasoning=high`\n\n```\n`reasoning=ultra`\n```\ncontinuation",
+        "`reasoning=high`\n\n> `reasoning=ultra`\n\ncontinuation",
+        "`reasoning=ultra` and `reasoning=high`",
+        "`reasoning=ultra` and `reasoning=ultra`",
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8456,10 +8472,10 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s03_decoys_and_duplicates():
 def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_decoys_and_duplicates():
     finding = check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING
     replacements = (
-        "`reasoning=high` <!-- `reasoning=medium` -->",
-        "`reasoning=high`\n\n```\n`reasoning=medium`\n```\ncontinuation",
-        "`reasoning=medium` and `reasoning=high`",
-        "`reasoning=medium` and `reasoning=medium`",
+        "`reasoning=high` <!-- `reasoning=ultra` -->",
+        "`reasoning=high`\n\n```\n`reasoning=ultra`\n```\ncontinuation",
+        "`reasoning=ultra` and `reasoning=high`",
+        "`reasoning=ultra` and `reasoning=ultra`",
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8479,12 +8495,12 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s05_a_decoys_and_duplicates():
 
 def _assert_reasoning_effort_real_keys_and_quotes_rejected(section_id, finding):
     replacements = (
-        '`model_reasoning_effort="high"`（例: `reasoning=medium`）',
+        '`model_reasoning_effort="high"`（例: `reasoning=ultra`）',
         '`model_reasoning_effort="high"`',
         "`model_reasoning_effort='high'`",
-        '`reasoning_effort=high` and `reasoning=medium`',
-        '`reasoning=medium`\n\n> `reasoning=high`\n\ncontinuation',
-        '`model_reasoning_effort="high"` <!-- `reasoning=medium` -->',
+        '`reasoning_effort=high` and `reasoning=ultra`',
+        '`reasoning=ultra`\n\n> `reasoning=high`\n\ncontinuation',
+        '`model_reasoning_effort="high"` <!-- `reasoning=ultra` -->',
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8515,8 +8531,8 @@ def test_dev_wave_reasoning_effort_pin_rejects_dw_s06_a_real_keys_and_quotes():
         "`reasoning_effort=high`",
         '`model_reasoning_effort="high"`',
         "`model_reasoning_effort='high'`",
-        '`reasoning_effort="medium"` and `reasoning=high`',
-        '`model_reasoning_effort="medium"` <!-- `reasoning=high` -->',
+        '`reasoning_effort="ultra"` and `reasoning=high`',
+        '`model_reasoning_effort="ultra"` <!-- `reasoning=high` -->',
     )
     for replacement in replacements:
         root = tempfile.mkdtemp(prefix="izanagi_reasoning_pin_")
@@ -8856,7 +8872,7 @@ def _assert_s06_extra_visible_effort_rejected(section_id, finding):
             _append_reference_section_text(
                 _read(root, rel),
                 section_id,
-                "\n`reasoning=medium`\n",
+                "\n`reasoning=ultra`\n",
             ),
         )
         res = _run_check(root)
@@ -8996,7 +9012,7 @@ def _assert_reasoning_effort_real_key_production_path_rejects(
             _replace_workers_section_literal(
                 _read(root, rel),
                 section_id,
-                '`model_reasoning_effort="high"`（例: `reasoning=medium`）',
+                '`model_reasoning_effort="high"`（例: `reasoning=ultra`）',
             ),
         )
         res = _run_check(root)
@@ -9022,28 +9038,28 @@ def test_dev_wave_reasoning_effort_pin_production_path_rejects_dw_s03_real_key()
 
 def test_dev_wave_reasoning_effort_pin_findings_are_time_invariant():
     assert check_docs.DEV_WAVE_DW_S02_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S02 の `reasoning=medium` は"
+        "docs/dev-wave/workers.md: DW-S02 の `reasoning=ultra` は"
         "現行 adoption pin と不一致 — "
         "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S03_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S03 の `reasoning=medium` は"
+        "docs/dev-wave/workers.md: DW-S03 の `reasoning=ultra` は"
         "現行 adoption pin と不一致 — "
         "変更には採用裁定 (A/B 証拠またはユーザー裁定) と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=medium` は段 6 敵対レビューの"
+        "docs/dev-wave/workers.md: DW-S06-A の `reasoning=ultra` は段 6 敵対レビューの"
         "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_FINDING == (
-        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=medium` は段 6 焦点再レビューの"
+        "docs/dev-wave/workers.md: DW-S06-C の `reasoning=ultra` は段 6 焦点再レビューの"
         "現行 adoption pin と不一致 — 変更には採用裁定と pin の同時更新が必要"
     )
     assert check_docs.DEV_WAVE_DW_S06_A_REASONING_XHIGH_SENTENCE == (
-        "実装 wave は異なるレンズの敵対レビューを `reasoning=medium` で必ず 2 本並列で行う。"
+        "実装 wave は異なるレンズの敵対レビューを `reasoning=ultra` で必ず 2 本並列で行う。"
     )
     assert check_docs.DEV_WAVE_DW_S06_C_REASONING_XHIGH_SENTENCE == (
-        "並列 fix の統合後、焦点再レビューは全体へ `reasoning=medium` で 1 本でよい。"
+        "並列 fix の統合後、焦点再レビューは全体へ `reasoning=ultra` で 1 本でよい。"
     )
 
 
@@ -9135,7 +9151,7 @@ def test_dev_wave_model_pin_rejects_dw_o01_authority_drift():
     try:
         rel = "docs/dev-wave/operations.md"
         text = _read(root, rel)
-        changed = text.replace("gpt-6-sol", "gpt-5.6-terra", 1)
+        changed = text.replace("gpt-6-astra", "gpt-5.6-terra", 1)
         assert changed != text
         _write(root, rel, changed)
         _assert_findings(
@@ -9421,7 +9437,7 @@ def test_dev_wave_model_pins_accept_current_docs_contract():
 
 def test_dev_wave_model_pin_contract_is_time_invariant():
     assert check_docs.DEV_WAVE_DW_O01_MODEL_AUTHORITY_LITERAL == (
-        "`<model>`: 全段 `gpt-6-sol` (段 3 の 2 本も同じ)。"
+        "`<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。"
     )
     assert check_docs.DEV_WAVE_MODEL_SLUG_RE.findall(
         "`gpt-5.6-sol` -m gpt-5.6-sol --model=gpt-5.6-luna\n"

@@ -1,0 +1,61 @@
+{
+ "M0-comment-only": [],
+ "M1-pipeline-flag-force": [
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m1_flag_forces_required_evaluate"
+ ],
+ "M2-loop-evaluate-keyword": [
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+ ],
+ "M3-capability-forward": [
+  "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m3_required_capability_rejects_absent_gate_file",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_required_repetition_reaches_capability",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m1_flag_forces_required_evaluate"
+ ],
+ "M4-d5-disk": [
+  "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m4_required_d5_uses_snapshot_not_disk",
+  "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m3_required_capability_rejects_absent_gate_file",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+ ],
+ "M5-serialize-always": [
+  "orchestrator/tests/test_verifier_capability_gate_witness.py::test_m5_unrequested_snapshot_legacy_bytes",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+ ],
+ "M6-unregistered": [
+  "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m6_unregistered_registry_rejected"
+ ],
+ "M7-digest-from-result": [
+  "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m7_result_digest_cannot_supply_expectation"
+ ],
+ "M8-stop-reason": [
+  "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m8_complete_max_states_is_incomplete"
+ ],
+ "M9-scenario-missing": [
+  "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m9_required_scenario_missing"
+ ],
+ "M10-counterexample": [
+  "orchestrator/tests/test_silo_lock_order_model_gate.py::test_m10_counterexample_rejected",
+  "orchestrator/tests/test_silo_lock_order_model_gate.py::test_unregistered_scenario_exists_but_its_counterexample_rejects"
+ ],
+ "M11-projection-extra-field": [
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m11_counterexample_projection_has_exact_keys"
+ ],
+ "M12-required": [
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m15_second_verify_record_required_false_rejects",
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m12_required_false_cannot_certify",
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_driver_uses_all_matching_wal_verify_records"
+ ],
+ "M13-buildcache-recheck": [
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+ ],
+ "M14-payload-gate": [
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_required_repetition_reaches_capability",
+  "orchestrator/tests/test_pipeline_gate_witness.py::test_m2_explicit_requirement_passes_run_campaign"
+ ],
+ "M15-all-records": [
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m14_missing_gate_section_in_wal_rejects",
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_m15_second_verify_record_required_false_rejects",
+  "orchestrator/tests/test_p3_s4_loop_lock_order.py::test_driver_uses_all_matching_wal_verify_records"
+ ]
+}

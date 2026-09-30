@@ -5572,6 +5572,16 @@ def test_verification_producer_keys_and_schema_closure(tmp_path):
         body=[ast.parse("verify_payload: dict = {}").body[0],
               *qualification_branches[0].body], type_ignores=[]))
     assert qualification_only == {"argv", "binary_sha256"}
+    gate_branches = [node for node in ast.walk(function)
+                     if isinstance(node, ast.If)
+                     and isinstance(node.test, ast.Name)
+                     and node.test.id == "require_gate_witness"]
+    assert len(gate_branches) == 1
+    assert not gate_branches[0].orelse
+    gate_only = _verification_mutation_keys(ast.Module(
+        body=[ast.parse("verify_payload: dict = {}").body[0],
+              *gate_branches[0].body], type_ignores=[]))
+    assert gate_only == {"gate_witness"}
     view = ast.parse(textwrap.dedent(inspect.getsource(layer3_report._view_row)))
     exclusions = [node for node in ast.walk(view)
                   if isinstance(node, ast.Compare)
@@ -5585,13 +5595,14 @@ def test_verification_producer_keys_and_schema_closure(tmp_path):
     view_only = {key.value for key in literal.elts}
     assert view_only == {"build_attempt_id", "build_admission_receipt_sha256"}
     producer_keys = _verification_mutation_keys(function)
-    keys = producer_keys - view_only - qualification_only
+    keys = producer_keys - view_only - qualification_only - gate_only
     payload = _verification_producer_payload()
-    assert set(payload) == producer_keys - qualification_only
+    assert set(payload) == producer_keys - qualification_only - gate_only
     row = layer3_report._view_row(_record("verify_done", **payload))
     schema = json.loads(layer3_report._SCHEMA_PATH.read_text())
     properties = schema["properties"]["verifications"]["items"]["properties"]
     assert keys <= set(properties)
+    assert gate_only <= set(properties)
     assert set(payload) - view_only - qualification_only <= set(properties)
     assert set(row) <= set(properties)
     witness = [node.value for node in ast.walk(function)
@@ -5614,6 +5625,33 @@ def test_verification_producer_keys_and_schema_closure(tmp_path):
     campaign, output_root = _campaign(tmp_path, records)
     report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
     layer3_report._validate_schema(report)
+    gated_payload = dict(payload, gate_witness={
+        "meaning_version": 2,
+        "required": True,
+        "counts": {
+            "unreachable": 0, "D1a": 0, "D1b1": 0, "D1b2": 0,
+            "D1c": 0, "D2a": 0, "D2b_i": 0, "D2b_ii": 0,
+        },
+        "occurrence": {
+            "own_write_read_transactions": 0,
+            "written_transactions": 0,
+            "repeated_write_key_transactions": 0,
+            "external_reads_checked": 0,
+        },
+        "D5": "pass",
+    })
+    gated_row = layer3_report._view_row(_record("verify_done", **gated_payload))
+    assert gated_row["gate_witness"] == gated_payload["gate_witness"]
+    gated_records = [_record("build_start"), _record("build_done"),
+                     _record("verify_done", **gated_payload),
+                     _bench(build_attempt_id=payload["build_attempt_id"])]
+    for ts, record in enumerate(gated_records, 1):
+        record["ts"] = float(ts)
+    gated_campaign, gated_output_root = _campaign(tmp_path / "with-gate", gated_records)
+    gated_report = layer3_report.build_report(
+        gated_campaign, "fixed", output_root=gated_output_root)
+    assert gated_report["verifications"][0]["gate_witness"] == gated_payload["gate_witness"]
+    layer3_report._validate_schema(gated_report)
 
 
 @pytest.mark.parametrize("mutation", [

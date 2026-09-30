@@ -1355,6 +1355,21 @@ def create_rollout(session_id):
                 '{"type":"event_msg","payload":{"type":"ignored",'
                 '"id":"first","id":"second"}}',
             )
+        if mode in ("spawn_agent", "wait_agent"):
+            # 実 rollout の function_call 形。識別子と引数は合成値。
+            write_line(stream, {
+                "type": "response_item",
+                "payload": {
+                    "type": "function_call",
+                    "name": mode,
+                    "namespace": "collaboration",
+                    "arguments": (
+                        '{"task_name":"probe","message":"PONG"}'
+                        if mode == "spawn_agent" else '{"timeout_ms":10000}'
+                    ),
+                    "call_id": "call_delegation_probe",
+                },
+            })
     return path
 
 def append_token(path, total_usage):
@@ -3664,7 +3679,7 @@ def test_unknown_reasoning_is_rejected_before_child_launch(
 
 @pytest.mark.parametrize(
     "reasoning",
-    ("low", "medium", "high", "xhigh", "max"),
+    ("low", "medium", "high", "xhigh", "max", "ultra"),
 )
 def test_all_repo_policy_reasoning_values_are_accepted(
     tmp_path: Path,
@@ -7515,6 +7530,86 @@ def test_check_receipt_rejects_non_string_evidence_issue_reason_with_rc2(
 
     assert checked.returncode == 2
     assert "attempt.evidence_issues[].reason が不正" in checked.stderr
+
+
+@pytest.mark.parametrize("mode", ["normal", "wait_agent", "spawn_agent"])
+def test_root_delegation_acceptance_and_sealed_recheck(
+    tmp_path: Path, mode: str,
+) -> None:
+    delegated = mode == "spawn_agent"
+    expected_rc = 1 if delegated else 0
+    _completed, receipt, paths = _run_case(
+        tmp_path, mode, expected_returncode=expected_rc,
+        max_wall="30", timeout=60.0,
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    assert receipt["schema_version"] == 5
+    assert receipt["outcome"] == ("not_accepted" if delegated else "accepted")
+    assert attempt["accepted"] is (not delegated)
+    assert attempt["evidence_status"] == ("invalid" if delegated else "complete")
+    assert attempt["metering_status"] == "complete"
+    assert attempt["validator_rc"] == 0
+    assert attempt["codex_exit_code"] == 0
+    assert attempt["limit_trigger"] is None
+    assert attempt["termination_verified"] is True
+    assert attempt["process_group_residual"] == 0
+    assert attempt["evidence_issues"] == ([{
+        "source": attempt["session_ids"][0],
+        "reason": "delegation_detected",
+        "count": 1,
+        "first_line": 3,
+        "detail": None,
+    }] if delegated else [])
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
+    )
+    assert checked.returncode == expected_rc, checked.stderr
+
+
+def test_sealed_delegation_cannot_retain_accepted_receipt(tmp_path: Path) -> None:
+    # Online では wait だけで受理。sealed 入力だけを spawn に変え、
+    # hash/bytes を更新して seal mismatch と独立に再検出を試す。
+    _completed, receipt, paths = _run_case(
+        tmp_path, "wait_agent", expected_returncode=0,
+        max_wall="30", timeout=60.0,
+    )
+    assert receipt is not None
+    attempt = receipt["attempts"][0]
+    record = attempt["rollouts"][0]
+    path = Path(record["path"])
+    events = [json.loads(line) for line in path.read_text().splitlines()]
+    calls = [event for event in events if event["type"] == "response_item"]
+    assert len(calls) == 1
+    assert calls[0]["payload"]["name"] == "wait_agent"
+    calls[0]["payload"]["name"] = "spawn_agent"
+    calls[0]["payload"]["arguments"] = json.dumps(
+        {"task_name": "probe", "message": "PONG"}
+    )
+    raw = ("\n".join(json.dumps(event) for event in events) + "\n").encode()
+    path.write_bytes(raw)
+    record["bytes"] = len(raw)
+    record["sha256"] = hashlib.sha256(raw).hexdigest()
+    paths["receipt"].write_text(json.dumps(receipt) + "\n")
+
+    evidence, metering, issues, _actuals, _cwds = (
+        LAUNCHER._recompute_attempt_metering(
+            attempt, schema_version=5, model=receipt["requested_model"],
+            reasoning=receipt["requested_effort"], cwd=receipt["repo_root"],
+        )
+    )
+    assert evidence == "invalid"
+    assert metering == "complete"
+    assert issues == [{
+        "source": attempt["session_ids"][0],
+        "reason": "delegation_detected", "count": 1,
+        "first_line": 3, "detail": None,
+    }]
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
+    )
+    assert checked.returncode == 2, checked.stderr
+    assert "attempt evidence_status 再計算が不一致" in checked.stderr
 
 
 def test_rollout_duplicate_key_remains_invalid(tmp_path: Path) -> None:
