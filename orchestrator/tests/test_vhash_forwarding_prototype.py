@@ -872,3 +872,149 @@ def test_target_policy_exercised_flag():
     key = (f"{jobs[0]['workload']}/wait={jobs[0]['wait_us']}/skew={jobs[0]['skew']:g}/"
            f"gc={record['gc_inter_us']}")
     assert updated["cells"][key]["arms"]["C-min"]["policy_exercised"] is True
+
+
+def _abort_text(arm, counted):
+    base = driver.abort_base_arm(arm)
+    text = _target_counter_text(base) if counted else \
+        "CICADA_LONGTX_V1 " + json.dumps({"schema": 1, "threads": [
+            {"thid": 1, "long": False, "commits": 1, "aborts": 0}]}) + "\n"
+    if not counted or base == "stock":
+        return text
+    policy = {"b": "doomed", "c": "fallback"}.get(arm, "shadow")
+    gc = driver.parse_target_lines(text, base, True)[1]
+    rows = []
+    for gc_row in gc["threads"]:
+        row = {key: 0 for key in driver.ABORT_THREAD if key != "detect_hist"}
+        row["thid"] = gc_row["thid"]
+        row["detect_hist"] = [0] * 42
+        if gc["mode"] == "e":
+            row["no_room_before_success"] = gc_row["no_room"]
+        rows.append(row)
+    return text + "CICADA_GC_ABORT_V1 " + json.dumps({"schema": 1,
+        "policy": policy, "witness": "committed_deleted", "threads": rows}) + "\n"
+
+
+def _abort_jobs():
+    jobs = []
+    for name in driver.ABORT_JOBS:
+        records = []
+        for spec in driver.abort_plan_runs(name):
+            counted = spec["build_kind"].endswith("-count")
+            stdout = _abort_text(spec["arm"], counted)
+            fwd, gc, longtx, abort = driver.parse_abort_lines(stdout, spec["arm"], counted)
+            records.append({**spec, "valid": True, "perf_eligible": not counted,
+                "argv": driver.abort_argv(Path("/tmp/ycsb"), spec),
+                "stdout": {"text": stdout, "sha256": driver.sha_bytes(stdout.encode())},
+                "throughput": 999 if counted else 100, "build_macros": list(driver.MACROS[spec["build_kind"]]),
+                "fwd_counters": fwd, "gc_counters": gc, "longtx_counters": longtx,
+                "abort_counters": abort})
+        jobs.append({"schema_version": "vhash-abort-job/v1", "command": "abort-run",
+            "job": name, "all_pass": True, "smoke": False, "records": records,
+            "ccbench_pin": driver.pin.CURRENT_PIN, "genome": driver.GC_GENOME,
+            "patch_sha256": {str(p.relative_to(driver.ROOT)): "0" * 64
+                for p in driver.ABORT_STACK}})
+    return jobs
+
+
+def test_abort_patch_stack():
+    assert driver.ABORT_STACK == (*driver.TARGET_STACK, driver.EARLY_ABORT_PATCH)
+    assert driver.EARLY_ABORT_PATCH == driver.ROOT / "patches/cicada-forwarding-early-abort.patch"
+
+
+def test_abort_arm_flags():
+    assert "--cicada_gc_mode=hb" in driver.abort_arm_flags("b", False)
+    assert "--cicada_gc_mode=e" not in driver.abort_arm_flags("b", False)
+    assert "--cicada_gc_early_abort=doomed" in driver.abort_arm_flags("b", False)
+    assert "--cicada_gc_early_abort=fallback" in driver.abort_arm_flags("c", False)
+    assert "--cicada_gc_target=max" in driver.abort_arm_flags("c", False)
+    assert "--cicada_gc_early_abort=shadow" in driver.abort_arm_flags("E-hb", True)
+    assert "--cicada_gc_early_abort=shadow" not in driver.abort_arm_flags("E-hb", False)
+    assert not any("early_abort" in flag for flag in driver.abort_arm_flags("stock", True))
+
+
+def test_abort_line_exactly_once():
+    text = _abort_text("b", True)
+    assert driver.parse_abort_lines(text, "b", True)[3]["policy"] == "doomed"
+    with pytest.raises(ValueError, match="expected 1 lines"):
+        driver.parse_abort_lines(text + text.splitlines()[-1] + "\n", "b", True)
+    with pytest.raises(ValueError, match="expected 1 lines"):
+        driver.parse_abort_lines("\n".join(text.splitlines()[:-1]), "b", True)
+    with pytest.raises(ValueError, match="expected 0 lines"):
+        driver.parse_abort_lines(text, "b", False)
+    with pytest.raises(ValueError, match="expected 0 lines"):
+        driver.parse_abort_lines(_abort_text("stock", True) + text.splitlines()[-1], "stock", True)
+
+
+@pytest.mark.parametrize("change", [
+    lambda p: p.pop("witness"),
+    lambda p: p.update(extra=0),
+    lambda p: p["threads"][0].pop("d_checks"),
+    lambda p: p["threads"][0].update(detect_hist=[0] * 41),
+    lambda p: p["threads"].append(dict(p["threads"][0])),
+])
+def test_abort_schema_strict(change):
+    text = _replace_target_counter(_abort_text("b", True), "CICADA_GC_ABORT_V1 ", change)
+    with pytest.raises(ValueError):
+        driver.parse_abort_lines(text, "b", True)
+    duplicate = _abort_text("b", True).replace('"schema": 1, "policy": "doomed"',
+        '"schema": 1, "schema": 1, "policy": "doomed"')
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        driver.parse_abort_lines(duplicate, "b", True)
+
+
+def test_abort_no_room_partition():
+    text = _replace_target_counter(_abort_text("c", True), "CICADA_GC_ABORT_V1 ",
+        lambda p: p["threads"][0].update(no_room_before_success=1))
+    with pytest.raises(ValueError, match="no_room partition"):
+        driver.parse_abort_lines(text, "c", True)
+
+
+def test_abort_shadow_commit_rejected():
+    text = _replace_target_counter(_abort_text("E-hb", True), "CICADA_GC_ABORT_V1 ",
+        lambda p: p["threads"][0].update(shadow_predicted_commit=1))
+    with pytest.raises(ValueError, match="shadow predicted commit"):
+        driver.parse_abort_lines(text, "E-hb", True)
+
+
+def test_abort_count_throughput_ineligible():
+    cell = driver.abort_aggregate_jobs(_abort_jobs())["cells"]["s09"]
+    assert cell["arms"]["b"]["throughput_median_tps"] == 100
+    assert all("throughput_tps" not in r for r in cell["arms"]["b"]["count"])
+    assert all(r["diagnostic"] == "instrumented" for r in cell["arms"]["b"]["count"])
+
+
+def test_abort_backoff_one_axis():
+    for arm in ("stock", "E-max"):
+        one = driver.abort_genome(arm + "-bo1")
+        zero = driver.abort_genome(arm)
+        assert one["BACK_OFF"] == 1 and zero["BACK_OFF"] == 0
+        assert {k: v for k, v in one.items() if k != "BACK_OFF"} == \
+            {k: v for k, v in zero.items() if k != "BACK_OFF"}
+    assert driver.abort_plan_runs("backoff")[2]["build_id"].endswith("-bo1")
+
+
+def test_abort_rotation():
+    for name in driver.ABORT_JOBS:
+        specs = driver.abort_plan_runs(name)
+        arms = driver.ABORT_BACKOFF_ARMS if name == "backoff" else driver.ABORT_ARMS
+        for rep in range(3):
+            assert tuple(r["arm"] for r in specs if r["rep"] == rep and
+                not r["build_kind"].endswith("-count")) == arms[rep:] + arms[:rep]
+
+
+def test_abort_aggregate_rejects_missing_job_and_arm():
+    jobs = _abort_jobs()
+    with pytest.raises(ValueError, match="missing abort jobs"):
+        driver.abort_aggregate_jobs(jobs[:-1])
+    jobs[0]["records"].pop()
+    with pytest.raises(ValueError, match="missing abort arm or rep"):
+        driver.abort_aggregate_jobs(jobs)
+
+
+def test_abort_target_plan_unchanged():
+    assert len(driver.target_plan_runs("wait_after_reads", 10000, skew=.9)) == 72
+    with pytest.raises(ValueError, match="unexpected target job condition"):
+        driver.target_plan_runs("wait_after_reads", 10000, skew=.8)
+    with pytest.raises(ValueError, match="unknown target arm"):
+        driver.target_arm_flags("b")
