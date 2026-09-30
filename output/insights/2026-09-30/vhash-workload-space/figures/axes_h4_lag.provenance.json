@@ -1,0 +1,7809 @@
+{
+  "campaign": "vhash-workload-space",
+  "conditions": "O1/O2; all axis levels and both genomes",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m0.json",
+      "sha256": "9b34da584261bfd7718ed8d6f720799bac1d5fd1b7b91e61c47cfe55ac0f4d6c"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m1.json",
+      "sha256": "72fc6f864d1baa1a41208f9376c899568ed700b717796f4e057e1e9bbb637a0b"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m2.json",
+      "sha256": "25eef1d2a7dbcfd706f443898201482a891c8f6dba3955a5590adc485b750e52"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m3.json",
+      "sha256": "e94f360223a3edcf14e9c93683eb19d95f83105e64ae9f300ab6806632092856"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m4.json",
+      "sha256": "e99272ddb8904a9b5cf30d7e8791baf484c299033a3b11212cf6dd76329ce667"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m5.json",
+      "sha256": "3e812d813f7ec944db15f3dbcd4146d770358fe137260ed83174a42d666878a3"
+    }
+  ],
+  "metric": "lag_us",
+  "plotted": [
+    {
+      "axis": "skew",
+      "id": "WO1-01-default",
+      "level": 0.6,
+      "value": 512
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-01-default",
+      "level": 0.6,
+      "value": 512
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-07-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-07-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-16-default",
+      "level": 0.6,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-16-default",
+      "level": 0.6,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-18-default",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-18-default",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-03-default",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-03-default",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-09-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-09-default",
+      "level": 0.6,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-19-default",
+      "level": 0.6,
+      "value": 16384
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-19-default",
+      "level": 0.6,
+      "value": 16384
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-20-default",
+      "level": 0.6,
+      "value": 64
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-20-default",
+      "level": 0.6,
+      "value": 64
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-02-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-02-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-08-default",
+      "level": 0.6,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-08-default",
+      "level": 0.6,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-05-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-05-default",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-06-default",
+      "level": 0.6,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-06-default",
+      "level": 0.6,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-01-tuned",
+      "level": 0.6,
+      "value": 32
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-01-tuned",
+      "level": 0.6,
+      "value": 32
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-07-best100",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-07-best100",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-16-best100",
+      "level": 0.6,
+      "value": 65536
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-16-best100",
+      "level": 0.6,
+      "value": 65536
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-18-tuned",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-18-tuned",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-03-tuned",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-03-tuned",
+      "level": 0.6,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-09-best100",
+      "level": 0.6,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-09-best100",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-19-best100",
+      "level": 0.6,
+      "value": 32768
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-19-best100",
+      "level": 0.6,
+      "value": 32768
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-20-tuned",
+      "level": 0.6,
+      "value": 32
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-20-tuned",
+      "level": 0.6,
+      "value": 32
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-02-tuned",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-02-tuned",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-08-best100",
+      "level": 0.6,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-08-best100",
+      "level": 0.6,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-05-best100",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-05-best100",
+      "level": 0.6,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-06-best100",
+      "level": 0.6,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-06-best100",
+      "level": 0.6,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-11-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-11-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-14-default",
+      "level": 0.9,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-14-default",
+      "level": 0.9,
+      "value": 524288
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-25-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-25-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-27-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-27-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-10-default",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-10-default",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-13-default",
+      "level": 0.9,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-13-default",
+      "level": 0.9,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-01-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-01-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-02-default",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-02-default",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-12-default",
+      "level": 0.9,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-12-default",
+      "level": 0.9,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-15-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-15-default",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-14-default",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-14-default",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-15-default",
+      "level": 0.9,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-15-default",
+      "level": 0.9,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-11-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-11-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-14-best100",
+      "level": 0.9,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-14-best100",
+      "level": 0.9,
+      "value": 262144
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-25-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-25-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-27-tuned",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-27-tuned",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-10-best100",
+      "level": 0.9,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-10-best100",
+      "level": 0.9,
+      "value": 16384
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-13-best100",
+      "level": 0.9,
+      "value": 16384
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-13-best100",
+      "level": 0.9,
+      "value": 16384
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-01-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-01-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-02-tuned",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-02-tuned",
+      "level": 0.9,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-12-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-12-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-15-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-15-best100",
+      "level": 0.9,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-14-best100",
+      "level": 0.9,
+      "value": 1024
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-14-best100",
+      "level": 0.9,
+      "value": 1024
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-15-best100",
+      "level": 0.9,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-15-best100",
+      "level": 0.9,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-24-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-24-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-27-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-27-default",
+      "level": 0.99,
+      "value": 1024
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-07-default",
+      "level": 0.99,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-07-default",
+      "level": 0.99,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-09-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-09-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-23-default",
+      "level": 0.99,
+      "value": 512
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-23-default",
+      "level": 0.99,
+      "value": 512
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-26-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-26-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-10-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-10-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-11-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-11-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-22-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-22-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-25-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-25-default",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-23-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-23-default",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-24-default",
+      "level": 0.99,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-24-default",
+      "level": 0.99,
+      "value": 8192
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-24-tuned",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-24-tuned",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-27-best100",
+      "level": 0.99,
+      "value": 256
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-27-best100",
+      "level": 0.99,
+      "value": 256
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-07-best100",
+      "level": 0.99,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-07-best100",
+      "level": 0.99,
+      "value": 4096
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-09-tuned",
+      "level": 0.99,
+      "value": 256
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-09-tuned",
+      "level": 0.99,
+      "value": 256
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-23-tuned",
+      "level": 0.99,
+      "value": 64
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-23-tuned",
+      "level": 0.99,
+      "value": 64
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-26-best100",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-26-best100",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-10-best100",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-10-best100",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-11-tuned",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-11-tuned",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-22-tuned",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-22-tuned",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-25-best100",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO1-25-best100",
+      "level": 0.99,
+      "value": 131072
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-23-best100",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-23-best100",
+      "level": 0.99,
+      "value": 2048
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-24-best100",
+      "level": 0.99,
+      "value": 32768
+    },
+    {
+      "axis": "skew",
+      "id": "WO2-24-best100",
+      "level": 0.99,
+      "value": 32768
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-01-default",
+      "level": 5,
+      "value": 512
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-01-default",
+      "level": 5,
+      "value": 512
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-11-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-11-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-16-default",
+      "level": 5,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-16-default",
+      "level": 5,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-27-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-27-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-03-default",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-03-default",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-10-default",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-10-default",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-02-default",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-02-default",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-10-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-10-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-02-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-02-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-12-default",
+      "level": 5,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-12-default",
+      "level": 5,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-05-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-05-default",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-24-default",
+      "level": 5,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-24-default",
+      "level": 5,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-01-tuned",
+      "level": 5,
+      "value": 32
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-01-tuned",
+      "level": 5,
+      "value": 32
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-11-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-11-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-16-best100",
+      "level": 5,
+      "value": 65536
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-16-best100",
+      "level": 5,
+      "value": 65536
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-27-tuned",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-27-tuned",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-03-tuned",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-03-tuned",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-10-best100",
+      "level": 5,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-10-best100",
+      "level": 5,
+      "value": 16384
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-02-tuned",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-02-tuned",
+      "level": 5,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-10-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-10-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-02-tuned",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-02-tuned",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-12-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-12-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-05-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-05-best100",
+      "level": 5,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-24-best100",
+      "level": 5,
+      "value": 32768
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-24-best100",
+      "level": 5,
+      "value": 32768
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-14-default",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-14-default",
+      "level": 50,
+      "value": 524288
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-24-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-24-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-09-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-09-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-25-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-25-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-13-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-13-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-23-default",
+      "level": 50,
+      "value": 512
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-23-default",
+      "level": 50,
+      "value": 512
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-11-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-11-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-19-default",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-19-default",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-15-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-15-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-22-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-22-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-06-default",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-06-default",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-14-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-14-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-14-best100",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-14-best100",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-24-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-24-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-09-tuned",
+      "level": 50,
+      "value": 256
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-09-tuned",
+      "level": 50,
+      "value": 256
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-25-best100",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-25-best100",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-13-best100",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-13-best100",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-23-tuned",
+      "level": 50,
+      "value": 64
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-23-tuned",
+      "level": 50,
+      "value": 64
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-11-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-11-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-19-best100",
+      "level": 50,
+      "value": 32768
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-19-best100",
+      "level": 50,
+      "value": 32768
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-15-best100",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-15-best100",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-22-tuned",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-22-tuned",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-06-best100",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-06-best100",
+      "level": 50,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-14-best100",
+      "level": 50,
+      "value": 1024
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-14-best100",
+      "level": 50,
+      "value": 1024
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-07-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-07-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-27-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-27-default",
+      "level": 95,
+      "value": 1024
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-07-default",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-07-default",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-18-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-18-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-09-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-09-default",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-26-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-26-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-01-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-01-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-20-default",
+      "level": 95,
+      "value": 64
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-20-default",
+      "level": 95,
+      "value": 64
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-08-default",
+      "level": 95,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-08-default",
+      "level": 95,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-25-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-25-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-15-default",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-15-default",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-23-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-23-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-07-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-07-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-27-best100",
+      "level": 95,
+      "value": 256
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-27-best100",
+      "level": 95,
+      "value": 256
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-07-best100",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-07-best100",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-18-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-18-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-09-best100",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-09-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-26-best100",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-26-best100",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-01-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-01-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-20-tuned",
+      "level": 95,
+      "value": 32
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-20-tuned",
+      "level": 95,
+      "value": 32
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-08-best100",
+      "level": 95,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-08-best100",
+      "level": 95,
+      "value": 8192
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-25-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO1-25-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-15-best100",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-15-best100",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-23-best100",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "rr",
+      "id": "WO2-23-best100",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-01-default",
+      "level": 10000,
+      "value": 512
+    },
+    {
+      "axis": "records",
+      "id": "WO1-01-default",
+      "level": 10000,
+      "value": 512
+    },
+    {
+      "axis": "records",
+      "id": "WO1-07-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-07-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-18-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-18-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-25-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-25-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-10-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-10-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-13-default",
+      "level": 10000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO1-13-default",
+      "level": 10000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO2-02-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-02-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-19-default",
+      "level": 10000,
+      "value": 16384
+    },
+    {
+      "axis": "records",
+      "id": "WO2-19-default",
+      "level": 10000,
+      "value": 16384
+    },
+    {
+      "axis": "records",
+      "id": "WO1-22-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-22-default",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-25-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-25-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-05-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-05-default",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-15-default",
+      "level": 10000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO2-15-default",
+      "level": 10000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO1-01-tuned",
+      "level": 10000,
+      "value": 32
+    },
+    {
+      "axis": "records",
+      "id": "WO1-01-tuned",
+      "level": 10000,
+      "value": 32
+    },
+    {
+      "axis": "records",
+      "id": "WO1-07-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-07-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-18-tuned",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-18-tuned",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-25-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-25-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-10-best100",
+      "level": 10000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO1-10-best100",
+      "level": 10000,
+      "value": 16384
+    },
+    {
+      "axis": "records",
+      "id": "WO1-13-best100",
+      "level": 10000,
+      "value": 16384
+    },
+    {
+      "axis": "records",
+      "id": "WO1-13-best100",
+      "level": 10000,
+      "value": 16384
+    },
+    {
+      "axis": "records",
+      "id": "WO2-02-tuned",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-02-tuned",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-19-best100",
+      "level": 10000,
+      "value": 32768
+    },
+    {
+      "axis": "records",
+      "id": "WO2-19-best100",
+      "level": 10000,
+      "value": 32768
+    },
+    {
+      "axis": "records",
+      "id": "WO1-22-tuned",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-22-tuned",
+      "level": 10000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-25-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-25-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-05-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-05-best100",
+      "level": 10000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-15-best100",
+      "level": 10000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO2-15-best100",
+      "level": 10000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO1-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-14-default",
+      "level": 100000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO1-14-default",
+      "level": 100000,
+      "value": 524288
+    },
+    {
+      "axis": "records",
+      "id": "WO2-07-default",
+      "level": 100000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO2-07-default",
+      "level": 100000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO2-27-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-27-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-23-default",
+      "level": 100000,
+      "value": 512
+    },
+    {
+      "axis": "records",
+      "id": "WO1-23-default",
+      "level": 100000,
+      "value": 512
+    },
+    {
+      "axis": "records",
+      "id": "WO1-26-default",
+      "level": 100000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-26-default",
+      "level": 100000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-01-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-01-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-02-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-02-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-08-default",
+      "level": 100000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO1-08-default",
+      "level": 100000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO2-14-default",
+      "level": 100000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-14-default",
+      "level": 100000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-24-default",
+      "level": 100000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO2-24-default",
+      "level": 100000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO1-11-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-11-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-14-best100",
+      "level": 100000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO1-14-best100",
+      "level": 100000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO2-07-best100",
+      "level": 100000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO2-07-best100",
+      "level": 100000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO2-27-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-27-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-23-tuned",
+      "level": 100000,
+      "value": 64
+    },
+    {
+      "axis": "records",
+      "id": "WO1-23-tuned",
+      "level": 100000,
+      "value": 64
+    },
+    {
+      "axis": "records",
+      "id": "WO1-26-best100",
+      "level": 100000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-26-best100",
+      "level": 100000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-01-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-01-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-11-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-11-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-02-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-02-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-08-best100",
+      "level": 100000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO1-08-best100",
+      "level": 100000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO2-14-best100",
+      "level": 100000,
+      "value": 1024
+    },
+    {
+      "axis": "records",
+      "id": "WO2-14-best100",
+      "level": 100000,
+      "value": 1024
+    },
+    {
+      "axis": "records",
+      "id": "WO2-24-best100",
+      "level": 100000,
+      "value": 32768
+    },
+    {
+      "axis": "records",
+      "id": "WO2-24-best100",
+      "level": 100000,
+      "value": 32768
+    },
+    {
+      "axis": "records",
+      "id": "WO1-24-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-24-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-27-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-27-default",
+      "level": 1000000,
+      "value": 1024
+    },
+    {
+      "axis": "records",
+      "id": "WO2-09-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-09-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-16-default",
+      "level": 1000000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO2-16-default",
+      "level": 1000000,
+      "value": 8192
+    },
+    {
+      "axis": "records",
+      "id": "WO1-03-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-03-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-09-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-09-default",
+      "level": 1000000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO2-10-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-10-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-20-default",
+      "level": 1000000,
+      "value": 64
+    },
+    {
+      "axis": "records",
+      "id": "WO2-20-default",
+      "level": 1000000,
+      "value": 64
+    },
+    {
+      "axis": "records",
+      "id": "WO1-12-default",
+      "level": 1000000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO1-12-default",
+      "level": 1000000,
+      "value": 4096
+    },
+    {
+      "axis": "records",
+      "id": "WO1-15-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-15-default",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-06-default",
+      "level": 1000000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO2-06-default",
+      "level": 1000000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO2-23-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-23-default",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-24-tuned",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-24-tuned",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-27-best100",
+      "level": 1000000,
+      "value": 256
+    },
+    {
+      "axis": "records",
+      "id": "WO1-27-best100",
+      "level": 1000000,
+      "value": 256
+    },
+    {
+      "axis": "records",
+      "id": "WO2-09-tuned",
+      "level": 1000000,
+      "value": 256
+    },
+    {
+      "axis": "records",
+      "id": "WO2-09-tuned",
+      "level": 1000000,
+      "value": 256
+    },
+    {
+      "axis": "records",
+      "id": "WO2-16-best100",
+      "level": 1000000,
+      "value": 65536
+    },
+    {
+      "axis": "records",
+      "id": "WO2-16-best100",
+      "level": 1000000,
+      "value": 65536
+    },
+    {
+      "axis": "records",
+      "id": "WO1-03-tuned",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-03-tuned",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO1-09-best100",
+      "level": 1000000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO1-09-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-10-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-10-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-20-tuned",
+      "level": 1000000,
+      "value": 32
+    },
+    {
+      "axis": "records",
+      "id": "WO2-20-tuned",
+      "level": 1000000,
+      "value": 32
+    },
+    {
+      "axis": "records",
+      "id": "WO1-12-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-12-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-15-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO1-15-best100",
+      "level": 1000000,
+      "value": 131072
+    },
+    {
+      "axis": "records",
+      "id": "WO2-06-best100",
+      "level": 1000000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO2-06-best100",
+      "level": 1000000,
+      "value": 262144
+    },
+    {
+      "axis": "records",
+      "id": "WO2-23-best100",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "records",
+      "id": "WO2-23-best100",
+      "level": 1000000,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-01-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-01-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-24-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-24-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-09-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-09-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-18-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-18-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-27-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-27-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-03-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-03-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-23-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-23-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-02-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-02-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-11-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-11-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-20-default",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-20-default",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-02-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-02-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-22-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-22-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-01-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-01-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-24-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-24-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-09-tuned",
+      "level": 10,
+      "value": 256
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-09-tuned",
+      "level": 10,
+      "value": 256
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-18-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-18-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-27-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-27-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-03-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-03-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-23-tuned",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-23-tuned",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-02-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-02-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-11-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-11-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-20-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-20-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-02-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-02-tuned",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-22-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-22-tuned",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-11-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-11-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-27-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-27-default",
+      "level": 100,
+      "value": 1024
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-07-default",
+      "level": 100,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-07-default",
+      "level": 100,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-16-default",
+      "level": 100,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-16-default",
+      "level": 100,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-25-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-25-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-10-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-10-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-26-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-26-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-12-default",
+      "level": 100,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-12-default",
+      "level": 100,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-25-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-25-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-05-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-05-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-14-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-14-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-23-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-23-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-11-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-11-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-27-best100",
+      "level": 100,
+      "value": 256
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-27-best100",
+      "level": 100,
+      "value": 256
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-07-best100",
+      "level": 100,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-07-best100",
+      "level": 100,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-16-best100",
+      "level": 100,
+      "value": 65536
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-16-best100",
+      "level": 100,
+      "value": 65536
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-25-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-25-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-10-best100",
+      "level": 100,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-10-best100",
+      "level": 100,
+      "value": 16384
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-26-best100",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-26-best100",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-12-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-12-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-25-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-25-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-05-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-05-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-14-best100",
+      "level": 100,
+      "value": 1024
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-14-best100",
+      "level": 100,
+      "value": 1024
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-23-best100",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-23-best100",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-07-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-07-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-14-default",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-14-default",
+      "level": 1000,
+      "value": 524288
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-09-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-09-default",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-13-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-13-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-01-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-01-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-10-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-10-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-19-default",
+      "level": 1000,
+      "value": 16384
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-19-default",
+      "level": 1000,
+      "value": 16384
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-08-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-08-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-15-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-15-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-06-default",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-06-default",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-15-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-15-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-24-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-24-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-07-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-07-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-14-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-14-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-09-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-09-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-13-best100",
+      "level": 1000,
+      "value": 16384
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-13-best100",
+      "level": 1000,
+      "value": 16384
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-01-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-01-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-10-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-10-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-19-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-19-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-08-best100",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-08-best100",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-15-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO1-15-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-06-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-06-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-15-best100",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-15-best100",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-24-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "ops",
+      "id": "WO2-24-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "long",
+      "id": "WO1-01-default",
+      "level": "none",
+      "value": 512
+    },
+    {
+      "axis": "long",
+      "id": "WO1-01-default",
+      "level": "none",
+      "value": 512
+    },
+    {
+      "axis": "long",
+      "id": "WO1-14-default",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO1-14-default",
+      "level": "none",
+      "value": 524288
+    },
+    {
+      "axis": "long",
+      "id": "WO1-27-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-27-default",
+      "level": "none",
+      "value": 1024
+    },
+    {
+      "axis": "long",
+      "id": "WO2-07-default",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-07-default",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-16-default",
+      "level": "none",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO2-16-default",
+      "level": "none",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO2-25-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-25-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-03-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-03-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-13-default",
+      "level": "none",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-13-default",
+      "level": "none",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-26-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-26-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-02-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-02-default",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-11-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-11-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-20-default",
+      "level": "none",
+      "value": 64
+    },
+    {
+      "axis": "long",
+      "id": "WO2-20-default",
+      "level": "none",
+      "value": 64
+    },
+    {
+      "axis": "long",
+      "id": "WO1-02-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-02-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-15-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-15-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-25-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-25-default",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-06-default",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO2-06-default",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO2-15-default",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-15-default",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-24-default",
+      "level": "none",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO2-24-default",
+      "level": "none",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-01-tuned",
+      "level": "none",
+      "value": 32
+    },
+    {
+      "axis": "long",
+      "id": "WO1-01-tuned",
+      "level": "none",
+      "value": 32
+    },
+    {
+      "axis": "long",
+      "id": "WO1-14-best100",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO1-14-best100",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO1-27-best100",
+      "level": "none",
+      "value": 256
+    },
+    {
+      "axis": "long",
+      "id": "WO1-27-best100",
+      "level": "none",
+      "value": 256
+    },
+    {
+      "axis": "long",
+      "id": "WO2-07-best100",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-07-best100",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-16-best100",
+      "level": "none",
+      "value": 65536
+    },
+    {
+      "axis": "long",
+      "id": "WO2-16-best100",
+      "level": "none",
+      "value": 65536
+    },
+    {
+      "axis": "long",
+      "id": "WO2-25-best100",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-25-best100",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-03-tuned",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-03-tuned",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-13-best100",
+      "level": "none",
+      "value": 16384
+    },
+    {
+      "axis": "long",
+      "id": "WO1-13-best100",
+      "level": "none",
+      "value": 16384
+    },
+    {
+      "axis": "long",
+      "id": "WO1-26-best100",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-26-best100",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-02-tuned",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-02-tuned",
+      "level": "none",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-11-tuned",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-11-tuned",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-20-tuned",
+      "level": "none",
+      "value": 32
+    },
+    {
+      "axis": "long",
+      "id": "WO2-20-tuned",
+      "level": "none",
+      "value": 32
+    },
+    {
+      "axis": "long",
+      "id": "WO1-02-tuned",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-02-tuned",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-15-best100",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-15-best100",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-25-best100",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-25-best100",
+      "level": "none",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-06-best100",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO2-06-best100",
+      "level": "none",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO2-15-best100",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-15-best100",
+      "level": "none",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO2-24-best100",
+      "level": "none",
+      "value": 32768
+    },
+    {
+      "axis": "long",
+      "id": "WO2-24-best100",
+      "level": "none",
+      "value": 32768
+    },
+    {
+      "axis": "long",
+      "id": "WO1-07-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-07-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-11-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-11-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-24-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-24-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-09-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-09-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-18-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-18-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-27-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-27-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-09-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-09-default",
+      "level": "batchU",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO1-10-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-10-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-23-default",
+      "level": "batchU",
+      "value": 512
+    },
+    {
+      "axis": "long",
+      "id": "WO1-23-default",
+      "level": "batchU",
+      "value": 512
+    },
+    {
+      "axis": "long",
+      "id": "WO2-01-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-01-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-10-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-10-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-19-default",
+      "level": "batchU",
+      "value": 16384
+    },
+    {
+      "axis": "long",
+      "id": "WO2-19-default",
+      "level": "batchU",
+      "value": 16384
+    },
+    {
+      "axis": "long",
+      "id": "WO1-08-default",
+      "level": "batchU",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-08-default",
+      "level": "batchU",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-12-default",
+      "level": "batchU",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO1-12-default",
+      "level": "batchU",
+      "value": 4096
+    },
+    {
+      "axis": "long",
+      "id": "WO1-22-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-22-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-05-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-05-default",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-14-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-14-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-23-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-23-default",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-07-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-07-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-11-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-11-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-24-tuned",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-24-tuned",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-09-tuned",
+      "level": "batchU",
+      "value": 256
+    },
+    {
+      "axis": "long",
+      "id": "WO2-09-tuned",
+      "level": "batchU",
+      "value": 256
+    },
+    {
+      "axis": "long",
+      "id": "WO2-18-tuned",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-18-tuned",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-27-tuned",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-27-tuned",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-09-best100",
+      "level": "batchU",
+      "value": 262144
+    },
+    {
+      "axis": "long",
+      "id": "WO1-09-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-10-best100",
+      "level": "batchU",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-10-best100",
+      "level": "batchU",
+      "value": 16384
+    },
+    {
+      "axis": "long",
+      "id": "WO1-23-tuned",
+      "level": "batchU",
+      "value": 64
+    },
+    {
+      "axis": "long",
+      "id": "WO1-23-tuned",
+      "level": "batchU",
+      "value": 64
+    },
+    {
+      "axis": "long",
+      "id": "WO2-01-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-01-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-10-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-10-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-19-best100",
+      "level": "batchU",
+      "value": 32768
+    },
+    {
+      "axis": "long",
+      "id": "WO2-19-best100",
+      "level": "batchU",
+      "value": 32768
+    },
+    {
+      "axis": "long",
+      "id": "WO1-08-best100",
+      "level": "batchU",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-08-best100",
+      "level": "batchU",
+      "value": 8192
+    },
+    {
+      "axis": "long",
+      "id": "WO1-12-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-12-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO1-22-tuned",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO1-22-tuned",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-05-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-05-best100",
+      "level": "batchU",
+      "value": 131072
+    },
+    {
+      "axis": "long",
+      "id": "WO2-14-best100",
+      "level": "batchU",
+      "value": 1024
+    },
+    {
+      "axis": "long",
+      "id": "WO2-14-best100",
+      "level": "batchU",
+      "value": 1024
+    },
+    {
+      "axis": "long",
+      "id": "WO2-23-best100",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "long",
+      "id": "WO2-23-best100",
+      "level": "batchU",
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-01-default",
+      "level": 0,
+      "value": 512
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-01-default",
+      "level": 0,
+      "value": 512
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-07-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-07-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-16-default",
+      "level": 0,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-16-default",
+      "level": 0,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-18-default",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-18-default",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-23-default",
+      "level": 0,
+      "value": 512
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-23-default",
+      "level": 0,
+      "value": 512
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-26-default",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-26-default",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-10-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-10-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-11-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-11-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-12-default",
+      "level": 0,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-12-default",
+      "level": 0,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-15-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-15-default",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-14-default",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-14-default",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-15-default",
+      "level": 0,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-15-default",
+      "level": 0,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-01-tuned",
+      "level": 0,
+      "value": 32
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-01-tuned",
+      "level": 0,
+      "value": 32
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-07-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-07-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-16-best100",
+      "level": 0,
+      "value": 65536
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-16-best100",
+      "level": 0,
+      "value": 65536
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-18-tuned",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-18-tuned",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-23-tuned",
+      "level": 0,
+      "value": 64
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-23-tuned",
+      "level": 0,
+      "value": 64
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-26-best100",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-26-best100",
+      "level": 0,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-10-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-10-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-11-tuned",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-11-tuned",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-12-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-12-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-15-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-15-best100",
+      "level": 0,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-14-best100",
+      "level": 0,
+      "value": 1024
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-14-best100",
+      "level": 0,
+      "value": 1024
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-15-best100",
+      "level": 0,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-15-best100",
+      "level": 0,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-24-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-24-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-27-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-27-default",
+      "level": 50,
+      "value": 1024
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-25-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-25-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-27-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-27-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-10-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-10-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-13-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-13-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-19-default",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-19-default",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-20-default",
+      "level": 50,
+      "value": 64
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-20-default",
+      "level": 50,
+      "value": 64
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-02-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-02-default",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-08-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-08-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-23-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-23-default",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-24-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-24-default",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-24-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-24-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-27-best100",
+      "level": 50,
+      "value": 256
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-27-best100",
+      "level": 50,
+      "value": 256
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-25-best100",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-25-best100",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-27-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-27-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-10-best100",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-10-best100",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-13-best100",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-13-best100",
+      "level": 50,
+      "value": 16384
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-19-best100",
+      "level": 50,
+      "value": 32768
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-19-best100",
+      "level": 50,
+      "value": 32768
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-20-tuned",
+      "level": 50,
+      "value": 32
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-20-tuned",
+      "level": 50,
+      "value": 32
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-02-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-02-tuned",
+      "level": 50,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-08-best100",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-08-best100",
+      "level": 50,
+      "value": 8192
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-23-best100",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-23-best100",
+      "level": 50,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-24-best100",
+      "level": 50,
+      "value": 32768
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-24-best100",
+      "level": 50,
+      "value": 32768
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-11-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-11-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-14-default",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-14-default",
+      "level": 95,
+      "value": 524288
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-07-default",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-07-default",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-09-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-09-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-03-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-03-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-09-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-09-default",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-01-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-01-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-02-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-02-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-22-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-22-default",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-25-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-25-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-05-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-05-default",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-06-default",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-06-default",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-11-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-11-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-14-best100",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-14-best100",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-07-best100",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-07-best100",
+      "level": 95,
+      "value": 4096
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-09-tuned",
+      "level": 95,
+      "value": 256
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-09-tuned",
+      "level": 95,
+      "value": 256
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-03-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-03-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-09-best100",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-09-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-01-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-01-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-02-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-02-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-22-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-22-tuned",
+      "level": 95,
+      "value": 2048
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-25-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO1-25-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-05-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-05-best100",
+      "level": 95,
+      "value": 131072
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-06-best100",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "ro",
+      "id": "WO2-06-best100",
+      "level": 95,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO1-01-default",
+      "level": 4,
+      "value": 512
+    },
+    {
+      "axis": "val",
+      "id": "WO1-01-default",
+      "level": 4,
+      "value": 512
+    },
+    {
+      "axis": "val",
+      "id": "WO1-07-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-07-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-11-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-11-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-14-default",
+      "level": 4,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO1-14-default",
+      "level": 4,
+      "value": 524288
+    },
+    {
+      "axis": "val",
+      "id": "WO1-24-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-24-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-27-default",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-27-default",
+      "level": 4,
+      "value": 1024
+    },
+    {
+      "axis": "val",
+      "id": "WO2-07-default",
+      "level": 4,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-07-default",
+      "level": 4,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-09-default",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-09-default",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-16-default",
+      "level": 4,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO2-16-default",
+      "level": 4,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO2-18-default",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-18-default",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-25-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-25-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-27-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-27-default",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-01-tuned",
+      "level": 4,
+      "value": 32
+    },
+    {
+      "axis": "val",
+      "id": "WO1-01-tuned",
+      "level": 4,
+      "value": 32
+    },
+    {
+      "axis": "val",
+      "id": "WO1-07-best100",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-07-best100",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-11-best100",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-11-best100",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-14-best100",
+      "level": 4,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO1-14-best100",
+      "level": 4,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO1-24-tuned",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-24-tuned",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-27-best100",
+      "level": 4,
+      "value": 256
+    },
+    {
+      "axis": "val",
+      "id": "WO1-27-best100",
+      "level": 4,
+      "value": 256
+    },
+    {
+      "axis": "val",
+      "id": "WO2-07-best100",
+      "level": 4,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-07-best100",
+      "level": 4,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-09-tuned",
+      "level": 4,
+      "value": 256
+    },
+    {
+      "axis": "val",
+      "id": "WO2-09-tuned",
+      "level": 4,
+      "value": 256
+    },
+    {
+      "axis": "val",
+      "id": "WO2-16-best100",
+      "level": 4,
+      "value": 65536
+    },
+    {
+      "axis": "val",
+      "id": "WO2-16-best100",
+      "level": 4,
+      "value": 65536
+    },
+    {
+      "axis": "val",
+      "id": "WO2-18-tuned",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-18-tuned",
+      "level": 4,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-25-best100",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-25-best100",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-27-tuned",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-27-tuned",
+      "level": 4,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-03-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-03-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-09-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-09-default",
+      "level": 100,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO1-10-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-10-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-13-default",
+      "level": 100,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-13-default",
+      "level": 100,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-23-default",
+      "level": 100,
+      "value": 512
+    },
+    {
+      "axis": "val",
+      "id": "WO1-23-default",
+      "level": 100,
+      "value": 512
+    },
+    {
+      "axis": "val",
+      "id": "WO1-26-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-26-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-01-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-01-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-02-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-02-default",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-10-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-10-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-11-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-11-default",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-19-default",
+      "level": 100,
+      "value": 16384
+    },
+    {
+      "axis": "val",
+      "id": "WO2-19-default",
+      "level": 100,
+      "value": 16384
+    },
+    {
+      "axis": "val",
+      "id": "WO2-20-default",
+      "level": 100,
+      "value": 64
+    },
+    {
+      "axis": "val",
+      "id": "WO2-20-default",
+      "level": 100,
+      "value": 64
+    },
+    {
+      "axis": "val",
+      "id": "WO1-03-tuned",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-03-tuned",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-09-best100",
+      "level": 100,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO1-09-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-10-best100",
+      "level": 100,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-10-best100",
+      "level": 100,
+      "value": 16384
+    },
+    {
+      "axis": "val",
+      "id": "WO1-13-best100",
+      "level": 100,
+      "value": 16384
+    },
+    {
+      "axis": "val",
+      "id": "WO1-13-best100",
+      "level": 100,
+      "value": 16384
+    },
+    {
+      "axis": "val",
+      "id": "WO1-23-tuned",
+      "level": 100,
+      "value": 64
+    },
+    {
+      "axis": "val",
+      "id": "WO1-23-tuned",
+      "level": 100,
+      "value": 64
+    },
+    {
+      "axis": "val",
+      "id": "WO1-26-best100",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-26-best100",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-01-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-01-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-02-tuned",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-02-tuned",
+      "level": 100,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-10-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-10-best100",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-11-tuned",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-11-tuned",
+      "level": 100,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-19-best100",
+      "level": 100,
+      "value": 32768
+    },
+    {
+      "axis": "val",
+      "id": "WO2-19-best100",
+      "level": 100,
+      "value": 32768
+    },
+    {
+      "axis": "val",
+      "id": "WO2-20-tuned",
+      "level": 100,
+      "value": 32
+    },
+    {
+      "axis": "val",
+      "id": "WO2-20-tuned",
+      "level": 100,
+      "value": 32
+    },
+    {
+      "axis": "val",
+      "id": "WO1-02-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-02-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-08-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-08-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-12-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO1-12-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO1-15-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-15-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-22-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-22-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-25-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-25-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-05-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-05-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-06-default",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO2-06-default",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO2-14-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-14-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-15-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-15-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-23-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-23-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-24-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO2-24-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-02-tuned",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-02-tuned",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-08-best100",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-08-best100",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "val",
+      "id": "WO1-12-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-12-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-15-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-15-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-22-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-22-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO1-25-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO1-25-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-05-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-05-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "val",
+      "id": "WO2-06-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO2-06-best100",
+      "level": 1000,
+      "value": 262144
+    },
+    {
+      "axis": "val",
+      "id": "WO2-14-best100",
+      "level": 1000,
+      "value": 1024
+    },
+    {
+      "axis": "val",
+      "id": "WO2-14-best100",
+      "level": 1000,
+      "value": 1024
+    },
+    {
+      "axis": "val",
+      "id": "WO2-15-best100",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-15-best100",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "val",
+      "id": "WO2-23-best100",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-23-best100",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "val",
+      "id": "WO2-24-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "val",
+      "id": "WO2-24-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-01-default",
+      "level": 12,
+      "value": 512
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-01-default",
+      "level": 12,
+      "value": 512
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-24-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-24-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-10-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-10-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-26-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-26-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-02-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-02-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-11-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-11-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-20-default",
+      "level": 12,
+      "value": 64
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-20-default",
+      "level": 12,
+      "value": 64
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-08-default",
+      "level": 12,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-08-default",
+      "level": 12,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-15-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-15-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-05-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-05-default",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-14-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-14-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-23-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-23-default",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-01-tuned",
+      "level": 12,
+      "value": 32
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-01-tuned",
+      "level": 12,
+      "value": 32
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-24-tuned",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-24-tuned",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-10-best100",
+      "level": 12,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-10-best100",
+      "level": 12,
+      "value": 16384
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-26-best100",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-26-best100",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-02-tuned",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-02-tuned",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-11-tuned",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-11-tuned",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-20-tuned",
+      "level": 12,
+      "value": 32
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-20-tuned",
+      "level": 12,
+      "value": 32
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-08-best100",
+      "level": 12,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-08-best100",
+      "level": 12,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-15-best100",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-15-best100",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-05-best100",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-05-best100",
+      "level": 12,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-14-best100",
+      "level": 12,
+      "value": 1024
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-14-best100",
+      "level": 12,
+      "value": 1024
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-23-best100",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-23-best100",
+      "level": 12,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-11-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-11-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-27-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-27-default",
+      "level": 24,
+      "value": 1024
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-09-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-09-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-18-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-18-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-27-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-27-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-09-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-09-default",
+      "level": 24,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-13-default",
+      "level": 24,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-13-default",
+      "level": 24,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-02-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-02-default",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-22-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-22-default",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-06-default",
+      "level": 24,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-06-default",
+      "level": 24,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-15-default",
+      "level": 24,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-15-default",
+      "level": 24,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-24-default",
+      "level": 24,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-24-default",
+      "level": 24,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-11-best100",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-11-best100",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-27-best100",
+      "level": 24,
+      "value": 256
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-27-best100",
+      "level": 24,
+      "value": 256
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-09-tuned",
+      "level": 24,
+      "value": 256
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-09-tuned",
+      "level": 24,
+      "value": 256
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-18-tuned",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-18-tuned",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-27-tuned",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-27-tuned",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-09-best100",
+      "level": 24,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-09-best100",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-13-best100",
+      "level": 24,
+      "value": 16384
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-13-best100",
+      "level": 24,
+      "value": 16384
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-02-tuned",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-02-tuned",
+      "level": 24,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-22-tuned",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-22-tuned",
+      "level": 24,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-06-best100",
+      "level": 24,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-06-best100",
+      "level": 24,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-15-best100",
+      "level": 24,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-15-best100",
+      "level": 24,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-24-best100",
+      "level": 24,
+      "value": 32768
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-24-best100",
+      "level": 24,
+      "value": 32768
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-07-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-07-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-14-default",
+      "level": 48,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-14-default",
+      "level": 48,
+      "value": 524288
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-07-default",
+      "level": 48,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-07-default",
+      "level": 48,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-16-default",
+      "level": 48,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-16-default",
+      "level": 48,
+      "value": 8192
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-25-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-25-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-03-default",
+      "level": 48,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-03-default",
+      "level": 48,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-23-default",
+      "level": 48,
+      "value": 512
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-23-default",
+      "level": 48,
+      "value": 512
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-01-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-01-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-10-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-10-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-19-default",
+      "level": 48,
+      "value": 16384
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-19-default",
+      "level": 48,
+      "value": 16384
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-12-default",
+      "level": 48,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-12-default",
+      "level": 48,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-25-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-25-default",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-07-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-07-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-14-best100",
+      "level": 48,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-14-best100",
+      "level": 48,
+      "value": 262144
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-07-best100",
+      "level": 48,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-07-best100",
+      "level": 48,
+      "value": 4096
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-16-best100",
+      "level": 48,
+      "value": 65536
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-16-best100",
+      "level": 48,
+      "value": 65536
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-25-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-25-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-03-tuned",
+      "level": 48,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-03-tuned",
+      "level": 48,
+      "value": 2048
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-23-tuned",
+      "level": 48,
+      "value": 64
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-23-tuned",
+      "level": 48,
+      "value": 64
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-01-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-01-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-10-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-10-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-19-best100",
+      "level": 48,
+      "value": 32768
+    },
+    {
+      "axis": "threads",
+      "id": "WO2-19-best100",
+      "level": 48,
+      "value": 32768
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-12-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-12-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-25-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "threads",
+      "id": "WO1-25-best100",
+      "level": 48,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-01-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-01-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-14-default",
+      "level": 10,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-14-default",
+      "level": 10,
+      "value": 524288
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-27-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-27-default",
+      "level": 10,
+      "value": 1024
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-07-default",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-07-default",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-09-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-09-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-09-default",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-09-default",
+      "level": 10,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-10-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-10-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-23-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-23-default",
+      "level": 10,
+      "value": 512
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-19-default",
+      "level": 10,
+      "value": 16384
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-19-default",
+      "level": 10,
+      "value": 16384
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-20-default",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-20-default",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-14-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-14-default",
+      "level": 10,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-15-default",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-15-default",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-01-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-01-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-14-best100",
+      "level": 10,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-14-best100",
+      "level": 10,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-27-best100",
+      "level": 10,
+      "value": 256
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-27-best100",
+      "level": 10,
+      "value": 256
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-07-best100",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-07-best100",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-09-tuned",
+      "level": 10,
+      "value": 256
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-09-tuned",
+      "level": 10,
+      "value": 256
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-09-best100",
+      "level": 10,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-09-best100",
+      "level": 10,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-10-best100",
+      "level": 10,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-10-best100",
+      "level": 10,
+      "value": 16384
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-23-tuned",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-23-tuned",
+      "level": 10,
+      "value": 64
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-19-best100",
+      "level": 10,
+      "value": 32768
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-19-best100",
+      "level": 10,
+      "value": 32768
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-20-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-20-tuned",
+      "level": 10,
+      "value": 32
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-14-best100",
+      "level": 10,
+      "value": 1024
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-14-best100",
+      "level": 10,
+      "value": 1024
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-15-best100",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-15-best100",
+      "level": 10,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-16-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-16-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-18-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-18-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-03-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-03-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-13-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-13-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-26-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-26-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-01-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-01-default",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-02-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-02-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-08-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-08-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-12-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-12-default",
+      "level": 1000,
+      "value": 4096
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-22-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-22-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-23-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-23-default",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-24-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-24-default",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-16-best100",
+      "level": 1000,
+      "value": 65536
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-16-best100",
+      "level": 1000,
+      "value": 65536
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-18-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-18-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-03-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-03-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-13-best100",
+      "level": 1000,
+      "value": 16384
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-13-best100",
+      "level": 1000,
+      "value": 16384
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-26-best100",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-26-best100",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-01-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-01-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-02-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-02-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-08-best100",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-08-best100",
+      "level": 1000,
+      "value": 8192
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-12-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-12-best100",
+      "level": 1000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-22-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-22-tuned",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-23-best100",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-23-best100",
+      "level": 1000,
+      "value": 2048
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-24-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-24-best100",
+      "level": 1000,
+      "value": 32768
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-07-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-07-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-24-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-24-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-25-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-25-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-27-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-27-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-10-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-10-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-11-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-02-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-02-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-15-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-15-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-25-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-25-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-05-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-05-default",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-06-default",
+      "level": 100000,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-06-default",
+      "level": 100000,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-07-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-07-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-11-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-11-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-24-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-24-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-25-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-25-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-27-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-27-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-10-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-10-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-11-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-11-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-02-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-02-tuned",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-15-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-15-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-25-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO1-25-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-05-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-05-best100",
+      "level": 100000,
+      "value": 131072
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-06-best100",
+      "level": 100000,
+      "value": 262144
+    },
+    {
+      "axis": "gc",
+      "id": "WO2-06-best100",
+      "level": 100000,
+      "value": 262144
+    }
+  ]
+}

@@ -12852,6 +12852,12 @@ def _run():
     for fn in fns:
         if fn is test_command_docs_guard_positive_controls:
             calls = [(case, (case,)) for case in _COMMAND_GUARD_CASES]
+        elif fn is test_speed_transition_sink_uses_whole_entry_body:
+            calls = [
+                (f"{boundary}-{sink_has_body_id}", (boundary, sink_has_body_id))
+                for boundary in ("current", "archive_pair", "archive_current")
+                for sink_has_body_id in (True, False)
+            ]
         else:
             calls = [(fn.__name__, ())]
         for label, args in calls:
@@ -12872,6 +12878,210 @@ def _run():
     print(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0
 
+
+# check_docs speed changes: the reference bodies below are verbatim from
+# 4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037:tools/check_docs.py.
+def _speed_reference_raw_slice(body: str, item_offset: int) -> str:
+    """list marker から継続物理行の終端までの raw slice を返す。"""
+
+    assert 0 <= item_offset < len(body)
+    line_end = item_offset
+    while line_end < len(body) and body[line_end] not in "\r\n":
+        line_end += 1
+    raw_end = line_end
+    cursor = line_end
+    while cursor < len(body):
+        if body[cursor] == "\r":
+            cursor += 1
+            if cursor < len(body) and body[cursor] == "\n":
+                cursor += 1
+        elif body[cursor] == "\n":
+            cursor += 1
+        continuation_end = cursor
+        while (
+            continuation_end < len(body)
+            and body[continuation_end] not in "\r\n"
+        ):
+            continuation_end += 1
+        continuation = body[cursor:continuation_end]
+        if not continuation.startswith((" ", "\t")):
+            break
+        raw_end = continuation_end
+        cursor = continuation_end
+    return body[item_offset:raw_end]
+
+
+def _speed_reference_visible_lines(text: str) -> list[tuple[str, int, str]]:
+    """code fence / HTML comment 外の可視行と offset・改行を返す。"""
+
+    FENCE_OPEN_RE = check_docs.FENCE_OPEN_RE
+    _mask_html_comments = check_docs._mask_html_comments
+    lines: list[tuple[str, int, str]] = []
+    in_comment = False
+    fence: tuple[str, int] | None = None
+    offset = 0
+    for raw_line in text.splitlines(keepends=True):
+        line = raw_line.rstrip("\r\n")
+        newline = raw_line[len(line):]
+        if fence is not None:
+            marker_char, marker_len = fence
+            stripped = line.lstrip(" \t")
+            indent = len(line) - len(stripped)
+            if indent <= 3 and re.fullmatch(
+                rf"{re.escape(marker_char)}{{{marker_len},}}[ \t]*", stripped
+            ):
+                fence = None
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        # fence opener の info string 内にある `<!--` は comment 開始ではない。
+        # comment 継続中でない行は opener を先に判定する。
+        if not in_comment:
+            fence_match = FENCE_OPEN_RE.fullmatch(line)
+            if fence_match is not None:
+                marker = fence_match.group("marker")
+                fence = (marker[0], len(marker))
+                lines.append(("", offset, newline))
+                offset += len(raw_line)
+                continue
+
+        visible, in_comment = _mask_html_comments(line, in_comment)
+        fence_match = FENCE_OPEN_RE.fullmatch(visible)
+        if fence_match is not None:
+            marker = fence_match.group("marker")
+            fence = (marker[0], len(marker))
+            lines.append(("", offset, newline))
+            offset += len(raw_line)
+            continue
+
+        lines.append((visible, offset, newline))
+        offset += len(raw_line)
+    return lines
+
+
+def test_speed_line_number_matches_count_boundaries():
+    from itertools import product
+
+    for length in range(8):
+        for chars in product("a\n\r", repeat=length):
+            body = "".join(chars)
+            for offset in range(-length - 2, length + 3):
+                assert check_docs._line_number(body, offset) == body.count("\n", 0, offset) + 1
+
+
+def test_speed_raw_slice_matches_reference_exhaustively():
+    from itertools import product
+
+    alphabet = "-x \t\r\n"
+    for length in range(1, 7):
+        for chars in product(alphabet, repeat=length):
+            body = "".join(chars)
+            for offset in range(-1, length + 1):
+                try:
+                    expected = _speed_reference_raw_slice(body, offset)
+                except AssertionError:
+                    with pytest.raises(AssertionError):
+                        check_docs._top_level_item_raw_slice(body, offset)
+                else:
+                    assert check_docs._top_level_item_raw_slice(body, offset) == expected
+    with pytest.raises(AssertionError):
+        check_docs._top_level_item_raw_slice("", 0)
+
+
+def test_speed_visible_lines_matches_reference():
+    cases = (
+        "", "plain", "plain\r", "plain\r\nnext\n", "<!-- start\ninside\nend -->visible\n",
+        "before <!-- hidden --> after\n", "<!-- unclosed\rinside\r\nend -->\n",
+        "``` info <!-- ignored\ninside\n```\nafter\n",
+        "<!-- hidden\n```\n-->\n``` info <!-- ignored\n```\n",
+        "~~~<!-- opener\r\ninside\r\n~~~\r\n",
+        "x\r\n<!-- a -->\ry\n<!-- b\r\nc -->z",
+    )
+    for body in cases:
+        assert check_docs._visible_markdown_lines(body) == _speed_reference_visible_lines(body)
+
+
+@pytest.mark.parametrize("boundary", ("current", "archive_pair", "archive_current"))
+@pytest.mark.parametrize("sink_has_body_id", (True, False))
+def test_speed_transition_sink_uses_whole_entry_body(boundary, sink_has_body_id):
+    root = _build_min_repo()
+    try:
+        sink_item = "- [T-001] consumed\n\n" if sink_has_body_id else "本文。\n\n"
+        if boundary == "current":
+            current = (
+                "# current\n\n## ローテーション\n\n"
+                "## 2026-09-01 (1) — source\n\n"
+                "### 次の一手\n1. [T-001] carried\n\n"
+                "## 2026-09-02 (2) — sink\n\n"
+                + sink_item + "### 次の一手\n1. [T-002] latest\n"
+            )
+            _write_backlog_docs(root, worklog_text=current)
+        else:
+            current = (
+                "# current\n\n## ローテーション\n\n"
+                "## 2026-09-03 (3) — current\n\n"
+                + (sink_item if boundary == "archive_current" else "- [T-002] consumed\n\n")
+                + "### 次の一手\n1. [T-003] latest\n"
+            )
+            first_name = "worklog-first.md"
+            first = (
+                "# first\n\n## 2026-09-01 (1) — first\n\n"
+                "### 次の一手\n1. [T-001] carried\n"
+            )
+            _write_backlog_docs(root, worklog_text=current)
+            _write(root, f"docs/archive/{first_name}", first)
+            names = [first_name]
+            if boundary == "archive_pair":
+                second_name = "worklog-second.md"
+                second = (
+                    "# second\n\n## 2026-09-02 (2) — second\n\n"
+                    + sink_item + "### 次の一手\n1. [T-002] carried\n"
+                )
+                _write(root, f"docs/archive/{second_name}", second)
+                names.append(second_name)
+            _write(root, "docs/archive/README.md", _archive_readme(*names))
+        result = _run_check(root)
+        if sink_has_body_id:
+            assert result.returncode == 0, result.stdout
+            assert "違反なし" in result.stdout, result.stdout
+        else:
+            assert result.returncode == 1, result.stdout
+            assert "次の一手 ID [T-001]" in result.stdout, result.stdout
+            assert "見送り台帳にもない" in result.stdout, result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_speed_archive_order_uses_last_entry_of_left_archive():
+    root = _build_min_repo()
+    try:
+        current = (
+            "# current\n\n## ローテーション\n\n"
+            "## 2026-09-04 (4) — current\n\n"
+            "- [T-002] consumed\n\n### 次の一手\n1. [T-003] latest\n"
+        )
+        first = (
+            "# first\n\n## 2026-09-01 (1) — early\n\n"
+            "### 次の一手\n\n"
+            "## 2026-09-03 (3) — late\n\n"
+            "### 次の一手\n1. [T-001] carried\n"
+        )
+        second = (
+            "# second\n\n## 2026-09-02 (2) — middle\n\n"
+            "- [T-001] consumed\n\n"
+            "### 次の一手\n1. [T-002] carried\n"
+        )
+        names = ("worklog-first.md", "worklog-second.md")
+        _write_backlog_docs(root, worklog_text=current)
+        for name, content in zip(names, (first, second)):
+            _write(root, f"docs/archive/{name}", content)
+        _write(root, "docs/archive/README.md", _archive_readme(*names))
+        result = _run_check(root)
+        assert result.returncode == 1, result.stdout
+        assert "archive worklog の順序を一意に決定できない" in result.stdout
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 enforce_held_functions(globals(), __file__, plain_runner="manual")

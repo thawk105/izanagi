@@ -62,6 +62,11 @@ TUNED_GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 1,
 DEFAULT_GENOME = {"BACK_OFF": 1, "INLINE_VERSION_OPT": 0,
                   "INLINE_VERSION_PROMOTION": 1, "REUSE_VERSION": 1,
                   "WRITE_LATEST_ONLY": 0}
+BEST100_GENOME = {"BACK_OFF": 0, "INLINE_VERSION_OPT": 0,
+                  "INLINE_VERSION_PROMOTION": 0, "REUSE_VERSION": 0,
+                  "WRITE_LATEST_ONLY": 0}
+ABORT_REASONS = ("early_wts", "early_rts", "precheck", "latest",
+                 "read_match", "write_rts_deleted", "node_set", "scan_node_set", "other")
 MEASURE_RECORDS = 1000000
 for prefix, rates, delays, intervals, skew, genome in (
     ("R", (0, 25, 50, 75, 95), ("none", "wait1msU", "wait10msU", "wait10msR"),
@@ -82,22 +87,63 @@ for prefix, rates, delays, intervals, skew, genome in (
                                        1 if delay.endswith("U") else 0),
                     genome=genome)
 
+# The two O blocks use the fixed GF(3) columns and permutations of the
+# preregistered design. Keep row order stable: condition IDs bind to rows.
+_O_FACTORS = ((.6, .9, .99), (5, 50, 95), (10000, 100000, 1000000),
+              (10, 100, 1000), ("none", "batchU", "batchR"), (0, 50, 95),
+              (4, 100, 1000), (12, 24, 48), (10, 1000, 100000))
+_O_COLS = ((1,0,0),(0,1,0),(0,0,1),(1,1,0),(1,2,0),
+           (1,0,1),(1,0,2),(0,1,1),(0,1,2))
+
+
+def _w_condition(point: tuple, genome: str) -> dict:
+    skew, rr, records, ops, kind, ro, val, threads, gc = point
+    return dict(records=records, ycsb_max_ope=ops,
+                thread_num=threads - (kind != "none"),
+                batch_th_num=int(kind != "none"), batch_max_ope=1000,
+                val_size=val, genome=genome, ycsb_rratio=rr,
+                ycsb_zipf_skew=skew, gc_inter_us=gc,
+                izanagi_ronly_pct=ro,
+                izanagi_long_kind={"none": 0, "batchU": 1, "batchR": 2}[kind],
+                worker1_insert_delay_rphase_us=0)
+
+
+def _add_w(layer: str, row: int, point: tuple) -> None:
+    for genome in ("default", "tuned" if point[3] == 10 else "best100"):
+        CONDITIONS[f"W{layer}-{row:02d}-{genome}"] = _w_condition(point, genome)
+
+
+for _row, _point in enumerate(((skew, rr, 1000000, 10, kind, 0, 4, 48, 100)
+    for skew in (.5, .6, .7, .8, .9, .95, .97, .99)
+    for rr in (5, 50, 95) for kind in ("none", "batchU", "batchR")), 1):
+    _add_w("S", _row, _point)
+for _block, _perm, _shift in (("O1", tuple(range(9)), (0,)*9),
+                              ("O2", tuple((i+4)%9 for i in range(9)),
+                               (1,2,1,2,1,2,1,2,1))):
+    for _row, (_a, _b, _c) in enumerate(
+        ((a,b,c) for a in range(3) for b in range(3) for c in range(3)), 1):
+        _levels = [(_a*x + _b*y + _c*z) % 3 for x,y,z in _O_COLS]
+        _point = tuple(_O_FACTORS[i][(_levels[_perm[i]] + _shift[i]) % 3]
+                       for i in range(9))
+        _add_w(_block, _row, _point)
+
 
 def genome_args(genome: str) -> list[str]:
     if genome == "default":
         return []
-    if genome != "tuned":
+    if genome not in ("tuned", "best100"):
         raise ValueError("unknown genome")
     return [f"-D{cmake_cache_variable_for_axis('cicada', axis)}={value}"
-            for axis, value in TUNED_GENOME.items()]
+            for axis, value in (TUNED_GENOME if genome == "tuned" else BEST100_GENOME).items()]
 
 
-def verify_genome_commands(path: Path, genome: str) -> dict:
+def verify_genome_commands(path: Path, genome: str, val_size: int | None = None) -> dict:
     rows = json.loads(path.read_text())
     relevant = [row for row in rows if "/cc/cicada/" in str(row.get("file", ""))]
     if not relevant:
         raise ValueError("no Cicada compile commands")
-    expected = TUNED_GENOME if genome == "tuned" else DEFAULT_GENOME
+    expected = {"tuned": TUNED_GENOME, "default": DEFAULT_GENOME,
+                "best100": BEST100_GENOME}[genome]
     records = []
     for row in relevant:
         args = row.get("arguments") or shlex.split(row["command"])
@@ -108,6 +154,8 @@ def verify_genome_commands(path: Path, genome: str) -> dict:
                 definitions[match.group(1)] = int(match.group(2))
         if any(definitions.get(axis) != value for axis, value in expected.items()):
             raise ValueError("Cicada compile definition differs from genome")
+        if val_size is not None and definitions.get("VAL_SIZE") != val_size:
+            raise ValueError("Cicada compile VAL_SIZE differs from build key")
         records.append({"file": row["file"], "definitions": {
             axis: definitions[axis] for axis in expected}})
     return {"genome": genome, "commands": records}
@@ -150,14 +198,18 @@ def parse_vlife_line(stdout: str) -> dict:
             result[key] = value
         return result
     payload = json.loads(lines[0], object_pairs_hook=unique_pairs)
-    if not isinstance(payload, dict) or set(payload) != {
+    if not isinstance(payload, dict) or set(payload) not in ({
         "schema_version", "clocks_per_us", "bucket_bounds", "time_bucket_bounds",
         "position_origin", "sites", "build", "workers",
-    }:
+    }, {"schema_version", "clocks_per_us", "bucket_bounds", "time_bucket_bounds",
+        "position_origin", "sites", "build", "workers", "hot_chains",
+        "hot_scan_us"}):
         raise ValueError("schema fields")
     schema = _nonnegative(payload["schema_version"])
-    if schema not in (1, 2):
+    if schema not in (1, 2, 3):
         raise ValueError("schema version")
+    if (schema == 3) != ("hot_chains" in payload):
+        raise ValueError("schema fields")
     if not _nonnegative(payload["clocks_per_us"]):
         raise ValueError("zero clock")
     if _vector(payload["bucket_bounds"], 18) != [
@@ -173,17 +225,39 @@ def parse_vlife_line(stdout: str) -> dict:
         raise ValueError("position origin")
     build = payload["build"]
     build_fields = {"reuse_version", "inline_version_opt", "longtx"}
-    if schema == 2:
+    if schema >= 2:
         build_fields |= {"izanagi_ronly_pct", "izanagi_long_kind"}
+    if schema == 3:
+        build_fields |= {"val_size", "sizeof_version", "sizeof_ycsb"}
     if not isinstance(build, dict) or set(build) != build_fields:
         raise ValueError("build fields")
     for field in ("reuse_version", "inline_version_opt", "longtx"):
         _nonnegative(build[field])
-    if schema == 2:
+    if schema >= 2:
         if type(build["izanagi_ronly_pct"]) is not int or not -1 <= build["izanagi_ronly_pct"] <= 100:
             raise ValueError("read-only flag")
         if type(build["izanagi_long_kind"]) is not int or build["izanagi_long_kind"] not in (0, 1, 2):
             raise ValueError("long kind flag")
+    if schema == 3:
+        for field in ("val_size", "sizeof_version", "sizeof_ycsb"):
+            if not _nonnegative(build[field]):
+                raise ValueError("zero build size")
+        chains = payload.get("hot_chains")
+        if not isinstance(chains, list) or len(chains) != 8:
+            raise ValueError("hot chain keys missing")
+        for item in chains:
+            if not isinstance(item, dict) or set(item) != {"key", "status", "length"}:
+                raise ValueError("hot chain fields")
+            if type(item["key"]) is not int or item["status"] not in ("ok", "missing", "error", "unavailable"):
+                raise ValueError("hot chain status")
+            if item["status"] == "ok":
+                if not _nonnegative(item["length"]):
+                    raise ValueError("zero hot chain length")
+            elif item["length"] is not None:
+                raise ValueError("unavailable hot chain length")
+        if {item["key"] for item in chains} != set(range(8)):
+            raise ValueError("hot chain keys duplicated or missing")
+        _nonnegative(payload["hot_scan_us"])
     workers = payload["workers"]
     if not isinstance(workers, list) or not workers:
         raise ValueError("workers")
@@ -195,7 +269,7 @@ def parse_vlife_line(stdout: str) -> dict:
                "age_create_us": 42, "age_overwrite_us": 42,
                "attempts": 2, "commits": 2, "aborts": 2,
                "operations": 2, "cycles": 2}
-    if schema == 2:
+    if schema >= 2:
         scalars |= {"readonly_reads", "gc_boundary_sum_us", "gc_boundary_count",
                     "gc_publish_sum_us", "gc_publish_count", "gc_publish_negative",
                     "gc_boundary_overflow", "gc_publish_overflow",
@@ -209,6 +283,8 @@ def parse_vlife_line(stdout: str) -> dict:
                     "holder_unresolved"}
         vectors.update(readonly_candidate=5, ro_snapshot_age_us=42,
                        dc_cf_kind_count=5, dc_cf_kind_sum_us=5, holder_units=5)
+    if schema == 3:
+        vectors["abort_reasons"] = 9 * 2
     for worker in workers:
         if not isinstance(worker, dict) or set(worker) != {
             "hops", "position", *scalars, *vectors
@@ -235,7 +311,7 @@ def parse_vlife_line(stdout: str) -> dict:
             raise ValueError("deep exceeds update reads")
         if any(x > sum(worker["hops"][1]) for x in worker["readonly_deep"]):
             raise ValueError("read-only deep exceeds reads")
-        if schema == 2:
+        if schema >= 2:
             if any(a > b for a, b in zip(worker["readonly_candidate"], worker["readonly_deep"])):
                 raise ValueError("read-only candidate exceeds deep")
             if any(x > worker["readonly_reads"] for x in worker["readonly_deep"]):
@@ -289,6 +365,8 @@ def parse_vlife_line(stdout: str) -> dict:
                 worker["dc_generation"] + worker["dc_negative"] >
                 publications):
                 raise ValueError("D-C outcomes exceed publications")
+        if schema == 3 and (sum(worker["abort_reasons"]) != sum(worker["aborts"])):
+            raise ValueError("abort reason sum differs from aborts")
         if any(c + a > n for c, a, n in zip(
             worker["commits"], worker["aborts"], worker["attempts"]
         )):
@@ -411,7 +489,8 @@ def _gates(source: Path, macros: tuple[str, ...], args: list[str], cxx: str) -> 
 
 
 def _build_variant(source: Path, build: Path, toolchain: dict, dependencies: dict,
-                   macros: tuple[str, ...], genome: str = "default") -> tuple[Path, dict]:
+                   macros: tuple[str, ...], genome: str = "default",
+                   val_size: int | None = None) -> tuple[Path, dict]:
     started = time.monotonic()
     admission = non_admissible_materializer(MATERIALIZER)
     args = compute._common_configure_args(trace=0, toolchain=toolchain,
@@ -419,13 +498,15 @@ def _build_variant(source: Path, build: Path, toolchain: dict, dependencies: dic
     args = [arg for arg in args if arg not in compute.STOCK_G.cmake_defines()]
     args += ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"]
     args += genome_args(genome)
+    if val_size is not None:
+        args += [f"-DCCBENCH_VAL_SIZE={val_size}"]
     gates = _gates(source, macros, args, toolchain["cxx_path"]) if macros else []
     if macros:
         args += ["-DCMAKE_CXX_FLAGS=" + " ".join("-D" + m + "=1" for m in macros)]
     configure = ["cmake", "-S", str(source), "-B", str(build),
                  "-DCMAKE_CXX_COMPILER=" + toolchain["cxx_path"], *args]
     _checked(configure)
-    genome_witness = verify_genome_commands(build / "compile_commands.json", genome)
+    genome_witness = verify_genome_commands(build / "compile_commands.json", genome, val_size)
     _checked(["cmake", "--build", str(build), "--target", "ycsb_cicada.exe"])
     binary = build / "cc/cicada/ycsb_cicada.exe"
     if not binary.is_file():
@@ -435,53 +516,84 @@ def _build_variant(source: Path, build: Path, toolchain: dict, dependencies: dic
         "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
         "macros": list(macros),
         "genome": genome_witness,
+        **({"val_size": val_size} if val_size is not None else {}),
         "elapsed_s": time.monotonic() - started,
     }
 
 
+def _validate_run_echo(parsed: dict, flags: dict, genome: str,
+                       val_size: int | None) -> None:
+    if len(parsed["workers"]) != flags["thread_num"] + flags["batch_th_num"]:
+        raise ValueError("worker count differs from argv")
+    if parsed["schema_version"] != (3 if val_size is not None else 2):
+        raise ValueError("instrument schema differs from condition")
+    if parsed["build"]["izanagi_ronly_pct"] != flags["izanagi_ronly_pct"] or (
+        parsed["build"]["izanagi_long_kind"] != flags["izanagi_long_kind"]):
+        raise ValueError("instrument flag echo differs from argv")
+    if parsed["build"]["inline_version_opt"] != (1 if genome == "tuned" else 0):
+        raise ValueError("instrument genome echo differs from build")
+    if val_size is not None and parsed["build"]["val_size"] != val_size:
+        raise ValueError("instrument VAL_SIZE echo differs from build key")
+    if val_size is not None and parsed["build"]["reuse_version"] != (
+        TUNED_GENOME if genome == "tuned" else BEST100_GENOME if genome == "best100"
+        else DEFAULT_GENOME)["REUSE_VERSION"]:
+        raise ValueError("instrument genome echo differs from build")
+
+
 def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True,
-         genome: str = "default") -> dict:
+         genome: str = "default", val_size: int | None = None) -> dict:
     _assert_single_tenant()
     argv = [str(binary)] + [f"-{k}={v}" for k, v in flags.items()]
     started = time.monotonic()
-    try:
-        result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
-                                timeout=180, check=False)
-    except subprocess.TimeoutExpired as exc:
-        def decoded(value):
-            return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""
+    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+        process = subprocess.Popen(argv, cwd=cwd, stdout=stdout_file, stderr=stderr_file)
+        deadline = time.monotonic() + 180
+        timed_out = False
+        while True:
+            pid, status, usage = os.wait4(process.pid, os.WNOHANG)
+            if pid:
+                break
+            if time.monotonic() >= deadline:
+                timed_out = True
+                process.kill()
+                _, status, usage = os.wait4(process.pid, 0)
+                break
+            time.sleep(.01)
+        process.returncode = os.waitstatus_to_exitcode(status)
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        stdout = stdout_file.read().decode("utf-8", errors="replace")
+        stderr = stderr_file.read().decode("utf-8", errors="replace")
+        maxrss_kb = usage.ru_maxrss
+    if timed_out:
         return {"argv": argv, "rc": None, "timeout_s": 180,
                 "wall_s": time.monotonic() - started,
-                "stdout": decoded(exc.stdout), "stderr": decoded(exc.stderr),
+                "stdout": stdout, "stderr": stderr, "maxrss_kb": maxrss_kb,
+                **({"build_key": {"genome": genome, "val_size": val_size}}
+                   if val_size is not None else {}),
                 "vlife_json_line": None, "parsed": None,
                 "parse_error": "timeout", "summary": None,
                 "throughput_interpretation": "diagnostic, not performance"}
     parsed = None
     parse_error = None
-    if result.returncode == 0 and instrumented:
+    if process.returncode == 0 and instrumented:
         try:
-            parsed = parse_vlife_line(result.stdout)
-            if len(parsed["workers"]) != flags["thread_num"] + flags["batch_th_num"]:
-                raise ValueError("worker count differs from argv")
-            if parsed["schema_version"] != 2:
-                raise ValueError("new instrument requires schema 2")
-            if parsed["build"]["izanagi_ronly_pct"] != flags["izanagi_ronly_pct"] or (
-                parsed["build"]["izanagi_long_kind"] != flags["izanagi_long_kind"]):
-                raise ValueError("instrument flag echo differs from argv")
-            if parsed["build"]["inline_version_opt"] != (1 if genome == "tuned" else 0):
-                raise ValueError("instrument genome echo differs from build")
+            parsed = parse_vlife_line(stdout)
+            _validate_run_echo(parsed, flags, genome, val_size)
         except ValueError as exc:
             parse_error = str(exc)
     summary = summarize(parsed) if parsed else None
     if summary:
         summary["logical_live_versions"] = flags["tuple_num"] + summary["logical_version_delta"]
-        if parsed["schema_version"] == 2:
+        if parsed["schema_version"] >= 2:
             summary["update_commits_per_s"] = summary["update_commits"] / flags["extime"]
             summary["install_per_s"] = summary["install"] / flags["extime"]
-    return {"argv": argv, "rc": result.returncode, "stdout": result.stdout,
+    return {"argv": argv, "rc": process.returncode, "stdout": stdout,
             "wall_s": time.monotonic() - started,
-            "stderr": result.stderr, "vlife_json_line": next(
-                (line for line in result.stdout.splitlines() if line.startswith(PREFIX)), None),
+            "stderr": stderr, "maxrss_kb": maxrss_kb, "vlife_json_line": next(
+                (line for line in stdout.splitlines() if line.startswith(PREFIX)), None),
+            **({"build_key": {"genome": genome, "val_size": val_size}}
+               if val_size is not None else {}),
             "parsed": parsed, "parse_error": parse_error,
             "summary": summary,
             "throughput_interpretation": "diagnostic, not performance"}
@@ -489,10 +601,14 @@ def _run(binary: Path, flags: dict, *, cwd: Path, instrumented: bool = True,
 
 def _flags(condition_id: str, records: int, clocks_per_us: int) -> dict:
     condition = CONDITIONS[condition_id]
+    if condition_id.startswith("W"):
+        records = condition["records"]
     return {"tuple_num": records, "ycsb_tuple_num": records,
             "thread_num": CONDITIONS[condition_id]["thread_num"],
             "batch_th_num": CONDITIONS[condition_id]["batch_th_num"],
-            "batch_max_ope": 1000, "max_ope": 10, "ycsb_max_ope": 10,
+            "batch_max_ope": condition["batch_max_ope"] if condition_id.startswith("W") else 1000,
+            "max_ope": condition["ycsb_max_ope"] if condition_id.startswith("W") else 10,
+            "ycsb_max_ope": condition["ycsb_max_ope"] if condition_id.startswith("W") else 10,
             "rratio": CONDITIONS[condition_id]["ycsb_rratio"],
             "ycsb_rratio": CONDITIONS[condition_id]["ycsb_rratio"],
             "zipf_skew": CONDITIONS[condition_id]["ycsb_zipf_skew"],
@@ -502,7 +618,8 @@ def _flags(condition_id: str, records: int, clocks_per_us: int) -> dict:
                 CONDITIONS[condition_id]["worker1_insert_delay_rphase_us"],
             "extime": 3, "clocks_per_us": clocks_per_us,
             "izanagi_ronly_pct": condition.get("izanagi_ronly_pct", -1),
-            "izanagi_long_kind": condition.get("izanagi_long_kind", 0)}
+            "izanagi_long_kind": condition.get("izanagi_long_kind", 0),
+            **({"izanagi_vlife_schema": 3} if condition_id.startswith("W") else {})}
 
 
 def _normalized_disassembly(binary: Path) -> str:
@@ -846,16 +963,25 @@ def main(argv: list[str] | None = None) -> int:
                     with applied(str(PATCH), PIN, str(source)):
                         builds = {}
                         runs = {}
-                        for genome in sorted({CONDITIONS[id_].get("genome", "default") for id_ in ids}):
-                            binary, builds[genome] = _build_variant(
-                                source, scratch / f"build-{genome}", toolchain,
-                                dependencies, MACROS, genome)
+                        keys = {(CONDITIONS[id_].get("genome", "default"),
+                                 CONDITIONS[id_].get("val_size")) for id_ in ids}
+                        for genome, val_size in sorted(keys, key=lambda key: (key[0], key[1] or 0)):
+                            build_name = genome if val_size is None else f"{genome}-v{val_size}"
+                            if val_size is None:
+                                binary, builds[build_name] = _build_variant(
+                                    source, scratch / f"build-{genome}", toolchain,
+                                    dependencies, MACROS, genome)
+                            else:
+                                binary, builds[build_name] = _build_variant(
+                                    source, scratch / f"build-{build_name}", toolchain,
+                                    dependencies, MACROS, genome, val_size=val_size)
                             for id_ in ids:
-                                if CONDITIONS[id_].get("genome", "default") == genome:
+                                if ((CONDITIONS[id_].get("genome", "default"),
+                                     CONDITIONS[id_].get("val_size")) == (genome, val_size)):
                                     runs[id_] = [
                                         _run(binary, _flags(id_, records, locks.CLK), cwd=scratch,
-                                             genome=genome)
-                                        for _ in range(3)]
+                                             genome=genome, **({"val_size": val_size} if val_size is not None else {}))
+                                        for _ in range(2 if val_size is not None else 3)]
                 result.update({"dependency_stock_build": dependency_stock_build,
                                "builds": builds, "runs": runs,
                                "conditions": {id_: CONDITIONS[id_] for id_ in ids},

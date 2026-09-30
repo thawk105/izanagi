@@ -1,0 +1,248 @@
+--- a/cc/cicada/include/tuple.hh
++++ b/cc/cicada/include/tuple.hh
+@@ -72,10 +72,15 @@
+     vh_ptr_[0].store(ver, std::memory_order_relaxed);
+     vh_n_.store(1, std::memory_order_relaxed);
+   }
+-  // Caller holds the odd sequence. Insert at physical position p.
+-  void vh_insert(size_t p, Version* ver, uint64_t wts) {
+-    if (p >= CICADA_VHASH_K) return;
++  // Caller holds the odd sequence. The block may be sparse after CAS.
++  // 0 = dropped old version, 1 = inserted, 2 = already present.
++  int vh_insert_post(Version* ver, uint64_t wts) {
+     size_t n = vh_n_.load(std::memory_order_relaxed);
++    for (size_t j=0; j<n; ++j)
++      if (vh_ptr_[j].load(std::memory_order_relaxed) == ver) return 2;
++    size_t p=0;
++    while (p<n && vh_wts_[p].load(std::memory_order_relaxed)>wts) ++p;
++    if (p == CICADA_VHASH_K) return 0;
+     size_t next = n < CICADA_VHASH_K ? n + 1 : n;
+     for (size_t j = next - 1; j > p; --j) {
+       vh_wts_[j].store(vh_wts_[j-1].load(std::memory_order_relaxed),
+@@ -86,7 +91,9 @@
+     vh_wts_[p].store(wts, std::memory_order_relaxed);
+     vh_ptr_[p].store(ver, std::memory_order_relaxed);
+     vh_n_.store(next, std::memory_order_relaxed);
++    return 1;
+   }
++#line 31
+   void vh_trim(uint64_t anchor_wts) {
+     uint32_t n = vh_n_.load(std::memory_order_relaxed);
+     while (n && vh_wts_[n-1].load(std::memory_order_relaxed) < anchor_wts)
+--- a/cc/cicada/include/transaction.hh
++++ b/cc/cicada/include/transaction.hh
+@@ -61,6 +61,14 @@
+     uint64_t install_count=0, gc_count=0;
+   };
+   static VHashStats vh_stats_[256];
++  struct alignas(64) VHashPostStats {
++    uint64_t hit_adj_ok=0, adj_fail_head=0, adj_fail_mid=0, cold=0;
++    uint64_t fallback_odd=0, fallback_changed=0, cas_retry=0;
++    uint64_t publish_wait_cycles=0, publish_hold_cycles=0;
++    uint64_t publish_count=0, publish_dropped=0;
++  };
++  static VHashPostStats vh_post_stats_[256];
++#line 55
+ #endif
+ #if CICADA_VHASH_WL
+   bool vh_new_procedure_ = true;
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -42,6 +42,8 @@
+ #endif
+ #if CICADA_VHASH_COUNT
+ TxExecutor::VHashStats TxExecutor::vh_stats_[256];
++TxExecutor::VHashPostStats TxExecutor::vh_post_stats_[256];
++#line 28
+ namespace {
+ unsigned vh_bucket(uint64_t n) {
+   if (n < 4) return unsigned(n);
+@@ -83,6 +85,30 @@
+     std::cout << "]}" << std::endl;
+   }
+ } vh_report;
++struct VHashPostReport {
++  ~VHashPostReport() {
++    std::cout << "CICADA_VHASH_POST_COUNT_JSON {\"schema_version\":1,\"k\":"
++              << CICADA_VHASH_K << ",\"workers\":[";
++    for (unsigned t=0; t<256; ++t) {
++      const auto& s=TxExecutor::vh_post_stats_[t];
++      if (t) std::cout << ',';
++      std::cout << "{\"thid\":" << t
++                << ",\"hit_adj_ok\":" << s.hit_adj_ok
++                << ",\"adj_fail_head\":" << s.adj_fail_head
++                << ",\"adj_fail_mid\":" << s.adj_fail_mid
++                << ",\"cold\":" << s.cold
++                << ",\"fallback_odd\":" << s.fallback_odd
++                << ",\"fallback_changed\":" << s.fallback_changed
++                << ",\"cas_retry\":" << s.cas_retry
++                << ",\"publish_wait_cycles\":" << s.publish_wait_cycles
++                << ",\"publish_hold_cycles\":" << s.publish_hold_cycles
++                << ",\"publish_count\":" << s.publish_count
++                << ",\"publish_dropped\":" << s.publish_dropped << '}';
++    }
++    std::cout << "]}" << std::endl;
++  }
++} vh_post_report;
++#line 28
+ }
+ #endif
+ #define MSK_TID 0b11111111
+@@ -225,23 +251,42 @@
+       vh_hops=i<n ? i : i-1; // ptr[n-1] is visited by the stock tail loop.
+ #endif
+       if (i<n) {
+-        ver=ptr[i];
+-        later_ver=i ? ptr[i-1] : nullptr;
++        bool adjacent=i ? ptr[i-1]->next_.load(std::memory_order_acquire)==ptr[i]
++                        : tuple->latest_.load(std::memory_order_acquire)==ptr[0];
++        if (adjacent) {
++          ver=ptr[i];
++          later_ver=i ? ptr[i-1] : nullptr;
++#if CICADA_VHASH_COUNT
++          ++vh_post_stats_[thid_].hit_adj_ok;
++#endif
++        } else {
++          vh_used=false;
++          later_ver=nullptr;
++#if CICADA_VHASH_COUNT
++          if (i) ++vh_post_stats_[thid_].adj_fail_mid;
++          else ++vh_post_stats_[thid_].adj_fail_head;
++          vh_hops=0;
++#endif
++        }
++#line 107
+       } else {
+         ver=ptr[n-1];
+         later_ver=n>1 ? ptr[n-2] : nullptr;
+ #if CICADA_VHASH_COUNT
+         ++vh_stats_[thid_].cold;
++        ++vh_post_stats_[thid_].cold;
+ #endif
+       }
+     } else {
+ #if CICADA_VHASH_COUNT
+       ++vh_stats_[thid_].changed;
++      ++vh_post_stats_[thid_].fallback_changed;
+ #endif
+     }
+   } else {
+ #if CICADA_VHASH_COUNT
+     ++vh_stats_[thid_].odd;
++    ++vh_post_stats_[thid_].fallback_odd;
+ #endif
+   }
+   if (!vh_used) ver = tuple->ldAcqLatest();
+@@ -646,15 +691,7 @@
+     Version *expected(nullptr), *ver, *pre_ver = nullptr;
+     for (;;) {
+ #if CICADA_VHASH_K
+-#if CICADA_VHASH_COUNT
+-      uint64_t vh_wait_start=rdtscp();
+-#endif
+-      Tuple::VHashGuard vh_guard((*itr).rcdptr_);
+-#if CICADA_VHASH_COUNT
+-      uint64_t vh_hold_start=rdtscp();
+-      vh_stats_[thid_].install_wait += vh_hold_start-vh_wait_start;
+-#endif
+-      size_t vh_position=0;
++      // Publish to the hot block only after a successful list CAS.
+ #endif
+ #line 490
+       if ((*itr).op_ == OpType::RMW || (*itr).op_ == OpType::DELETE ||
+@@ -666,22 +703,19 @@
+         }
+       } else {
+ #if CICADA_VHASH_K
+-        (*itr).later_ver_ = nullptr;
+-        ver = expected = (*itr).rcdptr_->ldAcqLatest();
+-#else
++#endif
+         if ((*itr).later_ver_) {
+           pre_ver = (*itr).later_ver_;
+           ver = pre_ver->ldAcqNext();
+         } else {
+           ver = expected = (*itr).rcdptr_->ldAcqLatest();
+         }
+-#endif
+         while (ver->ldAcqWts() > this->wts_.ts_) {
+           (*itr).later_ver_ = ver;
+           pre_ver = ver;
+           ver = ver->ldAcqNext();
+ #if CICADA_VHASH_K
+-          ++vh_position;
++          // The successful link CAS determines the publication point.
+ #endif
+         }
+ #line 509
+@@ -696,12 +730,27 @@
+                 expected, (*itr).new_ver_, memory_order_acq_rel,
+                 memory_order_acquire)) {
+ #if CICADA_VHASH_K
+-          (*itr).rcdptr_->vh_insert(vh_position, (*itr).new_ver_, this->wts_.ts_);
+ #if CICADA_VHASH_COUNT
+-          vh_stats_[thid_].install_hold += rdtscp()-vh_hold_start;
+-          ++vh_stats_[thid_].install_count;
++          uint64_t vh_wait_start=rdtscp();
+ #endif
++          Tuple::VHashGuard vh_guard((*itr).rcdptr_);
++#if CICADA_VHASH_K && CICADA_VHASH_COUNT
++          uint64_t vh_hold_start=rdtscp();
++          vh_post_stats_[thid_].publish_wait_cycles += vh_hold_start-vh_wait_start;
+ #endif
++          int vh_published=(*itr).rcdptr_->vh_insert_post(
++              (*itr).new_ver_, this->wts_.ts_);
++          (void)vh_published;
++#if CICADA_VHASH_K && CICADA_VHASH_COUNT
++          vh_guard.close();
++          vh_post_stats_[thid_].publish_hold_cycles += rdtscp()-vh_hold_start;
++          ++vh_post_stats_[thid_].publish_count;
++          if (!vh_published) ++vh_post_stats_[thid_].publish_dropped;
++#else
++          vh_guard.close();
++#endif
++#endif
++#line 520
+           break;
+         }
+       } else {
+@@ -712,19 +761,34 @@
+                                                    memory_order_acq_rel,
+                                                    memory_order_acquire)) {
+ #if CICADA_VHASH_K
+-          (*itr).rcdptr_->vh_insert(vh_position, (*itr).new_ver_, this->wts_.ts_);
+ #if CICADA_VHASH_COUNT
+-          vh_stats_[thid_].install_hold += rdtscp()-vh_hold_start;
+-          ++vh_stats_[thid_].install_count;
++          uint64_t vh_wait_start=rdtscp();
++#endif
++          Tuple::VHashGuard vh_guard((*itr).rcdptr_);
++#if CICADA_VHASH_K && CICADA_VHASH_COUNT
++          uint64_t vh_hold_start=rdtscp();
++          vh_post_stats_[thid_].publish_wait_cycles += vh_hold_start-vh_wait_start;
++#endif
++          int vh_published=(*itr).rcdptr_->vh_insert_post(
++              (*itr).new_ver_, this->wts_.ts_);
++          (void)vh_published;
++#if CICADA_VHASH_K && CICADA_VHASH_COUNT
++          vh_guard.close();
++          vh_post_stats_[thid_].publish_hold_cycles += rdtscp()-vh_hold_start;
++          ++vh_post_stats_[thid_].publish_count;
++          if (!vh_published) ++vh_post_stats_[thid_].publish_dropped;
++#else
++          vh_guard.close();
+ #endif
+ #endif
++#line 527
+           break;
+         }
+       }
+ #if CICADA_VHASH_K && CICADA_VHASH_COUNT
+-      vh_stats_[thid_].install_hold += rdtscp()-vh_hold_start;
+-      ++vh_stats_[thid_].install_count;
++      ++vh_post_stats_[thid_].cas_retry;
+ #endif
++#line 529
+     }
+     (*itr).finish_version_install_ = true;
+ #line 530

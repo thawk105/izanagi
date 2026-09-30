@@ -1,0 +1,368 @@
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -10,11 +10,13 @@
+ #define GC_MODE_TEXT FLAGS_cicada_gc_mode
+ #define GC_TARGET_TEXT FLAGS_cicada_gc_target
+ #define GC_ONCE_BOOL FLAGS_cicada_gc_once
++#define GC_ABORT_POLICY_TEXT FLAGS_cicada_gc_early_abort
+ #line 11
+ #else
+ #define GC_MODE_TEXT "none"
+ #define GC_TARGET_TEXT "now"
+ #define GC_ONCE_BOOL false
++#define GC_ABORT_POLICY_TEXT "off"
+ #line 13
+ #endif
+ #line 9
+@@ -192,6 +194,8 @@
+ DEFINE_string(cicada_gc_mode, "off", "GC safe point mode: off, hb, or e.");
+ DEFINE_string(cicada_gc_target, "now", "E forward target: now or max.");
+ DEFINE_bool(cicada_gc_once, false, "Try E forwarding once per transaction.");
++DEFINE_string(cicada_gc_early_abort, "off",
++              "Early abort policy: off, doomed, fallback, or shadow.");
+ #line 111
+ #endif
+ #line 29
+@@ -425,7 +429,57 @@
+   }
+ };
+ GcReport gc_report;
++struct AbortCounters {
++  uint64_t d_checks = 0, d_true = 0, d_true_committed = 0;
++  uint64_t d_true_deleted = 0, d_true_pending = 0, txs_d_true = 0;
++  uint64_t early_aborts = 0, shadow_predicted_commit = 0;
++  uint64_t no_room_before_success = 0, no_room_after_success = 0;
++  uint64_t detect_clock_sum = 0, abort_remaining_clock_sum = 0;
++  GcHist detect_hist{};
++};
++struct alignas(CACHE_LINE_SIZE) AbortSlot {
++  AbortCounters c;
++};
++AbortSlot abort_slots[256];
++struct AbortReport {
++  ~AbortReport() {
++    if (std::string(GC_ABORT_POLICY_TEXT) == "off") return;
++    std::cout << "CICADA_GC_ABORT_V1 {\"schema\":1,\"policy\":\""
++              << GC_ABORT_POLICY_TEXT
++              << "\",\"witness\":\"committed_deleted\",\"threads\":[";
++    for (size_t i = 0; i < TotalThreadNum; ++i) {
++      if (i) std::cout << ',';
++      const auto& c = abort_slots[i].c;
++      std::cout << "{\"thid\":" << i << ",\"d_checks\":" << c.d_checks
++                << ",\"d_true\":" << c.d_true
++                << ",\"d_true_committed\":" << c.d_true_committed
++                << ",\"d_true_deleted\":" << c.d_true_deleted
++                << ",\"d_true_pending\":" << c.d_true_pending
++                << ",\"txs_d_true\":" << c.txs_d_true
++                << ",\"early_aborts\":" << c.early_aborts
++                << ",\"shadow_predicted_commit\":" << c.shadow_predicted_commit
++                << ",\"no_room_before_success\":" << c.no_room_before_success
++                << ",\"no_room_after_success\":" << c.no_room_after_success
++                << ",\"detect_clock_sum\":" << c.detect_clock_sum
++                << ",\"detect_hist\":";
++      GcReport::hist(c.detect_hist);
++      std::cout << ",\"abort_remaining_clock_sum\":"
++                << c.abort_remaining_clock_sum << '}';
++    }
++    std::cout << "]}" << std::endl;
++  }
++};
++AbortReport abort_report;
++#line 248
+ } // namespace
++#define ABORT_COUNT(id, field) (++abort_slots[id].c.field)
++#define ABORT_NO_ROOM(id, after)                                               \
++  ((after) ? ++abort_slots[id].c.no_room_after_success                         \
++           : ++abort_slots[id].c.no_room_before_success)
++#define ABORT_ADD(id, field, value) (abort_slots[id].c.field += (value))
++#define ABORT_DETECT(id, value)                                                \
++  (++abort_slots[id].c.detect_hist[GcReport::bucket(value)])
++#line 248
+ #define GC_INC(id, field) (++gc_slots[id].c.field)
+ #define GC_ADD(id, field, value) (gc_slots[id].c.field += (value))
+ #define GC_INSTALL(id) gc_slots[id].c.installs.fetch_add(1)
+@@ -447,6 +501,11 @@
+     h.clear();                                                                 \
+   } while (0)
+ #else
++#define ABORT_COUNT(id, field) ((void) 0)
++#define ABORT_NO_ROOM(id, after) ((void) 0)
++#define ABORT_ADD(id, field, value) ((void) 0)
++#define ABORT_DETECT(id, value) ((void) 0)
++#line 248
+ #define GC_INC(id, field) ((void) 0)
+ #define GC_ADD(id, field, value) ((void) 0)
+ #define GC_INSTALL(id) ((void) 0)
+@@ -457,6 +516,57 @@
+ 
+ #if CICADA_GC_SAFEPOINT
+ namespace {
++struct alignas(CACHE_LINE_SIZE) EarlyAbortState {
++  bool d_seen = false;
++  bool e_success = false;
++  uint64_t hold_start = 0;
++  uint64_t hold_total = 0;
++};
++EarlyAbortState early_abort_states[256];
++
++VersionStatus gc_doomed(const TxExecutor& tx) {
++  if (tx.is_ronly_) return VersionStatus::unused;
++  for (const auto& r : tx.read_set_) {
++    Version* cursor = r.rcdptr_->ldAcqLatest();
++    VersionStatus witness = VersionStatus::unused;
++    const uint64_t held_wts = r.ver_->ldAcqWts();
++    while (cursor && cursor != r.ver_ && cursor->ldAcqWts() > held_wts) {
++      const uint64_t wts = cursor->ldAcqWts();
++      const auto status = cursor->ldAcqStatus();
++      if (wts < tx.wts_.ts_ && (status == VersionStatus::committed ||
++                                status == VersionStatus::deleted))
++        witness = status;
++      cursor = cursor->ldAcqNext();
++    }
++    if (cursor != r.ver_) continue;
++    if (witness != VersionStatus::unused) return witness;
++  }
++  return VersionStatus::unused;
++}
++
++bool gc_check_d(TxExecutor& tx, uint64_t now) {
++  ABORT_COUNT(tx.thid_, d_checks);
++  const auto witness = gc_doomed(tx);
++  if (witness == VersionStatus::unused) return false;
++  ABORT_COUNT(tx.thid_, d_true);
++  if (witness == VersionStatus::committed)
++    ABORT_COUNT(tx.thid_, d_true_committed);
++  else if (witness == VersionStatus::deleted)
++    ABORT_COUNT(tx.thid_, d_true_deleted);
++  else
++    ABORT_COUNT(tx.thid_, d_true_pending);
++  auto& state = early_abort_states[tx.thid_];
++  if (!state.d_seen) {
++    state.d_seen = true;
++    ABORT_COUNT(tx.thid_, txs_d_true);
++    [[maybe_unused]] const uint64_t elapsed =
++        now >= state.hold_start ? now - state.hold_start : 0;
++    ABORT_ADD(tx.thid_, detect_clock_sum, elapsed);
++    ABORT_DETECT(tx.thid_, elapsed / FLAGS_clocks_per_us);
++  }
++  return true;
++}
++#line 308
+ void gc_publish_rts(uint8_t thid, uint64_t floor) {
+   uint64_t* ptr = &ThreadRtsArray[thid].obj_;
+   uint64_t old = __atomic_load_n(ptr, __ATOMIC_ACQUIRE);
+@@ -484,7 +594,8 @@
+   }
+ }
+ 
+-bool gc_advance(TxExecutor& tx) {
++bool gc_advance(TxExecutor& tx, bool* no_room = nullptr) {
++  if (no_room) *no_room = false;
+   const uint8_t thid = tx.thid_;
+   const uint64_t old_wts = tx.wts_.ts_;
+   const uint64_t published =
+@@ -527,12 +638,16 @@
+       uint64_t below;
+       if (!forward_below(upper, thid, below)) {
+         GC_INC(thid, no_room);
++        if (no_room) *no_room = true;
++        ABORT_NO_ROOM(thid, early_abort_states[thid].e_success);
+         return false;
+       }
+       target = std::min(target, below);
+       clock = target >> 8;
+       if (target <= std::max(old_wts, published)) {
+         GC_INC(thid, no_room);
++        if (no_room) *no_room = true;
++        ABORT_NO_ROOM(thid, early_abort_states[thid].e_success);
+         return false;
+       }
+     }
+@@ -611,6 +726,7 @@
+   for (auto& r : tx.read_set_) r.later_ver_ = nullptr;
+   forward_slots[thid].forwarded = true;
+   GC_INC(thid, success);
++  early_abort_states[thid].e_success = true;
+   GC_ADD(thid, advance_clock_sum, (target - old_wts) >> 8);
+   // Publish only after the local transaction state has been finalized.
+   __atomic_store_n(&ThreadWtsArray[thid].obj_, target, __ATOMIC_RELEASE);
+@@ -620,15 +736,43 @@
+ }
+ } // namespace
+ 
+-void cicada_gc_hold_begin([[maybe_unused]] TxExecutor& tx) { GC_HELD_BEGIN(tx); }
++void cicada_gc_hold_begin([[maybe_unused]] TxExecutor& tx) {
++  auto& state = early_abort_states[tx.thid_];
++  state.d_seen = false;
++  state.e_success = false;
++  state.hold_start = rdtscp();
++  state.hold_total = 0;
++  GC_HELD_BEGIN(tx);
++}
++void cicada_gc_hold_total(TxExecutor& tx, uint64_t total) {
++  early_abort_states[tx.thid_].hold_total = total;
++}
++void cicada_gc_validate_early_abort() {
++  const auto& policy = FLAGS_cicada_gc_early_abort;
++  if (policy != "off" && policy != "doomed" && policy != "fallback" &&
++      policy != "shadow") {
++    std::cerr << "Invalid Cicada GC early abort policy" << std::endl;
++    std::exit(2);
++  }
++}
++void cicada_gc_committed(TxExecutor& tx) {
++  if (FLAGS_cicada_gc_early_abort == "shadow" &&
++      early_abort_states[tx.thid_].d_seen)
++    ABORT_COUNT(tx.thid_, shadow_predicted_commit);
++}
++#line 420
+ void cicada_gc_hold_end([[maybe_unused]] TxExecutor& tx) { GC_HELD_END(tx); }
+ 
+-void cicada_gc_safepoint(TxExecutor& tx) {
++bool cicada_gc_safepoint(TxExecutor& tx) {
+   GC_INC(tx.thid_, safepoints);
+   static bool checked = [] {
+     if ((FLAGS_cicada_gc_mode != "off" && FLAGS_cicada_gc_mode != "hb" &&
+          FLAGS_cicada_gc_mode != "e") ||
+-        (FLAGS_cicada_gc_target != "now" && FLAGS_cicada_gc_target != "max")) {
++        (FLAGS_cicada_gc_target != "now" && FLAGS_cicada_gc_target != "max") ||
++        (FLAGS_cicada_gc_early_abort != "off" &&
++         FLAGS_cicada_gc_early_abort != "doomed" &&
++         FLAGS_cicada_gc_early_abort != "fallback" &&
++         FLAGS_cicada_gc_early_abort != "shadow")) {
+ #line 423
+       std::cerr << "Invalid Cicada GC mode" << std::endl;
+       std::exit(2);
+@@ -636,16 +780,29 @@
+     return true;
+   }();
+   (void) checked;
+-  if (FLAGS_cicada_gc_mode == "off") return;
++  const bool check_each_slice = FLAGS_cicada_gc_early_abort == "doomed" ||
++                                FLAGS_cicada_gc_early_abort == "shadow";
++  if (check_each_slice && gc_check_d(tx, rdtscp()) &&
++      FLAGS_cicada_gc_early_abort == "doomed") {
++    ABORT_COUNT(tx.thid_, early_aborts);
++    const auto& state = early_abort_states[tx.thid_];
++    const uint64_t now = rdtscp();
++    [[maybe_unused]] const uint64_t elapsed =
++        now >= state.hold_start ? now - state.hold_start : 0;
++    ABORT_ADD(tx.thid_, abort_remaining_clock_sum,
++              elapsed < state.hold_total ? state.hold_total - elapsed : 0);
++    return true;
++  }
++  if (FLAGS_cicada_gc_mode == "off") return false;
+   if (tx.is_ronly_ || tx.status_ == TransactionStatus::aborted ||
+       forward_slots[tx.thid_].scanning || forward_slots[tx.thid_].special) {
+     GC_INC(tx.thid_, ineligible);
+-    return;
++    return false;
+   }
+   uint64_t now = rdtscp();
+   if (!chkClkSpan(tx.gcstart_, now, FLAGS_gc_inter_us * FLAGS_clocks_per_us) ||
+       loadAcquire(GCFlag[tx.thid_].obj_) != 0)
+-    return;
++    return false;
+   GC_INC(tx.thid_, requests);
+   if (FLAGS_cicada_gc_mode == "e") {
+     auto& slot = forward_slots[tx.thid_];
+@@ -653,13 +810,26 @@
+       GC_INC(tx.thid_, once_skipped);
+     else {
+       slot.e_tried = true;
+-      gc_advance(tx);
++      bool no_room = false;
++      gc_advance(tx, &no_room);
++      if (no_room && FLAGS_cicada_gc_early_abort == "fallback" &&
++          gc_check_d(tx, rdtscp())) {
++        ABORT_COUNT(tx.thid_, early_aborts);
++        const auto& state = early_abort_states[tx.thid_];
++        const uint64_t abort_now = rdtscp();
++        [[maybe_unused]] const uint64_t elapsed =
++            abort_now >= state.hold_start ? abort_now - state.hold_start : 0;
++        ABORT_ADD(tx.thid_, abort_remaining_clock_sum,
++                  elapsed < state.hold_total ? state.hold_total - elapsed : 0);
++        return true;
++      }
+     }
+   }
+ #line 441
+   storeRelease(GCFlag[tx.thid_].obj_, 1);
+   GC_INC(tx.thid_, flag_raises);
+   tx.gcstart_ = now;
++  return false;
+ }
+ #endif
+ 
+--- a/cc/cicada/ycsb_cicada.cc
++++ b/cc/cicada/ycsb_cicada.cc
+@@ -21,9 +21,17 @@
+ #if CICADA_GC_WAIT
+ #include <algorithm>
+ DEFINE_uint64(cicada_gc_slice_us, 0, "GC wait slice in microseconds.");
+-void cicada_gc_safepoint(TxExecutor&);
++bool cicada_gc_safepoint(TxExecutor&);
++void cicada_gc_hold_total(TxExecutor&, uint64_t);
+ void cicada_gc_hold_begin(TxExecutor&);
+ void cicada_gc_hold_end(TxExecutor&);
++void cicada_gc_committed(TxExecutor&);
++void cicada_gc_validate_early_abort();
++#define GC_COMMITTED(tx) cicada_gc_committed(tx)
++#define GC_VALIDATE_EARLY_ABORT() cicada_gc_validate_early_abort()
++#else
++#define GC_COMMITTED(tx) ((void) 0)
++#define GC_VALIDATE_EARLY_ABORT() ((void) 0)
+ #endif
+ #line 20
+ 
+@@ -135,22 +143,32 @@
+ #if CICADA_GC_WAIT
+     if (FLAGS_cicada_long_kind == "wait_after_reads") {
+       cicada_gc_hold_begin(tx);
++      bool early_abort = false;
+       if (FLAGS_cicada_gc_slice_us != 0) {
+         const uint64_t start = rdtscp();
+         const uint64_t total = FLAGS_cicada_long_wait_us * FLAGS_clocks_per_us;
++        cicada_gc_hold_total(tx, total);
+         while (rdtscp() - start < total) {
+           uint64_t elapsed = rdtscp() - start;
+           uint64_t remaining =
+               (total - elapsed + FLAGS_clocks_per_us - 1) / FLAGS_clocks_per_us;
+           std::this_thread::sleep_for(std::chrono::microseconds(
+               std::min(remaining, FLAGS_cicada_gc_slice_us)));
+-          cicada_gc_safepoint(tx);
++          if (cicada_gc_safepoint(tx)) {
++            early_abort = true;
++            break;
++          }
+         }
+       } else {
+         std::this_thread::sleep_for(
+             std::chrono::microseconds(FLAGS_cicada_long_wait_us));
+       }
+       cicada_gc_hold_end(tx);
++      if (FLAGS_cicada_gc_slice_us != 0 && early_abort) {
++        tx.abort();
++        ++tx.result_->local_abort_counts_;
++        goto RETRY;
++      }
+     }
+ #else
+ #line 119
+@@ -164,6 +182,8 @@
+       ++tx.result_->local_abort_counts_;
+       goto RETRY;
+     }
++    GC_COMMITTED(tx);
++#line 128
+     storeRelease(tx.result_->local_commit_counts_,
+                  loadAcquire(tx.result_->local_commit_counts_) + 1);
+     slot.commits += tx.result_->local_commit_counts_ - old_commits;
+@@ -178,6 +198,7 @@
+   gflags::SetUsageMessage("YCSB Cicada benchmark.");
+   gflags::ParseCommandLineFlags(&argc, &argv, true);
+ #if CICADA_LONGTX
++  GC_VALIDATE_EARLY_ABORT();
+   if (FLAGS_cicada_long_threads >= FLAGS_thread_num + FLAGS_batch_th_num ||
+       FLAGS_thread_num + FLAGS_batch_th_num > 256 ||
+       FLAGS_cicada_long_ops == 0 || FLAGS_cicada_long_rratio > 100 ||

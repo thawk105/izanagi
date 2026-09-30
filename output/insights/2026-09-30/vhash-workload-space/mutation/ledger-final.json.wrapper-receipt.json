@@ -1,0 +1,21 @@
+{
+  "child_rc": 0,
+  "container_path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/scratch-final/.izanagi-mutation-worktree",
+  "container_preserved": false,
+  "dispatch_evidence": {
+    "original_path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/scratch-final/.izanagi-mutation-worktree/repo/output/pegasus-dispatch",
+    "rehydrated": false,
+    "relocated": false,
+    "relocated_path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/ledger-final.json.dispatch-evidence"
+  },
+  "failure": "共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した",
+  "lock_path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/ledger-final.json.lock",
+  "resolved_commit": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+  "schema": "izanagi-mutation-worktree-wrapper/v1",
+  "scratch_root": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/scratch-final",
+  "shared_snapshot_matches": false,
+  "teardown_attempted": true,
+  "teardown_completed": true,
+  "terminal_ledger": true,
+  "wrapper_sha256": "93363b68d44e0d319527e2097f8ab9a0dfcefa2be837bea4e5a3f05bc558be01"
+}

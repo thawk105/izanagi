@@ -1,0 +1,68 @@
+start 2026-09-30 12:49:16
+[Pegasus dispatch] job を gen_S へ投入します (izdw-3ff3b07e7b)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/output/pegasus-dispatch/orphan-holds/unknown-a806aebdaaa9cb73c14d79d9.json
+[Pegasus dispatch] request ID 37774.nqsv を受理しました
+[Pegasus dispatch] request 37774.nqsv の状態: QUE
+[Pegasus dispatch] request 37774.nqsv の状態: RUN
+[Pegasus dispatch] request 37774.nqsv の状態: END
+[Pegasus dispatch] request 37774.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/output/pegasus-dispatch/orphan-holds/unknown-a806aebdaaa9cb73c14d79d9.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/output/pegasus-dispatch/3ff3b07e7b8be5850554d91ab3d937e4/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 37774.nqsv child stdout begin
+| py-spy> Sampling process 20 times a second. Press Control-C to exit.
+|
+| ============================= test session starts ==============================
+| platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+| rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load
+| configfile: pytest.ini
+| plugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2
+| collected 1 item
+|
+| orchestrator/tests/test_s8b_oracle_driver.py .                           [100%]
+|
+| ============================== slowest durations ===============================
+| 112.99s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+|
+| (2 durations < 0.005s hidden.  Use -vv to show these durations.)
+| ======================== 1 passed in 115.06s (0:01:55) =========================
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"serial"}
+|
+| py-spy> Stopped sampling because process exited
+| py-spy> Wrote raw flamegraph data to '/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/probe4/profile.raw'. Samples: 5287 Errors: 0
+| py-spy> You can use the flamegraph.pl script from https://github.com/brendangregg/flamegraph to generate a SVG
+[Pegasus dispatch] request 37774.nqsv child stdout end
+[Pegasus dispatch] request 37774.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1998938, "time_ns": 1790740165566169731}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1998959, "event": "direct-child-wait-start", "pid": 1998945, "time_ns": 1790740165593757035}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1998959, "event": "direct-child-wait-complete", "pid": 1998945, "time_ns": 1790740282890608854}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1998945, "rc": 0, "time_ns": 1790740282890698020}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1998938, "rc": 0, "time_ns": 1790740282895272229}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1998938}, {"comm": "bash", "pid": 1998919}, {"comm": "nqs_shpd", "pid": 1998918}, {"comm": "nqs_shpd", "pid": 1998722}, {"comm": "nqs_shpd", "pid": 2251}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1998938, "sid": 1998918, "time_ns": 1790740282895711481}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 31.722404004540294, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 1998938, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1790740282927472581, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1998938, "time_ns": 1790740282934897288}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1998938, "time_ns": 1790740282944007322}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1998938, "time_ns": 1790740282944970933}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1998938, "time_ns": 1790740282944981712}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1998938, "time_ns": 1790740282945972889}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1998938, "time_ns": 1790740282945980540}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1998938, "rc": 0, "time_ns": 1790740282945989926}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1998938, "rc": 0, "time_ns": 1790740282946002080}
+|
+| ============================================================
+| Request ID:             37774.nqsv
+| Request Name:           izdw-3ff3b07e7b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Wed Sep 30 12:49:17 2026
+| Started Request Time:   Wed Sep 30 12:49:25 2026
+| Ended Request Time:     Wed Sep 30 12:51:22 2026
+| Resources Information:
+|   Elapse:               122S
+|   Remaining Elapse:     1678S
+| ============================================================
+[Pegasus dispatch] request 37774.nqsv child stderr end
+end 2026-09-30 12:51:37

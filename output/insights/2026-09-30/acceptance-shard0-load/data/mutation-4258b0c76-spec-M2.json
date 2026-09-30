@@ -1,0 +1,30 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "M2",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_stop_before_snapshot_is_quiet",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_shared_base_prewarm_waits_for_visible_output"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            while not result_path.is_file():\n",
+          "new": "            while False and not result_path.is_file():\n"
+        },
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "            result = json.loads(result_path.read_text(encoding=\"utf-8\"))\n            if not result[\"ok\"]:\n",
+          "new": "            result = {\"ok\": True}\n            if not result[\"ok\"]:\n"
+        }
+      ]
+    }
+  ]
+}
