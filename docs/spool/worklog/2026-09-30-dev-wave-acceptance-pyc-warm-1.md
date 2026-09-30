@@ -16,6 +16,7 @@ title: 初回受入でも shard 開始前に pyc をそろえる (md_7) — logi
 - 棄却: 焦点再レビュー所見 2 (log 公開後の例外で create-only が取り直しと衝突) と所見 4 (timeout 後の取り直しは実行できない) は、どちらも従来経路と同じ rc 16 に落ちるので refuted。
 - 異常: 実装子の test が 2 回、親の焦点走でだけ赤になった (parametrize の引数名に pytest の予約名 `request`、代役 `wait_connections` が集合を返し本体の反復中 remove で例外)。どちらも子は pytest を実走していない。変異元 clone の作成で完全 SHA を推測で補完して 1 回失敗した (F1031 の再発として追記)。計測木の `git worktree add` が Lustre の EINTR で 1 回失敗し同じ手順で作り直した。途中で利用上限による中断が 1 回あり、同じ session で再開した。
 - 対照の K の赤に、期待赤として事前固定しなかった `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes` が加わった (K は設計上 dirty な木、事前実走は対象 file だけだった)。H の対 2 の赤 3 件は負荷の高い計算ノード (load 56.9) での時間依存の失敗で、変更経路に到達しないので非帰属とした。
+- 記録の land 用の縮小受入は、insight の汎用名 (dir と file) が production 参照と一致して plan が 2 回続けて不適格になり、名前に wave 接頭辞を付けて 3 回目で適格になった ({{F:scoped-plan-masks-second-name-collision}})。同日のユーザー通達 (同じ原因で 2 回失敗したら止めて報告・自己改善) に沿って land 調整役へ SELF-REVIEW を送った。
 - 実装を land しないので、記録は main から切った別の木 (branch `record-dev-wave-acceptance-pyc-warm`) で作った。
 
 ## 次の一手差分
