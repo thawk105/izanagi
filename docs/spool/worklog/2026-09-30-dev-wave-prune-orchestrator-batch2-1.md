@@ -22,7 +22,11 @@ title: 不要コードの整理 第 2 束 — 使われていない提出 gate �
   (既知の非帰属型、2026-09-14・09-21 に同 test で記録あり)。同じ木の単独再走 (計算ノード) でも 3 件とも同じ timeout で再現した。
   **非帰属**: 同じ worktree で main の木 fb02637e4 と wave の木 41475e5dd を login で交互に 2 回ずつ tar 化すると、どちらも 1.16 GB (差 82 KB) で
   main 8.6 s / 18.1 s、wave 5.8 s / 12.0 s と同程度。本 wave の追加 (insight・fragment) は archive の所要を変えず、30 秒上限を超えるのは計算ノード側の I/O 負荷による。
-  同一 tip の受入は 1 回だけなので、この記録 commit を新しい tip として当該 node の単独再走を確かめてから受入を投げ直す。
+  同一 tip の受入は 1 回だけなので、この記録 commit (9dc43ce25) を新しい tip として当該 3 node を単独再走したが、再び 3 件とも同じ timeout (34.16 s)。
+  余裕の実測: 通った回でもこの 2 test は 30 秒上限の直下で走っている — 直前の別 wave の受入 (shard session 6e27b0781、13:40 JST 前後) で
+  `[modified]` 25.3 s・`test_import_performs_no_open…` 28.1 s、本 wave の attempt 1 (49e071812) で 26.5 s・24.6 s (各 junit.xml の time)。
+  repo 全体の tar (1.16 GB) を 30 秒で作る前提の余裕が 2〜5 秒しか無く、計算ノードの I/O の揺れで落ちる。本 wave の差分とは独立。
+  受入はこの追記 commit を tip として投げ直す。
 - セッション異常: submodule 初期化 tool の 1 回目が `update-no-fetch` (既知の tool 内 30 秒上限型)、同じ引数の再走で rc=0。候補 hash の検索を needle ごとの `git grep` 76 回で始めて 1 回 30 秒前後かかり、`-e` を並べた 1 回走査へ切り替えた。記録レビューの待ち手を誤って 2 本張り、後の 1 本を止めた。
 - 工数: Codex gpt-6-sol / medium 2 本 (段 2 plan 1・記録レビュー 1)。
 
