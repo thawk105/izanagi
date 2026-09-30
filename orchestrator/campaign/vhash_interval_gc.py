@@ -505,6 +505,8 @@ def parse_counters(stdout, kind):
     interval = None
     if kind == 'count':
         interval = parse_json_line(stdout, 'CICADA_INTERVAL_V1 ', {'schema'})
+        if interval.get('debug_mode') != 1:
+            raise ValueError('count build must use default interval GC mode 1')
     elif 'CICADA_INTERVAL_V1 ' in stdout:
         raise ValueError('counter in perf/trace build')
     return interval, longtx
@@ -580,7 +582,26 @@ def attribute_overprune(verifier_result, diagnostics, long_txids, initial_wts):
     return matches
 
 
-def aggregate(records, *, no_gen_perf=False):
+def aggregate(records, *, no_gen_perf=False, require_parts=False):
+    if require_parts:
+        found = {r.get('part_id') for r in records}
+        expected = set(plan_parts())
+        if found != expected:
+            raise ValueError(f'missing planned parts: {sorted(expected - found)}; '
+                             f'unexpected parts: {sorted(found - expected, key=str)}')
+        for part in expected:
+            planned = part_specs(part)
+            actual = [r for r in records if r.get('part_id') == part]
+            if plan_parts()[part]['command'] == 'run-part':
+                key = lambda r: (r.get('cell'), r.get('arm'), r.get('rep'),
+                                 r.get('build_kind'))
+            else:
+                key = lambda r: (r.get('cell'), r.get('thread'), r.get('arm'))
+            if len(actual) != len(planned) or {key(r) for r in actual} != {key(r) for r in planned}:
+                raise ValueError(f'incomplete or duplicate part records: {part}')
+        if not any(r.get('cell') == 'ronly_wait' and
+                   r.get('classification') == '期待した経路で検出' for r in records):
+            raise ValueError('overprune positive control not attributed')
     planned = set(CELLS)
     cells = {}
     for record in records:
@@ -870,6 +891,187 @@ def apply_patches(source, names):
         checked(['git', '-C', str(source), 'apply', str(ROOT / name)])
 
 
+def plan_parts():
+    """Stable 34 measurement and six correctness jobs."""
+    parts = {}
+    for cell in CELLS:
+        for kind in ('perf', 'count'):
+            part = f'run-{cell}-{kind}'
+            parts[part] = {'command': 'run-part', 'cell': cell, 'kind': kind,
+                           'estimated_run_seconds': 27 if kind == 'perf' else 9,
+                           'runs': 9 if kind == 'perf' else 3}
+    for cell in VERIFY_CELLS:
+        if cell == 'ronly_wait':
+            for thread in (4, 8):
+                parts[f'verify-{cell}-t{thread}'] = {'command': 'verify-part',
+                                                     'cell': cell, 'thread': thread, 'runs': 4}
+        else:
+            parts[f'verify-{cell}'] = {'command': 'verify-part', 'cell': cell, 'runs': 8}
+    return parts
+
+
+def part_specs(part):
+    plan = plan_parts()[part]
+    if plan['command'] == 'run-part':
+        cell, kind = plan['cell'], plan['kind']
+        group = next(name for name, cells in GROUPS.items() if cell in cells)
+        reps = range(3) if kind == 'perf' else range(1)
+        return [dict(group=group, cell=cell, arm=arm, rep=rep,
+                     order_index=index, build_kind=kind, extime=3)
+                for rep in reps
+                for index, arm in enumerate(order_rotation(rep) if kind == 'perf' else ARMS)]
+    cell = plan['cell']
+    arms = (*ARMS, 'broken')
+    return [dict(cell=cell, thread=thread, arm=arm,
+                 name=f'{cell}-t{thread}-{arm}')
+            for thread in ((plan['thread'],) if 'thread' in plan else (4, 8)) for arm in arms]
+
+
+def bundle_binary(directory, manifest, arm, kind):
+    name = f'{arm}-{kind}'
+    entry = manifest['builds'][name]
+    expected = arm_macros('min' if arm == 'broken' else arm, kind)
+    if (entry.get('macros') != expected or entry.get('compile_commands_checked') is not True
+            or not entry.get('ok')):
+        raise ValueError(f'invalid build manifest: {name}')
+    assert_gate_receipts(expected, entry['gate_receipts'])
+    binary = directory / 'binaries' / name
+    if not binary.is_file() or sha_file(binary) != entry['sha256']:
+        raise ValueError(f'binary sha256 mismatch: {name}')
+    return binary, entry['gate_receipts']
+
+
+def load_bundle(directory):
+    manifest = json.loads((directory / 'manifest.json').read_text())
+    if manifest.get('schema') != 'vhash-interval-gc-binaries/v1' or manifest.get('status') != 'completed':
+        raise ValueError('incomplete binary manifest')
+    if manifest.get('pin') != pin.CURRENT_PIN or not manifest.get('inert', {}).get('matched'):
+        raise ValueError('binary bundle pin or inert mismatch')
+    for name in (*PATCHES, TRACE_PATCH, BROKEN_PATCH):
+        if manifest.get('patches', {}).get(name) != sha_file(ROOT / name):
+            raise ValueError(f'patch sha256 mismatch: {name}')
+    for kind in ('perf', 'count', 'trace'):
+        for arm in ARMS:
+            bundle_binary(directory, manifest, arm, kind)
+    bundle_binary(directory, manifest, 'broken', 'trace')
+    return manifest
+
+
+def build_bundle(args):
+    host = socket.gethostname()
+    if re.fullmatch(r'pegasus0\d+', host):
+        raise RuntimeError('build requires a compute node')
+    args.output.mkdir(parents=True, exist_ok=False)
+    out = args.output
+    for name in ('raw', 'build-logs', 'logs', 'binaries'):
+        (out / name).mkdir()
+    manifest = {'schema': 'vhash-interval-gc-binaries/v1', 'status': 'started',
+                'pin': pin.CURRENT_PIN, 'host': host, 'started_utc': now(),
+                'patches': {}, 'builds': {}}
+    token = FAILURE_LOG_DIR.set(out / 'logs')
+    try:
+        assert_solo()
+        policy = compute._load_policy(ROOT / 'tools/pegasus/mocc_trace_v1_policy.json')
+        toolchain = compute._resolve_toolchain(policy)
+        with tempfile.TemporaryDirectory(prefix='vhash-igc-', dir=args.scratch_root) as tmp:
+            scratch = Path(tmp)
+            deps = compute._prepare_dependencies(ROOT, policy, args.third_party_cache,
+                                                  scratch, toolchain)
+            with patchharness.checkout(pin.CURRENT_PIN) as source:
+                source = Path(source)
+                def one(name, tree, arm, kind, *, dependency=False):
+                    result = attempt_build(manifest, out, name, tree, scratch / name,
+                                           deps, toolchain, arm, kind, dependency=dependency)
+                    if result is None:
+                        raise RuntimeError(f'build failed: {name}')
+                    binary, _ = result
+                    entry = manifest['builds'][name]
+                    entry['macros'] = {} if dependency else arm_macros(arm, kind)
+                    entry['compile_commands_checked'] = True
+                    entry['compile_commands_sha256'] = sha_file(
+                        scratch / name / 'compile_commands.json')
+                    if not dependency:
+                        target = out / 'binaries' / name
+                        with target.open('xb') as handle:
+                            handle.write(binary.read_bytes())
+                        entry['sha256'] = sha_file(target)
+                    return result
+                one('dependency', source, 'stock', 'perf', dependency=True)
+                manifest['inert'] = inert_receipt(source, scratch / 'dependency', out / 'logs')
+                if not manifest['inert']['matched']:
+                    raise RuntimeError('inert preprocessing mismatch')
+                apply_patches(source, PATCHES)
+                for kind in ('perf', 'count'):
+                    for arm in ARMS:
+                        one(f'{arm}-{kind}', source, arm, kind)
+            with patchharness.checkout(pin.CURRENT_PIN) as trace_source:
+                trace_source = Path(trace_source)
+                apply_patches(trace_source, [TRACE_PATCH, *PATCHES])
+                for arm in ARMS:
+                    one(f'{arm}-trace', trace_source, arm, 'trace')
+                apply_patches(trace_source, [BROKEN_PATCH])
+                one('broken-trace', trace_source, 'min', 'trace')
+        for name in (*PATCHES, TRACE_PATCH, BROKEN_PATCH):
+            manifest['patches'][name] = sha_file(ROOT / name)
+        manifest['status'] = 'completed'
+    except Exception as exc:
+        manifest['status'] = 'failed'
+        manifest['error'] = {'type': type(exc).__name__, 'message': str(exc)}
+        raise
+    finally:
+        manifest['ended_utc'] = now()
+        write_x(out / 'manifest.json', manifest)
+        FAILURE_LOG_DIR.reset(token)
+
+
+def execute_part(args):
+    plan = plan_parts()[args.part]
+    if plan['command'] != args.command:
+        raise ValueError('part and command differ')
+    if re.fullmatch(r'pegasus0\d+', socket.gethostname()):
+        raise RuntimeError('measurement requires a compute node')
+    bundle = load_bundle(args.binaries)
+    args.output.mkdir(parents=True, exist_ok=False)
+    out = args.output
+    (out / 'raw').mkdir()
+    (out / 'logs').mkdir()
+    token = FAILURE_LOG_DIR.set(out / 'logs')
+    records = []
+    job = {'schema': 'vhash-interval-gc-part/v1', 'part_id': args.part,
+           'binary_manifest_sha256': sha_file(args.binaries / 'manifest.json'),
+           'started_utc': now(), 'status': 'started'}
+    try:
+        for spec in part_specs(args.part):
+            kind = spec.get('build_kind', 'trace')
+            binary, receipts = bundle_binary(args.binaries, bundle, spec['arm'], kind)
+            if args.command == 'run-part':
+                record = run_binary(binary, spec, receipts, bundle['patches'], out / 'raw')
+            else:
+                record = verify_binary(binary, ROOT / 'external/ccbench', spec, receipts,
+                                       bundle['patches'], out / 'raw')
+                if spec['arm'] in ARMS and (record['total_cycles'] != 0 or
+                                           record['verdict'] != 'indeterminate'):
+                    raise RuntimeError('interval GC correctness control failed')
+                if spec['arm'] == 'broken':
+                    stock = next(r for r in records if r['cell'] == spec['cell'] and
+                                 r['thread'] == spec['thread'] and
+                                 r['arm'] == 'stock')
+                    record['classification'] = classify_broken(record, stock)
+            record['part_id'] = args.part
+            records.append(record)
+        append_x(out / 'raw.jsonl', records)
+        job['status'] = 'completed'
+    except Exception as exc:
+        job['status'] = 'failed'
+        job['error'] = {'type': type(exc).__name__, 'message': str(exc)}
+        raise
+    finally:
+        job['ended_utc'] = now()
+        job['records'] = len(records)
+        write_x(out / 'manifest.json', job)
+        FAILURE_LOG_DIR.reset(token)
+
+
 def run_job(args):
     host = socket.gethostname()
     if re.fullmatch(r'pegasus0\d+', host):
@@ -1056,7 +1258,8 @@ def run_job(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('smoke', 'run', 'verify', 'aggregate'))
+    parser.add_argument('command', choices=('smoke', 'run', 'verify', 'build',
+                                            'plan-jobs', 'run-part', 'verify-part', 'aggregate'))
     parser.add_argument('--group', choices=GROUPS)
     parser.add_argument('--job')
     parser.add_argument('--no-gen-perf', action='store_true')
@@ -1069,14 +1272,46 @@ def main(argv=None):
     parser.add_argument('--scratch-root', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--raw', type=Path, action='append')
+    parser.add_argument('--part')
+    parser.add_argument('--binaries', type=Path)
     args = parser.parse_args(argv)
+    if args.command == 'plan-jobs':
+        for part, plan in plan_parts().items():
+            command = plan['command']
+            print(json.dumps({'part_id': part, **plan,
+                              'argv': ['python3', '-m', DRIVER_ID, command, '--part', part,
+                                       '--binaries', '<shared-dir>', '--output', '<part-dir>'],
+                              'estimated_load_seconds': f'{plan["runs"]} × DB load (node dependent)',
+                              'estimated_total_seconds':
+                              f'{plan.get("estimated_run_seconds", plan["runs"])} + '
+                              f'{plan["runs"]} × DB load + verifier overhead'}, sort_keys=True))
+        return 0
     if args.command == 'aggregate':
         if not args.raw or args.output is None:
             parser.error('aggregate requires --raw and --output')
         if not args.output.is_absolute() or args.output.resolve() == ROOT or ROOT in args.output.resolve().parents:
             parser.error('aggregate --output must be absolute and outside the repository')
         records = [json.loads(line) for path in args.raw for line in path.read_text().splitlines()]
-        write_x(args.output / 'aggregate.json', aggregate(records, no_gen_perf=args.no_gen_perf))
+        write_x(args.output / 'aggregate.json', aggregate(records, no_gen_perf=args.no_gen_perf,
+                                                         require_parts=any('part_id' in r for r in records)))
+        return 0
+    if args.command in ('run-part', 'verify-part'):
+        if args.part not in plan_parts() or args.binaries is None or args.output is None:
+            parser.error('part commands require valid --part, --binaries and --output')
+        if not args.binaries.is_absolute() or not args.output.is_absolute():
+            parser.error('part paths must be absolute')
+        if ROOT in args.output.resolve().parents or args.output.resolve() == ROOT:
+            parser.error('part output must be outside the repository')
+        execute_part(args)
+        return 0
+    if args.command == 'build':
+        if any(value is None or not value.is_absolute() for value in
+               (args.third_party_cache, args.scratch_root, args.output)):
+            parser.error('build requires absolute cache, scratch and output paths')
+        if any(path == ROOT or ROOT in path.parents for path in
+               (args.scratch_root.resolve(), args.output.resolve())):
+            parser.error('build paths must be outside the repository')
+        build_bundle(args)
         return 0
     if args.command == 'run' and not args.group:
         parser.error('run requires --group')

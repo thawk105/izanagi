@@ -177,13 +177,67 @@ def test_compile_binding_positive_negative():
 
 
 def test_counter_lines_positive_negative():
-    good = ('CICADA_INTERVAL_V1 {"schema":1,"prune_success":4}\n'
+    good = ('CICADA_INTERVAL_V1 {"schema":1,"debug_mode":1,"prune_success":4}\n'
             'CICADA_IGC_LONGTX_V1 {"attempts":3,"commits":2,"aborts":1,'
             '"residence_cycles_sum":40,"residence_cycles_max":20}\n')
     assert d.parse_counters(good, 'count')[0]['prune_success'] == 4
     raises(ValueError, d.parse_counters, good + good, 'count')
     raises(ValueError, d.parse_counters, good, 'perf')
     raises(ValueError, d.parse_counters, good.replace('"attempts":3', '"attempts":-3'), 'count')
+    raises(ValueError, d.parse_counters, good.replace('"debug_mode":1', '"debug_mode":0'), 'count')
+
+
+def test_plan_jobs_and_rotation():
+    plans = d.plan_parts()
+    assert len(plans) == 40
+    assert len([p for p in plans.values() if p['command'] == 'run-part']) == 34
+    assert len([p for p in plans.values() if p['command'] == 'verify-part']) == 6
+    assert {p['cell'] for p in plans.values() if p['command'] == 'run-part'} == set(d.CELLS)
+    for cell in d.CELLS:
+        specs = d.part_specs(f'run-{cell}-perf')
+        assert [s['arm'] for s in specs] == [arm for rep in range(3)
+                                              for arm in d.order_rotation(rep)]
+        assert all(s['extime'] == 3 for s in specs)
+        assert len(d.part_specs(f'run-{cell}-count')) == 3
+
+
+def test_bundle_sha_and_part_does_not_build():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        shared = root / 'shared'
+        (shared / 'binaries').mkdir(parents=True)
+        binary = shared / 'binaries' / 'stock-perf'
+        binary.write_bytes(b'binary')
+        macros = d.arm_macros('stock', 'perf')
+        receipts = [{'macro': key, 'admission': {'admitted': True}} for key in macros]
+        manifest = {'builds': {'stock-perf': {'ok': True, 'macros': macros,
+                    'compile_commands_checked': True, 'gate_receipts': receipts,
+                    'sha256': d.sha_file(binary)}}}
+        assert d.bundle_binary(shared, manifest, 'stock', 'perf')[0] == binary
+        binary.write_bytes(b'corrupt')
+        raises(ValueError, d.bundle_binary, shared, manifest, 'stock', 'perf')
+        args = SimpleNamespace(part='run-rr50-wait1-gc10-perf', command='run-part',
+                               binaries=shared, output=root / 'out')
+        with patch.object(d.socket, 'gethostname', return_value='compute-node'), \
+             patch.object(d, 'load_bundle', side_effect=ValueError('bad sha')), \
+             patch.object(d, 'attempt_build', side_effect=AssertionError('build called')):
+            raises(ValueError, d.execute_part, args)
+        (shared / 'manifest.json').write_text('{}')
+        with patch.object(d.socket, 'gethostname', return_value='compute-node'), \
+             patch.object(d, 'load_bundle', return_value={'patches': {}}), \
+             patch.object(d, 'bundle_binary', return_value=(binary, receipts)), \
+             patch.object(d, 'run_binary', side_effect=lambda *a: {'valid': True}) as run, \
+             patch.object(d, 'attempt_build', side_effect=AssertionError('build called')):
+            d.execute_part(args)
+        assert run.call_count == 9
+        assert len((root / 'out' / 'raw.jsonl').read_text().splitlines()) == 9
+
+
+def test_aggregate_requires_all_part_ids():
+    raises(ValueError, d.aggregate, [{'part_id': 'run-rr50-wait1-gc10-perf'}],
+           require_parts=True)
+    one_per_part = [{'part_id': part} for part in d.plan_parts()]
+    raises(ValueError, d.aggregate, one_per_part, require_parts=True)
 
 
 def test_smoke_candidate_delta():
