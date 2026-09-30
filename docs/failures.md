@@ -10657,6 +10657,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   到達する前に赤になった。段 3・段 6 のレンズはいずれも「親確認済み」を前提にしており、検出したのは
   実走そのものだった (計算ノード job 1 本、46 秒を消費)。**「無い」の実測は全件を見ないと成立しない**型の
   再発で、是正は各祖先を 1 段ずつ `ls -ld` で実測してから別 root へ回避した。
+
+- **再発: 2026-09-30** — /rulings 第 42 回の起草で、項 1 (縮小受入の汎用名に `verbatim` を足すか) の推奨「足す」を、`git grep -l -i verbatim ... | head -30` の出力から「production code に insight の `verbatim/` を path で読む reader は無い」と書いて出した。出力は orchestrator/ 配下で 30 件に達して切れ、tools/ を見ていなかった。`tools/b5_llm_round.py` は `{materials_root}/verbatim/` を相対 path で読む。別系統モデルの相談 A が反証し、裁定前に推奨を「足さない」へ改めたので実害は無い (near miss)。恒久対応は memory `complete-search-not-truncated-for-absence` と `closure-and-search-discipline` から変更なし。/rulings の「推奨前に別系統モデルへ諮る」手順が再発検知として働いた (D2330 の相談の採否)。
 ### F288. 敵対レビュー依頼が防御目的を明記していても依頼の**形**で上流分類器に拒否された [手順漏れ]
 
 - 事象: 段 3 レンズ A が 17 分・39 model call まで進んだ後、上流分類器の
