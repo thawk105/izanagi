@@ -86,31 +86,31 @@ assert _T530_PEGASUS_CONTRACT.contract_sha256 == (
     "1346c20b5519be4b4d3aef19adc5a93ce2804ad4e0428dc5095635f54187ad1c"
 )
 # T-671 で契約 H が identity から外れ、C01 の golden も H なし preimage へ戻る。
-_T816_T2858_C01_OTHER_CAMPAIGN_ID = (
-    "p3-t178-ycsb-a-workload-conditioned-autonomous-841e8a89"
-)
-_C01_OTHER_CAMPAIGN_ID = (
+_T816_C01_OTHER_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-841e8a89"
 )
 # T-2304 admission-policy epoch.
 _T2304_C01_OTHER_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-407fa1aa"
 )
-_C01_OTHER_CAMPAIGN_ID = (
+_T2858_C01_OTHER_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-0c1663e7"
 )
-_T816_T2858_C01_PEGASUS_CAMPAIGN_ID = (
-    "p3-t178-ycsb-a-workload-conditioned-autonomous-7b2f2838"
+_C01_OTHER_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-2bc83c76"
 )
-_C01_PEGASUS_CAMPAIGN_ID = (
+_T816_C01_PEGASUS_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-7b2f2838"
 )
 # T-2304 admission-policy epoch.
 _T2304_C01_PEGASUS_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-46384c28"
 )
-_C01_PEGASUS_CAMPAIGN_ID = (
+_T2858_C01_PEGASUS_CAMPAIGN_ID = (
     "p3-t178-ycsb-a-workload-conditioned-autonomous-cc139af4"
+)
+_C01_PEGASUS_CAMPAIGN_ID = (
+    "p3-t178-ycsb-a-workload-conditioned-autonomous-6341409c"
 )
 
 

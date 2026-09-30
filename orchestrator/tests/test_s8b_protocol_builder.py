@@ -122,6 +122,8 @@ _GOLDEN_BYTES = (
     b'"wired_min_rel_floor":0.05}'
 )
 _GOLDEN_SHA = "4e0e69d6f4cae10abdebd51889549ecd6b55a0638c88faec62cc03ae1386c81d"
+_T2858_APPROVED_PROTOCOL_SHA = "6b0c326d5da7664a51d3d7716d71741c6ce1e2f654f23df33df8d0fe137a9eea"
+_APPROVED_PROTOCOL_SHA = "5004ceef4253fd4257ede7db2f97fcb5b6e9f959689bdbda6859e7580cfcdec6"
 
 
 def _requires_repo() -> None:
@@ -178,7 +180,8 @@ def test_approved_constants_protocol_bytes_match_parent_precalculation():
         wired_min_rel_floor=s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR,
     )
     assert len(built.canonical_bytes) == 774
-    assert built.sha256 == "6b0c326d5da7664a51d3d7716d71741c6ce1e2f654f23df33df8d0fe137a9eea"
+    assert built.sha256 == _APPROVED_PROTOCOL_SHA
+    assert built.sha256 != _T2858_APPROVED_PROTOCOL_SHA
 
 
 def test_builder_rejects_holdout_conjunction_in_master_seed():
@@ -612,7 +615,7 @@ def test_freeze_protocol_success_writes_only_fixed_tmp_repo_path(tmp_path):
         "status": "frozen",
         "path": fc._FLOOR_PROTOCOL_REL,
         "byte_length": 774,
-        "sha256": "6b0c326d5da7664a51d3d7716d71741c6ce1e2f654f23df33df8d0fe137a9eea",
+        "sha256": _APPROVED_PROTOCOL_SHA,
     }
     assert len(raw) == outcome["byte_length"]
     assert hashlib.sha256(raw).hexdigest() == outcome["sha256"]
