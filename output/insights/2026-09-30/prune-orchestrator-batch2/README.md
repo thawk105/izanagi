@@ -50,7 +50,7 @@
 ## 4. 変異と受入
 
 - 実装面の差分ゼロのため変異 matrix は免除 (DW-S04)。kill 型の変異は 0 件。
-- 変更は本 insight と worklog fragment だけなので、受入は本書を commit した後に D2316 の縮小受入で行う。本書は受入前に凍結するので、受入の結果は本書に書かない (受領証と land の記録に残る)。
+- 変更は本 insight と worklog fragment だけなので D2316 の縮小受入を予定したが、`tools/scoped_acceptance.py plan` が不適格と判定した (`verbatim/scoped-plan.json`、理由は `verbatim/` の dir 名と `orchestrator/campaign/condition_meaning_gate.py:22` の docstring の語 "verbatim" の部分一致。worklog fragment に記録)。受入は本書を commit した後に受入全走で行う。本書は受入前に凍結するので、受入の結果は本書に書かない (受領証と land の記録に残る)。
 
 ## 5. hash (sha256・blob id) による pin 閉包
 
