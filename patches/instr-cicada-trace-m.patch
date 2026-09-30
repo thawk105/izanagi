@@ -1,5 +1,5 @@
 diff --git a/cc/cicada/include/cicada_op_element.hh b/cc/cicada/include/cicada_op_element.hh
-index 5b3451827..7cafe164a 100644
+index 5b34518..7cafe16 100644
 --- a/cc/cicada/include/cicada_op_element.hh
 +++ b/cc/cicada/include/cicada_op_element.hh
 @@ -16,2 +16,7 @@ public:
@@ -11,13 +11,13 @@ index 5b3451827..7cafe164a 100644
 +#line 15
  #endif
 diff --git a/cc/cicada/include/transaction.hh b/cc/cicada/include/transaction.hh
-index fb24515da..d41bbb92d 100644
+index fb24515..3d5462a 100644
 --- a/cc/cicada/include/transaction.hh
 +++ b/cc/cicada/include/transaction.hh
-@@ -39,2 +39,61 @@ class TxScanCallback;
+@@ -39,2 +39,62 @@ class TxScanCallback;
  #include "../../../include/trace.hh"
 +namespace cicada_m {
-+enum Field { tx_begin, tx_commit_write, tx_commit_ronly, tx_abort, tx_end_reads_nonempty, read_calls, read_external, read_reread, read_own_write, read_not_found, read_other_status, b_registered, b_end_checked_commit, b_end_checked_ronly, b_end_checked_abort, ev_gc_pool, ev_gc_inline, ev_clean_pool, ev_clean_inline, ev_reuse_pool, ev_reuse_inline, u_installed, u_published, u_w_rows, api_checked, op_insert, op_delete, op_scan, v_B_WINDOW, v_B_RETIRED, v_U_NOT_PENDING, v_U_STORE, v_U_INSTALLED_UNPUBLISHED, v_U_PUBLISHED_UNINSTALLED, v_U_MISSING_W, v_U_EXTRA_W, v_U_WTS, v_API_EXTERNAL, v_API_REREAD, v_API_OWN_WRITE, v_API_EXTRA_REGISTER, violations_total, field_count };
++enum Field { tx_begin, tx_commit_write, tx_commit_ronly, tx_abort, tx_end_reads_nonempty, read_calls, read_external, read_reread, read_own_write, read_not_found, read_other_status, b_registered, b_end_checked_commit, b_end_checked_ronly, b_end_checked_abort, ev_gc_pool, ev_gc_inline, ev_clean_pool, ev_clean_inline, ev_reuse_pool, ev_reuse_inline, u_installed, u_published, u_w_rows, api_checked, op_insert, op_delete, op_scan, tx_reconnoiter, v_B_WINDOW, v_B_RETIRED, v_U_NOT_PENDING, v_U_STORE, v_U_INSTALLED_UNPUBLISHED, v_U_PUBLISHED_UNINSTALLED, v_U_MISSING_W, v_U_EXTRA_W, v_U_WTS, v_API_EXTERNAL, v_API_REREAD, v_API_OWN_WRITE, v_API_EXTRA_REGISTER, violations_total, field_count };
 +inline constexpr const char* labels[] = {
 +    "tx_begin",
 +    "tx_commit_write",
@@ -47,6 +47,7 @@ index fb24515da..d41bbb92d 100644
 +    "op_insert",
 +    "op_delete",
 +    "op_scan",
++    "tx_reconnoiter",
 +    "v_B_WINDOW",
 +    "v_B_RETIRED",
 +    "v_U_NOT_PENDING",
@@ -76,15 +77,16 @@ index fb24515da..d41bbb92d 100644
 +}
 +}  // namespace cicada_m
  namespace cicada_trace {
-@@ -44,2 +103,3 @@ inline std::atomic<uint64_t> read_wts_mismatch{0};
+@@ -44,2 +104,3 @@ inline std::atomic<uint64_t> read_wts_mismatch{0};
  inline void report() {
 +  cicada_m::report();
    std::cerr << "CICADA_TRACE_READ_WTS_MISMATCH n="
-@@ -53,2 +113,84 @@ class TxExecutor {
+@@ -53,2 +114,96 @@ class TxExecutor {
  public:
 +#if TRACE
 +  uint64_t trace_seq_ = 0;
-+  size_t trace_expected_reads_ = 0;
++  struct TraceExternalRead { Storage storage; std::string key; Version* ver; };
++  std::vector<TraceExternalRead> trace_external_reads_;
 +  struct TraceWrite { Storage storage; std::string key; Version* ver;
 +                      OpType op; uint64_t wts; };
 +  std::vector<TraceWrite> trace_installed_, trace_published_;
@@ -106,7 +108,6 @@ index fb24515da..d41bbb92d 100644
 +  }
 +  void traceEnd(const char* outcome, cicada_m::Field checked) {
 +    if (!read_set_.empty()) {
-+      cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
 +      cicada_m::tick(thid_, checked);
 +    }
 +    for (auto& re : read_set_) {
@@ -116,9 +117,21 @@ index fb24515da..d41bbb92d 100644
 +            re.trace_read_gen_, now, re.trace_read_wts_,
 +            re.ver_->trace_last_event_.load(std::memory_order_acquire), outcome);
 +    }
-+    if (read_set_.size() != trace_expected_reads_)
-+      traceViolation(cicada_m::v_API_EXTRA_REGISTER, {}, nullptr,
-+                     0, 0, 0, "none", outcome);
++    std::vector<bool> matched(trace_external_reads_.size(), false);
++    for (const auto& re : read_set_) {
++      bool found = false;
++      for (size_t i = 0; i < trace_external_reads_.size(); ++i) {
++        const auto& call = trace_external_reads_[i];
++        if (!matched[i] && call.storage == re.storage_ &&
++            call.key == re.key_ && call.ver == re.ver_) {
++          matched[i] = found = true;
++          break;
++        }
++      }
++      if (!found)
++        traceViolation(cicada_m::v_API_EXTRA_REGISTER, re.key_, re.ver_,
++                       0, 0, 0, "none", outcome);
++    }
 +  }
 +  void traceU() {
 +    std::vector<bool> installed_used(trace_installed_.size(), false);
@@ -165,7 +178,7 @@ index fb24515da..d41bbb92d 100644
 +#line 40
 +#endif
    TransactionStatus status_ = TransactionStatus::invalid;
-@@ -193,2 +335,8 @@ public:
+@@ -193,2 +348,8 @@ public:
        if (delTarget == &(tuple->inline_ver_)) {
 +#if TRACE
 +        delTarget->traceEvent("gc_inline");
@@ -174,7 +187,7 @@ index fb24515da..d41bbb92d 100644
 +#line 180
 +#endif
          tuple->returnInlineVersionRight();
-@@ -199,2 +347,8 @@ public:
+@@ -199,2 +360,8 @@ public:
  #if REUSE_VERSION
 +#if TRACE
 +      delTarget->traceEvent("gc_pool");
@@ -183,7 +196,7 @@ index fb24515da..d41bbb92d 100644
 +#line 186
 +#endif
        reuse_version_from_gc_.emplace_back(delTarget);
-@@ -239,3 +393,14 @@ public:
+@@ -239,3 +406,14 @@ public:
      if (tuple->getInlineVersionRight()) {
 +#if TRACE
 +      tuple->inline_ver_.traceEvent("reuse_inline");
@@ -198,7 +211,7 @@ index fb24515da..d41bbb92d 100644
 +#line 222
 +#endif
  #if ADD_ANALYSIS
-@@ -254,3 +419,14 @@ public:
+@@ -254,3 +432,14 @@ public:
        reuse_version_from_gc_.pop_back();
 +#if TRACE
 +      newVersion->traceEvent("reuse_pool");
@@ -213,7 +226,7 @@ index fb24515da..d41bbb92d 100644
 +#line 237
 +#endif
        return newVersion;
-@@ -261,2 +437,9 @@ public:
+@@ -261,2 +450,9 @@ public:
      ++result_->local_version_malloc_;
 +#endif
 +#if TRACE
@@ -223,11 +236,11 @@ index fb24515da..d41bbb92d 100644
 +#else
 +#line 244
  #endif
-@@ -271,2 +454,3 @@ public:
+@@ -271,2 +467,3 @@ public:
      }
 +    traceU();
      const uint64_t txid = izanagi_trace::next_txid();
-@@ -404,2 +588,8 @@ public:
+@@ -404,2 +601,8 @@ public:
          if ((*itr).new_ver_ == &(*itr).rcdptr_->inline_ver_) {
 +#if TRACE
 +          (*itr).new_ver_->traceEvent("clean_inline");
@@ -236,7 +249,7 @@ index fb24515da..d41bbb92d 100644
 +#line 353
 +#endif
            (*itr).rcdptr_->returnInlineVersionRight();
-@@ -412,2 +602,8 @@ public:
+@@ -412,2 +615,8 @@ public:
                                         std::memory_order_release);
 +#if TRACE
 +        (*itr).new_ver_->traceEvent("clean_pool");
@@ -246,7 +259,7 @@ index fb24515da..d41bbb92d 100644
 +#endif
          reuse_version_from_gc_.emplace_back((*itr).new_ver_);
 diff --git a/cc/cicada/include/tuple.hh b/cc/cicada/include/tuple.hh
-index 1d5e61f3b..8a9342faa 100644
+index 1d5e61f..8a9342f 100644
 --- a/cc/cicada/include/tuple.hh
 +++ b/cc/cicada/include/tuple.hh
 @@ -83,2 +83,8 @@ public:
@@ -268,7 +281,7 @@ index 1d5e61f3b..8a9342faa 100644
 +#endif
      (latest_.load(std::memory_order_acquire))->body_ = std::move(body);
 diff --git a/cc/cicada/include/version.hh b/cc/cicada/include/version.hh
-index 12de93b80..1de4e5760 100644
+index 12de93b..346a189 100644
 --- a/cc/cicada/include/version.hh
 +++ b/cc/cicada/include/version.hh
 @@ -31,2 +31,15 @@ public:
@@ -278,17 +291,17 @@ index 12de93b80..1de4e5760 100644
 +  std::atomic<const void*> trace_owner_{nullptr};
 +  std::atomic<const char*> trace_last_event_{"none"};
 +  void traceEvent(const char* event) {
-+    trace_owner_.store(nullptr, std::memory_order_release);
-+    trace_last_event_.store(event, std::memory_order_release);
 +    trace_gen_.fetch_add(1, std::memory_order_acq_rel);
 +    std::atomic_thread_fence(std::memory_order_release);
++    trace_owner_.store(nullptr, std::memory_order_release);
++    trace_last_event_.store(event, std::memory_order_release);
 +  }
 +#else
 +#line 32
 +#endif
    TupleBody body_;
 diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
-index 1106a0be4..f54eed82a 100644
+index 1106a0b..090e404 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
 @@ -37,2 +37,15 @@ void TxExecutor::begin() {
@@ -299,7 +312,7 @@ index 1106a0be4..f54eed82a 100644
 +    std::abort();
 +  }
 +  ++trace_seq_;
-+  trace_expected_reads_ = 0;
++  trace_external_reads_.clear();
 +  trace_installed_.clear();
 +  trace_published_.clear();
 +  cicada_m::tick(thid_, cicada_m::tx_begin);
@@ -349,10 +362,10 @@ index 1106a0be4..f54eed82a 100644
  
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::read_calls);
-+  cicada_m::tick(thid_, cicada_m::api_checked);
 +  struct TraceReadExit {
 +    TxExecutor* tx;
 +    ~TraceReadExit() {
++      cicada_m::tick(tx->thid_, cicada_m::api_checked);
 +      if (tx->status_ == TransactionStatus::aborted)
 +        cicada_m::tick(tx->thid_, cicada_m::read_other_status);
 +    }
@@ -382,7 +395,7 @@ index 1106a0be4..f54eed82a 100644
 +#line 163
 +#endif
      *body = &(we->new_ver_->body_);
-@@ -174,3 +249,11 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+@@ -174,4 +249,12 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
  #endif // if ADD_ANALYSIS
 +#if TRACE
 +  if (tuple == nullptr) {
@@ -394,6 +407,7 @@ index 1106a0be4..f54eed82a 100644
    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
 +#endif
  
+   ver = read_internal(s, key, tuple);
 @@ -178,2 +261,10 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
 +#if TRACE
 +  if (ver == nullptr) {
@@ -420,7 +434,7 @@ index 1106a0be4..f54eed82a 100644
 +  size_t required = trace_before + 1;
 +  if (trace_path == TracePath::external) {
 +    cicada_m::tick(thid_, cicada_m::read_external);
-+    ++trace_expected_reads_;
++    trace_external_reads_.push_back({s, std::string(key), trace_expected_ver});
 +    if (read_set_.size() == required &&
 +        read_set_.back().storage_ == s && read_set_.back().key_ == key &&
 +        read_set_.back().ver_ == trace_expected_ver &&
@@ -477,7 +491,7 @@ index 1106a0be4..f54eed82a 100644
 +#line 531
 +#endif
      (*itr).finish_version_install_ = true;
-@@ -709,8 +855,44 @@ inline void TxExecutor::cpv() // commit pending versions
+@@ -709,8 +854,44 @@ inline void TxExecutor::cpv() // commit pending versions
        Masstrees[get_storage((*itr).storage_)].remove_value((*itr).key_);
 +#if TRACE
 +      if ((*itr).new_ver_->ldAcqStatus() != VersionStatus::pending)
@@ -522,25 +536,36 @@ index 1106a0be4..f54eed82a 100644
 +#line 716
 +#endif
      }
-@@ -753,2 +935,8 @@ void TxExecutor::abort() {
+@@ -753,2 +934,9 @@ void TxExecutor::abort() {
  
 +#if TRACE
 +  cicada_m::tick(thid_, cicada_m::tx_abort);
++  if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
 +  traceEnd("abort", cicada_m::b_end_checked_abort);
 +#else
 +#line 754
 +#endif
    writeSetClean();
-@@ -910,3 +1098,7 @@ void TxExecutor::writePhase() {
+@@ -910,3 +1098,8 @@ void TxExecutor::writePhase() {
  #if TRACE
 +  cicada_m::tick(thid_, cicada_m::tx_commit_write);
++  if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
 +  traceEnd("commit", cicada_m::b_end_checked_commit);
    traceCommit();
 +  trace_installed_.clear();
 +  trace_published_.clear();
  #else
-@@ -940,2 +1132,4 @@ bool TxExecutor::commit() {
+@@ -940,2 +1133,5 @@ bool TxExecutor::commit() {
  #if TRACE
 +    cicada_m::tick(thid_, cicada_m::tx_commit_ronly);
++    if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
 +    traceEnd("ronly", cicada_m::b_end_checked_ronly);
      traceCommit();
+@@ -981,2 +1177,7 @@ void TxExecutor::reconnoiter_begin() { reconnoitering_ = true; }
+ void TxExecutor::reconnoiter_end() {
++#if TRACE
++  cicada_m::tick(thid_, cicada_m::tx_reconnoiter);
++#else
++#line 982
++#endif
+   read_set_.clear();

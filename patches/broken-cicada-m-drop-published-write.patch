@@ -2,7 +2,7 @@ diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
 index f346d9323..050577837 100644
 --- a/cc/cicada/transaction.cc
 +++ b/cc/cicada/transaction.cc
-@@ -1095,6 +1095,26 @@ void TxExecutor::writePhase() {
+@@ -1095,7 +1095,27 @@ void TxExecutor::writePhase() {
    if (FLAGS_s_wal) swal();*/
  
  #if TRACE
@@ -27,5 +27,6 @@ index f346d9323..050577837 100644
 +    ++break_stats.committed;
 +  }
    cicada_m::tick(thid_, cicada_m::tx_commit_write);
+   if (!read_set_.empty()) cicada_m::tick(thid_, cicada_m::tx_end_reads_nonempty);
    traceEnd("commit", cicada_m::b_end_checked_commit);
    traceCommit();
