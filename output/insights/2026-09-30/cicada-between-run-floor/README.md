@@ -12,10 +12,10 @@
 結論:
 
 1. **道は「関門の対象外の別手続き」を採った (§2)。** 関門を通す道は CCBench・pin・patches の変更が要り本 wave の所有外で、関門の受理を広げる案は緩和になるので採らない。md_11 の診断 driver (`tools/vhash_cicada_tuning/driver.py`) を無改変で使い、時間窓を 6 つ持つ計測をした。
-2. **得た量の名前は「Cicada A の時間窓間 session-median CV (日内 6 窓・診断経路)」。** floor artifact・izanagi の compare・採否には接続しない。評価計画の式では max(0.030, ·) を通るので、この値を f_T に入れても δ_T は 3% の下限より小さくならない。
+2. **得た量の名前は「Cicada A の時間窓間 session-median CV (日内 6 窓・診断経路)」。** floor artifact・izanagi の compare・採否には接続しない。評価計画の式では max(0.030, ·) を通るので、この値を f_T に入れても δ_T は 3% の下限より小さくならない (偽の「改善」は増えない)。ただし δ_T が大きくなれば「同等」の判定は通りやすくなるので、3% を超える値を代入するときは別の裁定が要る (§2)。
 3. **比較相手 A (md_11 の最良設定、md_20 で巡回 0・上限 indeterminate) の主 GC で、窓間 CV は Y5 0.69%・Y50 1.05%・Y95 0.70%** (§4)。3 動作点とも 3% より小さいので、**これらの署名では δ_T = ln 1.03 のまま (D19 の下限で決まる)**。窓中央値の最大/最小 − 1 は 1.89%・2.69%・2.13%。
 4. **A の別 GC の腕 (A_alt) も 1.33%・1.06%・0.80% で 3% より小さい。** ただし Y5 の A_alt (GC 10 µs) だけ最大/最小 − 1 が 3.83% と 3% を超えた (§4)。
-5. **同じ job に置いた control (md_11 の control) の窓間 CV は 0.38〜0.96%。** md_11 が 1 投入束で測った control の CV (0.43〜0.81%) と同じ程度で、日内の 6 窓に広げても大きくならなかった (§5)。
+5. **同じ job に置いた control (md_11 の control) の窓間 CV は、GC 10 µs で 0.38〜0.82%、GC 100 µs を含めると 0.30〜0.96%。** md_11 が 1 投入束で測った control (GC 10 µs) の CV (0.43〜0.81%) と同じ程度で、日内の 6 窓に広げても大きくならなかった (§5)。
 6. **日を跨ぐ変動と cold boot は測っていない。** 本値が 3% より小さいことは、真の (日を跨ぐ) floor が 3% より小さいことを示さない。R・L-w・100 操作型の cell も測っていない。評価計画 §8.3 の二択 (下限だけで発効するか、floor を待つか) は、ユーザーの判断として残る (§6)。
 
 ## 2. Cicada に floor を出す道の比較
@@ -26,7 +26,7 @@
 | 2. 関門の対象外の別手続き | md_11 の診断 driver (無改変) で、時間窓を複数持つ計測をする。量は estimand で名乗り、floor artifact (`output/env/*/calibration/between_run_noise_*`)・compare・採否へは接続しない | **採った** | D2291 項 1 の先例 (関門の射程は floor artifact の生成で、診断値として一次資料に書くのは迂回でない) と同じ経路。D145 項 2 (estimand を名乗り compare へ配線しない) を守る |
 | 3. D19 の下限 0.030 だけを使う | 計測なし。δ_T = ln 1.03 | 道 2 と併存 | 計測しないと、Cicada の窓間の揺れが 3% を超えるかどうかを知らないまま下限を使うことになる |
 
-**得た値の位置づけ (段 4 裁定):** 評価計画の式は δ_T = ln(1 + max(0.030, f_T)) なので、この値を f_T に入れても δ_T は D19 の下限 0.030 より小さくならない。したがって、この値が D1373 の趣旨 (検査できない protocol に、採否を緩める floor を与えない) を破る経路は無い。発効の wave が f_T に代入してよいのは、値が 0.030 を超えて δ_T を大きくする向きのときに限る。0.030 以下なら、判定は D19 の下限で行い、「Cicada の日内の窓間 CV はそれより小さかった」と読む。Cicada の各構成の正しさは、評価計画 §7 の門が f_T と無関係に別に要求する。
+**得た値の位置づけ (段 4 裁定、段 6 で訂正):** 評価計画の式は δ_T = ln(1 + max(0.030, f_T)) なので、この値を f_T に入れても δ_T は D19 の下限 0.030 より小さくならない。したがって、この値で「改善」の判定が緩む (偽の改善が増える) ことは無い。**一方で「同等」の判定は緩みうる。** 評価計画 §5.1 の「同等」は区間 [L, U] が −δ < L かつ U < δ に入ることなので、δ_T が大きいほど通りやすい (例: [L, U] = [−0.035, 0.035] は δ = ln 1.03 では判定不能、δ = ln 1.05 では同等)。同じ理由で「悪化」(U < −δ) も出にくくなる。§5.2 の「Cicada の最良設定に対して」は「改善または同等」を許すので、この向きの緩みは主張に効く。したがって、発効の wave がこの値を f_T に代入してよいのは 0.030 以下のとき (δ_T は下限で決まり、値は根拠の添え書きになるだけ) で、0.030 を超える値を代入するときは、同等判定への影響を含めて発効の wave が別に裁定する。今回の値はすべて 0.030 以下なので、この問題は起きない。Cicada の各構成の正しさは、評価計画 §7 の門が f_T と無関係に別に要求する。
 
 ## 3. 計測の設計 (結果を見る前に段 4 で固定)
 
@@ -35,7 +35,7 @@
 - **主量:** 動作点ごとに、A の主 GC (Y5・Y50 は 100 µs、Y95 は 10 µs。評価計画 §3.2) の窓ごとの反復中央値 (1 窓 1 標本、D1534) を並べた列の標本 CV (標準偏差 (n−1) / 平均)。A の別 GC (A_alt: Y5・Y50 は 10 µs、Y95 は 100 µs) と control の GC 10・100 µs も同じ形で出す。
 - **診断欄 (f_T と呼ばない):** 窓ごとの ln(A の主 GC / control の GC 10) の標本標準偏差 (同じ job の中で共通に動く揺れを除いた量)、各 job 内の 5 反復の CV (within-run、1 測定の品質の量で差の判定には使わない、D19)。
 - **欠測:** job が落ちた窓の動作点は欠測とし、代替窓 (7・8) で補う。主値 = 代替を含む合格窓すべての CV、感度 = 予定窓 1〜6 のうち合格した窓だけの CV。合格窓が 5 未満の動作点は値を出さない。5 反復がそろわない job は標本にしない。within-run の品質で標本を捨てない (floor を下げる向きの除外をしない)。
-- **job の検査 (集計の前):** manifest の status complete・spec の sha256 の一致・build ごとの compile command の照合 (driver が記録した `compile_command_binding.valid` と、期待する -D: genome の 5 軸・TRACE=0・ADD_ANALYSIS=0・WORKER1_INSERT_DELAY_RPHASE=0)・binary sha256・spec と run の多重集合の一致・各 run の exit 0・perf なし・throughput 有限正・binary sha の一致・submission_cluster の一致。1 つでも外れた job は理由付きで棄却する。
+- **job の検査 (集計の前):** manifest の status complete・spec の sha256 の一致・build ごとの compile command の照合 (driver が記録した `compile_command_binding.valid` と、期待する -D: genome の 5 軸・TRACE=0・ADD_ANALYSIS=0・WORKER1_INSERT_DELAY_RPHASE=0)・binary sha256・spec と run の多重集合の一致・各 run の exit 0・perf なし・throughput 有限正・binary sha の一致・submission_cluster の一致。1 つでも外れた job は理由付きで棄却する。集計 script は run の実効 flags (thread 数・skew・extime など) を spec と直接には照合しない。その一致は次の連鎖で担保される: driver が run ごとに stdout の `#FLAGS_` 行を argv と照合し、不一致なら例外で job を止める (`tools/vhash_cicada_tuning/driver.py` の `check_flags`、manifest が complete にならない)。argv は spec の run の条件から driver が作る。段 6 レビューが 360 run の `flags_raw` を別経路で点検し、48 thread・1M 件・各 rratio・GC に不一致は 0 だった。
 - **統計の限界:** 6 標本の CV は相対標準誤差がおよそ 3 割 (1/√(2 × 5) ≈ 0.32) と粗い。正規性を仮定した信頼上限は CV の厳密な区間にならないので出さない。代わりに窓中央値の最小・最大と (最大/最小 − 1) を並べる。
 
 ## 4. 結果
@@ -77,7 +77,7 @@
 ### 4.3 診断欄 (f_T と呼ばない)
 
 - 窓ごとの ln(A の主 GC / control の GC 10) の標本標準偏差: Y5 0.82%・Y50 1.04%・Y95 0.70%。A 単独の CV とほぼ同じで、同じ job の control と A が窓ごとにそろって動く揺れ (共通の揺れ) は目立たない。
-- 各 job 内の 5 反復の CV (within-run、72 系列): 0.18〜3.81%、中央値 1.09%。品質の閾値 5% (D19) を超える系列は無い。
+- 各 job 内の 5 反復の CV (within-run、72 系列): 0.18〜3.81%、中央値 1.08% (中央の 2 系列の平均)。品質の閾値 5% (D19) を超える系列は無い。
 
 ## 5. 1 投入束の値 (md_11) との比較
 
@@ -91,21 +91,22 @@ D145 は「1 投入束の値は時間の変動を含まない下限で、系統�
 
 md_11 J2 (2026-09-29、前日、同じ genome・GC・件数・thread、3 反復) の A の値は参考として次のとおり (窓の標本には入れていない。反復数と job の構成が違い、A の選択に使った測定でもある): Y5 GC 100 2,234,869、Y50 GC 100 3,477,599、Y95 GC 10 11,050,316 tps。3 つとも本 wave の 6 窓の最小〜最大の内側にある。
 
-**読んではいけないこと:** 窓間 CV が within-run の CV (中央値 1.09%) と同じ程度か小さいことを、「Cicada は安定している」と積極的に解釈しない。反復の中央値を取ると揺れは小さく出る (D145 の却下した選択肢と同じ構造)。
+**読んではいけないこと:** 窓間 CV が within-run の CV (中央値 1.08%) と同じ程度か小さいことを、「Cicada は安定している」と積極的に解釈しない。反復の中央値を取ると揺れは小さく出る (D145 の却下した選択肢と同じ構造)。
 
 ## 6. 評価計画への読み方
 
 - **Y5・Y50・Y95 の A (主 GC) の署名:** 本値はいずれも 3% より小さいので、δ_T = ln(1 + max(0.030, f_T)) に代入しても δ_T = ln 1.03 で、D19 の下限だけを使う場合と数値は同じ。違うのは根拠で、下限だけなら「Cicada の揺れが 3% 以下かは測っていない」、本値を添えれば「日内 6 窓の範囲では Cicada A の窓間の揺れは 3% より小さかった (日を跨ぐ変動・cold boot は未測定)」と書ける。
 - **A_alt の署名** (「Cicada の最良設定に対して」の headline 判定、評価計画 §5.2) も CV は 3% より小さい。ただし Y5 の A_alt (GC 10) は窓中央値の最大/最小 − 1 が 3.83% で、6 窓のうち最も離れた 2 窓の差は 3% を超えた。CV で見る限り下限が効くが、この署名の差の判定では窓による揺れが下限に近いことを併記するのが安全である。
 - **R・L-w・100 操作型の cell は測っていない。** R は性能用 build で ro 指定率を制御する生成器が無い (評価計画 §4.2)。L-w は H4 の主指標が throughput でなく、throughput は費用の併記に使われる。D145 項 4 により、Y の値をこれらの cell へ外挿しない。これらの cell で throughput の閾値が要る判定には、評価計画 §8.3 の二択が残る。
-- **評価計画 §10 の S0 の floor 行** (性能用 A × (Y 3 + R 3 + L-w 4) × 8 job × 5 rep) のうち、Y の 3 cell の A については本計測が 6 窓分を先に取った形になる。発効の wave が本値を採るなら、S0 の Y の分を減らせる (採るかどうかは発効の wave とユーザーの判断)。
+- **評価計画 §10 の S0 の floor 行** (性能用 A × (Y 3 + R 3 + L-w 4) × 8 job × 5 rep) とは別の計測である。本値は関門を通っておらず、真正な floor の標本設計も未裁定なので、S0 の走行を差し引く根拠にはしない。S0 へ本値を再利用するかどうかと S0 の行列は、発効の wave が設計する。
+- **3% を超える値が将来出た場合:** 代入すれば δ_T は大きくなり、偽の「改善」は減るが、「同等」は通りやすく「悪化」は出にくくなる (§2)。したがって 3% を超える値の代入は、同等・悪化の判定への影響を含めて発効の wave が別に裁定する。今回は該当しない。
 - **§8.3 の二択はユーザーの判断として残す。** 本値は二択の判断材料であって、どちらかを決めるものではない。
 
 ## 7. 確かめたこと・確かめていないこと
 
 確かめたこと:
 
-- stock Cicada (pin `6810666`、patch なし) の A と control を、trace・計器なしの build (compile command の -D と binary sha256 で束縛) で、日内 6 窓 × 3 動作点、18 job で測った。18 job すべてが §3 の検査に合格した。
+- stock Cicada (pin `6810666`、patch なし) の A と control を、trace・計器なしの build (compile command の -D と binary sha256 で束縛) で、日内 6 窓 × 3 動作点、18 job で測った。18 job すべてが §3 に列挙した集計前の検査に合格した (実効 flags は §3 の連鎖と段 6 レビューの点検で一致)。
 - 署名ごとの窓間 CV・最小・最大 (§4.1)。Y50 の主値は生データから別経路で再計算して一致した。
 - 窓ごとの host と投入時刻 (§4.2)。
 - md_11 の 1 投入束の control の CV との比較 (§5)。
@@ -125,8 +126,9 @@ md_11 J2 (2026-09-29、前日、同じ genome・GC・件数・thread、3 反復)
 - 段 1: brief (道の比較と計測の事前登録)。段 2 (codex の plan 起草) は省き、plan を brief と段 4 裁定に含めた。
 - 段 3: 敵対相談 2 本 (A: 正しさ境界・関門の迂回・D145 への忠実さ、B: 過剰・統計・費用)。must-fix 5 件を含む 15 所見。主な反映: 値を「floor 取得済み」「f_T 確定」と書かない (A1)・60 分間隔を運用値と明記 (A2)・欠測と代替窓の表と感度 (A3)・md_11 J2 を窓に混ぜない (A4・B3)・正規性の信頼上限を出さない (A6・B2)・Y 以外は未測定と明記 (A7・B1)。
 - 段 4: 所見をすべて real と裁定し、plan v2 (spec の入力 file・seed・submission_cluster・代替規則・集計の検査) を固定した。
-- 段 5: 集計 script (`analyze_windows.py`) を Codex author が書いた (repo 外の job dir に置く。repo の実装面の差分はゼロ)。合成データの自走検査 3 件 PASS (6 種の棄却・5 窓未満の未確立・代替窓の有無・create-only)。
-- 計測: 窓 1 を 15:18、以後 60 分おきに 20:19 まで。
+- 段 5: 集計 script (`analyze_windows.py`) を Codex author が書いた (repo 外に置く。repo の実装面の差分はゼロ)。合成データの自走検査 3 件 (6 種の棄却・5 窓未満の未確立・代替窓の有無・create-only)。親が `cfloor-scratch/` を repo checkout の root に置いた配置で実走し 3 件 OK。repo 外の別の場所に置いたまま走らせると、自走検査が子の PYTHONPATH をその場所の親に上書きするため `tools` を import できず 9 件失敗する (配置の前提であって検査の欠陥ではない)。
+- 計測: 窓 1 を 15:18、以後 60 分おきに 20:19 まで。利用上限で 20:21〜21:41 に中断したが、計測は中断前に全窓完了していた。
+- 段 6: 敵対レビュー 1 本 (生データからの検算・過大主張・集計 script・観測者効果・過剰)。§4 の表は 360 run から丸めまで再現された。所見 6 件をすべて real と裁定し、文言と置き場で直した: R1 (must-fix) 「max があるので採否を緩める経路は無い」を「改善は緩まないが同等・悪化は緩みうる」へ訂正 (§2・§6)、R2 S0 の走行を差し引けるという読みを削除、R3 実効 flags の担保の連鎖を明記 (§3)、R4 script と spec を永続の置き場へ移し手順を直した (§10)、R5 within CV の中央値 1.09% → 1.08% と control の範囲の対象を明記、R6 Elapse の出典を明記 (§9)。
 - 変異 matrix: repo の実装面の差分がゼロなので免除 (DW-S04)。
 
 ## 9. 計算
@@ -142,17 +144,19 @@ md_11 J2 (2026-09-29、前日、同じ genome・GC・件数・thread、3 反復)
 | 5 | 133 s | 107 s | 106 s |
 | 6 | 105 s | 106 s | 105 s |
 
-18 job の Elapse 合計 2,275 s = 37.9 node 分 (約 0.63 node 時間)。1 本の最長 277 s (5 分未満)。2 node 時間を大きく下回る。
+18 job の Elapse 合計 2,275 s = 37.9 node 分 (約 0.63 node 時間)。1 本の最長 277 s (5 分未満)。2 node 時間を大きく下回る。出典は dispatch log (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cicada-between-run-floor/dispatch-logs/w<k>-y<o>.log` の NQSV の `Elapse:` 行、request 番号も同じ log)。manifest の開始〜終了の差の合計 (2,186 s) は job body の中だけの時間で、Elapse とは別の量である。
 
 ## 10. 再生成
 
-集計 (repo root から。script は Codex author が書いた repo 外の file):
+置き場 (repo 外、永続): `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cicada-between-run-floor/`。`cfloor-scratch/analyze_windows.py` (sha256 `3abeb402cde2eb16cddb6970bfd674b16af04ba1f466a703c22688c14c8eb749`、Codex author)・`cfloor-scratch/selftest_analyze_windows.py` (`93b3f8a32bdc1ee7e3e682d6f90c046de45fff03f69e8ceeaa0f7d608cbc0a1a`)・`specs/` (窓 1〜8 の spec と make-spec の入力)・`gen-specs.sh`・`run-measure.sh`・`launch-window.sh`・`series.sh` (親の起動器)・`dispatch-logs/`・`raw-archive/`。
+
+集計 (repo root から):
 
 ```bash
-PYTHONPATH=. python3 /home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/analysis/analyze_windows.py \
+PYTHONPATH=. python3 /work/1/SFC/tanab/dev-wave-jobs/dev-wave-cicada-between-run-floor/cfloor-scratch/analyze_windows.py \
   --output-root output/env/pegasus/vhash-cicada-baseline-tuning \
-  --specs-dir /home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs \
+  --specs-dir /work/1/SFC/tanab/dev-wave-jobs/dev-wave-cicada-between-run-floor/specs \
   --summary <新しい path>.json
 ```
 
-script と spec は job dir にあり、job の削除とともに消える。値そのものは `runs.jsonl` から §3 の定義 (窓ごとに 5 反復の中央値、窓間の標本 CV) で再計算できる (§4.1 の検算と同じ手順)。
+この置き場から走らせた結果は、`window-cv.json` と入力 path の欄を除いて一致した (段 6 で確認)。自走検査は `cfloor-scratch/` を repo checkout の root へ写し、root から `python3 cfloor-scratch/selftest_analyze_windows.py` で走らせる (§8)。値そのものは `runs.jsonl` から §3 の定義 (窓ごとに 5 反復の中央値、窓間の標本 CV) でも再計算できる (§4.1 の検算と同じ手順)。

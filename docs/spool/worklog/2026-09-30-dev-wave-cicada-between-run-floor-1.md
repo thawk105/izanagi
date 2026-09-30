@@ -15,6 +15,9 @@ title: [T-2915] Cicada の throughput の時間窓間ばらつきを関門の対
 - 実行した手順: 窓 1 を 15:18 JST に投入、以後 series script が 60 分おきに 20:19 まで投入。18 job すべて rc=0・検査合格、代替窓は使っていない。Elapse 合計 2,275 s。
 - author の初回起動 (author-1) は起動器に `--max-attempts 2` を付けて dry-run 前に投入し rc=2 (workspace-write では不可)。起動前の失敗で、author-2 で正しく走った。DW-O01 の「dry-run の argv を先に検査」を省いた手順違反で、規則の不足ではない。
 - 利用上限で 20:21〜21:41 JST に中断し、同じ session で再開した (計測は中断前に全窓完了)。
+- 段 6 敵対レビュー 1 本: §4 の表は生データ 360 run から丸めまで再現。所見 6 件をすべて real と裁定し文言と置き場で直した。must-fix R1 は段 4 裁定の誤りの訂正で、「max(0.030, ·) があるので採否を緩める経路は無い」は誤り (δ_T を上げると「同等」は通りやすく「悪化」は出にくい、評価計画 §5.1)。{{D:cicada-window-cv-diagnostic-path}} は「0.030 以下のときだけ根拠の添え書き、超える値の代入は別裁定」に改めた。今回の値はすべて 0.030 以下で結論は変わらない。
+- 集計 script の自走検査は、親が repo 外の別の場所に置いたまま走らせると 9 件失敗した (検査が子の PYTHONPATH を script の親の親に上書きし `tools` を import できない)。author の木 (repo checkout の root 直下の `cfloor-scratch/`) で同じ bytes を走らせると 3 件 OK。配置の前提であって検査の欠陥ではない。一次資料 §8・§10 に手順を書いた。
+- DW-S07 の三軸語走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) は rc=1。hit (conjunction_hits) は rr80・rr20 とも既存の `output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/` の同じ 3 file (journal.jsonl・manifest.json・result.json) だけで、本 wave の file (一次資料・window-cv.json・計測データ・fragment) の hit は 0 (出力の `docs/paper-story/figures/` の列は走査器の正例 positive_control で hit ではない)。
 
 ## 次の一手差分
 
