@@ -3187,7 +3187,7 @@ def _check_backlog_guard(
             archive_entries,
             archive_next_actions,
             archive_sources,
-            archive_entry_ids[0],
+            [sys.intern(task_id) for task_id in archive_entry_ids[0]],
         )
         archive_worklogs.append(archive)
         for i in range(len(archive_entries) - 1):
