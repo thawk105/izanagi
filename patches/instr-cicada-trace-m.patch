@@ -100,7 +100,7 @@ index fb24515..b066092 100644
 +    auto hex = izanagi_trace::key_to_hex(std::string(key));
 +    std::fprintf(stderr,
 +        "CICADA_M_VIOLATION kind=%s thid=%u tx_seq=%llu tx_wts=%llu outcome=%s key=%s ver=%p gen_seen=%llu gen_now=%llu wts_seen=%llu event=%s\n",
-+        cicada_m::labels[kind], unsigned(thid_),
++        cicada_m::labels[kind] + 2, unsigned(thid_),
 +        static_cast<unsigned long long>(trace_seq_),
 +        static_cast<unsigned long long>(wts_.ts_), outcome, hex.c_str(),
 +        static_cast<void*>(ver), static_cast<unsigned long long>(seen),
