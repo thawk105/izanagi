@@ -10,7 +10,7 @@ main直接commit・台帳直接編集は禁止。成功応答とcanonical反映�
 
 ## 収集
 
-local main の worklog を正本に次の順で収集。carry stub は重複計上しない:
+local mainのworklogを正本に次の順で収集。carry stub は重複計上しない:
 
 1. `docs/worklog.md` 末尾エントリの「次の一手」でユーザーの裁定・承認・判断を要する項。索引確定前に
    carry 鎖を archive まで解決した実体本文を `裁定` `決` `判断` `ユーザー` で、前回 /rulings 以降の本文を
@@ -55,12 +55,12 @@ worklog の推奨、なければ決まると動く作業が多い順。各件 10
 - 推奨前に別系統モデルへ諮る。材料は file で渡し、(A) 推奨の当否 (同意/反対/根拠不足/既裁定誤引用) と
   (B) 索引漏れを別の子へ分け、前項の基準と下の Git の一文を両方の投げ文へ逐語で渡し、相談の推奨も
   同じ基準で評価し直す。推奨を書き換え採否理由を各件へ書く。起動不能・期限切れ・不採用は索引冒頭に出す。
-  Claude 側は `dev_wave_codex.py --stage consult --sandbox read-only` (`DW-O01`/`DW-O02`)、Codex 側は
+  Claude側は`dev_wave_codex.py --stage consult --sandbox read-only --reasoning ultra`(`DW-O01`/`DW-O02`)、Codex側は
   rulings Skill。ID 1 件でも省かない
 - 裁定が覆う ID は索引外の既裁定・移管済み・実測解消も書く。残作業なしは `完了`、ありは
   `更新 (裁定済み (D…) → 手番)` で、一律 `実装手番` にしない。稼働 wave 所有の ID は書かず根拠 D と共に
-  inbox に控え次回冒頭で書く。`base` は land 先 main の現物 (不一致は land 停止)
-- Git 操作も裁定待ちに含める (AI は push しない)。未 push は 20 commit 以上
+  inbox に控え次回冒頭で書く。`base`はland先mainの現物 (不一致は land 停止)
+- Git操作も裁定待ちに含める (AIはpushしない)。未pushは20 commit以上
 - 索引総数が減らなくても急かさない
 
 ## スキル自己改善
