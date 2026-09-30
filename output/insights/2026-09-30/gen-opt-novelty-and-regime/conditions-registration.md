@@ -94,3 +94,8 @@
     R3-mixed = `thread_num` 48、L1 1、S1 24、S2 23、S3・S4・S5 は 0。R3-short-only = `thread_num` 47、L1 0、S1 24、S2 23。R3-long-only = `thread_num` 1、L1 1、短い取引 0。
     他の BoMB 引数は既定。S1 は L1 が読む材料原価を更新するので、L1 と短い取引の競合はこの形で生じる。
   - 変種ごとに、出力に現れるべき取引型だけを要求する (short-only に L1 は無く、long-only に短い取引は無い)。
+- 改訂 2 (2026-09-30 22:4x JST、smoke の後・本測定の前): smoke (extime 1) で R2-target の Silo・BACK_OFF=0 (TPC-C 1 warehouse、48 thread) が
+  "insert order failed" を出し続けて 1 走の上限 180 秒で打ち切られた (他の R2-target の構成は wall 約 1 秒)。本測定は 1 走の上限を 60 秒にする
+  (extime 3 秒の走で load を含め 60 秒を超えるのは止まっているとみなす。R2-bound の smoke は extime 1 で wall 11 秒)。
+  上限で打ち切られた走・rc≠0・parse 不能の走は throughput を持たない「失敗」として表に回数つきで載せ、その構成は 3 rep のうち成功が 2 未満なら「最良」の選定から外す。
+  失敗を 0 tps として中央値に混ぜない。
