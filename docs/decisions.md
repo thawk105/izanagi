@@ -74578,3 +74578,45 @@ TPC-C 全 mix × 4 thread の `gc_records()` の ERR は、後から作られた
 - md_10 のモデルの floor = 開始時刻を Cicada の floor と同一視する — モデルは FS-c を満たさず refs に依存する。
 - 物理的な非接触まで定理に含める — モデルは回収を印で表し、Cicada の走査中の pointer の寿命は論理から出ない。前提 E8 として置くだけでは恒真な主張になる。
 - 途中入場を範囲外にする — 依頼の GC 安全は「その時点以降に始まる tx」を含む。
+
+## D2320. 構成 E の早期 abort は「前進を試し、前進できず commit できないと確定したときだけ abort」(方策 c) を推す。確定の判定は committed / deleted の witness だけで言う (2026-09-30)
+
+**決定:**
+1. 「abort が決まっている」の判定 D は、read-only でない tx の read set の各要素について、既読版より新しく自分の現在の ts より古い committed / deleted の版が版列にあること、とする。pending は含めない。既読版に辿り着けなければ偽 (abort しない側)。D は共有状態を書かない。
+2. 構成 E の組み合わせとしては方策 c (E-max を試し、要求が `no_room` を返したときだけ D を評価し、真なら abort) を推す。方策 b (前進せず、待機 slice ごとに D を見て abort) は単独では採らない。
+3. md_21 §4.3 の「成功前の `no_room` = abort が決まっている」という読みは使わない。`no_room` の上端は pending も含むので確定ではなく、確定は D で言う。
+4. 主張の範囲は、現行 genome (INLINE_VERSION_PROMOTION=0)、read-only でない tx、前進成功後の遷移は W* を仮定、小モデルの有限範囲、とする。
+
+**理由:**
+- 同時刻の計測 (skew 0.6 / 0.8 / 0.9 / 0.95、3 rep) で、同じ rep 内の差の中央値 c − E-max は 0.6 で −0.07 ms、0.8 で −1.8 ms、0.9 で −2.9 ms、0.95 で −4.1 ms。E-max が効かない高い偏りで回収境界の遅れが縮む。b − E-hb は −0.2〜−1.8 ms に留まる。回収境界は長い thread の下限の最小で決まり、上書きされていない試行は b では前進しないので境界を押さえ続ける。c は前進できる試行を前進させ、前進できず確定した試行を終える (一次資料 §5.1)。
+- D の健全性は小モデル (validation を D と独立に保存 pointer から辿る写し、GC の切り離しと再利用を含む) の 2 tx 全列挙・3 tx 予算内列挙で違反なし、壊した判定 2 種は validation 成功までの反例を出す (一次資料 §3.1)。
+- read-only + promotion 有効の構成では、保存した later_ver_ の pending が abort した後に D 真でも commit できる列がある (段 3 相談 A)。現行 genome の外なので D の対象から外し、範囲を明記する。
+- 正しさ検査 (最良 genome の trace build、8 run) で巡回 0・保持版の変化 0・「D が真だったのに commit した」試行 0 (上限 indeterminate、一次資料 §7)。
+
+**却下した選択肢:**
+- `no_room` をそのまま abort の条件にする — pending を含む上端なので commit できる tx を殺しうる。実測でも成功前の `no_room` のうち D が偽の例がある。
+- b を単独の方策として推す — 回収境界の遅れがほとんど縮まない (上記)。
+- 早期 abort を AggressiveGC の代わりに位置づける — AggressiveGC は必要とされうる版を回収して tx を殺す提案で、本方策は commit できる tx を失わない代わりに、上書きされていない長い tx が押さえる分は残す。役割が違う (一次資料 §9)。
+- 実機の shadow 照合 (「D が真だったのに commit」= 0) を D の健全性の証拠に数える — 壊した判定 (pending を含める) が実機で到達せず、照合の検出力を示せなかった。健全性の主張は小モデルに置く。
+
+## D2321. 判定器の意味の版を 2 に上げ、手順列・刻印の照合は gate file の在否と呼び出し側の要求で起動する (2026-09-30)
+
+**決定:**
+
+1. **記録の形:** CCBench の trace build は、判定器の trace parser が読まない別 file `gate_<thid>.log` に、手順列 `Q` (commit した取引の R/W/M と key・観測刻印・書いた刻印) と据えた値の刻印 `V` を書く。設計資料 (`output/insights/2026-09-29/gen-opt-correctness-gate/README.md`) の「`A` 行」は abort 要因の tag と衝突するので使わない。刻印は `YCSB::id_` の 64 bit (書き手 = `((thid+1)<<48) | 通し番号`、初期 load は key id)。手順列を出すのは Silo の YCSB 経路の commit が txid を渡した thread だけで、他 protocol の trace build は gate file を作らない。置き場は CCBench の local branch `izanagi-gate-witness-trace` (F `25898d00` の子、D16 の trace 計装)。gitlink は動かさない。
+2. **判定器の意味の版:** 本決定より前の `orchestrator/verifier/` を意味の版 1、gate の照合 (D1 手順列と trace の key 集合、D2a 読んだ版と値、D2b 取引内の値を全 key、D5 emitter の証拠面) を足したものを意味の版 2 とし、定数 `MEANING_VERSION = 2` を gate の照合が有効な判定結果に載せる。
+3. **起動の仕方:** gate の照合は、trace dir に gate namespace の file が 1 つでも在るか、呼び出し側が `require_gate_witness=True` を渡したときに有効になる。有効なら照合の入力が欠ける・読めない・食い違う場合は certified にしない。要求しない呼び出しで gate file が無ければ、判定は版 1 と同一 (結果の投影も同一)。D5 (Q・V の emitter と txid の受け渡しが literal な `#if TRACE` 内に在り、Silo の YCSB 翻訳単位が同じ `include/ycsb.hh` を include する) は要求時だけ certified の条件にする。
+4. **再検証の発火条件 (結果の前に `output/insights/2026-09-30/gen-opt-gate-verifier/prereg.md` として commit 済み):** 版 1 の判定は再判定も昇格もしない。版 2 で読み直す対象は gate file を持つ trace に限る。gen-opt の候補の certified は版 2 以上・要求あり・D5 成立・D1/D2a/D2b の違反 0 をすべて要する。版が上がるたびに、それより前の版の記録は昇格させず、新しい版を要する主張は保持した trace と gate の archive から読み直す。
+
+**理由:**
+
+- U0 の実測で、今の判定器は読みを読み集合に載せない壊れた Silo を certified にしていた。手順列と trace の突き合わせ (D1) だけがそれを赤にする。本決定の実装で、同じ壊しが D1(b1) で赤になり違反取引数が壊しの発火数と完全に一致し、Silo 修正を当てた stock は D1・D2 とも 0 件で certified になることを計算ノードで確かめた。
+- 既定を「要求なし」にしたのは、生成器対照 (pin C 固定で本走中) を含む現行の campaign の trace が gate file を持たず、要求を既定にすると全部 indeterminate になるためである。gate file が在れば要求の有無に依らず照合するので、U1 を含む pin に進んだ後は Silo の trace は常に照合される。
+- 意味の版を結果全体でなく gate の節にだけ載せるのは、gate の無い既存の判定の投影と receipt の入力を 1 byte も変えないためである。
+
+**却下した選択肢:**
+
+- **要求の keyword を既定値なしにする (D422 の型)** — 呼び出し約 120 箇所 (大半は test) を変える割に、要求を渡すべき gen-opt の呼び出し元がまだ無く、効果を確かめられない。gen-opt の driver を繋ぐ wave が `True` を渡す義務を負う。
+- **D5 を既存の証拠面 (X/P) と同じく Silo で常に要求する** — pin C の全 campaign が indeterminate になる。
+- **D2b を stock に合わせて「最初の書き」と照合する** — 標準より弱い意味を正と固定し、取引内の書きの消失を見逃す (設計資料 §3.2・§3.5)。
+- **capability 経路・build の source snapshot に今 D5 を束縛する** — 今回の受理集合を変えずに互換面だけが増える。gen-opt の driver の接続と同時に行う。

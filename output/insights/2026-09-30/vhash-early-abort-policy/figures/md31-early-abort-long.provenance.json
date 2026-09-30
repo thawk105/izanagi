@@ -1,0 +1,415 @@
+{
+  "campaign_id": "vhash-early-abort-policy-2026-09-30",
+  "figure": "early-abort-long",
+  "generated_at": "2026-09-30T05:18:58.427632+00:00",
+  "inputs_sha256": {
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-early-abort-policy/output/insights/2026-09-30/vhash-early-abort-policy/data/abort-aggregate.json": "aa990f2d87702c981d76e85c3273a00fd1d09a19ef830a60aa4f9e8304d179e4",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s06/raw-abort-s06-2026-09-30T05-05-16.324392+00-00.json": "d303a672b30a366bd27569cd9eda5bc7d017c3790cb11be91a17eac16a34d2f8",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s08/raw-abort-s08-2026-09-30T05-05-17.956467+00-00.json": "df100ae3331726f8c31dc611a599aa285ea69a8ba16a77c76c22e8d3b0532d30",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s09/raw-abort-s09-2026-09-30T05-05-16.807943+00-00.json": "e0c3bc956e781c8546ad54e6680b8cae7018ed9fb7ffc6f31bcbcab5165b4e43",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-s095/raw-abort-s095-2026-09-30T05-05-16.628874+00-00.json": "5a47d0f8de7d8a599f4a600e16ee54c4b6efd98d26636663d2d05548ae01ffbb",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-focus/raw-abort-focus-2026-09-30T05-05-16.510113+00-00.json": "d2400842f0ef2beefc94b9fde9822c410076e52cf92249d7fafa5f2937b666ea",
+    "/work/1/SFC/tanab/tmp/vhash-early-abort-policy-2026-09-30/jobs/meas-backoff/raw-abort-backoff-2026-09-30T05-05-18.180734+00-00.json": "21ce59022c419cfeeed1e8e1cd01631e5398c1fc1fb4608e8f0b6172292c5f42"
+  },
+  "generator": "/work/1/SFC/tanab/izanagi/.claude/worktrees/vhash-early-abort-policy/output/insights/2026-09-30/vhash-early-abort-policy/make_figures.py",
+  "generator_sha256": "9299a6a8cc81a86bf0bd360545ddf3f29cf1640373b6690b6ff0f58a1a9ea965",
+  "matplotlib_version": "3.10.9",
+  "conditions": {
+    "threads": 48,
+    "tuples": 1000000,
+    "rratio": 50,
+    "ccbench_pin": "6810666",
+    "environments": {
+      "s06": "bnode043",
+      "s08": "bnode142",
+      "s09": "bnode028",
+      "s095": "bnode050",
+      "focus": "bnode057",
+      "backoff": "bnode049"
+    },
+    "jobs": {
+      "s06": {
+        "skew": 0.6,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "s08": {
+        "skew": 0.8,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "s09": {
+        "skew": 0.9,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "s095": {
+        "skew": 0.95,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      },
+      "focus": {
+        "skew": 0.9,
+        "wait_us": 1000,
+        "gc_inter_us": 1000
+      },
+      "backoff": {
+        "skew": 0.9,
+        "wait_us": 10000,
+        "gc_inter_us": 10
+      }
+    }
+  },
+  "verification_status": "unverified",
+  "statistics": "3 rep points; diamond=rep median; 95% t CI for rep mean",
+  "major_values": {
+    "s06": {
+      "stock": {
+        "long_commit_per_s": [
+          286.0,
+          277.0,
+          289.3333333333333
+        ],
+        "long_attempt_per_s": [
+          398.0,
+          397.3333333333333,
+          397.3333333333333
+        ],
+        "long_completion_rate": [
+          0.7185929648241206,
+          0.6971476510067114,
+          0.7281879194630873
+        ]
+      },
+      "E-hb": {
+        "long_commit_per_s": [
+          288.3333333333333,
+          285.3333333333333,
+          286.6666666666667
+        ],
+        "long_attempt_per_s": [
+          398.6666666666667,
+          398.6666666666667,
+          398.3333333333333
+        ],
+        "long_completion_rate": [
+          0.7232441471571907,
+          0.7157190635451505,
+          0.7196652719665272
+        ]
+      },
+      "E-max": {
+        "long_commit_per_s": [
+          302.3333333333333,
+          301.0,
+          297.0
+        ],
+        "long_attempt_per_s": [
+          398.6666666666667,
+          398.6666666666667,
+          396.6666666666667
+        ],
+        "long_completion_rate": [
+          0.7583612040133779,
+          0.7550167224080268,
+          0.7487394957983193
+        ]
+      },
+      "b": {
+        "long_commit_per_s": [
+          288.6666666666667,
+          299.6666666666667,
+          287.3333333333333
+        ],
+        "long_attempt_per_s": [
+          402.0,
+          406.0,
+          404.0
+        ],
+        "long_completion_rate": [
+          0.7180762852404643,
+          0.7380952380952381,
+          0.7112211221122112
+        ]
+      },
+      "c": {
+        "long_commit_per_s": [
+          305.3333333333333,
+          301.6666666666667,
+          280.3333333333333
+        ],
+        "long_attempt_per_s": [
+          402.3333333333333,
+          407.0,
+          409.3333333333333
+        ],
+        "long_completion_rate": [
+          0.7589063794531897,
+          0.7411957411957412,
+          0.6848534201954397
+        ]
+      }
+    },
+    "s08": {
+      "stock": {
+        "long_commit_per_s": [
+          100.0,
+          98.66666666666667,
+          167.0
+        ],
+        "long_attempt_per_s": [
+          400.6666666666667,
+          406.0,
+          399.0
+        ],
+        "long_completion_rate": [
+          0.24958402662229617,
+          0.24302134646962234,
+          0.41854636591478694
+        ]
+      },
+      "E-hb": {
+        "long_commit_per_s": [
+          137.33333333333334,
+          129.33333333333334,
+          162.33333333333334
+        ],
+        "long_attempt_per_s": [
+          396.3333333333333,
+          401.3333333333333,
+          396.0
+        ],
+        "long_completion_rate": [
+          0.34650967199327165,
+          0.3222591362126246,
+          0.4099326599326599
+        ]
+      },
+      "E-max": {
+        "long_commit_per_s": [
+          150.33333333333334,
+          74.66666666666667,
+          192.0
+        ],
+        "long_attempt_per_s": [
+          401.0,
+          404.6666666666667,
+          399.0
+        ],
+        "long_completion_rate": [
+          0.37489609310058186,
+          0.18451400329489293,
+          0.48120300751879697
+        ]
+      },
+      "b": {
+        "long_commit_per_s": [
+          244.33333333333334,
+          170.66666666666666,
+          217.0
+        ],
+        "long_attempt_per_s": [
+          547.0,
+          657.0,
+          603.6666666666666
+        ],
+        "long_completion_rate": [
+          0.4466788543570993,
+          0.2597666159309995,
+          0.35946990612921037
+        ]
+      },
+      "c": {
+        "long_commit_per_s": [
+          242.0,
+          149.66666666666666,
+          211.33333333333334
+        ],
+        "long_attempt_per_s": [
+          531.3333333333334,
+          584.0,
+          504.6666666666667
+        ],
+        "long_completion_rate": [
+          0.45545796737766625,
+          0.2562785388127854,
+          0.4187582562747688
+        ]
+      }
+    },
+    "s09": {
+      "stock": {
+        "long_commit_per_s": [
+          52.666666666666664,
+          88.0,
+          31.0
+        ],
+        "long_attempt_per_s": [
+          422.6666666666667,
+          408.0,
+          445.0
+        ],
+        "long_completion_rate": [
+          0.12460567823343849,
+          0.21568627450980393,
+          0.0696629213483146
+        ]
+      },
+      "E-hb": {
+        "long_commit_per_s": [
+          38.666666666666664,
+          50.666666666666664,
+          69.0
+        ],
+        "long_attempt_per_s": [
+          440.3333333333333,
+          401.0,
+          408.3333333333333
+        ],
+        "long_completion_rate": [
+          0.08781226343679031,
+          0.12635078969243557,
+          0.1689795918367347
+        ]
+      },
+      "E-max": {
+        "long_commit_per_s": [
+          57.666666666666664,
+          73.0,
+          76.33333333333333
+        ],
+        "long_attempt_per_s": [
+          429.3333333333333,
+          415.3333333333333,
+          444.0
+        ],
+        "long_completion_rate": [
+          0.1343167701863354,
+          0.17576243980738362,
+          0.17192192192192193
+        ]
+      },
+      "b": {
+        "long_commit_per_s": [
+          67.66666666666667,
+          9.333333333333334,
+          90.0
+        ],
+        "long_attempt_per_s": [
+          1179.6666666666667,
+          1502.6666666666667,
+          887.6666666666666
+        ],
+        "long_completion_rate": [
+          0.05736083639446171,
+          0.006211180124223602,
+          0.10138941043935411
+        ]
+      },
+      "c": {
+        "long_commit_per_s": [
+          48.333333333333336,
+          91.33333333333333,
+          63.333333333333336
+        ],
+        "long_attempt_per_s": [
+          816.0,
+          645.6666666666666,
+          941.0
+        ],
+        "long_completion_rate": [
+          0.05923202614379085,
+          0.14145585957666496,
+          0.06730428622033298
+        ]
+      }
+    },
+    "s095": {
+      "stock": {
+        "long_commit_per_s": [
+          30.666666666666668,
+          25.666666666666668,
+          18.333333333333332
+        ],
+        "long_attempt_per_s": [
+          434.0,
+          453.3333333333333,
+          460.3333333333333
+        ],
+        "long_completion_rate": [
+          0.0706605222734255,
+          0.05661764705882353,
+          0.03982621288921072
+        ]
+      },
+      "E-hb": {
+        "long_commit_per_s": [
+          17.666666666666668,
+          26.0,
+          44.0
+        ],
+        "long_attempt_per_s": [
+          464.6666666666667,
+          463.3333333333333,
+          474.3333333333333
+        ],
+        "long_completion_rate": [
+          0.03802008608321377,
+          0.05611510791366906,
+          0.09276177090653549
+        ]
+      },
+      "E-max": {
+        "long_commit_per_s": [
+          28.666666666666668,
+          46.333333333333336,
+          57.333333333333336
+        ],
+        "long_attempt_per_s": [
+          544.0,
+          467.6666666666667,
+          492.3333333333333
+        ],
+        "long_completion_rate": [
+          0.05269607843137255,
+          0.09907341411261582,
+          0.11645226811103589
+        ]
+      },
+      "b": {
+        "long_commit_per_s": [
+          21.666666666666668,
+          61.0,
+          17.333333333333332
+        ],
+        "long_attempt_per_s": [
+          1129.0,
+          1527.3333333333333,
+          1248.0
+        ],
+        "long_completion_rate": [
+          0.019191024505462062,
+          0.03993889131383675,
+          0.013888888888888888
+        ]
+      },
+      "c": {
+        "long_commit_per_s": [
+          8.0,
+          34.0,
+          56.333333333333336
+        ],
+        "long_attempt_per_s": [
+          1132.0,
+          1034.6666666666667,
+          967.3333333333334
+        ],
+        "long_completion_rate": [
+          0.007067137809187279,
+          0.03286082474226804,
+          0.05823569951757409
+        ]
+      }
+    }
+  }
+}
