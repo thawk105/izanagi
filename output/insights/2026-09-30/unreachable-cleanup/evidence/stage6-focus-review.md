@@ -1,0 +1,13 @@
+1. **refuted — 所見 1 は解消。** [plan2.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/output/insights/2026-09-30/unreachable-cleanup/evidence/plan2.json) の `discard-scratch` 59 件・88 対と、[round2/plan.json](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/output/insights/2026-09-30/unreachable-cleanup/evidence/round2/plan.json) の 2 件・2 対に、指定の出力物判定に当たる path はない。一方、図・README・patch などを持つ初回 40 件と後発 2 件は救出側にあり、判定は恒真でも恒偽でもない。**放置時の影響:** 確認した `pairs` による受理集合の誤増加はない。
+
+2. **refuted — 所見 2 は解消。** [承認カード](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/output/insights/2026-09-30/unreachable-cleanup/README.md:70) の 61・30・1 件は、plan2 の `discard-scratch` 59・`discard-landed` 30・`discard-extra` 1 件と round2 の `discard-scratch` 2 件に一致する。類型 A は残る実装・script・設定を明示している。**放置時の影響:** 92 件の受理判断に対する、前回指摘した損失説明の過小評価は確認されない。
+
+3. **refuted — 遷移に対象外変更はない。** [台帳](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/docs/unreachable-object-ledger.md:44) の `08deb98ff` 前後を JSON 比較すると、既存行の変更は `pending` → `rescued` の 40 件だけで、各行の変更 field は指定の 4 個だけ。削除行はなく、追加は後発 4 行。救出済み 114 件の ref 名は、今回分 65・9/21 監査分 19・既存分 30 の各系統と整合する。**放置時の影響:** 対象外 entry や field による台帳値の変化はない。
+
+4. **real — 後発 4 行の監査種別が誤記されている。** [台帳 581–584 行](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/docs/unreachable-object-ledger.md:581) の `assessment_reason` は全行で「full 監査」と記すが、[README](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/output/insights/2026-09-30/unreachable-cleanup/README.md:44) と [worklog](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/docs/spool/worklog/2026-09-30-dev-wave-unreachable-cleanup-1.md:14) は off 監査のみと明記する。4 行は各 26 field で、`source_refs=[]`・`source_tips={}`・`assessment_verdict=indeterminate` は整合し、report SHA-256 も round2 の off 監査ファイルと一致した。**放置時の影響:** 4 entry の証拠欄が、実施していない full 監査を根拠として示し続ける。現時点の status や受理集合は変わらない。
+
+5. **refuted — 件数の食い違いはない。** 台帳は 435 件＝救出 114＋喪失受容 227＋消失 2＋保留 92。[README](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/output/insights/2026-09-30/unreachable-cleanup/README.md:14) と [worklog の次の一手](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup/docs/spool/worklog/2026-09-30-dev-wave-unreachable-cleanup-1.md:36) の新規 157 件・保留 92 件とも一致する。**放置時の影響:** 件数差による台帳値や受理集合の変化はない。
+
+## 総括
+
+**real 所見: 4。** 後発 4 行の `assessment_reason` にある「full 監査」を「off 監査」に直す必要がある。確認は指定資料と読むだけの Git 比較に限り、tool・監査・ref の実走はしていない。

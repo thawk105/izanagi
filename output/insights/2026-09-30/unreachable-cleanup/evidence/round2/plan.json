@@ -1,0 +1,234 @@
+{
+  "schema": "unreachable-20260930-plan-v1",
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-unreachable-cleanup",
+  "job": "/work/SFC/tanab/tmp/unreachable-cleanup-2026-09-30/round2",
+  "items": [
+    {
+      "oid": "8a0c109f0c7477358fa315ac4e22b522a3a61a66",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:12:20+09:00",
+      "category": "rescue-scratch-output",
+      "counts": {
+        "full": 13,
+        "suppressed": 0,
+        "inmain": 1,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 12
+      },
+      "paths": [
+        "md32-scratch/default-preprocessed.diff",
+        "md32-scratch/fix1-promotion-ronly.patch",
+        "md32-scratch/fix2-promotion-update-body.patch",
+        "md32-scratch/fix3-abort-insert-uaf.patch",
+        "md32-scratch/opt1_promo0-preprocessed-normalized.diff"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/default-preprocessed-normalized.diff",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/default-preprocessed.diff",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/files/cc/cicada/include/cicada_op_element.hh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/files/cc/cicada/include/transaction.hh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/files/cc/cicada/transaction.cc",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix1-promotion-ronly.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix1.msg",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix2-promotion-update-body.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix2.msg",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix3-abort-insert-uaf.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix3.msg",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/opt1_promo0-preprocessed-normalized.diff",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/opt1_promo0-preprocessed.diff",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "91a316c795c057aebad45a22fc135b2976948458",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:23:35+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch-liveness/launch_lock_order_liveness.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-liveness/launch_lock_order_liveness.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "98674b34211f29186106756d84a5c21e2805d908",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T13:16:27+09:00",
+      "category": "discard-scratch",
+      "counts": {
+        "full": 1,
+        "suppressed": 0,
+        "inmain": 0,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 1
+      },
+      "paths": [
+        "scratch-liveness/launch_lock_order_liveness.py"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "scratch-liveness/launch_lock_order_liveness.py",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    },
+    {
+      "oid": "e9dd450df96f88388c9ef3c6ad40f3678bb79736",
+      "subject": "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録",
+      "committed_at": "2026-09-30T14:00:37+09:00",
+      "category": "rescue-scratch-output",
+      "counts": {
+        "full": 10,
+        "suppressed": 0,
+        "inmain": 3,
+        "deletion": 0,
+        "notmain_body": 0,
+        "notmain_scratch": 7
+      },
+      "paths": [
+        "md32-scratch/fix2-promotion-update-body.patch",
+        "md32-scratch/fix4-inline-insert-init.patch",
+        "md32-scratch/opt1_promo0-preprocessed.diff"
+      ],
+      "external_paths": [],
+      "source_refs": [],
+      "source_tips": {},
+      "reachable_refs": [],
+      "pairs": [
+        {
+          "path": "md32-scratch/default-fix4-only-preprocessed.diff",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/files/cc/cicada/include/transaction.hh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/files/cc/cicada/include/tuple.hh",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix2-promotion-update-body.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix3.msg",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix4-inline-insert-init.patch",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/fix4.msg",
+          "kind": "notmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/opt1_promo0-fix4-only-preprocessed.diff",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/opt1_promo0-preprocessed-normalized.diff",
+          "kind": "inmain",
+          "location": "scratch"
+        },
+        {
+          "path": "md32-scratch/opt1_promo0-preprocessed.diff",
+          "kind": "notmain",
+          "location": "scratch"
+        }
+      ],
+      "extra_reason": null
+    }
+  ]
+}
