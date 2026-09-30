@@ -22,6 +22,9 @@ title: [T-2893] VHash md_40: 評価計画の草稿に U0 の確認段 S2 を S1 
 - 焦点再レビュー 1 巡目 (6 call、223 秒) は前回 6 件を closed とし、新しい must-fix 1 件 (smoke の通過条件の「前進の成功」は公開への到達を保証しない) を出した → real として、通過条件を開始時より上げた公開の回数にした。焦点再レビュー 2 巡目 (3 call、82 秒) で GO (must-fix 0)。
 - セッション異常: (1) worktree の submodule 初期化の 1 回目が `update-no-fetch` で rc 1、同じ呼び出しの再実行で通った。(2) 開始 gate を打った後で、handoff と依頼の写しを harness 既定の home の job dir から `/work/SFC/tanab/tmp/` へ移した (開始 gate の log は home の handoff path を記録)。
   (3) Explore 子を model 未指定で起動して hook に拒否され、sonnet を明示して起動し直した。(4) 凍結前の検出語の走査 (`s8b_holdout_freeze search`) は rc 1 だったが、hit は 2026-09-17 の既存 file 3 件 (`output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/`) だけで、本 wave の file は含まれない。
+  (5) 受入 1 走目 (tip `0be247622`) が赤 4 件で rc 70: `test_env_contract_activation.py` の 3 件は `git archive HEAD` の 30 秒の時間切れ、`test_plot_b7_fixed5_regression.py::test_real_figure_passes_layout_check` は
+  文字枠の重なり (合成データの作図で、同型の赤は worklog 1988 の受入でも非帰属と記録)。本 wave の差分は Markdown の docs・一次資料・fragment だけでこれらの test から到達しない。
+  4 件を計算ノードで単独再走して全部緑 (`tools/run_tests.py --force-dispatch`、4 passed、18 秒) だったので非帰属と判定し、受入を 1 回だけ取り直した。
 
 ## 次の一手差分
 
