@@ -39,7 +39,7 @@ def test_role_manifest_reasoning_policy_is_subset_of_repo_policy() -> None:
 def test_effort_vocabularies_are_exact_and_ordered() -> None:
     expected = ("low", "medium", "high", "xhigh", "max")
     assert effort_levels.CLAUDE_EFFORTS == expected
-    assert effort_levels.CODEX_REASONING_EFFORTS == expected
+    assert effort_levels.CODEX_REASONING_EFFORTS == expected + ("ultra",)
 
 
 def test_normal_import_matches_direct_load() -> None:

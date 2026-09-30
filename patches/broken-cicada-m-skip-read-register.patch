@@ -1,0 +1,32 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+index f346d9323..efa1bfc1a 100644
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -159,7 +159,26 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,
+ #else
+ #line 125
+ #endif
+-  read_set_.emplace_back(s, key, tuple, later_ver, ver);
++  struct BreakStats {
++    std::atomic<unsigned long long> reached{0}, changed{0}, committed{0};
++    ~BreakStats() {
++      std::fprintf(stderr, "CICADA_BREAK_FIRED slug=m-skip-read-register reached=%llu changed=%llu committed=%llu\n",
++          reached.load(), changed.load(), committed.load());
++    }
++  };
++  static BreakStats break_stats;
++  if (break_stats.reached.fetch_add(1) == 0) {
++    auto key_hex = izanagi_trace::key_to_hex(std::string(key));
++    std::fprintf(stderr,
++        "CICADA_BREAK_EVENT slug=m-skip-read-register thid=%u tx_seq=%llu tx_wts=%llu key=%s ver=%p skipped=1\n",
++        unsigned(thid_), (unsigned long long)trace_seq_,
++        (unsigned long long)wts_.ts_, key_hex.c_str(), static_cast<void*>(ver));
++    ++break_stats.changed;
++    ++break_stats.committed;
++  } else {
++    read_set_.emplace_back(s, key, tuple, later_ver, ver);
++  }
++
+ #if TRACE
+   if (read_set_.size() > trace_read_before) {
+   read_set_.back().trace_read_gen_ = g2;

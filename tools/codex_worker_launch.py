@@ -166,6 +166,7 @@ _EVIDENCE_ISSUE_REASONS = frozenset(
         "session_meta_count_invalid",
         "turn_context_missing",
         "observer_failed",
+        "delegation_detected",
     }
 )
 _NONFATAL_EVIDENCE_ISSUE_REASONS = frozenset({"duplicate_key"})
@@ -1465,6 +1466,18 @@ def _discover_rollouts(state: AttemptState, sessions_root: Path) -> None:
             )
 
 
+def _is_delegation_event(event: Mapping[str, Any]) -> bool:
+    """Root の spawn 呼出しだけを拒否する (結果・namespace 全体ではない)。"""
+
+    payload = event.get("payload")
+    return (
+        event.get("type") == "response_item"
+        and isinstance(payload, dict)
+        and payload.get("type") == "function_call"
+        and payload.get("name") == "spawn_agent"
+    )
+
+
 def _consume_rollout_event(
     state: AttemptState,
     rollout: RolloutState,
@@ -1475,6 +1488,15 @@ def _consume_rollout_event(
     cwd: str,
     line: int | None = None,
 ) -> None:
+    # Online tail と sealed 再計算はこの同じ消費経路を使う。
+    if _is_delegation_event(event):
+        rollout.invalid = True
+        _record_evidence_issue(
+            state,
+            source=rollout.session_id,
+            reason="delegation_detected",
+            line=line,
+        )
     item_type = event.get("type")
     payload = event.get("payload")
     if not isinstance(payload, dict):

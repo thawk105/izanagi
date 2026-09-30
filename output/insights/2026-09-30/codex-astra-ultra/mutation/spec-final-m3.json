@@ -1,0 +1,25 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 12600,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "m3-effort-levels-drop-ultra",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_waves/effort_levels.py",
+     "old": "    \"ultra\",\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[ultra]",
+    "orchestrator/tests/test_effort_levels.py::test_effort_vocabularies_are_exact_and_ordered"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
