@@ -1,0 +1,1099 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 66%]\n....................................                                     [100%]\n108 passed in 20.23s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "05e908f5b8688ea1f68fb1689caf4d64ac5ca990207000206fb7197721fb373c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+    "duration_s": 20.911,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "10405802b528d1ad868ed2969578dab75f5b577999e0df9a6048c5190545010e",
+    "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+    "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+    "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+    "status": "PASSED",
+    "test_output_sha256": "05e908f5b8688ea1f68fb1689caf4d64ac5ca990207000206fb7197721fb373c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+  },
+  "date": "2026-09-30T09:09:07.408797+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 66%]\n....................................                                     [100%]\n108 passed in 17.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "80f0aacca63306b3c0d216f3da29159bc590ff158772949260ca2e520ec25715"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.62,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-docstring-equivalent",
+      "injection_diff_sha256": "9522555c1e2c74d3d23e3e38fbfb62447e523d1ca8affa9f30d10deb05dea566",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "eee85225d6fb0fbf46ebc1e30f23f1112bf7f3f9d9a1e440d0ddf452c6a2a7cb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "\"\"\"Pinned Cicada hot block experiment. Every throughput is exploratory.\"\"\"\n",
+          "old": "\"\"\"Pinned Cicada hot block experiment. All throughput is exploratory.\"\"\"\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "SURVIVED",
+      "test_output_sha256": "80f0aacca63306b3c0d216f3da29159bc590ff158772949260ca2e520ec25715",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.....................................................F.................. [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n____________________ test_m6_estimate_threshold_and_ladder _____________________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m6_estimate_threshold_and_ladder():\n        smoke = {\"build_seconds\": 300, \"max_perf_run_seconds\": 9,\n                 \"max_count_run_seconds\": 4, \"trace_run_verify_seconds\": 10,\n                 \"smoke_seconds\": 310, \"mutation_seconds\": 650,\n                 \"focus_and_audit_seconds\": 350,\n                 \"build_sharing\": {\"mode\": \"shared-verified\"}}\n        first = h.estimate(smoke)[\"steps\"][0]\n        assert h.estimate(smoke)[\"threshold_node_seconds\"] == 7200\n        assert first[\"perf_job_seconds\"] == 120 * 9 + 60\n        assert first[\"count_job_seconds\"] == 20 * 4 + 60\n>       assert first[\"trace_job_seconds\"] == [180, 50]\nE       assert [180.0, 180.0] == [180, 50]\nE         \nE         At index 1 diff: 180.0 != 50\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:130: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder\n1 failed, 107 passed in 17.94s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=895 retained_bytes=895 omitted_bytes=0 rendered_excerpt_bytes=934 sha256=54045bd8f357d376345121799bb00a070dbd69d8215b7d46a86dbaf240cd8446\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m6_estimate_threshold_and_ladder():\n>         smoke = {\"build_seconds\": 300, \"max_perf_run_seconds\": 9,\n>                  \"max_count_run_seconds\": 4, \"trace_run_verify_seconds\": 10,\n>                  \"smoke_seconds\": 310, \"mutation_seconds\": 650,\n>                  \"focus_and_audit_seconds\": 350,\n>                  \"build_sharing\": {\"mode\": \"shared-verified\"}}\n>         first = h.estimate(smoke)[\"steps\"][0]\n>         assert h.estimate(smoke)[\"threshold_node_seconds\"] == 7200\n>         assert first[\"perf_job_seconds\"] == 120 * 9 + 60\n>         assert first[\"count_job_seconds\"] == 20 * 4 + 60\n> >       assert first[\"trace_job_seconds\"] == [180, 50]\n> E       assert [180.0, 180.0] == [180, 50]\n> E         \n> E         At index 1 diff: 180.0 != 50\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:130: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=895 retained_bytes=895 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1644 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d24ea2cd73228d5c35abbef48a53e9d3f9fbe764cbcbc728b829d2c98599c101"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.654,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder"
+      ],
+      "hang_risk": false,
+      "id": "M1-estimate-trace-two-times-max",
+      "injection_diff_sha256": "29b88b5055e4d01f5ee5fd94bf168fb92d0642be0957072d8f19372a4fdb7923",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4a3878d828977d476bc8fd48c5c2b98810a05ff1c7c9e9f93d12c364ba2e7e6c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "        trace_jobs = [max(len(plan_trace(j)) for j in (0, 1)) * trace_wall] * 2\n",
+          "old": "        trace_jobs = [len(plan_trace(j)) * trace_wall for j in (0, 1)]\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "d24ea2cd73228d5c35abbef48a53e9d3f9fbe764cbcbc728b829d2c98599c101",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.....................................................F.................. [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n____________________________ test_m2_count_v2_only _____________________________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m2_count_v2_only():\n        raw = count_json(\"B-k1\")[\"variant\"]\n        result = h.aggregate_count(raw, \"B-k1\")\n        assert result[\"snapshot_lag_cycles\"][2] == 1\n        assert result[\"snapshot_lag_bucket_bounds\"][2][\"lower_us\"] == 2 / 2100\n        assert result[\"snapshot_lag_bucket_bounds\"][-1][\"upper_us\"] is None\n        assert result[\"install_wait_cycles_per_update_commit\"] == 7\n>       with pytest.raises(ValueError):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_vhash_cicada_hot_block.py:153: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only\n1 failed, 107 passed in 17.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only\" nodeid_bytes=72 nodeid_omitted_bytes=0 source_bytes=592 retained_bytes=592 omitted_bytes=0 rendered_excerpt_bytes=619 sha256=342d9c5d9ae9bae3df072960bab635aee76c1162ae880d69b64ac2cbbe8fc444\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m2_count_v2_only():\n>         raw = count_json(\"B-k1\")[\"variant\"]\n>         result = h.aggregate_count(raw, \"B-k1\")\n>         assert result[\"snapshot_lag_cycles\"][2] == 1\n>         assert result[\"snapshot_lag_bucket_bounds\"][2][\"lower_us\"] == 2 / 2100\n>         assert result[\"snapshot_lag_bucket_bounds\"][-1][\"upper_us\"] is None\n>         assert result[\"install_wait_cycles_per_update_commit\"] == 7\n> >       with pytest.raises(ValueError):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:153: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=592 retained_bytes=592 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1313 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "82350c3373ffad502ff042142490e099111c34c81f3a043b8e973ed2d917b2ef"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.409,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only"
+      ],
+      "hang_risk": false,
+      "id": "M2-count-v1-accepted",
+      "injection_diff_sha256": "a3d1c68a2951fdd5f5a28c9845d6eb129867d89384ae181d1fd8d3b5900f4e2a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "44a5de96cdd0c1a9fb01accfe58e472ee78d0d6a2d94cacceed3a2849d5f9287",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "    if (not isinstance(value, dict) or value.get(\"schema_version\") not in (1, 2) or\n",
+          "old": "    if (not isinstance(value, dict) or value.get(\"schema_version\") != 2 or\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "82350c3373ffad502ff042142490e099111c34c81f3a043b8e973ed2d917b2ef",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n................................................................F....... [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n_____________________ test_m3_pair_uses_same_job_and_round _____________________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m3_pair_uses_same_job_and_round():\n        raw = jobs()\n        raw[0][\"records\"][0][\"throughput\"] = 10\n        document = aggregate(raw)\n        assert document[\"schema\"] == \"vhash-hot-aggregate/v2\"\n        result = document[\"cells\"][\"rr5\"]\n        assert result[\"post-k1/stock\"][\"points\"][0][\"ratio\"] == 13\n        assert result[\"post-k1/stock\"][\"points\"][1][\"ratio\"] == pytest.approx(1.3)\n        raw[1][\"records\"][0][\"throughput\"] = 1000\n        by_round = {p[\"round\"]: p[\"ratio\"] for p in aggregate(raw)[\"cells\"][\"rr5\"][\"B-k1/stock\"][\"points\"]}\n        assert by_round[0] == pytest.approx(11)\n        assert by_round[2] == pytest.approx(112.2 / 1000)\n        assert set(result[\"post-k1/B-k1\"][\"by_node\"]) == {\"node-0\", \"node-1\"}\n        raw[0][\"records\"][3][\"job_id\"] = \"wrong\"\n>       with pytest.raises(ValueError, match=\"crosses job\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_vhash_cicada_hot_block.py:187: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round\n1 failed, 107 passed in 17.74s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=1008 retained_bytes=1008 omitted_bytes=0 rendered_excerpt_bytes=1049 sha256=b6c54ed1ccaf6d7867685ab5b612db8bac3779b1f30de53ba9ead0d1c4fcae8c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m3_pair_uses_same_job_and_round():\n>         raw = jobs()\n>         raw[0][\"records\"][0][\"throughput\"] = 10\n>         document = aggregate(raw)\n>         assert document[\"schema\"] == \"vhash-hot-aggregate/v2\"\n>         result = document[\"cells\"][\"rr5\"]\n>         assert result[\"post-k1/stock\"][\"points\"][0][\"ratio\"] == 13\n>         assert result[\"post-k1/stock\"][\"points\"][1][\"ratio\"] == pytest.approx(1.3)\n>         raw[1][\"records\"][0][\"throughput\"] = 1000\n>         by_round = {p[\"round\"]: p[\"ratio\"] for p in aggregate(raw)[\"cells\"][\"rr5\"][\"B-k1/stock\"][\"points\"]}\n>         assert by_round[0] == pytest.approx(11)\n>         assert by_round[2] == pytest.approx(112.2 / 1000)\n>         assert set(result[\"post-k1/B-k1\"][\"by_node\"]) == {\"node-0\", \"node-1\"}\n>         raw[0][\"records\"][3][\"job_id\"] = \"wrong\"\n> >       with pytest.raises(ValueError, match=\"crosses job\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:187: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1008 retained_bytes=1008 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1763 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "df2c238bb6fc75361f5ca806c57d4eaeedc4a7873c5885529477877615eb0059"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.447,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round"
+      ],
+      "hang_risk": false,
+      "id": "M3-pair-crosses-job",
+      "injection_diff_sha256": "ba7b68ab034b40792e69279c456dc8071b67addbc92412899df15a2fcb2fc85f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "edd888e2d57fd57585c13481bc034b45db3a8e3299bfd11d68fb104b5e849199",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "                    if (not r.get(\"job_id\") or\n",
+          "old": "                    if (not r.get(\"job_id\") or r[\"job_id\"] != ref.get(\"job_id\") or\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "df2c238bb6fc75361f5ca806c57d4eaeedc4a7873c5885529477877615eb0059",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.............................................................F.......... [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n________________________ test_m5_cycle_disqualifies_arm ________________________\n[gw6] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m5_cycle_disqualifies_arm():\n        raw = jobs()\n        target = next(r for r in raw[-2][\"records\"] if r[\"cell\"] == \"T1\" and r[\"arm\"] == \"post-k1\")\n        target[\"trace\"].update(rc=1, total_cycles=1, verdict=\"non-serializable\")\n        result = aggregate(raw)\n>       assert result[\"disqualified_arms\"] == [\"post-k1\"]\nE       AssertionError: assert ['-'] == ['post-k1']\nE         \nE         At index 0 diff: '-' != 'post-k1'\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:196: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm\n1 failed, 107 passed in 17.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=593 retained_bytes=593 omitted_bytes=0 rendered_excerpt_bytes=622 sha256=96d86d00eef2a2e5b0303cf6d835ab9fbb489baa82cb1e5b5d698b54586b58c4\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m5_cycle_disqualifies_arm():\n>         raw = jobs()\n>         target = next(r for r in raw[-2][\"records\"] if r[\"cell\"] == \"T1\" and r[\"arm\"] == \"post-k1\")\n>         target[\"trace\"].update(rc=1, total_cycles=1, verdict=\"non-serializable\")\n>         result = aggregate(raw)\n> >       assert result[\"disqualified_arms\"] == [\"post-k1\"]\n> E       AssertionError: assert ['-'] == ['post-k1']\n> E         \n> E         At index 0 diff: '-' != 'post-k1'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:196: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=593 retained_bytes=593 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1325 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b75a84edc8e74d5bef0f41b573ed0fd7f0629ff416f57831ac64717f8d7530b2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.47,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm"
+      ],
+      "hang_risk": false,
+      "id": "M4-cycle-arm-not-disqualified",
+      "injection_diff_sha256": "1f00b9b5dd5465c958289ec8df33c7ab12a34d5afb291401a82c206c18f1339d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cfbd8656c0483ff0c1d7b52c3827e979fd5fe1e900c2b09d437ca380e305d09e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "    failed = {\"-\" for r in traces if r[\"build_kind\"] == \"trace\" and\n",
+          "old": "    failed = {r[\"arm\"] for r in traces if r[\"build_kind\"] == \"trace\" and\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "b75a84edc8e74d5bef0f41b573ed0fd7f0629ff416f57831ac64717f8d7530b2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n....................................................FFF................. [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n_____________________ test_m5_stale_gap_trace_and_verdict ______________________\n[gw7] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m5_stale_gap_trace_and_verdict():\n>       assert [len(h.plan_trace(j)) for j in (0, 1)] == [18, 5]\nE       assert [16, 5] == [18, 5]\nE         \nE         At index 0 diff: 16 != 18\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:211: AssertionError\n___________________________ test_grid_rotation_jobs ____________________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_grid_rotation_jobs():\n        assert len(h.CELLS) == 12\n        assert h.rotation(0, 0) == h.ARMS\n        assert h.rotation(1, 0) == h.rotation(0, 1) == h.ARMS[1:] + h.ARMS[:1]\n        assert [len(h.plan_perf(j)) for j in (0, 1, 2)] == [120] * 3\n        assert [{r[\"round\"] for r in h.plan_perf(j)} for j in (0, 1, 2)] == [\n            {0, 1}, {2, 3}, {4, 5}]\n        assert len(h.plan_count()) == 20\n>       assert [len(h.plan_trace(j)) for j in (0, 1)] == [18, 5]\nE       assert [16, 5] == [18, 5]\nE         \nE         At index 0 diff: 16 != 18\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:96: AssertionError\n____________________ test_m6_estimate_threshold_and_ladder _____________________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m6_estimate_threshold_and_ladder():\n        smoke = {\"build_seconds\": 300, \"max_perf_run_seconds\": 9,\n                 \"max_count_run_seconds\": 4, \"trace_run_verify_seconds\": 10,\n                 \"smoke_seconds\": 310, \"mutation_seconds\": 650,\n                 \"focus_and_audit_seconds\": 350,\n                 \"build_sharing\": {\"mode\": \"shared-verified\"}}\n        first = h.estimate(smoke)[\"steps\"][0]\n        assert h.estimate(smoke)[\"threshold_node_seconds\"] == 7200\n        assert first[\"perf_job_seconds\"] == 120 * 9 + 60\n        assert first[\"count_job_seconds\"] == 20 * 4 + 60\n>       assert first[\"trace_job_seconds\"] == [180, 50]\nE       assert [160.0, 50.0] == [180, 50]\nE         \nE         At index 0 diff: 160.0 != 180\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:130: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder\n3 failed, 105 passed in 18.39s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=895 retained_bytes=895 omitted_bytes=0 rendered_excerpt_bytes=934 sha256=e5cf189044114da8b44095df8a235d214fd1764b1fa267352e206a0866c95869\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m6_estimate_threshold_and_ladder():\n>         smoke = {\"build_seconds\": 300, \"max_perf_run_seconds\": 9,\n>                  \"max_count_run_seconds\": 4, \"trace_run_verify_seconds\": 10,\n>                  \"smoke_seconds\": 310, \"mutation_seconds\": 650,\n>                  \"focus_and_audit_seconds\": 350,\n>                  \"build_sharing\": {\"mode\": \"shared-verified\"}}\n>         first = h.estimate(smoke)[\"steps\"][0]\n>         assert h.estimate(smoke)[\"threshold_node_seconds\"] == 7200\n>         assert first[\"perf_job_seconds\"] == 120 * 9 + 60\n>         assert first[\"count_job_seconds\"] == 20 * 4 + 60\n> >       assert first[\"trace_job_seconds\"] == [180, 50]\n> E       assert [160.0, 50.0] == [180, 50]\n> E         \n> E         At index 0 diff: 160.0 != 180\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:130: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=711 retained_bytes=711 omitted_bytes=0 rendered_excerpt_bytes=746 sha256=128ba4662f87261ce934ebca60f129f4654fc6dba962485195e4d38d24ed4d24\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_grid_rotation_jobs():\n>         assert len(h.CELLS) == 12\n>         assert h.rotation(0, 0) == h.ARMS\n>         assert h.rotation(1, 0) == h.rotation(0, 1) == h.ARMS[1:] + h.ARMS[:1]\n>         assert [len(h.plan_perf(j)) for j in (0, 1, 2)] == [120] * 3\n>         assert [{r[\"round\"] for r in h.plan_perf(j)} for j in (0, 1, 2)] == [\n>             {0, 1}, {2, 3}, {4, 5}]\n>         assert len(h.plan_count()) == 20\n> >       assert [len(h.plan_trace(j)) for j in (0, 1)] == [18, 5]\n> E       assert [16, 5] == [18, 5]\n> E         \n> E         At index 0 diff: 16 != 18\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:96: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=345 retained_bytes=345 omitted_bytes=0 rendered_excerpt_bytes=366 sha256=bc5c245574bc8644447a76d91d4289d30ab61ad0b0648ed5495473f9c07e3a86\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m5_stale_gap_trace_and_verdict():\n> >       assert [len(h.plan_trace(j)) for j in (0, 1)] == [18, 5]\n> E       assert [16, 5] == [18, 5]\n> E         \n> E         At index 0 diff: 16 != 18\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:211: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=1951 retained_bytes=1951 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3592 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "61bce649c6935bf72fda61f93551496d981cde4f0eb623e1ed72fa4bb02ed94b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 19.107,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder"
+      ],
+      "hang_risk": false,
+      "id": "M5-stale-gap-dropped-from-trace-plan",
+      "injection_diff_sha256": "332663e01d2df220e0ebba8ec187de53d64d8935aac4b3bfb63af0739fb986dd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d4efa85b2df7881bf525299074c45077536d80611790637f9abd8c232dc6a9ae",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "        broken = (*(b for b in BROKEN if b != \"stale-gap\"), \"B2-probe\")\n",
+          "old": "        broken = (*BROKEN, \"B2-probe\")\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "61bce649c6935bf72fda61f93551496d981cde4f0eb623e1ed72fa4bb02ed94b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................................................F................. [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n___________________________ test_grid_rotation_jobs ____________________________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_grid_rotation_jobs():\n        assert len(h.CELLS) == 12\n        assert h.rotation(0, 0) == h.ARMS\n        assert h.rotation(1, 0) == h.rotation(0, 1) == h.ARMS[1:] + h.ARMS[:1]\n>       assert [len(h.plan_perf(j)) for j in (0, 1, 2)] == [120] * 3\nE       assert [108, 120, 120] == [120, 120, 120]\nE         \nE         At index 0 diff: 108 != 120\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:92: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs\n1 failed, 107 passed in 17.83s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=509 retained_bytes=509 omitted_bytes=0 rendered_excerpt_bytes=536 sha256=cc462e49f99f078b414963d18d231dde92ec9015ed22944f33e07ff0791944f8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_grid_rotation_jobs():\n>         assert len(h.CELLS) == 12\n>         assert h.rotation(0, 0) == h.ARMS\n>         assert h.rotation(1, 0) == h.rotation(0, 1) == h.ARMS[1:] + h.ARMS[:1]\n> >       assert [len(h.plan_perf(j)) for j in (0, 1, 2)] == [120] * 3\n> E       assert [108, 120, 120] == [120, 120, 120]\n> E         \n> E         At index 0 diff: 108 != 120\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:92: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=509 retained_bytes=509 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1232 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "806cd31ae028eca8d3ea445b95701f53ce8cdbf5cbc1b23b9c14950700a4e3e9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.513,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs"
+      ],
+      "hang_risk": false,
+      "id": "M6-post-arm-dropped-in-a-round",
+      "injection_diff_sha256": "e866a6d82b9c212d593a7c479f27403bfc7462f90fe0b9685844f67e94581b6c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "73e4c0716768f33a5057aaf399e9fd27a599b2c29e6284ab74db7aadb13cc38a",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))\n            if not (round_index == 1 and arm == \"post-k1\")]\n",
+          "old": "            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))]\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "806cd31ae028eca8d3ea445b95701f53ce8cdbf5cbc1b23b9c14950700a4e3e9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n..................................................F....F................ [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n___________________________ test_build_list_isolated ___________________________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_build_list_isolated():\n        specs = h.build_specs()\n        assert len(specs) == 19\n        for arm in h.ARMS:\n            base = [h.VARIANT] + ([h.POST] if arm.startswith(\"post-\") else [])\n>           assert specs[f\"perf-{arm}\"][\"patches\"] == base\nE           AssertionError: assert ['patches/cic...ariant.patch'] == ['patches/cic...k-post.patch']\nE             \nE             Right contains one more item: 'patches/cicada-vhash-hot-block-post.patch'\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:107: AssertionError\n______________ test_m7_manifest_patch_order_survives_sorted_json _______________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw2/test_m7_manifest_patch_order_s0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15480e1447f0>\n\n    def test_m7_manifest_patch_order_survives_sorted_json(tmp_path, monkeypatch):\n        specs = h.build_specs()\n        payload = {\"builds\": {name: {\"patch_order\": spec[\"patches\"],\n                  \"patch_sha256\": {path: \"digest\" for path in spec[\"patches\"]}}\n                  for name, spec in specs.items()}}\n        h.write_json(tmp_path / \"manifest.json\", payload)\n        loaded = json.loads((tmp_path / \"manifest.json\").read_text())\n>       assert loaded[\"builds\"][\"trace-post-k8\"][\"patch_order\"] == [h.TRACE, h.VARIANT, h.POST]\nE       AssertionError: assert ['patches/ins...ariant.patch'] == ['patches/ins...k-post.patch']\nE         \nE         Right contains one more item: 'patches/cicada-vhash-hot-block-post.patch'\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_hot_block.py:507: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json\n2 failed, 106 passed in 18.78s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1052 retained_bytes=1052 omitted_bytes=0 rendered_excerpt_bytes=1091 sha256=6b290ef4cd97130fc5e90a6ef2f6383dc3ea55496f355dc05b4f217d9c6cf742\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw2/test_m7_manifest_patch_order_s0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15480e1447f0>\n> \n>     def test_m7_manifest_patch_order_survives_sorted_json(tmp_path, monkeypatch):\n>         specs = h.build_specs()\n>         payload = {\"builds\": {name: {\"patch_order\": spec[\"patches\"],\n>                   \"patch_sha256\": {path: \"digest\" for path in spec[\"patches\"]}}\n>                   for name, spec in specs.items()}}\n>         h.write_json(tmp_path / \"manifest.json\", payload)\n>         loaded = json.loads((tmp_path / \"manifest.json\").read_text())\n> >       assert loaded[\"builds\"][\"trace-post-k8\"][\"patch_order\"] == [h.TRACE, h.VARIANT, h.POST]\n> E       AssertionError: assert ['patches/ins...ariant.patch'] == ['patches/ins...k-post.patch']\n> E         \n> E         Right contains one more item: 'patches/cicada-vhash-hot-block-post.patch'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:507: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated\" nodeid_bytes=75 nodeid_omitted_bytes=0 source_bytes=624 retained_bytes=624 omitted_bytes=0 rendered_excerpt_bytes=653 sha256=5c97f97feafdf422378b1d0dbad49a76fdc876552ba369628d68f3b911b20047\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_build_list_isolated():\n>         specs = h.build_specs()\n>         assert len(specs) == 19\n>         for arm in h.ARMS:\n>             base = [h.VARIANT] + ([h.POST] if arm.startswith(\"post-\") else [])\n> >           assert specs[f\"perf-{arm}\"][\"patches\"] == base\n> E           AssertionError: assert ['patches/cic...ariant.patch'] == ['patches/cic...k-post.patch']\n> E             \n> E             Right contains one more item: 'patches/cicada-vhash-hot-block-post.patch'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:107: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1676 retained_bytes=1676 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2884 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "29c9833a4285259e7fc5bb083be27a57dd284121795f3fde5d6f2c702bb8b84b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 19.49,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json"
+      ],
+      "hang_risk": false,
+      "id": "M7-post-overlay-dropped-from-build",
+      "injection_diff_sha256": "ae743f69e7dbcb05d963f134f97ef57b3ecc117a55263f0d507302efaed9c0cc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "15ffdb4f32c04e4ef30b82af44d08767ebdc325e5648325ff5ef1dd1c6d67c54",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "            if False:\n                patches.append(POST)\n",
+          "old": "            if arm.startswith(\"post-\"):\n                patches.append(POST)\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "29c9833a4285259e7fc5bb083be27a57dd284121795f3fde5d6f2c702bb8b84b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 66%]\n.....................F..............                                     [100%]\n=================================== FAILURES ===================================\n_________________ test_m8_hot_block_write_wait_and_hold_and_v1 _________________\n[gw34] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-9/popen-gw34/test_m8_hot_block_write_wait_a0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1495139b3880>\n\n    def test_m8_hot_block_write_wait_and_hold_and_v1(tmp_path, monkeypatch):\n        from tools.plotting import plot_vhash_cicada_hot_block as hot\n    \n        captured = []\n        monkeypatch.setattr(hot, \"_save\",\n                            lambda fig, path, payload, source: captured.append(\n                                (path.name, fig.axes[-1], payload)))\n        source = tmp_path / \"aggregate.json\"\n        new = {\"schema\": \"vhash-hot-aggregate/v2\", \"pin\": \"pin\",\n               \"conditions\": {}, \"disqualified_arms\": [],\n               \"cells\": {\"ro0-gc10\": {\"B-k1/stock\": {\"points\": [{\"ratio\": .7}]},\n                                      \"post-k1/stock\": {\"points\": [{\"ratio\": .9}]}}},\n               \"count\": [\n                   {\"cell\": \"ro0-gc10\", \"arm\": \"B-k1\", \"count\": {\n                       \"install_wait_cycles_per_update_commit\": 7,\n                       \"install_hold_cycles_per_update_commit\": 21}},\n                   {\"cell\": \"ro0-gc10\", \"arm\": \"post-k1\", \"count\": {},\n                    \"post_count\": {\"publish_wait_cycles_per_update_commit\": 10,\n                                   \"publish_hold_cycles_per_update_commit\": 15}}]}\n        hot.make_figures(new, source, tmp_path)\n>       assert [p.get_height() for p in captured[-1][1].patches] == [7, 10, 21, 15]\nE       assert [np.int64(0),...float64(15.0)] == [7, 10, 21, 15]\nE         \nE         At index 0 diff: np.int64(0) != 7\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_vhash_hot_block.py:286: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1\n1 failed, 107 passed in 17.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1737 retained_bytes=1737 omitted_bytes=0 rendered_excerpt_bytes=1802 sha256=7fc6be9b7a291d9d6f315cf272de445915692c0f80a3e387b61d25ceab0550fa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-9/popen-gw34/test_m8_hot_block_write_wait_a0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1495139b3880>\n> \n>     def test_m8_hot_block_write_wait_and_hold_and_v1(tmp_path, monkeypatch):\n>         from tools.plotting import plot_vhash_cicada_hot_block as hot\n>     \n>         captured = []\n>         monkeypatch.setattr(hot, \"_save\",\n>                             lambda fig, path, payload, source: captured.append(\n>                                 (path.name, fig.axes[-1], payload)))\n>         source = tmp_path / \"aggregate.json\"\n>         new = {\"schema\": \"vhash-hot-aggregate/v2\", \"pin\": \"pin\",\n>                \"conditions\": {}, \"disqualified_arms\": [],\n>                \"cells\": {\"ro0-gc10\": {\"B-k1/stock\": {\"points\": [{\"ratio\": .7}]},\n>                                       \"post-k1/stock\": {\"points\": [{\"ratio\": .9}]}}},\n>                \"count\": [\n>                    {\"cell\": \"ro0-gc10\", \"arm\": \"B-k1\", \"count\": {\n>                        \"install_wait_cycles_per_update_commit\": 7,\n>                        \"install_hold_cycles_per_update_commit\": 21}},\n>                    {\"cell\": \"ro0-gc10\", \"arm\": \"post-k1\", \"count\": {},\n>                     \"post_count\": {\"publish_wait_cycles_per_update_commit\": 10,\n>                                    \"publish_hold_cycles_per_update_commit\": 15}}]}\n>         hot.make_figures(new, source, tmp_path)\n> >       assert [p.get_height() for p in captured[-1][1].patches] == [7, 10, 21, 15]\n> E       assert [np.int64(0),...float64(15.0)] == [7, 10, 21, 15]\n> E         \n> E         At index 0 diff: np.int64(0) != 7\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_vhash_hot_block.py:286: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1737 retained_bytes=1737 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2522 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "55dd1b9206c38ceb0339e4ba208d72099ea7593fbcf9a6cf21c45a0c0005d573"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.207,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1"
+      ],
+      "hang_risk": false,
+      "id": "M8-fig-write-wait-dropped",
+      "injection_diff_sha256": "63df97c497b6fbe3931695ee16b1ae231364e0970aeadb8ab9c0165c5886d205",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "93a64ebf5846f9ed00a2f0044d1526da4a46b50e6903c34c7f3d9a4e29b46714",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_cicada_hot_block.py",
+          "new": "                       [0 for _, _, wait, _ in bars],\n",
+          "old": "                       [float(wait) if wait is not None else 0 for _, _, wait, _ in bars],\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "55dd1b9206c38ceb0339e4ba208d72099ea7593fbcf9a6cf21c45a0c0005d573",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n_______________________ test_m9_post_count_line_required _______________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_m9_post_count_line_required():\n        payload = count_json(\"post-k8\")\n        text = h.COUNT_PREFIX + json.dumps(payload[\"variant\"]) + \"\\n\"\n>       with pytest.raises(ValueError, match=\"POST COUNT\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_vhash_cicada_hot_block.py:163: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required\n1 failed, 107 passed in 17.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=365 retained_bytes=365 omitted_bytes=0 rendered_excerpt_bytes=387 sha256=0d47e20201a08092faefc5be9f8836e3b05bfe39f91a8c5605ead2c2b315990a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_m9_post_count_line_required():\n>         payload = count_json(\"post-k8\")\n>         text = h.COUNT_PREFIX + json.dumps(payload[\"variant\"]) + \"\\x5cn\"\n> >       with pytest.raises(ValueError, match=\"POST COUNT\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:163: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=365 retained_bytes=365 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1092 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bf62677d1b9db7b2d34b6e37c51cb7837f07e89aa8c42d30c0152aef1821edd7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 18.516,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required"
+      ],
+      "hang_risk": false,
+      "id": "M9-post-count-line-optional",
+      "injection_diff_sha256": "656dac7f7e5712974c2dba6d4d6a4d860e8fbc14c63814b2288583080aa7161a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fcf9d5c4ecbfa505a419de7f8e2f3c5c25467bcaa19b9f6597185614c9f32640",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "    if len(post) > 1:\n",
+          "old": "    if len(post) != int(arm.startswith(\"post-\")):\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "bf62677d1b9db7b2d34b6e37c51cb7837f07e89aa8c42d30c0152aef1821edd7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.....................................................F.................. [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n________________ test_m10_probe_changed_and_committed_multisets ________________\n[gw24] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw24/test_m10_probe_changed_and_com0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1491032e85e0>\n\n    def test_m10_probe_changed_and_committed_multisets(tmp_path, monkeypatch):\n        monkeypatch.setattr(h, \"_trace_rows\", lambda _: ({\"C\": 1}, {}))\n        payload = {\"results\": [{\"verdict\": \"indeterminate\", \"total_cycles\": 0,\n                                \"integrity\": {name: 0 for name in h.INTEGRITY_ZERO}}]}\n        monkeypatch.setattr(h.subprocess, \"run\", lambda *_args, **_kwargs:\n                            SimpleNamespace(returncode=3, stdout=json.dumps(payload).encode(), stderr=b\"\"))\n        monkeypatch.setattr(h, \"_attribute\", lambda *_args: {\n            \"witness_count\": 0, \"examples\": [], \"witness_events\": []})\n        read = \"CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01\"\n        end = \"CICADA_B2PROBE stage=end id=1:2 outcome=commit\"\n        changed = \"CICADA_BREAK_EVENT slug=skip-pending stage=changed tx_wts=5 key=0a01 read_wts=4\"\n        committed = changed.replace(\"stage=changed\", \"stage=committed\")\n        summary = \"CICADA_BREAK_FIRED slug=skip-pending reached=0 changed=1 committed=1\"\n        base = [read, end, changed, committed, summary, \"CICADA_TRACE_INITIAL_WTS=1\"]\n        h._verify_trace(tmp_path, tmp_path, 1, \"\\n\".join(base), \"broken-B2-probe\", \"broken\")\n        extra_probe = [read.replace(\"id=1:2\", \"id=1:3\"),\n                       end.replace(\"id=1:2 outcome=commit\", \"id=1:3 outcome=abort\")]\n>       with pytest.raises(ValueError, match=\"changed break event\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_vhash_cicada_hot_block.py:333: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets\n1 failed, 107 passed in 20.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1824 retained_bytes=1824 omitted_bytes=0 rendered_excerpt_bytes=1880 sha256=033c525a8c399e7e46beda7dff57b11377c049e0d1ac50caea3d2b1fb300dbb1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw24/test_m10_probe_changed_and_com0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1491032e85e0>\n> \n>     def test_m10_probe_changed_and_committed_multisets(tmp_path, monkeypatch):\n>         monkeypatch.setattr(h, \"_trace_rows\", lambda _: ({\"C\": 1}, {}))\n>         payload = {\"results\": [{\"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>                                 \"integrity\": {name: 0 for name in h.INTEGRITY_ZERO}}]}\n>         monkeypatch.setattr(h.subprocess, \"run\", lambda *_args, **_kwargs:\n>                             SimpleNamespace(returncode=3, stdout=json.dumps(payload).encode(), stderr=b\"\"))\n>         monkeypatch.setattr(h, \"_attribute\", lambda *_args: {\n>             \"witness_count\": 0, \"examples\": [], \"witness_events\": []})\n>         read = \"CICADA_B2PROBE stage=read id=1:2 is_ronly=0 tx_wts=5 rts=3 p_ptr=0x1 p_wts=6 p_status=1 older_ptr=0x2 older_wts=4 read_index=0 key=0a01\"\n>         end = \"CICADA_B2PROBE stage=end id=1:2 outcome=commit\"\n>         changed = \"CICADA_BREAK_EVENT slug=skip-pending stage=changed tx_wts=5 key=0a01 read_wts=4\"\n>         committed = changed.replace(\"stage=changed\", \"stage=committed\")\n>         summary = \"CICADA_BREAK_FIRED slug=skip-pending reached=0 changed=1 committed=1\"\n>         base = [read, end, changed, committed, summary, \"CICADA_TRACE_INITIAL_WTS=1\"]\n>         h._verify_trace(tmp_path, tmp_path, 1, \"\\x5cn\".join(base), \"broken-B2-probe\", \"broken\")\n>         extra_probe = [read.replace(\"id=1:2\", \"id=1:3\"),\n>                        end.replace(\"id=1:2 outcome=commit\", \"id=1:3 outcome=abort\")]\n> >       with pytest.raises(ValueError, match=\"changed break event\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:333: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1824 retained_bytes=1824 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2604 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a9e078a316253eb3bc1120fb16a0a28e9b2b80ea29feff7fc836173cbd489937"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 20.911,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets"
+      ],
+      "hang_risk": false,
+      "id": "M10-probe-join-partial",
+      "injection_diff_sha256": "5513b966bf88efcf9e15f2868f37684d18db2807d56b468c2a177d5f57d2e4e1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "75f4bc4d3b74b733f276efa649dd8531133c59a9744ada66eca73e724e4ad2e6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "            if reads and not (set(changed) & set(reads)):\n",
+          "old": "            if changed != reads:\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "a9e078a316253eb3bc1120fb16a0a28e9b2b80ea29feff7fc836173cbd489937",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.................................................FFFFFFF................ [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n_______ test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe] ________\n[gw43] linux -- Python 3.10.12 /usr/bin/python3\n\nbuild = 'broken-B2-probe', reached = 2, changed = 1, committed = 1\n\n    @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n    @pytest.mark.parametrize(\"reached,changed,committed\", [\n        (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n    def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n        record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n            \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n            \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n                                \"committed\": committed}, \"witness_count\": 0}}}\n        result = h.broken_verdict(record)\n        assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n            \"reached\": reached, \"changed\": changed, \"committed\": committed}\n>       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n                                    \"undetected\" if committed else \"validation-stopped\")\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n__________ test_m11_b2_verdict_records_observations[2-1-1-broken-B2] ___________\n[gw42] linux -- Python 3.10.12 /usr/bin/python3\n\nbuild = 'broken-B2', reached = 2, changed = 1, committed = 1\n\n    @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n    @pytest.mark.parametrize(\"reached,changed,committed\", [\n        (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n    def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n        record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n            \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n            \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n                                \"committed\": committed}, \"witness_count\": 0}}}\n        result = h.broken_verdict(record)\n        assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n            \"reached\": reached, \"changed\": changed, \"committed\": committed}\n>       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n                                    \"undetected\" if committed else \"validation-stopped\")\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n_______ test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe] ________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3\n\nbuild = 'broken-B2-probe', reached = 1, changed = 1, committed = 1\n\n    @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n    @pytest.mark.parametrize(\"reached,changed,committed\", [\n        (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n    def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n        record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n            \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n            \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n                                \"committed\": committed}, \"witness_count\": 0}}}\n        result = h.broken_verdict(record)\n        assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n            \"reached\": reached, \"changed\": changed, \"committed\": committed}\n>       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n                                    \"undetected\" if committed else \"validation-stopped\")\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n_______ test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe] ________\n[gw45] linux -- Python 3.10.12 /usr/bin/python3\n\nbuild = 'broken-B2-probe', reached = 2, changed = 2, committed = 2\n\n    @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n    @pytest.mark.parametrize(\"reached,changed,committed\", [\n        (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n    def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n        record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n            \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n            \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n                                \"committed\": committed}, \"witness_count\": 0}}}\n        result = h.broken_verdict(record)\n        assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n            \"reached\": reached, \"changed\": changed, \"committed\": committed}\n>       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n                                    \"undetected\" if committed else \"validation-stopped\")\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n__________ test_m11_b2_verdict_records_observations[2-2-2-broken-B2] ___________\n[gw44] linux -- Python 3.10.12 /usr/bin/python3\n\nbuild = 'broken-B2', reached = 2, changed = 2, committed = 2\n\n    @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n    @pytest.mark.parametrize(\"reached,changed,committed\", [\n        (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n    def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n        record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n            \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n            \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n                                \"committed\": committed}, \"witness_count\": 0}}}\n        result = h.broken_verdict(record)\n        assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n            \"reached\": reached, \"changed\": changed, \"committed\": committed}\n>       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n                                    \"undetected\" if committed else \"validation-stopped\")\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n__________ test_m11_b2_verdict_records_observations[1-1-1-broken-B2] ___________\n[gw40] linux -- Python 3.10.12 /usr/bin/python3\n\nbuild = 'broken-B2', reached = 1, changed = 1, committed = 1\n\n    @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n    @pytest.mark.parametrize(\"reached,changed,committed\", [\n        (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n    def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n        record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n            \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n            \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n                                \"committed\": committed}, \"witness_count\": 0}}}\n        result = h.broken_verdict(record)\n        assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n            \"reached\": reached, \"changed\": changed, \"committed\": committed}\n>       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n                                    \"undetected\" if committed else \"validation-stopped\")\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n______________________________ test_broken_rules _______________________________\n[gw35] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_broken_rules():\n        record = {\"build\": \"broken-B1\", \"trace\": {\"verdict\": \"non-serializable\",\n                  \"total_cycles\": 1, \"break\": {\"fired\": {\"reached\": 2, \"changed\": 2,\n                  \"committed\": 1}, \"witness_count\": 1}}}\n        assert h.broken_verdict(record)[\"status\"] == \"detected\"\n        record[\"trace\"][\"break\"][\"witness_count\"] = 0\n        assert h.broken_verdict(record) == {\"status\": \"undetected\", \"needs_B3\": True}\n        b2 = {\"build\": \"broken-B2\", \"cell\": \"T2\", \"trace\": {\"verdict\": \"indeterminate\",\n              \"total_cycles\": 0, \"break\": {\"fired\": {\"reached\": 3, \"changed\": 3,\n              \"committed\": 0}, \"witness_count\": 0}}}\n        assert h.broken_verdict(b2)[\"status\"] == \"validation-stopped\"\n        b2[\"trace\"][\"break\"][\"fired\"][\"committed\"] = 1\n>       assert h.broken_verdict(b2)[\"status\"] == \"undetected\"\nE       AssertionError: assert 'prediction-failed' == 'undetected'\nE         \nE         - undetected\nE         + prediction-failed\n\norchestrator/tests/test_vhash_cicada_hot_block.py:437: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules\n7 failed, 101 passed in 18.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1231 retained_bytes=1231 omitted_bytes=0 rendered_excerpt_bytes=1278 sha256=3d233e74c45eef4c8eb3ef52106ba13db88aec5b5cbea57b68fcacef9e190a4e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3\n> \n> build = 'broken-B2-probe', reached = 1, changed = 1, committed = 1\n> \n>     @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n>     @pytest.mark.parametrize(\"reached,changed,committed\", [\n>         (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n>     def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n>         record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n>             \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>             \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n>                                 \"committed\": committed}, \"witness_count\": 0}}}\n>         result = h.broken_verdict(record)\n>         assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n>             \"reached\": reached, \"changed\": changed, \"committed\": committed}\n> >       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n>                                     \"undetected\" if committed else \"validation-stopped\")\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1231 retained_bytes=1231 omitted_bytes=0 rendered_excerpt_bytes=1278 sha256=545740d8d00fee6993a3fbd277574acb30a583d811c3dc1e3eff1aec04177c9a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /usr/bin/python3\n> \n> build = 'broken-B2-probe', reached = 2, changed = 1, committed = 1\n> \n>     @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n>     @pytest.mark.parametrize(\"reached,changed,committed\", [\n>         (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n>     def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n>         record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n>             \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>             \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n>                                 \"committed\": committed}, \"witness_count\": 0}}}\n>         result = h.broken_verdict(record)\n>         assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n>             \"reached\": reached, \"changed\": changed, \"committed\": committed}\n> >       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n>                                     \"undetected\" if committed else \"validation-stopped\")\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=1231 retained_bytes=1231 omitted_bytes=0 rendered_excerpt_bytes=1278 sha256=c93fb08c887a97aad325b7d534267b82fdedb1fdf809a85c69ae1dd723cfde78\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /usr/bin/python3\n> \n> build = 'broken-B2-probe', reached = 2, changed = 2, committed = 2\n> \n>     @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n>     @pytest.mark.parametrize(\"reached,changed,committed\", [\n>         (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n>     def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n>         record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n>             \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>             \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n>                                 \"committed\": committed}, \"witness_count\": 0}}}\n>         result = h.broken_verdict(record)\n>         assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n>             \"reached\": reached, \"changed\": changed, \"committed\": committed}\n> >       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n>                                     \"undetected\" if committed else \"validation-stopped\")\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1225 retained_bytes=1225 omitted_bytes=0 rendered_excerpt_bytes=1272 sha256=aa01791ced9ae6fda6cc945c782790d0c8285164659d7a4f4a7a7db221f748e5\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /usr/bin/python3\n> \n> build = 'broken-B2', reached = 1, changed = 1, committed = 1\n> \n>     @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n>     @pytest.mark.parametrize(\"reached,changed,committed\", [\n>         (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n>     def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n>         record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n>             \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>             \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n>                                 \"committed\": committed}, \"witness_count\": 0}}}\n>         result = h.broken_verdict(record)\n>         assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n>             \"reached\": reached, \"changed\": changed, \"committed\": committed}\n> >       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n>                                     \"undetected\" if committed else \"validation-stopped\")\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1225 retained_bytes=1225 omitted_bytes=0 rendered_excerpt_bytes=1272 sha256=416b572473c628ab18865162d83922da7f9c0791fa8aea07508a91b6c4943b1d\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /usr/bin/python3\n> \n> build = 'broken-B2', reached = 2, changed = 1, committed = 1\n> \n>     @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n>     @pytest.mark.parametrize(\"reached,changed,committed\", [\n>         (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n>     def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n>         record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n>             \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>             \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n>                                 \"committed\": committed}, \"witness_count\": 0}}}\n>         result = h.broken_verdict(record)\n>         assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n>             \"reached\": reached, \"changed\": changed, \"committed\": committed}\n> >       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n>                                     \"undetected\" if committed else \"validation-stopped\")\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1225 retained_bytes=1225 omitted_bytes=0 rendered_excerpt_bytes=1272 sha256=dc16ed15bab2bba80280139b3d64d0b692774b9be1de39a3c9f9e868717a4393\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /usr/bin/python3\n> \n> build = 'broken-B2', reached = 2, changed = 2, committed = 2\n> \n>     @pytest.mark.parametrize(\"build\", [\"broken-B2\", \"broken-B2-probe\"])\n>     @pytest.mark.parametrize(\"reached,changed,committed\", [\n>         (0, 0, 0), (1, 1, 0), (1, 1, 1), (2, 1, 1), (2, 2, 2)])\n>     def test_m11_b2_verdict_records_observations(build, reached, changed, committed):\n>         record = {\"build\": build, \"cell\": \"T1\", \"trace\": {\n>             \"verdict\": \"indeterminate\", \"total_cycles\": 0,\n>             \"break\": {\"fired\": {\"reached\": reached, \"changed\": changed,\n>                                 \"committed\": committed}, \"witness_count\": 0}}}\n>         result = h.broken_verdict(record)\n>         assert {key: result[key] for key in (\"reached\", \"changed\", \"committed\")} == {\n>             \"reached\": reached, \"changed\": changed, \"committed\": committed}\n> >       assert result[\"status\"] == (\"unreached\" if reached == 0 else\n>                                     \"undetected\" if committed else \"validation-stopped\")\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:451: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules\" nodeid_bytes=68 nodeid_omitted_bytes=0 source_bytes=1115 retained_bytes=1115 omitted_bytes=0 rendered_excerpt_bytes=1158 sha256=e6fc2629884be4b16904ec0c4f1dadb6a0e9067aa287aa936c02c7861a5fa180\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw35] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_broken_rules():\n>         record = {\"build\": \"broken-B1\", \"trace\": {\"verdict\": \"non-serializable\",\n>                   \"total_cycles\": 1, \"break\": {\"fired\": {\"reached\": 2, \"changed\": 2,\n>                   \"committed\": 1}, \"witness_count\": 1}}}\n>         assert h.broken_verdict(record)[\"status\"] == \"detected\"\n>         record[\"trace\"][\"break\"][\"witness_count\"] = 0\n>         assert h.broken_verdict(record) == {\"status\": \"undetected\", \"needs_B3\": True}\n>         b2 = {\"build\": \"broken-B2\", \"cell\": \"T2\", \"trace\": {\"verdict\": \"indeterminate\",\n>               \"total_cycles\": 0, \"break\": {\"fired\": {\"reached\": 3, \"changed\": 3,\n>               \"committed\": 0}, \"witness_count\": 0}}}\n>         assert h.broken_verdict(b2)[\"status\"] == \"validation-stopped\"\n>         b2[\"trace\"][\"break\"][\"fired\"][\"committed\"] = 1\n> >       assert h.broken_verdict(b2)[\"status\"] == \"undetected\"\n> E       AssertionError: assert 'prediction-failed' == 'undetected'\n> E         \n> E         - undetected\n> E         + prediction-failed\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:437: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=8483 retained_bytes=8483 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12216 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7d1eeccaa1a0d96f5cacf11a0d7e3aeadf6f7b19e4835cc013bbc281ad7c66ce"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 19.6,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules"
+      ],
+      "hang_risk": false,
+      "id": "M11-b2-old-prediction",
+      "injection_diff_sha256": "c186ffce66e8585794968ab193287cc2703ccb5827125f39f73716506cd22c8b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fd043b94bb8f8f9ee2a061455bcf837f2f40fd4e1d238880f222137956ebfb67",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "    return {\"status\": \"prediction-failed\" if fired[\"committed\"] > 0 else\n            \"unreached\" if fired[\"reached\"] == 0 else\n",
+          "old": "    return {\"status\": \"unreached\" if fired[\"reached\"] == 0 else\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "7d1eeccaa1a0d96f5cacf11a0d7e3aeadf6f7b19e4835cc013bbc281ad7c66ce",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 66%]\n...........................F........                                     [100%]\n=================================== FAILURES ===================================\n_________________ test_m12_hot_block_real_save_and_provenance __________________\n[gw40] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw40/test_m12_hot_block_real_save_a0')\n\n    def test_m12_hot_block_real_save_and_provenance(tmp_path):\n        from tools.plotting import plot_vhash_cicada_hot_block as hot\n    \n        source = tmp_path / \"aggregate.json\"\n        data = {\"schema\": \"vhash-hot-aggregate/v2\", \"pin\": \"pin\",\n                \"conditions\": {}, \"disqualified_arms\": [],\n                \"cells\": {\"ro0-gc10\": {\n                    \"B-k1/stock\": {\"points\": [{\"ratio\": .7}]},\n                    \"post-k1/stock\": {\"points\": [{\"ratio\": .9}]} }},\n                \"count\": [{\"cell\": \"ro0-gc10\", \"arm\": \"B-k1\", \"count\": {\n                    \"install_wait_cycles_per_update_commit\": 7,\n                    \"install_hold_cycles_per_update_commit\": 21}}]}\n        source.write_text(json.dumps(data))\n>       hot.make_figures(data, source, tmp_path)\n\norchestrator/tests/test_plot_vhash_hot_block.py:314: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_vhash_cicada_hot_block.py:180: in make_figures\n    _save(fig, output / \"fig-write\", data, (bars and value) or source)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nfig = <Figure size 800x800 with 2 Axes>\npath = PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw40/test_m12_hot_block_real_save_a0/fig-write')\npayload = {'schema': 'vhash-hot-aggregate/v2', 'pin': 'pin', 'conditions': {}, 'disqualified_arms': [], ...}\nsource = 21\n\n    def _save(fig, path, payload, source):\n        _layout(fig)\n        for suffix in (\".png\", \".pdf\"):\n            fig.savefig(path.with_suffix(suffix), dpi=180)\n        path.with_suffix(\".provenance.json\").write_text(json.dumps({\n>           \"schema\": \"vhash-hot-figure-provenance/v1\", \"aggregate\": str(source.resolve()),\n            \"aggregate_sha256\": hashlib.sha256(source.read_bytes()).hexdigest(),\n            \"pin\": payload[\"pin\"], \"conditions\": payload[\"conditions\"],\n            \"figure\": path.name, \"plotted_values\": payload[\"cells\"],\n            \"disqualified_ks\": payload.get(\"disqualified_arms\", payload.get(\"disqualified_ks\", [])),\n            \"caption\": \"Exploratory same-time comparison; short YCSB transactions; \"\n                       \"48 threads, 1M tuples, skew 0.9, extime 3 s. \"\n                       \"Dots show every paired-round ratio; bars show minimum to maximum; \"\n                       \"markers show medians. No significance claim.\"\n        }, indent=2, ensure_ascii=False) + \"\\n\")\nE       AttributeError: 'int' object has no attribute 'resolve'\n\ntools/plotting/plot_vhash_cicada_hot_block.py:52: AttributeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance\n1 failed, 107 passed in 18.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=2691 retained_bytes=2691 omitted_bytes=0 rendered_excerpt_bytes=2791 sha256=ad6a596d2762ba70240c2a3c6559a45392f93b58765e0c5009b2df02bce42580\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw40/test_m12_hot_block_real_save_a0')\n> \n>     def test_m12_hot_block_real_save_and_provenance(tmp_path):\n>         from tools.plotting import plot_vhash_cicada_hot_block as hot\n>     \n>         source = tmp_path / \"aggregate.json\"\n>         data = {\"schema\": \"vhash-hot-aggregate/v2\", \"pin\": \"pin\",\n>                 \"conditions\": {}, \"disqualified_arms\": [],\n>                 \"cells\": {\"ro0-gc10\": {\n>                     \"B-k1/stock\": {\"points\": [{\"ratio\": .7}]},\n>                     \"post-k1/stock\": {\"points\": [{\"ratio\": .9}]} }},\n>                 \"count\": [{\"cell\": \"ro0-gc10\", \"arm\": \"B-k1\", \"count\": {\n>                     \"install_wait_cycles_per_update_commit\": 7,\n>                     \"install_hold_cycles_per_update_commit\": 21}}]}\n>         source.write_text(json.dumps(data))\n> >       hot.make_figures(data, source, tmp_path)\n> \n> orchestrator/tests/test_plot_vhash_hot_block.py:314: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_vhash_cicada_hot_block.py:180: in make_figures\n>     _save(fig, output / \"fig-write\", data, (bars and value) or source)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> fig = <Figure size 800x800 with 2 Axes>\n> path = PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw40/test_m12_hot_block_real_save_a0/fig-write')\n> payload = {'schema': 'vhash-hot-aggregate/v2', 'pin': 'pin', 'conditions': {}, 'disqualified_arms': [], ...}\n> source = 21\n> \n>     def _save(fig, path, payload, source):\n>         _layout(fig)\n>         for suffix in (\".png\", \".pdf\"):\n>             fig.savefig(path.with_suffix(suffix), dpi=180)\n>         path.with_suffix(\".provenance.json\").write_text(json.dumps({\n> >           \"schema\": \"vhash-hot-figure-provenance/v1\", \"aggregate\": str(source.resolve()),\n>             \"aggregate_sha256\": hashlib.sha256(source.read_bytes()).hexdigest(),\n>             \"pin\": payload[\"pin\"], \"conditions\": payload[\"conditions\"],\n>             \"figure\": path.name, \"plotted_values\": payload[\"cells\"],\n>             \"disqualified_ks\": payload.get(\"disqualified_arms\", payload.get(\"disqualified_ks\", [])),\n>             \"caption\": \"Exploratory same-time comparison; short YCSB transactions; \"\n>                        \"48 threads, 1M tuples, skew 0.9, extime 3 s. \"\n>                        \"Dots show every paired-round ratio; bars show minimum to maximum; \"\n>                        \"markers show medians. No significance claim.\"\n>         }, indent=2, ensure_ascii=False) + \"\\x5cn\")\n> E       AttributeError: 'int' object has no attribute 'resolve'\n> \n> tools/plotting/plot_vhash_cicada_hot_block.py:52: AttributeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2691 retained_bytes=2691 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3510 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "50dcf73b9b5164566a6dc30208ab5f7e7bc86c4797e9e3eca5814e517a264cee"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 19.343,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance"
+      ],
+      "hang_risk": false,
+      "id": "M12-fig-write-source-overwritten",
+      "injection_diff_sha256": "856371b74548c7f99c027ff4d4449bf8608e58e07834fefb5a20c2e3926aeeb9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "997a178f2785e43104b00e7bdea8101b979df28f4883028f88ab8184e9471286",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_cicada_hot_block.py",
+          "new": "    _save(fig, output / \"fig-write\", data, (bars and value) or source)\n",
+          "old": "    _save(fig, output / \"fig-write\", data, source)\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "50dcf73b9b5164566a6dc30208ab5f7e7bc86c4797e9e3eca5814e517a264cee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.....................................................F.................. [ 66%]\n....................................                                     [100%]\n=================================== FAILURES ===================================\n________________ test_break_event_summary_and_omission_required ________________\n[gw34] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_break_event_summary_and_omission_required():\n        lines = [\n            \"CICADA_BREAK_EVENT slug=post-stale-gap stage=reached tx_wts=2 key=0a01 read_wts=3\",\n            \"CICADA_BREAK_FIRED slug=post-stale-gap reached=1 changed=0 committed=0\",\n            \"CICADA_BREAK_OMITTED slug=post-stale-gap omitted=4\",\n            \"CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=2\"]\n        parsed = h._break_events(\"\\n\".join(lines), \"broken-stale-gap\")\n        assert parsed[\"omitted\"] == 4\n        assert parsed[\"undetermined\"] == 2\n        with pytest.raises(ValueError, match=\"omitted\"):\n            h._break_events(\"\\n\".join((lines[0], lines[1], lines[3])), \"broken-stale-gap\")\n>       with pytest.raises(ValueError, match=\"undetermined\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_vhash_cicada_hot_block.py:418: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required\n1 failed, 107 passed in 18.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=915 retained_bytes=915 omitted_bytes=0 rendered_excerpt_bytes=956 sha256=01fe618099830a7498fefedaf91ca30342f3d0fff1494c6382f2a3a8cb217c6c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_break_event_summary_and_omission_required():\n>         lines = [\n>             \"CICADA_BREAK_EVENT slug=post-stale-gap stage=reached tx_wts=2 key=0a01 read_wts=3\",\n>             \"CICADA_BREAK_FIRED slug=post-stale-gap reached=1 changed=0 committed=0\",\n>             \"CICADA_BREAK_OMITTED slug=post-stale-gap omitted=4\",\n>             \"CICADA_BREAK_UNDETERMINED slug=post-stale-gap undetermined=2\"]\n>         parsed = h._break_events(\"\\x5cn\".join(lines), \"broken-stale-gap\")\n>         assert parsed[\"omitted\"] == 4\n>         assert parsed[\"undetermined\"] == 2\n>         with pytest.raises(ValueError, match=\"omitted\"):\n>             h._break_events(\"\\x5cn\".join((lines[0], lines[1], lines[3])), \"broken-stale-gap\")\n> >       with pytest.raises(ValueError, match=\"undetermined\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_vhash_cicada_hot_block.py:418: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=915 retained_bytes=915 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1675 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c8345fe3f45d49bedbf0d7caa9c6b72cb0fec741a94d14ddda05f8c3d23a99b4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cef11494b1bab039e5fc216d1d88a8c5a7c08548275b62f085caa36a7035b184",
+      "duration_s": 19.499,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required"
+      ],
+      "hang_risk": false,
+      "id": "M13-undetermined-line-optional",
+      "injection_diff_sha256": "17b301db726767785e65da4fcaa0e5a58d7862ecc06df7e30e1d4e8ecc4fc73e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f518f3cc194614ec0744915adb217d384735eea71e84a823e178800a2b94fed1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+          "new": "        if len(undetermined) > 1:\n",
+          "old": "        if len(undetermined) != 1 or undetermined[0] is None:\n"
+        }
+      ],
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "KILLED",
+      "test_output_sha256": "c8345fe3f45d49bedbf0d7caa9c6b72cb0fec741a94d14ddda05f8c3d23a99b4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\norchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs\norchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_join_and_missing_keys\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[R-1-2-6-7-0]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[A-0-2-6-7-1]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[G-0-4-6-7-1]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[M-0-4-6-6-1]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[V-0-4-6-6-0]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[U-0-1-6-6-1]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_missing_key_and_invalid_status\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[0-invalid]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[1-pending]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[2-aborted]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[3-precommitted]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[4-committed]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[5-deleted]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[6-unused]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_break_and_witness_join\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets\norchestrator/tests/test_vhash_cicada_hot_block.py::test_shared_binary_dependency_hashes\norchestrator/tests/test_vhash_cicada_hot_block.py::test_missing_duplicate_hash_and_trace_coverage_fail_closed\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[3-0-indeterminate-True]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[1-1-non-serializable-True]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[0-0-serializable-False]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[0-0-indeterminate-False]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[3-1-non-serializable-False]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[1-0-non-serializable-False]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[3-0-serializable-False]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required\norchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[0-0-0-broken-B2]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[0-0-0-broken-B2-probe]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-0-broken-B2]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-0-broken-B2-probe]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_perf_eligibility_and_pair_node_must_match\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m8_count_argv_extime\norchestrator/tests/test_vhash_cicada_hot_block.py::test_no_post_count_on_b_and_no_variant_install_on_post\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_binary_hash_checked_before_spawn\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json\norchestrator/tests/test_vhash_cicada_hot_block.py::test_stock_and_k_integrity_violation_still_stops[trace-stock]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_stock_and_k_integrity_violation_still_stops[trace-B-k1]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_stock_and_k_integrity_violation_still_stops[trace-post-k8]\norchestrator/tests/test_vhash_cicada_hot_block.py::test_plot_series_uses_all_points_median_and_range\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m1_non_perf_record_never_enters_table\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m4_missing_and_duplicate_fail_closed\norchestrator/tests/test_vhash_cicada_hot_block.py::test_sha_mismatch_fails_closed\norchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_coverage_and_integrity_fail_closed\norchestrator/tests/test_vhash_cicada_hot_block.py::test_count_coverage_fails_closed\norchestrator/tests/test_vhash_cicada_hot_block.py::test_patch_count_json_parse_and_worker_aggregation\norchestrator/tests/test_vhash_cicada_hot_block.py::test_patch_break_event_stages_and_witness_attribution\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_shared_binary_failure_stops_without_rebuild\norchestrator/tests/test_vhash_cicada_hot_block.py::test_shared_ldd_resolution_change_stops\norchestrator/tests/test_vhash_cicada_hot_block.py::test_shared_dependency_hash_checked_after_resolution\norchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_aggregate_four_classification_boundaries\norchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_broken_integrity_violation_does_not_stop_trace_job\norchestrator/tests/test_plot_vhash_hot_block.py::test_modes_real_size_and_summary\norchestrator/tests/test_plot_vhash_hot_block.py::test_real_figure_passes_layout\norchestrator/tests/test_plot_vhash_hot_block.py::test_nonpositive_interval_lower_bound_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_write_headings_show_actual_key_counts\norchestrator/tests/test_plot_vhash_hot_block.py::test_schema_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_duplicate_cell_id_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_missing_arm_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_missing_rep_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_nonfinite_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_zero_raw_interval_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_selfcheck_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_objdump_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_environment_mismatch_rejected[env-cpu_model]\norchestrator/tests/test_plot_vhash_hot_block.py::test_environment_mismatch_rejected[build-compiler_version]\norchestrator/tests/test_plot_vhash_hot_block.py::test_environment_mismatch_rejected[build-binary_sha256]\norchestrator/tests/test_plot_vhash_hot_block.py::test_missing_grid_cell_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_long_label_layout_rejected_without_outputs\norchestrator/tests/test_plot_vhash_hot_block.py::test_provenance_input_sha256_matches_file\norchestrator/tests/test_plot_vhash_hot_block.py::test_failure_key_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_v1_schema_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_missing_perf_event_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[cycles:u]\norchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[instructions:u]\norchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[cache-references:u]\norchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[cache-misses:u]\norchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[branch-misses:u]\norchestrator/tests/test_plot_vhash_hot_block.py::test_low_running_pct_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_pilot_ref_disagrees_between_shards\norchestrator/tests/test_plot_vhash_hot_block.py::test_pilot_raw_run_id_mismatch\norchestrator/tests/test_plot_vhash_hot_block.py::test_checksum_mismatch_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_paranoid_string_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_perf_ops_mismatch_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_ns_per_op_mismatch_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_bench_round_trip_ns_per_op_accepted\norchestrator/tests/test_plot_vhash_hot_block.py::test_footprint_product_mismatch_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_shared_value_pool_type_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_shared_value_pool_bool_rejected\norchestrator/tests/test_plot_vhash_hot_block.py::test_output_replace_failure_removes_this_runs_products\norchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1\norchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance\norchestrator/tests/test_plot_vhash_hot_block.py::test_hot_block_arm_and_gc_styles\n\n108 tests collected in 0.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "19ba5e7991813ca462236a1ecd0cc9e3baa682bb871f89de50ac5c61b602ce83"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_join_and_missing_keys",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[R-1-2-6-7-0]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[A-0-2-6-7-1]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[G-0-4-6-7-1]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[M-0-4-6-6-1]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[V-0-4-6-6-0]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_classification[U-0-1-6-6-1]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_missing_key_and_invalid_status",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[0-invalid]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[1-pending]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[2-aborted]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[3-precommitted]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[4-committed]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[5-deleted]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_version_status_names[6-unused]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_probe_actual_format_break_and_witness_join",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_shared_binary_dependency_hashes",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_missing_duplicate_hash_and_trace_coverage_fail_closed",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[3-0-indeterminate-True]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[1-1-non-serializable-True]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[0-0-serializable-False]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[0-0-indeterminate-False]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[3-1-non-serializable-False]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[1-0-non-serializable-False]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_verdict_contract[3-0-serializable-False]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[0-0-0-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[0-0-0-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-0-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-0-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_perf_eligibility_and_pair_node_must_match",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m8_count_argv_extime",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_no_post_count_on_b_and_no_variant_install_on_post",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_binary_hash_checked_before_spawn",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_stock_and_k_integrity_violation_still_stops[trace-stock]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_stock_and_k_integrity_violation_still_stops[trace-B-k1]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_stock_and_k_integrity_violation_still_stops[trace-post-k8]",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_plot_series_uses_all_points_median_and_range",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m1_non_perf_record_never_enters_table",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m4_missing_and_duplicate_fail_closed",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_sha_mismatch_fails_closed",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_trace_coverage_and_integrity_fail_closed",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_count_coverage_fails_closed",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_patch_count_json_parse_and_worker_aggregation",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_patch_break_event_stages_and_witness_attribution",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_shared_binary_failure_stops_without_rebuild",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_shared_ldd_resolution_change_stops",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_shared_dependency_hash_checked_after_resolution",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_aggregate_four_classification_boundaries",
+        "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_broken_integrity_violation_does_not_stop_trace_job",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_modes_real_size_and_summary",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_real_figure_passes_layout",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_nonpositive_interval_lower_bound_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_write_headings_show_actual_key_counts",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_schema_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_duplicate_cell_id_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_missing_arm_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_missing_rep_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_nonfinite_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_zero_raw_interval_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_selfcheck_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_objdump_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_environment_mismatch_rejected[env-cpu_model]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_environment_mismatch_rejected[build-compiler_version]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_environment_mismatch_rejected[build-binary_sha256]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_missing_grid_cell_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_long_label_layout_rejected_without_outputs",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_provenance_input_sha256_matches_file",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_failure_key_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_v1_schema_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_missing_perf_event_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[cycles:u]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[instructions:u]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[cache-references:u]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[cache-misses:u]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_each_required_perf_event_rejected_when_missing[branch-misses:u]",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_low_running_pct_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_pilot_ref_disagrees_between_shards",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_pilot_raw_run_id_mismatch",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_checksum_mismatch_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_paranoid_string_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_perf_ops_mismatch_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_ns_per_op_mismatch_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_bench_round_trip_ns_per_op_accepted",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_footprint_product_mismatch_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_shared_value_pool_type_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_shared_value_pool_bool_rejected",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_output_replace_failure_removes_this_runs_products",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance",
+        "orchestrator/tests/test_plot_vhash_hot_block.py::test_hot_block_arm_and_gc_styles"
+      ],
+      "duration_s": 1.535,
+      "rc": 0,
+      "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+      "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+      "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+      "status": "PASSED",
+      "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-docstring-equivalent": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "9522555c1e2c74d3d23e3e38fbfb62447e523d1ca8affa9f30d10deb05dea566",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "\"\"\"Pinned Cicada hot block experiment. Every throughput is exploratory.\"\"\"\n",
+            "old": "\"\"\"Pinned Cicada hot block experiment. All throughput is exploratory.\"\"\"\n"
+          }
+        ]
+      },
+      "M1-estimate-trace-two-times-max": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "29b88b5055e4d01f5ee5fd94bf168fb92d0642be0957072d8f19372a4fdb7923",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "        trace_jobs = [max(len(plan_trace(j)) for j in (0, 1)) * trace_wall] * 2\n",
+            "old": "        trace_jobs = [len(plan_trace(j)) * trace_wall for j in (0, 1)]\n"
+          }
+        ]
+      },
+      "M10-probe-join-partial": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m10_probe_changed_and_committed_multisets"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5513b966bf88efcf9e15f2868f37684d18db2807d56b468c2a177d5f57d2e4e1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "            if reads and not (set(changed) & set(reads)):\n",
+            "old": "            if changed != reads:\n"
+          }
+        ]
+      },
+      "M11-b2-old-prediction": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_broken_rules",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2-probe]",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[1-1-1-broken-B2]",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2-probe]",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-1-1-broken-B2]",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2-probe]",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m11_b2_verdict_records_observations[2-2-2-broken-B2]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c186ffce66e8585794968ab193287cc2703ccb5827125f39f73716506cd22c8b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "    return {\"status\": \"prediction-failed\" if fired[\"committed\"] > 0 else\n            \"unreached\" if fired[\"reached\"] == 0 else\n",
+            "old": "    return {\"status\": \"unreached\" if fired[\"reached\"] == 0 else\n"
+          }
+        ]
+      },
+      "M12-fig-write-source-overwritten": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_hot_block.py::test_m12_hot_block_real_save_and_provenance"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "856371b74548c7f99c027ff4d4449bf8608e58e07834fefb5a20c2e3926aeeb9",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_cicada_hot_block.py",
+            "new": "    _save(fig, output / \"fig-write\", data, (bars and value) or source)\n",
+            "old": "    _save(fig, output / \"fig-write\", data, source)\n"
+          }
+        ]
+      },
+      "M13-undetermined-line-optional": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_break_event_summary_and_omission_required"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "17b301db726767785e65da4fcaa0e5a58d7862ecc06df7e30e1d4e8ecc4fc73e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "        if len(undetermined) > 1:\n",
+            "old": "        if len(undetermined) != 1 or undetermined[0] is None:\n"
+          }
+        ]
+      },
+      "M2-count-v1-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m2_count_v2_only"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a3d1c68a2951fdd5f5a28c9845d6eb129867d89384ae181d1fd8d3b5900f4e2a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "    if (not isinstance(value, dict) or value.get(\"schema_version\") not in (1, 2) or\n",
+            "old": "    if (not isinstance(value, dict) or value.get(\"schema_version\") != 2 or\n"
+          }
+        ]
+      },
+      "M3-pair-crosses-job": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m3_pair_uses_same_job_and_round"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ba7b68ab034b40792e69279c456dc8071b67addbc92412899df15a2fcb2fc85f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "                    if (not r.get(\"job_id\") or\n",
+            "old": "                    if (not r.get(\"job_id\") or r[\"job_id\"] != ref.get(\"job_id\") or\n"
+          }
+        ]
+      },
+      "M4-cycle-arm-not-disqualified": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_cycle_disqualifies_arm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1f00b9b5dd5465c958289ec8df33c7ab12a34d5afb291401a82c206c18f1339d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "    failed = {\"-\" for r in traces if r[\"build_kind\"] == \"trace\" and\n",
+            "old": "    failed = {r[\"arm\"] for r in traces if r[\"build_kind\"] == \"trace\" and\n"
+          }
+        ]
+      },
+      "M5-stale-gap-dropped-from-trace-plan": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m5_stale_gap_trace_and_verdict",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m6_estimate_threshold_and_ladder"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "332663e01d2df220e0ebba8ec187de53d64d8935aac4b3bfb63af0739fb986dd",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "        broken = (*(b for b in BROKEN if b != \"stale-gap\"), \"B2-probe\")\n",
+            "old": "        broken = (*BROKEN, \"B2-probe\")\n"
+          }
+        ]
+      },
+      "M6-post-arm-dropped-in-a-round": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_grid_rotation_jobs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e866a6d82b9c212d593a7c479f27403bfc7462f90fe0b9685844f67e94581b6c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))\n            if not (round_index == 1 and arm == \"post-k1\")]\n",
+            "old": "            for order_index, arm in enumerate(rotation(round_index, cell_index, arms))]\n"
+          }
+        ]
+      },
+      "M7-post-overlay-dropped-from-build": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_build_list_isolated",
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m7_manifest_patch_order_survives_sorted_json"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ae743f69e7dbcb05d963f134f97ef57b3ecc117a55263f0d507302efaed9c0cc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "            if False:\n                patches.append(POST)\n",
+            "old": "            if arm.startswith(\"post-\"):\n                patches.append(POST)\n"
+          }
+        ]
+      },
+      "M8-fig-write-wait-dropped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_hot_block.py::test_m8_hot_block_write_wait_and_hold_and_v1"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "63df97c497b6fbe3931695ee16b1ae231364e0970aeadb8ab9c0165c5886d205",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_cicada_hot_block.py",
+            "new": "                       [0 for _, _, wait, _ in bars],\n",
+            "old": "                       [float(wait) if wait is not None else 0 for _, _, wait, _ in bars],\n"
+          }
+        ]
+      },
+      "M9-post-count-line-optional": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_hot_block.py::test_m9_post_count_line_required"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "656dac7f7e5712974c2dba6d4d6a4d860e8fbc14c63814b2288583080aa7161a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_hot_block.py",
+            "new": "    if len(post) > 1:\n",
+            "old": "    if len(post) != int(arm.startswith(\"post-\")):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "10405802b528d1ad868ed2969578dab75f5b577999e0df9a6048c5190545010e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_hot_block.py",
+      "orchestrator/tests/test_plot_vhash_hot_block.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "69f7033dcc911a5030d268dbaa257625b5c13117",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_hot_block.py",
+      "orchestrator/tests/test_plot_vhash_hot_block.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-hot-block-v2/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "57b9aceef621b63c32adae03d5fe8497e5a66c45",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "fb7041451e2140739d47005cfbe141e867e785bfb8dbbe4fbd161173152a43b3",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "03c5cf0cb6c490826616007ccf2b7c890c2d6a15a3b14bad82cd4fdc13d0c1cd",
+  "summary": {
+    "KILLED": 13,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-vhash-hot-block-v2/mutation-scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "2d82cb1111713a3d983ed66342cb4774f5232ac694df7f81326e3e692289a81f",
+  "updated_at": "2026-09-30T09:15:15.979550+00:00"
+}
