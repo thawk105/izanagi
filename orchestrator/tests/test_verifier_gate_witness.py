@@ -84,7 +84,10 @@ def test_gate_trace_read_without_q_key_m3(tmp_path):
     _assert_only(_run(tmp_path, trace, "Q 0 0 0\n"), "gate_d1b2")
 
 
-@pytest.mark.parametrize("gate", ["", "Q - 0 0\n", "Q 1 0 0\n"])
+@pytest.mark.parametrize(
+    "gate", ["", "Q - 0 0\n", "Q 1 0 0\n", "Q 0 0 0\nQ 1 0 0\n"],
+    ids=["missing-q", "dash-txid", "wrong-txid", "extra-q"],
+)
 def test_gate_q_frame_m4(tmp_path, gate):
     _assert_only(_run(tmp_path, "C 0 0 1 1 0 0\nE 0\n", gate), "gate_d1c")
 
@@ -223,8 +226,11 @@ def test_gate_n4_read_only_many(tmp_path):
     assert res.integrity.gate_external_reads_checked == 12
 
 
-@pytest.mark.parametrize("corruption", ["Q 0 0 1 R:BAD:1:-\n", "Q 0 0 1 R:0000000000000001:18446744073709551616:-\n",
-                                    "Q 0 0 1 R:0000000000000001:-:-\n", "X 0\n"])
+@pytest.mark.parametrize(
+    "corruption", ["Q 0 0 1 R:BAD:1:-\n", "Q 0 0 1 R:0000000000000001:18446744073709551616:-\n",
+                   "Q 0 0 1 R:0000000000000001:-:-\n", "X 0\n"],
+    ids=["bad-key", "stamp-overflow", "r-missing-observed", "unknown-tag"],
+)
 def test_gate_format_fail_closed(tmp_path, corruption):
     _assert_only(_run(tmp_path, "C 0 0 1 1 0 0\nE 0\n", corruption), "gate_unreachable")
 
