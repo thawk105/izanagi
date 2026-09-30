@@ -28,6 +28,11 @@ title: [T-2867] 関数方策の軸の生成器対照を発効させ 4 arm × 12 
   2 commit は local の wave branch にしか無かったので、land 前に 1 commit へまとめ直して正しい trailer を付けた (元の tip は ref `t2867-backup-wrong-trailer-4d50f2db8` に退避)。
 - 記録 review の裁定 (一次資料 `verbatim/s6-ruling-3-records.md`): 1 回目の所見 5 件と取り直しの残り 3 件をすべて real として直し、3 巡目は投げず親の照合で閉じた。
   その過程で、事前登録 §5.2 の「numactl interleave」が Pegasus では prefix なしで走った食い違いを見つけ、本書の Erratum 16.1 に追記した (1 NUMA ノードで全 slot 同条件、判定は変わらない)。
+- 受入 acc1 (2026-10-01 07:19〜07:32、post-claim merge 後の tip `aa42a70b0`): 5 failed / 28,701 passed / 74 skipped。赤はすべて `test_ccbench_spawn_sites.py` で、
+  gate を後回しにした build の台帳が `run_stock_control` の `run_campaign` 呼出しを行番号 446 で固定していたのに、本 wave の driver 修正で 455 へ動いたため (自分起因)。
+  焦点走に driver の consumer であるこの試験を入れていなかった親の見落とし (DW-O26)。段 6 裁定 4 (一次資料 `verbatim/s6-ruling-4-spawn-sites.md`) でこの 2 つの数値だけの変更を許し、
+  Codex fix が 455 に合わせた (commit b4495e27f)。焦点走 (login の上限付き local 実行) で spawn-sites 5 件は緑、赤 4 件は `test_p3_s4_loop_policy.py` の
+  `IZANAGI_EXPLORATION_OUTPUT_ROOT は repository 外` (login の `/tmp/.git` による既知の偽赤、受入の全走では緑)。
 - 計算ノード: 本走 579 job・63.53 node 時間 (見積り 61〜70)。前走・自己試験・焦点走・変異で約 3 node 時間。LLM は 249 機会 (直列 45.1 時間)。
 - 子の工数: Codex author 2 (駆動 loop・driver 修正)、review 1、fix 2、焦点再レビュー 1。Claude role `auditor` 1 (公平性の目視)。
 
