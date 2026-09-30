@@ -41,9 +41,12 @@
 | review | - | gpt-6-astra/ultra | gpt-6-astra/ultra | accepted | - | 20 | 130,574 | 1,837,454 | 567 |
 | fix | - | gpt-6-astra/medium | gpt-6-astra/medium | accepted | - | 9 | 19,597 | 233,613 | 108 |
 | focus | - | gpt-6-astra/ultra | gpt-6-astra/ultra | accepted | - | 9 | 65,794 | 380,162 | 249 |
+| consult (段 9 の land 可否) | sol | gpt-6-astra/ultra | gpt-6-astra/ultra | accepted | - | 5 | 36,623 | 158,479 | 147 |
+| consult (段 9 の land 可否) | luna | gpt-6-astra/ultra | gpt-6-astra/ultra | accepted | - | 5 | 46,577 | 173,553 | 118 |
 
+段 9 の consult 2 本は rulings の相談と同じ `--stage consult --reasoning ultra` の形 (luna レーン名でも model は DW-O01 から astra)。
 段 2〜5 と fix は、ultra を受理する語彙が着地する前の木で走ったため medium (D2229 決定 4 型の切り替わり: 起動器は `--repo-root` の docs から導出)。
-ultra 3 本 (review 2・focus 1) で委任は 0 件 (prompt に禁止文あり)。CLI-reported は `input − cached_input + output`、raw は cached を含む総量。
+ultra 5 本 (review 2・focus 1・consult 2) で委任は 0 件 (prompt に禁止文あり)。CLI-reported は `input − cached_input + output`、raw は cached を含む総量。
 週枠の残量・換算率は CLI から取れず、ここでは token の実測だけを書く (残り何 wave 走れるかは断定しない)。
 
 ## 検証の実施状況 (未実施を含む)
@@ -55,7 +58,17 @@ ultra 3 本 (review 2・focus 1) で委任は 0 件 (prompt に禁止文あり)�
 - 焦点走: 段 5 統合後に bash script 経由の直接 pytest (30 file) を login で走らせたが、これは guard_bash の login 重量検査をすり抜けていた
   (同種の直接コマンドは guard が拒否して判明)。結果は参考値: 失敗 103 件 → 一時 dir を repo 外にし並列を下げた再走で 102 件緑、残る 1 件
   `orchestrator/tests/test_campaign.py::test_layout_rejects_path_traversal` は変更面と無関係な output_root 偽赤 (login の `/tmp/.git`)。
-  正式な検証は受入全走 (明示 shard 3、login で走る経路) に寄せる。
+  正式な検証は受入全走に寄せる予定だった。
+- **受入全走と land: 未実施 (land 保留)。** 受入全走の明示 shard 3 も `tools/acceptance_shards.py` の `run_parallel` から
+  `tools.pegasus.dispatch_compute` で**計算ノードへ投げる** (login で走るのは collection だけ)。land には受入全走が必須 (DW-S04) なので、
+  依頼の「計算ノードは使わない」と両立しない。Codex に 2 レンズで相談し (`verbatim/s9-consult-decide.md`、`verbatim/s9-consult-attack.md`、いずれも ultra)、
+  両者とも「最終行は対象を限定しない禁止で受入・変異も含む。land の必須条件は資源使用の許可を生まない」として land 保留を推奨、親もそれを採った。
+  wave branch は commit 済みで残す。受入・変異の実行 (計算ノード使用) の可否はユーザー裁定待ち。
+
+### 訂正 (erratum)
+
+- `verbatim/s6-fix1-ruling.md` の「正式な検証は受入全走 (明示 shard 3、login で走る sanctioned 経路) に寄せる」は誤り。明示 shard は計算ノードへ
+  dispatch する (上記)。当時の裁定文は逐語として残し、ここで訂正する。
 
 ## 残る限界
 
