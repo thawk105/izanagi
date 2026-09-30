@@ -110,6 +110,7 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    ("campaign/vhash_ceiling_vs_sota.py", "<module>._verify_once"): 1,
     # CMake/Git/preprocess commands, a standalone sizeof probe, and the verifier.
     ("campaign/vhash_cicada_hot_block.py", "<module>.checked"): 1,
     ("campaign/vhash_cicada_hot_block.py", "<module>._tuple_size"): 1,
