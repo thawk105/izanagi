@@ -1,0 +1,2888 @@
+{
+  "accepted_jobs": [
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "edb96acddc8573e964696944fb7a8d950e7cf6a09346974b9910f5974540fe19",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "fad994a7e6069c05bd7c65ab9e1910b531fff66a37cb8a04cb8a720dcc403ea2"
+      },
+      "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+      "host": "bnode086",
+      "job_id": "cfloor-w1-y5-j2-0",
+      "started_utc": "2026-09-30T06:18:51.883998+00:00",
+      "submission_cluster": "cfloor-w1",
+      "window": 1,
+      "workload": "W1"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "836392f855d03ce3ef186d713960468371620c317671f35ef0d25aa6966ef6f2",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "b615909accf2969c76cb7b55cc4f12728eaf9ad95e5165e8c42608e21122bcc9"
+      },
+      "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+      "host": "bnode013",
+      "job_id": "cfloor-w1-y50-j2-0",
+      "started_utc": "2026-09-30T06:20:19.490932+00:00",
+      "submission_cluster": "cfloor-w1",
+      "window": 1,
+      "workload": "W2"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "188d8091342f0bce044fd201020bc5ba7928ff340fc3d5a199ae872a69f0f3bd",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "2ad09d3310e08b1074e08a7efa0c8cb0d55f22b25201a1dbee2cb4f972eb2f1e"
+      },
+      "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+      "host": "bnode061",
+      "job_id": "cfloor-w1-y95-j2-0",
+      "started_utc": "2026-09-30T06:19:37.843356+00:00",
+      "submission_cluster": "cfloor-w1",
+      "window": 1,
+      "workload": "W3"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "ecbb18161e0418a8ca8fa8a40f87a9d5b4de60f09462034939299cd87f075c06",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "ad1f6b6b530a156ad8bb7dc6ab676bf929ab6ab7fe5f56ee225ce6c28fe768f2"
+      },
+      "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+      "host": "bnode013",
+      "job_id": "cfloor-w2-y5-j2-0",
+      "started_utc": "2026-09-30T07:24:37.134773+00:00",
+      "submission_cluster": "cfloor-w2",
+      "window": 2,
+      "workload": "W1"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "0f411cd01d3c3d2477b4b3992b8f75d047e813aed19353103391b6b7a9708e33",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "adae370045146237a7556b18c2ef8401266583103f298d4c1772a42f3f208017"
+      },
+      "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+      "host": "bnode008",
+      "job_id": "cfloor-w2-y50-j2-0",
+      "started_utc": "2026-09-30T07:26:09.273883+00:00",
+      "submission_cluster": "cfloor-w2",
+      "window": 2,
+      "workload": "W2"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "afebe06d5c5cc896e6c7d09c306df7cb3c5a06ad1f0429671b19c2a8a77985a3",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "9d032717c016d7bfa2ce43316c03d66dfb5dc8b4efc50da7e6bc78f3ead209ba"
+      },
+      "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+      "host": "bnode067",
+      "job_id": "cfloor-w2-y95-j2-0",
+      "started_utc": "2026-09-30T07:24:07.158442+00:00",
+      "submission_cluster": "cfloor-w2",
+      "window": 2,
+      "workload": "W3"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "65b78fbe059f5e510ec3fc93208af5e2e62ea975d9a7324240d01ed6f42eea87",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "708a781019ae3c8c0495662be65c2f80b526520573cd9f5192888acf98e97803"
+      },
+      "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+      "host": "bnode021",
+      "job_id": "cfloor-w3-y5-j2-0",
+      "started_utc": "2026-09-30T08:19:19.069706+00:00",
+      "submission_cluster": "cfloor-w3",
+      "window": 3,
+      "workload": "W1"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "0166354fdec54b15e877d3c5fd3e0a5dc35bd4a1af4fa27d373e01c089e8142b",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "a8aa2524a21db016655e28146ed414f4bba71127c48e4a0af0321186011a4b4f"
+      },
+      "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+      "host": "bnode013",
+      "job_id": "cfloor-w3-y50-j2-0",
+      "started_utc": "2026-09-30T08:19:18.833463+00:00",
+      "submission_cluster": "cfloor-w3",
+      "window": 3,
+      "workload": "W2"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "6baf53a05151efa65d5fca17da01b8072cec9ffe64e4d755c6c4beee7fdbe5bd",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "06b930344a523c3aa69346ba8401b008393a5d6f6ecf9f55c8760e62aaa2ace0"
+      },
+      "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+      "host": "bnode018",
+      "job_id": "cfloor-w3-y95-j2-0",
+      "started_utc": "2026-09-30T08:27:20.687488+00:00",
+      "submission_cluster": "cfloor-w3",
+      "window": 3,
+      "workload": "W3"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "c3f3489cf7300149a548f88d09366c276151b54f17093bb1a7374f56e53559b5",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "5f1e4bd8d912cb84d86a22ccc17195fe1f0d6e2bf48a85f0e4ba2b3125831ffc"
+      },
+      "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+      "host": "bnode087",
+      "job_id": "cfloor-w4-y5-j2-0",
+      "started_utc": "2026-09-30T09:19:24.002406+00:00",
+      "submission_cluster": "cfloor-w4",
+      "window": 4,
+      "workload": "W1"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "543d465ce4e8f4440db5fafeea7adc913ff1fd664f2a3d77f21ecbb9c7d7d1bd",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "a731283799809dff9f1a1f18734ea6aa1d8ce42168ecb12f995ca52cb5ccbc74"
+      },
+      "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+      "host": "bnode080",
+      "job_id": "cfloor-w4-y50-j2-0",
+      "started_utc": "2026-09-30T09:19:23.743846+00:00",
+      "submission_cluster": "cfloor-w4",
+      "window": 4,
+      "workload": "W2"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "458c0a460206db8fb899aa7005f5fb631a79b330bd60c7e7721d25a4a8df8817",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "6a2882d6a0d2fa81ebc0d83c956af7d729beb941b62e40e7da82027014855a4c"
+      },
+      "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+      "host": "bnode086",
+      "job_id": "cfloor-w4-y95-j2-0",
+      "started_utc": "2026-09-30T09:19:23.892032+00:00",
+      "submission_cluster": "cfloor-w4",
+      "window": 4,
+      "workload": "W3"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "107d2f998a149ace4f8e3f56c3c8b76e7e590e78f620598104ac43300dd10b83",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "0a4b835d5ef569877225c85f28b47f7e5aeaeb70f17ded4402123d2741ee802f"
+      },
+      "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+      "host": "bnode018",
+      "job_id": "cfloor-w5-y5-j2-0",
+      "started_utc": "2026-09-30T10:20:10.112185+00:00",
+      "submission_cluster": "cfloor-w5",
+      "window": 5,
+      "workload": "W1"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "9af3edf24e874488533ef5e409c6613f778601f9e926819d62407da3c5ec4f6a",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "00650e4e36af0e88d8225b5bc0eae769ed452a172dd2ad9d764c720cdca0b29e"
+      },
+      "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+      "host": "bnode036",
+      "job_id": "cfloor-w5-y50-j2-0",
+      "started_utc": "2026-09-30T10:21:37.514450+00:00",
+      "submission_cluster": "cfloor-w5",
+      "window": 5,
+      "workload": "W2"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "90895e87ce35d288a386bac9d009938b3705c3d134ca7c8708df0cbc3bdec838",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "6c3c97122518331d89599c7ea9bc3b6b0faa55cfb5ab5c5f68df0ec5b92c3953"
+      },
+      "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+      "host": "bnode020",
+      "job_id": "cfloor-w5-y95-j2-0",
+      "started_utc": "2026-09-30T10:19:27.135041+00:00",
+      "submission_cluster": "cfloor-w5",
+      "window": 5,
+      "workload": "W3"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "6e707dc9f60e94d412ba8fedb7271144b65bc4d5fe3d356d5d082b87de4b145b",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "0cd2f8a52d72e07ff4a1a1756e107110d1858c235c1d7cbdc4e8714ee9f695a9"
+      },
+      "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+      "host": "bnode028",
+      "job_id": "cfloor-w6-y5-j2-0",
+      "started_utc": "2026-09-30T11:19:25.199545+00:00",
+      "submission_cluster": "cfloor-w6",
+      "window": 6,
+      "workload": "W1"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "e1077661ea07f7678e2af85128a37db697e916ee59add8c5d1d83af178ca140f",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "c0fa7d991d7fb879e358b0733fc6ca30c3cdcf5020eb235b9a045b6f3c588283"
+      },
+      "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+      "host": "bnode026",
+      "job_id": "cfloor-w6-y50-j2-0",
+      "started_utc": "2026-09-30T11:19:28.188921+00:00",
+      "submission_cluster": "cfloor-w6",
+      "window": 6,
+      "workload": "W2"
+    },
+    {
+      "binary_sha256": {
+        "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "44a7fe6cfc1c610345d5d811580f3f19e9716ccd536f8f5448bad6ea621403c2",
+        "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0": "68d0b4e2dfba119e0e0ddedee0e0bf48e3d5497829c8cd84f9ba9b4e7e39653f"
+      },
+      "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+      "host": "bnode023",
+      "job_id": "cfloor-w6-y95-j2-0",
+      "started_utc": "2026-09-30T11:19:28.225062+00:00",
+      "submission_cluster": "cfloor-w6",
+      "window": 6,
+      "workload": "W3"
+    }
+  ],
+  "diagnostics": {
+    "W1": {
+      "ln_A_main_over_control_10": {
+        "sample_sd": 0.008198096474849485,
+        "window_values": [
+          {
+            "job_id": "cfloor-w1-y5-j2-0",
+            "ln_ratio": 0.7640379660992846,
+            "window": 1
+          },
+          {
+            "job_id": "cfloor-w2-y5-j2-0",
+            "ln_ratio": 0.7700848665016146,
+            "window": 2
+          },
+          {
+            "job_id": "cfloor-w3-y5-j2-0",
+            "ln_ratio": 0.7506761674729988,
+            "window": 3
+          },
+          {
+            "job_id": "cfloor-w4-y5-j2-0",
+            "ln_ratio": 0.767320502974246,
+            "window": 4
+          },
+          {
+            "job_id": "cfloor-w5-y5-j2-0",
+            "ln_ratio": 0.753194518701128,
+            "window": 5
+          },
+          {
+            "job_id": "cfloor-w6-y5-j2-0",
+            "ln_ratio": 0.7544135518131663,
+            "window": 6
+          }
+        ]
+      },
+      "within_run_cv": [
+        {
+          "cv": 0.0101250290556232,
+          "job_id": "cfloor-w1-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.016830481430415354,
+          "job_id": "cfloor-w1-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.010341275454661902,
+          "job_id": "cfloor-w1-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.010649273410337319,
+          "job_id": "cfloor-w1-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.011598195423755845,
+          "job_id": "cfloor-w2-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.03813867060419059,
+          "job_id": "cfloor-w2-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.010942099134417906,
+          "job_id": "cfloor-w2-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.015863556273795612,
+          "job_id": "cfloor-w2-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.008418418896697694,
+          "job_id": "cfloor-w3-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.020408643905860644,
+          "job_id": "cfloor-w3-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.013634862966818673,
+          "job_id": "cfloor-w3-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.007202193889596501,
+          "job_id": "cfloor-w3-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.010663234698125534,
+          "job_id": "cfloor-w4-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.00783149580066525,
+          "job_id": "cfloor-w4-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.011890473621182984,
+          "job_id": "cfloor-w4-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.008248699286312612,
+          "job_id": "cfloor-w4-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.008668697156184891,
+          "job_id": "cfloor-w5-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.01789762902116563,
+          "job_id": "cfloor-w5-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.009027890262771,
+          "job_id": "cfloor-w5-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.0031262138336840104,
+          "job_id": "cfloor-w5-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.021725391337916265,
+          "job_id": "cfloor-w6-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.018187480439726122,
+          "job_id": "cfloor-w6-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.013039424524477613,
+          "job_id": "cfloor-w6-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.011915571533305485,
+          "job_id": "cfloor-w6-y5-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "window": 6
+        }
+      ]
+    },
+    "W2": {
+      "ln_A_main_over_control_10": {
+        "sample_sd": 0.01038979811204416,
+        "window_values": [
+          {
+            "job_id": "cfloor-w1-y50-j2-0",
+            "ln_ratio": 1.5217232683747037,
+            "window": 1
+          },
+          {
+            "job_id": "cfloor-w2-y50-j2-0",
+            "ln_ratio": 1.517425637318305,
+            "window": 2
+          },
+          {
+            "job_id": "cfloor-w3-y50-j2-0",
+            "ln_ratio": 1.5244156112456788,
+            "window": 3
+          },
+          {
+            "job_id": "cfloor-w4-y50-j2-0",
+            "ln_ratio": 1.5442988837345697,
+            "window": 4
+          },
+          {
+            "job_id": "cfloor-w5-y50-j2-0",
+            "ln_ratio": 1.5172365990925425,
+            "window": 5
+          },
+          {
+            "job_id": "cfloor-w6-y50-j2-0",
+            "ln_ratio": 1.5318236548466315,
+            "window": 6
+          }
+        ]
+      },
+      "within_run_cv": [
+        {
+          "cv": 0.029958533115024406,
+          "job_id": "cfloor-w1-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.00808863522110489,
+          "job_id": "cfloor-w1-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.002481716724448827,
+          "job_id": "cfloor-w1-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.007333875612121824,
+          "job_id": "cfloor-w1-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.02193840111496431,
+          "job_id": "cfloor-w2-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.020289418024075422,
+          "job_id": "cfloor-w2-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.012072959460544869,
+          "job_id": "cfloor-w2-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.016647753563184545,
+          "job_id": "cfloor-w2-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.018846044720057752,
+          "job_id": "cfloor-w3-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.018781039253928832,
+          "job_id": "cfloor-w3-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.017827959204503592,
+          "job_id": "cfloor-w3-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.026158308124832597,
+          "job_id": "cfloor-w3-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.0183849447084764,
+          "job_id": "cfloor-w4-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.014922694601368955,
+          "job_id": "cfloor-w4-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.01507361133844754,
+          "job_id": "cfloor-w4-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.006693602200195192,
+          "job_id": "cfloor-w4-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.01615695075038813,
+          "job_id": "cfloor-w5-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.009137903400630436,
+          "job_id": "cfloor-w5-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.02564856252000156,
+          "job_id": "cfloor-w5-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.015016324433407363,
+          "job_id": "cfloor-w5-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.03607140589377713,
+          "job_id": "cfloor-w6-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.020994524736953738,
+          "job_id": "cfloor-w6-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.018283172275178467,
+          "job_id": "cfloor-w6-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.024197121217878384,
+          "job_id": "cfloor-w6-y50-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "window": 6
+        }
+      ]
+    },
+    "W3": {
+      "ln_A_main_over_control_10": {
+        "sample_sd": 0.0069997602109539495,
+        "window_values": [
+          {
+            "job_id": "cfloor-w1-y95-j2-0",
+            "ln_ratio": 1.2264151859961159,
+            "window": 1
+          },
+          {
+            "job_id": "cfloor-w2-y95-j2-0",
+            "ln_ratio": 1.2179473463937744,
+            "window": 2
+          },
+          {
+            "job_id": "cfloor-w3-y95-j2-0",
+            "ln_ratio": 1.2054730247499787,
+            "window": 3
+          },
+          {
+            "job_id": "cfloor-w4-y95-j2-0",
+            "ln_ratio": 1.2162803813214969,
+            "window": 4
+          },
+          {
+            "job_id": "cfloor-w5-y95-j2-0",
+            "ln_ratio": 1.2184963932829167,
+            "window": 5
+          },
+          {
+            "job_id": "cfloor-w6-y95-j2-0",
+            "ln_ratio": 1.2120428912594738,
+            "window": 6
+          }
+        ]
+      },
+      "within_run_cv": [
+        {
+          "cv": 0.0017832231496390026,
+          "job_id": "cfloor-w1-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.003975200990020987,
+          "job_id": "cfloor-w1-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.00880788869942593,
+          "job_id": "cfloor-w1-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.006796569169737196,
+          "job_id": "cfloor-w1-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 1
+        },
+        {
+          "cv": 0.002972037791389516,
+          "job_id": "cfloor-w2-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.0070308113454420436,
+          "job_id": "cfloor-w2-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.005925884303517712,
+          "job_id": "cfloor-w2-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.01231353452412675,
+          "job_id": "cfloor-w2-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 2
+        },
+        {
+          "cv": 0.00878889343620996,
+          "job_id": "cfloor-w3-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.00818860434472813,
+          "job_id": "cfloor-w3-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.004405523646363587,
+          "job_id": "cfloor-w3-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.004489986397102675,
+          "job_id": "cfloor-w3-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 3
+        },
+        {
+          "cv": 0.004283916150513607,
+          "job_id": "cfloor-w4-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.004171998009132053,
+          "job_id": "cfloor-w4-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.009826813016274178,
+          "job_id": "cfloor-w4-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.005658705588290827,
+          "job_id": "cfloor-w4-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 4
+        },
+        {
+          "cv": 0.00846263142038303,
+          "job_id": "cfloor-w5-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.003916851687288851,
+          "job_id": "cfloor-w5-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.011273340005025972,
+          "job_id": "cfloor-w5-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.012171886517234285,
+          "job_id": "cfloor-w5-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 5
+        },
+        {
+          "cv": 0.006555524037843273,
+          "job_id": "cfloor-w6-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.01976974356217792,
+          "job_id": "cfloor-w6-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.006585786733417627,
+          "job_id": "cfloor-w6-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 6
+        },
+        {
+          "cv": 0.0035058893583392865,
+          "job_id": "cfloor-w6-y95-j2-0",
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "window": 6
+        }
+      ]
+    }
+  },
+  "input_sha256": {
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w1-y5-j2-0.json": "5a2c8fb26f4e9dda027fe4850cd71fd90b791559843b7399a08d0c192970497a",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w1-y50-j2-0.json": "54a2b98a9afea723f76c20fa3dfc9e84cae8530b360d399453c5e67415d80e9b",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w1-y95-j2-0.json": "53a2e9dafb99d85d7725cc01d8f948eff7913b07d2e65f960ba77d374d386e1f",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w2-y5-j2-0.json": "f523b20256c193bd324eb1116312c917320476948fdc4828b04b6235d6e08ea6",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w2-y50-j2-0.json": "9897d35c6a911be182039163f7ac1b37ac0c4a1b4a09bc95cf7de9572fe32bb8",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w2-y95-j2-0.json": "89f678b0be39ba38a03019db8b9061ed573bfd03cd11336177290ee78d8500e1",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w3-y5-j2-0.json": "7d55d3663ed353cda683565b825bf298a8e215afad07233a8cd42fbb4e710133",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w3-y50-j2-0.json": "dee720b4b5d31977960582458d99f875180e57b6a2a5ceb60e1fa0da8d13f180",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w3-y95-j2-0.json": "cabe51f7fc9256137e66060a2056b3245c154f96a4235deff8d4e640522cf969",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w4-y5-j2-0.json": "0728670475ec9b519c9b848f433283389f6926dca12a3caa70fcb3c3e6e54565",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w4-y50-j2-0.json": "a955d89ad56e85e84c1f6c49d6ddf72334497753cd94ac17ba86f53cc5de9108",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w4-y95-j2-0.json": "e01f5202d15e13c3cf753f89575f69ef683e4f85c0ee6afc768d6d47291115ed",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w5-y5-j2-0.json": "e5cedc446255e70e61014f49d24827763707c6ed770697fe7ff5f836987aba2f",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w5-y50-j2-0.json": "878f3b85d3202c628ea977ac84c2a4b3fbd8ec4dbc9c08f228fb6647950b548a",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w5-y95-j2-0.json": "b13ad75c7a7ebceccd48289ac83b886705d9a544216ae578782ad86353180000",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w6-y5-j2-0.json": "0b89698d6729a5bc86a01ceca693e5698d62ebaed69660813c339c29f8c67158",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w6-y50-j2-0.json": "acb9996022e9f128563e7423070242a2991adaebb078921e85e2e44315bb9d4c",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w6-y95-j2-0.json": "ad33e151a07b4aaa33717dd910367fd8c335c0971d5453e002b441c0fb7d0ea6",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w7-y5-j2-0.json": "57aff39e7f9241e8abe779e1f1063af9cfcc9cbe5d375b4541020798f472a744",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w7-y50-j2-0.json": "543a973561300756048b8d1af00dca1464fd324b33883d9a5c1f14f56de77cc5",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w7-y95-j2-0.json": "932a2ebe11e2f226a858340e76186f2d00b7a715ecc4231fcb621abafcf4689e",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w8-y5-j2-0.json": "7ed63c3ddc3efbf07251b24dd256c1af1fb614ee9995d59c24ccd8048335562c",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w8-y50-j2-0.json": "b2ab51d6607bbbabdff89610714437ffd19d0e5abd6badf71131851dc4bb98f7",
+    "/home/SFC/tanab/.claude/jobs/39d429f8/tmp/wave/specs/cfloor-w8-y95-j2-0.json": "6c46f3c4e8475bb849973955d5b980badebd9ccf97a4be4ebf55260a55ca54de",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w1-y5-j2-0/job-manifest.json": "484ba5a18c4450adbc2154cb8ce36243c63e6802be4e83266f38aa947d430126",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w1-y5-j2-0/runs.jsonl": "86f45bea1fd34c0e00a279d13b34dcc65e546bd2b837b679bf0ea1cedeaeadf3",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w1-y50-j2-0/job-manifest.json": "dce510f6293c9980c364b765b8bf9210015f0576aade083a30d7492851ee9606",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w1-y50-j2-0/runs.jsonl": "8793a828abc6e36b73bbb13d555254788712f6cc51de66de3b7e27aa49270538",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w1-y95-j2-0/job-manifest.json": "151a0de763b41378997c31a8454ff26c4453af6911de48b20bdf4b790db817a8",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w1-y95-j2-0/runs.jsonl": "5515c4c2e29ed1de34ca98c5cf30b857aff082991caf7db1a8a764d51c4badab",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w2-y5-j2-0/job-manifest.json": "b80621b2f9d6d06921dba87161d3f4e433c7b4ea0b381232e43d044839420fb6",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w2-y5-j2-0/runs.jsonl": "d930fd2a81b675ee93a1fe173368c54e5872fcec7fe40ad19a240f1c4d9a54a7",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w2-y50-j2-0/job-manifest.json": "659c538baf7cc82f8cfd128d747352e3a63386d3bf39afe7fff457a56b954038",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w2-y50-j2-0/runs.jsonl": "5a4e5570714402d5cd3d3c598bb62bc5fd70317b41f560da4fb312289564b629",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w2-y95-j2-0/job-manifest.json": "1ced5ebf74bf26972930e3f80c6e1169e2f092a3efc3fbe7e93cb18b363c83e1",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w2-y95-j2-0/runs.jsonl": "643b84fe32d1b53750748d5b10480c444568f7ac2df1d626b84a55d3e447e82f",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y5-j2-0/job-manifest.json": "56e5a9e8fa5ce8e09dade661853906ce112790f5463903a29d1b808d04bdc45d",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y5-j2-0/runs.jsonl": "fe6fecf09484f8c86772806be0153d68444b4dc877ec44bf2624ef7fc7eb436e",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y50-j2-0/job-manifest.json": "2d02ed83608b4a5c1b3471852b389c49216a7244ed64d962ff3705447a28e299",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y50-j2-0/runs.jsonl": "425f94a5d2a8c1dbb8bb131a782cd60bf2cc10c209afac0d2d860ad0f48387ec",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y95-j2-0/job-manifest.json": "63dfb1a4278a94781ce5960ac1f2890ef07f97c0e4dee8f4cdfbcd6acf828312",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w3-y95-j2-0/runs.jsonl": "d39d0074a5f5bec1dce731084506d0eaae2e89fbee91f6963dc57e33f84eb67f",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w4-y5-j2-0/job-manifest.json": "a5ea6e3d78d4304f014cdf5b21dd88db10c3f810e5667caa7c447be8c0bf14c2",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w4-y5-j2-0/runs.jsonl": "a83d5205d733c238d7493dba7aff12a077d79a59e0f14b12d3f4a2164cbd6ac4",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w4-y50-j2-0/job-manifest.json": "28b949bba7249ae9e966636bd7c07d68a2fe9a0311e0d17dad1889eed4427241",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w4-y50-j2-0/runs.jsonl": "3a35919db75d149804132ab6eb8e6d960191584ecbb9fc1bd720d8244c04dadc",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w4-y95-j2-0/job-manifest.json": "682284f9d6245d206dbe6eeba07bdebb3a2899908682c2750423a79899ff8924",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w4-y95-j2-0/runs.jsonl": "6ba2c20fe148a47eaef879f477a126b0700a7daad1c20b7a331154490356b430",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w5-y5-j2-0/job-manifest.json": "900115341a1b49246e2b377a9ba0b278e59703bb0fe61d5259692188f6125be1",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w5-y5-j2-0/runs.jsonl": "fb16a9e24a7fab3f14a99c1cf0aff45c679ed040a39c77bcaf4ce82bb9a137fe",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w5-y50-j2-0/job-manifest.json": "e835915ee15be2b570770d9d151a2b2cffabe9d0c598fa48c70ef244fe3707bf",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w5-y50-j2-0/runs.jsonl": "2728d824e19fbebacee65e3a3e65509f5cedc6af1aeda6a9d0a5beb077a6904b",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w5-y95-j2-0/job-manifest.json": "344e475c05f3fdccf02903ef97ef2b16140e14de7703e93ffd2de3e12219c187",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w5-y95-j2-0/runs.jsonl": "221a191f299cd34fa482c74203d882ef2c61fbb4f2afca1033b7c5ccf162f21d",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w6-y5-j2-0/job-manifest.json": "463ab5747db3f14ac52e6b8e05c25cb9e5ca8c4f9b089185d0bd5206cd713046",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w6-y5-j2-0/runs.jsonl": "6583fab2734044364204e1534fdf94fbab4037ea0065804abe6e5c7f36fd95bc",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w6-y50-j2-0/job-manifest.json": "a353a8caf67c88836105f4ca0df7a1f80d9da0a1aad51e76d7d6b4b2a2391c2c",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w6-y50-j2-0/runs.jsonl": "4b7926b92cac104ffb0c343d37c881acdd93e0b07267484274c4afbee9951e4d",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w6-y95-j2-0/job-manifest.json": "7e504ad455276f56bf12cc39e7f4e437bec5aaad0e748bf92a4770221a22ba00",
+    "output/env/pegasus/vhash-cicada-baseline-tuning/cfloor-w6-y95-j2-0/runs.jsonl": "5558bd0631d2c16acb723f6ccd3347073667ba831453c20e8ccf90c1b7ad2a88"
+  },
+  "missing_jobs": [
+    {
+      "job_id": "cfloor-w7-y5-j2-0",
+      "reason": "not submitted or not collected",
+      "window": 7
+    },
+    {
+      "job_id": "cfloor-w7-y50-j2-0",
+      "reason": "not submitted or not collected",
+      "window": 7
+    },
+    {
+      "job_id": "cfloor-w7-y95-j2-0",
+      "reason": "not submitted or not collected",
+      "window": 7
+    },
+    {
+      "job_id": "cfloor-w8-y5-j2-0",
+      "reason": "not submitted or not collected",
+      "window": 8
+    },
+    {
+      "job_id": "cfloor-w8-y50-j2-0",
+      "reason": "not submitted or not collected",
+      "window": 8
+    },
+    {
+      "job_id": "cfloor-w8-y95-j2-0",
+      "reason": "not submitted or not collected",
+      "window": 8
+    }
+  ],
+  "not_a_floor_artifact": true,
+  "planned_jobs": [
+    "cfloor-w1-y5-j2-0",
+    "cfloor-w1-y50-j2-0",
+    "cfloor-w1-y95-j2-0",
+    "cfloor-w2-y5-j2-0",
+    "cfloor-w2-y50-j2-0",
+    "cfloor-w2-y95-j2-0",
+    "cfloor-w3-y5-j2-0",
+    "cfloor-w3-y50-j2-0",
+    "cfloor-w3-y95-j2-0",
+    "cfloor-w4-y5-j2-0",
+    "cfloor-w4-y50-j2-0",
+    "cfloor-w4-y95-j2-0",
+    "cfloor-w5-y5-j2-0",
+    "cfloor-w5-y50-j2-0",
+    "cfloor-w5-y95-j2-0",
+    "cfloor-w6-y5-j2-0",
+    "cfloor-w6-y50-j2-0",
+    "cfloor-w6-y95-j2-0",
+    "cfloor-w7-y5-j2-0",
+    "cfloor-w7-y50-j2-0",
+    "cfloor-w7-y95-j2-0",
+    "cfloor-w8-y5-j2-0",
+    "cfloor-w8-y50-j2-0",
+    "cfloor-w8-y95-j2-0"
+  ],
+  "quantity_name": "Cicada A の時間窓間 session-median CV (日内 6 窓・診断経路)",
+  "rejected_jobs": [],
+  "results": {
+    "W1": {
+      "A_alt": {
+        "primary": {
+          "cv": 0.013283296471077,
+          "max_over_min_minus_one": 0.0383494475958337,
+          "max_tps": 2273111.0,
+          "min_tps": 2189158.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 2203234.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 2231626.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 2273111.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 2226113.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 2207764.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 2189158.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.013283296471077,
+          "max_over_min_minus_one": 0.0383494475958337,
+          "max_tps": 2273111.0,
+          "min_tps": 2189158.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 2203234.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 2231626.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 2273111.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 2226113.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 2207764.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 2189158.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "A_main": {
+        "primary": {
+          "cv": 0.006895518757841936,
+          "max_over_min_minus_one": 0.01888119633198393,
+          "max_tps": 2253862.0,
+          "min_tps": 2212095.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 2233666.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 2253862.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 2223360.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 2215354.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 2212095.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 2220426.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.006895518757841936,
+          "max_over_min_minus_one": 0.01888119633198393,
+          "max_tps": 2253862.0,
+          "min_tps": 2212095.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 2233666.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 2253862.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 2223360.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 2215354.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 2212095.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 2220426.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "control_10": {
+        "primary": {
+          "cv": 0.006737566231728694,
+          "max_over_min_minus_one": 0.02045814738111207,
+          "max_tps": 1049531.0,
+          "min_tps": 1028490.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 1040401.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 1043479.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 1049531.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 1028490.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 1041587.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 1044236.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.006737566231728694,
+          "max_over_min_minus_one": 0.02045814738111207,
+          "max_tps": 1049531.0,
+          "min_tps": 1028490.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 1040401.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 1043479.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 1049531.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 1028490.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 1041587.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 1044236.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "control_100": {
+        "primary": {
+          "cv": 0.0038775639924559496,
+          "max_over_min_minus_one": 0.010616690483381097,
+          "max_tps": 1047390.0,
+          "min_tps": 1036387.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 1040008.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 1042148.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 1046204.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 1043122.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 1036387.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 1047390.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.0038775639924559496,
+          "max_over_min_minus_one": 0.010616690483381097,
+          "max_tps": 1047390.0,
+          "min_tps": 1036387.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W1"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:20:38.881417+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w1-y5-j2-0",
+              "median_tps": 1040008.0,
+              "started_utc": "2026-09-30T06:18:51.883998+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:26:16.876491+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w2-y5-j2-0",
+              "median_tps": 1042148.0,
+              "started_utc": "2026-09-30T07:24:37.134773+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.860478+00:00",
+              "host": "bnode021",
+              "job_id": "cfloor-w3-y5-j2-0",
+              "median_tps": 1046204.0,
+              "started_utc": "2026-09-30T08:19:19.069706+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:56.803260+00:00",
+              "host": "bnode087",
+              "job_id": "cfloor-w4-y5-j2-0",
+              "median_tps": 1043122.0,
+              "started_utc": "2026-09-30T09:19:24.002406+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:22:20.325182+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w5-y5-j2-0",
+              "median_tps": 1036387.0,
+              "started_utc": "2026-09-30T10:20:10.112185+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:05.140436+00:00",
+              "host": "bnode028",
+              "job_id": "cfloor-w6-y5-j2-0",
+              "median_tps": 1047390.0,
+              "started_utc": "2026-09-30T11:19:25.199545+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      }
+    },
+    "W2": {
+      "A_alt": {
+        "primary": {
+          "cv": 0.010647701764347683,
+          "max_over_min_minus_one": 0.025567482418665133,
+          "max_tps": 3490923.0,
+          "min_tps": 3403894.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 3428292.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 3403894.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 3483236.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 3490923.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 3439434.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 3488425.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.010647701764347683,
+          "max_over_min_minus_one": 0.025567482418665133,
+          "max_tps": 3490923.0,
+          "min_tps": 3403894.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 3428292.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 3403894.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 3483236.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 3490923.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 3439434.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 3488425.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "A_main": {
+        "primary": {
+          "cv": 0.010481913758662193,
+          "max_over_min_minus_one": 0.02685389056414378,
+          "max_tps": 3563986.0,
+          "min_tps": 3470782.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 3479199.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 3470782.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 3523059.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 3524917.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 3477932.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 3563986.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.010481913758662193,
+          "max_over_min_minus_one": 0.02685389056414378,
+          "max_tps": 3563986.0,
+          "min_tps": 3470782.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 3479199.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 3470782.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 3523059.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 3524917.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 3477932.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 3563986.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "control_10": {
+        "primary": {
+          "cv": 0.00817200919156371,
+          "max_over_min_minus_one": 0.02377617173067681,
+          "max_tps": 770324.0,
+          "min_tps": 752434.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 759632.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 761058.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 767140.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 752434.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 762770.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 770324.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.00817200919156371,
+          "max_over_min_minus_one": 0.02377617173067681,
+          "max_tps": 770324.0,
+          "min_tps": 752434.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 759632.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 761058.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 767140.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 752434.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 762770.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 770324.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "control_100": {
+        "primary": {
+          "cv": 0.009581904383619028,
+          "max_over_min_minus_one": 0.025845258552415373,
+          "max_tps": 770696.0,
+          "min_tps": 751279.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 761963.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 769239.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 751279.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 759542.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 770696.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 767440.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.009581904383619028,
+          "max_over_min_minus_one": 0.025845258552415373,
+          "max_tps": 770696.0,
+          "min_tps": 751279.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W2"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:22:44.315399+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w1-y50-j2-0",
+              "median_tps": 761963.0,
+              "started_utc": "2026-09-30T06:20:19.490932+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:27:51.718184+00:00",
+              "host": "bnode008",
+              "job_id": "cfloor-w2-y50-j2-0",
+              "median_tps": 769239.0,
+              "started_utc": "2026-09-30T07:26:09.273883+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:20:58.759794+00:00",
+              "host": "bnode013",
+              "job_id": "cfloor-w3-y50-j2-0",
+              "median_tps": 751279.0,
+              "started_utc": "2026-09-30T08:19:18.833463+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:23:55.904397+00:00",
+              "host": "bnode080",
+              "job_id": "cfloor-w4-y50-j2-0",
+              "median_tps": 759542.0,
+              "started_utc": "2026-09-30T09:19:23.743846+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:23:19.437813+00:00",
+              "host": "bnode036",
+              "job_id": "cfloor-w5-y50-j2-0",
+              "median_tps": 770696.0,
+              "started_utc": "2026-09-30T10:21:37.514450+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:08.808099+00:00",
+              "host": "bnode026",
+              "job_id": "cfloor-w6-y50-j2-0",
+              "median_tps": 767440.0,
+              "started_utc": "2026-09-30T11:19:28.188921+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      }
+    },
+    "W3": {
+      "A_alt": {
+        "primary": {
+          "cv": 0.0079910237589854,
+          "max_over_min_minus_one": 0.02280216053838857,
+          "max_tps": 11001662.0,
+          "min_tps": 10756393.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 11001662.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 10921430.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 10756393.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 10975590.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 10885710.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 10943293.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.0079910237589854,
+          "max_over_min_minus_one": 0.02280216053838857,
+          "max_tps": 11001662.0,
+          "min_tps": 10756393.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 11001662.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 10921430.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 10756393.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 10975590.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 10885710.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 10943293.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "A_main": {
+        "primary": {
+          "cv": 0.007030542701442262,
+          "max_over_min_minus_one": 0.02134097940261359,
+          "max_tps": 11091187.0,
+          "min_tps": 10859436.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 11091187.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 11014830.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 10859436.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 11014609.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 10961767.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 11014591.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.007030542701442262,
+          "max_over_min_minus_one": 0.02134097940261359,
+          "max_tps": 11091187.0,
+          "min_tps": 10859436.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=0,INLINE_VERSION_OPT=1,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 11091187.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 11014830.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 10859436.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 11014609.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 10961767.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 11014591.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "control_10": {
+        "primary": {
+          "cv": 0.0037828224267659107,
+          "max_over_min_minus_one": 0.011324501390571173,
+          "max_tps": 3277818.0,
+          "min_tps": 3241114.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 3253514.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 3258592.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 3252947.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 3263963.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 3241114.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 3277818.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.0037828224267659107,
+          "max_over_min_minus_one": 0.011324501390571173,
+          "max_tps": 3277818.0,
+          "min_tps": 3241114.0,
+          "signature": {
+            "gc_inter_us": 10,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 3253514.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 3258592.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 3252947.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 3263963.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 3241114.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 3277818.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      },
+      "control_100": {
+        "primary": {
+          "cv": 0.00301302263830361,
+          "max_over_min_minus_one": 0.008602386072297907,
+          "max_tps": 3269193.0,
+          "min_tps": 3241310.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 3241310.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 3269193.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 3256103.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 3250675.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 3260460.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 3262844.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        },
+        "scheduled_only": {
+          "cv": 0.00301302263830361,
+          "max_over_min_minus_one": 0.008602386072297907,
+          "max_tps": 3269193.0,
+          "min_tps": 3241310.0,
+          "signature": {
+            "gc_inter_us": 100,
+            "genome": "BACK_OFF=1,INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,REUSE_VERSION=1,WRITE_LATEST_ONLY=0",
+            "workload": "W3"
+          },
+          "status": "established",
+          "window_count": 6,
+          "window_medians": [
+            {
+              "finished_utc": "2026-09-30T06:21:52.488859+00:00",
+              "host": "bnode061",
+              "job_id": "cfloor-w1-y95-j2-0",
+              "median_tps": 3241310.0,
+              "started_utc": "2026-09-30T06:19:37.843356+00:00",
+              "submission_cluster": "cfloor-w1",
+              "window": 1
+            },
+            {
+              "finished_utc": "2026-09-30T07:25:46.968543+00:00",
+              "host": "bnode067",
+              "job_id": "cfloor-w2-y95-j2-0",
+              "median_tps": 3269193.0,
+              "started_utc": "2026-09-30T07:24:07.158442+00:00",
+              "submission_cluster": "cfloor-w2",
+              "window": 2
+            },
+            {
+              "finished_utc": "2026-09-30T08:29:02.341697+00:00",
+              "host": "bnode018",
+              "job_id": "cfloor-w3-y95-j2-0",
+              "median_tps": 3256103.0,
+              "started_utc": "2026-09-30T08:27:20.687488+00:00",
+              "submission_cluster": "cfloor-w3",
+              "window": 3
+            },
+            {
+              "finished_utc": "2026-09-30T09:21:42.518425+00:00",
+              "host": "bnode086",
+              "job_id": "cfloor-w4-y95-j2-0",
+              "median_tps": 3250675.0,
+              "started_utc": "2026-09-30T09:19:23.892032+00:00",
+              "submission_cluster": "cfloor-w4",
+              "window": 4
+            },
+            {
+              "finished_utc": "2026-09-30T10:21:07.618884+00:00",
+              "host": "bnode020",
+              "job_id": "cfloor-w5-y95-j2-0",
+              "median_tps": 3260460.0,
+              "started_utc": "2026-09-30T10:19:27.135041+00:00",
+              "submission_cluster": "cfloor-w5",
+              "window": 5
+            },
+            {
+              "finished_utc": "2026-09-30T11:21:07.743250+00:00",
+              "host": "bnode023",
+              "job_id": "cfloor-w6-y95-j2-0",
+              "median_tps": 3262844.0,
+              "started_utc": "2026-09-30T11:19:28.225062+00:00",
+              "submission_cluster": "cfloor-w6",
+              "window": 6
+            }
+          ]
+        }
+      }
+    }
+  }
+}

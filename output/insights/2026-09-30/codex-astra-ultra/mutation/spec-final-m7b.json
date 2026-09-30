@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 12600,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "m7b-l15-budget-below-actual",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_docs.py",
+     "old": "DEV_WAVE_L1_5_BYTES_MAX = 9_696\n",
+     "new": "DEV_WAVE_L1_5_BYTES_MAX = 9_691\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_contract_is_literal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
