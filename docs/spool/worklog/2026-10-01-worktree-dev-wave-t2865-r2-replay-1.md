@@ -12,7 +12,7 @@ title: [T-2865] 系列 C の certified 候補 3 本を R2 で 2 回ずつ測り�
 - 依頼 (ユーザー直接起動の `/dev-wave`): 系列 C の iteration 2〜4 の候補を R2 で候補ごとに 2 回、同じノードの stock と並べて測り直す。記録 `output/insights/2026-10-01/t2865-r2-replay/README.md`。
 - 段 1 で実コードから、R2 の campaign identity が候補を含まず、Pegasus では同じ checkout の 2 本目の R2 が claim で止まること (runbook §3.1 の「terminal skip」は誤り) と、replay に同じ job の stock 対照が無いことを確かめた。driver は並行 wave (t2867-contrast-run) が編集中だったので変えず、(候補, round) ごとに新しい submit checkout を作り、repo 外の親専用 wrapper job が同じ allocation で job 本体を replay → stock の順に 2 回呼ぶ形にした。段 3 は read-only codex 1 本 (2 レンズ、P1 支持・P2〜P4 修正・P5 条件付き支持)、段 4 で採用 (実装なし、4→7→8→9)。
 - 計測: 6 wrapper job (40205・40213・40214・40215・40219・40220)、Elapse 合計 4,642 秒 (約 1.29 node 時間、smoke 後に積算して 2 node 時間の線の下)。12 attempt すべて serializable・anomaly 0、候補 6 回 certified、stock 6 回 certified-stock。比は iteration 2 = 2.10・2.10 (元 2.17)、iteration 3 = 1.92・1.85 (元 1.86)、iteration 4 = 2.54・2.61 (元 2.64)、並びは 3 観測とも同じ。stock に対する比の再現であって、最高水準に対する優位の証明ではない。
-- 運用の実測: submit checkout 1 本 (`trees/c3r2`) は `git worktree add` と `lock` の間に管理 dir が外から消えて孤児になった (この wave は prune・撤去を打っていない)。以後は `add --lock` で作り直した。`qstat` は存在しない request にも rc=0 を返す。
+- 運用の実測: submit checkout 1 本 (`trees/c3r2`) は `git worktree add` が戻らず 30 分の背景上限で kill され、管理 dir の無い孤児になった (F26 作成側の再発として同台帳へ追記)。以後は `add --lock` で作り直した。`qstat` は存在しない request にも rc=0 を返す (既知) のに、rc で判定する待ち手を最初に書いて smoke の終了を取り逃した。
 - 受入: 未実施 (この記録の commit 後に行う)。
 
 ## 次の一手差分

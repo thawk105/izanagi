@@ -71,8 +71,8 @@
 ## 4. 運用の実測と是正
 
 - runbook §3.1 の誤記を実コードに合わせた: 「同じ候補を同じ checkout で 2 回 R2 すると terminal skip」→「同じ checkout で先行の R2 が claim を取得済みなら、2 本目は候補を問わず terminal 判定より前の claim 取得で `ClaimError`。反復は checkout を分けて測る」。wrapper の手順は runbook に足していない (本 insight §2 と repo 外 script が手順)。
-- submit checkout の 4 本目 (`trees/c3r2`) は、`git worktree add` から `git worktree lock` までの間に管理 dir (`.git/worktrees/c3r2`) が外から消えて孤児になり、作成 script がそこで止まって job 時間上限で打ち切られた。この wave からは prune・撤去を打っていない。同時刻に別 session の git 操作 (worktree unlock・list) が走っていたが、どの操作が消したかは確かめていない。以後は `git worktree add --lock` で追加と lock を同時に行い、`trees/c3r2b` として作り直した (作成ログ `verbatim/make-submit-tree.log`)。孤児 dir はその後も外から削除が進んでおり、この wave からは触っていない。
-- `qstat <request>` は request が存在しなくても rc=0 を返した (出力は「does not exist」)。rc で終了を判定した最初の待ち手は smoke の終了を検出できなかったので、文言で判定するよう直した。
+- submit checkout の 4 本目 (`trees/c3r2`) は、`git worktree add` が 03:26 に作業ツリーの展開まで進んだまま戻らず、作成 script を包んだ背景 command が 30 分の上限で kill された。その後の観測では管理 dir (`.git/worktrees/c3r2`) が無く `git worktree list` に現れず、dir の中身は 04:02 以後に減り続けた。形は F26 の作成側の再発 (2026-09-02 の kill 形) と同じ。誰が管理 dir と中身を消したか (中断された add 自身の後始末か、別の主体か) は確かめていない。この wave からは prune・撤去を打っていない。以後は `git worktree add --lock` で追加と lock を同時に行い、`trees/c3r2b` として作り直した (作成ログ `verbatim/make-submit-tree.log`)。孤児 dir には触っていない。
+- `qstat <request>` は request が存在しなくても rc=0 を返した (出力は「does not exist」、failures に既載の事実)。rc で終了を判定した最初の待ち手は smoke の終了を検出できなかったので、文言で判定するよう直した。
 - repo 外の運用 script (wrapper job・投入・checkout 作成・待ち手・集計) は親が書いた。系列 C と T-2871 の親専用 script と同じ扱いで、repo には入れていない。`docs/ai-provenance.md` は所在を問わず Shell・Python の実行可能資材を実装面に数えるので、この扱いが dev-wave の「実装面は Codex author が書く」と整合するかは段 8 の改善候補として handoff に挙げた (結論はこの記録では出さない)。
 - submit checkout 6 本 (`trees/c2r1`・`c2r2`・`c3r1`・`c3r2b`・`c4r1`・`c4r2`) は locked のまま残す (campaign 原本と claim を持つ)。撤去は land 後の掃除に委ねる。
 
