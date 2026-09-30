@@ -18,6 +18,7 @@ title: [T-2874] Cicada の正しさの記録を中間案 M に上げた — 読�
 - 焦点再レビューは 3 巡の上限まで行い (3 巡とも NO-GO)、残った 4 所見は親が実測と文言で閉じた (段 6 裁定 9)。
 - 同じ計測用 checkout から 6 本を同時に dispatch して 5 本が rc=16 (起動前の orphan hold) で拒否された。以後は checkout を 3 本に分けて並行させた。
 - 途中で利用上限により中断し、ユーザーの「再開して」で続けた。land 調整役から「計算 job は 1 本 5 分程度に分割し多数並行」「2 node 時間超は調整役へ相談」の中継を受けた (本 wave は 22 job・合計約 0.71 node 時間・1 本最大 228 秒で相談不要)。
+- 受入全走 1 回目 (tip fe57cc6b4、claimed main 30f81956f、post-claim merge 後 dfd5ad4bb) は 28,610 passed・4 failed で rc 70。赤は 4 件とも `orchestrator/tests/test_dev_wave_cleanup.py` の `test_remove_child_*` で、本文はいずれも撤去 tool の占有走査の `occupancy result is indeterminate or inconsistent … issues=[{"error":"missing","source":"cwd",…}]` (rc 22、並列に走る別の test の一時 dir が消えた瞬間の process を拾った)。本 wave の変更 (patch・docs) はこの test の入力に届かない。同じ tip で test file を単独再走 (request 39797.nqsv) し 213 passed で再現しなかったので非帰属と判定し、受入を 1 回だけ再走した。
 - 工数: Codex = plan 2 (うち 1 本は無効化)・相談 4 (同)・author 2・レビュー 2・焦点 3・fix 13、Claude sonnet の read-only 調査子 1。計算ノード job 22 本 + provenance 監査 1 本。
 
 ## 次の一手差分
