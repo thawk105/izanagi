@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -29,6 +30,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from orchestrator.campaign.genome import SILO_SPACE  # noqa: E402
+from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.source_digest import (  # noqa: E402
     EVOLVE_BLOCK_SOURCE_PROTOCOLS,
     _INCLUDE_RE,
@@ -64,6 +66,11 @@ _GENERATED_TARGETS = ("masstree_build",)
 _MARKER_PREFIX = "IZANAGI_TRACE0_INCLUDE_MARKER_"
 _MOCC_TRANSACTION_PATH = "cc/mocc/transaction.cc"
 _MOCC_TRACE_INCLUDE_LINE = '#include "../../include/trace.hh"'
+_CICADA_MACROS = (
+    "INLINE_VERSION_OPT", "INLINE_VERSION_PROMOTION", "SINGLE_EXEC",
+    "WORKER1_INSERT_DELAY_RPHASE",
+)
+_CICADA_VALUE_CONTEXTS = tuple(itertools.product("01", repeat=len(_CICADA_MACROS)))
 _CONDITIONAL_DIRECTIVE_RE = re.compile(
     r"^[ \t]*#[ \t]*(if|ifdef|ifndef|elif|elifdef|elifndef|else|endif)\b(.*)$"
 )
@@ -568,83 +575,98 @@ def _compare_file(
         if added_include_index is None or len(new_markers) != len(old_markers) + 1:
             raise CheckError(f"include marker 列を構成できない未対応形: {path}")
 
+    cicada_source = path.startswith("cc/cicada/") and path.endswith(".cc")
     source_rel = path if path in EVOLVE_BLOCK_SOURCE_PROTOCOLS else None
+    if cicada_source:
+        # The protocol in Genome selects cc/cicada/CMakeLists.txt; source_rel would
+        # require Cicada to be registered as a digest source, which it is not.
+        cicada_genome = Genome("cicada", {})
+        supplied_old = _head_defines(os.fspath(repo), cicada_genome, old_oid)
+        supplied_new = _head_defines(os.fspath(repo), cicada_genome, new_oid)
+        if set(supplied_old) != set(supplied_new):
+            raise CheckError(f"Cicada old/new の供給 macro 集合が不一致: {path}")
+        for name in _CICADA_MACROS:
+            if name not in supplied_old or supplied_old[name] not in {"0", "1"} or supplied_new[name] not in {"0", "1"}:
+                raise CheckError(f"Cicada macro の供給値が未対応: path={path!r} macro={name}")
+        value_contexts = _CICADA_VALUE_CONTEXTS
+        genomes = (cicada_genome,)
+    else:
+        value_contexts = ((),)
     contexts: list[dict[str, object]] = []
     for genome in genomes:
-        old_defines = dict(
-            _head_defines(os.fspath(repo), genome, old_oid, source_rel)
-        )
-        new_defines = dict(
-            _head_defines(os.fspath(repo), genome, new_oid, source_rel)
-        )
-        old_defines["TRACE"] = "0"
-        new_defines["TRACE"] = "0"
-        _assert_conditional_macros_covered(
-            old_source, old_defines, compiler, path, old_known_absent
-        )
-        _assert_conditional_macros_covered(
-            new_source, new_defines, compiler, path, new_known_absent
-        )
+        base_old = supplied_old if cicada_source else _head_defines(os.fspath(repo), genome, old_oid, source_rel)
+        base_new = supplied_new if cicada_source else _head_defines(os.fspath(repo), genome, new_oid, source_rel)
+        for values in value_contexts:
+            overrides = dict(zip(_CICADA_MACROS, values))
+            old_defines = dict(base_old, **overrides, TRACE="0")
+            new_defines = dict(base_new, **overrides, TRACE="0")
+            _assert_conditional_macros_covered(
+                old_source, old_defines, compiler, path, old_known_absent
+            )
+            _assert_conditional_macros_covered(
+                new_source, new_defines, compiler, path, new_known_absent
+            )
+            for overlay in overlays:
+                old_context_defines = dict(old_defines, **overlay)
+                new_context_defines = dict(new_defines, **overlay)
+                # TRACE は genome 由来 defines と context overlay の双方より後に固定する。
+                old_context_defines["TRACE"] = "0"
+                new_context_defines["TRACE"] = "0"
+                tag = _context_tag(overlay)
+                if cicada_source:
+                    tag = ",".join(f"{name}={overrides[name]}" for name in _CICADA_MACROS) + ";" + tag
+                old_normalized = _cpp_normalize(old_source, old_context_defines, compiler).encode("utf-8")
+                new_normalized = _cpp_normalize(new_source, new_context_defines, compiler).encode("utf-8")
+                normalized_evidence = _comparison_evidence(old_normalized, new_normalized)
+                if not normalized_evidence["identical"]:
+                    raise CheckError(
+                        f"TRACE=0 正規化 preprocess 出力が不一致: path={path!r} "
+                        f"genome={genome.canonical()!r} context={tag!r}"
+                    )
 
-        for overlay in overlays:
-            old_context_defines = dict(old_defines, **overlay)
-            new_context_defines = dict(new_defines, **overlay)
-            # TRACE は genome 由来 defines と context overlay の双方より後に固定する。
-            old_context_defines["TRACE"] = "0"
-            new_context_defines["TRACE"] = "0"
-            tag = _context_tag(overlay)
-            old_normalized = _cpp_normalize(old_source, old_context_defines, compiler).encode("utf-8")
-            new_normalized = _cpp_normalize(new_source, new_context_defines, compiler).encode("utf-8")
-            normalized_evidence = _comparison_evidence(old_normalized, new_normalized)
-            if not normalized_evidence["identical"]:
-                raise CheckError(
-                    f"TRACE=0 正規化 preprocess 出力が不一致: path={path!r} "
-                    f"genome={genome.canonical()!r} context={tag!r}"
+                old_marked_output = _cpp_normalize(
+                    marked_old, old_context_defines, compiler
                 )
-
-            old_marked_output = _cpp_normalize(
-                marked_old, old_context_defines, compiler
-            )
-            new_marked_output = _cpp_normalize(
-                marked_new, new_context_defines, compiler
-            )
-            old_active = _active_markers(old_marked_output, old_markers)
-            new_active = _active_markers(new_marked_output, new_markers)
-            try:
-                policy_decision = _compare_include_activity(
-                    path,
-                    old_active,
-                    new_active,
-                    old_markers,
-                    new_markers,
-                    added_include_index,
+                new_marked_output = _cpp_normalize(
+                    marked_new, new_context_defines, compiler
                 )
-            except CheckError as exc:
-                raise CheckError(
-                    f"{exc} genome={genome.canonical()!r} context={tag!r}"
-                ) from exc
+                old_active = _active_markers(old_marked_output, old_markers)
+                new_active = _active_markers(new_marked_output, new_markers)
+                try:
+                    policy_decision = _compare_include_activity(
+                        path,
+                        old_active,
+                        new_active,
+                        old_markers,
+                        new_markers,
+                        added_include_index,
+                    )
+                except CheckError as exc:
+                    raise CheckError(
+                        f"{exc} genome={genome.canonical()!r} context={tag!r}"
+                    ) from exc
 
-            old_activity_bytes = "\0".join(old_active).encode("ascii")
-            new_activity_bytes = "\0".join(new_active).encode("ascii")
-            activity_evidence = _comparison_evidence(
-                old_activity_bytes, new_activity_bytes
-            )
-            contexts.append({
-                "genome": genome.canonical(),
-                "context": tag,
-                "overlay": dict(sorted(overlay.items())),
-                "defines": {
-                    "old": dict(sorted(old_context_defines.items())),
-                    "new": dict(sorted(new_context_defines.items())),
-                },
-                "normalized_preprocess": normalized_evidence,
-                "include_activity": {
-                    "old_active_markers": old_active,
-                    "new_active_markers": new_active,
-                    **activity_evidence,
-                    "policy_comparison": policy_decision,
-                },
-            })
+                old_activity_bytes = "\0".join(old_active).encode("ascii")
+                new_activity_bytes = "\0".join(new_active).encode("ascii")
+                activity_evidence = _comparison_evidence(
+                    old_activity_bytes, new_activity_bytes
+                )
+                contexts.append({
+                    "genome": genome.canonical(),
+                    "context": tag,
+                    "overlay": dict(sorted(overlay.items())),
+                    "defines": {
+                        "old": dict(sorted(old_context_defines.items())),
+                        "new": dict(sorted(new_context_defines.items())),
+                    },
+                    "normalized_preprocess": normalized_evidence,
+                    "include_activity": {
+                        "old_active_markers": old_active,
+                        "new_active_markers": new_active,
+                        **activity_evidence,
+                        "policy_comparison": policy_decision,
+                    },
+                })
 
     if len(contexts) != expected_context_count:
         raise CheckError(
@@ -656,6 +678,8 @@ def _compare_file(
         "path": path,
         "include_line_count": len(old_markers),
         "include_lines_sha256": _sha256(old_includes.encode("utf-8")),
+        "expected_context_count": expected_context_count,
+        "actual_context_count": len(contexts),
         "contexts": contexts,
         "result": "match",
     }
@@ -1120,7 +1144,9 @@ def check(
                 new_known_absent,
                 genomes,
                 overlays,
-                expected_context_count,
+                (len(_CICADA_VALUE_CONTEXTS) * len(overlays)
+                 if path.startswith("cc/cicada/") and path.endswith(".cc")
+                 else expected_context_count),
             )
         )
     if not files and not header_paths:
@@ -1148,6 +1174,9 @@ def check(
             "genome_count": len(genomes),
             "overlay_count": len(overlays),
             "expected_context_count_per_file": expected_context_count,
+        },
+        "expected_context_count_by_path": {
+            file["path"]: file["expected_context_count"] for file in files
         },
         "files": files,
         **({"header_rule": header_rule} if header_paths else {}),

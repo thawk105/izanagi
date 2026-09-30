@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import itertools
 import json
 import os
 import shutil
@@ -19,6 +20,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _CHECKER = _ROOT / "tools/check_trace0_preprocess_identity.py"
 _SOURCE = Path("cc/silo/transaction.cc")
 _MOCC_SOURCE = Path("cc/mocc/transaction.cc")
+_CICADA_SOURCE = Path("cc/cicada/transaction.cc")
 _EXTRA_SOURCE = Path("cc/silo/extra.cpp")
 _MOCC_TRACE_INCLUDE = '#include "../../include/trace.hh"'
 _GUARANTEE = (
@@ -32,6 +34,10 @@ set(CCBENCH_NO_WAIT_OF_TICTOC 0 CACHE STRING "test")
 set(CCBENCH_WAL 0 CACHE STRING "test")
 set(CCBENCH_TRACE 0 CACHE STRING "test")
 set(CCBENCH_TEMPERATURE_RESET_OPT 1 CACHE STRING "test")
+set(CCBENCH_INLINE_VERSION_OPT_CICADA 0 CACHE STRING "test")
+set(CCBENCH_INLINE_VERSION_PROMOTION 1 CACHE STRING "test")
+set(CCBENCH_SINGLE_EXEC 0 CACHE STRING "test")
+set(CCBENCH_WORKER1_INSERT_DELAY_RPHASE 0 CACHE STRING "test")
 function(ccbench_universal_definitions target)
   target_compile_definitions(${target} PRIVATE
     BACK_OFF=${CCBENCH_BACK_OFF}
@@ -62,6 +68,19 @@ ccbench_add_protocol(mocc
   WORKLOADS ycsb
   OPTIONS RWLOCK TEMPERATURE_RESET_OPT=${CCBENCH_TEMPERATURE_RESET_OPT})
 """
+_CICADA_OWNER_CMAKE = """\
+ccbench_add_protocol(cicada
+  SOURCES transaction.cc
+  WORKLOADS ycsb
+  OPTIONS INLINE_VERSION_OPT=${CCBENCH_INLINE_VERSION_OPT_CICADA}
+          INLINE_VERSION_PROMOTION=${CCBENCH_INLINE_VERSION_PROMOTION}
+          SINGLE_EXEC=${CCBENCH_SINGLE_EXEC}
+          WORKER1_INSERT_DELAY_RPHASE=${CCBENCH_WORKER1_INSERT_DELAY_RPHASE})
+"""
+_CICADA_MACROS = (
+    "INLINE_VERSION_OPT", "INLINE_VERSION_PROMOTION", "SINGLE_EXEC",
+    "WORKER1_INSERT_DELAY_RPHASE",
+)
 _MQLOCK_OLD_SOURCE = """\
 #include <cstdint>
 #ifdef MQLOCK
@@ -161,6 +180,16 @@ def _mocc_modified_pair(
     return _Pair(repo, old, new)
 
 
+def _cicada_modified_pair(tmp_path: Path, new_source: str, *, old_source: str = _OLD_SOURCE) -> _Pair:
+    repo, old = _base_repo(
+        tmp_path, old_source, source_rel=_CICADA_SOURCE,
+        protocol_cmake_text=_CICADA_OWNER_CMAKE,
+    )
+    _write(repo, _CICADA_SOURCE, new_source)
+    new = _commit(repo, "new")
+    return _Pair(repo, old, new)
+
+
 def _cxx() -> str:
     compiler = shutil.which("g++") or shutil.which("g++-12") or shutil.which("g++-11")
     assert compiler is not None, "checker tests require a C++ preprocessor"
@@ -239,6 +268,7 @@ def test_trace_only_change_passes_with_deterministic_required_evidence(tmp_path:
         "overlay_count": 2,
         "expected_context_count_per_file": 16,
     }
+    assert report["expected_context_count_by_path"] == {_SOURCE.as_posix(): 16}
     assert [(entry["status"], entry["path"]) for entry in report["diff"]] == [
         ("M", _SOURCE.as_posix())
     ]
@@ -273,6 +303,100 @@ def test_trace_only_change_passes_with_deterministic_required_evidence(tmp_path:
 def test_trace_output_outside_trace_branch_is_rejected(tmp_path: Path) -> None:
     pair = _modified_pair(tmp_path, _OLD_SOURCE + "int leaked_trace_output = 1;\n")
     _assert_rejected(_run(pair), "TRACE=0 正規化 preprocess 出力が不一致")
+
+
+def test_cicada_trace_only_change_covers_exact_binary_matrix(tmp_path: Path) -> None:
+    new = _OLD_SOURCE.replace("#if TRACE\n", "#if TRACE\n// trace-only comment\n")
+    pair = _cicada_modified_pair(tmp_path, new)
+    result = _run(pair)
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    evidence = report["files"][0]
+    assert evidence["path"] == _CICADA_SOURCE.as_posix()
+    assert evidence["expected_context_count"] == evidence["actual_context_count"] == 32
+    assert report["expected_context_count_by_path"][_CICADA_SOURCE.as_posix()] == 32
+    contexts = evidence["contexts"]
+    assert len(contexts) == 32
+    assert (
+        "INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=1,SINGLE_EXEC=0,"
+        "WORKER1_INSERT_DELAY_RPHASE=0;base"
+    ) in {context["context"] for context in contexts}
+    actual = [
+        (tuple(context["defines"]["old"][name] for name in _CICADA_MACROS),
+         tuple(sorted(context["overlay"].items())))
+        for context in contexts
+    ]
+    expected = [
+        (values, tuple(sorted(overlay.items())))
+        for values in itertools.product("01", repeat=4)
+        for overlay in ({}, {"GLOBAL_VALUE_DEFINE": "1"})
+    ]
+    assert sorted(actual) == sorted(expected)
+    assert (("0", "1", "0", "0"), ()) in actual
+    assert all(c["defines"]["old"] == c["defines"]["new"] for c in contexts)
+
+
+@pytest.mark.parametrize(
+    ("condition", "name"),
+    [
+        ("SINGLE_EXEC", "single_exec"),
+        ("WORKER1_INSERT_DELAY_RPHASE", "worker_delay"),
+        ("INLINE_VERSION_OPT", "inline_opt"),
+        ("INLINE_VERSION_OPT && !INLINE_VERSION_PROMOTION", "promotion"),
+    ],
+)
+def test_cicada_opposite_default_branch_is_rejected(
+    tmp_path: Path, condition: str, name: str,
+) -> None:
+    old = _OLD_SOURCE + f"#if {condition}\nint {name} = 1;\n#endif\n"
+    new = old.replace(f"int {name} = 1;", f"int {name} = 2;")
+    result = _run(_cicada_modified_pair(tmp_path, new, old_source=old))
+    _assert_rejected(result, "TRACE=0 正規化 preprocess 出力が不一致")
+    if name == "single_exec":
+        assert (
+            "INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,SINGLE_EXEC=1,"
+            "WORKER1_INSERT_DELAY_RPHASE=0"
+        ) in result.stderr
+
+
+def test_cicada_unknown_macro_remains_rejected(tmp_path: Path) -> None:
+    pair = _cicada_modified_pair(
+        tmp_path, _OLD_SOURCE + "#if NEW_CICADA_MACRO\nint hidden = 1;\n#endif\n"
+    )
+    _assert_rejected(_run(pair), "未知マクロ")
+
+
+def test_cicada_include_activity_error_identifies_values(tmp_path: Path) -> None:
+    old = "#include <required.hh>\n#if TRACE\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    new = "#if TRACE\n#include <required.hh>\nint trace_value = 1;\n#endif\nint steady = 7;\n"
+    result = _run(_cicada_modified_pair(tmp_path, new, old_source=old))
+    _assert_rejected(result, "include 活性（順序込み）が不一致")
+    assert (
+        "INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,SINGLE_EXEC=0,"
+        "WORKER1_INSERT_DELAY_RPHASE=0"
+    ) in result.stderr
+
+
+def test_cicada_comparison_count_cannot_be_derived_from_actual(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    new = _OLD_SOURCE.replace("#if TRACE\n", "#if TRACE\n// trace-only comment\n")
+    pair = _cicada_modified_pair(tmp_path, new)
+    checker = _load_checker_module()
+    original = checker._compare_file
+
+    def compare_with_one_fewer_overlay(
+        repo, old_oid, new_oid, path, compiler, old_known_absent,
+        new_known_absent, genomes, overlays, expected_context_count,
+    ):
+        return original(
+            repo, old_oid, new_oid, path, compiler, old_known_absent,
+            new_known_absent, genomes, overlays[:-1], expected_context_count,
+        )
+
+    monkeypatch.setattr(checker, "_compare_file", compare_with_one_fewer_overlay)
+    with pytest.raises(checker.CheckError, match="context 比較件数が列挙元から導出した期待数と一致しない"):
+        checker.check(pair.repo, pair.old, pair.new, _cxx())
 
 
 def test_mocc_trace_include_addition_passes_with_expected_path(tmp_path: Path) -> None:
