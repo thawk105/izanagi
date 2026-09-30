@@ -1,6 +1,6 @@
 {
  "definition_commit": "7648ea167",
- "parent_corrections": 19,
+ "parent_corrections": 24,
  "ccs": [
   "tictoc",
   "mocc",
@@ -27,14 +27,14 @@
    },
    "feasible33": {
     "fits": 8,
-    "minor": 14,
-    "no": 9,
+    "minor": 12,
+    "no": 11,
     "unknown": 2
    },
    "all295": {
     "fits": 35,
-    "minor": 17,
-    "no": 241,
+    "minor": 15,
+    "no": 243,
     "unknown": 2
    }
   },
@@ -53,14 +53,14 @@
    },
    "feasible33": {
     "fits": 6,
-    "minor": 15,
-    "no": 10,
+    "minor": 13,
+    "no": 12,
     "unknown": 2
    },
    "all295": {
     "fits": 37,
-    "minor": 24,
-    "no": 232,
+    "minor": 22,
+    "no": 234,
     "unknown": 2
    }
   },
@@ -150,9 +150,9 @@
     "unknown": 1
    },
    "present80": {
-    "fits": 30,
+    "fits": 29,
     "minor": 10,
-    "no": 39,
+    "no": 40,
     "unknown": 1
    },
    "feasible33": {
@@ -162,9 +162,9 @@
     "unknown": 1
    },
    "all295": {
-    "fits": 39,
+    "fits": 38,
     "minor": 30,
-    "no": 223,
+    "no": 224,
     "unknown": 3
    }
   },
@@ -226,13 +226,13 @@
    "cpu-cache": 8,
    "delay-on-conflict": 5,
    "version-lifetime": 0,
-   "none": 14
+   "none": 12
   },
   "mocc": {
    "cpu-cache": 7,
    "delay-on-conflict": 12,
    "version-lifetime": 0,
-   "none": 15
+   "none": 13
   },
   "cicada": {
    "cpu-cache": 8,
@@ -254,7 +254,7 @@
   },
   "mvto": {
    "cpu-cache": 10,
-   "delay-on-conflict": 9,
+   "delay-on-conflict": 8,
    "version-lifetime": 9,
    "none": 11
   },
@@ -273,11 +273,11 @@
  },
  "fitminor_new": {
   "tictoc": {
-   "all295": 27,
+   "all295": 25,
    "mismatch182": 3
   },
   "mocc": {
-   "all295": 34,
+   "all295": 32,
    "mismatch182": 5
   },
   "cicada": {
@@ -293,7 +293,7 @@
    "mismatch182": 12
   },
   "mvto": {
-   "all295": 39,
+   "all295": 38,
    "mismatch182": 9
   },
   "ss2pl": {
@@ -369,24 +369,6 @@
     "class": "absent-silo-feasible",
     "effect": "delay-on-conflict",
     "note": "TicToc は開始時 timestamp を持たない。worker ごとの開始時刻 (m2)、lock 保持者の開始時刻を tuple に置く field (m1、TsWord に空き bit は無い)、commit 時施錠で年齢比較して待つか abort する分岐 (m3) で入る。直列化は commit_ts のまま。"
-   },
-   {
-    "card_id": "healing-access-cache",
-    "value": "minor",
-    "verifier": "conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値を使った write が残ると見逃し)",
-    "minor_parts": 1,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "healing が前提。TicToc は単版でデータ駆動の wts/rtsで read set が tuple pointer と値の写しを持つので、記録済みアドレスの再利用は healing の access cache (worker 局所状態) を足すだけで満たせる。"
-   },
-   {
-    "card_id": "healing-transaction-healing",
-    "value": "minor",
-    "verifier": "conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値を使った write が残ると見逃し)",
-    "minor_parts": 1,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "TicToc は単版でデータ駆動の wts/rtsで read set に値の写しと TID/TsWord があり、YCSB の依存は TxExecutor の pro_set_ から固定で分かる。足りないのは演算ごとの access cache・bookmark (worker 局所の固定サイズ状態) だけで、TPC-C では依存グラフを開始前に渡せない。"
    },
    {
     "card_id": "stov2-commit-time-updates",
@@ -497,24 +479,6 @@
     "class": "absent-silo-feasible",
     "effect": "delay-on-conflict",
     "note": "MOCC は RW lock と blocking 待ちを持つ。開始時刻 (m2)、保持者の開始時刻 (m1)、lock 取得での年齢比較の分岐 (m3) で入る。直列化は TID のまま。"
-   },
-   {
-    "card_id": "healing-access-cache",
-    "value": "minor",
-    "verifier": "conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値を使った write が残ると見逃し)",
-    "minor_parts": 1,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "healing が前提。MOCC は単版で Silo 型 TID と RW lockで read set が tuple pointer と値の写しを持つので、記録済みアドレスの再利用は healing の access cache (worker 局所状態) を足すだけで満たせる。"
-   },
-   {
-    "card_id": "healing-transaction-healing",
-    "value": "minor",
-    "verifier": "conditional:修復後に読んだ版の ID で trace を記録し直せば (元の版のままだと偽の閉路、修復前の値を使った write が残ると見逃し)",
-    "minor_parts": 1,
-    "class": "absent-silo-feasible",
-    "effect": "none",
-    "note": "MOCC は単版で Silo 型 TID と RW lockで read set に値の写しと TID/TsWord があり、YCSB の依存は TxExecutor の pro_set_ から固定で分かる。足りないのは演算ごとの access cache・bookmark (worker 局所の固定サイズ状態) だけで、TPC-C では依存グラフを開始前に渡せない。"
    },
    {
     "card_id": "stov2-commit-time-updates",
@@ -1940,6 +1904,7 @@
    "other:可換演算の per-core slice と phase の全体切替 (split 中は施錠・検証を通さない)": 4,
    "other:中央 validator の batch validation": 4,
    "other:conflict graph (SGT) が無い": 4,
+   "other:correctness-argument": 3,
    "other:施錠順と no-wait で deadlock が起きない": 2,
    "other:no-predicate-validation": 2,
    "other:CC 専用 thread とメッセージ通信が無い": 2,
@@ -1953,7 +1918,6 @@
    "other:属性の分割と述語 validation が前提": 1,
    "other:述語 validation が前提": 1,
    "other:列ストアの scan と生成コードが前提": 1,
-   "other:correctness-argument": 1,
    "other:可換演算の宣言 API が無い": 1,
    "other:storage と validator を分けた loosely coupled 構造と request batch": 1,
    "other:SGT の graph node が前提": 1,
@@ -1979,7 +1943,7 @@
    "partition": 18,
    "platform": 9,
    "other:no-ltx-mode": 7,
-   "other:correctness-argument": 5,
+   "other:correctness-argument": 7,
    "other:predicate set と secondary index が無い": 5,
    "other:relax した lock と predecessor 順の commit (pipelining) で施錠・commit 順の骨格が変わる": 5,
    "other:SSN が前提": 4,
@@ -2245,7 +2209,7 @@
   "mvto": {
    "predeclared": 62,
    "lock-regime": 56,
-   "ts-scheme": 44,
+   "ts-scheme": 45,
    "partition": 18,
    "platform": 9,
    "gc-structure": 9,
@@ -2481,6 +2445,13 @@
   "feasible": 33,
   "mismatch": 182
  },
+ "dropped_more_natural_on": [
+  {
+   "card_id": "cicada-clock-boost-on-abort",
+   "cc": "mvto",
+   "why": "parent-stage6 の訂正で fits でなくなった"
+  }
+ ],
  "more_natural_on": {
   "abyss-lock-wait-timeout": [
    {
@@ -2490,12 +2461,6 @@
    {
     "cc": "ss2pl",
     "why": "原典の DL_DETECT は 2PL の lock 待ちが前提で、SS2PL は DLR0 の待つ経路を持つ 2PL (Silo は commit 時の CAS 施錠で既定 no-wait)。"
-   }
-  ],
-  "cicada-clock-boost-on-abort": [
-   {
-    "cc": "mvto",
-    "why": "mvto は cicada と同じ TimeStamp (clockBoost 欄あり) を使うが boost を変更する箇所が無いので、abort 時に立て commit 時に戻すだけで入る。"
    }
   ],
   "cicada-early-version-consistency-check": [

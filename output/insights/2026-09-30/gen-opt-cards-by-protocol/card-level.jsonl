@@ -64,7 +64,7 @@
 {"card_id": "cicada-incremental-version-search", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada"]}
 {"card_id": "cicada-rapid-gc", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "ermia", "si", "mvto"]}
 {"card_id": "cicada-contention-regulation", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["tictoc", "mocc", "cicada", "ermia", "si", "mvto", "ss2pl", "oze"]}
-{"card_id": "cicada-clock-boost-on-abort", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [{"cc": "mvto", "why": "mvto は cicada と同じ TimeStamp (clockBoost 欄あり) を使うが boost を変更する箇所が無いので、abort 時に立て commit 時に戻すだけで入る。"}], "natural_home": ["cicada"]}
+{"card_id": "cicada-clock-boost-on-abort", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada"]}
 {"card_id": "cicada-multiversion-index-deferred-update", "class": "absent-prereq-mismatch", "silo": "mismatch", "more_natural_on": [], "natural_home": []}
 {"card_id": "cicada-read-only-snapshot", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["cicada", "mvto"]}
 {"card_id": "ermia-si-ssn-protocol", "class": "ccbench-present", "silo": "port-candidate", "more_natural_on": [], "natural_home": ["ermia"]}

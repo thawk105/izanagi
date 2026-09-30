@@ -5,7 +5,7 @@
 - 依頼: `/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_9.txt` と同 directory の `common-3.txt` (repo 外)。
 - 着手: 2026-09-30 11:55 JST。入力: local main `4f412c67b`、CCBench の pin `68106660`、`cards.json` sha256 `6750adcb…a9849` (編集していない)。
 - 分類の事前定義: `definition.md` (判定の子を起動する前に commit `7648ea167` で固定。定義の本文は登録後に改訂していない)。
-- 判定の正本: `judgments.jsonl` (子の判定に、段 6 レビューを受けた親の訂正 19 組を当てたもの。訂正した組は `revision` 欄に元の値と理由を持つ。§10)。
+- 判定の正本: `judgments.jsonl` (子の判定に、段 6 のレビュー 2 巡を受けた親の訂正 24 組を当てたもの。訂正した組は `revision` 欄に元の値と理由を持つ。§10)。
 - 実装・計測はしていない。計算ノードは使っていない。本文は日本語。
 
 ---
@@ -20,10 +20,10 @@ timestamp の決め方が合わない (41 枚)、長い取引の専用 mode・�
 
 | CC | 182 枚のうち入る | 段 A 候補 (定義 §7 の 4 条件) | うち Silo に入らない 182 枚から | 準備の重さ (点) | 候補数 ÷ (重さ+1) | certified の証拠面 |
 |---|---|---|---|---|---|---|
-| mocc | 5 | **15** | 2 | **4** | **3.00** | 部分 (修理 X の pin 前進待ち) |
+| mocc | 5 | **13** | 2 | **4** | **2.60** | 部分 (修理 X の pin 前進待ち) |
 | cicada | 11 | 13 | **3** | 9 | 1.30 | 無 (判定器の門の拡張が要る、L) |
-| tictoc | 3 | 13 | 0 | 9 | 1.30 | 無 (Silo の X/P を移せる見込み、M) |
 | ermia | 14 | 13 | 3 | 10 | 1.18 | 無 (多版 + SSN の新しい証拠面、L) |
+| tictoc | 3 | 11 | 0 | 9 | 1.10 | 無 (Silo の X/P を移せる見込み、M) |
 | oze | 3 | 10 | 1 | 10 | 0.91 | 無 (L) |
 | mvto | 9 | 9 | 2 | 11 | 0.75 | 無 (L)。pin に YCSB が無い |
 | ss2pl | 3 | 7 | 2 | 10 | 0.64 | 無 (L)。pin に YCSB が無い |
@@ -33,9 +33,9 @@ timestamp の決め方が合わない (41 枚)、長い取引の専用 mode・�
 
 **順番の推奨 (登録した規則 = 候補数 ÷ (重さ+1) の大きい順、`definition.md` §9):**
 
-1. **MOCC が明確に先頭** (3.00)。候補が最も多く (15)、準備は 4 点で、欠けているのは修理 X (`f4a5169e`) を含む pin 前進 (S)、between-run floor の実測 (S)、関数方策の口 (M、並走中の md_10 の結論次第) だけ。
-   ただし MOCC の候補 15 のうち 13 は Silo でも入る見込みの最適化で、**MOCC の価値は「新しいカードを試せる」より「同じ最適化を 2 つ目の単版 OCC で試せる」にある**。
-2. **Cicada (1.30)・TicToc (1.30)・ERMIA (1.18) はほぼ並ぶ。** 差は判定の揺れ (§9・§10) より小さい。何を目的にするかで選び分ける:
+1. **MOCC が明確に先頭** (2.60)。候補が最も多く (13)、準備は 4 点で、欠けているのは修理 X (`f4a5169e`) を含む pin 前進 (S)、between-run floor の実測 (S)、関数方策の口 (M、並走中の md_10 の結論次第) だけ。
+   ただし MOCC の候補 13 のうち 11 は Silo でも入る見込みの最適化で、**MOCC の価値は「新しいカードを試せる」より「同じ最適化を 2 つ目の単版 OCC で試せる」にある**。
+2. **Cicada (1.30)・ERMIA (1.18)・TicToc (1.10) が続く。** 差は判定の揺れ (§9・§10) と同じ程度に小さい。何を目的にするかで選び分ける:
    - **Silo で試せない最適化を試したい** → **Cicada**。182 枚から来た候補は Cicada 3 枚 (版の prefetch、3 epoch の回収管理、書き手の予約の先出し)、ERMIA 3 枚 (うち 1 枚は性能の下がる基準線の timestamp 割当て) で、
      ERMIA だけに入る SSN の最適化は、ほとんどが正しさの論拠を替える変更で候補に残らなかった (§10)。どちらも certified の証拠面が「無」で重さ L だが、
      Cicada には trace の patch・証拠面の設計 (D2300)・中間案 M の採用 (D2305 項 4) が既にある。ERMIA には trace も証拠面の設計も無く、stock の readers bitmap に 48 thread で未定義動作になる int shift がある (`cc/ermia/include/transaction.hh:123,134`)。
@@ -56,7 +56,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 | 各 CC の版の持ち方・timestamp・施錠・validation・GC・workload を CCBench の pin の実ソースで読み、file:line を付けた (`cc-profiles.md`)。親は 5 点を実物で抜き取り照合し一致した | CCBench の build・実行。compile の可否 (ss2pl.cc・cicada の INLINE 系・mocc の MQLOCK) は読解だけ |
 | 各 CC の準備 5 段を repo の実物 (file:line・決定番号) で確かめた (`readiness.md`)。親は 4 点を実物で照合し一致した | 準備の重さ (S/M/L) の見積りが実際の工数に合うか。見積りは定義の目安に当てた判断 |
 | 295 枚 × 8 CC = 2,360 組を、結果を見る前に固定した定義で判定した (子 5 本、各 59 枚)。全組がちょうど 1 件・語彙と条件の違反 0 を機械で確かめた | カードの原典を読み直しての判定。判定はカードの欄 (前提・機構・原典の CC など) と CC 前提表だけから行った |
-| 親が無作為 30 組 (seed 20260930) と各 CC の段 A 候補の上位 5 件を読み直した (§9)。段 6 の独立レビュー (Codex、read-only) が件数を正本から数え直して一致を確かめ、定義からの逸脱 3 件を指摘した。親は同じ型の組を洗い出して 19 組を直した (§10) | 2,360 組の全件の親による読み直し。§10 の洗い出しは note の語での検索と、同じ機構のカード群の一覧で行った。語に掛からない同型の組が残っている可能性はある |
+| 親が無作為 30 組 (seed 20260930) と各 CC の段 A 候補の上位 5 件を読み直した (§9)。段 6 の独立レビューと焦点再レビュー (どちらも Codex、read-only) が件数を正本から数え直して一致を確かめ、定義からの逸脱を計 5 件指摘した。親は同じ型の組を洗い出して 24 組を直した (§10) | 2,360 組の全件の親による読み直し。§10 の洗い出しは判定の note とカードの機構・正しさの欄の語での検索と、同じ機構のカード群の一覧で行った。語に掛からない同型の組が残っている可能性はある |
 | 「CCBench に無い」は文献カード wave が pin の中で照合した値をそのまま使った | 「世界に無い」「新しい」かどうか (本 wave の範囲外)。カードの追加・書き直し |
 
 ---
@@ -113,12 +113,12 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 
 | CC | 182 枚 (Silo に入らない) | 80 枚 (CCBench にある) | 33 枚 (Silo に入る見込み) | 295 枚 | fits+minor (既存除く) 295 / 182 | 段 A 候補 (無い) | 副候補 (一部) |
 |---|---|---|---|---|---|---|---|
-| tictoc | 1 / 2 / 179 / 0 | 26 / 1 / 53 / 0 | 8 / 14 / 9 / 2 | 35 / 17 / 241 / 2 | 27 / 3 | 13 | 8 |
-| mocc | 1 / 4 / 177 / 0 | 30 / 5 / 45 / 0 | 6 / 15 / 10 / 2 | 37 / 24 / 232 / 2 | 34 / 5 | 15 | 8 |
+| tictoc | 1 / 2 / 179 / 0 | 26 / 1 / 53 / 0 | 8 / 12 / 11 / 2 | 35 / 15 / 243 / 2 | 25 / 3 | 11 | 8 |
+| mocc | 1 / 4 / 177 / 0 | 30 / 5 / 45 / 0 | 6 / 13 / 12 / 2 | 37 / 22 / 234 / 2 | 32 / 5 | 13 | 8 |
 | cicada | 4 / 10 / 167 / 1 | 36 / 5 / 39 / 0 | 6 / 11 / 15 / 1 | 46 / 26 / 221 / 2 | 34 / 11 | 13 | 13 |
 | ermia | 2 / 12 / 163 / 5 | 30 / 5 / 45 / 0 | 5 / 11 / 16 / 1 | 37 / 28 / 224 / 6 | 35 / 14 | 13 | 13 |
 | si | 6 / 10 / 161 / 5 | 24 / 4 / 52 / 0 | 5 / 11 / 16 / 1 | 35 / 25 / 229 / 6 | 33 / 12 | 13 | 12 |
-| mvto | 3 / 9 / 169 / 1 | 30 / 10 / 39 / 1 | 6 / 11 / 15 / 1 | 39 / 30 / 223 / 3 | 39 / 9 | 9 | 14 |
+| mvto | 3 / 9 / 169 / 1 | 29 / 10 / 40 / 1 | 6 / 11 / 15 / 1 | 38 / 30 / 224 / 3 | 38 / 9 | 9 | 14 |
 | ss2pl | 0 / 3 / 179 / 0 | 12 / 4 / 64 / 0 | 6 / 8 / 19 / 0 | 18 / 15 / 262 / 0 | 21 / 3 | 7 | 8 |
 | oze | 1 / 3 / 173 / 5 | 29 / 5 / 45 / 1 | 5 / 9 / 17 / 2 | 35 / 17 / 235 / 8 | 24 / 3 | 10 | 7 |
 
@@ -126,12 +126,12 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 
 | CC | CPU cache | delay on conflict | version lifetime | 3 分類外 |
 |---|---|---|---|---|
-| tictoc | 8 | 5 | 0 | 14 |
-| mocc | 7 | 12 | 0 | 15 |
+| tictoc | 8 | 5 | 0 | 12 |
+| mocc | 7 | 12 | 0 | 13 |
 | cicada | 8 | 9 | 8 | 9 |
 | ermia | 9 | 6 | 8 | 12 |
 | si | 10 | 5 | 8 | 10 |
-| mvto | 10 | 9 | 9 | 11 |
+| mvto | 10 | 8 | 9 | 11 |
 | ss2pl | 7 | 7 | 1 | 6 |
 | oze | 10 | 6 | 0 | 8 |
 
@@ -159,7 +159,7 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 | ss2pl | abyss-lock-wait-timeout (fits)、stov2-basis-transaction-internals (fits)、silo-inline-record-data、abyss-wait-die、stov2-commit-time-updates |
 | oze | stov2-basis-transaction-internals (fits)、abyss-lock-wait-timeout、silo-inline-record-data、tskd-tsdefer-lockfree-probing、tskd-tsdefer-proactive-deferment |
 
-全件は `summary.json` の `stage_a` (本候補) と `stage_a_partial` (副候補 = CCBench に「一部」ある) にある。8 CC を合わせた本候補は 20 枚で、うち 13 枚は Silo に入る見込みの 33 枚、7 枚は Silo に入らない 182 枚から来ている。
+全件は `summary.json` の `stage_a` (本候補) と `stage_a_partial` (副候補 = CCBench に「一部」ある) にある。8 CC を合わせた本候補は 18 枚で、うち 11 枚は Silo に入る見込みの 33 枚、7 枚は Silo に入らない 182 枚から来ている。
 
 ### 5.2 CC ごとに固有のもの
 
@@ -167,31 +167,31 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
   182 枚から来たのは brook2pl-read-write-constraint と tebaldi-tso-promises の 2 枚。
 - **Cicada:** 版の prefetch (rr-o4-version-prefetching)・3 epoch の回収管理 (ermia-three-epoch-manager)・tebaldi-tso-promises の 3 枚が 182 枚から来た。
 - **ERMIA:** 182 枚から来たのは rr-o4-version-prefetching・ermia-three-epoch-manager と、基準線の abyss-ts-alloc-mutex の 3 枚。SSN の最適化 (ESSN の除外条件、read-only の commit 時刻、safe snapshot、cold read の省略) は §10 で「満たさない」に直した。
-- **TicToc:** 本候補 13 枚すべてが Silo に入る見込みの 33 枚から来た。TicToc だけで入るものは無い。
+- **TicToc:** 本候補 11 枚すべてが Silo に入る見込みの 33 枚から来た。TicToc だけで入るものは無い。
 
 ### 5.3 留保と事後の感度確認
 
 - **設計の軸のカード (`kind = design-dimension`) が候補に入っている:** stov2-basis-transaction-internals (read/write set を hash 表にする)・abyss-ts-alloc-mutex (timestamp の割当て方)・abyss-wait-die・abyss-dl-detect。
   評価論文が比べた設計の軸で、特に abyss-ts-alloc-mutex は性能の下がる基準線である。登録した並べ方は種類を見ないので上位に来るが、「文献の最適化を試す」段 A の本命ではない。
 - **CCBench の YCSB で効果が作りの産物になるカード:** stov2-commit-time-updates (updater が恒等写像になる)。文献カード README §7 のとおり段 A の根拠にしない (同じ注意の healing-false-invalidation-elimination は §10 で「満たさない」に直した)。
-- **事後の感度確認 (登録した規則ではない):** 上の 5 枚を除くと本候補は tictoc 10・mocc 12・cicada 11・ermia 10・si 10・mvto 7・ss2pl 3・oze 9、候補数 ÷ (重さ+1) は mocc 2.40・cicada 1.10・tictoc 1.00・ermia 0.91・oze 0.82・mvto 0.58・ss2pl 0.27。
-  先頭の MOCC は変わらず、Cicada が TicToc をわずかに上回る。
+- **事後の感度確認 (登録した規則ではない):** 上の 5 枚を除くと本候補は tictoc 8・mocc 10・cicada 11・ermia 10・si 10・mvto 7・ss2pl 3・oze 9、候補数 ÷ (重さ+1) は mocc 2.00・cicada 1.10・ermia 0.91・oze 0.82・tictoc 0.80・mvto 0.58・ss2pl 0.27。
+  先頭の MOCC と 2 位の Cicada は変わらない。
 
 ---
 
 ## 6. CCBench にある 80 枚と Silo に入る見込みの 33 枚への印
 
-- **別の CC の方が自然に入る (`more_natural_on`、6 枚):**
+- **別の CC の方が自然に入る (`more_natural_on`、5 枚):**
   - abyss-lock-wait-timeout → mocc・ss2pl (どちらも lock を待つ経路を持つ。Silo は既定 no-wait の CAS 施錠)
   - tictoc-preemptive-abort → tictoc (近似 commit ts に使う wts/rts が TicToc にだけある)
-  - cicada-write-set-sort-by-contention → cicada・mvto、cicada-early-version-consistency-check → mvto、cicada-clock-boost-on-abort → mvto (Cicada と同じ版と timestamp を持つ mvto に入る)
+  - cicada-write-set-sort-by-contention → cicada・mvto、cicada-early-version-consistency-check → mvto (Cicada と同じ版と timestamp を持つ mvto に入る)。子が付けた cicada-clock-boost-on-abort → mvto は §10 の規則 T で外した (`summary.json` の `dropped_more_natural_on`)
   - plor-read-only-dynamic-validation → mocc (OCC と read lock の両方を持つ hybrid)
 - **移植の出所 (`natural_home`、既にその CC にある):** 80 枚のうち 72 枚に 1 つ以上ある (`card-level.jsonl`)。Silo に無い 58 枚の移植元の確認に使える。
-- **既存の分類との食い違い (再分類はしない):** Silo に入る見込みの 33 枚のうち **9 枚は 8 CC すべてで `no`** だった。
+- **既存の分類との食い違い (再分類はしない):** Silo に入る見込みの 33 枚のうち **11 枚は 8 CC すべてで `no`** だった。
   - DRP の 4 枚 (drp-core・drp-wild-rp・drp-intentions・drp-nullify-intentions): commit 前に lock を緩めて後続へ渡し、先行者の順に commit させる機構で、施錠と serialization point の骨格の変更に当たる。
-  - BCC の 4 枚 (bcc-essential-pattern-validation と部品 3 枚) と healing-false-invalidation-elimination: stock の validation が abort させていた取引を commit させ、正しさを原典の新しい論拠で言う機構 (§10 の規則 A)。
+  - BCC の 4 枚 (bcc-essential-pattern-validation と部品 3 枚) と Healing の 3 枚 (healing-transaction-healing・healing-access-cache・healing-false-invalidation-elimination): stock の validation が abort させていた取引を commit させ、正しさを原典の新しい論拠で言う機構 (§10 の規則 A)。
   - 文献カード wave は、迷ったら Silo で「入る見込み」とする規則だった。本 wave の定義ではこれらは小改造でない。**段 A でこれらを選ぶなら、その論拠に合わせた正しさ関門の設計が前提になる** (文献カード README §6.3 の別枠 2 位の BCC も同じ)。
-  - 残る 24 枚のうち 22 枚は、どれかの CC で `fits`/`minor` (既存除く) になった。
+  - 残る 22 枚のうち 20 枚は、どれかの CC で `fits`/`minor` (既存除く) になった。
 
 ---
 
@@ -249,28 +249,37 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 
 ## 10. 段 6 の独立レビューと訂正
 
-レビュー (Codex、read-only、1 本) は README の件数・表・比を正本 (`summary.json`・`judgments.jsonl`・`cards.json`) から数え直し、すべて一致した (転記の誤りは 0)。
-候補の抽出・並べ方、CC 前提表と準備表の根拠 (proof の protocol 集合、EVOLVE-BLOCK の 3 source、各 CC の WORKLOADS、YCSB の操作列)、規律 2 の扱いにも問題は無かった。所見は判定と定義の食い違い 3 件で、親はすべて real と判断した。
+レビューは 2 巡行った (どちらも Codex、read-only、reasoning medium)。1 巡目のレビューは README の件数・表・比を正本 (`summary.json`・`judgments.jsonl`・`cards.json`) から数え直し、すべて一致した (転記の誤りは 0)。
+候補の抽出・並べ方、CC 前提表と準備表の根拠 (proof の protocol 集合、EVOLVE-BLOCK の 3 source、各 CC の WORKLOADS、YCSB の操作列)、規律 2 の扱いにも問題は無かった。
+所見は判定と定義の食い違いで、親はすべて real と判断した。2 巡目の焦点再レビューは、1 巡目の訂正の閉じ具合 (R2 closed、R1・R3 partial) と、同じ規則に当たる未訂正の組を指摘した。
 
 | # | 所見 | 親の判断 |
 |---|---|---|
 | R1 (must-fix) | abyss-ts-alloc-mutex・-batched-atomic × cicada・mvto を `minor` にしたが、begin 時の timestamp の出所を替えるのは定義の「timestamp の決め方」の変更 | real。規則 T で直した |
 | R2 (must-fix) | ssn-readonly-cstamp-at-snapshot × ermia を `fits` にしたが、read-only の commit 時刻を ++Lsn から snapshot 時刻に替える | real。規則 T で直した |
 | R3 (should-fix) | essn-exclusion-test × ermia を `minor` にしたが、SSN の除外条件を替えて受理を広げる = 正しさの論拠の変更 | real。規則 A で直した |
+| F1 (must-fix、2 巡目) | cicada-clock-boost-on-abort × mvto を `fits` にしたが、abort 後の timestamp の値を boost で変えるので規則 T に当たる | real。直し、この組に付いていた `more_natural_on` も外した |
+| F2 (must-fix、2 巡目) | healing-transaction-healing・healing-access-cache × tictoc・mocc を「修復後に再検証する」として残したが、カードには stock の論拠だけで commit できる根拠が無い | real。規則 A で直した (親の除外理由はカードに根拠が無かった) |
+| F3 (nit、2 巡目) | 台帳 fragment の「3 組」は所見 3 件・計 6 組の混同 | real。fragment を直した |
 
-親は所見の 3 組だけでなく、同じ型の組を洗い出して一貫して直した (定義の本文は変えていない。定義 §2 の「骨格」の当てはめを明文化したもの):
+親は所見の組だけでなく、同じ型の組を洗い出して一貫して直した (定義の本文は変えていない。定義 §2 の「骨格」の当てはめを明文化したもの):
 
 - **規則 T:** 取引に timestamp を割り当てる出所・値の決め方を替える組は `no` (`ts-scheme`)。同じ counter の同じ値を、排他の手段だけ替えて取るもの (abyss-ts-alloc-mutex × ermia・si。`++Lsn` を mutex で守る) は決め方を変えないので `fits` のまま。
-  直した組: abyss-ts-alloc-mutex・-atomic-add・-batched-atomic × cicada・mvto (6 組)、ssn-readonly-cstamp-at-snapshot × ermia。
-- **規則 A:** stock の validation が abort させていた取引を commit させ、その正しさを stock の CC の論拠だけでは言えない組は `no` (`other:correctness-argument`)。abort を早めるだけ・待ちを足すだけの変更は当たらない。
-  直した組: essn-exclusion-test・essn-previous-edge-only-metadata・ssn-read-mostly-cold-read-skipping・ssn-safe-snapshot × ermia、bcc-essential-pattern-validation と部品 3 枚 × mocc、healing-false-invalidation-elimination × tictoc・mocc・cicada・mvto。
-- 洗い出しの方法: 判定の note に「論拠・受理・timestamp・時刻・近似・値の一致・cstamp・clock・証明・直列化順」などの語を含む `fits`/`minor` の組と、BCC・ESSN・SSN・Healing の全カードの判定を並べて読んだ。
-  essn-read-from-policy × ermia (SSN は commit 順と整合する read-from なら成り立つ、`minor`)、ssn-hierarchical-tracking × ermia (追跡を粗くする保守側の変更)、healing-transaction-healing × tictoc・mocc (修復後に再検証する) は、規則 A に当たらないとして残した。
-- 訂正は子の生出力を変えずに `corrections-parent.jsonl` (19 行) に置き、集計が当てた。`judgments.jsonl` の該当組は `revision` 欄に元の値・理由コード・訂正の理由を持つ。
-- 訂正の影響: 182 枚から入るのは 26 枚 → 20 枚、全 CC で `no` は 145 枚 → 151 枚。段 A 候補は mocc 18 → 15、cicada 16 → 13、ermia 16 → 13、tictoc 14 → 13、mvto 11 → 9。
-  比は mocc 3.60 → 3.00、cicada 1.60 → 1.30、ermia 1.45 → 1.18、tictoc 1.40 → 1.30。**先頭の MOCC は変わらず、2〜4 位の差がさらに縮んで Cicada と TicToc が同点になった。**
+  直した組 (8): abyss-ts-alloc-mutex・-atomic-add・-batched-atomic × cicada・mvto (6 組)、ssn-readonly-cstamp-at-snapshot × ermia、cicada-clock-boost-on-abort × mvto。
+- **規則 A:** stock の validation が abort させていた取引を commit させ、その正しさを stock の CC の論拠だけでは言えない組は `no` (`other:correctness-argument`)。abort を早めるだけ・待ちを足すだけの変更は当たらない。部品カードは親の機構と同じ扱いにする。
+  直した組 (16): essn-exclusion-test・essn-previous-edge-only-metadata・ssn-read-mostly-cold-read-skipping・ssn-safe-snapshot × ermia、bcc-essential-pattern-validation と部品 3 枚 × mocc、
+  healing-false-invalidation-elimination × tictoc・mocc・cicada・mvto、healing-transaction-healing・healing-access-cache × tictoc・mocc。
+- **洗い出しの方法:** 1 巡目は判定の note に「論拠・受理・timestamp・時刻・近似・値の一致・cstamp・clock・証明・直列化順」などの語を含む `fits`/`minor` の組と、BCC・ESSN・SSN・Healing の全カードの判定を並べて読んだ。
+  2 巡目は、カードの機構・実装・正しさの欄に「abort せず・commit させ・修復・受理・clock・boost・採番・論拠・証明・serializab」などを含み、どこかの CC で `fits`/`minor` (既存除く) の 29 枚を読み直した。
+- **規則に当たらないとして残した組 (理由):** essn-read-from-policy × ermia (SSN は commit 順と整合する read-from なら成り立つ、原典の SSN の論拠の範囲)、ssn-hierarchical-tracking × ermia (追跡を粗くする保守側の変更)、
+  stov2-timestamp-splitting × tictoc・mocc (受理は広がるが、列の部分集合を 1 つのデータ項目と見れば stock と同じ OCC の論拠が当たる)、ccbench-read-phase-extension ほか待ち・abort の時機だけを変える組。
+  2 巡目の Healing のように、親の「当たらない」判断が誤っていた例があるので、これらも攻撃の余地は残る。
+- 訂正は子の生出力を変えずに `corrections-parent.jsonl` (24 行) に置き、集計が当てた。`judgments.jsonl` の該当組は `revision` 欄に元の値・理由コード・訂正の理由を持つ。訂正の向きは `fits`/`minor` → `no` だけ (正しさを弱める向きの訂正は無い)。
+- **訂正の影響 (子の判定 → 訂正後):** 182 枚から入るのは 26 → 20 枚、全 CC で `no` は 145 → 151 枚。段 A 候補は mocc 18 → 13、cicada 16 → 13、ermia 16 → 13、tictoc 14 → 11、mvto 11 → 9 (si・ss2pl・oze は si 13、ss2pl 7、oze 10 で不変)。
+  比は mocc 3.60 → 2.60、cicada 1.60 → 1.30、ermia 1.45 → 1.18、tictoc 1.40 → 1.10。**先頭の MOCC は変わらず、2 位以下は Cicada・ERMIA・TicToc の順になった。**
 
-レビューの生出力は repo 外 `/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md9-cards-by-protocol/codex/review-out.md` (`tools/check_codex_output.py` rc=0)。
+生出力は repo 外 `/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md9-cards-by-protocol/codex/review-out.md` と `focus-out.md` (どちらも `tools/check_codex_output.py` rc=0)。
+2 巡目の訂正後は再レビューを回していない。訂正後の件数・比は親が正本から再集計した (集計 script の検査を通過)。
 
 ---
 
@@ -281,10 +290,10 @@ CCBench の YCSB では効果が作りの産物になるカードが混ざって
 | `definition.md` | 分類の事前定義 (commit `7648ea167`、判定前に固定) |
 | `cc-profiles.md` | CC ごとの前提 (CCBench の実ソース、file:line つき) |
 | `readiness.md` | CC × 準備 5 段の原票 (§0〜§3) と親の裁定 (§4) |
-| `judgments.jsonl` | 判定の正本。カード × CC ごとに 1 行 (2,360 行)。欄: `card_id`・`cc`・`value`・`already_in_cc`・`workload_ok`・`reasons`・`minor_parts`・`basis_fields`・`note`・`revision` (親の訂正を当てた 19 組だけ非 null) |
-| `corrections-parent.jsonl` | 段 6 の親の訂正 19 行 (組・規則 T/A・理由コード・理由) |
+| `judgments.jsonl` | 判定の正本。カード × CC ごとに 1 行 (2,360 行)。欄: `card_id`・`cc`・`value`・`already_in_cc`・`workload_ok`・`reasons`・`minor_parts`・`basis_fields`・`note`・`revision` (親の訂正を当てた 24 組だけ非 null) |
+| `corrections-parent.jsonl` | 段 6 の親の訂正 24 行 (組・規則 T/A・理由コード・理由) |
 | `card-level.jsonl` | カードごとに 1 行 (295 行)。Silo 列 (`present`/`port-candidate`/`feasible`/`mismatch`)・`more_natural_on`・`natural_home` |
-| `summary.json` | 集計 (件数・効果の内訳・段 A 候補の全件・副候補・理由コード・抜き取りの標本・訂正件数) |
+| `summary.json` | 集計 (件数・効果の内訳・段 A 候補の全件・副候補・理由コード・抜き取りの標本・訂正件数・訂正で外した `more_natural_on`) |
 
 repo 外の資材 (`/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md9-cards-by-protocol/`、sha256 は同 dir の `SHA256SUMS`): `make_chunks.py`・`judge-prompt.md`・`aggregate.py`・`inspect.py`・`spot.py`、
 子の生出力 `judge-1〜5.jsonl`・`cardlevel-1〜5.jsonl`、原票 `cc-profiles-raw.md`・`readiness-raw.md`、レビューの prompt と出力 `codex/`。
