@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TOUCHED = (
     "cc/cicada/include/transaction.hh",
     "cc/cicada/transaction.cc",
+    "cc/cicada/ycsb_cicada.cc",
 )
 
 
@@ -75,6 +76,212 @@ def _payload2_tuned():
     payload = _payload2()
     payload["build"]["inline_version_opt"] = 1
     return payload
+
+
+def _payload3():
+    payload = _payload2()
+    payload["schema_version"] = 3
+    payload["build"].update(val_size=4, sizeof_version=128, sizeof_ycsb=16)
+    payload["hot_chains"] = [dict(key=k, status="ok", length=1) for k in range(8)]
+    payload["hot_scan_us"] = 2
+    for worker in payload["workers"]:
+        worker["abort_reasons"] = [0] * 18
+    return payload
+
+
+def test_w_conditions_match_preregistered_design_and_argv():
+    ids = [cid for cid in V.CONDITIONS if cid.startswith("W")]
+    assert len(ids) == len(set(ids)) == 252
+    s = [V.CONDITIONS[f"WS-{row:02d}-default"] for row in range(1, 73)]
+    assert [(p["ycsb_zipf_skew"], p["ycsb_rratio"], p["izanagi_long_kind"])
+            for p in s] == [(skew, rr, kind) for skew in
+                           (.5, .6, .7, .8, .9, .95, .97, .99)
+                           for rr in (5, 50, 95) for kind in (0, 1, 2)]
+    assert all(p["records"] == 1000000 and p["ycsb_max_ope"] == 10
+               and p["val_size"] == 4 and p["izanagi_ronly_pct"] == 0 for p in s)
+    assert V.CONDITIONS["WO1-01-default"]["records"] == 10000
+    assert V.CONDITIONS["WO1-01-default"]["ycsb_zipf_skew"] == .6
+    assert V.CONDITIONS["WO2-01-default"]["records"] == 100000
+    assert V.CONDITIONS["WO2-01-default"]["ycsb_max_ope"] == 1000
+    axes = ("ycsb_zipf_skew", "ycsb_rratio", "records", "ycsb_max_ope",
+            "izanagi_long_kind", "izanagi_ronly_pct", "val_size", "gc_inter_us")
+    blocks = [[V.CONDITIONS[f"W{layer}-{row:02d}-default"]
+               for row in range(1, 28)] for layer in ("O1", "O2")]
+    assert not {tuple(p[axis] for axis in axes) + (p["thread_num"] + p["batch_th_num"],)
+                for p in blocks[0]} & {
+                tuple(p[axis] for axis in axes) + (p["thread_num"] + p["batch_th_num"],)
+                for p in blocks[1]}
+    for block in blocks:
+        values = [tuple(p[axis] for axis in axes) +
+                  (p["thread_num"] + p["batch_th_num"],) for p in block]
+        for i in range(9):
+            for j in range(i + 1, 9):
+                pairs = [(row[i], row[j]) for row in values]
+                assert len(set(pairs)) == 9
+                assert set(pairs.count(pair) for pair in pairs) == {3}
+    for cid in ids:
+        p = V.CONDITIONS[cid]
+        assert p["worker1_insert_delay_rphase_us"] == 0
+        assert p["thread_num"] + p["batch_th_num"] in (12, 24, 48)
+        assert p["batch_th_num"] == int(p["izanagi_long_kind"] != 0)
+        assert p["genome"] == ("default" if cid.endswith("default") else
+                               "tuned" if p["ycsb_max_ope"] == 10 else "best100")
+        flags = V._flags(cid, 123456, 2100)
+        assert flags["tuple_num"] == flags["ycsb_tuple_num"] == p["records"]
+        assert flags["max_ope"] == flags["ycsb_max_ope"] == p["ycsb_max_ope"]
+        assert flags["batch_max_ope"] == p["batch_max_ope"] == 1000
+        assert flags["izanagi_vlife_schema"] == 3
+
+
+def test_legacy_argv_keeps_smoke_records_and_operation_count():
+    expected_keys = ("tuple_num", "ycsb_tuple_num", "thread_num", "batch_th_num",
+                     "batch_max_ope", "max_ope", "ycsb_max_ope", "rratio",
+                     "ycsb_rratio", "zipf_skew", "ycsb_zipf_skew", "gc_inter_us",
+                     "worker1_insert_delay_rphase_us", "extime", "clocks_per_us",
+                     "izanagi_ronly_pct", "izanagi_long_kind")
+    legacy = {}
+    for w, rr, skew in (("A", 50, 0), ("B", 95, .9)):
+        for kind, delay in (("none", 0), ("wait1ms", 1000),
+                            ("wait10ms", 10000), ("ops1000", 0)):
+            for gc in (10, 1000, 100000):
+                legacy[f"{w}-{kind}-gc{gc}"] = dict(ycsb_rratio=rr,
+                    ycsb_zipf_skew=skew, thread_num=47 if kind == "ops1000" else 48,
+                    batch_th_num=int(kind == "ops1000"), batch_max_ope=1000,
+                    worker1_insert_delay_rphase_us=delay, gc_inter_us=gc)
+    for family, rates, kinds, gcs, skew, genome in (
+        ("R", (0,25,50,75,95), ("none","wait1msU","wait10msU","wait10msR"),
+         (10,1000,100000), .9, "default"),
+        ("S", (0,50,95), ("none","wait10msU"), (10,100000), 0, "default"),
+        ("T", (0,50,95), ("none","wait10msU"), (10,100000), .9, "tuned")):
+        for rate in rates:
+            for kind in kinds:
+                for gc in gcs:
+                    legacy[f"{family}{rate}-{kind}-gc{gc}"] = dict(
+                        ycsb_rratio=50, ycsb_zipf_skew=skew, thread_num=48,
+                        batch_th_num=0, batch_max_ope=1000,
+                        worker1_insert_delay_rphase_us=(1000 if kind == "wait1msU"
+                            else 10000 if kind.startswith("wait10ms") else 0),
+                        gc_inter_us=gc, izanagi_ronly_pct=rate,
+                        izanagi_long_kind=(2 if kind == "wait10msR" else
+                                           1 if kind.endswith("U") else 0), genome=genome)
+    assert {cid: p for cid, p in V.CONDITIONS.items() if not cid.startswith("W")} == legacy
+    for cid in legacy:
+        flags = V._flags(cid, 123456, 2100)
+        assert tuple(flags) == expected_keys
+        assert [flags[k] for k in expected_keys[:2]] == [123456, 123456]
+        assert [flags[k] for k in ("batch_max_ope", "max_ope", "ycsb_max_ope")] == [1000, 10, 10]
+        assert flags["extime"] == 3 and flags["clocks_per_us"] == 2100
+        assert flags["rratio"] == flags["ycsb_rratio"] == V.CONDITIONS[cid]["ycsb_rratio"]
+        assert flags["zipf_skew"] == flags["ycsb_zipf_skew"] == V.CONDITIONS[cid]["ycsb_zipf_skew"]
+    assert V.genome_args("default") == []
+    assert V.genome_args("tuned") == [
+        "-DCCBENCH_BACK_OFF=0", "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=1", "-DCCBENCH_WRITE_LATEST_ONLY=0"]
+
+
+def test_schema3_abort_reasons_and_hot_chains_reject_bad_values():
+    payload = _payload3()
+    payload["workers"][0]["aborts"][0] = 1
+    payload["workers"][0]["attempts"][0] = 1
+    payload["workers"][0]["abort_reasons"][0] = 1
+    assert V.parse_vlife_line(_line(payload)) == payload
+    bad = _payload3()
+    bad["workers"][0]["aborts"][0] = bad["workers"][0]["attempts"][0] = 1
+    for candidate in (bad,
+                      {**_payload3(), "hot_chains": _payload3()["hot_chains"][:-1]},
+                      {**_payload3(), "hot_chains": [dict(key=0, status="ok", length=1)
+                          for _ in range(8)]},
+                      {**_payload3(), "hot_chains": [dict(key=k, status="ok",
+                          length=-1 if k == 0 else 1) for k in range(8)]}):
+        try:
+            V.parse_vlife_line(_line(candidate))
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid schema 3 payload accepted")
+
+
+def test_schema3_unavailable_hot_chains_preserve_failed_scan():
+    payload = _payload3()
+    payload["hot_chains"] = [dict(key=k, status="unavailable", length=None)
+                             for k in range(8)]
+    payload["hot_scan_us"] = 0
+    assert V.parse_vlife_line(_line(payload)) == payload
+
+
+def test_best100_genome_and_val_size_compile_binding():
+    assert V.genome_args("best100") == [
+        "-DCCBENCH_BACK_OFF=0", "-DCCBENCH_INLINE_VERSION_OPT_CICADA=0",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_REUSE_VERSION=0", "-DCCBENCH_WRITE_LATEST_ONLY=0"]
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "compile_commands.json"
+        row = {"file": str(ROOT / "external/ccbench/cc/cicada/transaction.cc"),
+               "arguments": ["c++", *[f"-D{k}={v}" for k, v in V.BEST100_GENOME.items()],
+                             "-DVAL_SIZE=100", "-c", "transaction.cc"]}
+        path.write_text(json.dumps([row]))
+        assert V.verify_genome_commands(path, "best100", 100)["genome"] == "best100"
+        for bad in (4, 1000):
+            try:
+                V.verify_genome_commands(path, "best100", bad)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("wrong VAL_SIZE accepted")
+
+
+def test_schema3_run_echo_rejects_wrong_build_key_and_worker_count():
+    flags = V._flags("WS-01-default", 123456, 2100)
+    flags["thread_num"] = 2
+    payload = _payload3()
+    payload["build"]["izanagi_ronly_pct"] = 0
+    V._validate_run_echo(V.parse_vlife_line(_line(payload)), flags, "default", 4)
+    for field, value, genome, val_size in (
+        ("val_size", 100, "default", 4),
+        ("reuse_version", 0, "default", 4),
+        ("inline_version_opt", 1, "default", 4),
+    ):
+        candidate = _payload3()
+        candidate["build"]["izanagi_ronly_pct"] = 0
+        candidate["build"][field] = value
+        try:
+            V._validate_run_echo(V.parse_vlife_line(_line(candidate)), flags,
+                                 genome, val_size)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("wrong build echo accepted")
+    flags["thread_num"] = 3
+    try:
+        V._validate_run_echo(payload, flags, "default", 4)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("wrong worker count accepted")
+
+
+def test_legacy_echo_stays_schema2_and_w_requires_schema3():
+    legacy = V._flags("A-none-gc10", 123456, 2100)
+    legacy["thread_num"] = 2
+    V._validate_run_echo(V.parse_vlife_line(_line(_payload2())), legacy,
+                         "default", None)
+    try:
+        V._validate_run_echo(V.parse_vlife_line(_line(_payload3())), legacy,
+                             "default", None)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("legacy condition accepted schema 3")
+    w = V._flags("WS-01-default", 123456, 2100)
+    w["thread_num"] = 2
+    try:
+        V._validate_run_echo(V.parse_vlife_line(_line(_payload2())), w,
+                             "default", 4)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("W condition accepted schema 2")
 
 
 def _line(payload):
@@ -197,7 +404,7 @@ def test_conditions_and_genome_binding():
            for l in ("none", "wait1ms", "wait10ms", "ops1000")
            for gc in (10, 1000, 100000)}
     assert V.OLD_CONDITIONS == old
-    assert len(V.CONDITIONS) == 108  # old 24 + main 60 + skew-zero 12 + tuned 12
+    assert len(V.CONDITIONS) == 360  # old 108 + W: 126 points x 2 genomes
     assert len([x for x in V.CONDITIONS if x.startswith("R")]) == 60
     assert len([x for x in V.CONDITIONS if x.startswith("S")]) == 12
     assert len([x for x in V.CONDITIONS if x.startswith("T")]) == 12
@@ -502,6 +709,16 @@ def test_real_patch_define_registry_and_rejection():
         raise AssertionError("unknown macro accepted")
 
 
+def test_vlife_branch_sites_stay_in_owner_include_closure():
+    from orchestrator.campaign import condition_meaning_gate as gate
+    patch_text = V.PATCH.read_text()
+    assert "diff --git a/cc/cicada/ycsb_cicada.cc" not in patch_text
+    assert gate._CONDITIONAL_BRANCH_COMPANION_SITES["IZANAGI_CICADA_VLIFE"] == (
+        ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 12),)
+    assert "cicada_vlife_executor_done();" in patch_text
+    assert "CicadaVlifeOutputOnExit" in patch_text
+
+
 def _rows(source: str):
     cxx = shutil.which("g++")
     if cxx is None:
@@ -789,6 +1006,13 @@ def _run():
     tests = (test_json_line_contract, test_worker_sum_and_readonly_denominator,
              test_schema2_required_fields_and_three_term_identity,
              test_schema2_readonly_denominator_and_holder_weights,
+             test_w_conditions_match_preregistered_design_and_argv,
+             test_legacy_argv_keeps_smoke_records_and_operation_count,
+             test_schema3_abort_reasons_and_hot_chains_reject_bad_values,
+             test_schema3_unavailable_hot_chains_preserve_failed_scan,
+             test_best100_genome_and_val_size_compile_binding,
+             test_schema3_run_echo_rejects_wrong_build_key_and_worker_count,
+             test_legacy_echo_stays_schema2_and_w_requires_schema3,
              test_conditions_and_genome_binding, test_df_interaction_sign,
              test_tuned_compile_commands_match_cicada_definitions,
              test_default_compile_commands_match_cmake_defaults,
@@ -804,6 +1028,7 @@ def _run():
              test_mut17_run_duration_controls_provenance_rates,
              test_k_boundary_and_condition_subset,
              test_real_patch_define_registry_and_rejection,
+             test_vlife_branch_sites_stay_in_owner_include_closure,
              test_patch_default_preprocess_matches_stock,
              test_smoke_identity_binds_records,
              test_smoke_recomputes_calibration_and_requires_success,

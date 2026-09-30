@@ -1,0 +1,2340 @@
+{
+  "campaign": "vhash-workload-space",
+  "conditions": "S layer, each rr/long/genome; two repetitions",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m0.json",
+      "sha256": "9b34da584261bfd7718ed8d6f720799bac1d5fd1b7b91e61c47cfe55ac0f4d6c"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m1.json",
+      "sha256": "72fc6f864d1baa1a41208f9376c899568ed700b717796f4e057e1e9bbb637a0b"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m2.json",
+      "sha256": "25eef1d2a7dbcfd706f443898201482a891c8f6dba3955a5590adc485b750e52"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m3.json",
+      "sha256": "e94f360223a3edcf14e9c93683eb19d95f83105e64ae9f300ab6806632092856"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m4.json",
+      "sha256": "e99272ddb8904a9b5cf30d7e8791baf484c299033a3b11212cf6dd76329ce667"
+    },
+    {
+      "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/raw/measure-m5.json",
+      "sha256": "3e812d813f7ec944db15f3dbcd4146d770358fe137260ed83174a42d666878a3"
+    }
+  ],
+  "metric": [
+    "h1",
+    "depth8"
+  ],
+  "plotted": [
+    {
+      "id": "WS-01-default",
+      "metric": "h1",
+      "repetitions": [
+        3.661846990475937e-05,
+        3.449555007404045e-05
+      ]
+    },
+    {
+      "id": "WS-10-default",
+      "metric": "h1",
+      "repetitions": [
+        0.00013443334807405663,
+        0.00012300103930710103
+      ]
+    },
+    {
+      "id": "WS-19-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0008671846141013572,
+        0.0008414646129292556
+      ]
+    },
+    {
+      "id": "WS-28-default",
+      "metric": "h1",
+      "repetitions": [
+        0.005866582634607572,
+        0.005947185569303966
+      ]
+    },
+    {
+      "id": "WS-37-default",
+      "metric": "h1",
+      "repetitions": [
+        0.025873551101629505,
+        0.026736614577955745
+      ]
+    },
+    {
+      "id": "WS-46-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0443139587951493,
+        0.046080381748324684
+      ]
+    },
+    {
+      "id": "WS-55-default",
+      "metric": "h1",
+      "repetitions": [
+        0.05483420613421504,
+        0.053696452913367554
+      ]
+    },
+    {
+      "id": "WS-64-default",
+      "metric": "h1",
+      "repetitions": [
+        0.06838228506255081,
+        0.06446909448743525
+      ]
+    },
+    {
+      "id": "WS-01-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.0032457508153253e-06,
+        0.0
+      ]
+    },
+    {
+      "id": "WS-10-default",
+      "metric": "depth8",
+      "repetitions": [
+        4.353079842398024e-06,
+        4.6512998057307115e-06
+      ]
+    },
+    {
+      "id": "WS-19-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.3703363877932818e-05,
+        1.5185667112311408e-05
+      ]
+    },
+    {
+      "id": "WS-28-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.9135671406566244e-05,
+        5.134260923140114e-05
+      ]
+    },
+    {
+      "id": "WS-37-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00014173077754984484,
+        0.00017058641324109696
+      ]
+    },
+    {
+      "id": "WS-46-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00022072086756204633,
+        0.00024792314382541413
+      ]
+    },
+    {
+      "id": "WS-55-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00031742566350581564,
+        0.00028568113924417763
+      ]
+    },
+    {
+      "id": "WS-64-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0004146727137909573,
+        0.0003514992322919818
+      ]
+    },
+    {
+      "id": "WS-01-tuned",
+      "metric": "h1",
+      "repetitions": [
+        2.735428419969382e-05,
+        2.0980219424807248e-05
+      ]
+    },
+    {
+      "id": "WS-10-tuned",
+      "metric": "h1",
+      "repetitions": [
+        6.683237970171653e-05,
+        6.764711467254049e-05
+      ]
+    },
+    {
+      "id": "WS-19-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0006531067866123336,
+        0.0006429595806586112
+      ]
+    },
+    {
+      "id": "WS-28-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.012837776768164897,
+        0.012708168984327403
+      ]
+    },
+    {
+      "id": "WS-37-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.08556020198832255,
+        0.08573062798495472
+      ]
+    },
+    {
+      "id": "WS-46-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.1453148295625155,
+        0.14698688211347016
+      ]
+    },
+    {
+      "id": "WS-55-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.17907862227632781,
+        0.18198239877951028
+      ]
+    },
+    {
+      "id": "WS-64-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.2220555996470216,
+        0.22052495148048507
+      ]
+    },
+    {
+      "id": "WS-01-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        4.716255896498935e-07,
+        4.7146560505184823e-07
+      ]
+    },
+    {
+      "id": "WS-10-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        3.7519932464121566e-06,
+        3.085657862256233e-06
+      ]
+    },
+    {
+      "id": "WS-19-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        2.0942275782498394e-05,
+        2.1957045813137426e-05
+      ]
+    },
+    {
+      "id": "WS-28-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.00010966484735496824,
+        0.0001158607246990968
+      ]
+    },
+    {
+      "id": "WS-37-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0005390957866498343,
+        0.0005062927847720066
+      ]
+    },
+    {
+      "id": "WS-46-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.001013268578839032,
+        0.0010154913848994232
+      ]
+    },
+    {
+      "id": "WS-55-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0014408367929285323,
+        0.0014681100891988598
+      ]
+    },
+    {
+      "id": "WS-64-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.002242665510157643,
+        0.00218252880706998
+      ]
+    },
+    {
+      "id": "WS-02-default",
+      "metric": "h1",
+      "repetitions": [
+        0.000607302678040815,
+        0.0007104880877404855
+      ]
+    },
+    {
+      "id": "WS-11-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0007201753885697688,
+        0.0009947824404957226
+      ]
+    },
+    {
+      "id": "WS-20-default",
+      "metric": "h1",
+      "repetitions": [
+        0.00117084050745292,
+        0.0015541612599423511
+      ]
+    },
+    {
+      "id": "WS-29-default",
+      "metric": "h1",
+      "repetitions": [
+        0.006666952842536317,
+        0.007284018075436631
+      ]
+    },
+    {
+      "id": "WS-38-default",
+      "metric": "h1",
+      "repetitions": [
+        0.026486737536833935,
+        0.02740329949411388
+      ]
+    },
+    {
+      "id": "WS-47-default",
+      "metric": "h1",
+      "repetitions": [
+        0.04555467656544757,
+        0.045346983124019094
+      ]
+    },
+    {
+      "id": "WS-56-default",
+      "metric": "h1",
+      "repetitions": [
+        0.05425744008787875,
+        0.058786318881605924
+      ]
+    },
+    {
+      "id": "WS-65-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0649972431813687,
+        0.06494774217674748
+      ]
+    },
+    {
+      "id": "WS-02-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.206195268245306e-07,
+        1.3581294031021274e-05
+      ]
+    },
+    {
+      "id": "WS-11-default",
+      "metric": "depth8",
+      "repetitions": [
+        6.1009333101674705e-06,
+        2.072463417699422e-05
+      ]
+    },
+    {
+      "id": "WS-20-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.4514551745284132e-05,
+        3.096785475954675e-05
+      ]
+    },
+    {
+      "id": "WS-29-default",
+      "metric": "depth8",
+      "repetitions": [
+        4.900086824678943e-05,
+        0.0003992390129503404
+      ]
+    },
+    {
+      "id": "WS-38-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00019038237654489122,
+        0.00014071305204340316
+      ]
+    },
+    {
+      "id": "WS-47-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00026006719470129106,
+        0.0002229811792010017
+      ]
+    },
+    {
+      "id": "WS-56-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0004331842814722056,
+        0.0003110238652894558
+      ]
+    },
+    {
+      "id": "WS-65-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0003670763938415069,
+        0.00041482418162822347
+      ]
+    },
+    {
+      "id": "WS-02-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0006606575626360542,
+        0.0007710578991353631
+      ]
+    },
+    {
+      "id": "WS-11-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0012231092574528067,
+        0.0008584433917412918
+      ]
+    },
+    {
+      "id": "WS-20-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0018437329159922391,
+        0.0028844853784242737
+      ]
+    },
+    {
+      "id": "WS-29-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.014588563158329473,
+        0.014484413304312806
+      ]
+    },
+    {
+      "id": "WS-38-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0853502611606239,
+        0.08287600786619173
+      ]
+    },
+    {
+      "id": "WS-47-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.1414897150597105,
+        0.13982255394314771
+      ]
+    },
+    {
+      "id": "WS-56-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.17668782098283214,
+        0.1734899590359839
+      ]
+    },
+    {
+      "id": "WS-65-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.21865184656690637,
+        0.2191427267129222
+      ]
+    },
+    {
+      "id": "WS-02-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        8.131170001674514e-06,
+        1.4369132230143206e-05
+      ]
+    },
+    {
+      "id": "WS-11-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        5.1444925499624994e-05,
+        3.9009072047318006e-06
+      ]
+    },
+    {
+      "id": "WS-20-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.00034984149938753375,
+        5.8085076577119656e-05
+      ]
+    },
+    {
+      "id": "WS-29-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0003655939465112354,
+        0.000314799768744176
+      ]
+    },
+    {
+      "id": "WS-38-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0016838449322242068,
+        0.0006508119792570284
+      ]
+    },
+    {
+      "id": "WS-47-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0010392382276866448,
+        0.0010665578102387197
+      ]
+    },
+    {
+      "id": "WS-56-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0016759271771261527,
+        0.002886521079316265
+      ]
+    },
+    {
+      "id": "WS-65-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.002610991156756351,
+        0.004919823156242139
+      ]
+    },
+    {
+      "id": "WS-03-default",
+      "metric": "h1",
+      "repetitions": [
+        0.5246439774213587,
+        0.524008407088178
+      ]
+    },
+    {
+      "id": "WS-12-default",
+      "metric": "h1",
+      "repetitions": [
+        0.4107389884216456,
+        0.4111253990556717
+      ]
+    },
+    {
+      "id": "WS-21-default",
+      "metric": "h1",
+      "repetitions": [
+        0.25420744441259574,
+        0.2529954693033462
+      ]
+    },
+    {
+      "id": "WS-30-default",
+      "metric": "h1",
+      "repetitions": [
+        0.14121967031077728,
+        0.13861638505460477
+      ]
+    },
+    {
+      "id": "WS-39-default",
+      "metric": "h1",
+      "repetitions": [
+        0.07704025594292162,
+        0.07689459959336652
+      ]
+    },
+    {
+      "id": "WS-48-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0753849740410303,
+        0.06809878802327304
+      ]
+    },
+    {
+      "id": "WS-57-default",
+      "metric": "h1",
+      "repetitions": [
+        0.07028944270387105,
+        0.06992336554164919
+      ]
+    },
+    {
+      "id": "WS-66-default",
+      "metric": "h1",
+      "repetitions": [
+        0.07260158293469608,
+        0.07089655005065426
+      ]
+    },
+    {
+      "id": "WS-03-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.17688505804778862,
+        0.17479878907078536
+      ]
+    },
+    {
+      "id": "WS-12-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.1538247184033535,
+        0.15310928291619708
+      ]
+    },
+    {
+      "id": "WS-21-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.10863733090637223,
+        0.10873540415813762
+      ]
+    },
+    {
+      "id": "WS-30-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.06839213805874216,
+        0.06723917384005149
+      ]
+    },
+    {
+      "id": "WS-39-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.033426408928074414,
+        0.0328312856044934
+      ]
+    },
+    {
+      "id": "WS-48-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.02611648772619588,
+        0.02061713519887114
+      ]
+    },
+    {
+      "id": "WS-57-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.01860640006662267,
+        0.01838411062083983
+      ]
+    },
+    {
+      "id": "WS-66-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.016385866343401494,
+        0.016208149572623648
+      ]
+    },
+    {
+      "id": "WS-03-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.536175093839364,
+        0.5315547233980419
+      ]
+    },
+    {
+      "id": "WS-12-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.4115477763099956,
+        0.45352233354279964
+      ]
+    },
+    {
+      "id": "WS-21-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.25840056539178163,
+        0.2591562055131358
+      ]
+    },
+    {
+      "id": "WS-30-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.1423585685417341,
+        0.1442898943728497
+      ]
+    },
+    {
+      "id": "WS-39-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.08708131418384513,
+        0.08771323028793197
+      ]
+    },
+    {
+      "id": "WS-48-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.08040314698790743,
+        0.07910504302380418
+      ]
+    },
+    {
+      "id": "WS-57-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.08498220919406728,
+        0.08601096970019703
+      ]
+    },
+    {
+      "id": "WS-66-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.09487444701617344,
+        0.09623729160189597
+      ]
+    },
+    {
+      "id": "WS-03-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.1756943504826133,
+        0.1767215089564248
+      ]
+    },
+    {
+      "id": "WS-12-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.15309394068063156,
+        0.1630121730726476
+      ]
+    },
+    {
+      "id": "WS-21-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.11014125616102652,
+        0.11064832300203632
+      ]
+    },
+    {
+      "id": "WS-30-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.06966683742257058,
+        0.0703635904657724
+      ]
+    },
+    {
+      "id": "WS-39-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.03915371481658172,
+        0.03993281950851675
+      ]
+    },
+    {
+      "id": "WS-48-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.025241410698759174,
+        0.02467522761770019
+      ]
+    },
+    {
+      "id": "WS-57-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.021479171851810884,
+        0.022580778765879144
+      ]
+    },
+    {
+      "id": "WS-66-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.019895225186597115,
+        0.020644336312527177
+      ]
+    },
+    {
+      "id": "WS-04-default",
+      "metric": "h1",
+      "repetitions": [
+        7.590190478193685e-05,
+        7.511910536579526e-05
+      ]
+    },
+    {
+      "id": "WS-13-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0003975569973760103,
+        0.00040662704363785067
+      ]
+    },
+    {
+      "id": "WS-22-default",
+      "metric": "h1",
+      "repetitions": [
+        0.002058669651060947,
+        0.002059853069358115
+      ]
+    },
+    {
+      "id": "WS-31-default",
+      "metric": "h1",
+      "repetitions": [
+        0.008414902293124586,
+        0.008390588418796256
+      ]
+    },
+    {
+      "id": "WS-40-default",
+      "metric": "h1",
+      "repetitions": [
+        0.02744284264774049,
+        0.02674087776069679
+      ]
+    },
+    {
+      "id": "WS-49-default",
+      "metric": "h1",
+      "repetitions": [
+        0.049326848282287776,
+        0.047946003038365596
+      ]
+    },
+    {
+      "id": "WS-58-default",
+      "metric": "h1",
+      "repetitions": [
+        0.06228057568539824,
+        0.05815501658975773
+      ]
+    },
+    {
+      "id": "WS-67-default",
+      "metric": "h1",
+      "repetitions": [
+        0.08083095387732595,
+        0.08313275549665354
+      ]
+    },
+    {
+      "id": "WS-04-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.7705132909245827e-07,
+        1.78855012775703e-07
+      ]
+    },
+    {
+      "id": "WS-13-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.3113587447908966e-06,
+        1.5856769920072168e-06
+      ]
+    },
+    {
+      "id": "WS-22-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.847025389742316e-06,
+        5.499021737445156e-06
+      ]
+    },
+    {
+      "id": "WS-31-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.5747338152422584e-05,
+        1.933326089992163e-05
+      ]
+    },
+    {
+      "id": "WS-40-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.607591636537709e-05,
+        5.2434537198132284e-05
+      ]
+    },
+    {
+      "id": "WS-49-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00020128192381249738,
+        0.00018946597208883292
+      ]
+    },
+    {
+      "id": "WS-58-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.000375366806690386,
+        0.00035025248551780126
+      ]
+    },
+    {
+      "id": "WS-67-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0007645691703673231,
+        0.0008301355654366776
+      ]
+    },
+    {
+      "id": "WS-04-tuned",
+      "metric": "h1",
+      "repetitions": [
+        1.8254711310245844e-05,
+        1.882287717433467e-05
+      ]
+    },
+    {
+      "id": "WS-13-tuned",
+      "metric": "h1",
+      "repetitions": [
+        9.05372535592448e-05,
+        8.872285529003915e-05
+      ]
+    },
+    {
+      "id": "WS-22-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.00104561881496882,
+        0.0010538533917435337
+      ]
+    },
+    {
+      "id": "WS-31-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.009988140775258841,
+        0.00991285960071454
+      ]
+    },
+    {
+      "id": "WS-40-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.05807667524621424,
+        0.05793800535756169
+      ]
+    },
+    {
+      "id": "WS-49-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.13437824109615837,
+        0.13434635867033562
+      ]
+    },
+    {
+      "id": "WS-58-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.17643768808923363,
+        0.17785600680948946
+      ]
+    },
+    {
+      "id": "WS-67-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.21590183073635388,
+        0.2161637408432348
+      ]
+    },
+    {
+      "id": "WS-04-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        6.30015920974835e-08,
+        9.611681961362384e-08
+      ]
+    },
+    {
+      "id": "WS-13-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        1.460531583869864e-06,
+        1.5395558073584609e-06
+      ]
+    },
+    {
+      "id": "WS-22-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        8.36027256005722e-06,
+        8.993752138249037e-06
+      ]
+    },
+    {
+      "id": "WS-31-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        3.7088513800288144e-05,
+        3.7964672934342673e-05
+      ]
+    },
+    {
+      "id": "WS-40-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0005334585456038544,
+        0.0005225721233967435
+      ]
+    },
+    {
+      "id": "WS-49-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0063808573024128805,
+        0.006209075741633385
+      ]
+    },
+    {
+      "id": "WS-58-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.015469036714846635,
+        0.01616047476963138
+      ]
+    },
+    {
+      "id": "WS-67-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.026145284022096725,
+        0.027805783996377932
+      ]
+    },
+    {
+      "id": "WS-05-default",
+      "metric": "h1",
+      "repetitions": [
+        0.00016733794647673955,
+        0.00016855318103542745
+      ]
+    },
+    {
+      "id": "WS-14-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0004502451580265289,
+        0.0004860171014615737
+      ]
+    },
+    {
+      "id": "WS-23-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0021627203980812354,
+        0.002122723214789338
+      ]
+    },
+    {
+      "id": "WS-32-default",
+      "metric": "h1",
+      "repetitions": [
+        0.008709603397851155,
+        0.008235921044318922
+      ]
+    },
+    {
+      "id": "WS-41-default",
+      "metric": "h1",
+      "repetitions": [
+        0.028041089142030007,
+        0.02695889940039889
+      ]
+    },
+    {
+      "id": "WS-50-default",
+      "metric": "h1",
+      "repetitions": [
+        0.04817376982075014,
+        0.04858863243571852
+      ]
+    },
+    {
+      "id": "WS-59-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0596478446844115,
+        0.0628137726105751
+      ]
+    },
+    {
+      "id": "WS-68-default",
+      "metric": "h1",
+      "repetitions": [
+        0.07849035164276884,
+        0.07792478554826283
+      ]
+    },
+    {
+      "id": "WS-05-default",
+      "metric": "depth8",
+      "repetitions": [
+        2.1826688670879073e-07,
+        5.69312335159975e-07
+      ]
+    },
+    {
+      "id": "WS-14-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.9886798717152834e-06,
+        2.8019434279616343e-06
+      ]
+    },
+    {
+      "id": "WS-23-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.256621486998505e-06,
+        6.023929457376482e-06
+      ]
+    },
+    {
+      "id": "WS-32-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.8899461384109324e-05,
+        1.752023810614211e-05
+      ]
+    },
+    {
+      "id": "WS-41-default",
+      "metric": "depth8",
+      "repetitions": [
+        6.500003040937095e-05,
+        7.508095582258759e-05
+      ]
+    },
+    {
+      "id": "WS-50-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00019815133352146992,
+        0.000201065110665098
+      ]
+    },
+    {
+      "id": "WS-59-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0003576009873166157,
+        0.00041028255237418257
+      ]
+    },
+    {
+      "id": "WS-68-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0008278935156009406,
+        0.0007677775895842423
+      ]
+    },
+    {
+      "id": "WS-05-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0002493144015326397,
+        0.00015528662358860022
+      ]
+    },
+    {
+      "id": "WS-14-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.00034387897078482356,
+        0.00047174749114289774
+      ]
+    },
+    {
+      "id": "WS-23-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.001513030461059418,
+        0.0019334095607569178
+      ]
+    },
+    {
+      "id": "WS-32-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.010921051255797664,
+        0.009493532826805479
+      ]
+    },
+    {
+      "id": "WS-41-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.05646021736704884,
+        0.05714081140219045
+      ]
+    },
+    {
+      "id": "WS-50-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.12916309007767843,
+        0.12789099682781224
+      ]
+    },
+    {
+      "id": "WS-59-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.16640503357337824,
+        0.1722404741344361
+      ]
+    },
+    {
+      "id": "WS-68-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.2099911297382808,
+        0.20815854281310064
+      ]
+    },
+    {
+      "id": "WS-05-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        9.682112680879212e-08,
+        2.0997775188805938e-07
+      ]
+    },
+    {
+      "id": "WS-14-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        1.3171834722264103e-06,
+        1.8029565131749166e-06
+      ]
+    },
+    {
+      "id": "WS-23-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        1.3505028671281377e-05,
+        1.5656595316782412e-05
+      ]
+    },
+    {
+      "id": "WS-32-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        7.357231272368421e-05,
+        3.605852924622859e-05
+      ]
+    },
+    {
+      "id": "WS-41-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.000527481140640426,
+        0.0005163330747880197
+      ]
+    },
+    {
+      "id": "WS-50-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.00506995689051732,
+        0.005341068146238598
+      ]
+    },
+    {
+      "id": "WS-59-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.013026738938233463,
+        0.014988654111612579
+      ]
+    },
+    {
+      "id": "WS-68-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0239130221211392,
+        0.02474732254759587
+      ]
+    },
+    {
+      "id": "WS-06-default",
+      "metric": "h1",
+      "repetitions": [
+        0.06154046129671771,
+        0.06027204534736431
+      ]
+    },
+    {
+      "id": "WS-15-default",
+      "metric": "h1",
+      "repetitions": [
+        0.036857289075256004,
+        0.037941397338929046
+      ]
+    },
+    {
+      "id": "WS-24-default",
+      "metric": "h1",
+      "repetitions": [
+        0.01784639201086519,
+        0.017850909845423743
+      ]
+    },
+    {
+      "id": "WS-33-default",
+      "metric": "h1",
+      "repetitions": [
+        0.013847654457480572,
+        0.013653270979079852
+      ]
+    },
+    {
+      "id": "WS-42-default",
+      "metric": "h1",
+      "repetitions": [
+        0.028127893792874455,
+        0.027741207017715472
+      ]
+    },
+    {
+      "id": "WS-51-default",
+      "metric": "h1",
+      "repetitions": [
+        0.04384053562267581,
+        0.04606223698481941
+      ]
+    },
+    {
+      "id": "WS-60-default",
+      "metric": "h1",
+      "repetitions": [
+        0.05448611530074599,
+        0.05368892051676647
+      ]
+    },
+    {
+      "id": "WS-69-default",
+      "metric": "h1",
+      "repetitions": [
+        0.06622111311609541,
+        0.065402631891366
+      ]
+    },
+    {
+      "id": "WS-06-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.020797578051646167,
+        0.020617330252510866
+      ]
+    },
+    {
+      "id": "WS-15-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.01379026555702125,
+        0.013991418200818792
+      ]
+    },
+    {
+      "id": "WS-24-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.006691477881976831,
+        0.006676598391218506
+      ]
+    },
+    {
+      "id": "WS-33-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.002781451624314469,
+        0.0026750423753652886
+      ]
+    },
+    {
+      "id": "WS-42-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0024341918123530737,
+        0.002476285113102199
+      ]
+    },
+    {
+      "id": "WS-51-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0026881097514405115,
+        0.004479399780273038
+      ]
+    },
+    {
+      "id": "WS-60-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0026033533755385565,
+        0.002762733307230669
+      ]
+    },
+    {
+      "id": "WS-69-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0029205748574969354,
+        0.0029610916479981438
+      ]
+    },
+    {
+      "id": "WS-06-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.06240162900587756,
+        0.06333256406677602
+      ]
+    },
+    {
+      "id": "WS-15-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.03815900733950406,
+        0.038428252771515486
+      ]
+    },
+    {
+      "id": "WS-24-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.01916533706614522,
+        0.01940566250606342
+      ]
+    },
+    {
+      "id": "WS-33-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.014361274450378061,
+        0.014432579022067593
+      ]
+    },
+    {
+      "id": "WS-42-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.029405001632299123,
+        0.02888014381384171
+      ]
+    },
+    {
+      "id": "WS-51-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.053866143857599955,
+        0.05353943346647406
+      ]
+    },
+    {
+      "id": "WS-60-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.07057894181460654,
+        0.07075868864154741
+      ]
+    },
+    {
+      "id": "WS-69-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.09443109465523782,
+        0.0943762238492157
+      ]
+    },
+    {
+      "id": "WS-06-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.021092401082684033,
+        0.02102962873906156
+      ]
+    },
+    {
+      "id": "WS-15-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.014113182952807503,
+        0.014214895003756112
+      ]
+    },
+    {
+      "id": "WS-24-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0075532943321465346,
+        0.007679231587495587
+      ]
+    },
+    {
+      "id": "WS-33-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0041261582798049175,
+        0.004147359897814593
+      ]
+    },
+    {
+      "id": "WS-42-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.004137048410802687,
+        0.0037588644006209264
+      ]
+    },
+    {
+      "id": "WS-51-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.005363169341966305,
+        0.005299146618283447
+      ]
+    },
+    {
+      "id": "WS-60-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.006184760671617348,
+        0.006246513077393743
+      ]
+    },
+    {
+      "id": "WS-69-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.007374573220363775,
+        0.007410456722141871
+      ]
+    },
+    {
+      "id": "WS-07-default",
+      "metric": "h1",
+      "repetitions": [
+        2.4762367280597253e-05,
+        2.6726107149058995e-05
+      ]
+    },
+    {
+      "id": "WS-16-default",
+      "metric": "h1",
+      "repetitions": [
+        0.00020598492470399324,
+        0.00020891846364769749
+      ]
+    },
+    {
+      "id": "WS-25-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0012995410625062454,
+        0.0012769951317828552
+      ]
+    },
+    {
+      "id": "WS-34-default",
+      "metric": "h1",
+      "repetitions": [
+        0.00540498307995069,
+        0.005380733276652741
+      ]
+    },
+    {
+      "id": "WS-43-default",
+      "metric": "h1",
+      "repetitions": [
+        0.016967637695486475,
+        0.016760110440265118
+      ]
+    },
+    {
+      "id": "WS-52-default",
+      "metric": "h1",
+      "repetitions": [
+        0.02791122932238386,
+        0.02747560716993524
+      ]
+    },
+    {
+      "id": "WS-61-default",
+      "metric": "h1",
+      "repetitions": [
+        0.035111396635279644,
+        0.03403134813789207
+      ]
+    },
+    {
+      "id": "WS-70-default",
+      "metric": "h1",
+      "repetitions": [
+        0.042222994939757286,
+        0.042202887306980075
+      ]
+    },
+    {
+      "id": "WS-07-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.35865987461529e-09,
+        5.4244179316133544e-09
+      ]
+    },
+    {
+      "id": "WS-16-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.9705375312838046e-07,
+        2.3909052111750114e-07
+      ]
+    },
+    {
+      "id": "WS-25-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.0277902518788696e-06,
+        1.0334958532356884e-06
+      ]
+    },
+    {
+      "id": "WS-34-default",
+      "metric": "depth8",
+      "repetitions": [
+        3.3679030585868717e-06,
+        3.7185711261276436e-06
+      ]
+    },
+    {
+      "id": "WS-43-default",
+      "metric": "depth8",
+      "repetitions": [
+        7.723001030089334e-06,
+        7.783951489679548e-06
+      ]
+    },
+    {
+      "id": "WS-52-default",
+      "metric": "depth8",
+      "repetitions": [
+        2.2735808837319297e-05,
+        2.076679695562161e-05
+      ]
+    },
+    {
+      "id": "WS-61-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.459102039621825e-05,
+        4.8369009119507155e-05
+      ]
+    },
+    {
+      "id": "WS-70-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.00011781450096285428,
+        9.151632285134376e-05
+      ]
+    },
+    {
+      "id": "WS-07-tuned",
+      "metric": "h1",
+      "repetitions": [
+        4.353826088600973e-06,
+        4.320510624159897e-06
+      ]
+    },
+    {
+      "id": "WS-16-tuned",
+      "metric": "h1",
+      "repetitions": [
+        1.8880746428836457e-05,
+        1.9363647326404086e-05
+      ]
+    },
+    {
+      "id": "WS-25-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0002484931168233119,
+        0.00024916162156189155
+      ]
+    },
+    {
+      "id": "WS-34-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.003472099309966337,
+        0.003470767657260511
+      ]
+    },
+    {
+      "id": "WS-43-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.025237876598236696,
+        0.025343233792423373
+      ]
+    },
+    {
+      "id": "WS-52-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.056526108033870585,
+        0.05702347299925101
+      ]
+    },
+    {
+      "id": "WS-61-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.07694652997628876,
+        0.07643828074214566
+      ]
+    },
+    {
+      "id": "WS-70-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.10190451046525119,
+        0.10282098583692588
+      ]
+    },
+    {
+      "id": "WS-07-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        1.4337517306040525e-08,
+        4.8545063192807836e-09
+      ]
+    },
+    {
+      "id": "WS-16-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        3.3942914928245314e-07,
+        2.8823389138864065e-07
+      ]
+    },
+    {
+      "id": "WS-25-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        2.116149055018427e-06,
+        1.8944006915740248e-06
+      ]
+    },
+    {
+      "id": "WS-34-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        8.273217784818446e-06,
+        8.146733071385251e-06
+      ]
+    },
+    {
+      "id": "WS-43-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        9.246423624856313e-05,
+        9.630310909508175e-05
+      ]
+    },
+    {
+      "id": "WS-52-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0008444767307250535,
+        0.0008789771079832449
+      ]
+    },
+    {
+      "id": "WS-61-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0023084920992502457,
+        0.002237693380889462
+      ]
+    },
+    {
+      "id": "WS-70-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.005985037891786374,
+        0.006085827939460429
+      ]
+    },
+    {
+      "id": "WS-08-default",
+      "metric": "h1",
+      "repetitions": [
+        6.47119226793984e-05,
+        7.452593713167286e-05
+      ]
+    },
+    {
+      "id": "WS-17-default",
+      "metric": "h1",
+      "repetitions": [
+        0.00023473518166246737,
+        0.00022646089754776712
+      ]
+    },
+    {
+      "id": "WS-26-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0014497622961732316,
+        0.0014499523583127363
+      ]
+    },
+    {
+      "id": "WS-35-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0055656406790574675,
+        0.0054861804753503305
+      ]
+    },
+    {
+      "id": "WS-44-default",
+      "metric": "h1",
+      "repetitions": [
+        0.01655403571915021,
+        0.016566121654303274
+      ]
+    },
+    {
+      "id": "WS-53-default",
+      "metric": "h1",
+      "repetitions": [
+        0.026891860792786697,
+        0.027681406009923484
+      ]
+    },
+    {
+      "id": "WS-62-default",
+      "metric": "h1",
+      "repetitions": [
+        0.033640051240264396,
+        0.03333204415792423
+      ]
+    },
+    {
+      "id": "WS-71-default",
+      "metric": "h1",
+      "repetitions": [
+        0.04064080382334665,
+        0.04086476534956527
+      ]
+    },
+    {
+      "id": "WS-08-default",
+      "metric": "depth8",
+      "repetitions": [
+        5.5351914018816525e-09,
+        1.112576504167692e-08
+      ]
+    },
+    {
+      "id": "WS-17-default",
+      "metric": "depth8",
+      "repetitions": [
+        2.6461954944664143e-07,
+        3.6647027504924074e-07
+      ]
+    },
+    {
+      "id": "WS-26-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.4615002088453192e-06,
+        7.297901797095629e-06
+      ]
+    },
+    {
+      "id": "WS-35-default",
+      "metric": "depth8",
+      "repetitions": [
+        1.2571447836093722e-05,
+        6.283435225588334e-06
+      ]
+    },
+    {
+      "id": "WS-44-default",
+      "metric": "depth8",
+      "repetitions": [
+        8.464123151019178e-06,
+        7.973648593679508e-06
+      ]
+    },
+    {
+      "id": "WS-53-default",
+      "metric": "depth8",
+      "repetitions": [
+        2.4512774208708297e-05,
+        2.1788077885744873e-05
+      ]
+    },
+    {
+      "id": "WS-62-default",
+      "metric": "depth8",
+      "repetitions": [
+        4.429012215145201e-05,
+        4.40271143156779e-05
+      ]
+    },
+    {
+      "id": "WS-71-default",
+      "metric": "depth8",
+      "repetitions": [
+        8.718055471535459e-05,
+        9.320893425381805e-05
+      ]
+    },
+    {
+      "id": "WS-08-tuned",
+      "metric": "h1",
+      "repetitions": [
+        7.65503968594182e-05,
+        8.951931329606041e-05
+      ]
+    },
+    {
+      "id": "WS-17-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.00019659095747365073,
+        0.00018618301821980653
+      ]
+    },
+    {
+      "id": "WS-26-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.000500648913916341,
+        0.0005122395802684309
+      ]
+    },
+    {
+      "id": "WS-35-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.003723224020352672,
+        0.00406830732342939
+      ]
+    },
+    {
+      "id": "WS-44-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.02567515764944284,
+        0.025569477794499643
+      ]
+    },
+    {
+      "id": "WS-53-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.05511188098255117,
+        0.05541456757710168
+      ]
+    },
+    {
+      "id": "WS-62-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.07561108662878496,
+        0.0753985690190776
+      ]
+    },
+    {
+      "id": "WS-71-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.10036020623894916,
+        0.1000160955415194
+      ]
+    },
+    {
+      "id": "WS-08-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        7.904016196119588e-08,
+        9.940515606691511e-09
+      ]
+    },
+    {
+      "id": "WS-17-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        2.6481111559968627e-07,
+        8.424135322922187e-07
+      ]
+    },
+    {
+      "id": "WS-26-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        2.018105590767442e-06,
+        2.352940079851456e-06
+      ]
+    },
+    {
+      "id": "WS-35-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        8.517577762794213e-06,
+        1.1930719510825194e-05
+      ]
+    },
+    {
+      "id": "WS-44-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.00011130852038126468,
+        0.00017895587224850534
+      ]
+    },
+    {
+      "id": "WS-53-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0008029328117156822,
+        0.0009233997627741983
+      ]
+    },
+    {
+      "id": "WS-62-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.002319709840237252,
+        0.0022223671594330955
+      ]
+    },
+    {
+      "id": "WS-71-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.005559607129525742,
+        0.005591373559150002
+      ]
+    },
+    {
+      "id": "WS-09-default",
+      "metric": "h1",
+      "repetitions": [
+        0.006427340580088912,
+        0.006458225374140946
+      ]
+    },
+    {
+      "id": "WS-18-default",
+      "metric": "h1",
+      "repetitions": [
+        0.003992907187142921,
+        0.0037908493473191606
+      ]
+    },
+    {
+      "id": "WS-27-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0033479278579446937,
+        0.003311169610827423
+      ]
+    },
+    {
+      "id": "WS-36-default",
+      "metric": "h1",
+      "repetitions": [
+        0.0071618033036110465,
+        0.007177922768711717
+      ]
+    },
+    {
+      "id": "WS-45-default",
+      "metric": "h1",
+      "repetitions": [
+        0.019174165646510394,
+        0.019449851426781288
+      ]
+    },
+    {
+      "id": "WS-54-default",
+      "metric": "h1",
+      "repetitions": [
+        0.030076256099338113,
+        0.031130896274475517
+      ]
+    },
+    {
+      "id": "WS-63-default",
+      "metric": "h1",
+      "repetitions": [
+        0.036950316871720845,
+        0.03713722549925595
+      ]
+    },
+    {
+      "id": "WS-72-default",
+      "metric": "h1",
+      "repetitions": [
+        0.04367404211493824,
+        0.04473319081512317
+      ]
+    },
+    {
+      "id": "WS-09-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0022559859115427764,
+        0.0022600887146713524
+      ]
+    },
+    {
+      "id": "WS-18-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0013593606588636065,
+        0.001280678755674657
+      ]
+    },
+    {
+      "id": "WS-27-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0006229364223126159,
+        0.0006176354840719549
+      ]
+    },
+    {
+      "id": "WS-36-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0005627689989867509,
+        0.0005293621054618684
+      ]
+    },
+    {
+      "id": "WS-45-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0008749710547744536,
+        0.0008865742681005457
+      ]
+    },
+    {
+      "id": "WS-54-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.001285849082795145,
+        0.00106133214522161
+      ]
+    },
+    {
+      "id": "WS-63-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0010993870096291482,
+        0.0011480101881300691
+      ]
+    },
+    {
+      "id": "WS-72-default",
+      "metric": "depth8",
+      "repetitions": [
+        0.0012350778999314156,
+        0.0012041282955699358
+      ]
+    },
+    {
+      "id": "WS-09-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0064827544557154206,
+        0.00649238400702205
+      ]
+    },
+    {
+      "id": "WS-18-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0037745612805136506,
+        0.0038917831800465217
+      ]
+    },
+    {
+      "id": "WS-27-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.002279473096174204,
+        0.0022743462546270837
+      ]
+    },
+    {
+      "id": "WS-36-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.004344444544878769,
+        0.004346824775462683
+      ]
+    },
+    {
+      "id": "WS-45-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.017173521876055396,
+        0.01716902299443079
+      ]
+    },
+    {
+      "id": "WS-54-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.032308296238224066,
+        0.03202074499073045
+      ]
+    },
+    {
+      "id": "WS-63-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.0402690146003483,
+        0.04018993463802506
+      ]
+    },
+    {
+      "id": "WS-72-tuned",
+      "metric": "h1",
+      "repetitions": [
+        0.05015860725864077,
+        0.05047780419186061
+      ]
+    },
+    {
+      "id": "WS-09-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.002248823447399727,
+        0.0022646543052027572
+      ]
+    },
+    {
+      "id": "WS-18-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0013574384910992122,
+        0.0014042318425594555
+      ]
+    },
+    {
+      "id": "WS-27-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0006838274659669953,
+        0.0006722635338413146
+      ]
+    },
+    {
+      "id": "WS-36-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0004063435542226611,
+        0.00041377166734273387
+      ]
+    },
+    {
+      "id": "WS-45-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0012392687233939697,
+        0.0012320982181667094
+      ]
+    },
+    {
+      "id": "WS-54-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0025335898176265066,
+        0.0025777251394676548
+      ]
+    },
+    {
+      "id": "WS-63-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.0032627668276138033,
+        0.003274546556296065
+      ]
+    },
+    {
+      "id": "WS-72-tuned",
+      "metric": "depth8",
+      "repetitions": [
+        0.004100659131172288,
+        0.004068979025414972
+      ]
+    }
+  ]
+}

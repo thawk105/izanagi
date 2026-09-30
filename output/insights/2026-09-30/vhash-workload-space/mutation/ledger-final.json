@@ -1,0 +1,900 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n....................................................                     [100%]\n52 passed in 20.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "7249eeb0eeed10a702d0e909fcc7f168be00e01f25a9d06e4a06fcf7d6d3839f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+    "duration_s": 21.545,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7d3349fceaa11385f24a8c2237b5c24d18e4cd55321c0848186dad6bbb384506",
+    "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+    "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+    "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+    "status": "PASSED",
+    "test_output_sha256": "7249eeb0eeed10a702d0e909fcc7f168be00e01f25a9d06e4a06fcf7d6d3839f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+  },
+  "date": "2026-09-30T05:57:12.491506+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n..................................F.................                     [100%]\n=================================== FAILURES ===================================\n____________ test_w_conditions_match_preregistered_design_and_argv _____________\n[gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_w_conditions_match_preregistered_design_and_argv():\n        ids = [cid for cid in V.CONDITIONS if cid.startswith(\"W\")]\n        assert len(ids) == len(set(ids)) == 252\n        s = [V.CONDITIONS[f\"WS-{row:02d}-default\"] for row in range(1, 73)]\n        assert [(p[\"ycsb_zipf_skew\"], p[\"ycsb_rratio\"], p[\"izanagi_long_kind\"])\n                for p in s] == [(skew, rr, kind) for skew in\n                               (.5, .6, .7, .8, .9, .95, .97, .99)\n                               for rr in (5, 50, 95) for kind in (0, 1, 2)]\n        assert all(p[\"records\"] == 1000000 and p[\"ycsb_max_ope\"] == 10\n                   and p[\"val_size\"] == 4 and p[\"izanagi_ronly_pct\"] == 0 for p in s)\n        assert V.CONDITIONS[\"WO1-01-default\"][\"records\"] == 10000\n        assert V.CONDITIONS[\"WO1-01-default\"][\"ycsb_zipf_skew\"] == .6\n        assert V.CONDITIONS[\"WO2-01-default\"][\"records\"] == 100000\n        assert V.CONDITIONS[\"WO2-01-default\"][\"ycsb_max_ope\"] == 1000\n        axes = (\"ycsb_zipf_skew\", \"ycsb_rratio\", \"records\", \"ycsb_max_ope\",\n                \"izanagi_long_kind\", \"izanagi_ronly_pct\", \"val_size\", \"gc_inter_us\")\n        blocks = [[V.CONDITIONS[f\"W{layer}-{row:02d}-default\"]\n                   for row in range(1, 28)] for layer in (\"O1\", \"O2\")]\n        assert not {tuple(p[axis] for axis in axes) + (p[\"thread_num\"] + p[\"batch_th_num\"],)\n                    for p in blocks[0]} & {\n                    tuple(p[axis] for axis in axes) + (p[\"thread_num\"] + p[\"batch_th_num\"],)\n                    for p in blocks[1]}\n        for block in blocks:\n            values = [tuple(p[axis] for axis in axes) +\n                      (p[\"thread_num\"] + p[\"batch_th_num\"],) for p in block]\n            for i in range(9):\n                for j in range(i + 1, 9):\n                    pairs = [(row[i], row[j]) for row in values]\n                    assert len(set(pairs)) == 9\n                    assert set(pairs.count(pair) for pair in pairs) == {3}\n        for cid in ids:\n            p = V.CONDITIONS[cid]\n            assert p[\"worker1_insert_delay_rphase_us\"] == 0\n            assert p[\"thread_num\"] + p[\"batch_th_num\"] in (12, 24, 48)\n            assert p[\"batch_th_num\"] == int(p[\"izanagi_long_kind\"] != 0)\n            assert p[\"genome\"] == (\"default\" if cid.endswith(\"default\") else\n                                   \"tuned\" if p[\"ycsb_max_ope\"] == 10 else \"best100\")\n            flags = V._flags(cid, 123456, 2100)\n>           assert flags[\"tuple_num\"] == flags[\"ycsb_tuple_num\"] == p[\"records\"]\nE           assert 123456 == 1000000\n\norchestrator/tests/test_vhash_cicada_vlife.py:130: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv\n1 failed, 51 passed in 20.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=2666 retained_bytes=2666 omitted_bytes=0 rendered_excerpt_bytes=2755 sha256=c8e6cc55e39c524e34ffa97b6096e9770b52b91c025e26ce3e4d028fadd6ce72\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_w_conditions_match_preregistered_design_and_argv():\n>         ids = [cid for cid in V.CONDITIONS if cid.startswith(\"W\")]\n>         assert len(ids) == len(set(ids)) == 252\n>         s = [V.CONDITIONS[f\"WS-{row:02d}-default\"] for row in range(1, 73)]\n>         assert [(p[\"ycsb_zipf_skew\"], p[\"ycsb_rratio\"], p[\"izanagi_long_kind\"])\n>                 for p in s] == [(skew, rr, kind) for skew in\n>                                (.5, .6, .7, .8, .9, .95, .97, .99)\n>                                for rr in (5, 50, 95) for kind in (0, 1, 2)]\n>         assert all(p[\"records\"] == 1000000 and p[\"ycsb_max_ope\"] == 10\n>                    and p[\"val_size\"] == 4 and p[\"izanagi_ronly_pct\"] == 0 for p in s)\n>         assert V.CONDITIONS[\"WO1-01-default\"][\"records\"] == 10000\n>         assert V.CONDITIONS[\"WO1-01-default\"][\"ycsb_zipf_skew\"] == .6\n>         assert V.CONDITIONS[\"WO2-01-default\"][\"records\"] == 100000\n>         assert V.CONDITIONS[\"WO2-01-default\"][\"ycsb_max_ope\"] == 1000\n>         axes = (\"ycsb_zipf_skew\", \"ycsb_rratio\", \"records\", \"ycsb_max_ope\",\n>                 \"izanagi_long_kind\", \"izanagi_ronly_pct\", \"val_size\", \"gc_inter_us\")\n>         blocks = [[V.CONDITIONS[f\"W{layer}-{row:02d}-default\"]\n>                    for row in range(1, 28)] for layer in (\"O1\", \"O2\")]\n>         assert not {tuple(p[axis] for axis in axes) + (p[\"thread_num\"] + p[\"batch_th_num\"],)\n>                     for p in blocks[0]} & {\n>                     tuple(p[axis] for axis in axes) + (p[\"thread_num\"] + p[\"batch_th_num\"],)\n>                     for p in blocks[1]}\n>         for block in blocks:\n>             values = [tuple(p[axis] for axis in axes) +\n>                       (p[\"thread_num\"] + p[\"batch_th_num\"],) for p in block]\n>             for i in range(9):\n>                 for j in range(i + 1, 9):\n>                     pairs = [(row[i], row[j]) for row in values]\n>                     assert len(set(pairs)) == 9\n>                     assert set(pairs.count(pair) for pair in pairs) == {3}\n>         for cid in ids:\n>             p = V.CONDITIONS[cid]\n>             assert p[\"worker1_insert_delay_rphase_us\"] == 0\n>             assert p[\"thread_num\"] + p[\"batch_th_num\"] in (12, 24, 48)\n>             assert p[\"batch_th_num\"] == int(p[\"izanagi_long_kind\"] != 0)\n>             assert p[\"genome\"] == (\"default\" if cid.endswith(\"default\") else\n>                                    \"tuned\" if p[\"ycsb_max_ope\"] == 10 else \"best100\")\n>             flags = V._flags(cid, 123456, 2100)\n> >           assert flags[\"tuple_num\"] == flags[\"ycsb_tuple_num\"] == p[\"records\"]\n> E           assert 123456 == 1000000\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:130: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2666 retained_bytes=2666 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3483 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "44efca3ae77b8cdf88de6f35737edef988060f7a6dfda025f046039ed4f36b85"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.251,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv"
+      ],
+      "hang_risk": false,
+      "id": "MA1-w-flags-use-smoke-records",
+      "injection_diff_sha256": "148c7b0b3920922776845f5bd06f965bc770ad9602e739c42fa1127a6e3a443b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3c705eb5e2a19fd38bd83b609d5e16cf43cdd235b7ba7b318d29bad4c47b49c5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "    if condition_id.startswith(\"W\"):\n        records = records\n",
+          "old": "    if condition_id.startswith(\"W\"):\n        records = condition[\"records\"]\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "44efca3ae77b8cdf88de6f35737edef988060f7a6dfda025f046039ed4f36b85",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n...................................F................                     [100%]\n=================================== FAILURES ===================================\n___________ test_legacy_argv_keeps_smoke_records_and_operation_count ___________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_legacy_argv_keeps_smoke_records_and_operation_count():\n        expected_keys = (\"tuple_num\", \"ycsb_tuple_num\", \"thread_num\", \"batch_th_num\",\n                         \"batch_max_ope\", \"max_ope\", \"ycsb_max_ope\", \"rratio\",\n                         \"ycsb_rratio\", \"zipf_skew\", \"ycsb_zipf_skew\", \"gc_inter_us\",\n                         \"worker1_insert_delay_rphase_us\", \"extime\", \"clocks_per_us\",\n                         \"izanagi_ronly_pct\", \"izanagi_long_kind\")\n        legacy = {}\n        for w, rr, skew in ((\"A\", 50, 0), (\"B\", 95, .9)):\n            for kind, delay in ((\"none\", 0), (\"wait1ms\", 1000),\n                                (\"wait10ms\", 10000), (\"ops1000\", 0)):\n                for gc in (10, 1000, 100000):\n                    legacy[f\"{w}-{kind}-gc{gc}\"] = dict(ycsb_rratio=rr,\n                        ycsb_zipf_skew=skew, thread_num=47 if kind == \"ops1000\" else 48,\n                        batch_th_num=int(kind == \"ops1000\"), batch_max_ope=1000,\n                        worker1_insert_delay_rphase_us=delay, gc_inter_us=gc)\n        for family, rates, kinds, gcs, skew, genome in (\n            (\"R\", (0,25,50,75,95), (\"none\",\"wait1msU\",\"wait10msU\",\"wait10msR\"),\n             (10,1000,100000), .9, \"default\"),\n            (\"S\", (0,50,95), (\"none\",\"wait10msU\"), (10,100000), 0, \"default\"),\n            (\"T\", (0,50,95), (\"none\",\"wait10msU\"), (10,100000), .9, \"tuned\")):\n            for rate in rates:\n                for kind in kinds:\n                    for gc in gcs:\n                        legacy[f\"{family}{rate}-{kind}-gc{gc}\"] = dict(\n                            ycsb_rratio=50, ycsb_zipf_skew=skew, thread_num=48,\n                            batch_th_num=0, batch_max_ope=1000,\n                            worker1_insert_delay_rphase_us=(1000 if kind == \"wait1msU\"\n                                else 10000 if kind.startswith(\"wait10ms\") else 0),\n                            gc_inter_us=gc, izanagi_ronly_pct=rate,\n                            izanagi_long_kind=(2 if kind == \"wait10msR\" else\n                                               1 if kind.endswith(\"U\") else 0), genome=genome)\n        assert {cid: p for cid, p in V.CONDITIONS.items() if not cid.startswith(\"W\")} == legacy\n        for cid in legacy:\n            flags = V._flags(cid, 123456, 2100)\n            assert tuple(flags) == expected_keys\n            assert [flags[k] for k in expected_keys[:2]] == [123456, 123456]\n>           assert [flags[k] for k in (\"batch_max_ope\", \"max_ope\", \"ycsb_max_ope\")] == [1000, 10, 10]\nE           assert [1000, 100, 10] == [1000, 10, 10]\nE             \nE             At index 1 diff: 100 != 10\nE             Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_vlife.py:172: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count\n1 failed, 51 passed in 20.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=2782 retained_bytes=2782 omitted_bytes=0 rendered_excerpt_bytes=2873 sha256=392942c4d347d883cdc0633e30b18caa11f0cae735478a98bcefeaba05009a1f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_legacy_argv_keeps_smoke_records_and_operation_count():\n>         expected_keys = (\"tuple_num\", \"ycsb_tuple_num\", \"thread_num\", \"batch_th_num\",\n>                          \"batch_max_ope\", \"max_ope\", \"ycsb_max_ope\", \"rratio\",\n>                          \"ycsb_rratio\", \"zipf_skew\", \"ycsb_zipf_skew\", \"gc_inter_us\",\n>                          \"worker1_insert_delay_rphase_us\", \"extime\", \"clocks_per_us\",\n>                          \"izanagi_ronly_pct\", \"izanagi_long_kind\")\n>         legacy = {}\n>         for w, rr, skew in ((\"A\", 50, 0), (\"B\", 95, .9)):\n>             for kind, delay in ((\"none\", 0), (\"wait1ms\", 1000),\n>                                 (\"wait10ms\", 10000), (\"ops1000\", 0)):\n>                 for gc in (10, 1000, 100000):\n>                     legacy[f\"{w}-{kind}-gc{gc}\"] = dict(ycsb_rratio=rr,\n>                         ycsb_zipf_skew=skew, thread_num=47 if kind == \"ops1000\" else 48,\n>                         batch_th_num=int(kind == \"ops1000\"), batch_max_ope=1000,\n>                         worker1_insert_delay_rphase_us=delay, gc_inter_us=gc)\n>         for family, rates, kinds, gcs, skew, genome in (\n>             (\"R\", (0,25,50,75,95), (\"none\",\"wait1msU\",\"wait10msU\",\"wait10msR\"),\n>              (10,1000,100000), .9, \"default\"),\n>             (\"S\", (0,50,95), (\"none\",\"wait10msU\"), (10,100000), 0, \"default\"),\n>             (\"T\", (0,50,95), (\"none\",\"wait10msU\"), (10,100000), .9, \"tuned\")):\n>             for rate in rates:\n>                 for kind in kinds:\n>                     for gc in gcs:\n>                         legacy[f\"{family}{rate}-{kind}-gc{gc}\"] = dict(\n>                             ycsb_rratio=50, ycsb_zipf_skew=skew, thread_num=48,\n>                             batch_th_num=0, batch_max_ope=1000,\n>                             worker1_insert_delay_rphase_us=(1000 if kind == \"wait1msU\"\n>                                 else 10000 if kind.startswith(\"wait10ms\") else 0),\n>                             gc_inter_us=gc, izanagi_ronly_pct=rate,\n>                             izanagi_long_kind=(2 if kind == \"wait10msR\" else\n>                                                1 if kind.endswith(\"U\") else 0), genome=genome)\n>         assert {cid: p for cid, p in V.CONDITIONS.items() if not cid.startswith(\"W\")} == legacy\n>         for cid in legacy:\n>             flags = V._flags(cid, 123456, 2100)\n>             assert tuple(flags) == expected_keys\n>             assert [flags[k] for k in expected_keys[:2]] == [123456, 123456]\n> >           assert [flags[k] for k in (\"batch_max_ope\", \"max_ope\", \"ycsb_max_ope\")] == [1000, 10, 10]\n> E           assert [1000, 100, 10] == [1000, 10, 10]\n> E             \n> E             At index 1 diff: 100 != 10\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:172: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2782 retained_bytes=2782 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3604 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "23331ea0687b49d3c929b2eb7fd6b624ed7b6672d59b46d0a92c67f3487186ce"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.212,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count"
+      ],
+      "hang_risk": false,
+      "id": "MA2-legacy-max-ope-changes",
+      "injection_diff_sha256": "bfb1f11d942b6c7b46bec7528182d71175b9e71466ade877a69d1db45f12d582",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9d6b1026ca0e50e77d430258b1ecf3aa546ceff81b7e60534f73909bf9c5b39b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "            \"max_ope\": condition[\"ycsb_max_ope\"] if condition_id.startswith(\"W\") else 100,\n",
+          "old": "            \"max_ope\": condition[\"ycsb_max_ope\"] if condition_id.startswith(\"W\") else 10,\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "23331ea0687b49d3c929b2eb7fd6b624ed7b6672d59b46d0a92c67f3487186ce",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n...................................F................                     [100%]\n=================================== FAILURES ===================================\n_________ test_schema3_abort_reasons_and_hot_chains_reject_bad_values __________\n[gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_schema3_abort_reasons_and_hot_chains_reject_bad_values():\n        payload = _payload3()\n        payload[\"workers\"][0][\"aborts\"][0] = 1\n        payload[\"workers\"][0][\"attempts\"][0] = 1\n        payload[\"workers\"][0][\"abort_reasons\"][0] = 1\n        assert V.parse_vlife_line(_line(payload)) == payload\n        bad = _payload3()\n        bad[\"workers\"][0][\"aborts\"][0] = bad[\"workers\"][0][\"attempts\"][0] = 1\n        for candidate in (bad,\n                          {**_payload3(), \"hot_chains\": _payload3()[\"hot_chains\"][:-1]},\n                          {**_payload3(), \"hot_chains\": [dict(key=0, status=\"ok\", length=1)\n                              for _ in range(8)]},\n                          {**_payload3(), \"hot_chains\": [dict(key=k, status=\"ok\",\n                              length=-1 if k == 0 else 1) for k in range(8)]}):\n            try:\n                V.parse_vlife_line(_line(candidate))\n            except ValueError:\n                pass\n            else:\n>               raise AssertionError(\"invalid schema 3 payload accepted\")\nE               AssertionError: invalid schema 3 payload accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:202: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values\n1 failed, 51 passed in 20.59s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1238 retained_bytes=1238 omitted_bytes=0 rendered_excerpt_bytes=1289 sha256=20c74826f198e383c1513d522402ad9ecff91012b85d28b2940b4e5d073a1bae\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_schema3_abort_reasons_and_hot_chains_reject_bad_values():\n>         payload = _payload3()\n>         payload[\"workers\"][0][\"aborts\"][0] = 1\n>         payload[\"workers\"][0][\"attempts\"][0] = 1\n>         payload[\"workers\"][0][\"abort_reasons\"][0] = 1\n>         assert V.parse_vlife_line(_line(payload)) == payload\n>         bad = _payload3()\n>         bad[\"workers\"][0][\"aborts\"][0] = bad[\"workers\"][0][\"attempts\"][0] = 1\n>         for candidate in (bad,\n>                           {**_payload3(), \"hot_chains\": _payload3()[\"hot_chains\"][:-1]},\n>                           {**_payload3(), \"hot_chains\": [dict(key=0, status=\"ok\", length=1)\n>                               for _ in range(8)]},\n>                           {**_payload3(), \"hot_chains\": [dict(key=k, status=\"ok\",\n>                               length=-1 if k == 0 else 1) for k in range(8)]}):\n>             try:\n>                 V.parse_vlife_line(_line(candidate))\n>             except ValueError:\n>                 pass\n>             else:\n> >               raise AssertionError(\"invalid schema 3 payload accepted\")\n> E               AssertionError: invalid schema 3 payload accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:202: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1238 retained_bytes=1238 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2023 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "45951c65171b320f771c9f3af62bcd3979571cfba9ac947d0d5ffb444c13f944"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.273,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values"
+      ],
+      "hang_risk": false,
+      "id": "MA3-drop-abort-reason-sum-check",
+      "injection_diff_sha256": "346cbac6836fba604140f005755fd9ece18af748785dd74c54e27520e4e7a0d9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "769e83663075234e8c8d6deba5b871e6f35831797bc5d22ed7499fce7e9e8d76",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "        if False and schema == 3 and (sum(worker[\"abort_reasons\"]) != sum(worker[\"aborts\"])):\n",
+          "old": "        if schema == 3 and (sum(worker[\"abort_reasons\"]) != sum(worker[\"aborts\"])):\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "45951c65171b320f771c9f3af62bcd3979571cfba9ac947d0d5ffb444c13f944",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n...................................F................                     [100%]\n=================================== FAILURES ===================================\n_______________ test_best100_genome_and_val_size_compile_binding _______________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_best100_genome_and_val_size_compile_binding():\n        assert V.genome_args(\"best100\") == [\n            \"-DCCBENCH_BACK_OFF=0\", \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=0\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=0\",\n            \"-DCCBENCH_REUSE_VERSION=0\", \"-DCCBENCH_WRITE_LATEST_ONLY=0\"]\n        with tempfile.TemporaryDirectory() as td:\n            path = Path(td) / \"compile_commands.json\"\n            row = {\"file\": str(ROOT / \"external/ccbench/cc/cicada/transaction.cc\"),\n                   \"arguments\": [\"c++\", *[f\"-D{k}={v}\" for k, v in V.BEST100_GENOME.items()],\n                                 \"-DVAL_SIZE=100\", \"-c\", \"transaction.cc\"]}\n            path.write_text(json.dumps([row]))\n            assert V.verify_genome_commands(path, \"best100\", 100)[\"genome\"] == \"best100\"\n            for bad in (4, 1000):\n                try:\n                    V.verify_genome_commands(path, \"best100\", bad)\n                except ValueError:\n                    pass\n                else:\n>                   raise AssertionError(\"wrong VAL_SIZE accepted\")\nE                   AssertionError: wrong VAL_SIZE accepted\n\norchestrator/tests/test_vhash_cicada_vlife.py:231: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding\n1 failed, 51 passed in 20.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1251 retained_bytes=1251 omitted_bytes=0 rendered_excerpt_bytes=1300 sha256=7c80d36609cbe613e9ac309ccf6db06d14f31f15ebdaa1c18bab005f44e3e86f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_best100_genome_and_val_size_compile_binding():\n>         assert V.genome_args(\"best100\") == [\n>             \"-DCCBENCH_BACK_OFF=0\", \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=0\",\n>             \"-DCCBENCH_INLINE_VERSION_PROMOTION=0\",\n>             \"-DCCBENCH_REUSE_VERSION=0\", \"-DCCBENCH_WRITE_LATEST_ONLY=0\"]\n>         with tempfile.TemporaryDirectory() as td:\n>             path = Path(td) / \"compile_commands.json\"\n>             row = {\"file\": str(ROOT / \"external/ccbench/cc/cicada/transaction.cc\"),\n>                    \"arguments\": [\"c++\", *[f\"-D{k}={v}\" for k, v in V.BEST100_GENOME.items()],\n>                                  \"-DVAL_SIZE=100\", \"-c\", \"transaction.cc\"]}\n>             path.write_text(json.dumps([row]))\n>             assert V.verify_genome_commands(path, \"best100\", 100)[\"genome\"] == \"best100\"\n>             for bad in (4, 1000):\n>                 try:\n>                     V.verify_genome_commands(path, \"best100\", bad)\n>                 except ValueError:\n>                     pass\n>                 else:\n> >                   raise AssertionError(\"wrong VAL_SIZE accepted\")\n> E                   AssertionError: wrong VAL_SIZE accepted\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:231: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1251 retained_bytes=1251 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2022 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "aea9813907a1bd3997acc643e8d80d3051ade95daefd2a5b1c8172684103e145"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.363,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+      ],
+      "hang_risk": false,
+      "id": "MA4-drop-val-size-compile-binding",
+      "injection_diff_sha256": "dc3198b5b57ef7f9c039cf1f4ac919b7dfed9bfaf233129c05dab423946dba3f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "636e5b70075848e943643177753a0a71985f381e4880d0eba053f2f50987cbc3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "        if False and val_size is not None and definitions.get(\"VAL_SIZE\") != val_size:\n",
+          "old": "        if val_size is not None and definitions.get(\"VAL_SIZE\") != val_size:\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "aea9813907a1bd3997acc643e8d80d3051ade95daefd2a5b1c8172684103e145",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n...................................F................                     [100%]\n=================================== FAILURES ===================================\n_______________ test_best100_genome_and_val_size_compile_binding _______________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_best100_genome_and_val_size_compile_binding():\n>       assert V.genome_args(\"best100\") == [\n            \"-DCCBENCH_BACK_OFF=0\", \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=0\",\n            \"-DCCBENCH_INLINE_VERSION_PROMOTION=0\",\n            \"-DCCBENCH_REUSE_VERSION=0\", \"-DCCBENCH_WRITE_LATEST_ONLY=0\"]\nE       AssertionError: assert ['-DCCBENCH_B...ATEST_ONLY=0'] == ['-DCCBENCH_B...ATEST_ONLY=0']\nE         \nE         At index 1 diff: '-DCCBENCH_INLINE_VERSION_OPT_CICADA=1' != '-DCCBENCH_INLINE_VERSION_OPT_CICADA=0'\nE         Use -v to get more diff\n\norchestrator/tests/test_vhash_cicada_vlife.py:214: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding\n1 failed, 51 passed in 20.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=676 retained_bytes=676 omitted_bytes=0 rendered_excerpt_bytes=703 sha256=5bfb37a8a9369abf503f28e2109fc004a2b8c607b26442c7e68d8c394ba39eda\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_best100_genome_and_val_size_compile_binding():\n> >       assert V.genome_args(\"best100\") == [\n>             \"-DCCBENCH_BACK_OFF=0\", \"-DCCBENCH_INLINE_VERSION_OPT_CICADA=0\",\n>             \"-DCCBENCH_INLINE_VERSION_PROMOTION=0\",\n>             \"-DCCBENCH_REUSE_VERSION=0\", \"-DCCBENCH_WRITE_LATEST_ONLY=0\"]\n> E       AssertionError: assert ['-DCCBENCH_B...ATEST_ONLY=0'] == ['-DCCBENCH_B...ATEST_ONLY=0']\n> E         \n> E         At index 1 diff: '-DCCBENCH_INLINE_VERSION_OPT_CICADA=1' != '-DCCBENCH_INLINE_VERSION_OPT_CICADA=0'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_vhash_cicada_vlife.py:214: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=676 retained_bytes=676 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1420 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2f76570ba55872e1d978b483e6b78c29eef091bed461782d6cd43e74f8e2648c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.189,
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+      ],
+      "hang_risk": false,
+      "id": "MA5-best100-args-equal-tuned",
+      "injection_diff_sha256": "55dcbc30b8103fc5a23fe96ab730baa81ed81f106e825cb3d4ffe1fccbdef53a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5a0402b98ffcda7ff5a0d3bf6d9bd7ed66d4bedd5a56c2af67c1e32dbd01ae8b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+          "new": "(TUNED_GENOME if genome in (\"tuned\", \"best100\") else BEST100_GENOME).items()]",
+          "old": "(TUNED_GENOME if genome == \"tuned\" else BEST100_GENOME).items()]"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "2f76570ba55872e1d978b483e6b78c29eef091bed461782d6cd43e74f8e2648c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.....................................F..............                     [100%]\n=================================== FAILURES ===================================\n______________ test_mb1_raw_reparse_rejects_saved_parsed_mismatch ______________\n[gw38] linux -- Python 3.10.12 /usr/bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1535ff2664d0>\n\n    def test_mb1_raw_reparse_rejects_saved_parsed_mismatch(monkeypatch):\n        point = _point()\n        run = _run(point, _parsed(point))\n        run[\"parsed\"] = {**run[\"parsed\"], \"schema_version\": 2}\n>       with pytest.raises(ValueError, match=\"stdout/parsed mismatch\"):\nE       Failed: DID NOT RAISE ValueError\n\norchestrator/tests/test_plot_vhash_workload_space.py:104: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch\n1 failed, 51 passed in 20.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=507 retained_bytes=507 omitted_bytes=0 rendered_excerpt_bytes=532 sha256=84cdac85a339ebb254e4e66e18617dc33cda4c8d6ff39c93f04229a936e6d16d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw38] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1535ff2664d0>\n> \n>     def test_mb1_raw_reparse_rejects_saved_parsed_mismatch(monkeypatch):\n>         point = _point()\n>         run = _run(point, _parsed(point))\n>         run[\"parsed\"] = {**run[\"parsed\"], \"schema_version\": 2}\n> >       with pytest.raises(ValueError, match=\"stdout/parsed mismatch\"):\n> E       Failed: DID NOT RAISE ValueError\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:104: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=507 retained_bytes=507 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1259 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c4359d2a1103eadf5cc8c3563716c92141f4f9f26fae6d1eb5b193b0313a5083"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.321,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch"
+      ],
+      "hang_risk": false,
+      "id": "MB1-drop-reparse-parsed-check",
+      "injection_diff_sha256": "f79415a2d2993f269ba9a97eabe8b1a00f8bbfe899fbffe314fc784e32a549aa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "edb3bcfa6d13530e79dca44a46589277240dacca78527001623705225ddfc920",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "    if False and parsed != run.get(\"parsed\"):\n",
+          "old": "    if parsed != run.get(\"parsed\"):\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "c4359d2a1103eadf5cc8c3563716c92141f4f9f26fae6d1eb5b193b0313a5083",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.......................................F............                     [100%]\n=================================== FAILURES ===================================\n_________________ test_mb2_one_of_two_repetitions_is_boundary __________________\n[gw39] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mb2_one_of_two_repetitions_is_boundary():\n        point = _point()\n        passed = P._validated_run(_run(point, _parsed(point)), point, \"default\")\n        missed_payload = _parsed(point, deep=0, candidate=0, publications=2, live_delta=0)\n        missed_payload[\"workers\"][0][\"position\"][0][0] = 10000\n        missed_payload[\"workers\"][0][\"hops\"][0][0] = 10000\n        missed_payload[\"workers\"][0][\"gc_boundary_us\"][10] = 0\n        missed_payload[\"workers\"][0][\"gc_boundary_us\"][0] = 2\n        missed_payload[\"workers\"][0][\"gc_boundary_sum_us\"] = 0\n        failed = P._validated_run(_run(point, missed_payload),\n                                  point, \"default\")\n        row = {\"id\": _cid(point), \"point\": point, \"genome\": \"default\",\n               \"reps\": [passed, failed]}\n        P.evaluate({\"sample\": row})\n>       assert row[\"states\"] == {\"H1\": \"境界\", \"H2\": \"境界\",\n                                 \"H4-lag\": \"境界\", \"H4-live\": \"境界\", \"H4\": \"境界\"}\nE       AssertionError: assert {'H1': '通過', ...e': '通過', ...} == {'H1': '境界', ...e': '境界', ...}\nE         \nE         Differing items:\nE         {'H4-lag': '通過'} != {'H4-lag': '境界'}\nE         {'H1': '通過'} != {'H1': '境界'}\nE         {'H4': '通過'} != {'H4': '境界'}\nE         {'H2': '通過'} != {'H2': '境界'}\nE         {'H4-live': '通過'} != {'H4-live': '境界'}\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_vhash_workload_space.py:122: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary\n1 failed, 51 passed in 20.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1542 retained_bytes=1542 omitted_bytes=0 rendered_excerpt_bytes=1715 sha256=a30d5c1b4555977a031bbafdda204959ddb8d295fb2ffa502209c2801f8a85af\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mb2_one_of_two_repetitions_is_boundary():\n>         point = _point()\n>         passed = P._validated_run(_run(point, _parsed(point)), point, \"default\")\n>         missed_payload = _parsed(point, deep=0, candidate=0, publications=2, live_delta=0)\n>         missed_payload[\"workers\"][0][\"position\"][0][0] = 10000\n>         missed_payload[\"workers\"][0][\"hops\"][0][0] = 10000\n>         missed_payload[\"workers\"][0][\"gc_boundary_us\"][10] = 0\n>         missed_payload[\"workers\"][0][\"gc_boundary_us\"][0] = 2\n>         missed_payload[\"workers\"][0][\"gc_boundary_sum_us\"] = 0\n>         failed = P._validated_run(_run(point, missed_payload),\n>                                   point, \"default\")\n>         row = {\"id\": _cid(point), \"point\": point, \"genome\": \"default\",\n>                \"reps\": [passed, failed]}\n>         P.evaluate({\"sample\": row})\n> >       assert row[\"states\"] == {\"H1\": \"\\u5883\\u754c\", \"H2\": \"\\u5883\\u754c\",\n>                                  \"H4-lag\": \"\\u5883\\u754c\", \"H4-live\": \"\\u5883\\u754c\", \"H4\": \"\\u5883\\u754c\"}\n> E       AssertionError: assert {'H1': '\\u901a\\u904e', ...e': '\\u901a\\u904e', ...} == {'H1': '\\u5883\\u754c', ...e': '\\u5883\\u754c', ...}\n> E         \n> E         Differing items:\n> E         {'H4-lag': '\\u901a\\u904e'} != {'H4-lag': '\\u5883\\u754c'}\n> E         {'H1': '\\u901a\\u904e'} != {'H1': '\\u5883\\u754c'}\n> E         {'H4': '\\u901a\\u904e'} != {'H4': '\\u5883\\u754c'}\n> E         {'H2': '\\u901a\\u904e'} != {'H2': '\\u5883\\u754c'}\n> E         {'H4-live': '\\u901a\\u904e'} != {'H4-live': '\\u5883\\u754c'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:122: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1542 retained_bytes=1542 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2439 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ab2d6fcf4b3778cfb835841d7cd84fc3e19d57274b8688e29d97a42bf62fefa6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.215,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary"
+      ],
+      "hang_risk": false,
+      "id": "MB2-one-repetition-suffices",
+      "injection_diff_sha256": "076c2906c96e3e9883b1f8e36a662ab279668ab9e2e17ef4a426e043b55eb682",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "11f901310cbdcb4fa563ca6aabd9789b3b05f932fe00c959a58891a9e51869d5",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "    if passed >= 1:\n",
+          "old": "    if passed == len(values):\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "ab2d6fcf4b3778cfb835841d7cd84fc3e19d57274b8688e29d97a42bf62fefa6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.....................................F..............                     [100%]\n=================================== FAILURES ===================================\n_________________ test_mb3_zero_publications_is_censored_pass __________________\n[gw40] linux -- Python 3.10.12 /usr/bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153fea67ae30>\n\n    def test_mb3_zero_publications_is_censored_pass(monkeypatch):\n        point = _point()\n        values = P.metrics(P._validated_run(_run(point, _parsed(point, publications=0)),\n                                          point, \"default\"), point[\"records\"])\n        assert values[\"H4-lag\"] == \"停止\"\n>       assert P.state([values[\"H4-lag\"]]*2) == \"停止\"\nE       AssertionError: assert '不通過' == '停止'\nE         \nE         - 停止\nE         + 不通過\n\norchestrator/tests/test_plot_vhash_workload_space.py:132: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass\n1 failed, 51 passed in 20.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=666 retained_bytes=666 omitted_bytes=0 rendered_excerpt_bytes=741 sha256=8be68e0d1afe60f35ddcfade0e17d9882c7f23612a5d2bda29684ee3a49ca7f6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153fea67ae30>\n> \n>     def test_mb3_zero_publications_is_censored_pass(monkeypatch):\n>         point = _point()\n>         values = P.metrics(P._validated_run(_run(point, _parsed(point, publications=0)),\n>                                           point, \"default\"), point[\"records\"])\n>         assert values[\"H4-lag\"] == \"\\u505c\\u6b62\"\n> >       assert P.state([values[\"H4-lag\"]]*2) == \"\\u505c\\u6b62\"\n> E       AssertionError: assert '\\u4e0d\\u901a\\u904e' == '\\u505c\\u6b62'\n> E         \n> E         - \\u505c\\u6b62\n> E         + \\u4e0d\\u901a\\u904e\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:132: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=666 retained_bytes=666 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1460 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8e06834e7195860e395e02880d9c2174ac1a17fbb8a7d0440ab7f5a2936bf2dd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.269,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass"
+      ],
+      "hang_risk": false,
+      "id": "MB3-stop-counts-as-fail",
+      "injection_diff_sha256": "66a71ef0ab10ef463d0a89d62239ff1b9eb5c65318d1a1ba9a728f2992d3f255",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b61ea0e00790cbe650061fc7949020c8be653dbb63d32bb59e4deb4b58db73ea",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "    passed = sum(v is True for v in values)\n",
+          "old": "    passed = sum(v is True or v == \"停止\" for v in values)\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "8e06834e7195860e395e02880d9c2174ac1a17fbb8a7d0440ab7f5a2936bf2dd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n....................................................                     [100%]\n52 passed in 20.54s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "ee543ac068e6b00f682f1ad16e9be8235990a1df6b0439abd53c5a3a743e0cec"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.202,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MB4-region-ignores-default-genome",
+      "injection_diff_sha256": "b2a177b493669dbce78f730848584f066bd3f385d6b5c2afd55b6398ccf91856",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "289d6a81dff90e44e3d9857c8f59871a660d1d156dfc977c5236b5a7de1a98f1",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "                for side in (\"best\",):\n",
+          "old": "                for side in (\"default\", \"best\"):\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "SURVIVED",
+      "test_output_sha256": "ee543ac068e6b00f682f1ad16e9be8235990a1df6b0439abd53c5a3a743e0cec",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n......................................F..F....F.....                     [100%]\n=================================== FAILURES ===================================\n______ test_load_rejects_missing_repetition_duplicate_and_missing_points _______\n[gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_load_rejects_missing_repe0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bbb7c87070>\n\n    def test_load_rejects_missing_repetition_duplicate_and_missing_points(tmp_path, monkeypatch):\n        point = _point()\n        condition = _condition(point)\n        run = _run(point, _parsed(point))\n        cid = _cid(point)\n        path = tmp_path/\"one.json\"\n        raw = {\"command\": \"measure\", \"schema_version\": 1,\n               \"conditions\": {cid: condition}, \"runs\": {cid: [run, run]}}\n        path.write_text(json.dumps(raw))\n>       with pytest.raises(ValueError, match=\"missing design\"):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: 'missing design'\nE         Actual message: 'schema 1 measure raw required'\n\norchestrator/tests/test_plot_vhash_workload_space.py:328: AssertionError\n__ test_full_inventory_accepts_registered_points_and_rejects_duplicate_point ___\n[gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw2/test_full_inventory_accepts_re0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1491225dcbe0>\n\n    def test_full_inventory_accepts_registered_points_and_rejects_duplicate_point(tmp_path, monkeypatch):\n        conditions, runs = {}, {}\n        for index, point in enumerate(P.design()):\n            for genome in (\"default\", \"tuned\" if point[\"ops\"] == 10 else \"best100\"):\n                cid = _cid(point, genome)\n                conditions[cid] = _condition(point, genome)\n                runs[cid] = [{\"synthetic\": 1}, {\"synthetic\": 2}]\n        monkeypatch.setattr(P, \"_validated_run\", lambda run, point, genome: {\"valid\": True})\n        path = tmp_path/\"full.json\"\n        path.write_text(json.dumps({\"command\": \"measure\", \"schema_version\": 1,\n                                    \"conditions\": conditions, \"runs\": runs}))\n>       rows, provenance = P.load([path])\n\norchestrator/tests/test_plot_vhash_workload_space.py:352: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npaths = [PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw2/test_full_inventory_accepts_re0/full.json')]\n\n    def load(paths):\n        expected = {_design_key(p): p for p in design()}\n        rows, provenance, ids = {}, [], set()\n        for path in paths:\n            data = Path(path).read_bytes()\n            raw = json.loads(data)\n            if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n>               raise ValueError(\"schema 1 measure raw required\")\nE               ValueError: schema 1 measure raw required\n\ntools/plotting/plot_vhash_workload_space.py:175: ValueError\n______________ test_mb5_driver_shaped_measure_raw_reaches_outputs ______________\n[gw46] linux -- Python 3.10.12 /usr/bin/python3.10\n\nargv = ['/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0/raw.json', '--output', '/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0/out']\n\n    def main(argv=None):\n        parser = argparse.ArgumentParser(description=__doc__)\n        parser.add_argument(\"raw\", nargs=\"+\", type=Path)\n        parser.add_argument(\"--output\", type=Path, required=True)\n        args = parser.parse_args(argv)\n        try:\n>           rows, inputs = load(args.raw)\n\ntools/plotting/plot_vhash_workload_space.py:619: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npaths = [PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0/raw.json')]\n\n    def load(paths):\n        expected = {_design_key(p): p for p in design()}\n        rows, provenance, ids = {}, [], set()\n        for path in paths:\n            data = Path(path).read_bytes()\n            raw = json.loads(data)\n            if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n>               raise ValueError(\"schema 1 measure raw required\")\nE               ValueError: schema 1 measure raw required\n\ntools/plotting/plot_vhash_workload_space.py:175: ValueError\n\nDuring handling of the above exception, another exception occurred:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d878abe9b0>\n\n    def test_mb5_driver_shaped_measure_raw_reaches_outputs(tmp_path, monkeypatch):\n        point = _point()\n        monkeypatch.setattr(P, \"design\", lambda: [point])\n        conditions, runs = {}, {}\n        for genome in (\"default\", \"tuned\" if point[\"ops\"] == 10 else \"best100\"):\n            cid = _cid(point, genome)\n            conditions[cid] = _condition(point, genome)\n            payload = _parsed(point)\n            payload[\"build\"][\"inline_version_opt\"] = int(genome == \"tuned\")\n            run = _run(point, payload, genome)\n            assert run[\"summary\"][\"logical_live_versions\"] == point[\"records\"] + run[\"summary\"][\"logical_version_delta\"]\n            assert run[\"summary\"][\"update_commits_per_s\"] == run[\"summary\"][\"update_commits\"] / 3\n            assert run[\"summary\"][\"install_per_s\"] == run[\"summary\"][\"install\"] / 3\n            runs[cid] = [run, run]\n        raw = {\"schema_version\": 1, \"command\": \"measure\", \"ccbench_commit\": P.V.PIN,\n               \"patch_sha256\": \"fixture\", \"throughput_interpretation\": \"diagnostic, not performance\",\n               \"site\": \"fixture\", \"toolchain\": {}, \"dependency_preparation_s\": 1.0,\n               \"records\": point[\"records\"], \"conditions\": conditions, \"runs\": runs,\n               \"builds\": {\"fixture\": {}}, \"dependency_stock_build\": {}}\n        path = tmp_path/\"raw.json\"\n        path.write_text(json.dumps(raw))\n        output = tmp_path/\"out\"\n        import matplotlib\n        matplotlib.use(\"Agg\")\n>       assert P.main([str(path), \"--output\", str(output)]) == 0\n\norchestrator/tests/test_plot_vhash_workload_space.py:267: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/plotting/plot_vhash_workload_space.py:627: in main\n    parser.exit(2, f\"workload-space: {exc}\\n\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = ArgumentParser(prog='-c', usage=None, description='Fail-closed workload-space analysis of instrumented Cicada runs.\\n\\...bsent from every figure.\\n', formatter_class=<class 'argparse.HelpFormatter'>, conflict_handler='error', add_help=True)\nstatus = 2, message = 'workload-space: schema 1 measure raw required\\n'\n\n    def exit(self, status=0, message=None):\n        if message:\n            self._print_message(message, _sys.stderr)\n>       _sys.exit(status)\nE       SystemExit: 2\n\n/usr/lib/python3.10/argparse.py:2593: SystemExit\n----------------------------- Captured stderr call -----------------------------\nworkload-space: schema 1 measure raw required\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs\n3 failed, 49 passed in 20.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=3914 retained_bytes=3914 omitted_bytes=0 rendered_excerpt_bytes=4082 sha256=c16e26068dff52028053121ef2988adfdcd12641995825d1b1b5e85160a783bb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> argv = ['/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0/raw.json', '--output', '/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0/out']\n> \n>     def main(argv=None):\n>         parser = argparse.ArgumentParser(description=__doc__)\n>         parser.add_argument(\"raw\", nargs=\"+\", type=Path)\n>         parser.add_argument(\"--output\", type=Path, required=True)\n>         args = parser.parse_args(argv)\n>         try:\n> >           rows, inputs = load(args.raw)\n> \n> tools/plotting/plot_vhash_workload_space.py:619: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> paths = [PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0/raw.json')]\n> \n>     def load(paths):\n>         expected = {_design_key(p): p for p in design()}\n>         rows, provenance, ids = {}, [], set()\n>         for path in paths:\n>             data = Path(path).read_bytes()\n>             raw = json.loads(data)\n>             if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n> >               raise ValueError(\"schema 1 measure raw required\")\n> E               ValueError: schema 1 measure raw required\n> \n> tools/plotting/plot_vhash_workload_space.py:175: ValueError\n> \n> During handling of the above exception, another exception occurred:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw46/test_mb5_driver_shaped_measure0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d878abe9b0>\n> \n>     def test_mb5_driver_shaped_measure_raw_reaches_outputs(tmp_path, monkeypatch):\n>         point = _point()\n>         monkeypatch.setattr(P, \"design\", lambda: [point])\n>         conditions, runs = {}, {}\n>         for genome in (\"default\", \"tuned\" if point[\"ops\"] == 10 else \"best100\"):\n>             cid = _cid(point, genome)\n>             conditions[cid] = _condition(point, genome)\n>             payload = _parsed(point)\n>             payload[\"build\"][\"inline_version_opt\"] = int(genome == \"tuned\")\n>             run = _run(point, payload, genome)\n>             assert run[\"summary\"][\"logical_live_versions\"] == point[\"records\"] + run[\"summary\"][\"logical_version_delta\"]\n>             assert run[\"summary\"][\"update_commits_per_s\"] == run[\"summary\"][\"update_commits\"] / 3\n>             assert run[\"summary\"][\"install_per_s\"] == run[\"summary\"][\"install\"] / 3\n>             runs[cid] = [run, run]\n>         raw = {\"schema_version\": 1, \"command\": \"measure\", \"ccbench_commit\": P.V.PIN,\n>                \"patch_sha256\": \"fixture\", \"throughput_interpretation\": \"diagnostic, not performance\",\n>                \"site\": \"fixture\", \"toolchain\": {}, \"dependency_preparation_s\": 1.0,\n>                \"records\": point[\"records\"], \"conditions\": conditions, \"runs\": runs,\n>                \"builds\": {\"fixture\": {}}, \"dependency_stock_build\": {}}\n>         path = tmp_path/\"raw.json\"\n>         path.write_text(json.dumps(raw))\n>         output = tmp_path/\"out\"\n>         import matplotlib\n>         matplotlib.use(\"Agg\")\n> >       assert P.main([str(path), \"--output\", str(output)]) == 0\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:267: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> tools/plotting/plot_vhash_workload_space.py:627: in main\n>     parser.exit(2, f\"workload-space: {exc}\\x5cn\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = ArgumentParser(prog='-c', usage=None, description='Fail-closed workload-space analysis of instrumented Cicada runs.\\x5cn\\x5c...bsent from every figure.\\x5cn', formatter_class=<class 'argparse.HelpFormatter'>, conflict_handler='error', add_help=True)\n> status = 2, message = 'workload-space: schema 1 measure raw required\\x5cn'\n> \n>     def exit(self, status=0, message=None):\n>         if message:\n>             self._print_message(message, _sys.stderr)\n> >       _sys.exit(status)\n> E       SystemExit: 2\n> \n> /usr/lib/python3.10/argparse.py:2593: SystemExit\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=1737 retained_bytes=1737 omitted_bytes=0 rendered_excerpt_bytes=1806 sha256=c02195d8f3eb275a8ac01590859bdd0ed45cb968c14f1e4766e3f23ac1302a03\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw2/test_full_inventory_accepts_re0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1491225dcbe0>\n> \n>     def test_full_inventory_accepts_registered_points_and_rejects_duplicate_point(tmp_path, monkeypatch):\n>         conditions, runs = {}, {}\n>         for index, point in enumerate(P.design()):\n>             for genome in (\"default\", \"tuned\" if point[\"ops\"] == 10 else \"best100\"):\n>                 cid = _cid(point, genome)\n>                 conditions[cid] = _condition(point, genome)\n>                 runs[cid] = [{\"synthetic\": 1}, {\"synthetic\": 2}]\n>         monkeypatch.setattr(P, \"_validated_run\", lambda run, point, genome: {\"valid\": True})\n>         path = tmp_path/\"full.json\"\n>         path.write_text(json.dumps({\"command\": \"measure\", \"schema_version\": 1,\n>                                     \"conditions\": conditions, \"runs\": runs}))\n> >       rows, provenance = P.load([path])\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:352: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> paths = [PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw2/test_full_inventory_accepts_re0/full.json')]\n> \n>     def load(paths):\n>         expected = {_design_key(p): p for p in design()}\n>         rows, provenance, ids = {}, [], set()\n>         for path in paths:\n>             data = Path(path).read_bytes()\n>             raw = json.loads(data)\n>             if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n> >               raise ValueError(\"schema 1 measure raw required\")\n> E               ValueError: schema 1 measure raw required\n> \n> tools/plotting/plot_vhash_workload_space.py:175: ValueError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points\" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=950 retained_bytes=950 omitted_bytes=0 rendered_excerpt_bytes=991 sha256=c899f15d9d951d03cf3a0ae7a5684fb52de36ecca1729018070372f4bad737d4\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw1/test_load_rejects_missing_repe0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14bbb7c87070>\n> \n>     def test_load_rejects_missing_repetition_duplicate_and_missing_points(tmp_path, monkeypatch):\n>         point = _point()\n>         condition = _condition(point)\n>         run = _run(point, _parsed(point))\n>         cid = _cid(point)\n>         path = tmp_path/\"one.json\"\n>         raw = {\"command\": \"measure\", \"schema_version\": 1,\n>                \"conditions\": {cid: condition}, \"runs\": {cid: [run, run]}}\n>         path.write_text(json.dumps(raw))\n> >       with pytest.raises(ValueError, match=\"missing design\"):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: 'missing design'\n> E         Actual message: 'schema 1 measure raw required'\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:328: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=6601 retained_bytes=6601 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8536 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b129b9b81c3b4a066b3497b1cce5758faddc9e1c94e217bac230d46b42263345"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.29,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs"
+      ],
+      "hang_risk": false,
+      "id": "MB5-raw-requires-schema-3",
+      "injection_diff_sha256": "0f61f3f61c9a98d20b914c0cdcd37542927e78797e2f85fb76f5f0e00ddd5f40",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "626061cb55e5d1ddfd652e40b7f3686004bd86c4a42255e581085a6340954a98",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "        if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n",
+          "old": "        if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 1:\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "b129b9b81c3b4a066b3497b1cce5758faddc9e1c94e217bac230d46b42263345",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n.........................................F..........                     [100%]\n=================================== FAILURES ===================================\n__________________ test_mb6_abort_reason_names_follow_driver ___________________\n[gw44] linux -- Python 3.10.12 /usr/bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw44/test_mb6_abort_reason_names_fo0')\n\n    def test_mb6_abort_reason_names_follow_driver(tmp_path):\n        point = _point()\n        payload = _parsed(point, aborts=5)\n        worker = payload[\"workers\"][0]\n        worker[\"abort_reasons\"] = [0] * 18\n        worker[\"abort_reasons\"][6] = 2\n        worker[\"abort_reasons\"][15] = 3\n        worker[\"aborts\"] = [2, 3]\n        worker[\"attempts\"] = [2002, 3]\n        rep = P._validated_run(_run(point, payload), point, \"default\")\n        row = {\"id\": _cid(point), \"point\": point, \"genome\": \"default\", \"reps\": [rep, rep]}\n        P.evaluate({\"sample\": row})\n        P.write_tables({\"sample\": row}, [], True, tmp_path, [])\n        with (tmp_path/\"abort_reasons.csv\").open(newline=\"\") as stream:\n            reasons = {r[\"reason\"]: r for r in csv.DictReader(stream)}\n>       assert P.ABORT_REASONS == P.V.ABORT_REASONS\nE       AssertionError: assert ('early_wts',...deleted', ...) == ('early_wts',...deleted', ...)\nE         \nE         At index 3 diff: 'rmw_delete_latest' != 'latest'\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_vhash_workload_space.py:211: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver\n1 failed, 51 passed in 20.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1244 retained_bytes=1244 omitted_bytes=0 rendered_excerpt_bytes=1297 sha256=17a74e7223b3ed2d96d580ef5d1d8a6ae5c2e496646b6809b8b34c2e54797407\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw44/test_mb6_abort_reason_names_fo0')\n> \n>     def test_mb6_abort_reason_names_follow_driver(tmp_path):\n>         point = _point()\n>         payload = _parsed(point, aborts=5)\n>         worker = payload[\"workers\"][0]\n>         worker[\"abort_reasons\"] = [0] * 18\n>         worker[\"abort_reasons\"][6] = 2\n>         worker[\"abort_reasons\"][15] = 3\n>         worker[\"aborts\"] = [2, 3]\n>         worker[\"attempts\"] = [2002, 3]\n>         rep = P._validated_run(_run(point, payload), point, \"default\")\n>         row = {\"id\": _cid(point), \"point\": point, \"genome\": \"default\", \"reps\": [rep, rep]}\n>         P.evaluate({\"sample\": row})\n>         P.write_tables({\"sample\": row}, [], True, tmp_path, [])\n>         with (tmp_path/\"abort_reasons.csv\").open(newline=\"\") as stream:\n>             reasons = {r[\"reason\"]: r for r in csv.DictReader(stream)}\n> >       assert P.ABORT_REASONS == P.V.ABORT_REASONS\n> E       AssertionError: assert ('early_wts',...deleted', ...) == ('early_wts',...deleted', ...)\n> E         \n> E         At index 3 diff: 'rmw_delete_latest' != 'latest'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:211: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1244 retained_bytes=1244 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2019 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d682f1852c4923795c136d4a43c2d7f6a2f0aec943a4447042b84ad00406a4ff"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.157,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver"
+      ],
+      "hang_risk": false,
+      "id": "MB6-own-abort-reason-names",
+      "injection_diff_sha256": "fd566bb286af24998f61422254a93d1d7d24bde96510b33484638cf629d5cec2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "03726862e63031d2a288cbd0240413eefdfc341924714790109e81fe851071bd",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "ABORT_REASONS = (\"early_wts\", \"early_rts\", \"precheck\", \"rmw_delete_latest\", \"read_match\", \"write_rts_deleted\", \"node_set\", \"node_insert\", \"other\")\n",
+          "old": "ABORT_REASONS = V.ABORT_REASONS\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "d682f1852c4923795c136d4a43c2d7f6a2f0aec943a4447042b84ad00406a4ff",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................F...........                     [100%]\n=================================== FAILURES ===================================\n____________________ test_mb4_region_requires_both_genomes _____________________\n[gw41] linux -- Python 3.10.12 /usr/bin/python3.10\n\n    def test_mb4_region_requires_both_genomes():\n        points = [p for p in P.design() if p[\"layer\"] == \"S\"]\n        rows = {}\n        for p in points:\n            for genome, passing in ((\"default\", True), (\"tuned\", False)):\n                row = _row(p, genome, (passing, passing))\n                rows[(P._design_key(p), genome)] = row\n        selected, insufficient = P.regions(rows)\n>       assert insufficient\nE       assert False\n\norchestrator/tests/test_plot_vhash_workload_space.py:143: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes\n1 failed, 51 passed in 20.52s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=564 retained_bytes=564 omitted_bytes=0 rendered_excerpt_bytes=593 sha256=3a533c0e2b78a887b8e608ae713fbac27b3ba136e8370b1cd3bdf5bdf5aa963c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /usr/bin/python3.10\n> \n>     def test_mb4_region_requires_both_genomes():\n>         points = [p for p in P.design() if p[\"layer\"] == \"S\"]\n>         rows = {}\n>         for p in points:\n>             for genome, passing in ((\"default\", True), (\"tuned\", False)):\n>                 row = _row(p, genome, (passing, passing))\n>                 rows[(P._design_key(p), genome)] = row\n>         selected, insufficient = P.regions(rows)\n> >       assert insufficient\n> E       assert False\n> \n> orchestrator/tests/test_plot_vhash_workload_space.py:143: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=564 retained_bytes=564 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1306 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0970431bf2d3b5594f4da478b8cc2bedab51c7766a3907554e676c299e54e7e6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "ba5a1eb5e5c663e85c7fd8330e674b9b008f2f03590f8ed27920ccb0609d6b5f",
+      "duration_s": 21.207,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes"
+      ],
+      "hang_risk": false,
+      "id": "MB4b-region-ignores-best-genome",
+      "injection_diff_sha256": "cfd3cf2d4bbbfe8e2120161b06126a5e43eb26dbace137bff9c128694e7ddb42",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4563c1e4416a74f9dd7cb7e09bfb09e969364dff27284cd6e0fc1f69e64c7b64",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_vhash_workload_space.py",
+          "new": "                for side in (\"default\",):\n",
+          "old": "                for side in (\"default\", \"best\"):\n"
+        }
+      ],
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "KILLED",
+      "test_output_sha256": "0970431bf2d3b5594f4da478b8cc2bedab51c7766a3907554e676c299e54e7e6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\norchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv\norchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_unavailable_hot_chains_preserve_failed_scan\norchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_run_echo_rejects_wrong_build_key_and_worker_count\norchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_echo_stays_schema2_and_w_requires_schema3\norchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract\norchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity\norchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights\norchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding\norchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign\norchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions\norchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults\norchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale\norchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut12_measure_fixed_one_million\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch\norchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates\norchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset\norchestrator/tests/test_vhash_cicada_vlife.py::test_real_patch_define_registry_and_rejection\norchestrator/tests/test_vhash_cicada_vlife.py::test_vlife_branch_sites_stay_in_owner_include_closure\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success\norchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_delay_failure_preserves_other_stages_and_rejects_measure\norchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_records_failed_delay_compile_without_failing\norchestrator/tests/test_vhash_cicada_vlife.py::test_batch_extension_stays_in_begin_and_retries_same_procedure\norchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store\norchestrator/tests/test_vhash_cicada_vlife.py::test_worker_limit_checked_at_construction\norchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock\norchestrator/tests/test_plot_vhash_workload_space.py::test_design_is_126_unique_points_and_two_genomes\norchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch\norchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary\norchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass\norchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes\norchestrator/tests/test_plot_vhash_workload_space.py::test_schema3_adapter_and_negative_build_abort_and_denominator\norchestrator/tests/test_plot_vhash_workload_space.py::test_schema3_abort_sides_and_hot_chain_table\norchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver\norchestrator/tests/test_plot_vhash_workload_space.py::test_s6_all_points_site_depth_candidate_bytes_and_chains\norchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs\norchestrator/tests/test_plot_vhash_workload_space.py::test_all_points_incomplete_repetition_and_empty_columns\norchestrator/tests/test_plot_vhash_workload_space.py::test_s6_h4_region_ranks_censored_lag_before_live_ratio\norchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points\norchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point\norchestrator/tests/test_plot_vhash_workload_space.py::test_real_size_figure_layout_and_artifacts\n\n52 tests collected in 0.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "2382727f21a66ff3367b91afaf1a96406e0e556ee6008b8846b9d97e79772f41"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_unavailable_hot_chains_preserve_failed_scan",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_run_echo_rejects_wrong_build_key_and_worker_count",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_echo_stays_schema2_and_w_requires_schema3",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_json_line_contract",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_sum_and_readonly_denominator",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_required_fields_and_three_term_identity",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema2_readonly_denominator_and_holder_weights",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_conditions_and_genome_binding",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_df_interaction_sign",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_tuned_compile_commands_match_cicada_definitions",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_default_compile_commands_match_cmake_defaults",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_readonly_figure_full_campaign_layout",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut19_boundary_time_panels_use_log_scale",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_draw_guard_and_readonly_gc_observation",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut11_event_generation_and_current_holder",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut12_measure_fixed_one_million",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut13_readonly_depth_and_reads_follow_deleted_guard",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut15_tuned_comparison_panels_exist",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut16_epoch_advances_before_cicada_publication",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut18_late_publication_advances_epoch",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_mut17_run_duration_controls_provenance_rates",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_k_boundary_and_condition_subset",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_real_patch_define_registry_and_rejection",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_vlife_branch_sites_stay_in_owner_include_closure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_identity_binds_records",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_recomputes_calibration_and_requires_success",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_delay_compile_selects_unique_ycsb_target",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_delay_failure_preserves_other_stages_and_rejects_measure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_smoke_records_failed_delay_compile_without_failing",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_batch_extension_stays_in_begin_and_retries_same_procedure",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_leader_publication_counts_same_value_store",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_worker_limit_checked_at_construction",
+        "orchestrator/tests/test_vhash_cicada_vlife.py::test_patch_default_preprocess_matches_stock",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_design_is_126_unique_points_and_two_genomes",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_schema3_adapter_and_negative_build_abort_and_denominator",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_schema3_abort_sides_and_hot_chain_table",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_s6_all_points_site_depth_candidate_bytes_and_chains",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_all_points_incomplete_repetition_and_empty_columns",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_s6_h4_region_ranks_censored_lag_before_live_ratio",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point",
+        "orchestrator/tests/test_plot_vhash_workload_space.py::test_real_size_figure_layout_and_artifacts"
+      ],
+      "duration_s": 1.587,
+      "rc": 0,
+      "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+      "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+      "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+      "status": "PASSED",
+      "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MA1-w-flags-use-smoke-records": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "148c7b0b3920922776845f5bd06f965bc770ad9602e739c42fa1127a6e3a443b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "    if condition_id.startswith(\"W\"):\n        records = records\n",
+            "old": "    if condition_id.startswith(\"W\"):\n        records = condition[\"records\"]\n"
+          }
+        ]
+      },
+      "MA2-legacy-max-ope-changes": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bfb1f11d942b6c7b46bec7528182d71175b9e71466ade877a69d1db45f12d582",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "            \"max_ope\": condition[\"ycsb_max_ope\"] if condition_id.startswith(\"W\") else 100,\n",
+            "old": "            \"max_ope\": condition[\"ycsb_max_ope\"] if condition_id.startswith(\"W\") else 10,\n"
+          }
+        ]
+      },
+      "MA3-drop-abort-reason-sum-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "346cbac6836fba604140f005755fd9ece18af748785dd74c54e27520e4e7a0d9",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "        if False and schema == 3 and (sum(worker[\"abort_reasons\"]) != sum(worker[\"aborts\"])):\n",
+            "old": "        if schema == 3 and (sum(worker[\"abort_reasons\"]) != sum(worker[\"aborts\"])):\n"
+          }
+        ]
+      },
+      "MA4-drop-val-size-compile-binding": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dc3198b5b57ef7f9c039cf1f4ac919b7dfed9bfaf233129c05dab423946dba3f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "        if False and val_size is not None and definitions.get(\"VAL_SIZE\") != val_size:\n",
+            "old": "        if val_size is not None and definitions.get(\"VAL_SIZE\") != val_size:\n"
+          }
+        ]
+      },
+      "MA5-best100-args-equal-tuned": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "55dcbc30b8103fc5a23fe96ab730baa81ed81f106e825cb3d4ffe1fccbdef53a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/vhash_cicada_vlife.py",
+            "new": "(TUNED_GENOME if genome in (\"tuned\", \"best100\") else BEST100_GENOME).items()]",
+            "old": "(TUNED_GENOME if genome == \"tuned\" else BEST100_GENOME).items()]"
+          }
+        ]
+      },
+      "MB1-drop-reparse-parsed-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f79415a2d2993f269ba9a97eabe8b1a00f8bbfe899fbffe314fc784e32a549aa",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "    if False and parsed != run.get(\"parsed\"):\n",
+            "old": "    if parsed != run.get(\"parsed\"):\n"
+          }
+        ]
+      },
+      "MB2-one-repetition-suffices": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "076c2906c96e3e9883b1f8e36a662ab279668ab9e2e17ef4a426e043b55eb682",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "    if passed >= 1:\n",
+            "old": "    if passed == len(values):\n"
+          }
+        ]
+      },
+      "MB3-stop-counts-as-fail": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "66a71ef0ab10ef463d0a89d62239ff1b9eb5c65318d1a1ba9a728f2992d3f255",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "    passed = sum(v is True for v in values)\n",
+            "old": "    passed = sum(v is True or v == \"停止\" for v in values)\n"
+          }
+        ]
+      },
+      "MB4-region-ignores-default-genome": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b2a177b493669dbce78f730848584f066bd3f385d6b5c2afd55b6398ccf91856",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "                for side in (\"best\",):\n",
+            "old": "                for side in (\"default\", \"best\"):\n"
+          }
+        ]
+      },
+      "MB4b-region-ignores-best-genome": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb4_region_requires_both_genomes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cfd3cf2d4bbbfe8e2120161b06126a5e43eb26dbace137bff9c128694e7ddb42",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "                for side in (\"default\",):\n",
+            "old": "                for side in (\"default\", \"best\"):\n"
+          }
+        ]
+      },
+      "MB5-raw-requires-schema-3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point",
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points",
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0f61f3f61c9a98d20b914c0cdcd37542927e78797e2f85fb76f5f0e00ddd5f40",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "        if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 3:\n",
+            "old": "        if raw.get(\"command\") != \"measure\" or raw.get(\"schema_version\") != 1:\n"
+          }
+        ]
+      },
+      "MB6-own-abort-reason-names": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fd566bb286af24998f61422254a93d1d7d24bde96510b33484638cf629d5cec2",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_vhash_workload_space.py",
+            "new": "ABORT_REASONS = (\"early_wts\", \"early_rts\", \"precheck\", \"rmw_delete_latest\", \"read_match\", \"write_rts_deleted\", \"node_set\", \"node_insert\", \"other\")\n",
+            "old": "ABORT_REASONS = V.ABORT_REASONS\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7d3349fceaa11385f24a8c2237b5c24d18e4cd55321c0848186dad6bbb384506",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_vlife.py",
+      "orchestrator/tests/test_plot_vhash_workload_space.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 5400.0
+  },
+  "repo_head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3.10",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_vhash_cicada_vlife.py",
+      "orchestrator/tests/test_plot_vhash_workload_space.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/scratch-final/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "5856f02d3401af9a8bc10978f8b94f91c8cfb3a23452c4b1e2e1a4c912d95d76",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6637793572f5123bee0e8512da7a563dccec6793",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "49a3ef1d97ac702c66954e5ffb40f4163863d5b5fc3e0ff9b0dd95d11babd087",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c4e7398ac654cfb02c029c0a210c38ed03ac32d1b00adc2b205b9da3e4fb60b1",
+  "summary": {
+    "KILLED": 11,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 12,
+    "matching": 12,
+    "recorded": 12,
+    "registered": 12
+  },
+  "tool_identity": {
+    "head_blob_sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60",
+    "path": "/work/1/SFC/tanab/tmp/vhash-workload-space-2026-09-30/mutation/scratch-final/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "f46a9c98eb52888ab940334e9947bd013470814ad79bacbe4bb442fd98aada60"
+  },
+  "tool_sha256": "bf809a8351124f06b94be4390f14393fd036dccbd8b3fa586b56f736e2aafaed",
+  "updated_at": "2026-09-30T06:02:58.629383+00:00"
+}

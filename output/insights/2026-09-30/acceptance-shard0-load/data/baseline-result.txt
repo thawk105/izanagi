@@ -1,0 +1,292 @@
+== Q2 coverage (10 runs parsed)
+by shard/with prop {(0, True): 43110, (1, True): 116689, (2, True): 123344}
+by kind/with prop {('skipped', True): 740, ('pass', True): 282403} Counter()
+
+== Q1 busiest worker (occupancy = sum of testcase time by worker prop)
+4a5c92fa 09-30 02:42:26 s0:gw44=261.7s(items 11; report gw44=261.7; report's value for gw44=261.7) top5 s0 occ 262,256,244,242,234 s1:gw0=161.5s(items 50; report gw0=161.5; report's value for gw0=161.5) s2:gw1=156.2s(items 2; report gw1=156.2; report's value for gw1=156.2)
+eca9f7d7 09-30 02:42:57 s0:gw34=218.0s(items 61; report gw34=218.0; report's value for gw34=218.0) top5 s0 occ 218,184,184,183,182 s1:gw0=157.3s(items 50; report gw0=157.3; report's value for gw0=157.3) s2:gw2=203.0s(items 2; report gw2=203.0; report's value for gw2=203.0)
+cef04a9d 09-30 02:46:30 s0:gw41=254.4s(items 37; report gw41=254.4; report's value for gw41=254.4) top5 s0 occ 254,253,234,233,218 s1:gw0=158.2s(items 50; report gw0=158.2; report's value for gw0=158.2) s2:gw1=198.7s(items 2; report gw1=198.7; report's value for gw1=198.7)
+304bbc7a 09-30 03:11:06 s0:gw21=202.0s(items 5; report gw21=202.0; report's value for gw21=202.0) top5 s0 occ 202,190,151,151,151 s1:gw3=161.9s(items 2; report gw3=161.9; report's value for gw3=161.9) s2:gw13=160.3s(items 2; report gw13=160.3; report's value for gw13=160.3)
+8286b42c 09-30 03:23:05 s0:gw5=154.8s(items 29; report gw5=154.8; report's value for gw5=154.8) top5 s0 occ 155,146,143,143,143 s1:gw0=157.3s(items 50; report gw0=157.3; report's value for gw0=157.3) s2:gw1=158.4s(items 2; report gw1=158.4; report's value for gw1=158.4)
+95f55907 09-30 03:29:21 s0:gw21=195.8s(items 5; report gw21=195.8; report's value for gw21=195.8) top5 s0 occ 196,184,156,147,138 s1:gw0=162.7s(items 50; report gw0=162.7; report's value for gw0=162.7) s2:gw1=156.7s(items 2; report gw1=156.7; report's value for gw1=156.7)
+07de511d 09-30 03:29:50 s0:gw7=163.0s(items 17; report gw7=163.0; report's value for gw7=163.0) top5 s0 occ 163,161,157,156,156 s1:gw0=156.2s(items 50; report gw0=156.2; report's value for gw0=156.2) s2:gw1=155.1s(items 2; report gw1=155.1; report's value for gw1=155.1)
+034e88f9 09-30 04:02:34 s0:gw39=308.9s(items 8; report gw39=308.9; report's value for gw39=308.9) top5 s0 occ 309,299,286,285,280 s1:gw2=183.4s(items 2; report gw2=183.4; report's value for gw2=183.4) s2:gw1=167.3s(items 2; report gw1=167.3; report's value for gw1=167.3)
+46bbd9aa 09-30 04:13:31 s0:gw37=166.3s(items 34; report gw37=166.3; report's value for gw37=166.3) top5 s0 occ 166,161,144,144,144 s1:gw0=158.6s(items 50; report gw0=158.6; report's value for gw0=158.6) s2:gw1=160.9s(items 2; report gw1=160.9; report's value for gw1=160.9)
+43ba29da 09-30 05:05:58 s0:gw20=200.5s(items 5; report gw20=200.5; report's value for gw20=200.5) top5 s0 occ 201,168,157,148,143 s1:gw3=172.1s(items 2; report gw3=172.1; report's value for gw3=172.1) s2:gw1=162.3s(items 2; report gw1=162.3; report's value for gw1=162.3)
+
+-- shard-0 busiest worker items (top 12 each run)
+### 4a5c92fa6ff27d82809092d5fdb8cfd4 09-30 02:42:26 gw44 occ 261.7s n=11 sum_ge1s=260.8
+    133.79 test_real_repo_serialization::test_receipt_memo_real_xdist_order_has_no_worker_payer
+    108.38 test_s8b_oracle_driver::test_v1_gate_does_not_delegate_with_active_v2
+      5.57 test_p3_s4_loop::test_calibrated_candidate_cli_reaches_effective_perf[True]
+      3.49 test_campaign::test_run_campaign_declared_use_class_does_not_change_campaign_id
+      2.32 test_real_repo_serialization::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator
+      2.20 test_s8b_floor_campaign::test_post_probe_runs_on_launch_error_and_competing_takes_precedence
+      1.81 test_s8b_floor_campaign::test_rep_integrity_positive_control_default_measure_point[clean]
+      1.65 test_s8b_floor_campaign::test_each_determinism_seam_reaches_its_expected_json_pointer
+      1.57 test_s8b_floor_campaign::test_result_json_records_per_attempt_duration_and_no_absolute_monotonic
+      0.95 test_acceptance_schedule_order::test_g1_live_hook_chain_preserves_collection_identity[unknown-mixed-<lambda>-expected4]
+      0.00 test_acceptance_schedule_order::test_g1_loader_schema_unicode_and_top_level_fail_soft[{"schema_version":1,"unit":"seconds","nodeid_count":0,"duration_seconds_by_nodeid":[]}]
+### eca9f7d78031d70618b8b2224f939b91 09-30 02:42:57 gw34 occ 218.0s n=61 sum_ge1s=213.6
+     74.09 test_real_repo_serialization::test_early_memo_order_rejects_collection_barrier_mutant
+     73.64 test_real_repo_serialization::test_t080_import_temp_environment_fails_closed_for_foreign_module
+     49.10 test_s8b_floor_campaign::test_public_official_preflight_accepts_versioned_protocol
+     12.11 test_codex_reasoning_ab::test_pos_neg_submodule_initialization_state_mismatch_is_rejected
+      4.62 test_s8b_floor_campaign::test_deterministic_artifacts_across_roots_and_subprocess_environments
+      0.56 test_real_repo_serialization::test_real_repo_writer_drains_overlapping_reader_stream[common]
+      0.55 test_real_repo_serialization::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[legacy]
+      0.55 test_real_repo_serialization::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[common]
+      0.40 test_real_repo_serialization::test_real_repo_gate_and_main_share_deadline[writer]
+      0.39 test_real_repo_serialization::test_real_repo_gate_and_main_share_deadline[reader]
+      0.34 test_real_repo_serialization::test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture
+      0.34 test_real_repo_serialization::test_real_repo_readers_overlap_without_writer
+### cef04a9d294f518d57e8cf184773e163 09-30 02:46:30 gw41 occ 254.4s n=37 sum_ge1s=252.4
+    156.48 test_s8b_oracle_driver::test_t080_delegated_campaign_start_rejects_late_hit_file
+     58.27 test_sort_swo_oracle::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values
+     32.97 test_p3_s4_loop::test_base_provenance_records_each_outcome[dry-pass]
+      2.70 test_p3_s4_loop::test_main_b4_flock_covers_real_checkpoint
+      2.00 test_campaign::test_authorization_session_two_campaigns_one_claim
+      0.73 test_p3_s4_loop::test_base_provenance_records_each_outcome[rejected]
+      0.66 test_p3_s4_loop::test_base_flock_conflict_precedes_b4_consumption
+      0.25 test_p3_s4_loop::test_main_b4_flock_covers_real_pre_authorization
+      0.16 test_sort_swo_oracle::test_production_dependency_verifier_copies_canonical_bytes_privately
+      0.05 test_sort_swo_oracle::test_sort_ir_domain_roundtrips_all_79_values
+      0.02 test_real_repo_serialization::test_early_memo_all_workers_wait_before_test_body_without_resolving
+      0.02 test_real_repo_serialization::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed
+### 304bbc7a878ae2cc87ae7dc2f049bf6e 09-30 03:11:06 gw21 occ 202.0s n=5 sum_ge1s=202.0
+     94.43 test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+     70.27 test_acceptance_schedule_order::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order
+     35.65 test_s8b_oracle_driver::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+      1.69 test_s8b_floor_campaign::test_resume_rejects_tampered_binary_but_succeeds_when_untampered
+      0.00 test_s1_measurement_freeze::test_verify_rejects_stats_implementation_tamper
+### 8286b42c37d7861956a6d017339c3e56 09-30 03:23:05 gw5 occ 154.8s n=29 sum_ge1s=153.6
+     88.93 test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+     64.63 test_sort_swo_oracle::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values
+      0.83 test_p3_s4_loop::test_base_provenance_corrupt_report_stops[True-{"schema_version":"p3-s4-loop-provenance/v1","axis":"silo-backoff-magnitude","entries":[]}]
+      0.14 test_sort_swo_oracle::test_production_dependency_verifier_copies_canonical_bytes_privately
+      0.06 test_real_repo_serialization::test_memo_barrier_returns_only_after_both_complete[collection_finish-oracle]
+      0.06 test_real_repo_serialization::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-receipt]
+      0.05 test_sort_swo_oracle::test_sort_ir_domain_roundtrips_all_79_values
+      0.02 test_real_repo_serialization::test_early_memo_narrowing_destinations_match_real_parser
+      0.02 test_real_repo_serialization::test_early_memo_stale_markers_are_pruned_except_current_job
+      0.01 test_sort_swo_oracle::test_compiled_relation_mismatch_is_unavailable_not_pass
+      0.01 test_sort_swo_oracle::test_sort_authority_15_is_byte_exact_subset_of_rendered_ir_domain
+      0.01 test_real_repo_serialization::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-receipt]
+### 95f55907035d6719a98d68c750de384e 09-30 03:29:21 gw21 occ 195.8s n=5 sum_ge1s=195.3
+     83.18 test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+     78.34 test_acceptance_schedule_order::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection
+     33.74 test_s8b_oracle_driver::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+      0.51 test_p3_s4_loop::test_default_cli_preserves_preimage_bytes
+      0.00 test_s1_measurement_freeze::test_verify_rejects_stats_implementation_tamper
+### 07de511dac1fb303bf68aa6d5d01746b 09-30 03:29:50 gw7 occ 163.0s n=17 sum_ge1s=161.9
+     98.92 test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+     61.62 test_real_repo_serialization::test_early_memo_order_rejects_collection_barrier_mutant
+      1.39 test_campaign::test_authorization_session_two_campaigns_one_claim
+      0.84 test_p3_s4_loop_sort::test_run_campaign_forwards_one_sort_contract_to_resolver_and_evaluate
+      0.16 test_p3_s4_loop_sort::test_pipeline_forwards_one_sort_contract_to_resolver_and_selected_build_api[legacy]
+      0.02 test_real_repo_serialization::test_early_memo_narrowing_destinations_match_real_parser
+      0.01 test_real_repo_serialization::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-oracle]
+      0.01 test_real_repo_serialization::test_memo_barrier_emits_one_json_timing_line[xdist_node_collection_finished]
+      0.01 test_real_repo_serialization::test_memo_barrier_emits_one_json_timing_line[collection_finish]
+      0.01 test_real_repo_serialization::test_memo_barrier_prewarm_jobs_overlap[xdist_node_collection_finished]
+      0.00 test_real_repo_serialization::test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants
+      0.00 test_campaign::test_authorization_session_rejects_copy_operations[pickle]
+### 034e88f9ac326c1f5487215d29bef712 09-30 04:02:34 gw39 occ 308.9s n=8 sum_ge1s=308.9
+    194.58 test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+     43.13 test_s8b_floor_campaign::test_real_output_snapshot_matches_reference_and_is_deterministic
+     32.82 test_real_repo_serialization::test_real_repo_writers_do_not_materialize_oracle_environment_candidates
+     21.55 test_codex_reasoning_ab::test_agent_sandbox_binds_exclude_attempt_receipt_directory
+     11.17 test_codex_reasoning_ab::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication
+      4.53 test_p3_s4_loop::test_drive_iteration_checkpoint_survives_across_calls
+      1.09 test_real_repo_serialization::test_real_repo_priority_order_is_literal_and_writers_follow_barrier
+      0.00 test_acceptance_schedule_order::test_g1_loader_schema_unicode_and_top_level_fail_soft[[]]
+### 46bbd9aa81cfe8dca4ac084b483e76ef 09-30 04:13:31 gw37 occ 166.3s n=34 sum_ge1s=164.9
+     52.88 test_real_repo_serialization::test_early_memo_order_rejects_collection_barrier_mutant
+     45.42 test_p3_s4_loop::test_base_provenance_corrupt_report_stops[False-\xff]
+     43.75 test_s8b_floor_campaign::test_public_official_preflight_rejects_legacy_byte_drift_after_capture
+     13.46 test_codex_reasoning_ab::test_m3_focus_artifact_directions[POS-focus1.md]
+      2.49 test_p3_s4_loop::test_base_provenance_records_each_outcome[rejected]
+      2.47 test_codex_reasoning_ab::test_m3_focus_artifact_directions[POS-focus2.md]
+      1.55 test_p3_s4_loop::test_base_provenance_failure_keeps_checkpoint[False-checkpoint]
+      1.48 test_campaign::test_authorization_session_two_campaigns_one_claim
+      1.40 test_p3_s4_loop::test_base_provenance_records_each_outcome[certified]
+      0.42 test_p3_s4_loop::test_base_flock_covers_real_b4_authorization
+      0.40 test_p3_s4_loop::test_base_flock_conflict_precedes_b4_consumption
+      0.25 test_p3_s4_loop::test_main_b4_flock_covers_real_pre_authorization
+### 43ba29da4523cd55cca9b22565784498 09-30 05:05:58 gw20 occ 200.5s n=5 sum_ge1s=199.6
+     91.41 test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+     73.43 test_acceptance_schedule_order::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order
+     34.81 test_s8b_oracle_driver::test_t080_shared_base_builds_real_builder_once_across_processes
+      0.86 test_p3_s4_loop_trigger_gating::test_drive_iteration_provenance_copies_each_reject_wal_build_attempt_id
+      0.00 test_s1_measurement_freeze::test_verify_rejects_one_byte_workload_flag_tamper
+### 46bbd9aa81cfe8dca4ac084b483e76ef shard-1 gw0 occ 158.6s n=50
+     27.91 test_p3_b4_material_report::test_normal_path_assembles_binds_evaluates_and_builds_document@p3-b4-material-report
+     17.79 test_p3_b4_material_report::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]@p3-b4-material-report
+     14.62 test_p3_b4_material_report::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf@p3-b4-material-report
+     14.09 test_p3_b4_material_report::test_m9_four_authority_and_assembly_states_project_exactly[False-True]@p3-b4-material-report
+     12.27 test_p3_b4_material_report::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling@p3-b4-material-report
+     11.98 test_p3_b4_material_report::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]@p3-b4-material-report
+     11.65 test_p3_b4_material_report::test_m9_four_authority_and_assembly_states_project_exactly[True-True]@p3-b4-material-report
+     11.34 test_p3_b4_material_report::test_m9_four_authority_and_assembly_states_project_exactly[True-False]@p3-b4-material-report
+### 46bbd9aa81cfe8dca4ac084b483e76ef shard-2 gw1 occ 160.9s n=2
+    160.92 test_p3_b4_producer_auth_experiment::test_case_failure_records_aborted_and_remaining_cases_continue
+      0.00 test_check_docs::test_dev_wave_model_pins_accept_current_docs_contract
+### 43ba29da4523cd55cca9b22565784498 shard-1 gw3 occ 172.1s n=2
+    172.12 test_ccbench_spawn_sites::test_define_sink_cross_product_t2520_certify_entry_removal
+      0.00 test_dev_wave_land::test_exploration_external_root_keeps_wave_clean
+### 43ba29da4523cd55cca9b22565784498 shard-2 gw1 occ 162.3s n=2
+    162.25 test_p3_b4_producer_auth_experiment::test_case_failure_records_aborted_and_remaining_cases_continue
+      0.00 test_check_docs::test_dev_wave_model_pins_accept_current_docs_contract
+
+== Q3 heavy groups (shard placement, per-nodeid median over 10 runs)
+4a5c92fa busiest gw44 occ 261.7: group A 0.0s group B 0.0s; A+B total in shard0 4160.4s
+eca9f7d7 busiest gw34 occ 218.0: group A 0.0s group B 49.1s; A+B total in shard0 3609.3s
+cef04a9d busiest gw41 occ 254.4: group A 156.5s group B 0.0s; A+B total in shard0 4860.9s
+304bbc7a busiest gw21 occ 202.0: group A 0.0s group B 0.0s; A+B total in shard0 2908.5s
+8286b42c busiest gw5 occ 154.8: group A 88.9s group B 0.0s; A+B total in shard0 2874.5s
+95f55907 busiest gw21 occ 195.8: group A 0.0s group B 0.0s; A+B total in shard0 2912.4s
+07de511d busiest gw7 occ 163.0: group A 98.9s group B 0.0s; A+B total in shard0 3182.6s
+034e88f9 busiest gw39 occ 308.9: group A 0.0s group B 0.0s; A+B total in shard0 5282.3s
+46bbd9aa busiest gw37 occ 166.3: group A 0.0s group B 43.7s; A+B total in shard0 3081.8s
+43ba29da busiest gw20 occ 200.5: group A 34.8s group B 0.0s; A+B total in shard0 2780.0s
+median over runs: busiest occ 201.2745 A 0.0 B 0.0 A+B 39.2795
+
+-- group A: per run (digest, n in shard0, sum s, top workers (w,n,s), distinct workers), n in shards1/2
+   ('4a5c92fa', 44, 2037.0, [('gw2', 3, 154.5), ('gw40', 2, 112.4), ('gw41', 1, 111.8), ('gw17', 1, 109.4), ('gw16', 1, 108.9), ('gw15', 2, 105.7)], 28) other shards n= 0
+   ('eca9f7d7', 44, 2248.5, [('gw2', 2, 147.2), ('gw7', 2, 136.2), ('gw40', 1, 127.9), ('gw41', 2, 126.9), ('gw17', 1, 125.7), ('gw16', 3, 123.9)], 27) other shards n= 0
+   ('cef04a9d', 44, 2876.8, [('gw40', 1, 157.3), ('gw41', 1, 156.5), ('gw17', 1, 153.9), ('gw2', 2, 153.9), ('gw16', 1, 153.6), ('gw14', 2, 150.6)], 31) other shards n= 0
+   ('304bbc7a', 44, 1842.8, [('gw1', 4, 111.3), ('gw40', 4, 109.5), ('gw41', 1, 108.8), ('gw16', 1, 106.6), ('gw17', 1, 106.3), ('gw14', 1, 103.2)], 28) other shards n= 0
+   ('8286b42c', 44, 1828.4, [('gw2', 2, 117.3), ('gw40', 1, 110.3), ('gw41', 1, 109.5), ('gw17', 4, 106.9), ('gw15', 2, 104.0), ('gw14', 1, 103.9)], 24) other shards n= 0
+   ('95f55907', 44, 1835.8, [('gw2', 2, 112.8), ('gw40', 1, 110.8), ('gw41', 1, 108.7), ('gw17', 1, 107.6), ('gw15', 1, 103.7), ('gw14', 5, 103.2)], 30) other shards n= 0
+   ('07de511d', 44, 2139.1, [('gw14', 2, 135.5), ('gw40', 3, 125.3), ('gw41', 1, 123.9), ('gw17', 1, 121.6), ('gw1', 1, 121.6), ('gw16', 1, 121.1)], 27) other shards n= 0
+   ('034e88f9', 44, 3014.9, [('gw2', 2, 199.0), ('gw40', 1, 159.0), ('gw41', 3, 158.4), ('gw16', 1, 156.0), ('gw17', 1, 156.0), ('gw35', 1, 155.4)], 27) other shards n= 0
+   ('46bbd9aa', 44, 2056.0, [('gw1', 2, 122.9), ('gw41', 1, 121.8), ('gw40', 1, 121.4), ('gw17', 1, 120.0), ('gw16', 1, 118.9), ('gw15', 1, 115.8)], 30) other shards n= 0
+   ('43ba29da', 44, 1831.6, [('gw1', 4, 117.0), ('gw17', 2, 113.4), ('gw40', 1, 109.2), ('gw41', 2, 107.5), ('gw14', 3, 103.1), ('gw15', 1, 102.8)], 25) other shards n= 0
+
+-- group B: per run (digest, n in shard0, sum s, top workers (w,n,s), distinct workers), n in shards1/2
+   ('4a5c92fa', 54, 2123.4, [('gw32', 1, 208.1), ('gw23', 1, 191.3), ('gw28', 1, 187.6), ('gw29', 1, 187.6), ('gw22', 2, 187.6), ('gw26', 1, 183.8)], 32) other shards n= 0
+   ('eca9f7d7', 54, 1360.8, [('gw32', 1, 118.9), ('gw25', 1, 118.9), ('gw24', 1, 118.9), ('gw27', 1, 118.9), ('gw26', 5, 115.8), ('gw22', 2, 114.2)], 30) other shards n= 0
+   ('cef04a9d', 54, 1984.1, [('gw25', 1, 173.8), ('gw26', 1, 166.8), ('gw23', 2, 165.1), ('gw27', 4, 165.1), ('gw32', 1, 165.1), ('gw22', 1, 165.0)], 23) other shards n= 0
+   ('304bbc7a', 54, 1065.7, [('gw22', 3, 91.7), ('gw24', 4, 90.0), ('gw25', 2, 87.7), ('gw26', 1, 87.7), ('gw31', 1, 87.7), ('gw28', 1, 82.6)], 29) other shards n= 0
+   ('8286b42c', 54, 1046.1, [('gw29', 1, 91.3), ('gw23', 2, 85.7), ('gw25', 1, 84.3), ('gw28', 1, 84.2), ('gw31', 1, 84.2), ('gw22', 1, 83.7)], 28) other shards n= 0
+   ('95f55907', 54, 1076.7, [('gw29', 2, 98.2), ('gw23', 1, 90.2), ('gw28', 3, 88.3), ('gw22', 1, 88.3), ('gw32', 1, 88.3), ('gw25', 3, 88.3)], 31) other shards n= 0
+   ('07de511d', 54, 1043.5, [('gw22', 1, 89.8), ('gw23', 3, 85.2), ('gw24', 2, 83.5), ('gw25', 2, 83.5), ('gw26', 1, 83.5), ('gw31', 1, 83.5)], 32) other shards n= 0
+   ('034e88f9', 54, 2267.4, [('gw28', 5, 202.8), ('gw25', 10, 194.6), ('gw22', 4, 193.7), ('gw27', 1, 193.6), ('gw31', 2, 193.6), ('gw26', 1, 193.6)], 24) other shards n= 0
+   ('46bbd9aa', 54, 1025.7, [('gw28', 1, 90.1), ('gw25', 1, 84.8), ('gw22', 6, 83.0), ('gw32', 1, 82.9), ('gw31', 1, 82.9), ('gw26', 3, 82.9)], 26) other shards n= 0
+   ('43ba29da', 54, 948.4, [('gw26', 1, 80.8), ('gw31', 2, 77.0), ('gw24', 2, 76.2), ('gw25', 1, 75.7), ('gw28', 1, 74.5), ('gw23', 3, 74.5)], 24) other shards n= 0
+
+-- per nodeid median (10 runs), max, n samples, shards
+A  116.89  159.04 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_failed_launch_preserves_receipt_refusal
+A  116.79  158.38 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_delegated_campaign_start_rejects_late_hit_file
+A  114.71  156.04 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_delegated_campaign_start_rechecks_receipt[changed]
+A  113.89  155.96 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_active_v2_preserves_nonlayer2_receipt_refusal
+A  113.84  155.99 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_delegated_campaign_start_rechecks_receipt[missing]
+A  110.76  151.97 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_unactivated_chain_hit_is_invalid
+A  110.13  152.43 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_active_v2_delegation_accepts_full_receipt
+A  102.45  144.45 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+A   96.85  139.46 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+A   92.09  134.44 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+A   91.20  133.76 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+A   91.11  134.01 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_draft_rejects_synthetic_hit_outside_replay_deletions
+A   89.52  131.91 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+A   89.40  130.67 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+A   89.00  131.05 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+A   88.95  132.28 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+A   88.61  131.56 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+A   85.56  127.44 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+A   65.72  155.36 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary
+A   42.13  115.26 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_output_snapshot_excludes_git_ignored_real_output_changes
+A   40.76   83.50 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_builds_real_builder_once_across_processes
+A   16.14   45.11 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_output_snapshot_observes_git_visible_create_and_delete
+A   15.00   78.35 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_output_snapshot_detects_git_visible_real_output_changes
+A    0.12    1.07 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_visible_output_snapshot_starts_once_and_preserves_copy
+A    0.10    0.61 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5
+A    0.05    0.07 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_gate_hermetic_primary_states_exact[active-valid]
+A    0.05    0.05 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_gate_hermetic_primary_states_exact[invalid]
+A    0.03    0.05 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_waits_for_builder_lock
+A    0.03    0.04 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_gate_hermetic_primary_states_exact[never-issued]
+A    0.03    0.03 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_output_copy_visibility_matches_production_enumeration
+A    0.01    0.48 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_static_adapter_rejects_noncanonical_known_predicate_as_schema
+A    0.01    0.01 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_keeps_all_four_key_fields_separate
+A    0.01    0.01 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity
+A    0.00    0.01 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_without_completion_marker_is_rebuilt
+A    0.00    0.01 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_returns_independent_repos_and_documents
+A    0.00    0.01 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_missing_session_uses_process_memo
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_cleanup_tolerates_real_disappearance[True]
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_cleanup_tolerates_real_disappearance[False]
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_only_last_participant_removes_tree
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_cleanup_propagates_other_errors[13]
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_cleanup_propagates_other_errors[39]
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_cleanup_propagates_other_errors[5]
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_shared_base_cleanup_exhausted_disappearance_is_error
+A    0.00    0.00 n=10 sh={0: 10} test_s8b_oracle_driver::test_t080_epoch_identity_covers_state_introduction_raw_and_head_g4
+B   94.75  193.64 n=10 sh={0: 10} test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[launch-start]
+B   89.89  193.65 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_validates_certificate_and_completes
+B   89.16  202.84 n=10 sh={0: 10} test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]
+B   88.00  193.65 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_rejects_tampered_certificate
+B   88.00  194.47 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_build_failure_leaves_durable_launch_start
+B   88.00  193.65 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_rejects_certificate_time_not_bound_to_run_id
+B   87.45  193.64 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_scan_rejection_has_zero_filesystem_side_effects
+B   86.92  193.64 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_fresh_issues_certificate_and_binds_wall_ledger
+B   85.96  208.12 n=10 sh={0: 10} test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[campaign-key]
+B   84.17  193.65 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_rejects_renamed_run_dir
+B   48.85   80.06 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_preflight_accepts_versioned_protocol
+B   45.70   76.70 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_preflight_rejects_resolved_protocol_byte_drift
+B   45.66   76.79 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_preflight_rejects_legacy_byte_drift_after_capture
+B   28.24   48.16 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_preflight_accepts_legacy_protocol
+B   27.12   49.21 n=10 sh={0: 10} test_s8b_floor_campaign::test_real_seal_protocol_to_floor_official_core_e2e
+B    1.71    2.16 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_finalize_pending_resume_reassembles_refreeze_ineligible
+B    1.61    1.95 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_degraded_result_records_strict_perf_observation
+B    1.60    2.48 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_result_rejects_perf_preflight_receipt_fail_closed
+B    1.59    2.03 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_unavailable_preflight_reaches_measurement_once
+B    1.57    1.99 n=10 sh={0: 10} test_s8b_floor_campaign::test_pilot_does_not_apply_official_freeze_allowlist_scan
+B    0.11    0.14 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_rejects_launch_start_utc_not_bound_to_certificate
+B    0.10    0.12 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_rejects_extra_launch_start_key
+B    0.01    0.02 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_wrapper_approved_official_forwards_exact_true_to_private_core
+B    0.01    0.02 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_wrapper_rejects_unapproved_official_before_private_core
+B    0.00    0.01 n=10 sh={0: 10} test_s8b_floor_campaign::test_assemble_manifest_records_official_degraded_observation
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_measure_run_cmd_accepts_unavailable_receipt_in_official_mode
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_main_official_with_approval_forwards_exact_bool_to_run_campaign
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_main_official_without_approval_is_refused_before_protocol_load
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[now_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_private_core_rejects_unapproved_official_before_downstream
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[prepare_fn-_fake_prepare]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[process_identity_fn-_fixed_process]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[repo_root-seam_value10]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[fetchcontent_base_dir-seam_value11]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[build_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[durable_root_policy-seam_value13]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[execution_receipt_fn-_fixed_receipt]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[monotonic_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[measure_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[host_provenance_fn-_fixed_host]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[perf_preflight_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[probe_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[after_certificate_issued_fn-<lambda>]
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_each_nondefault_seam_before_side_effects[sleep_fn-<lambda>]
+B    0.00    0.01 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_preflight_rejects_digest_shift_between_independent_scans
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_assemble_manifest_has_independent_official_available_gate
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_perf_mode_rejects_only_explicit_available_receipt
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_probed_official_available_projects_to_legacy_none
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_run_campaign_core_rejects_official_materializer_injection_before_side_effects
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_public_official_rejects_fetchcontent_base_dir_before_side_effects
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_policy_unit_fresh_official_default_context_is_refreeze_eligible
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_permission_requires_exact_true
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_resume_is_not_refreeze_eligible_even_without_seams
+B    0.00    0.00 n=10 sh={0: 10} test_s8b_floor_campaign::test_official_preflight_scans_exactly_twice_and_returns_independent_expected
+group A: distinct nodeids 44, sum of medians 1981.9s
+group B: distinct nodeids 54, sum of medians 1086.3s
+
+== Q4 worker span vs occupancy (shard 0, latest run)
+gw  first_start-collfin  last_end-collfin  span  junit_occ  report_dur  items  lock_wait?
+gw8 first 0.0 last 206.8 span 206.8 junit_occ 110.0 report_dur 110.0 items 11 locks 2
+gw47 first 0.0 last 205.4 span 205.4 junit_occ 60.4 report_dur 60.4 items 5 locks 2
+gw43 first 0.1 last 202.4 span 202.3 junit_occ 87.8 report_dur 87.8 items 7 locks 3
+gw20 first 0.0 last 200.6 span 200.6 junit_occ 200.5 report_dur 200.5 items 5 locks 2
+gw38 first 0.1 last 200.2 span 200.1 junit_occ 142.9 report_dur 142.9 items 5 locks 3
+gw37 first 0.1 last 200.2 span 200.1 junit_occ 129.7 report_dur 129.7 items 4 locks 3
+gw0 first 0.1 last 195.3 span 195.3 junit_occ 71.5 report_dur 71.5 items 60 locks 58
+gw5 first 0.0 last 193.3 span 193.3 junit_occ 107.1 report_dur 107.1 items 17 locks 3
+spans-occ median gap 70.60081061458567 max 144.95830508232117
+report duration_s vs junit occ: max abs diff 0.029851572001234672
+shard junit testsuite time vs collection-finish->last-end: see runs

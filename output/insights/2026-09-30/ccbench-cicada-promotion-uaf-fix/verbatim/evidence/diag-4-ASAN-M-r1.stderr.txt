@@ -1,0 +1,91 @@
+=================================================================
+==2835914==ERROR: AddressSanitizer: heap-use-after-free on address 0x51200f572050 at pc 0x559aec9974c4 bp 0x14dffef98350 sp 0x14dffef98340
+WRITE of size 8 at 0x51200f572050 thread T6
+    #0 0x559aec9974c3 in std::__atomic_base<unsigned long>::store(unsigned long, std::memory_order) /usr/include/c++/11/bits/atomic_base.h:464
+    #1 0x559aec9974c3 in TxExecutor::writeSetClean() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/include/transaction.hh:345
+    #2 0x559aec992f46 in TxExecutor::abort() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:756
+    #3 0x559aec959ee7 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ee7)
+    #4 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193
+    #5 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283
+    #6 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61
+    #7 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96
+    #8 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259
+    #9 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266
+    #10 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211
+    #11 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)
+    #12 0x14e00244aac2 in start_thread nptl/pthread_create.c:442
+    #13 0x14e0024dc8cf  (/lib/x86_64-linux-gnu/libc.so.6+0x1268cf)
+
+0x51200f572050 is located 144 bytes inside of 256-byte region [0x51200f571fc0,0x51200f5720c0)
+freed by thread T6 here:
+    #0 0x14e002a7aa9c in operator delete(void*, unsigned long, std::align_val_t) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:190
+    #1 0x559aec992ee6 in TxExecutor::abort() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:752
+    #2 0x559aec959ee7 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ee7)
+    #3 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193
+    #4 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283
+    #5 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61
+    #6 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96
+    #7 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259
+    #8 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266
+    #9 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211
+    #10 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)
+
+previously allocated by thread T6 here:
+    #0 0x14e002a79777 in operator new(unsigned long, std::align_val_t) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:111
+    #1 0x559aec98e2fb in TxExecutor::insert(Storage, std::basic_string_view<char, std::char_traits<char> >, TupleBody&&) /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/transaction.cc:313
+    #2 0x559aec9687e9 in bool insert_neworder<TxExecutor, TransactionStatus>(TxExecutor&, unsigned int, unsigned char, unsigned short) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x427e9)
+    #3 0x559aec9608dc in bool run_new_order<TxExecutor, TransactionStatus>(TxExecutor&, TPCCQuery::NewOrder*) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x3a8dc)
+    #4 0x559aec959ab5 in void TPCCWorkload<Tuple, TupleInitParam>::run<TxExecutor, TransactionStatus>(TxExecutor&) (/scr/md32-promo-acq0_njc/build-ASAN/cc/cicada/tpcc_cicada.exe+0x33ab5)
+    #5 0x559aec93b843 in worker_body<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)>, ccbench::NoOpHook> /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:193
+    #6 0x559aec93a658 in operator() /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:283
+    #7 0x559aec93cec5 in __invoke_impl<void, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:61
+    #8 0x559aec93ce88 in __invoke<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/invoke.h:96
+    #9 0x559aec93ce35 in _M_invoke<0> /usr/include/c++/11/bits/std_thread.h:259
+    #10 0x559aec93ce09 in operator() /usr/include/c++/11/bits/std_thread.h:266
+    #11 0x559aec93cded in _M_run /usr/include/c++/11/bits/std_thread.h:211
+    #12 0x14e0027ecca5  (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6ca5)
+
+Thread T6 created by T0 here:
+    #0 0x14e002a1b685 in __interceptor_pthread_create ../../../../src/libsanitizer/asan/asan_interceptors.cpp:216
+    #1 0x14e0027ecd78 in std::thread::_M_start_thread(std::unique_ptr<std::thread::_State, std::default_delete<std::thread::_State> >, void (*)()) (/lib/x86_64-linux-gnu/libstdc++.so.6+0xf6d78)
+    #2 0x559aec93bbb8 in construct_at<std::thread, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/stl_construct.h:97
+    #3 0x559aec93bc1c in construct<std::thread, ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/alloc_traits.h:518
+    #4 0x559aec93b9e3 in emplace_back<ccbench::run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> >(std::size_t, const ccbench::RunnerOptions&, const main(int, char**)::<lambda(size_t, bool const&, Backoff&)>&, const main(int, char**)::<lambda(TxExecutor&, size_t)>&, const ccbench::NoOpHook&, ccbench::BombDispatcherFn)::<lambda()> > /usr/include/c++/11/bits/vector.tcc:115
+    #5 0x559aec93ab5c in run<TxExecutor, TransactionStatus, TPCCWorkload<Tuple, TupleInitParam>, main(int, char**)::<lambda(size_t, bool const&, Backoff&)>, main(int, char**)::<lambda(TxExecutor&, size_t)> > /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/../../common/runner.hh:282
+    #6 0x559aec93a159 in main /scr/md32-promo-acq0_njc/source-ASAN/cc/cicada/tpcc_cicada.cc:40
+    #7 0x14e0023dfd8f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+
+SUMMARY: AddressSanitizer: heap-use-after-free /usr/include/c++/11/bits/atomic_base.h:464 in std::__atomic_base<unsigned long>::store(unsigned long, std::memory_order)
+Shadow bytes around the buggy address:
+  0x0a2481ea63b0: fd fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa
+  0x0a2481ea63c0: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+  0x0a2481ea63d0: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x0a2481ea63e0: fd fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa
+  0x0a2481ea63f0: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+=>0x0a2481ea6400: fd fd fd fd fd fd fd fd fd fd[fd]fd fd fd fd fd
+  0x0a2481ea6410: fd fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa
+  0x0a2481ea6420: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+  0x0a2481ea6430: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x0a2481ea6440: fd fd fd fd fd fd fd fd fa fa fa fa fa fa fa fa
+  0x0a2481ea6450: fa fa fa fa fa fa fa fa fd fd fd fd fd fd fd fd
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+  Shadow gap:              cc
+==2835914==ABORTING

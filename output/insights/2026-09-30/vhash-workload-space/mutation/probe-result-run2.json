@@ -1,0 +1,138 @@
+{
+ "head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+ "baseline": {
+  "orchestrator/tests/test_plot_vhash_workload_space.py": {
+   "rc": 0,
+   "failed": [],
+   "seconds": 25.0
+  },
+  "orchestrator/tests/test_vhash_cicada_vlife.py": {
+   "rc": 0,
+   "failed": [],
+   "seconds": 46.5
+  }
+ },
+ "mutations": [
+  {
+   "id": "MA1-w-flags-use-smoke-records",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_w_conditions_match_preregistered_design_and_argv"
+   ],
+   "diffstat": "1\t1\torchestrator/campaign/vhash_cicada_vlife.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 53.8
+  },
+  {
+   "id": "MA2-legacy-max-ope-changes",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_legacy_argv_keeps_smoke_records_and_operation_count"
+   ],
+   "diffstat": "1\t1\torchestrator/campaign/vhash_cicada_vlife.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 45.9
+  },
+  {
+   "id": "MA3-drop-abort-reason-sum-check",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_schema3_abort_reasons_and_hot_chains_reject_bad_values"
+   ],
+   "diffstat": "1\t1\torchestrator/campaign/vhash_cicada_vlife.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 45.7
+  },
+  {
+   "id": "MA4-drop-val-size-compile-binding",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+   ],
+   "diffstat": "1\t1\torchestrator/campaign/vhash_cicada_vlife.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 45.8
+  },
+  {
+   "id": "MA5-best100-args-equal-tuned",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_vhash_cicada_vlife.py::test_best100_genome_and_val_size_compile_binding"
+   ],
+   "diffstat": "1\t1\torchestrator/campaign/vhash_cicada_vlife.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 63.3
+  },
+  {
+   "id": "MB1-drop-reparse-parsed-check",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb1_raw_reparse_rejects_saved_parsed_mismatch"
+   ],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 27.3
+  },
+  {
+   "id": "MB2-one-repetition-suffices",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb2_one_of_two_repetitions_is_boundary"
+   ],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 25.5
+  },
+  {
+   "id": "MB3-stop-counts-as-fail",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb3_zero_publications_is_censored_pass"
+   ],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 25.1
+  },
+  {
+   "id": "MB4-region-ignores-default-genome",
+   "rc": 0,
+   "failed": [],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 24.7
+  },
+  {
+   "id": "MB5-raw-requires-schema-3",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_full_inventory_accepts_registered_points_and_rejects_duplicate_point",
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_load_rejects_missing_repetition_duplicate_and_missing_points",
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb5_driver_shaped_measure_raw_reaches_outputs"
+   ],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 19.1
+  },
+  {
+   "id": "MB6-own-abort-reason-names",
+   "rc": 1,
+   "failed": [
+    "orchestrator/tests/test_plot_vhash_workload_space.py::test_mb6_abort_reason_names_follow_driver"
+   ],
+   "diffstat": "1\t1\ttools/plotting/plot_vhash_workload_space.py",
+   "restored": true,
+   "clean": true,
+   "seconds": 25.7
+  }
+ ]
+}

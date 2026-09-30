@@ -1,0 +1,11 @@
+{
+ "head": "e8b59c51fc92952a9437e4aaa4c7e90073d0b75c",
+ "baseline": {
+  "orchestrator/tests/test_plot_vhash_workload_space.py": {
+   "rc": 1,
+   "failed": [],
+   "seconds": 0.1
+  }
+ },
+ "mutations": []
+}

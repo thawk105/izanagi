@@ -42,6 +42,8 @@ _TRACKED_CALLS = frozenset({
 })
 _PERF_DISCOVERY_CALLS = _TRACKED_CALLS - {"evaluate", "evaluate_fn"}
 _REVIEWED_PERF_FILES = frozenset({
+    # Exploratory interval GC driver records diagnostic perf rows outside certified selection.
+    "orchestrator/campaign/vhash_interval_gc.py",
     # Diagnostic Cicada J0 calibration probes perf; J1/J2 ranking forbids perf rows.
     "tools/vhash_cicada_tuning/driver.py",
     "orchestrator/campaign/vhash_cicada_hot_block.py",

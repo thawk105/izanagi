@@ -1,0 +1,15 @@
+1. **must — 900 秒の上限で停止を防げない。** [conftest.py](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/orchestrator/tests/conftest.py:2598) は構築 thread を非 daemon で起こし、[同:2614](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/orchestrator/tests/conftest.py:2614) は timeout 後も生きた thread を残して `bases.close()` を呼ぶ。pytest のプロセスは thread が止まらなければ終了できず、最後の参加者なら構築中の木も撤去し得る。**修正:** timeout をプロセス終了まで含めて実効的な境界にし、構築中の木を閉じない設計にする。例えば構築を終了可能な子プロセスで走らせ、上限時に終了を確認してから lock を解放すれば通る。現状を受理すると、裁定が閉じようとした hang と cleanup の危険が残る。
+
+2. **must — land 条件が依頼の wall 改善を保証しない。** [s4-ruling.md](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/s4-ruling.md:60) と [aggregate-ab.py](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/meas/aggregate-ab.py:137) は主条件を `T0 = W0 − pre0` に置く。prewarm が collection と CPU・I/O を奪い、例えば A が `W0=300, pre0=60`、B が `W0=340, pre0=120` なら T0 は改善しても、依頼の W0 は 40 秒悪化する。**修正:** 温冷差の診断量として T0 を残し、land には W0 の悪化を許さない条件を加える。両対で T0 が縮み、W0 も縮む例なら受理できる。現条件だけで受理すると、実際には遅い変更を land できる。
+
+3. **must — 対 2 の runner が事前登録した正式受入を起動しない。** [s4-ruling.md](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/s4-ruling.md:59) は B2 を `dev_wave_wait.py acceptance` と定めたが、[run-pair-ab.sh](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/meas/run-pair-ab.sh:49) は pair ID によらず両腕で `tools/run_tests.py` を起動する。外部で走る正式受入を取り込む経路もない。**修正:** 対 2 専用に正式受入の起動時刻・commit・shard dir・rc を記録へ結び付け、A2 と照合する。B2 の記録が正式受入の実物を指す例なら通る。現 runner の p2 を受理すると、別の専用走を正式受入と取り違える。
+
+4. **should — A/B の shard 割付一致を確認していない。** [aggregate-ab.py](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/meas/aggregate-ab.py:72) は各腕の 3 shard と commit を検証するが、共通 nodeid が同じ shard に入ったかを比べない。新設 T1〜T7 による割付変化は、[D2284](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-shard0-load/docs/decisions.md:73554) でも実際に問題になった。**修正:** 少なくとも共通 nodeid の shard-0 割付を完全照合し、不一致の対は無効か帰属不能と記録する。共通 shard-0 nodeid 集合が一致する対なら通る。現状で受理すると、割付変化を prewarm の効果として数え得る。
+
+5. **should — 対 1 の cold 条件を runner が検証しない。** [s4-ruling.md](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/s4-ruling.md:56) は fresh detached worktree と起動前 tests pyc 0 を定めるが、[run-pair-ab.sh](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/meas/run-pair-ab.sh:25) は pyc 数を記録するだけで、[aggregate-ab.py](/work/1/SFC/tanab/dev-wave-jobs/acceptance-shard0-load-20260930/meas/aggregate-ab.py:113) も値の存在しか見ない。**修正:** p1 は両腕の起動前 tests pyc が 0 であることを有効条件にし、温になり得る正式受入 B2 は別扱いにする。p1 の両腕が 0 の対なら通る。現状で受理すると、事前登録と異なる温度の対が有効になる。
+
+**反証できず:** P1 の snapshot 比較器を見送る判断は受理集合の非同値と D1709 に整合する。P3 の見送りも未測定の約 8 秒 × 6 本を成果と誤記しない限り妥当である。項 6 の T7 は、共有 base の bytes・mode・symlink target・HEAD が consumer の複製変更後も不変という裁定の最小主張を検査している。差分に所有外の禁止ファイル変更、既存 test の期待値変更、要求外の framework は見当たらない。D1708 に沿う短縮の可能性はあるが、温い木の collection 約 65 秒に構築約 100 秒が収まらない場合や 2 構築の競合、残る 4 key の待ちにより、T0 が縮むとは静的には断定できない。実走結果は未確認。
+
+## 総括
+
+**NO-GO。** timeout が停止境界になっておらず、対照の p2 と land 条件も裁定した効果を検証できない。まず所見 1〜3 を直し、割付と cold 条件を対照で固定したうえで実測すべきである。
