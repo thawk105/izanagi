@@ -1,0 +1,6 @@
+[
+ {"id": "MB4b-region-ignores-best-genome", "category": "negative", "test": "orchestrator/tests/test_plot_vhash_workload_space.py",
+  "file": "tools/plotting/plot_vhash_workload_space.py",
+  "old": "                for side in (\"default\", \"best\"):\n",
+  "new": "                for side in (\"default\",):\n"}
+]
