@@ -109,5 +109,5 @@ f1 の赤 7 件はすべて、新 macro を条件意味 gate に 1 つ登録し�
 - `order_gate` の合格は単独 TU の compile まで。実 build は生死確認の 1 回だけで確かめた。全候補をこの gate に通す配線 ([T-2888]) は無い。
 - 骨格 patch は pin C (`68106660`) にだけ当たる。F への pin 前進 ([T-2854]) や Silo 修正 ([T-2917]) の後は当て直しが要りうる。関数方策の骨格・sort 軸の骨格とは同時に当てられない。
 - 並行で着地した MOCC 版の軸の設計 (`output/insights/2026-09-30/gen-opt-mocc-policy-axis/README.md` §4.3) は、文法を「CC に依らない核 + CC ごとの表」に分け、[T-2886] と先に着手した方が核を 1 度だけ作る、と定める。この wave の `PolicyProfile` がその核の最初の形になる。同設計が求める「分ける前の文法の凍結写しと、分けた後の文法を同じ入力列に掛けて判定の全 field と compile の判定が全件一致する」差分 test は、この wave では作っていない (§3 の証拠は既存 test の無変更の緑と `(accepted, rule_id)` の照合まで)。`silo_policy_compile.py`・`silo_policy_ir.py` の表の分離もしていない。
-- test 名 `test_module_claim_names_the_exact_75_define_supply_domain` は nodeid を変えないために据え置いたので、名前の数字 (75) は現在の件数 (76) と合わない。
-- 並行 wave が同じ件数 (57 など) を同時に +1 していると、main 取り込みで git が同値の書き換えを 1 回分に畳む。取り込み時に実数と照合する。
+- test 名 `test_module_claim_names_the_exact_79_define_supply_domain` (main 側の vhash-interval-gc が改名した名前) は nodeid を変えないために据え置いたので、名前の数字 (79) は合成後の件数 (80) と合わない。
+- land 前の main 取り込みで 2 度、同じ登録簿を変えた並行 wave と合成が要った。(1) main 55dbd4911: `test_ccbench_spawn_sites.py` を両側が別の行で変え、自動合成は競合なしだが実装面が両親のどちらとも違うので、Codex に 4 版を照合させた監査付き message で commit (8dc829e3b)。(2) main e894f5242: vhash-interval-gc が条件意味 gate に CICADA_INTERVAL_* の 4 macro を登録し、件数の行が 3 file で競合した。Codex が両側の登録を残し、件数を「共通祖先 + 両側の増分」で合成した (define 数 80、compile-time witness 62、meaning 63、CMake cache 25、sink 分類 76・80・66、c495d42bf)。競合を解いた merge は land の再実行検算を通らないので、この合成を含めて受入を取り直した。
