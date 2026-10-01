@@ -1,0 +1,145 @@
+{
+  "schema": "vhash-econn-wscan-aggregate/v1",
+  "job": "repro",
+  "extra": false,
+  "missing": [],
+  "duplicate": [],
+  "invalid": [],
+  "complete": true,
+  "arms": {
+    "N:pre": {
+      "planned": 4,
+      "observed": 4,
+      "verdict": "P1_consistent",
+      "p1_run_ids": [],
+      "totals": {
+        "reach_both": 0,
+        "k1_redirects": 0,
+        "insertion_reached": 28,
+        "k1_read_collisions": 0,
+        "post_scan_detached": 0,
+        "detached": 0,
+        "rounds_ge2": 0,
+        "detached_reach_both": 0,
+        "probe_aborts": 0,
+        "eligible": 1407142,
+        "k2_flag_raises": 0,
+        "rounds_max": 1,
+        "rounds_sum": 876,
+        "delayed": 11525
+      }
+    },
+    "N:fix": {
+      "planned": 4,
+      "observed": 4,
+      "verdict": "P1_consistent",
+      "p1_run_ids": [],
+      "totals": {
+        "reach_both": 0,
+        "k1_redirects": 0,
+        "insertion_reached": 22,
+        "k1_read_collisions": 0,
+        "post_scan_detached": 0,
+        "detached": 0,
+        "rounds_ge2": 0,
+        "detached_reach_both": 0,
+        "probe_aborts": 0,
+        "eligible": 1393798,
+        "k2_flag_raises": 0,
+        "rounds_max": 1,
+        "rounds_sum": 908,
+        "delayed": 11487
+      }
+    },
+    "K1:pre": {
+      "planned": 3,
+      "observed": 3,
+      "verdict": "Z_reached_barrier",
+      "p1_run_ids": [],
+      "totals": {
+        "reach_both": 0,
+        "k1_redirects": 2630,
+        "insertion_reached": 311,
+        "k1_read_collisions": 0,
+        "post_scan_detached": 0,
+        "detached": 0,
+        "rounds_ge2": 0,
+        "detached_reach_both": 0,
+        "probe_aborts": 0,
+        "eligible": 18349,
+        "k2_flag_raises": 0,
+        "rounds_max": 1,
+        "rounds_sum": 1506,
+        "delayed": 18349
+      }
+    },
+    "K12:pre": {
+      "planned": 3,
+      "observed": 3,
+      "verdict": "reached_not_fired",
+      "p1_run_ids": [],
+      "totals": {
+        "reach_both": 1,
+        "k1_redirects": 2644,
+        "insertion_reached": 330,
+        "k1_read_collisions": 0,
+        "post_scan_detached": 0,
+        "detached": 0,
+        "rounds_ge2": 24,
+        "detached_reach_both": 0,
+        "probe_aborts": 0,
+        "eligible": 18516,
+        "k2_flag_raises": 2533,
+        "rounds_max": 2,
+        "rounds_sum": 2069,
+        "delayed": 18516
+      }
+    },
+    "K12:fix": {
+      "planned": 3,
+      "observed": 3,
+      "verdict": "indeterminate",
+      "p1_run_ids": [],
+      "totals": {
+        "reach_both": 3,
+        "k1_redirects": 2643,
+        "insertion_reached": 312,
+        "k1_read_collisions": 0,
+        "post_scan_detached": 0,
+        "detached": 0,
+        "rounds_ge2": 20,
+        "detached_reach_both": 0,
+        "probe_aborts": 0,
+        "eligible": 17603,
+        "k2_flag_raises": 2449,
+        "rounds_max": 2,
+        "rounds_sum": 2008,
+        "delayed": 17603
+      }
+    },
+    "K12:broken": {
+      "planned": 3,
+      "observed": 3,
+      "verdict": "reached_not_fired",
+      "p1_run_ids": [],
+      "totals": {
+        "reach_both": 2,
+        "k1_redirects": 2605,
+        "insertion_reached": 297,
+        "k1_read_collisions": 0,
+        "post_scan_detached": 0,
+        "detached": 0,
+        "rounds_ge2": 25,
+        "detached_reach_both": 0,
+        "probe_aborts": 0,
+        "eligible": 18416,
+        "k2_flag_raises": 2559,
+        "rounds_max": 2,
+        "rounds_sum": 2108,
+        "delayed": 18416
+      }
+    }
+  },
+  "extra_round_required": false,
+  "preregistered_success": false
+}

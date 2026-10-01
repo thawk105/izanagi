@@ -1,0 +1,263 @@
+diff --git a/cc/cicada/transaction.cc b/cc/cicada/transaction.cc
+--- a/cc/cicada/transaction.cc
++++ b/cc/cicada/transaction.cc
+@@ -34,6 +34,12 @@
+ #include "gflags/gflags.h"
+ #endif
+ 
++#line 9
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT
++#include <chrono>
++#include <mutex>
++#include <thread>
++#endif
+ #line 9
+ #include "include/common.hh"
+ #include "include/scan_callback.hh"
+@@ -189,6 +195,64 @@
+ #endif
+ 
+ #if CICADA_GC_SAFEPOINT
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++DECLARE_uint64(ycsb_tuple_num);
++DECLARE_uint64(cicada_long_threads);
++DEFINE_uint64(cicada_wscan_delay_us, 0, "Delay each eligible write scan in microseconds.");
++DEFINE_bool(cicada_wscan_k1, false, "Redirect long transaction writes to the selected key.");
++DEFINE_uint64(cicada_wscan_k1_key, UINT64_MAX, "K1 key; UINT64_MAX selects the last YCSB tuple.");
++DEFINE_bool(cicada_wscan_k2, false, "Raise this thread's GC flag on every delay slice.");
++namespace {
++struct alignas(CACHE_LINE_SIZE) WscanSlot {
++  Version* watch = nullptr;
++  bool hit = false;
++  uint64_t eligible = 0, delayed = 0, insertion_reached = 0;
++  uint64_t rounds_sum = 0, rounds_max = 0, rounds_ge2 = 0;
++  uint64_t detached = 0, post_scan_detached = 0, probe_aborts = 0;
++  uint64_t k1_redirects = 0, k1_read_collisions = 0, k2_flag_raises = 0;
++  uint64_t reach_both = 0, detached_reach_both = 0;
++};
++WscanSlot wscan_slots[256];
++std::mutex wscan_mu;
++uint64_t wscan_active = 0;
++std::atomic<uint64_t> wscan_rounds{0};
++std::atomic<uint64_t> wscan_gc_detach_matches{0};
++struct WscanReport {
++  ~WscanReport() {
++    const uint64_t key = FLAGS_cicada_wscan_k1_key == UINT64_MAX
++        ? FLAGS_ycsb_tuple_num - 1 : FLAGS_cicada_wscan_k1_key;
++    std::cout << "CICADA_WSCAN_V1 {\"schema\":\"CICADA_WSCAN_V1\",\"delay_us\":"
++              << FLAGS_cicada_wscan_delay_us << ",\"k1\":"
++              << (FLAGS_cicada_wscan_k1 ? "true" : "false") << ",\"k2\":"
++              << (FLAGS_cicada_wscan_k2 ? "true" : "false")
++              << ",\"k1_key\":" << key
++              << ",\"gc_detach_matches\":" << wscan_gc_detach_matches.load()
++              << ",\"threads\":[";
++    for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++      const auto& c = wscan_slots[i];
++      if (i) std::cout << ',';
++      std::cout << "{\"thid\":" << i << ",\"eligible\":" << c.eligible
++                << ",\"delayed\":" << c.delayed
++                << ",\"insertion_reached\":" << c.insertion_reached
++                << ",\"rounds_sum\":" << c.rounds_sum
++                << ",\"rounds_max\":" << c.rounds_max
++                << ",\"rounds_ge2\":" << c.rounds_ge2
++                << ",\"detached\":" << c.detached
++                << ",\"post_scan_detached\":" << c.post_scan_detached
++                << ",\"probe_aborts\":" << c.probe_aborts
++                << ",\"k1_redirects\":" << c.k1_redirects
++                << ",\"k1_read_collisions\":" << c.k1_read_collisions
++                << ",\"k2_flag_raises\":" << c.k2_flag_raises
++                << ",\"reach_both\":" << c.reach_both
++                << ",\"detached_reach_both\":" << c.detached_reach_both << '}';
++    }
++    std::cout << "]}" << std::endl;
++  }
++};
++WscanReport wscan_report;
++} // namespace
++#endif
++#line 110
+ DEFINE_string(cicada_gc_mode, "off", "GC safe point mode: off, hb, or e.");
+ DEFINE_string(cicada_gc_target, "now", "E forward target: now or max.");
+ DEFINE_bool(cicada_gc_once, false, "Try E forwarding once per transaction.");
+@@ -695,6 +759,23 @@
+   /**
+    * Allocate timestamp in read phase.
+    */
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++  if (FLAGS_cicada_wscan_k1 && thid_ != 0 &&
++      thid_ >= TotalThreadNum - FLAGS_cicada_long_threads &&
++      FLAGS_cicada_long_threads != 0 && FLAGS_ycsb_tuple_num != 0) {
++    const uint64_t key = FLAGS_cicada_wscan_k1_key == UINT64_MAX
++        ? FLAGS_ycsb_tuple_num - 1 : FLAGS_cicada_wscan_k1_key;
++    for (auto& pro : pro_set_) {
++      if (pro.ope_ != Ope::WRITE) continue;
++      pro.key_ = key;
++      ++wscan_slots[thid_].k1_redirects;
++      for (const auto& other : pro_set_)
++        if (other.ope_ == Ope::READ && other.key_ == key)
++          ++wscan_slots[thid_].k1_read_collisions;
++    }
++  }
++#endif
++#line 38
+   this->status_ = TransactionStatus::inflight;
+   this->wts_.generateTimeStamp(thid_);
+   __atomic_store_n(&(ThreadWtsArray[thid_].obj_), this->wts_.ts_,
+@@ -1486,7 +1567,91 @@
+    */
+   for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+     if ((*itr).op_ == OpType::INSERT) { continue; }
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++    auto& ws = wscan_slots[thid_];
++    const bool wscan_eligible = !is_ronly_ && forward_slots[thid_].forwarded;
++    if (wscan_eligible) ++ws.eligible;
++    std::unique_lock<std::mutex> wscan_scan_lock;
++    if (wscan_eligible && FLAGS_cicada_wscan_delay_us != 0)
++      wscan_scan_lock = std::unique_lock<std::mutex>(wscan_mu);
++#endif
++#line 578
+     Version* ver = (*itr).new_ver_->ldAcqNext();
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++    if (wscan_eligible && FLAGS_cicada_wscan_delay_us != 0) {
++      ++ws.delayed;
++      const uint64_t before_round = wscan_rounds.load(std::memory_order_acquire);
++      ws.watch = ver;
++      ws.hit = false;
++      ++wscan_active;
++      wscan_scan_lock.unlock();
++      uint64_t remaining = FLAGS_cicada_wscan_delay_us;
++      while (remaining) {
++        const uint64_t slice = std::min<uint64_t>(remaining, 100);
++        std::this_thread::sleep_for(std::chrono::microseconds(slice));
++        remaining -= slice;
++        if (FLAGS_cicada_wscan_k2 && loadAcquire(GCFlag[thid_].obj_) == 0) {
++          storeRelease(GCFlag[thid_].obj_, 1);
++          ++ws.k2_flag_raises;
++        }
++      }
++      const uint64_t rounds =
++          wscan_rounds.load(std::memory_order_acquire) - before_round;
++      ws.rounds_sum += rounds;
++      ws.rounds_max = std::max(ws.rounds_max, rounds);
++      if (rounds >= 2) ++ws.rounds_ge2;
++      const bool insertion_reached = (*itr).new_ver_->ldAcqNext() != ver;
++      if (insertion_reached) ++ws.insertion_reached;
++      const bool reach_both = insertion_reached && rounds >= 2;
++      if (reach_both) ++ws.reach_both;
++      wscan_scan_lock = std::unique_lock<std::mutex>(wscan_mu);
++      if (ws.hit) {
++        ++ws.detached;
++        if (reach_both) ++ws.detached_reach_both;
++        ++ws.probe_aborts;
++        ws.watch = nullptr;
++        --wscan_active;
++        wscan_scan_lock.unlock();
++        result = false;
++        goto FINISH_VALIDATION;
++      }
++      bool scan_failed = false;
++      for (;;) {
++        VersionStatus status = ver->ldAcqStatus();
++        while (status == VersionStatus::pending) {
++          wscan_scan_lock.unlock();
++          std::this_thread::yield();
++          wscan_scan_lock.lock();
++          if (ws.hit) break;
++          status = ver->ldAcqStatus();
++        }
++        if (ws.hit) break;
++        if (status == VersionStatus::committed ||
++            status == VersionStatus::deleted) {
++          scan_failed = ver->ldAcqRts() > this->wts_.ts_ ||
++                        status == VersionStatus::deleted;
++          break;
++        }
++        ver = ver->ldAcqNext();
++        ws.watch = ver;
++      }
++      if (ws.hit) {
++        ++ws.post_scan_detached;
++        if (reach_both) ++ws.detached_reach_both;
++        ++ws.probe_aborts;
++      }
++      const bool scan_hit = ws.hit;
++      ws.watch = nullptr;
++      --wscan_active;
++      wscan_scan_lock.unlock();
++      if (scan_hit || scan_failed) {
++        result = false;
++        goto FINISH_VALIDATION;
++      }
++      continue;
++    }
++#endif
++#line 579
+     while (ver->ldAcqStatus() == VersionStatus::pending)
+       ;
+     while (ver->ldAcqStatus() != VersionStatus::committed &&
+@@ -1496,13 +1661,14 @@
+         ;
+     }
+ 
++#line 588
+     if (ver->ldAcqRts() > this->wts_.ts_ ||
+         ver->ldAcqStatus() == VersionStatus::deleted) {
+       result = false;
+       goto FINISH_VALIDATION;
+     }
+   }
+-
++#line 595
+   // validate the node set
+   for (auto it : node_map_) {
+     auto node = (MasstreeWrapper<Tuple>::node_type*) it.first;
+@@ -1745,6 +1911,12 @@
+     }
+     // this pointer may be dangling.
+ 
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++    std::unique_lock<std::mutex> wscan_gc_lock;
++    if (FLAGS_cicada_wscan_delay_us != 0)
++      wscan_gc_lock = std::unique_lock<std::mutex>(wscan_mu);
++#endif
++#line 831
+     Version* delTarget =
+         gcq_.front().ver_->next_.load(std::memory_order_acquire);
+ 
+@@ -1755,6 +1927,24 @@
+     for (Version* v = delTarget; v; v = v->ldAcqNext()) ++detached_count;
+     gc_report.detached(thid_, rdtscp(), gcq_.front().ver_, delTarget);
+     GC_DETACH(thid_, detached_count);
++#endif
++#line 836
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++    if (wscan_gc_lock.owns_lock()) {
++      if (wscan_active != 0) {
++        for (Version* candidate = delTarget; candidate;
++             candidate = candidate->ldAcqNext()) {
++          for (uint64_t i = 0; i < TotalThreadNum; ++i) {
++            auto& slot = wscan_slots[i];
++            if (slot.watch == candidate) {
++              slot.hit = true;
++              wscan_gc_detach_matches.fetch_add(1, std::memory_order_relaxed);
++            }
++          }
++        }
++      }
++      wscan_gc_lock.unlock();
++    }
+ #endif
+ #line 836
+     // updates record.min_wts
+@@ -1898,6 +2088,11 @@
+ #if CICADA_GC_COUNT
+   uint64_t now = rdtscp();
+   if (before && loadAcquire(GCFlag[0].obj_) == 0) gc_report.published(now);
++#if CICADA_GC_COUNT && CICADA_GC_SAFEPOINT && CICADA_LONGTX && CICADA_FWD_ENABLE
++  if (before && loadAcquire(GCFlag[0].obj_) == 0)
++    wscan_rounds.fetch_add(1, std::memory_order_release);
++#endif
++#line 967
+   gc_report.sample(now);
+ #endif
+ #line 964

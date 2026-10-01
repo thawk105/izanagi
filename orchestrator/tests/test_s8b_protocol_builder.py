@@ -87,7 +87,7 @@ _T2304_GOLDEN_SHA = "481fdf8e1ead63ef485a231ea92f3b8ee25c2df63c03688d7689cf56aeb
 
 
 # T-2858 builder output, independently recalculated and retained as literal bytes.
-_GOLDEN_BYTES = (
+_T2858_GOLDEN_BYTES = (
     b'{"allowed_excluded_reasons":["competing_process","launch_failure",'
     b'"nonfinite_or_partial_output","performance_anomaly"],'
     b'"ccbench_pin":"68106660686232781bca3be792a750d3e19d7a8a",'
@@ -102,7 +102,28 @@ _GOLDEN_BYTES = (
     b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
     b'"wired_min_rel_floor":0.05}'
 )
-_GOLDEN_SHA = "6eb63235232db8fd0b065e0e2805f59fa8aee1003964234982aeb39151e313d5"
+_T2858_GOLDEN_SHA = "6eb63235232db8fd0b065e0e2805f59fa8aee1003964234982aeb39151e313d5"
+
+
+# T-2854 F builder output, independently recalculated and retained as literal bytes.
+_GOLDEN_BYTES = (
+    b'{"allowed_excluded_reasons":["competing_process","launch_failure",'
+    b'"nonfinite_or_partial_output","performance_anomaly"],'
+    b'"ccbench_pin":"25898d00b9a6bbf09329ff8e8318c77d4f08b46e",'
+    b'"cell_cv_max":"0.15",'
+    b'"contract_sha256":"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7",'
+    b'"env_tag":"linux-baremetal","extime_s":5,"formula":"s8b-floor-stats/v2",'
+    b'"freeze":{"path":"output/s8b-freeze/holdout_freeze.json",'
+    b'"sha256":"315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"},'
+    b'"master_seed":"golden-master-seed","n_sessions":8,"reps":5,'
+    b'"retry_slots_per_cell":2,"scale_adequacy_rel_tolerance":"0.10",'
+    b'"schedule_algorithm":"round-permutation/v2","schema":"s8b-floor-protocol/v2",'
+    b'"session_cv_max":"0.10","stock_configuration":"stock_common",'
+    b'"wired_min_rel_floor":0.05}'
+)
+_GOLDEN_SHA = "4e0e69d6f4cae10abdebd51889549ecd6b55a0638c88faec62cc03ae1386c81d"
+_T2858_APPROVED_PROTOCOL_SHA = "6b0c326d5da7664a51d3d7716d71741c6ce1e2f654f23df33df8d0fe137a9eea"
+_APPROVED_PROTOCOL_SHA = "5004ceef4253fd4257ede7db2f97fcb5b6e9f959689bdbda6859e7580cfcdec6"
 
 
 def _requires_repo() -> None:
@@ -134,6 +155,8 @@ def test_builder_golden_bytes_and_sha_are_stable():
     built = _build_golden()
     assert built.canonical_bytes == _GOLDEN_BYTES, "canonical bytes が独立 golden と不一致"
     assert built.sha256 == _GOLDEN_SHA
+    assert built.canonical_bytes != _T2858_GOLDEN_BYTES
+    assert built.sha256 != _T2858_GOLDEN_SHA
     assert hashlib.sha256(built.canonical_bytes).hexdigest() == built.sha256
 
 
@@ -157,7 +180,8 @@ def test_approved_constants_protocol_bytes_match_parent_precalculation():
         wired_min_rel_floor=s8b_approved.APPROVED_WIRED_MIN_REL_FLOOR,
     )
     assert len(built.canonical_bytes) == 774
-    assert built.sha256 == "6b0c326d5da7664a51d3d7716d71741c6ce1e2f654f23df33df8d0fe137a9eea"
+    assert built.sha256 == _APPROVED_PROTOCOL_SHA
+    assert built.sha256 != _T2858_APPROVED_PROTOCOL_SHA
 
 
 def test_builder_rejects_holdout_conjunction_in_master_seed():
@@ -591,7 +615,7 @@ def test_freeze_protocol_success_writes_only_fixed_tmp_repo_path(tmp_path):
         "status": "frozen",
         "path": fc._FLOOR_PROTOCOL_REL,
         "byte_length": 774,
-        "sha256": "6b0c326d5da7664a51d3d7716d71741c6ce1e2f654f23df33df8d0fe137a9eea",
+        "sha256": _APPROVED_PROTOCOL_SHA,
     }
     assert len(raw) == outcome["byte_length"]
     assert hashlib.sha256(raw).hexdigest() == outcome["sha256"]
