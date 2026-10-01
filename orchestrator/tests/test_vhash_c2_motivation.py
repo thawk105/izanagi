@@ -264,7 +264,8 @@ def test_measure_medians_pair_within_round_and_select_gc():
     doc = dict(command="measure", schema_version=1, runs=rows)
     diagnostic = dict(command="measure", schema_version=1, runs=[_diag(arm=a) for a in C.ARMS])
     result = C.aggregate([doc, diagnostic], "measure")
-    pair = next(p for p in result["paired_ratios"] if p["gc"] == 10 and p["ratio"] == "R/S")
+    pair = next(p for p in result["paired_ratios"]
+                if p["kind"] == "perf" and p["gc"] == 10 and p["ratio"] == "R/S")
     assert pair["metrics"]["throughput_tps"] == 2  # ratio of medians would be 100/10
     assert result["main_gc"] == {POINT: 100}
     diag_median = next(m for m in result["medians"] if m["kind"] == "diag" and m["arm"] == "R")
