@@ -28414,6 +28414,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 5 の unit worktree を作る script の起点に、`git rev-parse` の出力を写さず短縮 SHA の後ろを推測で埋めた値を渡した。`git worktree add` が `Not a valid object name` (rc=255) で止まり、branch も worktree も作られなかった。`rev-parse` の 40 hex を写して作り直した。既存の再発検知 (object 名の失敗で推測 SHA を疑う) が効いた。
 
 - **再発: 2026-09-26 (near miss、[T-2865] wave)** — 段 6 の fix 用 branch を切る script に、wave commit の SHA を `git rev-parse` の出力から写さず短縮形 (`41b8019a9`) に 1 文字足して渡し、`git checkout -b` が `is not a commit` で拒否した。何も作られずに止まったので実害は無い。`rev-parse` の値で作り直した。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
+
+- **再発: 2026-09-30 (near miss、md_7 acceptance-pyc-warm wave)** — 変異用の独立 clone を作る script の引数に、統合 commit の 40 hex SHA を `git rev-parse` の出力から写さず、短縮形 (`f4920ddb3`) の後ろを推測で補完して渡した。`git update-ref` が nonexistent object で拒否し (clone 作成は rc 6 で停止)、`rev-parse` の出力で別名の clone を作り直した。同日の md_6 (acceptance-shard0-load) wave も worklog に同型を記録しており、変異元 clone の作成で繰り返し起きている。恒久対応は既存どおり (SHA は `rev-parse` の出力を逐語で写すか短縮形のまま渡す)。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。
@@ -29004,3 +29006,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 新しい防壁は足さない (guard は正しく拒否している)。親は Bash tool のコマンドに shell 変数・loop・`$()` を置かず、path を逐語で書く。
   繰り返す処理は job dir の `.sh` に path を固定して書き、`bash <絶対 path>.sh <逐語の引数>` の 1 行で呼ぶ。
 - 再発検知: 同じ session で guard の拒否文言 (「computed at runtime」「too complex to verify」) が 2 回目に出たら、以後のコマンドをすべて逐語 path 形に切り替える。
+
+### F1093. 縮小受入の plan が不適格理由を 1 file 1 参照しか出さず、insight の汎用名 (dir と file) の衝突を 2 回に分けて踏んだ [手順漏れ]
+
+- 事象: 2026-10-01 00:0x JST、md_7 (acceptance-pyc-warm) の記録 land 用に `tools/scoped_acceptance.py plan` を打つと、insight の下位 dir `data/`・`reviews/`・`rulings/` の全 file が `production-reference` で不適格になった。dir を固有名へ改めて打ち直すと、今度は `apw-measured/trees.json` だけが別の production file (`tools/pegasus/a5_second_boot_backoff_sweep.sh`) との一致で不適格になった。1 回目の理由には同じ file について dir 名側の参照 (`.codex/role-adapters/coder-v4-autonomous-k2.json`) しか出ておらず、file 名側の衝突が隠れていた。3 回目 (file 名も固有名へ) で eligible。実害は plan 2 回と改名 commit 2 本 (受入は投げる前)。
+- 根本原因: insight の置き場に `data/`・`reviews/`・`rulings/`・`trees.json` のような汎用名を使った。plan の理由は 1 file につき最初に見つかった production 参照 1 件だけなので、1 回の plan で全部の衝突を知ることができない。先行例 (`verbatim/` の dir 名、`summary.json` の改名) は memory `scoped-acceptance-verbatim-dir-ineligible` にあったが、「汎用名全般」へ一般化して読んでいなかった。
+- 恒久対応: memory `scoped-acceptance-verbatim-dir-ineligible` (dir 名の鍵) と本 F。縮小受入を狙う記録 wave は、insight の下位 dir と file の名前に wave 固有の接頭辞を付けて書き (例 `apw-measured/apw-trees.json`)、1 回目の plan の前に `git diff --name-only <tested main>..HEAD` の basename と dir 名を production 参照で一括照合する。道具側の改善候補: plan が file ごとの全 production 参照を列挙する (現状は先頭 1 件)。
+- 再発検知: plan の `reasons` が `production-reference:` を返したら、1 件直して打ち直す前に、同じ file の basename と各階層の dir 名を production で grep して、残る衝突を先に全部出す。
