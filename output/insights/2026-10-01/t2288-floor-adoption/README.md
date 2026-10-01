@@ -57,9 +57,12 @@ spec と最初の測定の前後で照合できたのは、spec 追加 commit �
   `binary b4-candidate を lstat できない` (`output/env/pegasus/binaries/7cdf0dc3…` が無い) で、うち 9 件は材料レポートの
   `authoritative_floor_rejected: spec_rejected_by_producer`、1 件は resolver を直接呼ぶ test の
   `B4FloorArtifactError: spec_rejected_by_producer`。残る 1 件は `test_source_and_test_are_the_only_non_output_worktree_changes`
-  で、未 commit の事前登録の差分を「output 外の変更」として拾ったもの (floor の値や binary を見ていない)。digest の外でも、ログ冒頭に
-  `test_outputs_contain_no_combining_diacritic_codepoints` と `test_cli_clean_subprocess_runs_twice_and_refuses_overwrite` の
-  同じ lstat 失敗の詳細が残っている。それ以外の赤の原因は個別には確かめていない。
+  で、未 commit の事前登録の差分を「output 外の変更」として拾ったもの (floor の値や binary を見ていない)。digest に抜粋の無い 25 件のうち、
+  `test_outputs_contain_no_combining_diacritic_codepoints` はログ冒頭に詳細が残り、同じ lstat 失敗だった。もう 1 件、ログ冒頭の
+  切れた断片が `output/env/pegasus/binaries` の No such file を含む子プロセスの stderr と
+  `test_p3_b4_material_report.py:1538: AssertionError` を残しており、1538 行は `test_cli_clean_subprocess_runs_twice_and_refuses_overwrite`
+  の `assert first.returncode == 0, first.stderr` である。この test の原因を lstat 失敗とするのは、この断片と行番号からの推定で、
+  test 名と例外の全文は残っていない。残る 23 件の原因は個別には確かめていない。
 - 経路: resolver が pin を見つけると `load_authoritative_floor` が集約を出所から組み直し、期待 spec を
   `floor_pair_driver.load_frozen_spec` で読み直す。その中の checkout 入力の束縛が binary の実在・hash・receipt・calibration を
   検査する。binary は ignored file で merge では移らず、checkout ごとに `b4_binary_record place` で置く運用である
@@ -113,9 +116,10 @@ codex の出力から、行末の半角空白 2 個 (Markdown の改行指定) �
 | `consult-a.md` | `070c595b0f5dd20069ef90f9e3e533000771bc1e3c77c463d49ae3bbcf4c61f8` / 8605 | 8570 | 3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,37,38 |
 | `consult-b.md` | `0a4a73e516a52e6f77616810e482c7fcd07e8b3580964471fecec6218f1afdd6` / 8297 | 8278 | 3,6,7,21,33,44,45,46,51,52 |
 | `review.md` | `c4fc9b234ea280ac0022d5a45bf22f52cc65772f1ba04e42fea3735e083a3a4f` / 3514 | 3506 | 3,6,9 (加えて 11 行目は空白 3 個だけの行で、3 個を削った) |
+| `focus.md` | `c085a47cdb7dabfc06c30d3cc834506a56f66f3676189cd7c72b269395f49797` / 3788 | 3785 | 11,14 |
 
 復元は、表の各行の行末へ半角空白 2 個 (`review.md` の 11 行目は 3 個) を足し、末尾の改行 1 byte を除く (この手順で原文 sha256 に
-戻ることを確かめた)。`s1-brief.md` と 3 本の prompt は原文のまま。
+戻ることを確かめた)。`s1-brief.md` と 4 本の prompt は原文のまま。
 
 ## 段 6 相当の read-only レビュー 1 本 (逐語は `verbatim/review.md`、prompt は `verbatim/review-prompt.md`)
 
@@ -129,10 +133,14 @@ codex の出力から、行末の半角空白 2 個 (Markdown の改行指定) �
 | 2 | commit 時刻から「その時点に結果が無かった」とは言えない | real・should・採用 | 記録時刻の順序の照合だけに狭めた |
 | 3 | 「抜粋 11 件」は failure digest 内の件数。10 件のうち authoritative_floor_rejected を伴うのは 9 件 | real・should・採用 | 内訳を書き直し、digest 外の 2 件の詳細も書いた |
 
+焦点再レビュー (逐語は `verbatim/focus.md`、prompt は `verbatim/focus-prompt.md`) は所見 1・2 を closed、3 を partial とし、
+should 2 件 (CLI の test の原因は断片と行番号からの推定にすぎない、「25 件は個別未確認」が追記と整合しない) を出した。
+2 件とも real と裁定し、推定であることと 25 件の内訳 (2 件確認・うち 1 件推定、23 件未確認) を書き直した (README・worklog fragment)。
+
 ## 主張しないこと
 
 - 集約の採用は、§5 floor 欄の記入でも事前登録の発効でもない。§5 は floor を含む 6 欄が `未記入` のままで、責任者行の開始時刻も
   `未記入` である。§6 の前提条件の充足も主張しない。
 - binary を置いた checkout で記入後に材料レポートと test が通ることは確かめていない。
-- 省略された 25 件の赤の原因、§0・§1 の全文への適合は個別に確かめていない。
+- digest に抜粋の無い 25 件のうち 23 件の赤の原因 (残る 2 件のうち 1 件は推定)、§0・§1 の全文への適合は個別に確かめていない。
 - 床値 0.09691 を性能差として解釈していない。

@@ -12,8 +12,9 @@ title: [T-2288] B-4 床値の集約を採用し pin 値を確定したが、§5 
 - 依頼 (md_3) は「採用裁定を行い、採用なら事前登録 §5 floor 欄へ記入する。docs のみ・計算 0」。採用裁定は {{D:b4-floor-adopt-defer-entry}}。
   **依頼は完了していない** — 記入を試した木で B-4 系 16 file + `test_check_docs.py` を `tools/run_tests.py` の自動判定で走らせると
   (計算ノード request `40678.nqsv`) 34 failed, 1258 passed, 3 skipped, 2 errors、記入を戻した木では赤の 4 file が 259 passed だった。
-  抜粋の残った 11 件のうち 10 件は spec が束縛する binary の lstat 失敗、1 件は wiring probe が未 commit の文書差分を拾ったもの、
-  25 件は抜粋省略で個別未確認。記入は戻してあり、事前登録の bytes は変えていない。
+  runner の failure digest に抜粋の残った 11 件のうち 10 件は spec が束縛する binary の lstat 失敗、1 件は wiring probe が未 commit の
+  文書差分を拾ったもの。digest に抜粋の無い 25 件のうち 2 件はログ冒頭の詳細から同じ lstat 失敗 (1 件は行番号からの推定) で、
+  23 件は個別未確認。記入は戻してあり、事前登録の bytes は変えていない。
 - 段 2・3 は省き、親の provisional 裁定を read-only codex 2 本 (sol・luna、ultra) で攻撃させた。レンズ A は記入保留を支持しつつ
   説明の一般化と完了扱いを直す条件で NO-GO、レンズ B は記入保留に限り GO。親は所見 14 件 (A 8・B 6) を裁定し、
   real と採った所見はすべて記録へ反映した (表は `output/insights/2026-10-01/t2288-floor-adoption/README.md`)。実装面の差分はゼロ。
