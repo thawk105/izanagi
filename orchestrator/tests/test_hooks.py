@@ -5469,7 +5469,8 @@ def test_cleanup_stop_blocks_commit_landed_after_ff_main(tmp_path):
     assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
 
 
-def test_cleanup_stop_blocks_landed_commit_after_another_ff_main(tmp_path):
+def test_cleanup_stop_blocks_landed_commit_after_another_ff_main(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
     main, wave = _stop_repo_after_ff_main(tmp_path)
     _stop_advance(wave)
     _stop_git(main, "merge", "--ff-only", "wave")
@@ -5479,12 +5480,16 @@ def test_cleanup_stop_blocks_landed_commit_after_another_ff_main(tmp_path):
     assert subjects[:-1] == [
         "merge main: Fast-forward", "commit: wave", "merge main: Fast-forward",
     ]
+    assert all(entry.split(" ")[1].endswith("@{1700000000}") for entry in (
+        _stop_timed_reflog(wave, "wave") + _stop_timed_reflog(main, "refs/heads/main")
+    ))
     block, reason = STOP.decide({"cwd": os.fspath(wave)})
     assert block
     assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
 
 
-def test_cleanup_stop_blocks_landed_ff_from_other_branch(tmp_path):
+def test_cleanup_stop_blocks_landed_ff_from_other_branch(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
     main, wave = _stop_repo(tmp_path)
     _stop_git(main, "checkout", "-q", "-b", "side")
     _stop_advance(main)
@@ -5495,6 +5500,9 @@ def test_cleanup_stop_blocks_landed_ff_from_other_branch(tmp_path):
     assert len(subjects) == 2
     assert subjects[0] == "merge side: Fast-forward"
     assert subjects[1].startswith("branch: Created from ")
+    assert all(entry.split(" ")[1].endswith("@{1700000000}") for entry in (
+        _stop_timed_reflog(wave, "wave") + _stop_timed_reflog(main, "refs/heads/main")
+    ))
     block, reason = STOP.decide({"cwd": os.fspath(wave)})
     assert block
     assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
@@ -5522,6 +5530,135 @@ def test_cleanup_stop_subprocess_allows_ff_main_with_zero_commits(tmp_path):
         text=True, timeout=5,
     )
     assert result.returncode == 0 and result.stdout == "" and result.stderr == ""
+
+
+def _stop_timed_reflog(cwd, ref):
+    return _stop_git(
+        cwd, "reflog", "show", "--date=unix", "--format=%H %gd %gs", ref,
+    ).split("\n")
+
+
+def test_cleanup_stop_blocks_landed_wave_without_creation_entry(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
+    main, wave = _stop_repo(tmp_path)
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000100 +0000")
+    _stop_advance(wave)
+    committed = _stop_git(wave, "rev-parse", "HEAD")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000200 +0000")
+    _stop_git(main, "merge", "--ff-only", "wave")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000300 +0000")
+    _stop_git(main, "commit", "--allow-empty", "-qm", "advance main")
+    head = _stop_git(main, "rev-parse", "HEAD")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000400 +0000")
+    _stop_git(wave, "merge", "--ff-only", "main")
+    _stop_git(wave, "reflog", "delete", "wave@{2}")
+    assert _stop_timed_reflog(wave, "wave") == [
+        f"{head} wave@{{1700000400}} merge main: Fast-forward",
+        f"{committed} wave@{{1700000100}} commit: wave",
+    ]
+    assert _stop_timed_reflog(main, "refs/heads/main")[0] == (
+        f"{head} main@{{1700000300}} commit: advance main"
+    )
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (True, STOP.REASON)
+
+
+def test_cleanup_stop_blocks_landed_unicode_subject(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
+    main, wave = _stop_repo(tmp_path)
+    base = _stop_git(wave, "rev-parse", "HEAD")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000100 +0000")
+    _stop_git(wave, "commit", "--allow-empty", "-qm", "fix\u2028details")
+    head = _stop_git(wave, "rev-parse", "HEAD")
+    _stop_git(main, "merge", "--ff-only", "wave")
+    assert _stop_timed_reflog(wave, "wave") == [
+        f"{head} wave@{{1700000100}} commit: fix\u2028details",
+        f"{base} wave@{{1700000000}} branch: Created from HEAD",
+    ]
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (True, STOP.REASON)
+
+
+def test_cleanup_stop_blocks_landed_oldest_empty_subject(tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
+    main, _ = _stop_repo(tmp_path)
+    base = _stop_git(main, "rev-parse", "HEAD")
+    wave = tmp_path / "empty-wave"
+    _stop_git(main, "update-ref", "--create-reflog", "refs/heads/empty-wave", base)
+    _stop_git(main, "worktree", "add", "-q", os.fspath(wave), "empty-wave")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000100 +0000")
+    _stop_advance(wave)
+    head = _stop_git(wave, "rev-parse", "HEAD")
+    _stop_git(main, "merge", "--ff-only", "empty-wave")
+    raw = subprocess.run(
+        ["git", "-C", os.fspath(wave), "reflog", "show", "--format=%H %gs", "empty-wave"],
+        capture_output=True, text=True, check=True, timeout=2,
+    ).stdout
+    assert raw.split("\n") == [f"{head} commit: wave", f"{base} ", ""]
+    assert _stop_timed_reflog(wave, "empty-wave") == [
+        f"{head} empty-wave@{{1700000100}} commit: wave",
+        f"{base} empty-wave@{{1700000000}}",
+    ]
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (True, STOP.REASON)
+
+
+@pytest.mark.parametrize("source", ["tag", "reflog_action"])
+def test_cleanup_stop_blocks_landed_spoofed_ff_main(tmp_path, monkeypatch, source):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
+    main, wave = _stop_repo(tmp_path)
+    base = _stop_git(main, "rev-parse", "HEAD")
+    if source == "tag":
+        monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000100 +0000")
+        _stop_git(main, "checkout", "-q", "-b", "side")
+        _stop_advance(main)
+        _stop_git(main, "checkout", "-q", "main")
+        _stop_git(main, "tag", "main", "side")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000200 +0000")
+    if source == "tag":
+        _stop_git(wave, "merge", "--ff-only", "main")
+    else:
+        with monkeypatch.context() as action:
+            action.setenv("GIT_REFLOG_ACTION", "merge main")
+            _stop_git(wave, "commit", "--allow-empty", "-qm", "Fast-forward")
+    head = _stop_git(wave, "rev-parse", "HEAD")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000300 +0000")
+    _stop_git(main, "merge", "--ff-only", "wave")
+    assert _stop_timed_reflog(wave, "wave") == [
+        f"{head} wave@{{1700000200}} merge main: Fast-forward",
+        f"{base} wave@{{1700000000}} branch: Created from HEAD",
+    ]
+    selector = "heads/main" if source == "tag" else "main"
+    assert _stop_timed_reflog(main, "refs/heads/main") == [
+        f"{head} {selector}@{{1700000300}} merge wave: Fast-forward",
+        f"{base} {selector}@{{1700000000}} commit (initial): base",
+    ]
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (True, STOP.REASON)
+
+
+@pytest.mark.parametrize("ref, main_selector", [
+    ("main", "main"), ("refs/heads/main", "main"), ("refs/heads/main", "heads/main"),
+])
+@pytest.mark.parametrize("ff_time", [1700000100, 1700000200])
+def test_cleanup_stop_allows_ff_main_at_or_after_main_update(
+    tmp_path, monkeypatch, ref, main_selector, ff_time,
+):
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000000 +0000")
+    main, wave = _stop_repo(tmp_path)
+    base = _stop_git(main, "rev-parse", "HEAD")
+    if main_selector == "heads/main":
+        _stop_git(main, "tag", "main")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "1700000100 +0000")
+    _stop_git(main, "commit", "--allow-empty", "-qm", "advance main")
+    head = _stop_git(main, "rev-parse", "HEAD")
+    monkeypatch.setenv("GIT_COMMITTER_DATE", f"{ff_time} +0000")
+    _stop_git(wave, "merge", "--ff-only", ref)
+    assert _stop_timed_reflog(main, "refs/heads/main") == [
+        f"{head} {main_selector}@{{1700000100}} commit: advance main",
+        f"{base} {main_selector}@{{1700000000}} commit (initial): base",
+    ]
+    assert _stop_timed_reflog(wave, "wave") == [
+        f"{head} wave@{{{ff_time}}} merge {ref}: Fast-forward",
+        f"{base} wave@{{1700000000}} branch: Created from HEAD",
+    ]
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (False, "")
 
 
 def test_hook_scripts_run_as_subprocess():
