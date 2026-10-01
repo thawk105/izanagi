@@ -1,0 +1,631 @@
+{
+  "external_inputs": [
+    {
+      "kind": "raw_cell",
+      "path": "jobs/rr5/raw/rr5-stock.json",
+      "sha256": "783e4f40b81394b8e8ee370010457ddb8c3a97aae67550f6ccca2b7bf5da8713",
+      "cell_id": "rr5-stock"
+    },
+    {
+      "kind": "raw_cell",
+      "path": "jobs/rr5/raw/rr5-fixed5.json",
+      "sha256": "5e035201f438c7482eaf75b0f77dc5d4f047e7fedf7beb92291524dda3129ebc",
+      "cell_id": "rr5-fixed5"
+    },
+    {
+      "kind": "raw_cell",
+      "path": "jobs/rr50/raw/rr50-stock.json",
+      "sha256": "8231b535b6483a263c314548f8c6801f38c5ad79e5a9f7404636ae258fb926a3",
+      "cell_id": "rr50-stock"
+    },
+    {
+      "kind": "raw_cell",
+      "path": "jobs/rr50/raw/rr50-fixed5.json",
+      "sha256": "aeccf4ed63dce4e7d4a0351304fc947dcfe8cf8891c3c4c56376541898df715c",
+      "cell_id": "rr50-fixed5"
+    },
+    {
+      "kind": "raw_cell",
+      "path": "jobs/rr95/raw/rr95-stock.json",
+      "sha256": "59f958845f169376b37af2e078166f8cc09e305d6adbeb20f168321f55932c68",
+      "cell_id": "rr95-stock"
+    },
+    {
+      "kind": "raw_cell",
+      "path": "jobs/rr95/raw/rr95-fixed5.json",
+      "sha256": "6c6192ec27e7423931a0b549ffae27253ae8941cec3fc5f3dc6820bbe0535908",
+      "cell_id": "rr95-fixed5"
+    }
+  ],
+  "study": "paper-story-b7-fixed5-regression",
+  "attempt_id": "b7f5-r2-20261001a",
+  "source_commit": "db710338dd443d30a5b7c06da2e2a06afb092175",
+  "ccbench_pin": "6810666",
+  "request_ids": {
+    "rr5": "40685.nqsv",
+    "rr50": "40686.nqsv",
+    "rr95": "40687.nqsv"
+  },
+  "outer_status": "reject",
+  "a4_noise_floor_status": "open",
+  "measurement_conditions": {
+    "threads": 48,
+    "records": 1000000,
+    "skew": "0.9",
+    "rmw": "0",
+    "max_ope": "10",
+    "extime": 3,
+    "reps": 5,
+    "ccbench_protocol": "silo"
+  },
+  "effects": {
+    "rr5": 0.6239734604583511,
+    "rr50": 0.1389998460596873,
+    "rr95": -0.11449452408913763
+  },
+  "floors": {
+    "rr5": {
+      "cv": 0.009536033056996148,
+      "sessions": 8,
+      "reps_per_session": 5,
+      "path": "output/env/pegasus/calibration/between_run_noise_t48_skew0p9_rr5_rmw0.json"
+    },
+    "rr50": {
+      "cv": 0.00725042525457718,
+      "sessions": 8,
+      "reps_per_session": 5,
+      "path": "output/env/pegasus/calibration/between_run_noise_t48_skew0p9_rr50_rmw0.json"
+    },
+    "rr95": {
+      "cv": 0.0022283754708938273,
+      "sessions": 8,
+      "reps_per_session": 5,
+      "path": "output/env/pegasus/calibration/between_run_noise_t48_skew0p9_rr95_rmw0.json"
+    }
+  },
+  "judgments": {
+    "rr5": {
+      "recorded": "no-regression",
+      "predicate": "effect < -floor (strict)",
+      "effect": 0.6239734604583511,
+      "neg_floor": -0.009536033056996148,
+      "computed_matches_recorded": true
+    },
+    "rr50": {
+      "recorded": "no-regression",
+      "predicate": "effect < -floor (strict)",
+      "effect": 0.1389998460596873,
+      "neg_floor": -0.00725042525457718,
+      "computed_matches_recorded": true
+    },
+    "rr95": {
+      "recorded": "regression",
+      "predicate": "effect < -floor (strict)",
+      "effect": -0.11449452408913763,
+      "neg_floor": -0.0022283754708938273,
+      "computed_matches_recorded": true
+    }
+  },
+  "cells": [
+    {
+      "cell_id": "rr5-stock",
+      "workload": "rr5",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "src_token": "stock",
+      "perf_bin_sha256": "f5dafb86911f9e245dbf503b336d2df8783a8ed761d01f5cc9e964fc1ee90854",
+      "trace_bin_sha256": "a5da6e912cd614ede93e68a33bf0926488f943efa253a3933cd2cd008c153843",
+      "label": "write-heavy",
+      "samples_tps": [
+        2688859.0,
+        2541285.0,
+        2521822.0,
+        2516911.0,
+        2496722.0
+      ],
+      "median_tps": 2521822.0,
+      "mean_tps": 2553119.8,
+      "stdev_tps": 77518.6013721868,
+      "ci95_half_tps": 96252.05651495342,
+      "correctness": {
+        "status": "certified",
+        "legacy_records": 1,
+        "performance_records": 5,
+        "verdicts_all_serializable": true
+      }
+    },
+    {
+      "cell_id": "rr5-fixed5",
+      "workload": "rr5",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "src_token": "678b7203aa1f9fdca4c35f9b3219d0b9662b60b22331484027adfc6c34580b12",
+      "perf_bin_sha256": "c3672aeff7de18542dce84573c5c917dfa84babcdffa225421bfb11a3c3ef20f",
+      "trace_bin_sha256": "f2cdd7ee5a76ef7d53d1248146ddd99c60dda52abb591348132474499d727309",
+      "label": "write-heavy",
+      "samples_tps": [
+        4207721.0,
+        4152503.0,
+        4095372.0,
+        4068650.0,
+        4066885.0
+      ],
+      "median_tps": 4095372.0,
+      "mean_tps": 4118226.2,
+      "stdev_tps": 60828.14136318814,
+      "ci95_half_tps": 75528.11320832008,
+      "correctness": {
+        "status": "certified",
+        "legacy_records": 1,
+        "performance_records": 5,
+        "verdicts_all_serializable": true
+      }
+    },
+    {
+      "cell_id": "rr50-stock",
+      "workload": "rr50",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "src_token": "stock",
+      "perf_bin_sha256": "8149ff4c130953b4e5d5ffea82cd00cc89da1232e4fda733af2e3cd4b5871c0d",
+      "trace_bin_sha256": "44134ab9a2887963fa890fd0b4d2c97d4c07addbc714c0a29de1a2066665d84a",
+      "label": "balanced",
+      "samples_tps": [
+        4006501.0,
+        3754702.0,
+        3622265.0,
+        3743909.0,
+        3755777.0
+      ],
+      "median_tps": 3754702.0,
+      "mean_tps": 3776630.8,
+      "stdev_tps": 140228.0094139541,
+      "ci95_half_tps": 174116.07082908566,
+      "correctness": {
+        "status": "certified",
+        "legacy_records": 1,
+        "performance_records": 5,
+        "verdicts_all_serializable": true
+      }
+    },
+    {
+      "cell_id": "rr50-fixed5",
+      "workload": "rr50",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "src_token": "678b7203aa1f9fdca4c35f9b3219d0b9662b60b22331484027adfc6c34580b12",
+      "perf_bin_sha256": "eda8a436ce2c358b4b1bd83910b72b0f975743389f94d5b3dd4c94cf51da9c07",
+      "trace_bin_sha256": "e267aadaa1d01489f1ab19e453c6cd2bac485d13f8c8fc5f968762972e74ece0",
+      "label": "balanced",
+      "samples_tps": [
+        4396895.0,
+        4248262.0,
+        4276605.0,
+        4301120.0,
+        4271456.0
+      ],
+      "median_tps": 4276605.0,
+      "mean_tps": 4298867.6,
+      "stdev_tps": 57927.52018945745,
+      "ci95_half_tps": 71926.51632447114,
+      "correctness": {
+        "status": "certified",
+        "legacy_records": 1,
+        "performance_records": 5,
+        "verdicts_all_serializable": true
+      }
+    },
+    {
+      "cell_id": "rr95-stock",
+      "workload": "rr95",
+      "role": "stock",
+      "genome": {
+        "BACKOFF_FIXED": -1,
+        "BACK_OFF": 0
+      },
+      "src_token": "stock",
+      "perf_bin_sha256": "3636d27cbabb333d8b96bfb642098f409cb70a7fe39fd2f81716b4d51587f54c",
+      "trace_bin_sha256": "4235bb1d9b110cdc5185c611c7842dfe6d94f4509a4aa52b557a08ee3ca56db8",
+      "label": "read-heavy",
+      "samples_tps": [
+        10550235.0,
+        10287147.0,
+        10031996.0,
+        10253434.0,
+        10287587.0
+      ],
+      "median_tps": 10287147.0,
+      "mean_tps": 10282079.8,
+      "stdev_tps": 183933.21201920006,
+      "ci95_half_tps": 228383.247438221,
+      "correctness": {
+        "status": "certified",
+        "legacy_records": 1,
+        "performance_records": 5,
+        "verdicts_all_serializable": true
+      }
+    },
+    {
+      "cell_id": "rr95-fixed5",
+      "workload": "rr95",
+      "role": "adopted",
+      "genome": {
+        "BACKOFF_FIXED": 5,
+        "BACK_OFF": 1
+      },
+      "src_token": "678b7203aa1f9fdca4c35f9b3219d0b9662b60b22331484027adfc6c34580b12",
+      "perf_bin_sha256": "e434b84bee3ca1a81c560a356c218ae0e56f76d65b5dc5bce448b134a920cb0f",
+      "trace_bin_sha256": "167fba0a5a0509d5088ac973180d41196587319c4b0e51078348043342dc7052",
+      "label": "read-heavy",
+      "samples_tps": [
+        9348620.0,
+        9133531.0,
+        9093970.0,
+        9109325.0,
+        9040000.0
+      ],
+      "median_tps": 9109325.0,
+      "mean_tps": 9145089.2,
+      "stdev_tps": 118842.72075184075,
+      "ci95_half_tps": 147562.7278061443,
+      "correctness": {
+        "status": "certified",
+        "legacy_records": 1,
+        "performance_records": 5,
+        "verdicts_all_serializable": true
+      }
+    }
+  ],
+  "effect_crosschecks": {
+    "rr5": {
+      "computed": 0.6239734604583511,
+      "authority_matches": true
+    },
+    "rr50": {
+      "computed": 0.1389998460596873,
+      "authority_matches": true
+    },
+    "rr95": {
+      "computed": -0.11449452408913763,
+      "authority_matches": true
+    }
+  },
+  "tracked_inputs": [
+    {
+      "kind": "certification",
+      "path": "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json",
+      "sha256": "88a3a6bbd2eddecd95f715c00618612d676224811d0e53d15d3edd219284d2f0",
+      "repo_tracked_leaf": false,
+      "authority_scope": "external collect input; actual absolute location; not the repository's tracked leaf; expected SHA-256 supplied by /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/output/insights/2026-10-01/t2853-r2-fig10/r2-record.json"
+    },
+    {
+      "kind": "raw_manifest",
+      "path": "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload/raw-manifest.json",
+      "sha256": "7918298a24d5124018b59ea8dd6c0a6bd67731209390ff351c4a73242a68ff8f",
+      "repo_tracked_leaf": false,
+      "authority_scope": "external collect input; actual absolute location; not the repository's tracked leaf; expected SHA-256 supplied by /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/output/insights/2026-10-01/t2853-r2-fig10/r2-record.json"
+    },
+    {
+      "kind": "floor_rr5",
+      "path": "output/env/pegasus/calibration/between_run_noise_t48_skew0p9_rr5_rmw0.json",
+      "sha256": "25b4d2a070ad6e5ebf44973e134d7149a9fa0ec9996b3d6ef0f37a5b7b5a34b8"
+    },
+    {
+      "kind": "floor_rr50",
+      "path": "output/env/pegasus/calibration/between_run_noise_t48_skew0p9_rr50_rmw0.json",
+      "sha256": "a94dc83ed21c8f9e390b1af642487c10e551f8f6e75ee977e9bad948fd745b26"
+    },
+    {
+      "kind": "floor_rr95",
+      "path": "output/env/pegasus/calibration/between_run_noise_t48_skew0p9_rr95_rmw0.json",
+      "sha256": "23c024e467559b238b58ef9c32c144f78d23cb48ad7aafd6bbc02cd108842ce7"
+    },
+    {
+      "kind": "policy",
+      "path": "orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json",
+      "sha256": "c6b24050d17c4bc552d254ce65e328b3a6edca919387b5720b4e025ea78b0df1"
+    },
+    {
+      "kind": "caption_source",
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/output/insights/2026-10-01/t2853-r2-fig10/r2-record.json",
+      "sha256": "0a060c638d6bd84d4f85ef1f498a42841e79220b58f66d4763ba121e84f2d72b",
+      "authority_scope": "parent-supplied expected input hashes and independently recorded floor judgments; not computed by the wrapper; R2 status and scope: output/insights/2026-10-01/t2853-r2-fig10/README.md"
+    },
+    {
+      "kind": "r2_insight",
+      "path": "output/insights/2026-10-01/t2853-r2-fig10/README.md",
+      "sha256": "70c11b46e29483e5832686cba326bd66262a6592cee8ac70390e5db097b0e9bc",
+      "authority_scope": "R2 status, scope, and predeclared judgment rule; not measurement values"
+    },
+    {
+      "kind": "original_results_context",
+      "path": "docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md",
+      "sha256": "6585d446a07d798d87c352a1b41eb5b195ee70ba453976aa5ec0f46daef4b6f9",
+      "authority_scope": "original attempt's results and unchanged limitations; not R2 judgments"
+    }
+  ],
+  "schema": "izanagi-b7-fixed5-regression-figure-provenance/v1",
+  "generated_utc": "2026-10-01T01:57:40.540201+00:00",
+  "generator": {
+    "path": "tools/plotting/plot_b7_fixed5_regression.py",
+    "sha256": "f78da66d4666455dec4da843f51c2c3ea5e7b10fbac2e91ede3d680f480b795f"
+  },
+  "outputs": [
+    {
+      "path": "../../../../izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload.png",
+      "sha256": "b91335719138c2acedba2b1c691c0b0f9ab5b84eb818e3671d328d93b8ffa51e"
+    },
+    {
+      "path": "../../../../izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload.pdf",
+      "sha256": "398e29678bd4127fd498e80ce59b17d135d8aac1cbec8ba211cfe366f6dc06a9"
+    }
+  ],
+  "artist_series": [
+    {
+      "cell_id": "rr5-stock",
+      "kind": "sample-points",
+      "x": 0,
+      "values": [
+        2688859.0,
+        2541285.0,
+        2521822.0,
+        2516911.0,
+        2496722.0
+      ]
+    },
+    {
+      "cell_id": "rr5-stock",
+      "kind": "median",
+      "x": 0,
+      "values": [
+        2521822.0
+      ]
+    },
+    {
+      "cell_id": "rr5-stock",
+      "kind": "mean-ci95",
+      "x": 0,
+      "values": [
+        2553119.8,
+        96252.05651495342
+      ]
+    },
+    {
+      "cell_id": "rr5-fixed5",
+      "kind": "sample-points",
+      "x": 1,
+      "values": [
+        4207721.0,
+        4152503.0,
+        4095372.0,
+        4068650.0,
+        4066885.0
+      ]
+    },
+    {
+      "cell_id": "rr5-fixed5",
+      "kind": "median",
+      "x": 1,
+      "values": [
+        4095372.0
+      ]
+    },
+    {
+      "cell_id": "rr5-fixed5",
+      "kind": "mean-ci95",
+      "x": 1,
+      "values": [
+        4118226.2,
+        75528.11320832008
+      ]
+    },
+    {
+      "workload": "rr5",
+      "kind": "stock-median",
+      "value": 2521822.0
+    },
+    {
+      "workload": "rr5",
+      "kind": "effect-label",
+      "label": "+62.3973%"
+    },
+    {
+      "workload": "rr5",
+      "kind": "effect-floor",
+      "effect_pct": 62.397346045835114,
+      "neg_floor_pct": -0.9536033056996148,
+      "judgment": "no-regression",
+      "zero": 0
+    },
+    {
+      "cell_id": "rr50-stock",
+      "kind": "sample-points",
+      "x": 0,
+      "values": [
+        4006501.0,
+        3754702.0,
+        3622265.0,
+        3743909.0,
+        3755777.0
+      ]
+    },
+    {
+      "cell_id": "rr50-stock",
+      "kind": "median",
+      "x": 0,
+      "values": [
+        3754702.0
+      ]
+    },
+    {
+      "cell_id": "rr50-stock",
+      "kind": "mean-ci95",
+      "x": 0,
+      "values": [
+        3776630.8,
+        174116.07082908566
+      ]
+    },
+    {
+      "cell_id": "rr50-fixed5",
+      "kind": "sample-points",
+      "x": 1,
+      "values": [
+        4396895.0,
+        4248262.0,
+        4276605.0,
+        4301120.0,
+        4271456.0
+      ]
+    },
+    {
+      "cell_id": "rr50-fixed5",
+      "kind": "median",
+      "x": 1,
+      "values": [
+        4276605.0
+      ]
+    },
+    {
+      "cell_id": "rr50-fixed5",
+      "kind": "mean-ci95",
+      "x": 1,
+      "values": [
+        4298867.6,
+        71926.51632447114
+      ]
+    },
+    {
+      "workload": "rr50",
+      "kind": "stock-median",
+      "value": 3754702.0
+    },
+    {
+      "workload": "rr50",
+      "kind": "effect-label",
+      "label": "+13.9000%"
+    },
+    {
+      "workload": "rr50",
+      "kind": "effect-floor",
+      "effect_pct": 13.89998460596873,
+      "neg_floor_pct": -0.725042525457718,
+      "judgment": "no-regression",
+      "zero": 0
+    },
+    {
+      "cell_id": "rr95-stock",
+      "kind": "sample-points",
+      "x": 0,
+      "values": [
+        10550235.0,
+        10287147.0,
+        10031996.0,
+        10253434.0,
+        10287587.0
+      ]
+    },
+    {
+      "cell_id": "rr95-stock",
+      "kind": "median",
+      "x": 0,
+      "values": [
+        10287147.0
+      ]
+    },
+    {
+      "cell_id": "rr95-stock",
+      "kind": "mean-ci95",
+      "x": 0,
+      "values": [
+        10282079.8,
+        228383.247438221
+      ]
+    },
+    {
+      "cell_id": "rr95-fixed5",
+      "kind": "sample-points",
+      "x": 1,
+      "values": [
+        9348620.0,
+        9133531.0,
+        9093970.0,
+        9109325.0,
+        9040000.0
+      ]
+    },
+    {
+      "cell_id": "rr95-fixed5",
+      "kind": "median",
+      "x": 1,
+      "values": [
+        9109325.0
+      ]
+    },
+    {
+      "cell_id": "rr95-fixed5",
+      "kind": "mean-ci95",
+      "x": 1,
+      "values": [
+        9145089.2,
+        147562.7278061443
+      ]
+    },
+    {
+      "workload": "rr95",
+      "kind": "stock-median",
+      "value": 10287147.0
+    },
+    {
+      "workload": "rr95",
+      "kind": "effect-label",
+      "label": "-11.4495%"
+    },
+    {
+      "workload": "rr95",
+      "kind": "effect-floor",
+      "effect_pct": -11.449452408913762,
+      "neg_floor_pct": -0.22283754708938272,
+      "judgment": "regression",
+      "zero": 0
+    }
+  ],
+  "caption": "Figure 10. B-7 R2 reproduction-package attempt: static backoff fixed 5 us versus stock (no backoff) in three workloads, attempt b7f5-r2-20261001a (separate from original attempt b7f5-20260919a) (study paper-story-b7-fixed5-regression; outer status reject; a4_noise_floor_status open). Columns: write-heavy (rr5, request 40685.nqsv), balanced (rr50, request 40686.nqsv), read-heavy (rr95, request 40687.nqsv), each an independent campaign in its own request, with the stock control measured in the same campaign immediately before the adopted cell. Top row: all five trace-disabled performance samples per cell; short bars are medians; diamonds with error bars are sample means with t-distribution 95% confidence intervals (df 4); the gray dashed line is the workload's stock median and the effect denominator. Bottom row: median effects copied from certification (adopted median / stock median - 1): write-heavy +62.3973%, balanced +13.9000%, read-heavy -11.4495%; dashed ticks mark -floor per workload: write-heavy -0.9536%, balanced -0.7250%, read-heavy -0.2228%. The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor: the coefficient of variation of the per-session medians of the stock genome across 8 earlier sessions of 5 repetitions under the same settings, recorded as a lower bound; identity of binary, toolchain and node between that floor measurement and this attempt is not established. Result of that rule: write-heavy no regression, balanced no regression, read-heavy regression (below -floor). No regression is neither superiority nor proof of no difference; the floor is not the standard error of the effect, and no significance decision is made. In the original attempt, the outer status was the protocol's conjunction over the three workloads and followed from the negative read-heavy effect; it was not a research verdict. The outer status reported above is copied from this attempt's certification, not a research verdict. Original attempt's results note: docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md; R2 context: output/insights/2026-10-01/t2853-r2-fig10/README.md. This R2 reproduction-package attempt supplies B-7 material, not a B-7 satisfaction decision (D2044 item 3). This figure reports one R2 reproduction-package attempt of five samples per cell (separate from original attempt b7f5-20260919a); it does not promote the certification and does not speak to repeated attempts. Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification. Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s per repetition, 5 repetitions, silo, CCBench pin 6810666, source commit db710338d, no perf, trace-disabled performance; the adopted cells share one source bytes digest across workloads but each workload is a separate build (binaries differ). M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, medians, or the floor judgment. Top-row y axes are workload-local and must not be compared across panels. Existing materials with other adopted values are neither pooled nor compared.",
+  "reproduction": {
+    "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10",
+    "argv": [
+      "/usr/bin/python3.10",
+      "-B",
+      "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/tools/t2853_r2_fig10_plot.py",
+      "--generator",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/tools/plotting/plot_b7_fixed5_regression.py",
+      "r2",
+      "--measurement-root",
+      "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a",
+      "--certification",
+      "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json",
+      "--raw-manifest",
+      "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload/raw-manifest.json",
+      "--r2-record",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/output/insights/2026-10-01/t2853-r2-fig10/r2-record.json",
+      "--results-document",
+      "output/insights/2026-10-01/t2853-r2-fig10/README.md",
+      "--out-prefix",
+      "/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload"
+    ],
+    "command": "/usr/bin/python3.10 -B /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/tools/t2853_r2_fig10_plot.py --generator /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/tools/plotting/plot_b7_fixed5_regression.py r2 --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a --certification /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload/certification.json --raw-manifest /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload/raw-manifest.json --r2-record /work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig10/output/insights/2026-10-01/t2853-r2-fig10/r2-record.json --results-document output/insights/2026-10-01/t2853-r2-fig10/README.md --out-prefix /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload",
+    "wrapper_sha256": "4674508a78aa88b87b9b5e73a2f420bbe267209dff62b0549610c76805398877"
+  }
+}

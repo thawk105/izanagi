@@ -46,3 +46,178 @@
     R2 の値を他の機体・pin・protocol・採用値へ外挿しない。
 11. **trace 保全口 (D2233) は使わない。** driver の `qsub -v` は job へ渡す環境変数を固定で列挙し、`IZANAGI_TRACE_ARCHIVE_ROOT` を渡す口が無い。driver は変えないので、R2 の trace は保全されず R1 (保存 trace の再判定) の入力にならない。
 12. **待ち行列の扱い。** 投入の直前に `qstat` を見て、生成器対照の本走 (job 名 `izs4loop` 系) に待ち (QUE) があれば、投入後に本 wave の request の優先度を `qalter -p` で下げる (本走を追い越さない)。
+
+## 結論 (§0 の後に、結果を見てから書いた)
+
+1. **fig10 の測定 (B-7、3 workload × stock 対 fixed 5 µs、各 5 標本) を、現行 repo の certification driver で Pegasus に 1 回投げて測り直した。** attempt `b7f5-r2-20261001a`、3 request
+   (`40685` rr5・`40686` rr50・`40687` rr95、各 5 node、2026-10-01 10:30〜10:56 JST) はすべて完走し (driver_rc 0)、finish-group と collect も終了コード 0 だった。投げ直しは無い (§2)。
+   計測に使った CCBench pin は **`6810666`** (投入 checkout の gitlink、`compute-result.json` の `current_pin`)。投入後の 10:54 に main の pin は `25898d00` へ変わったが、R2 には関係しない。
+2. **R2 の outer status は `reject`、効果 (adopted 中央値 / stock 中央値 − 1) は rr5 +62.3973%・rr50 +13.9000%・rr95 −11.4495%。** 床値判定 (§0 項 7 の規則) は rr5・rr50 が no-regression、rr95 が regression。
+   6 cell すべて正しさ `certified` (legacy 1・performance 5、trace 有効の別走)、source binding `bound` (§3)。原 attempt (`reject`、+67.8968%・+12.6717%・−11.3787%、判定も同じ並び) と並べるが、§0 項 4 のとおり合成せず、近さ・一致を再現精度として評価しない。
+3. **原 fig10 と同じ生成器 (bytes 不変) で R2 の図を描いた。** 生成器の受理検査・閉包検査・レイアウト検査はすべて通った。repo 外の wrapper が差し替えたのは §0 項 8 の範囲 (attempt id・入力の所在と期待 hash・記録された判定・caption の地位語 4 箇所) だけである (§5)。
+   同じ wrapper で原 attempt を原 metadata のまま描くと、既存 fig10 の provenance と `artist_series` が完全一致した (陽性対照)。
+4. **原 attempt と R2 を並べた表**を、同じ生成器の `load_evidence` (全検査つき) を attempt ごとに別々に呼んで作った (§4)。
+5. **計算は承認量 3.40 node 時間の約 1.9 倍の 6.39 node 時間を使った。** 原因は、全 node 共有の bench lock で R2 自身の 3 job の性能検証と bench が 1 列に並んだことである (§7)。途中で land 調整役へ示し、診断の後に継続の承認を得た (§6)。測定値の汚染は無い。
+
+## 1. 経路と投入前の前提
+
+- **投入 checkout。** local main `db710338d` の detached worktree `/work/1/SFC/tanab/tmp/t2853-r2-fig10-20261001/submit-tree` (submodule 再帰初期化、CCBench `68106660`) から投げた。
+  job が照合する HEAD と repo root が wave の branch の進みで動かないようにするためである。投入直前に untracked を含めて clean (`verbatim/precheck-patch.log` の `submit_tree_dirty_incl_untracked=0`)。
+- **依存元。** `--dependency-prefix-source /work/1/SFC/tanab/izanagi-a2-deps`。third-party は永続 cache から `tools/pegasus/fetch_third_party.py hydrate` で repo 外の新 staging
+  `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/thirdparty-src` を作って渡した。5 本とも head = policy pin (`verbatim/hydrate.log`)。
+- **patch の事前確認。** login で driver と同じ素の `git apply --check` により、静的 backoff patch が pin `6810666` の木へ当たることを確かめた (`verbatim/precheck-patch.log`、rc 0)。condition gate・実 compiler・兄弟 node への検証 fanout は job 自身の測定前検査に任せた (通った)。
+- **待ち行列。** 投入直前 (10:29) の `qstat` に `izs4loop` 系の request は無く、`qalter -p` は使っていない (§0 項 12)。
+- **collect の書き先。** collect は `<repo_root>/<tracked_destination>` へ materialize するので、`--repo-root` に repo 外の空 dir `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root` を渡した。
+  原 attempt の tracked leaf (`output/insights/2026-09-19_t1998-b7-fixed5-three-workload/`) は変えていない。collect は submission receipt が policy の絶対 path を束縛するので submit-tree の module から呼んだ。
+
+## 2. 投入と完走
+
+| workload | request | 確保 | host (allocation receipt) | 開始〜終了 (JST) | Elapse (s) | driver_rc |
+|---|---|---|---|---|---|---|
+| rr5 | `40685.nqsv` | 5 node | bnode034・069・073・079・080 | 10:30:34 〜 10:56:01 | 1,531 | 0 |
+| rr50 | `40686.nqsv` | 5 node | bnode081〜085 | 10:30:55 〜 10:56:18 | 1,527 | 0 |
+| rr95 | `40687.nqsv` | 5 node | bnode086〜090 | 10:30:59 〜 10:56:36 | 1,541 | 0 |
+
+- 投入は 10:29:38〜10:30:07 (`verbatim/submit.log`)。会計は `verbatim/elapse.log` (各 job.stderr の NQSV 会計行の抜粋、Number of Jobs 5)。完了待ちは `tools/dev_wave_wait.py compute` で 3 本とも rc 0 (`verbatim/wait-compute.log`)。
+- 起動時検査での失敗・投げ直しは無い。3 request は互いに別の 5 node で、同時刻に走っていた fig2c wave の `b10_back` request (bnode074・076・077) とも node は重ならない。
+- finish-group (10:56:51、rc 0) が completion と acquisition の receipt を作り、collect (10:56:55、rc 0) が collect-root に materialize した (`verbatim/finish-group.log`・`verbatim/collect.log`)。
+- attempt root: `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a/`。
+
+## 3. R2 の certification — 本番 CLI の出力
+
+collect-root の `output/insights/2026-09-19_t1998-b7-fixed5-three-workload/` (repo 外。名前は policy の `tracked_destination` をそのまま使ったもので、原 attempt の tracked leaf とは別の場所) に次が出た。
+
+| 成果物 | sha256 |
+|---|---|
+| `certification.json` | `88a3a6bbd2eddecd95f715c00618612d676224811d0e53d15d3edd219284d2f0` |
+| `raw-manifest.json` | `7918298a24d5124018b59ea8dd6c0a6bd67731209390ff351c4a73242a68ff8f` |
+| `artifact-manifest.json` | `63caf0e97376ad1b39df59e04e2651bdda9575a9c185bf1c1e52be0a0fae6937` |
+| `COMPLETE.json` | `13bd17714b5233e9ef24fc31d5f13fe87255c6df0d15bf5d0da1539e3fa5bfbe` |
+| `acquisition-receipt.json` | `43fa51ea0d188005c40f03d04d5b9d8dfb1fc412ad00cbaee5cedb3fddd3627d` |
+| `submission-receipt.json` | `f46b8d6a5cbf8d524cfa597a334af393c783f0c5c467f5ab90a18b29b81628ab` |
+| `completion-receipt.json` | `d5dcba60c5410339597fcca0e064f32304dcfa96212ac538ebd69a21078596db` |
+| `condition-gate-rr5.admissions.jsonl` | `33e6cc3b8a1e1d17dad156a700377ea1294c7d344b0dede4ba82cbbbce5a529a` |
+| `condition-gate-rr50.admissions.jsonl` | `689da44f9a655b1de1f2fc6261bae3abca9eefc6a9cd80d1f245488e8b78ab99` |
+| `condition-gate-rr95.admissions.jsonl` | `35154dfc51249859dd22eb2d768ed385e18eddb5255a15c4b9ca4cc4cc1fed1a` |
+
+- `certification.json`: study `paper-story-b7-fixed5-regression`、attempt `b7f5-r2-20261001a`、**status `reject`**、`a4_noise_floor_status` `open`、
+  `effects` = rr5 0.6239734604583511・rr50 0.1389998460596873・rr95 −0.11449452408913763、`current_pin` `6810666`、`source_commit` `db710338dd443d30a5b7c06da2e2a06afb092175`、
+  protocol SHA-256 `5653d439…` (原 attempt と同じ。preimage は pin を含まない)、policy SHA-256 `c6b24050…`。
+- 6 cell とも `correctness.status = certified` (disposition・legacy・performance がすべて pass)、`source_binding_status = bound`、`performance.status = complete`。
+  正しさは job 内の trace 有効 build の別走、性能は trace 無効 build (job body の既存経路、規律 1)。生成器の読み込み検査 (raw の verdict が全行 serializable、trace 有効、trace binary 一致) も通った。
+- **床値判定 (§0 項 7)。** 親が jq で、生成器とは別に計算した (10:57 JST)。floor は pin された 3 file の `between_run.cv`。
+
+  | workload | 効果 | −floor | 判定 |
+  |---|---|---|---|
+  | rr5 | +0.6239734604583511 | −0.009536033056996148 | no-regression |
+  | rr50 | +0.1389998460596873 | −0.00725042525457718 | no-regression |
+  | rr95 | −0.11449452408913763 | −0.0022283754708938273 | regression |
+
+  この判定と collect 後の 2 file の sha256 を `r2-record.json` (sha256 `0a060c638d6bd84d4f85ef1f498a42841e79220b58f66d4763ba121e84f2d72b`) に記録し、描画時の期待値にした。生成器自身の判定計算はこれと一致した (一致しなければ生成器が `judgment mismatch` で拒否する)。
+
+## 4. 原 attempt と R2 の対照表
+
+同じ生成器の `load_evidence` (全検査つき) を、原 attempt は生成器の固定 hash 表で、R2 は `r2-record.json` の hash で別々に呼んで書いた表である (`figures/fig10_comparison.md`、sha256 `0f0a06e425ee152ec18cc9364cc1d234e057485f4bdb122353e844d2ac7b523e`)。
+値は attempt ごとに計算し、合成・差・比を作っていない。
+
+| attempt | workload | request | source commit | CCBench pin | 確保 node (policy; receipt) | 効果 | 床値判定 | outer status |
+|---|---|---|---|---|---|---|---|---|
+| 原 `b7f5-20260919a` | rr5 | `10807.nqsv` | `c18a80967` | `511c953` | 5; 5 | +0.6789675418265144 | no-regression | reject |
+| 原 | rr50 | `10808.nqsv` | `c18a80967` | `511c953` | 5; 5 | +0.12671651401806727 | no-regression | reject |
+| 原 | rr95 | `10809.nqsv` | `c18a80967` | `511c953` | 5; 5 | −0.11378696258180376 | regression | reject |
+| R2 `b7f5-r2-20261001a` | rr5 | `40685.nqsv` | `db710338d` | `6810666` | 5; 5 | +0.6239734604583511 | no-regression | reject |
+| R2 | rr50 | `40686.nqsv` | `db710338d` | `6810666` | 5; 5 | +0.1389998460596873 | no-regression | reject |
+| R2 | rr95 | `40687.nqsv` | `db710338d` | `6810666` | 5; 5 | −0.11449452408913763 | regression | reject |
+
+| attempt | cell | trace 無効性能 5 標本 (tps) | 中央値 | 平均 ± t 95% CI 半幅 (自由度 4) | 正しさ |
+|---|---|---|---|---|---|
+| 原 | rr5-stock | 2328992, 2423324, 2354846, 2347564, 2371395 | 2354846 | 2365224.2 ± 44535.9 | certified |
+| 原 | rr5-fixed5 | 4049702, 3954525, 3731893, 3942414, 3953710 | 3953710 | 3926448.8 ± 145372.3 | certified |
+| 原 | rr50-stock | 4135929, 3769412, 3813768, 3878461, 3832768 | 3832768 | 3886067.6 ± 180111.0 | certified |
+| 原 | rr50-fixed5 | 4378198, 4318443, 4308209, 4333385, 4306001 | 4318443 | 4328847.2 ± 36793.0 | certified |
+| 原 | rr95-stock | 10680928, 10171152, 10334445, 10334945, 10351729 | 10334945 | 10374639.8 ± 231409.6 | certified |
+| 原 | rr95-fixed5 | 9282678, 9137295, 9158963, 9119021, 9190899 | 9158963 | 9177771.2 ± 80040.2 | certified |
+| R2 | rr5-stock | 2688859, 2541285, 2521822, 2516911, 2496722 | 2521822 | 2553119.8 ± 96252.1 | certified |
+| R2 | rr5-fixed5 | 4207721, 4152503, 4095372, 4068650, 4066885 | 4095372 | 4118226.2 ± 75528.1 | certified |
+| R2 | rr50-stock | 4006501, 3754702, 3622265, 3743909, 3755777 | 3754702 | 3776630.8 ± 174116.1 | certified |
+| R2 | rr50-fixed5 | 4396895, 4248262, 4276605, 4301120, 4271456 | 4276605 | 4298867.6 ± 71926.5 | certified |
+| R2 | rr95-stock | 10550235, 10287147, 10031996, 10253434, 10287587 | 10287147 | 10282079.8 ± 228383.2 | certified |
+| R2 | rr95-fixed5 | 9348620, 9133531, 9093970, 9109325, 9040000 | 9109325 | 9145089.2 ± 147562.7 | certified |
+
+- 確保 node は「policy の `scheduler.nodes`; reservation に束縛された allocation qstat の Execution Hosts の数」。host 名は `figures/fig10_comparison.md` にある。
+- CI は標本の記述であって、効果・中央値・床値判定の区間ではない。有意差の判定はしない。生成器は代表反復の abort rate と anomaly の件数を返さないので、表には載せていない (再構成しない)。
+
+## 5. 図 — 原 fig10 と同じ生成器で描いた R2 の図
+
+- **描けた。** 生成器 `tools/plotting/plot_b7_fixed5_regression.py` (sha256 `f78da66d…`、既存 fig10 の provenance が記録する生成器と同一、描画の前後で不変) を repo 外の wrapper から R2 の入力に対して呼んだ。
+  出力後に生成器の `validate_external_sources` と `validate_repo_closure` を通した (`verbatim/draw-r2.log`)。
+  - `figures/fig10_r2_b7_fixed5_three_workload.png` (sha256 `b91335719138c2acedba2b1c691c0b0f9ab5b84eb818e3671d328d93b8ffa51e`)
+  - `figures/fig10_r2_b7_fixed5_three_workload.provenance.json` (sha256 `83c67065af85d2a03b5d9f8100414bce7a07f2eac76204536f30cb5a4b96c33b`)。入力の sha256、cell・標本・正しさ、描いた点列 (`artist_series`)、caption、再現コマンド (`reproduction`) を持つ。
+  - 原本 (PNG・PDF・provenance・表) は repo 外 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/` にある。PDF は `398e2967…`。insight の写しは原本と bytes 一致。
+- 図の見た目: 上段は 3 workload の各 cell の 5 標本・中央値・平均と CI、灰色の破線が stock 中央値。下段は効果 (+62.3973%・+13.9000%・−11.4495%) と −floor の破線、判定ラベル (rr95 だけ「regression (below -floor)」)。
+- 原 fig10 (`docs/paper-story/figures/`) は変えていない。R2 の図は論文図ではなく、再現パッケージの記録である。
+
+### 5.1 wrapper (repo 外の使い捨て)
+
+- 段 5 の Codex 実装子が書き、repo には入れていない。保管先 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/tools/t2853_r2_fig10_plot.py` (sha256 `4674508a78aa88b87b9b5e73a2f420bbe267209dff62b0549610c76805398877`)。
+  生成器の sha256 が上の値と違えば描かずに止まる。実装子の報告は `verbatim/s5-author.md`。
+- **差し替えたもの (R2 の描画だけ、§0 項 8 の範囲):** 生成器の `ATTEMPT_ID` (record の値)、certification / raw-manifest の所在 (collect-root の絶対 path。provenance の `tracked_inputs` に `repo_tracked_leaf: false` と実の所在を記録) と期待 hash (record の値、wrapper は入力から自己計算しない)、
+  `RECORDED_JUDGMENT` (record の値、wrapper は判定を計算しない)、caption の地位・役割語の 4 箇所 (各 1 回の出現を assert、外れたら描かない。逐語は `verbatim/s5-author.md` の表)。同じ差し替えを provenance の閉包検査にも wrapper 内で適用した。
+- **差し替えていないもの:** 測定値の受理条件 (hash 照合・schema・study・cell の順と identity・5 標本・正しさ・source binding・trace 無効の性能標本・raw と certification の一致・floor の条件)、レイアウト検査、数値と説明文。
+- **provenance が束縛する文書。** caption の source は `r2-record.json` (sha256 `0a060c63…`、絶対 path は wave worktree のもので、撤去後は repo 相対 `output/insights/2026-10-01/t2853-r2-fig10/r2-record.json` に読み替える)。
+  `r2_insight` として束縛した本 README の sha256 `70c11b46…` は **§0 だけの版 (commit `e92aeea8f`) の bytes** で、`git show e92aeea8f:output/insights/2026-10-01/t2853-r2-fig10/README.md` と一致する。本節以降の追記で現行 README の hash は変わる。
+- **陽性対照:** 同じ wrapper で原 attempt を原 metadata のまま (caption 差し替えなし・固定 hash 表・生成器の RECORDED_JUDGMENT) 描き、`artist_series` が既存 fig10 の provenance と完全一致した (親の実行、`verbatim/draw-r2.log` の control 行)。
+- **負例:** 実装子が 1 件だけ実走した。見立て record の certification hash を 1 文字変えると生成器が `SHA-256 mismatch` で拒否し、図を作らない (rc 2)。
+
+## 6. 費用
+
+- 測定: 3 request × 5 node × Elapse (1,531 + 1,527 + 1,541 s) = 22,995 node 秒 = **6.39 node 時間** ((a) Elapse、`verbatim/elapse.log`)。承認量 3.40 の約 1.9 倍。投げ直しは無い。
+- 経緯: 10:49 に経過が元 attempt の Elapse を大きく超えたので、land 調整役へ超過見込みを示した。診断の依頼を受け、10:53 に「stock cell の bench は 3 本とも完了済みで計測は進んでいる」と返し、見込み約 6.7 node 時間で継続の承認を得た。原因は §7。
+- 開発の検査 (受入全走など) の実測は記録後に別途数える (本節には未記入、受領証と shard の会計に残る)。
+- Codex 子 1 本 (段 5 実装子)、Claude の調査子 1 本 (read-only、§7 の初期調査)。collect・描画・表は login で数秒ずつ。
+
+## 7. 見積りが外れた原因 — 全 node 共有の bench lock で 3 job が 1 列に並んだ
+
+- **見積りの前提。** 3.40 は原 attempt の 3 request の Elapse (386・841・1,218 s) の和 × 5 node。原 attempt の 3 request は待ち行列の待ちでずれて始まり、rr5 (22:36〜22:42) は単独、
+  rr95 (22:49〜23:09) と rr50 (22:59〜23:13) は約 10 分だけ重なった (結果稿の request 表)。重なった区間では原 attempt にも同じ形の待ちが出ている (rr95 の cell 2 の 165 s。rr50 の stock bench は rr95 の bench 完了 23:09:18 の直後 23:09:18〜35 に走った)。
+  R2 は 3 request が待ちなしで同時に始まったので、全区間で取り合いになった。
+- **何が起きたか (各 campaign の WAL の段の時刻だけを抽出、PID・node 上の process 状態は見ていない)。** bench 本体の所要は 16.8 s で原 attempt と同じだった。遅れたのは「最後の検証完了 → bench 開始」の空きである。
+
+  | attempt | 空き (秒、cell 1 / cell 2) |
+  |---|---|
+  | R2 rr5 | 603.9 / 592.2 |
+  | R2 rr50 | 478.5 / 464.7 |
+  | R2 rr95 | 33.8 / 33.7 |
+  | 原 rr5・rr50・rr95 | 0 / 0、16.9 / 0、0 / 165.3 |
+
+  (bench_done までで数えると R2 の cell 1 は 621・496・51 s。land 調整役への途中報告はこの値だった。)
+- **仕組み。** pipeline は bench を `bench_lock()` の中で回し、全規模の性能検証 (head の rep0 と兄弟 4 node への配布、その完了待ちまで) も同じ `bench_lock()` の中で回す (`orchestrator/campaign/pipeline.py` 1482 行と 2758〜2762 行、D36 決定 4-4)。
+  lock の既定 path は `~/.izanagi/bench.lock` (`orchestrator/campaign/lock.py`) で、`/home` は全 node 共有の Lustre である。certification の job body (`tools/pegasus/paper_story_a2_certification.sh`) は `IZANAGI_BENCH_LOCK` を設定しないので、別 node の 3 job がこの 1 本の lock を取り合った。
+  (`tools/pegasus/b10_backoff_grid.sh`・`p3_s4_loop_pegasus.sh`・`a5_second_boot_backoff_sweep.sh` は node ローカルの `$TMPDIR/bench.lock` を使っており、この形にはならない。)
+- **lock の持ち主。** PID では確かめていない。ssh は鍵で拒否され、node 上の process 状態は見られなかった。ただし WAL の時刻は「R2 自身の 3 job が待ち始めた順に 1 本ずつ取った」1 列で説明できる。
+  巡 1 では rr5 検証 (10:31:53〜10:33:23) → rr50 検証 (〜10:35:45) → rr95 検証 (〜10:43:27、約 7.7 分) → rr5 bench (10:43:27〜) → rr50 bench (10:43:44〜) → rr95 bench (10:44:01〜) と並んだ。巡 2 も同じ順だった。
+  2 巡とも、rr5 の bench 開始は rr95 の検証完了と 0.1 秒以内で一致する。別 job が持っていた可能性は、この一致からは低いが排除はしていない。
+- **測定の汚染は無い。** lock は排他を強める向き (他の bench・全規模検証と重ならない) にしか働かず、bench 前の競合 probe は通常どおり通り、WAL の `bench_done` は 6 cell とも rounds 1、`settled` は各 workload の cell 1 が true・cell 2 が null (原 attempt の 6 cell と同じ形)。延びたのは wall と確保 node 時間だけである。
+- **次への案 (本 wave では実装しない。driver・job body の変更で範囲外)。**
+  1. job body で `IZANAGI_BENCH_LOCK` を node ローカル (`$TMPDIR/bench.lock`) にすれば、3 job は互いを待たない。原 attempt と同じ 1 job あたりの所要なら合計は約 2.2 node 時間 (試算、未実測)。
+  2. 律速は rr95 の性能検証 (head の rep0 と兄弟 4 本の完了待ちで 1 cell 約 7.7 分) である。性能検証の rep を cell × workload ごとに別 job (または兄弟 node) へ配れば、1 本 5 分目安に近づく。分け方は直す wave で設計する。
+  land 調整役がこの 2 案を直す dev-wave の投げ文に反映済み (同調整役の連絡による)。
+
+## 8. 言わないこと
+
+- **R2 は原 attempt の置換でも、B-7 の attempt 系列への追加でもない** (§0)。2 つの outer status・効果・判定・標本を合成しない。「2 回とも reject で判定も同じ並びだった」を統合判定や再現精度として読まない。
+- R2 は現行 driver・pin `6810666`・source `db710338d` の測定であり、原 attempt (pin `511c953`・source `c18a80967`) と同じ build・同じ node・同じ日時の再実行ではない。値の差を build・pin・node・日時のどれかに帰属させない。
+- outer status `reject` は protocol の 3 workload の連言の答えであり、有意差・研究の成否・B-7 の充足 (D2044 項 3) を判定しない。床値判定は有意差の判定ではなく、床値の測定と R2 の同一性は設定上のものである。性能は認証していない。他の機体・pin・protocol へ外挿しない。
+- 計算ノードの割当ては専有の保証ではない。単独性は job body の既存の測定前 probe に拠る。
+- §7 の lock の持ち主は時刻からの推定で、PID では確かめていない。案 1・2 の node 時間は試算で、実測していない。
+- trace は保全していない (§0 項 11)。R1 (保存 trace の再判定) の入力にならない。
+
+## 9. 出所
+
+- `verbatim/request.md` — 依頼の逐語。`verbatim/startup-gate.log` — 開始 gate (rc 0)。`verbatim/s1-brief.md` — 段 1 brief (軽量版。段 2・3 は省いた)。
+- `verbatim/precheck-patch.log` — 投入前の patch の厳密 check。`verbatim/hydrate.log` — third-party の hydrate。
+- `verbatim/submit.log` — 投入。`verbatim/wait-compute.log` — 完了待ち。`verbatim/elapse.log` — NQSV 会計。`verbatim/finish-group.log`・`verbatim/collect.log` — 完走後の receipt と collect。
+- `verbatim/lock-timeline.log` — §7 の根拠 (WAL の段・時刻・bench 所要・settled だけを jq で抽出したもの)。
+- `verbatim/s5-author.md` — wrapper の実装子の報告。`verbatim/draw-r2.log` — 陽性対照・R2 描画・表の親の実行。`r2-record.json` — R2 の期待 hash と記録された判定。
+- repo 外: attempt root `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a/`、出力親 `/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/` (collect-root・figure・tools・thirdparty-src)。
+  submit-tree は一時置き場 `/work/1/SFC/tanab/tmp/t2853-r2-fig10-20261001/submit-tree` (wave の終わりに撤去)。

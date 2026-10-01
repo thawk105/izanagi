@@ -1,0 +1,5 @@
+start=2026-10-01 10:56:55 JST
+argv: python3.10 -B -m orchestrator.campaign.paper_story_a2_certification --policy orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json collect --attempt-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a --current-pin 6810666 --acquisition-receipt /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a/receipts/acquisition.json --repo-root /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root
+cwd: /work/1/SFC/tanab/tmp/t2853-r2-fig10-20261001/submit-tree
+/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/collect-root/output/insights/2026-09-19_t1998-b7-fixed5-three-workload
+rc=0
