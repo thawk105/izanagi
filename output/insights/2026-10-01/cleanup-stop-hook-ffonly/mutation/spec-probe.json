@@ -1,0 +1,200 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "m0-comment-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "    deadline = time.monotonic() + 5\n",
+          "new": "    deadline = time.monotonic() + 5  # M0\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-exempt-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n",
+          "new": "        if True:  # M1\n            return False, \"\"\n        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-exempt-never",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n",
+          "new": "        if False and reflog[-1][2].startswith(\"branch: Created from \") and all(  # M2\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3m9-ff-suffix-and-no-main-time",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            subject in (\"merge main: Fast-forward\", \"merge refs/heads/main: Fast-forward\")\n",
+          "new": "            subject.endswith(\": Fast-forward\")  # M3\n"
+        },
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if True or all(stamp is not None and oid in main_times and main_times[oid] <= stamp  # M9\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4m9-newest-only-and-no-main-time",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            for _, _, subject in reflog[:-1]\n",
+          "new": "            for _, _, subject in reflog[:1]  # M4\n"
+        },
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if True or all(stamp is not None and oid in main_times and main_times[oid] <= stamp  # M9\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-include-oldest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            for _, _, subject in reflog[:-1]\n",
+          "new": "            for _, _, subject in reflog  # M5\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-no-creation-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n",
+          "new": "        if all(  # M6\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-splitlines",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        for entry in output.split(\"\\n\"):\n",
+          "new": "        for entry in output.splitlines():  # M7\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-missing-separator-fail-open",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            oid, _, rest = entry.partition(\" \")\n",
+          "new": "            oid, _, rest = entry.partition(\" \") if \" \" in entry else (\"\", \"\", \"\")  # M8\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-no-main-time",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if True or all(stamp is not None and oid in main_times and main_times[oid] <= stamp  # M9\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-strict-time",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if all(stamp is not None and oid in main_times and main_times[oid] < stamp  # M10\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-ff-suffix-alone",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            subject in (\"merge main: Fast-forward\", \"merge refs/heads/main: Fast-forward\")\n",
+          "new": "            subject.endswith(\": Fast-forward\")  # M3\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-newest-only-alone",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            for _, _, subject in reflog[:-1]\n",
+          "new": "            for _, _, subject in reflog[:1]  # M4\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+--- (1) 作成直後 (commit 0, ff 前)
+  rc=0
+--- (2) DW-O20 の ff-only 直後 (自分の commit 0, 未 land)
+   fb666a7 merge main: Fast-forward
+   eb543da branch: Created from eb543da255d77dfcebb4fbbad8be934124b10210
+  rc=0
+--- (3) 自分の commit 1, 未 land
+  rc=0
+--- (4) main へ ff-only land 済み
+   bd7c6f2 commit: wave-work
+   fb666a7 merge main: Fast-forward
+   eb543da branch: Created from eb543da255d77dfcebb4fbbad8be934124b10210
+{"decision": "block", "reason": "この worktree の branch は local main に land 済みの可能性がある。DW-O28 に従い子木と wave 木を撤去する。撤去できない・未 land・撤去中なら、その旨と残置 path を 1 行書いて終えてよい。"}
+  rc=0
