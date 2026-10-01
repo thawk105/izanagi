@@ -1,0 +1,46 @@
+date=2026-10-01 11:23:10 JST
+wrapper_sha256=a1a1c3ad597d26d8f5d9b4099d64f069035b2083f9eeae59baa2258d61c8e629
+generator_sha256_before=f78da66d4666455dec4da843f51c2c3ea5e7b10fbac2e91ede3d680f480b795f
+== control
+generator_sha256=f78da66d4666455dec4da843f51c2c3ea5e7b10fbac2e91ede3d680f480b795f
+validate_external_sources: passed; validate_repo_closure: passed
+control artist_series: exact match
+wrote /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/control/fig10_control.png / .pdf / .provenance.json
+control_rc=0
+== r2
+generator_sha256=f78da66d4666455dec4da843f51c2c3ea5e7b10fbac2e91ede3d680f480b795f
+validate_external_sources: passed; validate_repo_closure: passed
+wrote /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload.png / .pdf / .provenance.json
+r2_rc=0
+== table
+generator_sha256=f78da66d4666455dec4da843f51c2c3ea5e7b10fbac2e91ede3d680f480b795f
+table: separate original and R2 load_evidence checks passed
+wrote /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_comparison.md
+table_rc=0
+generator_sha256_after=f78da66d4666455dec4da843f51c2c3ea5e7b10fbac2e91ede3d680f480b795f
+/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure:
+合計 18
+drwxr-xr-x 4 tanab SFC   4096 10月  1 11:23 .
+drwxr-xr-x 7 tanab SFC   4096 10月  1 11:23 ..
+drwxr-xr-x 2 tanab SFC   4096 10月  1 10:57 .mplconfig
+drwxr-xr-x 3 tanab SFC   4096 10月  1 11:23 control
+-rw-r--r-- 1 tanab SFC   8922 10月  1 11:23 fig10_comparison.md
+-rw------- 1 tanab SFC  22644 10月  1 11:23 fig10_r2_b7_fixed5_three_workload.pdf
+-rw------- 1 tanab SFC 144370 10月  1 11:23 fig10_r2_b7_fixed5_three_workload.png
+-rw------- 1 tanab SFC  22637 10月  1 11:23 fig10_r2_b7_fixed5_three_workload.provenance.json
+
+/work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/control:
+合計 200
+drwxr-xr-x 3 tanab SFC   4096 10月  1 11:23 .
+drwxr-xr-x 4 tanab SFC   4096 10月  1 11:23 ..
+drwxr-xr-x 2 tanab SFC   4096 10月  1 10:57 .mplconfig
+-rw------- 1 tanab SFC  22636 10月  1 11:23 fig10_control.pdf
+-rw------- 1 tanab SFC 143906 10月  1 11:23 fig10_control.png
+-rw------- 1 tanab SFC  20169 10月  1 11:23 fig10_control.provenance.json
+150b13468309f5caa8efc7e90071e6eb80d33c292dc0b6c0defdb62ad46c207f  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_comparison.md
+0c9fc8f982efa26893a7ce70f1f2d8fced0493b96a33c922e5d4fc49400c3aa6  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload.pdf
+b91335719138c2acedba2b1c691c0b0f9ab5b84eb818e3671d328d93b8ffa51e  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload.png
+f54adb4802bc2df63a3effb9f53d75855878acb9aecd564cee011c85d0619353  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/fig10_r2_b7_fixed5_three_workload.provenance.json
+f66cd8c60214c665bbd517f0657d83f5014a9d91078497614e8d001282376921  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/control/fig10_control.pdf
+583e94f642a9892a66791b9e0dff5ed37bd7babedf3f4da644b1245af15d1d5d  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/control/fig10_control.png
+ca5b7cee3515c257f2440fc39363afdc0d333cb525da3e2753dd16fe040f4af8  /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/figure/control/fig10_control.provenance.json

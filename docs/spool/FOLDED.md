@@ -5882,3 +5882,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{"T:t2867-llm-input-disclosure":"[T-2982]"},"authored":"2026-10-01","base":"fb9d6f814ad8969b3ed310c28a6e812f3de9a814","content_sha256":"dfc86d75259a3458296d0fce93db95951a93c772a082461fe8704f0e75696abe","seq":1,"tested_tip":"5432b01ceb188304bcb7722c4197df3ecf302257","wave":"dev-wave-p5-s3-prereg","wave_ref":"refs/heads/dev-wave-p5-s3-prereg"}
 - {"allocations":{"F:contrast-history-fields-unfilled":"F1101"},"authored":"2026-10-01","base":"fb9d6f814ad8969b3ed310c28a6e812f3de9a814","content_sha256":"bd93f9399ea7bf9d914f3282aa6a54893ed3f1ea59401bd567e9488f879b0e0e","seq":2,"tested_tip":"5432b01ceb188304bcb7722c4197df3ecf302257","wave":"dev-wave-p5-s3-prereg","wave_ref":"refs/heads/dev-wave-p5-s3-prereg"}
+
+- {"allocations":{},"authored":"2026-10-01","base":"128e29b1612d13e65ee08034477290fbc9174b49","content_sha256":"c8f91d03d28f5b310f78e8051618db4cd6a75ba5b25462157ca3c1ed42474a06","seq":1,"tested_tip":"f367995f38cc4e17f0890dd202cf2837014f6362","wave":"worktree-t2853-r2-fig10","wave_ref":"refs/heads/worktree-t2853-r2-fig10"}
