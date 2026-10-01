@@ -1,0 +1,60 @@
+{
+  "silo": [
+    {
+      "path": "cc/silo/transaction.cc",
+      "hunks": [
+        "@@ -208,16 +208,16 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {",
+        "@@ -530,7 +530,10 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {",
+        "@@ -663,7 +666,7 @@ void TxExecutor::writePhase() {",
+        "@@ -695,7 +698,7 @@ void TxExecutor::writePhase() {",
+        "@@ -725,7 +728,7 @@ void TxExecutor::writePhase() {",
+        "@@ -749,7 +752,7 @@ void TxExecutor::writePhase() {"
+      ],
+      "has_header": false
+    }
+  ],
+  "mocc": [
+    {
+      "path": "cc/mocc/transaction.cc",
+      "hunks": [
+        "@@ -1058,7 +1058,22 @@ bool TxExecutor::validation() {"
+      ],
+      "has_header": false
+    }
+  ],
+  "cicada": [
+    {
+      "path": "cc/cicada/include/cicada_op_element.hh",
+      "hunks": [
+        "@@ -32,6 +32,9 @@ public:"
+      ],
+      "has_header": true
+    },
+    {
+      "path": "cc/cicada/include/transaction.hh",
+      "hunks": [
+        "@@ -202,14 +202,19 @@ public:"
+      ],
+      "has_header": true
+    },
+    {
+      "path": "cc/cicada/include/tuple.hh",
+      "hunks": [
+        "@@ -99,8 +99,8 @@ public:"
+      ],
+      "has_header": true
+    },
+    {
+      "path": "cc/cicada/transaction.cc",
+      "hunks": [
+        "@@ -128,7 +128,7 @@ Version* TxExecutor::read_internal(Storage s, std::string_view key,",
+        "@@ -202,7 +202,14 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {",
+        "@@ -427,9 +434,11 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,",
+        "@@ -744,14 +753,16 @@ void TxExecutor::gcpv() {",
+        "@@ -850,7 +861,11 @@ void TxExecutor::gc_records() {",
+        "@@ -921,8 +936,8 @@ bool TxExecutor::commit() {"
+      ],
+      "has_header": false
+    }
+  ]
+}

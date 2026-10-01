@@ -1,0 +1,11 @@
+HEAD 9035509829f005aaaddf44fa5ca431851c2ecdac status: 0 dirty entries
+== login clang-format
+Ubuntu clang-format version 14.0.0-1ubuntu1.1
+format files=213
+format rc=0
+rc-login=0
+== CI image :latest clang-format
+Ubuntu clang-format version 14.0.6
+format files=213
+format rc=0
+rc-image=0

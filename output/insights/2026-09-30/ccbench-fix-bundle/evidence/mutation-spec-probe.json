@@ -1,0 +1,78 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M0-comment-only",
+   "category": "positive",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "    \"WORKER1_INSERT_DELAY_RPHASE\",\n)\n_CICADA_VALUE_CONTEXTS", "new": "    \"WORKER1_INSERT_DELAY_RPHASE\",  # M0\n)\n_CICADA_VALUE_CONTEXTS"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-default-only",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "_CICADA_VALUE_CONTEXTS = tuple(itertools.product(\"01\", repeat=len(_CICADA_MACROS)))", "new": "_CICADA_VALUE_CONTEXTS = ((\"0\", \"1\", \"0\", \"0\"),)"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-names-only",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "overrides = dict(zip(_CICADA_MACROS, values))", "new": "overrides = {}"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-worker-delay-pinned",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "_CICADA_VALUE_CONTEXTS = tuple(itertools.product(\"01\", repeat=len(_CICADA_MACROS)))", "new": "_CICADA_VALUE_CONTEXTS = tuple(v[:3] + (\"0\",) for v in itertools.product(\"01\", repeat=len(_CICADA_MACROS)))"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-cicada-as-silo",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "cicada_source = path.startswith(\"cc/cicada/\") and path.endswith(\".cc\")", "new": "cicada_source = False"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-unknown-macro-known",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "        for name in _CICADA_MACROS:\n", "new": "        supplied_old[\"NEW_CICADA_MACRO\"] = supplied_new[\"NEW_CICADA_MACRO\"] = \"0\"\n        for name in _CICADA_MACROS:\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-count-tautology",
+   "category": "negative",
+   "replacements": [
+    {"file": "tools/check_trace0_preprocess_identity.py", "old": "    if len(contexts) != expected_context_count:\n", "new": "    expected_context_count = len(contexts)\n    if len(contexts) != expected_context_count:\n"}
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
