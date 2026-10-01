@@ -1,0 +1,1463 @@
+audit_dangling_commits: 進捗 root 検証 開始
+audit_dangling_commits: 進捗 root 検証 完了 elapsed_seconds=0.591 requested=0 accepted=0
+audit_dangling_commits: 進捗 fsck 開始
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=15.059
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=30.123
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=45.187
+audit_dangling_commits: 進捗 fsck 完了 elapsed_seconds=54.657 commits=2034
+audit_dangling_commits: 進捗 bulk log 開始
+audit_dangling_commits: 進捗 bulk log 完了 elapsed_seconds=22.502 commits=2034 changed_pairs=12581
+audit_dangling_commits: 進捗 main・tip tree 開始
+audit_dangling_commits: 進捗 main・tip tree 完了 elapsed_seconds=23.017 tips=29 finding_commits=238 finding_pairs=1197
+audit_dangling_commits: 進捗 blob metadata 開始
+audit_dangling_commits: 進捗 blob metadata 完了 elapsed_seconds=0.000 candidates=0
+audit_dangling_commits: 進捗 repo 外走査の列挙 開始
+audit_dangling_commits: 進捗 repo 外走査の列挙 完了 elapsed_seconds=0.000 scan_performed=false
+audit_dangling_commits: 進捗 候補比較 開始
+audit_dangling_commits: 進捗 候補比較 完了 elapsed_seconds=0.000 candidate_oids=0 matched_keys=0 external_files=0 external_matches=0 max_matches_per_key=0
+audit_dangling_commits: 進捗 landed 参照 開始
+audit_dangling_commits: 進捗 landed 参照 完了 elapsed_seconds=0.000 matches=0 match_keys=0 external_matches=0 patterns=0 generated_patterns=0 grep_batches=0 metadata_batches=0 contents_read=0 bytes_read=0
+audit_dangling_commits: 進捗 抑止集約 開始
+audit_dangling_commits: 進捗 抑止集約 完了 elapsed_seconds=0.000 suppressions=0
+audit_dangling_commits: 進捗 最終報告 開始
+audit_dangling_commits: 再生成可能物として除外 0 (commit, path) 対
+audit_dangling_commits: repo 外走査は明示 off(IZANAGI_DEV_WAVE_JOBS_DIR の指定も無視);repo 外の同一実体は未確認のため、findings は full なら抑止されうる (commit, path) 対を含みうる。救出 triage は --offrepo-scan full --offrepo-root <root> を指定して単独実行する
+audit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対
+audit_dangling_commits: 要確認の到達不能変更 238 commit
+  commit 012af146ca8470b19c4b3cd9765c231a131c8fd5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+  commit 02acaa92198d53d4315c139ff579e4761639cda1 ([T-2630] probe fix: 実 site 判定で compiler を選ぶ (F6-1))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit 059d3b0f0bda351c0be599858846ac679b4ad2de ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: genopt_gl_scratch/fmt-result.json
+    main・全 local branch tip に不在: genopt_gl_scratch/fmt_check.py
+    main・全 local branch tip に不在: genopt_gl_scratch/gate_check.py
+    main・全 local branch tip に不在: genopt_gl_scratch/launch_gate_liveness.py
+    main・全 local branch tip に不在: genopt_gl_scratch/make_patches.py
+    main・全 local branch tip に不在: genopt_gl_scratch/mutation_check.py
+    main・全 local branch tip に不在: genopt_gl_scratch/patch-check.json
+    main・全 local branch tip に不在: genopt_gl_scratch/patches/broken-silo-b1-unregistered-first-read.patch
+    main・全 local branch tip に不在: genopt_gl_scratch/patches/fix-silo-intra-txn-values.patch
+    main・全 local branch tip に不在: genopt_gl_scratch/patches/instr-silo-gate-witness.patch
+    main・全 local branch tip に不在: genopt_gl_scratch/test_gate_check.py
+    main・全 local branch tip に不在: genopt_gl_scratch/verify_patches.py
+  commit 0780f91dadb32bc0f32aebb4b33c912fcd0b26c6 (docs(t2146): 発行主体防護の記録 — insight・worklog・decisions・failures fragment)
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/d428-inversion-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/mutation-final-result.summary.json
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/mutation-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/mutation-probe-result.summary.json
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/mutation-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s1-brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s3-lens-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s3-lens-b.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s4-adjudication.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s5-a1.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s5-a2.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s5-b.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s6-fix1.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s6-fix1b.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s6-fix2.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s6-review-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-07_t2146-authority-guard/verbatim/s6-review-b.md
+  commit 0935923842c40de33bfc2e53a07a26a309f87e07 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2273is/t2273is_ab_analyze.py
+  commit 09ef9a61ed7b2859dba24d31a2a23d2bb66ed4cd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: wave-probe/README.md
+    main・全 local branch tip に不在: wave-probe/bench_abab.py
+    main・全 local branch tip に不在: wave-probe/equiv_fixtures.py
+    main・全 local branch tip に不在: wave-probe/equiv_plugin.py
+    main・全 local branch tip に不在: wave-probe/equiv_real.py
+  commit 0a35b5d0c9617c4968e5576d3b8d8c6ce2eb29a3 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+  commit 0b013f11dffe09bc024e3ef6e78453e0e312ff95 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verifier_profile_probe.py
+  commit 0b6ec27034dc855c437e9e5e449c3f0b474ecd7e (wip(t2304 unit scaffold): probe を job dir へ退避 (not for land))
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_masstree_shape_probe.py
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit 0c2a72713e3e83c573858dbf5dc2773a2677364e (docs(t1933): record acceptance longest-node negative result)
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/README.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/verbatim/adjudication.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/verbatim/baseline-argv.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/verbatim/brief.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/verbatim/s2-plan-v2.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/verbatim/s3-correctness.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/verbatim/s3-effectiveness.md
+  commit 0c935ff5fa408d8e907eeba016969eba604e58c9 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2700/t2700_history_estimate.py
+  commit 0d294fbf50fc8a17e22d579895742e3a88534211 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2484_receipt_segments.py
+  commit 0e6d41d30395fd163024877546401b5eb48e2a76 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: verify-target/launch_cicada_run_target.py
+  commit 0eaf6c6dabf0e9bd04bf070b4ed1324d5d2b04a0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/diag-counters.patch
+    main・全 local branch tip に不在: md32-scratch/launch_promo_diag.py
+    main・全 local branch tip に不在: md32-scratch/v-ronly-nopromo.patch
+    main・全 local branch tip に不在: md32-scratch/v-uaf-reorder.patch
+    main・全 local branch tip に不在: md32-scratch/v-update-keep.patch
+  commit 0ee32397703b029fe04f0b24d6dd15f608140690 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2797-v2-mutation/README.md
+    main・全 local branch tip に不在: scratch/t2797-v2-mutation/spec-probe.json
+  commit 0f40207b090ee37125fedad79b62f36b9256e1de ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/gate_wait_probe.py
+  commit 0f75362db6bdf89d9056a980ce37e38c71bcdb98 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .gcfix-ci/run_ci_build.sh
+  commit 134d7856c49ead14d4ecd107b022f183f2c54add ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 13589a0d9c8a80c4e3cb26b8f9c7097fb9d890c4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .gcfix-ci/run_ci_build.sh
+    main・全 local branch tip に不在: .gcfix-launcher/launch_gcfix_run.py
+    main・全 local branch tip に不在: .gcfix-work/count-gcfix-skips.patch
+    main・全 local branch tip に不在: .gcfix-work/diag-cicada-gc-records.patch
+    main・全 local branch tip に不在: .gcfix-work/onelevel-cicada-gc-records.patch
+  commit 13cafb065c7e57492cd874f147d348b008d576b1 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2851_anchor_smoke.py
+  commit 15eccc8675c9a0597e7ade12338efa7db8e326c7 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2273pi/t2273pi_ab_analyze.py
+  commit 17f0e5e73eb085d9eebfab5078f1ee2c1144a2c0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 185f209cd9f4b41c8c29d464d9ecdd97b7b8bab5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2273is/t2273is_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2273is/t2273is_gate.conf
+    main・全 local branch tip に不在: probe-t2273is/t2273is_run_measure.sh
+    main・全 local branch tip に不在: probe-t2273is/t2273is_run_series.sh
+    main・全 local branch tip に不在: probe-t2273is/t2273is_run_warm.sh
+  commit 199c8a67a200ae762dcec74d0e22a48fc7ff99d5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/strip_claude_session_trailers.sh
+  commit 19b48b83dffb03117aaa224cadbd1a055b089f5a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 19fab3d7998dd007b35b412b06ce0d6d581d973a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_campaign.py
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_p3_s4_loop.py
+  commit 1a3f5fb0eb3b97775dd3e386d9aed64c179bc00e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 1afb16c97fcabd98102256c7ba9aca1dd29fc0c2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 1bd414c07a2b5e0416f8ff5c4691f9c3c1c5fd95 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+  commit 1df428f4011b6b46c2053da5c81fa61e06974640 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2826_modify_timing_aggregate.py
+    main・全 local branch tip に不在: tools/t2826_modify_timing_probe.sh
+    main・全 local branch tip に不在: tools/t2826_probe_plugin.py
+  commit 21ff9c31f4fe6d402bb407154915180c8a76c788 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+  commit 222c83c2c13ee7d6dc7dfa08f6063802d99d2583 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit 2277c8236e14e23954d529e20d963e79cea8ade0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2786_probe/mutations.json
+    main・全 local branch tip に不在: t2786_probe/t2786_probe_analyze.py
+    main・全 local branch tip に不在: t2786_probe/t2786_probe_plugin.py
+    main・全 local branch tip に不在: t2786_probe/test_t2786_probe.py
+  commit 22e361d9cb1c35fb5b5f55b3c989c000cc7d350c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_runner.py
+  commit 22e46c4fe83015bbac529b4bf5521e796db5669c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2610/document-crosscheck.json
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.pdf
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.png
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.provenance.json
+    main・全 local branch tip に不在: probe-t2610/pytest.log
+    main・全 local branch tip に不在: probe-t2610/self-run.log
+  commit 23a1f90848178ad8b704618d68650c93600e8341 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-glue/README.md
+    main・全 local branch tip に不在: scratch/t2850-glue/job_costs.py
+    main・全 local branch tip に不在: scratch/t2850-glue/parent-launch.sh
+    main・全 local branch tip に不在: scratch/t2850-glue/parent_watch.py
+    main・全 local branch tip に不在: scratch/t2850-glue/schedule.py
+    main・全 local branch tip に不在: scratch/t2850-glue/submit.py
+    main・全 local branch tip に不在: scratch/t2850-glue/test_glue.py
+  commit 278a3ada5db9adaf5503cc0b47ab2e96134f7ca4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: ir-check.json
+  commit 278ec3bd73b8c5efa5f72063b8014e1b71870015 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-acp/SELFCHECK.md
+    main・全 local branch tip に不在: scratch-acp/aggregate.py
+    main・全 local branch tip に不在: scratch-acp/run-acceptance-gated.sh
+    main・全 local branch tip に不在: scratch-acp/run-pair.sh
+  commit 2839fbc16575788482e8cb46bff72620c70a2244 ([T-2630] probe: 走査境界の到達実測 test (probe branch のみ、land しない))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit 2998ac8161096b14f1fe85f195b96ced77588a4d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2866_tpcc_smoke.py
+  commit 2a1b8333993291bcc226b878d7ec12f2d67babd2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_analyze.py
+    main・全 local branch tip に不在: tools/t2273_replica_plugin.py
+    main・全 local branch tip に不在: tools/t2273_replica_runner.py
+  commit 2c5b2195cdba41297533299659662815cdb59f36 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/test_t2737_live_probe.py
+  commit 2d5049c5ba928ae92e19ca5ef31706f3ebd1bc14 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-acp/SELFCHECK.md
+    main・全 local branch tip に不在: scratch-acp/aggregate.py
+    main・全 local branch tip に不在: scratch-acp/run-pair.sh
+  commit 2dc133b5ae13d8fd6796e5352d4ccbde72755175 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766/t2766_ab_analyze.py
+  commit 2e1c5d0e79a147dcd67992a0991103ad91abd557 ([T-1259] 変異 spec (probe 走) を登録した)
+    main・全 local branch tip に不在: output/insights/2026-09-07_t1259-qsub-env-delivery/mutation-spec-probe.json
+  commit 2ebf25e246e7a6b6ad1c6c06507afc18120f8c89 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_analyze.py
+    main・全 local branch tip に不在: tools/t2273_replica_plugin.py
+    main・全 local branch tip に不在: tools/t2273_replica_runner.py
+  commit 2ee2c8be5c0a000e047a2e1de9dea002890cc3e8 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-vprobe/README.md
+    main・全 local branch tip に不在: scratch/t2850-vprobe/probe_verify_parallel.py
+  commit 2f01c8501be42dcdf4ad3ea04149ab918d019a71 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/README.md
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/job_costs.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/parent_driver.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/prepare_submit_tree.sh
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/schedule.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/submit.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v3/test_glue.py
+  commit 2f1dbe5814228259c68f2acd17aa04405cee16cf ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: _t2724_probe_refusals.py
+  commit 2f82c6e68f5f6e47c99eeb8bf74345339e8dc116 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig15/.mplconfig/fontlist-v390.json
+    main・全 local branch tip に不在: probe-fig15/fig15_mocc_witlight_four_arm.pdf
+    main・全 local branch tip に不在: probe-fig15/fig15_mocc_witlight_four_arm.png
+    main・全 local branch tip に不在: probe-fig15/fig15_mocc_witlight_four_arm.provenance.json
+    main・全 local branch tip に不在: probe-fig15/inspection.json
+    main・全 local branch tip に不在: probe-fig15/self-run.log
+  commit 2fd6b5f4ba745df1280d0cfdc8b39a0d62e5c6b7 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2825-author-l/coverage.log
+    main・全 local branch tip に不在: t2825-author-l/determinism.log
+    main・全 local branch tip に不在: t2825-author-l/input-sha256.json
+    main・全 local branch tip に不在: t2825-author-l/ledger-before.json
+    main・全 local branch tip に不在: t2825-author-l/main-nodeids.txt
+    main・全 local branch tip に不在: t2825-author-l/refresh.log
+    main・全 local branch tip に不在: t2825-author-l/removed.txt
+    main・全 local branch tip に不在: t2825-author-l/status.txt
+    main・全 local branch tip に不在: t2825-author-l/verify.json
+    main・全 local branch tip に不在: t2825-author-l/verify.md
+    main・全 local branch tip に不在: t2825-author-l/verify.py
+  commit 305d0c16f6422f40c418cef92024e8941e4da6c3 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: verify-scratch/launch_cicada_run_early_abort.py
+  commit 3108b492b288f256ab2b9c9af9d524879a4e3f90 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_capacity/launch_capacity.py
+  commit 31894443efd6c662f9e257d1055a0da0d15ca375 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2826_modify_timing_aggregate.py
+    main・全 local branch tip に不在: tools/t2826_modify_timing_probe.sh
+    main・全 local branch tip に不在: tools/t2826_probe_plugin.py
+  commit 31d753fb89897afe388f0e2998b7b8d202296c1d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2866_tpcc_smoke.py
+  commit 338e9be0559bb29b243cd471a514a793e1fe2dfd (docs(insights): 待ち行列廃止後に成立しない主張へ erratum を付け、D270 維持の decision を取り下げる [T-1469])
+    main・全 local branch tip に不在: output/insights/2026-08-21_t1469-acceptance-lease-timing/README.md
+  commit 34429b82475a85af76a31703bd76be43db43a3df ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tmp-verify/launch_cicada_run_gc.py
+  commit 351998e406502769f8a4ed1f9939c3d9b22f42be ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-glue/README.md
+    main・全 local branch tip に不在: scratch/t2850-glue/schedule.py
+    main・全 local branch tip に不在: scratch/t2850-glue/test_glue.py
+  commit 353b473e7f8a4e5e4edc18fab989c0b099fe66fe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.pdf
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.png
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.provenance.json
+  commit 368c10092b3b02e4f83f3062221417553b4eefc5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verifier_profile_probe.py
+  commit 38ba4a4bba332e053e146eeaa5a515c7cb701b62 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md7-probe/liveness_vhash_s8.py
+  commit 39585d2fc27f819ed675f7b26849977f1dcc98c2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2629-selfrun/probe.json
+    main・全 local branch tip に不在: tools/t2629_legacy_compiler_reach_probe.py
+  commit 3b8692053d836dcd08f19c7efadbbf4847f45249 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: verify-scratch/launch_cicada_run_early_abort.py
+  commit 3bd7d41accc936d15cee7545b27565f5423e486f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+  commit 3d0e79de9d0e8a9e8399bde31dee6ce9107b45d2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.json
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.md
+    main・全 local branch tip に不在: t_inv_scanner/scan_tests.py
+    main・全 local branch tip に不在: t_inv_scanner/test_scan_tests.py
+  commit 3dfa82090fb49f1953df5cd5937d43a0f567fe99 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2825-probe/run-measure.sh
+    main・全 local branch tip に不在: t2825-probe/run-series.sh
+    main・全 local branch tip に不在: t2825-probe/t2825_ab_analyze.py
+  commit 3e59ea2d78841f48f8ac37e2ffdd0fc169cce9f8 ([T-822] 第 2 条件の残余を [T-1994] へ確定し、読み取り専用束縛を計算ノードで実証する)
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/compute-node-probe-result.txt
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/s3-consult-luna.md
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/s3-consult-sol.md
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/s3b-consult-luna.md
+    main・全 local branch tip に不在: output/insights/2026-09-01_t1994-readonly-snapshot-design/s3b-consult-sol.md
+  commit 3ec30125f543430dca3dc4ae042fdac807bac993 (precheck: [T-2288] placeholder 値の floor-pair-spec/v3 を 3 本置く (捨て branch、land しない))
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-rr5.json
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-rr50.json
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-rr95.json
+  commit 40639c173656760305400fa0b95c4fe4c5caed8c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2825-probe/run-measure.sh
+    main・全 local branch tip に不在: t2825-probe/run-series.sh
+    main・全 local branch tip に不在: t2825-probe/t2825_ab_analyze.py
+  commit 42eb19feea3c60a7bffea79d71c3b0e2605364bc ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig14/.mplconfig/fontlist-v390.json
+    main・全 local branch tip に不在: probe-fig14/a1-self-run.log
+    main・全 local branch tip に不在: probe-fig14/fig14_a1_balanced5_sized_attempt2.pdf
+    main・全 local branch tip に不在: probe-fig14/fig14_a1_balanced5_sized_attempt2.png
+    main・全 local branch tip に不在: probe-fig14/fig14_a1_balanced5_sized_attempt2.provenance.json
+    main・全 local branch tip に不在: probe-fig14/fig9_a1_balanced5_sized_attempt1.pdf
+    main・全 local branch tip に不在: probe-fig14/fig9_a1_balanced5_sized_attempt1.png
+    main・全 local branch tip に不在: probe-fig14/fig9_a1_balanced5_sized_attempt1.provenance.json
+    main・全 local branch tip に不在: probe-fig14/plain-runner.log
+  commit 43637fe41ff9dce0b0eb260abddb24814b18cb0d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-vprobe-v3/README.md
+    main・全 local branch tip に不在: scratch/t2850-vprobe-v3/probe_verify_parallel.py
+  commit 450199aeb24d333b2ab88a85e3d166820d70e4ef ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 46878b2e344d5ba7890b92eaa6f53e0b0812ec9b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766-adopt/t2766_adopt_analyze.py
+  commit 471ee22628f89d1c36a6bcf39b52d72a143854c5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/dispatch.sh
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/interpreter_probe.py
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/receipt.json
+    main・全 local branch tip に不在: probe-fig3b/dispatch-failure/request.json
+    main・全 local branch tip に不在: probe-fig3b/meta-test-results.txt
+    main・全 local branch tip に不在: probe-fig3b/out/fig3b_arc_status_2026-09-20.pdf
+    main・全 local branch tip に不在: probe-fig3b/out/fig3b_arc_status_2026-09-20.png
+    main・全 local branch tip に不在: probe-fig3b/out/fig3b_arc_status_2026-09-20.provenance.json
+    main・全 local branch tip に不在: probe-fig3b/run_tests_direct.py
+    main・全 local branch tip に不在: probe-fig3b/test-results.txt
+  commit 47b6426a61cc900d83bb9c1709e8073f7ba30227 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/llm_parent_driver.py
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/setup_submit_tree.sh
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/submit_registered.py
+  commit 48be9d7470124a8245f3fa9aed0fb891e4786bfd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: author-result.md
+  commit 4cea7c808a19064c016f9cd7939036d635dc9a2e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2825-mutation/make_mutation_spec.py
+  commit 4e46a3b8bd7983f157ae44b4a21ba394ca82c91a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.pdf
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.png
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.provenance.json
+  commit 5180a3acdf1cccf55adda5af15473068c83b677a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/run-measure.sh
+  commit 524237344ca0a37d96f04085e40f3cfed0d92259 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .t2847-launcher/launch_mutation_run.py
+  commit 52bc0bc51d0e41f7ac3db24daf5ce99a5ea69335 (feat(axis1): 新 epoch の OpenAlex 1 窓目を取得し、塞ぎが条件 5 へ移ったことを記録する)
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/fetch-window1.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/leaf-order.txt
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/MANIFEST.sha256
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000001.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000002.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000003.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000004.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000005.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000006.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000007.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/checkpoints/000008.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/manifest.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p0.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p1.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p1.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p2.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p2.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p3.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q1@openalex_p3.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p0.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p1.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p1.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p2.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p2.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p3.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p3.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p4.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p4.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p5.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p5.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p6.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p6.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p7.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p7.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p8.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q2@openalex_p8.a02.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p1.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p2.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p3.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SPRE1991@openalex_p4.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SY1991@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SY1992@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SY1993@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SY1994@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SY1995@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q3-SY1996@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p1.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p10.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p11.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p12.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p13.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p14.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p15.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p16.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p17.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p18.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p19.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p2.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p20.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p21.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p22.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p23.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p3.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p4.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p5.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p6.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p7.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p8.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q4@openalex_p9.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p1.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p10.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p11.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p12.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p13.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p14.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p15.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p16.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p17.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p18.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p19.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p2.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p20.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p21.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p22.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p23.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p24.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p25.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p26.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p27.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p28.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p29.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p3.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p30.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p4.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p5.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p6.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p7.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p8.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q5@openalex_p9.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/pages/AX1-20260902-E1-Q6-SPRE1991@openalex_p0.a01.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/state/runtime.json
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q1@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q2@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SPRE1991@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SY1991@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SY1992@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SY1993@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SY1994@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SY1995@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q3-SY1996@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q4@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q5@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/mirror/wal/AX1-20260902-E1-Q6-SPRE1991@openalex.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/stage2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/stage3-consult-correctness.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t2090-axis1-openalex-window1/stage3-consult-reachability.md
+  commit 54cf40bc6ceb84ca841ffeabfbdb0bc70f7f764c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+  commit 578599e5e12965b6e210435d76e8c476eecd5228 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-glue/README.md
+    main・全 local branch tip に不在: scratch/t2850-glue/parent-launch.sh
+    main・全 local branch tip に不在: scratch/t2850-glue/parent_driver.py
+    main・全 local branch tip に不在: scratch/t2850-glue/parent_watch.py
+    main・全 local branch tip に不在: scratch/t2850-glue/prepare_submit_tree.sh
+    main・全 local branch tip に不在: scratch/t2850-glue/test_glue.py
+  commit 57e3e1c967d552aeb9962b7751820e0a73ba810c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273lc_ab_analyze.py
+    main・全 local branch tip に不在: tools/t2273lc_gate.conf
+    main・全 local branch tip に不在: tools/t2273lc_run_measure.sh
+    main・全 local branch tip に不在: tools/t2273lc_run_series.sh
+    main・全 local branch tip に不在: tools/t2273lc_run_warm.sh
+  commit 58c35f73af1594d53cba34e56b15a1e744ed4175 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/out/fig8_original_positive_control.pdf
+    main・全 local branch tip に不在: scratch/out/fig8_original_positive_control.png
+    main・全 local branch tip に不在: scratch/out/fig8_original_positive_control.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig8_r2a_b10_static_tail.pdf
+    main・全 local branch tip に不在: scratch/out/fig8_r2a_b10_static_tail.png
+    main・全 local branch tip に不在: scratch/out/fig8_r2a_b10_static_tail.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig8_r2b_b10_static_tail.pdf
+    main・全 local branch tip に不在: scratch/out/fig8_r2b_b10_static_tail.png
+    main・全 local branch tip に不在: scratch/out/fig8_r2b_b10_static_tail.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig8b_control_recheck.pdf
+    main・全 local branch tip に不在: scratch/out/fig8b_control_recheck.png
+    main・全 local branch tip に不在: scratch/out/fig8b_control_recheck.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig8b_original_as_r2_recheck.pdf
+    main・全 local branch tip に不在: scratch/out/fig8b_original_as_r2_recheck.png
+    main・全 local branch tip に不在: scratch/out/fig8b_original_as_r2_recheck.provenance.json
+    main・全 local branch tip に不在: scratch/out/four_group_recheck.md
+    main・全 local branch tip に不在: scratch/t2853_r2_fig8b_plot.py
+  commit 58f95933e1d63592fcb30158614edfe2f8a2fe31 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2243_collection_contention_aggregate.py
+    main・全 local branch tip に不在: tools/t2243_collection_contention_probe.sh
+  commit 5a4cec319046a7d0383a7968461c5220e34a6fd6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .t2847-launcher/launch_mutation_run.py
+  commit 5aff58fe4ee0d3e2f9a76e340c10a3b842c94986 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.pdf
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.png
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.provenance.json
+  commit 5b68f93135abe479b4464ab04982a8fa1057da3b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.pdf
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.png
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.provenance.json
+  commit 5d43932337409568a932ccf4a64d2770c4ab36b4 (docs(acceptance): record no-effect T-080 grouping)
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/README.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/acceptance-receipt.json
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/mutation-report.json
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/mutation-spec.json
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/mutation-wrapper-receipt.json
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/paired-runs.json
+  commit 5edea543b18beccedff83a263002f7780251d8e0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit 60c758a869e0d8dad0e845fe2ffd1456cbbf3057 (merge(t1933): preserve longest-node negative result)
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/sources/longest-node-README.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/sources/spool/2026-08-28-worktree-dev-wave-t1933-acceptance-longest-node-1.md
+  commit 6165799b4c4b54e23b76d94601e627b3bde6489e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2273pi/t2273pi_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2273pi/t2273pi_gate.conf
+    main・全 local branch tip に不在: probe-t2273pi/t2273pi_run_measure.sh
+    main・全 local branch tip に不在: probe-t2273pi/t2273pi_run_series.sh
+    main・全 local branch tip に不在: probe-t2273pi/t2273pi_run_warm.sh
+  commit 62261c224d90e2a674eafe9801a00faf2036caec ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: genopt_gl_scratch/gate_check.py
+    main・全 local branch tip に不在: genopt_gl_scratch/launch_gate_liveness.py
+    main・全 local branch tip に不在: genopt_gl_scratch/make_patches.py
+    main・全 local branch tip に不在: genopt_gl_scratch/patches/instr-silo-gate-witness.patch
+    main・全 local branch tip に不在: genopt_gl_scratch/test_gate_check.py
+  commit 6337dcef5ba1634a354a0c2ce1da122deaa23837 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_capacity/launch_capacity.py
+  commit 638378530bf26b5a7fe41b9dab6e277995e2dcf6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.pdf
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.png
+    main・全 local branch tip に不在: probe-k2fig12/fig12_k2_manual_loop_dataflow.provenance.json
+  commit 665dd49245b4ac4aa999ee410827ca0d2a7e1011 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: wave-probe/equiv_real.py
+  commit 66691d13c00bebabd6d6ab82edd95e62abc45e01 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/README.md
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/job_costs.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/parent_driver.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/prepare_submit_tree.sh
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/schedule.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/submit.py
+    main・全 local branch tip に不在: scratch/t2850-glue-v4/test_glue.py
+  commit 6676f7c54d12516855e6b5a6ff7edb4030410741 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .t2847-launcher/launch_mutation_run.py
+  commit 6791cec22f86539d362aaf7892300423a190a035 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2851_anchor_smoke.py
+  commit 6807376d6212320d99f30f01096bd6970ab91c67 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: verify-target/launch_cicada_run_target.py
+  commit 68af68ed24ef90548943fa73f075b7b75e3967a9 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2872_probe/arms-t2872.json
+    main・全 local branch tip に不在: t2872_probe/mocc-g2-probe.patch
+    main・全 local branch tip に不在: t2872_probe/scratch/base/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/README.md
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/bomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/atomic_tool.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/mocc_op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/scan_callback.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/transaction.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/tuple.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/lock.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/pseudo_mql.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/sbomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_cache_ana.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_t1k.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_t1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_t200.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/tst200-1k-1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xope.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xrratio.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xrs.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xskew.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xth.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xval.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbA-xrs-cache.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbA.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbB.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbC.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/tpcc_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/ycsb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/CompileOptions.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/Findgflags.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/Findglog.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/MicrobenchHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/Options.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/ProtocolHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/ThirdParty.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/common/result.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/common/runner.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/common/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/atomic_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/backoff.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/bomb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/bomb_pessimistic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/bomb_static.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/cache_line_size.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/check.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/compiler.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/config.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/cpu.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/dbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/debug.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/delay.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/fence.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/fileio.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/heap_object.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/inline.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/int64byte.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/masstree_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/procedure.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/queue.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/random.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/rwlock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/sbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/string.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_initializer.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_query.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tables.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_delivery.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_neworder.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_orderstatus.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_payment.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_stocklevel.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/trace.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/transaction_status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tsc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tuple_body.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tx_executor_concept.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/workload.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/ycsb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/zipf.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/README.md
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/bomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/atomic_tool.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/mocc_op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/scan_callback.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/transaction.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/tuple.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/lock.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/pseudo_mql.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/sbomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_cache_ana.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_t1k.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_t1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_t200.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/tst200-1k-1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xope.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xrratio.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xrs.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xskew.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xth.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xval.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbA-xrs-cache.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbA.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbB.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbC.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/tpcc_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/ycsb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/CompileOptions.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/Findgflags.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/Findglog.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/MicrobenchHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/Options.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/ProtocolHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/ThirdParty.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/common/result.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/common/runner.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/common/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/atomic_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/backoff.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/bomb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/bomb_pessimistic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/bomb_static.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/cache_line_size.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/check.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/compiler.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/config.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/cpu.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/dbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/debug.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/delay.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/fence.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/fileio.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/heap_object.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/inline.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/int64byte.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/masstree_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/procedure.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/queue.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/random.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/rwlock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/sbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/string.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_initializer.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_query.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tables.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_delivery.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_neworder.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_orderstatus.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_payment.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_stocklevel.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/trace.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/transaction_status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tsc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tuple_body.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tx_executor_concept.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/workload.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/ycsb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/zipf.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/transaction.base.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/t2872_probe.py
+  commit 6c28c08f147bc869a2b478caee4f666be89f9d03 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tmp-verify/launch_cicada_run_gc.py
+  commit 6ca101451d87755a8fe1745c3bd44fd3e6b64d28 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2872_probe/mocc-g2-probe.patch
+    main・全 local branch tip に不在: t2872_probe/scratch/base/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/README.md
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/bomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/atomic_tool.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/mocc_op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/scan_callback.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/transaction.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/tuple.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/lock.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/pseudo_mql.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/sbomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_cache_ana.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_t1k.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_t1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/test_t200.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/tst200-1k-1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xope.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xrratio.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xrs.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xskew.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xth.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsb-xval.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbA-xrs-cache.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbA.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbB.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/script/ycsbC.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/tpcc_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cc/mocc/ycsb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/CompileOptions.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/Findgflags.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/Findglog.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/MicrobenchHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/Options.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/ProtocolHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/cmake/ThirdParty.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/base/common/result.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/common/runner.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/common/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/atomic_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/backoff.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/bomb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/bomb_pessimistic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/bomb_static.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/cache_line_size.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/check.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/compiler.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/config.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/cpu.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/dbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/debug.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/delay.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/fence.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/fileio.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/heap_object.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/inline.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/int64byte.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/masstree_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/procedure.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/queue.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/random.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/rwlock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/sbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/string.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_initializer.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_query.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tables.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_delivery.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_neworder.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_orderstatus.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_payment.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_tx_stocklevel.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tpcc/tpcc_util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/trace.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/transaction_status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tsc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tuple_body.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/tx_executor_concept.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/workload.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/ycsb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/base/include/zipf.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/CMakeLists.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/README.md
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/bomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/atomic_tool.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/mocc_op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/scan_callback.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/transaction.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/tuple.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/lock.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/pseudo_mql.txt
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/sbomb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_cache_ana.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_t1k.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_t1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/test_t200.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/tst200-1k-1m.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xope.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xrratio.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xrs.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xskew.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xth.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsb-xval.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbA-xrs-cache.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbA.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbB.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/script/ycsbC.sh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/tpcc_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cc/mocc/ycsb_mocc.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/CompileOptions.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/Findgflags.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/Findglog.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/MicrobenchHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/Options.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/ProtocolHelpers.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/cmake/ThirdParty.cmake
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/common/result.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/common/runner.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/common/util.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/atomic_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/backoff.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/bomb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/bomb_pessimistic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/bomb_static.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/cache_line_size.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/check.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/compiler.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/config.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/cpu.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/dbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/debug.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/delay.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/fence.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/fileio.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/heap_object.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/inline.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/int64byte.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/lock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/masstree_wrapper.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/op_element.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/procedure.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/queue.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/random.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/result.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/rwlock.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/sbomb_deterministic.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/string.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_common.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_initializer.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_query.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tables.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_delivery.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_neworder.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_orderstatus.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_payment.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_tx_stocklevel.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tpcc/tpcc_util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/trace.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/transaction_status.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tsc.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tuple_body.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/tx_executor_concept.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/util.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/workload.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/ycsb.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/probed/include/zipf.hh
+    main・全 local branch tip に不在: t2872_probe/scratch/transaction.base.cc
+    main・全 local branch tip に不在: t2872_probe/scratch/transaction.cc
+    main・全 local branch tip に不在: t2872_probe/t2872_probe.py
+  commit 6ed1056e41b4597c9635a1cdcd5f41375c32676a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_launch/launch_patch_verify.py
+  commit 6f5de08ce103e944a0f0bc633b8b4fb0f8cca1d6 (docs(t1933): reconcile stopped negative-result waves)
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/README.md
+  commit 703a3fb031dcf791cd56fd231480bcf0bd5c2acb ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit 7105f35eaaa2f0e468d60008ba4a7fcbd1402af0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/gate_wait_probe.py
+  commit 733d3ea050f2a8fec93ff88b96d1802fa94f56ee (docs: real-repo 閉包 wave の記録と一次資料を残す)
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/README.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/mutation-final-out.json
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/mutation-final-spec.json
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/mutation-probe-out.json
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/mutation-probe-spec.json
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/brief-erratum.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/brief.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s3-lens-a.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s3-lens-b.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s4-adjudication.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s5-author.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s6-fix.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s6-fix2.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s6-review-a.md
+    main・全 local branch tip に不在: output/insights/2026-08-27_t1886-realrepo-closure/verbatim/s6-review-b.md
+  commit 74595432bda11389681cd82a074898b6ebcb9160 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.json
+    main・全 local branch tip に不在: t_inv_scanner/out/inventory.md
+    main・全 local branch tip に不在: t_inv_scanner/scan_tests.py
+    main・全 local branch tip に不在: t_inv_scanner/test_scan_tests.py
+  commit 7638fba87a7f09ea7a15b65ffd0872421fd7cc89 (docs(b4): [T-2423] receipt 由来 protocol 導出の記録 — insight、変異台帳、spool fragment 3 本)
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-ledger-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-spec-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s1-brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s3-lens-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s3-lens-b.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s4-ruling.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s5-author.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-fix1.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-review-c.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-review-d.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-ruling.md
+  commit 782cf34424db6033a78560d1fe5f82c7ec10b10c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_diag.py
+    main・全 local branch tip に不在: md32-scratch/v-init-ver.patch
+  commit 7b6f2af364b1848210fde955de1ba643aa851a25 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tmp-verify/launch_cicada_run_gc.py
+  commit 7ba7290b535070dd985e93b788faf8a441fa7a38 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2872_probe/t2872_probe.py
+  commit 7c46f68065b66cdaa2d095dee0163fa30b143408 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2812_old_series_probe.py
+  commit 7c8ace5fc998c95ee5f92bc6042e22cb513b3acc ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2851_anchor_smoke.py
+  commit 7ce180a5e8c09ba5b435beb9faa0db02734895bf ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+  commit 7d36ae58164230c8b8443a689ac46c77168b0112 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_launch/launch_sort_nonswo.py
+  commit 7d54d2e35288f66df4d9c1fc0adc54edd7f5b9cf ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/llm_parent_driver.py
+  commit 7db3767a3d345296fd6c87df0d337eee5cf0569b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+    main・全 local branch tip に不在: md32-scratch/promo_diag_support.py
+    main・全 local branch tip に不在: md32-scratch/run_ci_image.sh
+  commit 7e5695e1f81e1b37f2346f50aa9d8867e6471ed2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/run-measure.sh
+    main・全 local branch tip に不在: probe-t2802/run-series.sh
+    main・全 local branch tip に不在: probe-t2802/run-warm.sh
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2802/t2802_diff_probe.py
+  commit 7eaad2d74712355e04f476623bcc03473792ef53 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig3b/out-fix1/fig3b_arc_status_2026-09-20.pdf
+    main・全 local branch tip に不在: probe-fig3b/out-fix1/fig3b_arc_status_2026-09-20.png
+    main・全 local branch tip に不在: probe-fig3b/out-fix1/fig3b_arc_status_2026-09-20.provenance.json
+  commit 7eee705503199062751e345804ef237232614598 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: genopt_gl_scratch/launch_gate_liveness.py
+  commit 7f38ac7fdab5cde1744f41ce67f0fae95b839b27 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_runner.py
+  commit 7fa426d337b1213cc36e19c3ba2e5185d209660a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-glue/README.md
+    main・全 local branch tip に不在: scratch/t2850-glue/parent_watch.py
+    main・全 local branch tip に不在: scratch/t2850-glue/prepare_submit_tree.sh
+    main・全 local branch tip に不在: scratch/t2850-glue/submit.py
+    main・全 local branch tip に不在: scratch/t2850-glue/test_glue.py
+  commit 80a06a102780d509d4392cc7d52f6fb6802b3771 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tmp-verify/launch_cicada_run_gc.py
+  commit 80ee30b77f456e4b993c50eaa23876418fe6c574 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2872_probe/mocc-g2-probe.patch
+  commit 810622cacf04765b427fb1bcbb6f3ea751478dbe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.pdf
+    main・全 local branch tip に不在: probe-fig11/fig11_a6_certification_reject.provenance.json
+  commit 817bfdec8d6792b0662dc570663572063b19a0de ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+  commit 85ab06c3ce07355a4f37224bd2c744816787413d (docs(dev-wave): record T-1933 inventory near-miss recurrence)
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/README.md
+  commit 875722658c1724f6c232e4860f295b6fb1187d2d ([T-2396] 段 7 記録 — insight、逐語 11 本、変異台帳 2 巡、spool fragment 3 本)
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/mutation-ledger-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/mutation-spec-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s1-anchors.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s1-brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s3-consult-luna.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s3-consult-sol.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s4-adjudication.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s5-author.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s6-fix1.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s6-fix2.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s6-review-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2396-a1-receipt-oslink/verbatim/s6-review-b.md
+  commit 89335134f0d11199b597bc466c63f1dc0800bde5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_diag.py
+  commit 89b253ea96707f6449cbf8351f2f34326b8238b0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t_witlight/W.patch
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node1.json
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node2.json
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node3.json
+    main・全 local branch tip に不在: tools/t_witlight/arms-witlight-node4.json
+    main・全 local branch tip に不在: tools/t_witlight/scratch/W-XP/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/W/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/XP-witlight/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/XP/a/cc/mocc/transaction.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/check_wrapper.py
+    main・全 local branch tip に不在: tools/t_witlight/scratch/left.stripped.cc
+    main・全 local branch tip に不在: tools/t_witlight/scratch/right.stripped.cc
+    main・全 local branch tip に不在: tools/t_witlight/smoke_capture.py
+    main・全 local branch tip に不在: tools/t_witlight/witlight.patch
+  commit 89ff3d12ec274ab6012eb7cb6a4c15abbfb0b1a2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .gcfix-launcher/launch_gcfix_run.py
+    main・全 local branch tip に不在: .gcfix-work/asan-abort-uaf-workaround.patch
+  commit 8ac3261423fb02094affa86a1961a05bc9e550fe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2797-v2-vprobe/README.md
+    main・全 local branch tip に不在: scratch/t2797-v2-vprobe/probe_verify_parallel.py
+  commit 8b677a19712acba55c733fa2511d77a63d532b13 (merge(t1933): preserve no-effect grouping result)
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/sources/acceptance-fastest-README.md
+    main・全 local branch tip に不在: output/insights/2026-08-28_t1933-acceptance-longest-node/sources/spool/2026-08-28-dev-wave-acceptance-fastest-1.md
+  commit 8b96e539dfa52b3edb75c271131449534b539382 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .t2847-launcher/launch_mocc_run.py
+  commit 8dcd287b9313db4eb76be79c4d4b109788f71699 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_launch/launch_sort_nonswo.py
+  commit 8e6cd5b278f0c81a030278cac05dc75d60add919 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+  commit 8f6aee197b795414fdc6a894daf8b182796365e0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: orchestrator/campaign/p2_5.py
+    main・全 local branch tip に不在: orchestrator/campaign/s6_amendment_20260713_fence.py
+    main・全 local branch tip に不在: orchestrator/campaign/s6_canary_rename.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_capdrop_probe.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_readonly_snapshot_liveness.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_rootview_probe.py
+    main・全 local branch tip に不在: orchestrator/manual_probes/t1994_seccomp_probe.py
+    main・全 local branch tip に不在: orchestrator/tests/test_insights_date_layout.py
+    main・全 local branch tip に不在: orchestrator/tests/test_migrate_output_gzip.py
+    main・全 local branch tip に不在: orchestrator/tests/test_plot_t2266_tail_mechanism.py
+    main・全 local branch tip に不在: tools/insights_date_layout.py
+    main・全 local branch tip に不在: tools/migrate_output_gzip.py
+    main・全 local branch tip に不在: tools/plotting/plot_t2266_tail_mechanism.py
+  commit 8f988879c00a3276cccf430fbdfe51f60eef5dad ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/launch_cicada_run_base.py
+    main・全 local branch tip に不在: probe/launch_cicada_run_multi.py
+  commit 90085b16cfd3e1c5fe888e77ca958657a03ede60 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2710/t2710_probe_analyze.py
+    main・全 local branch tip に不在: probe-t2710/t2710_probe_plugin.py
+    main・全 local branch tip に不在: probe-t2710/t2710_probe_runner.py
+  commit 926c33f94a3d731c89563e1662dce0df4c93322a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit 9280f66dab0f2800b30e1956cd7916fd4e16bccd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .gcfix-launcher/launch_gcfix_run.py
+    main・全 local branch tip に不在: .gcfix-work/diag-cicada-gc-records.patch
+  commit 92d81dde6b3affbb21d15de75d5ecd7bd65983c4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2872_probe/mocc-g2-probe.patch
+    main・全 local branch tip に不在: t2872_probe/t2872_probe.py
+  commit 99ea4cd2dd1ae42ba1ca6db27f57469946a1baf9 (docs(t2075): 受入 blocker の F 起票を取り下げ、調査結果を本 wave の記録へ移す)
+    main・全 local branch tip に不在: output/insights/2026-09-01_t2075-layer3-bypass-hard-failure/README.md
+  commit 9a2a525504fb840de737fdb6f2f362ed2b7bd7a9 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/arms-t2779.json
+    main・全 local branch tip に不在: probe/t2779_probe.py
+  commit 9bd4077f1f1c590292f6d34f73837cdb7aa731e2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/test_t2737_live_probe.py
+  commit 9c5d35ad8cab5fd13bd1d564b885e593e2ea0824 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/gate_wait_probe.py
+  commit 9d2d1396d61fb3d5bd6dbc28199ae83bede5aba2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.pdf
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.png
+    main・全 local branch tip に不在: probe-t2610/fig10_b7_fixed5_three_workload_regression.provenance.json
+  commit 9db4916c7ec9ac2fe05ab4d75d544faf41c0682c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2872_probe/mocc-g2-probe.patch
+    main・全 local branch tip に不在: t2872_probe/t2872_probe.py
+  commit 9ebadfc365c12feec75d77341e4517922e916e0b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2850-vprobe/README.md
+    main・全 local branch tip に不在: scratch/t2850-vprobe/probe_verify_parallel.py
+  commit 9f1c6d969914a4157a216f75c334ebc5ba58e8f4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit 9f6b142525f325c6c8333db04a94ddb69c8aab8f ([T-2090] 軸 1 OpenAlex の継続取得を塞いでいるのは無償枠でなく完走条件 1 だと確定し、取得も実装もせず裁定へ返す)
+    main・全 local branch tip に不在: output/insights/2026-09-02_t2090-axis1-continuation-blocked/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-02_t2090-axis1-continuation-blocked/bundle-baseline-mainchecker.json
+    main・全 local branch tip に不在: output/insights/2026-09-02_t2090-axis1-continuation-blocked/probe-checkpoint-000170.json
+    main・全 local branch tip に不在: output/insights/2026-09-02_t2090-axis1-continuation-blocked/stage2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-02_t2090-axis1-continuation-blocked/stage3-review-coherence.md
+    main・全 local branch tip に不在: output/insights/2026-09-02_t2090-axis1-continuation-blocked/stage3-review-correctness.md
+  commit 9fae49a5104a52bc60f3324bbce7e70b8aad054e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2709_blob_transfer_probe.py
+  commit a028857a6fafe3f8a4e8c366d2493b175ffc4603 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2817_probe_plugin.py
+  commit a07779b6e402ec8eeacc3f3f27495abef88743f9 (docs(b4): [T-2423] receipt 由来 protocol 導出の記録 — insight、変異台帳、spool fragment 3 本)
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-ledger-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-spec-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s1-brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s3-lens-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s3-lens-b.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s4-ruling.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s5-author.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-fix1.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-review-c.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-review-d.md
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2423-floor-protocol-identity/verbatim/s6-ruling.md
+  commit a11aad1ac404b815cd4def7f73059cb1844fca85 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .t2847-launcher/launch_si_run.py
+  commit a21b8f61292fbd2c29d3bdf30c61c64e5568625a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2851_anchor_smoke.py
+  commit a3dae7793f9f07aa3c4e6a3d8d43d4878c2b64fe ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766/t2766_ab_analyze.py
+  commit a4fc9b51b9433a452e2f684bbea9001350bffea2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/diag-counters.patch
+    main・全 local branch tip に不在: md32-scratch/launch_promo_diag.py
+  commit a519a7560a4ba3499b01acd136f6a3600cb8e2ae ([T-2630] probe: 走査境界の到達実測 test (probe branch のみ、land しない))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit a9d08b699137c885318a1ece3eff765c0a6e5c4f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-output-pruning/classify.py
+    main・全 local branch tip に不在: scratch-output-pruning/config.example.json
+    main・全 local branch tip に不在: scratch-output-pruning/scan_refs.py
+    main・全 local branch tip に不在: scratch-output-pruning/selftest.py
+  commit aa85ee7d973e2fc3396c09707c09eb6f03eef32f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit acd299a39432f23ace0a23b0a3d8a58471d47417 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_diag.py
+  commit ae816441cd80822f5fe10f2f91534f4e587d52e5 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/test_t2737_live_probe.py
+  commit aee09255a9ddb30488b89ce802de6b5200b618bb ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/out/fig6_comparison.md
+    main・全 local branch tip に不在: scratch/out/fig6_comparison.wrapper.json
+    main・全 local branch tip に不在: scratch/out/fig6_control_artist.pdf
+    main・全 local branch tip に不在: scratch/out/fig6_control_artist.png
+    main・全 local branch tip に不在: scratch/out/fig6_control_artist.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig6_control_artist.wrapper.json
+    main・全 local branch tip に不在: scratch/out/fig6_control_draw.pdf
+    main・全 local branch tip に不在: scratch/out/fig6_control_draw.png
+    main・全 local branch tip に不在: scratch/out/fig6_control_draw.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig6_control_draw.wrapper.json
+    main・全 local branch tip に不在: scratch/t2853_r2_fig6_plot.py
+    main・全 local branch tip に不在: scratch/tmp/certification-one-byte.json
+  commit b1355ea04a31369aef32dfba06cb4253e92ba242 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2866_tpcc_smoke.py
+  commit b36ee273171ac885b82c6bf93795fde99c2b46c4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2786_probe/conftest.py
+    main・全 local branch tip に不在: t2786_probe/mutations.json
+    main・全 local branch tip に不在: t2786_probe/t2786_probe_analyze.py
+    main・全 local branch tip に不在: t2786_probe/test_t2786_probe.py
+  commit b45891d3f3bb72afb76fa20526d43a883ab439f6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.pdf
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.png
+    main・全 local branch tip に不在: probe-fig13/fig13_b10_waiting_grid_forest.provenance.json
+    main・全 local branch tip に不在: probe-fig13/fix1-mutations.txt
+    main・全 local branch tip に不在: probe-fig13/fix1-test-results.txt
+  commit b5120e8f6d8c4c873b2de7b14e8ff3dfff9904c8 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tmp-verify/launch_cicada_run_gc.py
+  commit b6911273bb63b93bf49c096e10d4e8d87bc45979 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-output-pruning/build_index.py
+    main・全 local branch tip に不在: scratch-output-pruning/classify.py
+    main・全 local branch tip に不在: scratch-output-pruning/config.example.json
+    main・全 local branch tip に不在: scratch-output-pruning/scan_refs.py
+    main・全 local branch tip に不在: scratch-output-pruning/selftest.py
+  commit b82e3a924ba1576758dec60068709f6f6edd2541 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2786_probe/mutations.json
+    main・全 local branch tip に不在: t2786_probe/t2786_probe_analyze.py
+    main・全 local branch tip に不在: t2786_probe/t2786_probe_plugin.py
+    main・全 local branch tip に不在: t2786_probe/t2786_probe_runner.py
+    main・全 local branch tip に不在: t2786_probe/test_t2786_probe.py
+  commit b84275b6ed691a6da17d3d074e3173f1f4fd652d (precheck: [T-2288] 負対照 (c') 用の spec — source_commit が HEAD の祖先でない (捨て branch、land しない))
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-negative-c-nonancestor.json
+  commit baa59bf082f28f271feb7485c6ee00a3fbb4cf4d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/pegasus/probes/t2153_witness_candidates_probe.py
+  commit bb3c3ebb0099644e3bcb838a35f0bf977584070b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2866_tpcc_smoke.py
+  commit bcab331af85805d939dee4b79c91b58bbb6ae283 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .t2847-launcher/launch_si_run.py
+  commit c101068efaef8fc6566b5e993548e967b0370216 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: genopt_gl_scratch/make_patches.py
+    main・全 local branch tip に不在: genopt_gl_scratch/patches/broken-silo-b1-unregistered-first-read.patch
+  commit c2627ba699e63183cc78fdd9ad5fcf5b46e54a43 (wip(t2304 unit scaffold): 退避済みの merge-out / probe を子木から外す (not for land))
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_campaign.py
+    main・全 local branch tip に不在: merge-out/orchestrator/tests/test_p3_s4_loop.py
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit c4cca0b009d23ee61f4bd48aa9ead80b70a29381 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/out/fig11_comparison.md
+    main・全 local branch tip に不在: scratch/out/fig11_control.pdf
+    main・全 local branch tip に不在: scratch/out/fig11_control.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig11_r2_actual.pdf
+    main・全 local branch tip に不在: scratch/out/fig11_r2_actual.png
+    main・全 local branch tip に不在: scratch/out/fig11_r2_actual.provenance.json
+    main・全 local branch tip に不在: scratch/t2853_r2_fig11_plot.py
+  commit c5affb156ba141aee64b5d66dc48db3de5abae1f ([T-2731] probe: 再走の証拠出力先を本 wave の job dir へ変える (probe branch のみ、land しない))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit c5bfe9e8249634236ac267e4114044433a64490c ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2489_lock_probe.pbs
+    main・全 local branch tip に不在: t2489_lock_probe.py
+  commit c626b527d2791f49b9af8cf86ce56055794f67d2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/login_check_event_ledger.py
+    main・全 local branch tip に不在: tools/login_check_receipt_replay.py
+  commit c671553f34ec05b7c4edae2b7194a4ca374e4ff4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2866_tpcc_smoke.py
+  commit c6b14f96da92b31427e08bc0bfa7633ed8158217 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2858_shape_probe_job.sh
+  commit c7793e51f7317124f29fcacc8136513eb2559c9d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_analyze.py
+    main・全 local branch tip に不在: tools/t2273_replica_plugin.py
+    main・全 local branch tip に不在: tools/t2273_replica_runner.py
+  commit c84ab8c711e4abea6c1c1fff565da0a4cf89fdda ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/login_check_event_ledger.py
+    main・全 local branch tip に不在: tools/login_check_receipt_replay.py
+  commit c962d9e928340075a667ac86146e759b9e61739e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_analyze.py
+    main・全 local branch tip に不在: tools/t2273_replica_plugin.py
+    main・全 local branch tip に不在: tools/t2273_replica_runner.py
+  commit ca6cf051acd1359fd4336dbcf6e878608b868e58 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/README.md
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+  commit cb241cf43d1d1d5aba16b6933fd5bcf515610c8f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/out/fig8b_control.pdf
+    main・全 local branch tip に不在: scratch/out/fig8b_control.png
+    main・全 local branch tip に不在: scratch/out/fig8b_control.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig8b_four_group_table.md
+    main・全 local branch tip に不在: scratch/out/fig8b_r2.pdf
+    main・全 local branch tip に不在: scratch/out/fig8b_r2.png
+    main・全 local branch tip に不在: scratch/out/fig8b_r2.provenance.json
+    main・全 local branch tip に不在: scratch/t2853_r2_fig8b_plot.py
+  commit cc5bc88e8fd07e7c59d0a8c620729cc8eaba46c0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-output-pruning/scan_refs.py
+    main・全 local branch tip に不在: scratch-output-pruning/selftest.py
+  commit cc97f6662ee15bdf8877084366b0b5a71b74210b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-output-pruning/measure_pair.sh
+    main・全 local branch tip に不在: scratch-output-pruning/summarize_measure.py
+  commit cd886a7f3ff69632d0c126dd30989e01d1c05fed ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2766/t2766_ab_analyze.py
+  commit cef14d312aa39b836a83010ec33268250cd27b55 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_launch/launch_sort_nonswo.py
+  commit cf9fa1d9a594b6da3e4c6e820d47d19d10817527 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2812_old_series_probe.py
+  commit d16f13781d65a7183dd7d29a0a5f195bf56064be ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273lc_ab_analyze.py
+  commit d2a662bf8e098be86f7a59b07f6a0ba6b392fb97 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: _t2724_write_approval.py
+    main・全 local branch tip に不在: _t2724_write_pointer.py
+  commit d35fa1da87ed8b7bd0c202bbdc049e341bb676e6 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: fix-result.md
+  commit d3a1f249b502e3e12a05c9febbff0bef783325f4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/scratch-t2790/junit_scan_survey.py
+    main・全 local branch tip に不在: output/scratch-t2790/scan_sampler.py
+  commit d444042946fb89eca0ee08da8965d58fd50be5dc (docs(t2075): 層 3 迂回の hard failure 化の実行記録と変異台帳を残す)
+    main・全 local branch tip に不在: output/insights/2026-09-01_t2075-layer3-bypass-hard-failure/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-01_t2075-layer3-bypass-hard-failure/mutation-out.json
+    main・全 local branch tip に不在: output/insights/2026-09-01_t2075-layer3-bypass-hard-failure/mutation-spec.json
+  commit d4bbe7afa91d30a4969b65959ddb3689ab610a6c (docs(t941): P6 の機械実装に着手できない理由と、開いたままの第 2 の順序依存を記録する)
+    main・全 local branch tip に不在: output/insights/2026-09-03_t941-p6-second-ordering-dependency/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t941-p6-second-ordering-dependency/brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t941-p6-second-ordering-dependency/s4-adjudication.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t941-p6-second-ordering-dependency/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t941-p6-second-ordering-dependency/verbatim/s3-lensA.md
+    main・全 local branch tip に不在: output/insights/2026-09-03_t941-p6-second-ordering-dependency/verbatim/s3-lensB.md
+  commit d587547b68e70bed29694af435c5957295d203d7 (precheck: [T-2288] 負対照 (e) 用の spec — 出力 relpath の parent dir が checkout に無い (捨て branch、land しない))
+    main・全 local branch tip に不在: output/env/pegasus/floor-pair/precheck-placeholder-t2288/spec-negative-e-missing-outdir.json
+  commit d688aaf5591d913a70d8bf5ae9d32c4e2aafc225 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-fig15-fix/fig15_mocc_witlight_four_arm.pdf
+    main・全 local branch tip に不在: probe-fig15-fix/fig15_mocc_witlight_four_arm.png
+    main・全 local branch tip に不在: probe-fig15-fix/fig15_mocc_witlight_four_arm.provenance.json
+  commit d86ec8f4842065802226ecaa3ff285c3611d257b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2868_probe/t2868_recheck.py
+  commit dd1c10467e4975d88242d6eb177f3b2d63ebfdc2 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: merge-result/test_ccbench_spawn_sites.py
+  commit de1d5272346b10a4fd9fc7100bd7d04c4c03e251 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit df916199dbf5c1f8b07ed9ecf5963d4c920f3e3e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/login_check_event_ledger.py
+    main・全 local branch tip に不在: tools/login_check_receipt_replay.py
+  commit dfe1cef273cc18adab56a8e9cf3786c539ee0b2f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2851_anchor_smoke.py
+  commit e18c37f58998509d71b45e3e706b279ffe28d67e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/run-measure.sh
+    main・全 local branch tip に不在: probe-t2802/run-series.sh
+    main・全 local branch tip に不在: probe-t2802/run-warm.sh
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2802/t2802_diff_probe.py
+  commit e21e80816392f5a7bf7add4d1cfa2dcdbbbcc0e0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2825-probe/gate.conf
+    main・全 local branch tip に不在: t2825-probe/run-measure.sh
+    main・全 local branch tip に不在: t2825-probe/run-series.sh
+    main・全 local branch tip に不在: t2825-probe/run-warm.sh
+    main・全 local branch tip に不在: t2825-probe/t2825_ab_analyze.py
+  commit e21f84c1c39050183230a1553d429637454c4780 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/t2853_r2_fig8b_plot.py
+  commit e2d611bccfcea68a0b0746c81037a2f2f167f6b4 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+  commit e35fb7c4e931842133020874162d232a4213b393 ([T-2630] probe fix: 実 site 判定で compiler を選ぶ (F6-1))
+    main・全 local branch tip に不在: orchestrator/tests/test_t2630_scan_boundary_reach.py
+  commit e46b290acb8cde18361ea127051512ec7928db9f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2825-author-l-fix1/check.log
+    main・全 local branch tip に不在: t2825-author-l-fix1/dropped-t2344.txt
+    main・全 local branch tip に不在: t2825-author-l-fix1/dropped.txt
+    main・全 local branch tip に不在: t2825-author-l-fix1/input-check.json
+    main・全 local branch tip に不在: t2825-author-l-fix1/main-ledger.json
+    main・全 local branch tip に不在: t2825-author-l-fix1/main-sha256.txt
+    main・全 local branch tip に不在: t2825-author-l-fix1/refresh.log
+    main・全 local branch tip に不在: t2825-author-l-fix1/status.txt
+    main・全 local branch tip に不在: t2825-author-l-fix1/verify.json
+    main・全 local branch tip に不在: t2825-author-l-fix1/verify.md
+  commit e47ef81bab7e0a8ed3830d61ae18d88c5a8b0bfd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verifier_cli_timing_probe.py
+  commit e4c4942cecfb82cdd3760480f3997b0f9af05fdd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/pegasus/silo_policy_recon_job.sh
+    main・全 local branch tip に不在: tools/pegasus/submit_silo_policy_recon.sh
+  commit e914cc49ac9abfa2d4577e3a989ea6687a67ecd0 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2851_anchor_smoke.py
+  commit e9fb2611846a1427299ef48e3abd9ec1a7aa4a6a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch/out/fig11_comparison.md
+    main・全 local branch tip に不在: scratch/out/fig11_control.pdf
+    main・全 local branch tip に不在: scratch/out/fig11_control.png
+    main・全 local branch tip に不在: scratch/out/fig11_control.provenance.json
+    main・全 local branch tip に不在: scratch/out/fig11_r2_surrogate.pdf
+    main・全 local branch tip に不在: scratch/out/fig11_r2_surrogate.png
+    main・全 local branch tip に不在: scratch/out/fig11_r2_surrogate.provenance.json
+    main・全 local branch tip に不在: scratch/out/r2-run.log
+    main・全 local branch tip に不在: scratch/t2853_r2_fig11_plot.py
+  commit ec17af5dc154ab527516448a619ff98fe341ba99 (docs(insights): [T-2515] 投入経路の開放と認証経路の 3 週間分の故障、BACKOFF_FIXED で止まった事実を記録する)
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988653-rr95-condition-gate.stderr
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988653-rr95-failure.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988706-rr95-condition-gate.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988706-rr95-failure.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988706-rr95-submit-receipt.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988708-rr5-condition-gate.jsonl
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/job-evidence/988708-rr5-failure.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-report-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-report-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-spec-final.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s1-brief.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s2-plan.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s3-consult-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s3-consult-b.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s4-ruling-addendum.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s4-ruling.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s5-author.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-fix1.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-fix2.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-fix3.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-refocus.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-review-a.md
+    main・全 local branch tip に不在: output/insights/2026-09-10_t2515-rr95-rr5-calibration/verbatim/s6-review-b.md
+  commit ec6744e78a342f14adafd634cc5672c9cae08632 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+  commit ed461aa4fd55547b6398c3c2df2cf8d6b7c2bdf9 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2817_replica_analyze.py
+    main・全 local branch tip に不在: tools/t2817_replica_plugin.py
+    main・全 local branch tip に不在: tools/t2817_replica_runner.py
+  commit ed832c62ef2ee48f4a45565788259cb04092c49b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: scratch-output-pruning/classify.py
+    main・全 local branch tip に不在: scratch-output-pruning/selftest.py
+  commit ef7a3c587527633d6982312c8be688a01c0d5f62 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+  commit f044a8c316b597f9cf8459fab2e8001a66629a2a ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2865-recheck-probe/recheck_aggregate.py
+  commit f0d88b49dc4a2f79c2f5ebf66f5f3a95dea53bf3 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe/verify_phase_runner.py
+  commit f0f67bbe67ba85ca8ad12b7d8a03c9639a2a3f84 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: verify-scratch/launch_cicada_run_early_abort.py
+  commit f13bdd0427311ec21aa30f51082e081a91666b1b ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: .cicada-launcher/diag-cicada-inline-fidelity.patch
+    main・全 local branch tip に不在: .cicada-launcher/launch_cicada_run.py
+  commit f168a8ba6ced4fc5c741b32641a498152b012700 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2273_replica_analyze.py
+  commit f197eae4a653f621799c241c802815608a690d17 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: md32-scratch/launch_promo_confirm.py
+  commit f1a1e8eb003cee1d02db90f56f485a28832f78e1 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/t2817_collection_stage_aggregate.py
+    main・全 local branch tip に不在: tools/t2817_collection_stage_probe.sh
+    main・全 local branch tip に不在: tools/t2817_ledger_model.py
+    main・全 local branch tip に不在: tools/t2817_probe_plugin.py
+  commit f2e3c6c05f75d87181378513d33f624fe01f355d ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+  commit fa707b5f4c7ad8baa8bb01a4356b89dc30efd631 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: t2847_capacity/launch_capacity.py
+  commit fa79a320f1219a5eb890e14d174b4021422a9c41 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: output/insights/2026-09-23/t2797-b5-main-run/scripts/calibration.sh
+  commit fa7f85e7fcfa5c0b3f7951bd2eef38d716b65435 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2700/t2700_ab_analyze.py
+    main・全 local branch tip に不在: probe-t2700/t2700_history_estimate.py
+  commit fb93e2e8d465053d9d5c720b7dc3ad611f40291e ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/gate_wait_probe.py
+  commit fdafb4c2b52f82d86178471fe2383afb84304c6f ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/gate_wait_probe.py
+  commit fdb0e184e6ca557992f05eb4a8f99d89a931dbfd ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_masstree_shape_probe.py
+    main・全 local branch tip に不在: tools/dev-wave-probe/t2304_shape_probe_job.sh
+  commit fe816b7b5ad920df4c3c3c9c0dee4172441c1444 ([T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録)
+    main・全 local branch tip に不在: probe-t2802/t2802_ab_analyze.py
+audit_dangling_commits: 進捗 最終報告 完了 elapsed_seconds=0.001
+audit_dangling_commits: elapsed_seconds=100.788

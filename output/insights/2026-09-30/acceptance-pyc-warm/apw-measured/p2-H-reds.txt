@@ -1,0 +1,180 @@
+===== orchestrator.tests.test_codex_worker_launch test_sigterm_ignoring_child_is_killed time 10.130
+props {'izanagi_acceptance_pairing_v1_scope': 'orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed', 'izanagi_acceptance_pairing_v1_rank': '1249', 'izanagi_acceptance_pairing_v1_partner': '0', 'izanagi_acceptance_pairing_v1_worker': 'gw11'}
+test_codex_worker_launch.LauncherReturncodeMismatch: actual rc timeout != expected rc 1; label=sigterm-ignoring launcher
+receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_sigterm_ignoring_child_is0/receipt.json'
+launcher.stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<captured>
+launcher.stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<captured>
+observability_status=insufficient
+runtime_context: hostname='bnode058' PYTEST_XDIST_WORKER='gw11' PBS_J
+odex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_sigterm_ignoring_child_is0/artifacts'), ...}
+stdout = None, stderr = None, label = 'sigterm-ignoring launcher'
+command = None
+
+    def _assert_launcher_returncode(
+        result: (
+            subprocess.CompletedProcess[Any]
+            | subprocess.Popen[Any]
+            | subprocess.TimeoutExpired
+            | int
+        ),
+        expected_returncode: int,
+        *,
+        paths: dict[str, Path],
+        stdout: str | bytes | None = None,
+        stderr: str | bytes | None = None,
+        label: str = "launcher",
+        command: list[str] | None = None,
+    ) -> None:
+        actual = _returncode_value(result)
+        if actual == expected_returncode:
+            return
+        prefix = (
+            f"actual rc {actual} != expected rc {expected_returncode}; "
+            f"label={label}"
+        )
+        try:
+            body = _launcher_failure_message(
+                result,
+                paths=paths,
+                stdout=stdout,
+                stderr=stderr,
+                command=command,
+            )
+        except Exception as exc:
+            body = (
+                f"diagnostic_status=failed:{type(exc).__name__}\n"
+                f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+            )
+>       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc timeout != expected rc 1; label=sigterm-ignoring launcher
+E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_sigterm_ignoring_child_is0/receipt.json'
+E       launcher.stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<captured>
+E       launcher.stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<captured>
+E       observability_status=insufficient
+E       runtime_context: hostname='bnode058' PYTEST_XDIST_WORKER='gw11' PBS_JOBID='0:40015.nqsv' test_pid=2272565 loadavg=(56.916015625, 35.95849609375, 15.4052734375)
+E       launcher_budgets: wall='<unavailable>' evidence='<unavailable>' termination='<unavailable>' poll='<unavailable>'
+E       receipt_limits=unavailable
+E       receipt_actuals=unavailable
+E       truth_summary: receipt_status=missing attempts=unavailable
+
+orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+===== orchestrator.tests.test_codex_worker_launch_budget test_slow_preparation_longer_than_attempt_budget_is_accepted time 8.829
+props {'izanagi_acceptance_pairing_v1_scope': 'orchestrator/tests/test_codex_worker_launch_budget.py::test_slow_preparation_longer_than_attempt_budget_is_accepted', 'izanagi_acceptance_pairing_v1_rank': '1260', 'izanagi_acceptance_pairing_v1_partner': '0', 'izanagi_acceptance_pairing_v1_worker': 'gw20'}
+AssertionError: rc=1, expected=0, stdout='', stderr=''
+assert 1 == 0
+ +  where 1 = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_slow_preparation_longer_t0/la...nce-grace-s', '1.5', '--termination-grace-s', '0.05', '--poll-interval-s', '0.01'], returncode=1, stdout='', stderr='').returncode
+tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_slow_preparation_longer_t0')
+
+    def test_slow_preparation_longer_than_attempt_budget_is_accepted(
+        tmp_path: Path,
+    ) -> None:
+>       _completed, receipt, _paths = _run_case(
+            tmp_path,
+            expected_rc=0,
+            preparation="8",
+            attempt="1.5",
+            finalization="10",
+            env_updates={"BUDGET_PREPARATION_DELAY": "2"},
+        )
+
+orchestrator/tests/test_codex_worker_launch_budget.py:522:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+case_root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_slow_preparation_longer_t0')
+expected_rc = 0, preparation = '8', attempt = '1.5', finalization = '10'
+max_attempts = 1, sandbox = 'read-only'
+env_updates = {'BUDGET_PREPARATION_DELAY': '2'}
+
+    def _run_case(
+        case_root: Path,
+        *,
+        expected_rc: int,
+        preparation: str = str(_POSITIVE_PREPARATION_S),
+        attempt: str = str(_POSITIVE_ATTEMPT_S),
+        finalization: str = str(_POSITIVE_FINALIZATION_S),
+        max_attempts: int = 1,
+        sandbox: str = "read-only",
+        env_updates: dict[str, str] | None = None,
+    ) -> tuple[subprocess.CompletedProcess[str], dict[str, Any], dict[str, Path]]:
+        command, env, paths = _base_command(
+            case_root,
+            preparation=preparation,
+            attempt=attempt,
+            finalization=finalization,
+            max_attempts=max_attempts,
+            sandbox=sandbox,
+        )
+        if env_updates:
+            env.update(env_updates)
+        completed = subprocess.run(
+            command,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=float(_OUTER_TIMEOUT_S),
+        )
+>       assert completed.returncode == expected_rc, (
+            f"rc={completed.returncode}, expected={expected_rc}, "
+            f"stdout={completed.stdout!r}, stderr={completed.stderr!r}"
+        )
+E       AssertionError: rc=1, expected=0, stdout='', stderr=''
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/bin/python3.10', '/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_slow_preparation_longer_t0/la...nce-grace-s', '1.5', '--termination-grace-s', '0.05', '--poll-interval-s', '0.01'], returncode=1, stdout='', stderr='').returncode
+
+orchestrator/tests/test_codex_worker_launch_budget.py:377: AssertionError
+===== orchestrator.tests.test_dev_wave_cleanup test_remove_child_detached_ancestry_and_empty_backup time 0.958
+props {'izanagi_acceptance_pairing_v1_scope': 'orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup', 'izanagi_acceptance_pairing_v1_rank': '2109', 'izanagi_acceptance_pairing_v1_partner': '0', 'izanagi_acceptance_pairing_v1_worker': 'gw17'}
+dev_wave_cleanup_under_test.CleanupFailure: occupancy result is indeterminate or inconsistent; attempts=3 retry_count=2 issues_total=1 issues=[{"error":"missing","source":"cwd","pid":"2489841"}] issues_omitted=0
+eption as exc:  # noqa: BLE001 - checker failures are indeterminate
+                raise _reject(
+                    "occupancy", f"occupancy checker failed: {exc}; {attempt_diagnostic}",
+                    RC_OCCUPANCY_INDETERMINATE,
+                ) from exc
+            expected_keys = {
+                "issues", "occupants", "same_uid_cwd_unreachable", "status", "unreachable", "worktree",
+            }
+            if not isinstance(payload, dict) or not expected_keys <= set(payload):
+                raise _reject(
+                    "occupancy", f"occupancy payload lacks required fields; {attempt_diagnostic}",
+                    RC_OCCUPANCY_INDETERMINATE,
+                )
+            if payload.get("worktree") != os.fspath(path):
+                raise _reject(
+                    "occupancy", f"occupancy payload target mismatch; {attempt_diagnostic}",
+                    RC_OCCUPANCY_INDETERMINATE,
+                )
+            occupants = payload.get("occupants")
+            if (
+                rc == occupancy.OCCUPIED_RC
+                or payload.get("status") == "occupied"
+                or (isinstance(occupants, list) and bool(occupants))
+            ):
+                raise _reject(
+                    "occupancy", f"target worktree is occupied; {attempt_diagnostic}",
+                    RC_OCCUPIED,
+                )
+            issues = payload.get("issues")
+            retryable = (
+                payload.get("status") == "indeterminate"
+                and occupants == []
+                and bool(issues)
+            )
+            if retryable and attempt < _OCCUPANCY_MAX_SCANS:
+                continue
+            unreachable = payload.get("unreachable")
+            valid = (
+                rc == occupancy.UNOCCUPIED_RC
+                and payload.get("status") == "unoccupied"
+                and occupants == []
+                and issues == []
+            )
+            if not valid:
+>               raise _reject(
+                    "occupancy",
+                    "occupancy result is indeterminate or inconsistent; "
+                    f"{attempt_diagnostic} {_occupancy_issue_summary(issues)}",
+                    RC_OCCUPANCY_INDETERMINATE,
+                )
+E               dev_wave_cleanup_under_test.CleanupFailure: occupancy result is indeterminate or inconsistent; attempts=3 retry_count=2 issues_total=1 issues=[{"error":"missing","source":"cwd","pid":"2489841"}] issues_omitted=0
+
+tools/dev_wave_cleanup.py:635: CleanupFailure

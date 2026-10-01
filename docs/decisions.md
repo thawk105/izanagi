@@ -74920,3 +74920,238 @@ T-2872・T-2905 は人間の手番が済んで完了 (gitlink は T-2919・T-291
 - 疎な hot の cold を latest から走査し直す — 段 2 plan の反例は hit の場合で、cold は末尾から続けても最初の wts ≤ trts を飛ばさない (段 3 相談 A)。
 - variant patch に新 macro (`CICADA_VHASH_POST` 等) を足す — 条件 gate・在庫 test の登録を増やし、md_23 の B の patch bytes も変わる。
 - K=1 の最新版だけを CAS 後に更新する単純な代案 (段 3 相談 B) — 依頼が 1 設計を指定しており、B-post の K=1 腕が近い問いに答える。
+
+## D2332. VHash の評価計画で U0 の確認段 S2 (H4) を S1 より先に発効できる単位にし、比較相手を ro-gcflag 修正入り (主) と stock (対照) の 2 本、E の土台を修正入りにする。構成 E の修理が L-w の長い tx に公開させない型なら S2 をこの形では発効しない (2026-09-30)
+
+**決定:** 評価計画の草稿 `docs/vhash-evaluation-preregistration-draft.md` (未発効、D2301・D2325) に §16 と §11.1 を足す。発効でも、計測・計算投入の認可でもない。
+1. **段ごとの発効。** S2 は S1 を待たずに発効してよい。S2 を発効する決定は草稿の SHA-256 を写し、以後 S1・S3・S4 は末尾の追補で改める (S2 の要素、判定語、族の中身と m = 19、区間・δ・欠測の規則は変えない)。
+   S2 が判定しない 13 個は族に残し、語は既存の順序で決まる (門が未完了の組は「判定不能 (門未完了)」として m に数え、性能値だけを使わない)。
+   S2 の発効の後に足す判定 (H5・H6 など) は別の族として登録し、H1〜H4 の族 m = 19 を数え直さない。論文には族ごとの水準を書く。
+   門の完了は構成 × workload 型ごとに見て、S2 は S2 の構成の L-w 型の門だけを要る。後で他の型の門で構成が失格になれば、S2 の判定も追記で失格にする。
+2. **比較相手 (D2322 項 2 の具体化)。** S2 の主の比較相手は A_fix (観測最良設定 + `IZANAGI_CICADA_RO_GCFLAG=1`)、対照は A_stock で、同じ round に置く。E_hb・E_sp の土台も ro-gcflag 入りにし、
+   md_39 の修理版 E を重ねる。S2 の行列に副次の A_stock (性能用・計数用) と A_fix (計数用) を足す (族に入れない)。
+3. **修理の型の条件 (md_39 の結果の前に登録)。** 修理版 E_sp(c) の計数用 build の smoke で、S2 の 4 cell のどれかで「長い tx が安全点で読み取り下限を開始時の値より上げて公開した回数」が 0 なら
+   (前進の成功の回数では代えない。修理が公開値を抑える型なら成功しても下限が上がらない。計数用 build がこの回数を出すことも条件)、修理の規則・試行の有無を調べ
+   (まれな成功の見落としは smoke を 2 走行まで足して分ける)、機構が働かないと分かれば S2 をこの形で発効せず、cell の組み直しをユーザーに諮る。
+4. **門。** A_fix・A_stock・E_hb(c)・E_sp(c)・E_sp(a) を S2 と同じ土台の門用 build で、48 thread は S2 の 4 cell、thread 4・1 は高競合の 1 cell で走らせる (計 30 走行)。
+   M (D2305 項 4) を重ねたときは M の違反も失格の条件にする。S2 の genome (`INLINE_VERSION_OPT=1`) は D2300 項 4 の M の範囲外なので、md_33 が範囲を広げない限り M なしで進め、主張文は「巡回なし (上限 indeterminate)」に留める。
+5. **δ と f_M,c。** 族の 6 個は δ_M,c だけで決まる。f_M,c は S2 と同じ計数用 binary の E_hb(c) を 8 つの別々の投入束 (各 4 cell × 5 rep) で取る S0-M 段で得る。f_T は L-w の cell に無ければ発効の wave が既存の 2 案を諮る (推奨は D19 の下限)。
+6. **基盤。** pin C のまま測るのを推奨する。CCBench の修理 (D2310・D2327・md_19) は削除・scan・insert・promotion の経路にあり、S2 の負荷と genome は通らない見込み (決定文の読みで、到達は未確認。発効の wave が確かめる)。
+7. **node 時間 (参考単価 5.8〜6.9 s / 走行):** S0-M 0.26〜0.31、S2 の門 0.37、S2 本走 1.13〜1.34 (700 走行)、計 1.76〜2.02。
+
+**理由:**
+- D2322 項 1 で論文の芯が U0 になり、確認段は 1 走も走っていない。S1 は C_now の未実装、H2a の計器、H1 の再挑戦を待つので、S2 を分けないと U0 の確認がそれらの待ちになる。
+- 族を m = 19 のまま保ち、測らなかった判定も族に残すので、先に S2 を判定しても多重比較の補正は緩まない。発効の後に足す判定を別の族にするのは、既存の §8.4 が数え直しを発効の前に限っており、
+  発効後に S2 の語を読み直す手順を持つと、どの m で判定したかが一意に決まらないため (段 6 の read-only review の must-fix)。
+- 門未完了の組を族から外すと、門を通らない組が多いほど m が小さくなり、補正が緩む向きに働く。
+- E_sp 対 A_fix を 1 つの土台の上で比べるには E にも同じ修正を入れる必要がある。H4 (E_sp 対 E_hb) は両側が同じ土台なので比較の形は変わらない。E 系 3 本と ro-gcflag は pin の写しに fuzz なしで重なった (文字の上だけ)。
+- md_36 の直し方のうち書き込み key を持つ tx に公開させない型は、L-w の長い tx (1 write を持つ) を前進の対象から外す。そのまま走らせると E_sp と E_hb が同じ動きになり、H4 が「同等」と読まれうる。結果を見る前に止める条件を置いた。
+
+**却下した選択肢:**
+- S1 と S2 を一緒に発効する — U0 の確認が H3・H2a・H1 の待ちに縛られる。
+- S2 の発効で族を H4 の 6 個だけに縮める — 測らない判定を族から除く形で、既存の「どの語でも m から除かない」に反する。
+- 発効の後に足す判定も同じ族に入れ、S2 の語を新しい m で読み直す — 数え直しを発効の前に限る既存の規則と両立しない。1 つの族として読み直しても語が変わらない範囲 (m′ ≤ 25) は参考として草稿に残した。
+- E の土台を stock のままにする — E_sp 対 A_fix に修正の有無が混ざる。
+- 本案の効果 (E_sp 対 A_fix) を今の改訂で族に入れる — m を変える判断はユーザーの確認に回した (草稿 §16.10。推奨は入れる、m = 23 で区間は不変)。
+- 30 秒走行で長い tx の commit 数の散りを抑える — S2 の node 時間が約 6〜9 倍になる。extime 3 s の登録のまま。
+- md_35 が Y の cell で取る f_T を L-w に移す — floor は動作点署名ごとで、移せない。
+
+## D2333. Cicada の throughput の時間窓間ばらつきは、D1373 の関門の対象外の診断経路で日内の複数時間窓にわたって測り、評価計画の f_T には代入せず、D19 の下限で計算した δ_T の根拠として併記する (2026-09-30)
+
+**決定:**
+
+1. VHash 評価計画の草稿 (§8.3・§11 P2) が求める Cicada の throughput の f_T について、道を 3 つ並べて比べ、「関門の対象外の別手続き」を採った。md_11 の診断 driver `tools/vhash_cicada_tuning/driver.py` を無改変で使い、比較相手 A (md_11 の最良設定) と control を、日内 6 時間窓 (1 窓 = 1 投入束、窓の間は 60 分以上) × Y5・Y50・Y95 で測った。
+2. 得た量は「Cicada A の時間窓間 session-median CV (日内 6 窓・診断経路)」と名乗る。floor artifact (`output/env/*/calibration/between_run_noise_*`)・izanagi の compare・採否には接続しない。D1373 の関門を通った floor とも、D145 項 5 が要求する真正な floor の標本設計を裁定した値とも呼ばない。
+3. 評価計画 §8.3 は f_T を D145 の意味の floor に限るので、本値を f_T として代入しない。δ_T は D19 の下限で計算し (δ_T = ln 1.03)、本値は「日内の窓間 CV はそれより小さかった (日を跨ぐ変動は未測定)」という根拠として併記する。§8.3 の二択 (下限だけで発効 / floor を待つ) はユーザーの判断として残す。
+4. 下限を超える値を δ_T に入れる向きも安全側として扱わない。δ_T は「改善」(L > δ)・「同等」(−δ < L かつ U < δ)・「悪化」(U < −δ) の判定語 (評価計画 §5.1) と、A/A 判定・job 間の停止条件 2δ (§8.1) の 4 箇所で効き、上げると改善は出にくくなる一方で、同等は通りやすく、悪化・A/A・停止条件では止まりにくくなる。止まっていた cell の主要比較が「改善」を主張できるようになるので、採否は両方向に動きうる。そのような値が出たときは、これらへの影響を含めて発効の wave が別に裁定する。
+5. 測った結果 (主 GC の A): Y5 0.69%・Y50 1.05%・Y95 0.70%。すべて 0.030 より小さい。δ_T は決定 3 により本値に関係なく下限で計算するので、この事実は下限を使う判断の参考の根拠にとどまる。一次資料 `output/insights/2026-09-30/cicada-between-run-floor/README.md`。
+
+**理由:**
+
+- 関門を通す道 (Cicada の hook を CCBench に入れて pin を進める、D2083 項 5 と同じ条件) は、CCBench・pin・patches を本 wave の所有外とした依頼の範囲を超える。関門の受理を「patch 適用後の source」へ広げる案は、現行述語が checkout の compiled SOURCES を読む契約を変えて受理集合を広げるので、依頼が禁じた「関門を緩める道」に当たる。
+- D2291 項 1 は「関門の射程は floor artifact の生成で、診断値として一次資料に書くのは迂回でない」とした。本決定はその経路で、D145 項 2 (estimand を名乗り compare へ配線しない) と項 4 (動作点署名ごと) を守る。
+- 本値を δ_T の計算に使わず根拠の併記にとどめれば、関門を通らない値で採否はどちらの向きにも動かない。D1373 の趣旨 (検査できない protocol に採否を動かす floor を与えない) はこの形で守られる。Cicada の各構成の正しさは評価計画 §7 の門が別に要求する。
+- 1 投入束の値 (md_11 の 0.43〜0.81%) は D145 により floor の代わりにならない。複数の時間窓を持つ計測を、既存 driver で安価に (18 job・約 0.63 node 時間) 取れた。
+
+**却下した選択肢:**
+
+- 関門の受理を patch 適用後の source へ広げる — 受理集合の拡大で、関門の緩和に当たる。patch 後の source を厳密に束縛する設計の余地は別裁定に残る。
+- `between_run_floor.py` の BASELINES に cicada を足す — 関門で止まり測定は開通しない (D2291・D2083 と同じ)。
+- 計測せず D19 の下限だけを使う — Cicada の窓間の揺れが 3% を超えるかどうかを知らないまま下限を使うことになる。
+- 得た値を「floor 取得済み」「f_T 確定」と書く、または f_T に代入する — 日を跨ぐ変動を含まず、関門も通っていない。段 3 相談 A1 と焦点再レビュー N2 の指摘どおり、名前でも代入でも過大に主張しない。
+- 前日の md_11 J2 を 7 番目の窓として混ぜる — 反復数と job の構成が違い、A の選択に使った測定でもある。参考行として別掲するだけにした。
+- 正規性を仮定した CV の信頼上限を出す — 標準偏差の χ² の係数は CV の厳密な区間にならない。
+- 「0.030 を超える値なら f_T に代入してよい (δ_T を大きくする向きは安全)」とする — 段 4 ではそう裁定したが、段 6 レビュー (同等・悪化) と焦点再レビュー (A/A 判定・job 間の停止条件) が、上げる向きも採否を動かすことを示し、訂正した。
+
+## D2334. VHash で読み続ける read-only tx を前進させるなら、前進先を安定境界 (それ以下の時刻に新しい版がもう置かれない値) に限り、全既読がそこで見えることを確かめて snapshot を先に移し、その後に floor を上げる。試作へ進む前に実装なしの診断で前進の幅を確かめる (2026-09-30)
+
+**決定:**
+1. 読み続ける read-only tx (固定キーの point read だけ、昇格しない) の前進は、抽象仕様 RO-A とする。安全点で安定境界 σ を得る。各既読 v について (v.wts, σ] の最初の非 ABORTED 版を観測し、s = min(σ, その版の wts − 1) を求める。s が今の snapshot より大きければ、snapshot を s へ移してから floor を s 以下で公開する。確認は rts を書かない。失敗しても snapshot と floor は変えない。一次資料 `output/insights/2026-09-30/vhash-ro-continuing-feasibility/README.md`。
+2. 論証は紙の上の抽象仕様についてで、直列化 (最後の snapshot の位置に置く) と論理的な GC 安全を示した。D2319 の条件 RA は使わない。安定境界の条件 ST は、X1・X2 の書き手 (前進先より小さい時刻で、前進の時点でまだ活動中の書き手) をまさに除く。
+3. Cicada では `MinWts − 1` を安定境界とする。そのための条件 K1〜K5 (thread ごとの時刻と slot の単調性、集計の下限性、`group_commit = 0`、初期 MinWts、0 からの減算) はコード読解で、未確認を含む。前進の実装には「将来書かない」と「読んだ版を守る下限」を分ける。前者は ThreadWtsArray を自 thread の時計へ持ち上げること (localClock_ も進める)、後者は ThreadRtsArray である。GCFlag は tx の途中で立て、thread 0 なら leaderWork を呼ぶ。昇格は禁止する。
+4. 試作は今は作らない。md_42 の後に、実装なしの診断 (一次資料 §9 の D1〜D3) で前進できる幅が tx の後半まで残る負荷があるかを確かめてから決める。
+
+**理由:**
+- 安定な snapshot で読んだ版は、他 tx の後続の確定版が snapshot より上にしか来ない。これが読みの時期によらず成り立つので、md_26 の (I2) を確認に頼らず得られ、RA が要らなくなる。段 6 レビュー A は RO-A の定理の反例を作れなかった。
+- 各条件を外した紙の上の列がある。確認を外すと読みの skew の巡回 (C1)、前進先が安定でないと 3 tx の巡回と X1 型の回収 (C2)、floor を先に上げると D2317 が却下した形 (C3)、時計を進めずに持ち上げると他の read-only tx の安定境界の下に版が置かれる (C4)。したがって、floor だけで守り rts を書かない設計の類では、どの条件も外せない。
+- 効き目は細い見込み。前進の幅は既読のどれかに次の確定版が来るまでで頭打ちになる。md_29 の batchR (skew 0.99) の熱いキーからの粗い目安は約 2.7 µs。区間 GC に対する上積みは条件 (d′)(e) に左右され、上限を出せない。安全でない前進の速さを天井にしないためにも、先に幅を後から数える。
+
+**却下した選択肢:**
+- `rts_ = MinWts − 1` の再実行だけで前進する。長い read-only tx 自身の ThreadWtsArray・止まった GCFlag・thread 0 の leader が前進先を止めるので前進しない。確認なしなら C1 の巡回になる。
+- 前進先を自分の時計 (書き手型の E-max) にして既読の rts を上げる。読み続ける tx には RA を課せず、rts を書く読みは Cicada の read-only の設計 (共有の書き込みをしない) に反し、書き手を abort させる。
+- 読みごとに別の snapshot を許す。一貫 snapshot を壊し、C1 と同じ巡回になる。
+- ST の監視を確認の時点の PENDING の計数だけにする。確認の後に σ 以下へ遅れて置かれる版 (ST-1 の破れ) が見えない (段 6 レビュー A)。試作では設置の時刻と σ を後から照合する。
+
+## D2335. dev-wave・rulings・next-tasks の Codex 子を gpt-6-astra・reasoning=ultra へ改訂し (D2229 を supersede)、ultra の委任 (spawn_agent) をした attempt は起動器が受理しない (2026-10-01)
+
+**決定 (2026-09-30 ユーザー指示「dev-wave, rulings, next-tasks で codex を gpt-6-astra・reasoning=ultra で使う」):**
+
+1. model: `docs/dev-wave/operations.md` DW-O01 の権威行を `` `<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。 `` とする。V2 書式と `tools/dev_waves/launch_authority.py` の導出経路は D2229 決定 1 と同じで、slug だけを替える。`tools/check_docs.py` の literal とそれを pin するテストを揃える (D2229 決定 2 と同じ列挙)。
+2. effort: `docs/dev-wave/workers.md` の DW-S02 / DW-S03 / DW-S05-A / DW-S06-A / DW-S06-C を `reasoning=ultra` とし、check_docs の effort pin・負例 (旧 medium を拒否)・テストを揃える。rulings の相談は `tools/dev_wave_codex.py --stage consult` が `--reasoning` を呼び手の必須入力とし DW-S03 から自動導出しないため、`.claude/commands/rulings.md` の起動例に `--reasoning ultra` と DW-S03 参照を書く。
+3. 受理集合: `tools/dev_waves/effort_levels.py` の `CODEX_REASONING_EFFORTS` に `ultra` を足す。`CLAUDE_EFFORTS` は変えない。docstring に「ultra は luna 系が非対応 (依頼が指定した事実で独立実測ではない)、本 module は model×reasoning の互換を保証しない」と書く。
+4. **委任の受理規則:** ultra の Codex は委任 (collaboration namespace の `spawn_agent`) を自動で試みる。prompt で委任を禁じ、root rollout に `spawn_agent` の function_call が 1 件でもある attempt は、起動器 (`tools/codex_worker_launch.py`) が致命 evidence reason `delegation_detected` を記録して accepted にしない。online の tail と sealed 再検証は同じ消費関数を通る。receipt schema は V5 のまま、拒否は終了時。`wait_agent` など spawn 以外の collaboration 呼び出しだけでは拒否しない。DW-O01 に「ultraの委任(spawn_agent)はpromptで禁じ、委任したattemptは起動器が拒否する。」を 1 文足し、L1.5 予算 (9,696 bytes) は既存 3 文の意味等価な縮約で収めた (D782 の手順で、上限は引き上げていない)。
+5. next-tasks: repo 外の `/work/1/SFC/tanab/scripts/next_tasks_consult.sh` の codex 分岐に `-m gpt-6-astra` を明示し (利用者の `~/.codex/config.toml` の既定に依存させない)、`CONSULT_EFFORT` 既定を high → ultra、相談 prompt の前置きに「sub-agent を spawn しない」を足す。この script は起動器を通らないので委任の検出は無い (prompt の禁止と、read-only sandbox が委任先に継承されることだけに依る)。
+6. 切り替わりの時点は D2229 決定 4 と同じ: 起動器は投入時点の `--repo-root` の docs から model と effort を導出するので、本決定が local main へ着地した後に作られる wave (と、その wave が切る子 worktree) から astra・ultra になり、着地前に始まった wave は自分の木の docs どおり走り終える。next-tasks は script の設置時点 (2026-09-30 17:00 JST 前後) から切り替わった。
+7. 過去記録の gpt-6-sol / medium / high 表記 (output/insights、worklog、FOLDED、decisions 本文、受領証) は測定・実行時点の事実として残す (規律 7)。`test_s8b_ratified_freeze.py` の例示値、`.codex/role-adapters`、利用者の `~/.codex/config.toml`、`tools/codex_reasoning_ab.py`・`tools/t189_*` の許可リスト、Claude 側 effort は対象外。
+
+**理由:**
+- 生死確認: `codex exec -m gpt-6-astra -c model_reasoning_effort=ultra --sandbox read-only` をサブスク (ChatGPT) ログインで打ち rc=0・header `model: gpt-6-astra` / `reasoning effort: ultra`。改訂後の docs から導出した起動器実走 (段 6 の review 2 本) の受領証が requested / recorded とも astra・ultra、`outcome=accepted`、委任 issue なし。next-tasks の改訂版も rc=0・header astra / ultra・所要 119 秒 (締切 1,800 秒)・委任 0。
+- 委任を受理しない理由: ultra は developer message で proactive な委任を有効化し (medium は無効化を注入)、委任先は別 rollout file に記録され (`session_meta.session_id` は root の id)、`--json` の stdout には root の id しか出ない。このため改訂前の起動器は委任先の model call・token・model/effort/cwd を見ずに attempt を受理していた (検査は落ちずに素通り)。委任先を会計する案は、全履歴 fork で子 rollout に親の meta/context が複製される、manifest が 1 attempt 1 session を強制する、子の完了と seal 後追記が閉じない、という実物の障害を抱え、receipt・manifest の新世代と ledger まで波及する。さらに委任先に `.codex/hooks.json` の guard が効くことは未確認である (root では exec 経由の guard 拒否を本番 rollout で観測済み、委任先では拒否記録 0 件で有効とも無効とも言えない)。未確認の面で走った仕事を受理しないのが規律 6 に沿い、依頼の「検査を黙って緩めず、受理規則を明文化して直す」も満たす。
+- 設定で委任を止める手段は、この CLI (0.159.2)・exec 経路・明示 spawn 依頼で試した 3 設定 (`--disable multi_agent`、`agents.max_threads=1`、`agents.max_depth=0`) ではいずれも止まらなかった。
+
+**却下した選択肢:**
+- 委任を許して委任先を会計する — 上の障害で差分が 700〜1,100 行規模になり、委任先の guard 未確認のまま受理することになる。
+- 権威段だけ effort を max に留める — 全段 ultra のユーザー指示と非同値で、max が委任しない証拠も無い。
+- prompt で禁じるだけにする — 素通りが残る。
+- L1.5 予算を 9,788 bytes へ引き上げる — 既存 3 文の意味等価な縮約で収容できた (段 6 レビューの指摘)。
+
+**残る限界:** 事後拒否は委任先の実行・書込みを防ぐ機構ではない (workspace-write の author / fix で委任が起きると、子 worktree に guard 未確認の書込みが残りうる)。拒否された attempt の委任先 token は会計されない。委任先での guard 発火は未確認のまま (直接 probe は trust bypass flag の手打ちが auto mode に拒否され、未実施)。
+
+## D2336. Cicada の中間案 M は最良設定 (inline 版) まで範囲に含め、読み束縛は GC を止めない検出型の世代番号で照合し、壊しの帰属は tx 単位にする (2026-10-01)
+
+**決定:** D2305 項 4 の中間案 M を次の形で実装した (一次資料 `output/insights/2026-09-30/cicada-certified-m/README.md`)。
+1. 範囲に `INLINE_VERSION_OPT=1` (promotion 0) を含める。inline slot の返却・再取得を、非 inline 版の回収・再利用と同じ 3 関数 (`gcAfterThisVersion`・`newVersionGeneration`・`writeSetClean`) の分岐で世代の事象として数える。
+2. B (読み束縛) は版に TRACE 専用の世代番号を置き、事象を seqlock と同じ 2 段 (開始で奇数・終了で偶数) で進める。読み手は read set 登録の直前に「世代 → wts・status・所属 tuple → fence → 世代」の snapshot を取り、奇数・前後不一致・別 tuple・未確定・読み手より新しい版を `B_WINDOW`、tx の終わり (commit・read-only・abort) の世代の不一致を `B_RETIRED` とする。読み手は GC を止めない。
+3. U は設置 (validation の CAS 成功)・公開 (`cpv()` の store の前後の status 確認)・W 行の三者照合と、公開時の wts と C 行の版の照合。主張は `cpv()` を通る公開に限る。
+4. read 側 API は `read()` の呼び出し単位で照合する。
+5. 正例は壊し 3 本 (B = P5 型、U = 公開後に write set から外す、API = 登録を飛ばす)。B の帰属は (thread, tx 通番) が壊しで下限を実際に上げた tx であることで判定する。
+6. 合否は repo 外の起動器が決め、判定器 (`orchestrator/verifier/`)・campaign・既存 patch は変えない。
+
+**理由:**
+- 比較相手の観測最良設定と構成 E / E-max の実測がすべて `INLINE_VERSION_OPT=1` の上にあり、範囲外にすると D2305 項 4 (2) の性能値の地位をそれらに付けられない。inline の事象は同じ 3 関数に置けるので追加の費用は小さい。
+- 読み手が tuple の GC 権を握る排他は、`gc_versions()` が権利の取得に失敗した回収予定を捨てるので TRACE ビルドの回収挙動を変える。検出型の snapshot は回収を止めずに、登録前の窓で版が別 tuple・別状態・新しい版に化けた場合を検出する。残る場合 (同じ key の別の確定可視版として一貫した snapshot) は、その版の読みとして記録と実行が一致する。
+- 壊し B は tx 単位で読み取り下限を動かし、その tx が読んだ全版が回収の対象になるので、帰属の鍵は tx 単位が機序に合う (版単位の鍵は事象行が tx ごとに 1 版しか書かないので 1,925 / 6,988 件しか一致しない)。
+
+**却下した選択肢:**
+- inline 版を範囲外と明記する — 主比較の性能値を M の地位に上げられない。
+- 版の外の事象台帳 — 並行時の順序付けが重く、登録前の窓も台帳だけでは閉じない。
+- 読み手が GC 権を保持する排他 — 回収予定を捨てるので観測対象の挙動を変える。
+- B の帰属を (thread, tx 通番, 版) で判定する — 壊しの機序に合わず、発火した正例を不合格にする。
+- 判定器に新しい行種別を足して certified にする (案 A) — D2305 項 4 のとおり、Cicada を門に通す campaign の登録時に着手する。
+
+## D2337. VHash の利得の天井は修正済みの最良 Cicada を越えなかったので、今の VHash (hot 配置 v2・前進 C の最小前進) を主論文の候補から外すことを推奨する。長い読み手の費用そのものは大きく残る (2026-10-01)
+
+**決定:**
+1. 長い読み手で版が溜まる負荷 (1 worker が 1,000 read の read-only tx を続け、47 worker が短い更新 tx を回す YCSB) で、比較相手を md_11 の観測最良設定 + ro-gcflag 修正 (R) とし、結果を見る前に固定した規則 (一次資料 `output/insights/2026-09-30/vhash-ceiling-vs-sota/README.md` §1〜§4 と erratum 1) で判定した結果、**今の VHash を主論文の候補から外す**ことを推奨する。
+   規則が選んだ代表 (P3、skew 0.97 の前進 C) の 30 秒比較の比の中央値は 0.981、隣接点 P2 で 0.993。基準 (1.5 / 1.3) に届かず 1.2 も下回り、機構は発火していた (§2 の「外す推奨」に当たる)。
+2. 長い読み手が R に課す費用は大きい (読み手除去の対照 R−LR / R が P3 1.98・P2 1.56)。今の M の腕 (hot v2・C-min) はこの費用に触れない (長い読み手は read-only で前進の対象外、hot は通常 worker の読みだけを速くする)。
+   長い読み手の版保持を攻める別の機構 (長い読み手の snapshot を RA の中で安全に進める仕組み、lock の無い区間 GC) の天井は測っていない。その評価は別の依頼として扱い、この決定は今の腕の天井についてだけ言う。
+3. 比較相手に ro-gcflag 修正を入れる扱い (D2322 項 2) は正しかった。修正なしの stock は R の 0.13〜0.39、長い読み手の完了は R の 2〜17% で、stock を相手にした勝ちを数えない規則が要る。
+4. 推奨の範囲は「R に対する研究継続の判断」であり、区間 GC の SOTA (Steam・HANA、lock の無い実装) との比較は独立の残課題として残す。この repo の区間 GC 試作は install の lock の費用で R 比 0.33〜0.75 に落ち、SOTA を代表しない。
+
+**理由:**
+- ユーザー方針 (2026-09-30): 論文は「条件 C で手法 M が C の SOTA より大きく速い」ものだけにする。事前記述の基準は研究投資の基準で、代表点の比が 1.2 未満なら追加試作もしない。
+- 予備 (3 round) で最大だった比 (P3 の前進 C 1.096、hot v2 K=1 1.082) は、新しい 6 round × 30 秒で再現しなかった (0.981・0.935)。
+- 正しさ: 7 腕すべて判定器で巡回 0 (上限 indeterminate)、機構 witness は非空、壊し正例 (区間 GC で見える版まで外す) は巡回 43 で検出された。性能値は trace・計数を外した build の同時刻の対の比。
+
+**却下した選択肢:**
+- 予備の比 (1.08〜1.10) を根拠に継続する — 30 秒比較で再現せず、規則は 30 秒比較で判定すると事前に決めていた。
+- R−LR / R (1.98) を「VHash が取り戻せる上限」として継続の根拠にする — 段 3 の相談 2 本が上限ではないと反証し (worker の組・競合・GC の状態も変わる)、事前記述で対照に格下げした。今の腕はこの費用に触れない。
+- 区間 GC 試作や stock に対する比を勝ちとして数える — 事前記述 §2 で数えないと決めていた。
+
+## D2338. silo-function-policy 軸の生成器対照 (事前登録 `docs/silo-policy-generator-contrast-preregistration.md`) を 4 arm × n = 12 で発効させ、発効束の実値を固定する (2026-10-01)
+
+**決定:**
+1. **発効。** D2305 項 1 (ユーザー裁定、計算確認済み) に従い、事前登録 (以下「本書」) を推奨規模 4 arm (LLM×C++・LLM×IR・random×IR・進化×IR) × n = 12 (48 系列) で発効させる。
+   本書の raw bytes の SHA-256 は `541331bd90764e0a621bc1de7a34ba0919d7f145981814a6eebc4afa7f38985f` (起草版の最終 bytes、発効に伴う本文の書き換えなし)。
+   以後の訂正は本書 §0 のとおり末尾の Erratum への追記だけとする。規模は推奨どおりなので、本書 §12 の「推奨以外を選んだときの書き換え」は不要。
+2. **計算確認:** D2305 項 1 (2026-09-30、換算 約 61〜70 node 時間、walltime の契約上限 183 node 時間)。本決定の前の前走 (下の 7) を足した見込みは約 64〜73 node 時間で、確認の範囲を大きく超えない。
+3. **対象 commit:** 本走の全 submit checkout の HEAD は wave branch の `1da88472bc54d7d59c1c8b0430dd67bfb5776618`。
+   これは local main `4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037` (本書 §10 の欠ける部品の実装 D2299 を含む) に、前走で見つかった driver の欠陥の最小修正 1 commit
+   (静的 10 µs の参照 slot でも offline 供給の configure 引数を condition gate へ渡す、下の 7) を足したもの。main との差はこの 1 commit (`orchestrator/campaign/p3_s4_loop_policy.py` +10/−1 と試験) だけ。
+   系列台帳は作成時の checkout の path と HEAD を束縛し、本走の途中で HEAD を変えない。
+4. **発効束の実値 (本書 §12):**
+   - CCBench の PIN: `axis_silo_function_policy.PIN` = `pin.CURRENT_PIN` = `6810666` (submodule `68106660686232781bca3be792a750d3e19d7a8a`、D2305 項 1 のとおり C に固定。Silo の取引内の値の修正は含まない)。
+   - 動作点・引数: write-heavy の較正動作点 (`p3_s4_loop.calibrated_perf("write-heavy")`、本書 §5.2)。compiler は GNU 11.4.0 (計算ノードの job 記録)。
+     correctness・bench の経路と引数は job body `tools/pegasus/p3_s4_loop_pegasus.sh` の `contrast` mode と driver の `--contrast-run-unit` (対象 commit の bytes) が決める。
+     判定器の版は各候補 slot の結果の `campaign_verifier_epoch` として台帳に残る (実値は下の補記)。
+   - 生成器: `orchestrator/campaign/silo_policy_contrast_generators.py` の SHA-256 `6060f13767700c5d57cc55c31ee3d0832d2c3e284fd352e4fdb79972d5d5b0a3` (本書 §4.4・§4.5 の確率・重みの実値はこの file の定数)。
+     版文字列 `silo-policy-generator-contrast-v1` (cohort 名 `silo-policy-contrast-v1`)。v1 の preimage で引いた値は発効の前に誰も見ていない (前走と生死確認は試験版 `silo-policy-contrast-test-2026-09-29`)。
+   - LLM: `claude -p --model claude-opus-5-5 --output-format json`、settings は空の JSON、1 原提案ごとに新しい session (resume しない)、サブスクのログインだけ (API キー・代替 provider なし)。
+     親の指示文 `tools/pegasus/silo_policy_contrast_parent.md` の SHA-256 `3a9674088518b18e8e3497b53e8aabd609323068434e1b8d21f5186350f54015`。
+     役割 `coder-v4-autonomous-policy` (C++ 形)・`coder-v4-autonomous-policy-ir` (IR 形)・`auditor`・`critic` はいずれも role 定義の model `opus`・effort `high`。
+     駆動 loop は親を起こすとき `CLAUDE*`・`CLAUDECODE`・`AI_AGENT`・`ANTHROPIC_*` の環境変数を外す (起動した session の識別子・effort が親へ漏れないように)。
+   - schedule: 組 r の 4 系列の開始順は基本順 (LLM×C++・LLM×IR・random×IR・進化×IR) を (r − 1) mod 4 だけ左へ巡回した順。組を r 順に開き、
+     実行 batch b (r = 4b−3〜4b) の最初の組の前に参照 job b を開く。同時に進める系列は 16 (参照を含む)、同時に動く LLM 親は 4 (本書 §7.1 の推奨、D2216)。
+   - walltime (本書 §11.0 の案): job 1 = 1,800 秒、評価 job = 900 秒、score job = 2,700 秒、参照 job = 3,600 秒。
+   - **補記 (2026-10-01、本走の完了後。実行条件の記録だけで、規則・値は変えていない):** 記録 review の指摘で、本書 §12 が求める実値のうち次を補った。
+     walltime の根拠 (実測の最大所要への倍率、walltime の値は変えていない): job 1 は生死確認の実測最大 759 秒の 2.37 倍、評価 job は生死確認の実測最大 289 秒の 3.11 倍
+     (見積りの上側 300 秒の 3 倍)、score job は前走の実測 1,207 秒の 2.24 倍、参照 job は前走の実測 2,135 秒の 1.69 倍 (score・参照は草稿 §11.0 では換算値で、実測は下の 7 の前走)。
+     生成器の確率・重みの採用値は本書 §4.4・§4.5 の本文どおりで、親が生成器 file の定数と照合した: 整数定数が 0 になる確率 1/8、それ以外は `b5_generator_contrast.weights_table()` の
+     1..1000 の log-uniform 重み、状態の field 数 {0,…,4} と型 {u32,u64,bool} は一様、`next_state` の省略 1/2、深さ 4 未満の node が葉になる確率 1/2 (深さ 4 は葉)、
+     shift 量は型の幅未満で一様、bool・abort 要因・action は一様、引き直しは 1 原提案あたり 1,000 回まで、進化の field 追加 1/5 (field 4 個なら 0)・置き換え 4/5。
+     較正 record = write-heavy (rratio 5) の登録済み較正 `output/env/pegasus/calibration/registered/calibration-4b8329b42bb47c65.json`
+     (SHA-256 `4b8329b42bb47c65a36d6cd77643cf8b619f2a77e42cb54e8a8241c9afaba2bd`、MOCC・pin C・records 1,000,000、`p3_s4_loop.calibrated_perf` の注記どおり)。
+     correctness・bench の exact 引数: job body `tools/pegasus/p3_s4_loop_pegasus.sh` の contrast mode が driver を
+     `python3 -B -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-env pegasus --fetchcontent-prebuild-receipt <job の receipt> --allow-coder-derived-build --contrast-run-unit <単位 file>`
+     で起こす。bench の実行時の引数は campaign の WAL (`runs/wal.jsonl` の `bench_done.payload.run_cmd`、例 llm-cpp-1 の評価 slot) に
+     `<build した ycsb_silo.exe> -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10` と残る。
+     環境契約 `pegasus` の numactl は空 (launch prefix なし) で、本書 §5.2 の「numactl interleave」とは食い違う (本書の Erratum 16.1)。
+     verify は WAL の `commit.payload.verify_configs` = `legacy`・`performance` の 2 構成で、slot ごとに legacy 1 本 + performance 5 本 (`verify_done.payload.workload.tag`)。
+     verify の実行時の引数そのものは WAL に残らず、対象 commit の driver と `p3_s4_loop` の bytes が決める。判定器の版 = 候補と初期点の slot 結果 576 件が記録した `campaign_verifier_epoch`
+     `E1:aec05476f07c426820098705d96c70835de5be21be0aa812a6326d9ead3a512c` (1 種類。stock・score・参照の slot 結果はこの field を持たない)。
+     役割の入力の形 = 対象 commit の `orchestrator/campaign/p3_s4_loop_policy.py` (SHA-256 `a22ac95f45b8a40c503b2904372539a3a6874738d332847e2cab4d542cabe21c`、
+     `--emit-coder-input` と critic digest を作る) と `tools/silo_policy_contrast_round.py` (SHA-256 `d38c26f09475f9257a374f0bdb9b624f30ecf9332267293b282f269c279d6067`)。
+     入力の形に独立の版文字列は無く、この 2 file の bytes で固定される。
+   - 駆動 loop: repo の外の `contrast_runner.py` (SHA-256 `d12eb6cd32bdb14a22abafb47d9ac112a5e2f3f588ff3d7dafd16b44f31b12f2`、Codex author、本走 wave の段 5・6)。
+     起動器 `tools/pegasus/silo_policy_contrast_launch.py` の `init`・`status`・`submit`・`generate` と親 `tools/pegasus/silo_policy_contrast_parent.py` を呼ぶだけで、台帳・driver に書かない。
+     逐語は本走の記録 insight の `verbatim/` に置く。
+5. **LLM の待ちと 429:** LLM の待ちは login に置き (D2258 項 1)、利用上限 (429) は親が構造化 field だけで判定して同じ原提案番号で 900 秒おきに再開する (本書 §5.5、D2258 項 2)。
+6. **既知結果台帳の差分 (本書 §8):** 発効の前に親 (Claude) が見たものは、生死確認 (`output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md` §4) の値と、
+   本決定の前走 (試験版) の値 = 参照 job 2 本の stock 10 session (1.355〜1.373 M tps) と静的 10 µs 5 session (3.998〜4.028 M tps)、
+   進化×IR 1 系列の job 1 (stock 1.349 M、初期点 3.860 M・3.877 M)、評価 10 回 (すべて certified・品質正常、0.864〜3.993 M)、endpoint (eval-4) の score 5 session (3.958〜3.974 M)。
+   いずれも試験版の preimage・別 cohort であり、本書の標本・予測的再現に使わない。
+7. **前走 (本書 §10 の未実走部品の確かめ):** D2305 項 1 が「本走の最初の単位で確かめる」とした score job・参照 job・進化×IR は、v1 の系列を始める前に試験版の cohort で確かめた。
+   理由: 台帳が checkout の HEAD を束縛するので、v1 の走行中の系列で欠陥が出るとその系列に修正を当てられず欠測となり、比較が判定不能になる。
+   参照 job の静的 10 µs で condition gate が config.h を見つけられない欠陥が見つかり (driver rc=1、slot は dead-job)、上の 3 の修正で直した後、2 本目の参照 job で
+   10 slot すべてが certified・品質正常になった (Elapse 2,135 秒)。進化×IR は評価 10 回と score job (Elapse 1,207 秒) まで通り、系列は `b-complete` で閉じた。
+   駆動 loop は前走の途中で停止・修正版での再起動を行い、走行中の job の引き継ぎと二重起動の拒否を実機で確かめた。
+
+**理由:**
+- D2305 項 1 がユーザー裁定として規模・計算・pin を決め、発効束の実値の記入と投入を AI に委ねた。本決定はその記入である。
+- 前走を v1 の外に置いたのは、HEAD の束縛の下で欠陥を v1 の欠測に変えないため (D2305 項 1 の「本走の最初の単位で確かめる」の意図を、欠測を出さない側で満たした)。
+
+**却下した選択肢:**
+- v1 の最初の組の中で未実走部品を確かめる — 欠陥が出た系列は HEAD の束縛で直せず欠測になり、実際に参照 job の静的 10 µs が落ちた (前走で確認)。
+- 修正を待たずに main の `4f412c67b` で本走する — 参照 job 3 本の静的 10 µs がすべて落ち、参照の系列が欠ける。
+
+## D2339. 受入 shard mode で login collection を preflight 前に前倒しする実装は、同時刻対照 2 対が待ち行列の長さで事前登録の適格条件を満たさず判定不能なので main へ入れない。shard に login collection を待たせる案と、計算ノードに pyc を書かせる案も採らない (2026-10-01)
+
+**決定:**
+
+1. md_7 (初回受入でも shard 開始前に bytecode cache をそろえる) として、`tools/run_tests.py` の shard 経路で submodule marker が有効なときだけ、未 stage 削除検査・RuleOps などの preflight より前に login collection を subprocess として起動し、`acceptance_shards.run_parallel` の `collect_login` をその回収にする実装を作ったが、**main へは入れない**。実装は branch `worktree-dev-wave-acceptance-pyc-warm` (tip f4920ddb3、Codex author) に残す。
+2. 判定は段 4 で事前登録した land 条件どおり: 適格な対 (6 shard すべての待ち行列が 60 秒以内) が 2 つ必要なところ 0 だった。対 1 は K の 1 shard が 78 秒、対 2 は 6 shard 中 4 shard が 128〜484 秒。
+3. 観測 (判定外): 対 1 で shard pre 中央値が K 93.0 秒 → H 69.0 秒 (24.0 秒短縮)、対 2 は待ち行列が長く両腕とも温の峰 (69.2 / 69.6 秒)。害検査 (preflight 区間が延びない、login universe と observed universe の一致 28,663 件、終了後の作業木 clean) は両対で成立。
+4. 依頼の択一のうち、shard が login collection の完了を待つ案は採らない。計算ノードの job は投入の約 9 秒後に始まり、冷の login collection は投入意図から 85〜108 秒かかるので、待ちが得を上回る。計算ノード worker に pyc を書かせる案は D918 のとおり採らない (初回受入では 48 worker が同時に冷で collection するので効かない)。
+
+**理由:**
+
+- 事前登録の条件は結果を見る前に固定しており、対 1 だけの改善で land すると規律 3 の後付けになる。land 調整役の GO の条件も「事前登録の判定を後から変えない」だった。
+- land すれば `tools/run_tests.py` の blob が変わり、走行中の全 wave が受入をやり直す (D987)。得られるのは、初回受入で待ち行列が短いときだけの shard あたり約 24 秒 (n = 1 対の観測) である。
+- md_2 の区間分解 (投入意図起点) は `run_tests.py` 起動から投入意図までの 56〜102 秒を含んでおらず、その大半は login の git 検査 (`git ls-files --deleted` 34〜89 秒) だった。前倒しはこの区間に collection を重ねる形で、対 1・対 2 とも H の collection は shard の開始前後に完了した (投入意図の 33 秒後 / 9 秒後)。
+
+**却下した選択肢:**
+
+- 対 1 の改善だけで land する — 事前登録に反する。
+- 適格条件 (60 秒) を緩めて取り直す — 結果を見た後の条件変更になる。再訪するなら、対の数と判定の規則 (例: 3 対以上、適格な対の多数決) を先に登録した新しい対照を別 wave で行い、D987 の再受入費用と比べて決める。
+- 前倒し子を自前の signal handler と新 process group で管理する — 段 6 レビューが起動直後と後始末中の窓・reap 済み pid への signal・終了形式の変化を示した。branch の実装は従来の `subprocess.run` と同じ意味論に戻してある。

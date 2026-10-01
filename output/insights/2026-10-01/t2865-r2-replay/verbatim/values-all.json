@@ -1,0 +1,654 @@
+{
+ "attempt": "c2r1",
+ "tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r1",
+ "campaigns": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632"
+ ],
+ "claims": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179.claim",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632.claim"
+ ],
+ "wrapper": [
+  "[r2-pair-job] 2026-10-01 03:20:07 JST host bnode018 jobid 0:40205.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r1 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-2.json sha256 f0a0afdabd98f49daea2aa5645675fef79c4a6b908a8b0a88aabdceb00b78e74",
+  "[r2-pair-job] 2026-10-01 03:20:07 JST cand start",
+  "[r2-pair-job] 2026-10-01 03:27:29 JST cand end rc=0",
+  "[r2-pair-job] 2026-10-01 03:27:29 JST stock start",
+  "[r2-pair-job] 2026-10-01 03:32:35 JST stock end rc=0"
+ ],
+ "driver_rc": {
+  "cand": 0,
+  "stock": 0
+ },
+ "cand_stdout": {
+  "outcome": "certified",
+  "variant": "3e0b518a3b4e",
+  "verdict": "serializable",
+  "verifier_digest": {
+   "verdict": "serializable",
+   "certified": true,
+   "aborted": false
+  }
+ },
+ "stock_stdout": {
+  "outcome": "certified-stock",
+  "variant": "db4764543546",
+  "fitness_tps": 1360785.0,
+  "abort_rate_pct": 12.01,
+  "verdict": "serializable"
+ },
+ "cand": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r1/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-798ec179/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "3e0b518a3b4e"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   2970585.0,
+   2841371.0,
+   2802168.0,
+   2935676.0,
+   2853298.0
+  ],
+  "median_tps": 2853298.0,
+  "median_check": 2853298.0,
+  "cv": 0.024279586828371832,
+  "abort_rate_pct": 37.96,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "stock": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r1/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-a84dd632/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "db4764543546"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   1360785.0,
+   1377793.0,
+   1354623.0,
+   1361143.0,
+   1345864.0
+  ],
+  "median_tps": 1360785.0,
+  "median_check": 1360785.0,
+  "cv": 0.00860019138361336,
+  "abort_rate_pct": 12.01,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "ratio": 2.0968,
+ "trace_archive_bytes": {
+  "cand": 630332132,
+  "stock": 362799298
+ }
+}
+{
+ "attempt": "c3r1",
+ "tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r1",
+ "campaigns": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632"
+ ],
+ "claims": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179.claim",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632.claim"
+ ],
+ "wrapper": [
+  "[r2-pair-job] 2026-10-01 04:04:27 JST host bnode014 jobid 0:40213.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r1 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-3.json sha256 4900e27860f584232562e24e542127835db6c7c8f02751ba098d837b93dc7c71",
+  "[r2-pair-job] 2026-10-01 04:04:27 JST cand start",
+  "[r2-pair-job] 2026-10-01 04:11:34 JST cand end rc=0",
+  "[r2-pair-job] 2026-10-01 04:11:34 JST stock start",
+  "[r2-pair-job] 2026-10-01 04:16:38 JST stock end rc=0"
+ ],
+ "driver_rc": {
+  "cand": 0,
+  "stock": 0
+ },
+ "cand_stdout": {
+  "outcome": "certified",
+  "variant": "c107a40f0486",
+  "verdict": "serializable",
+  "verifier_digest": {
+   "verdict": "serializable",
+   "certified": true,
+   "aborted": false
+  }
+ },
+ "stock_stdout": {
+  "outcome": "certified-stock",
+  "variant": "db4764543546",
+  "fitness_tps": 1362319.0,
+  "abort_rate_pct": 12.379999999999999,
+  "verdict": "serializable"
+ },
+ "cand": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r1/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-798ec179/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "c107a40f0486"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   2632180.0,
+   2549799.0,
+   2643510.0,
+   2567434.0,
+   2616461.0
+  ],
+  "median_tps": 2616461.0,
+  "median_check": 2616461.0,
+  "cv": 0.015803149702631053,
+  "abort_rate_pct": 42.23,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "stock": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r1/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-a84dd632/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "db4764543546"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   1362319.0,
+   1382024.0,
+   1352830.0,
+   1372409.0,
+   1361314.0
+  ],
+  "median_tps": 1362319.0,
+  "median_check": 1362319.0,
+  "cv": 0.008237820204501069,
+  "abort_rate_pct": 12.38,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "ratio": 1.9206,
+ "trace_archive_bytes": {
+  "cand": 613346217,
+  "stock": 360083373
+ }
+}
+{
+ "attempt": "c4r1",
+ "tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r1",
+ "campaigns": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632"
+ ],
+ "claims": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179.claim",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632.claim"
+ ],
+ "wrapper": [
+  "[r2-pair-job] 2026-10-01 04:04:37 JST host bnode017 jobid 0:40214.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r1 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-4.json sha256 4f7e78a0606c1be9e753063f66444b5987565b4ff8cdc4b67ba79f4978b54b10",
+  "[r2-pair-job] 2026-10-01 04:04:37 JST cand start",
+  "[r2-pair-job] 2026-10-01 04:13:45 JST cand end rc=0",
+  "[r2-pair-job] 2026-10-01 04:13:45 JST stock start",
+  "[r2-pair-job] 2026-10-01 04:18:39 JST stock end rc=0"
+ ],
+ "driver_rc": {
+  "cand": 0,
+  "stock": 0
+ },
+ "cand_stdout": {
+  "outcome": "certified",
+  "variant": "7e475c2c6607",
+  "verdict": "serializable",
+  "verifier_digest": {
+   "verdict": "serializable",
+   "certified": true,
+   "aborted": false
+  }
+ },
+ "stock_stdout": {
+  "outcome": "certified-stock",
+  "variant": "db4764543546",
+  "fitness_tps": 1385527.0,
+  "abort_rate_pct": 12.17,
+  "verdict": "serializable"
+ },
+ "cand": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r1/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-798ec179/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "7e475c2c6607"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   3660514.0,
+   3444741.0,
+   3562822.0,
+   3510854.0,
+   3524648.0
+  ],
+  "median_tps": 3524648.0,
+  "median_check": 3524648.0,
+  "cv": 0.0224176917352644,
+  "abort_rate_pct": 60.79,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "stock": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r1/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-a84dd632/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "db4764543546"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   1342539.0,
+   1414662.0,
+   1341161.0,
+   1392183.0,
+   1385527.0
+  ],
+  "median_tps": 1385527.0,
+  "median_check": 1385527.0,
+  "cv": 0.023500053197368264,
+  "abort_rate_pct": 12.17,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "ratio": 2.5439,
+ "trace_archive_bytes": {
+  "cand": 821164129,
+  "stock": 357591786
+ }
+}
+{
+ "attempt": "c2r2",
+ "tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r2",
+ "campaigns": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632"
+ ],
+ "claims": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179.claim",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632.claim"
+ ],
+ "wrapper": [
+  "[r2-pair-job] 2026-10-01 04:04:42 JST host bnode018 jobid 0:40215.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r2 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-2.json sha256 f0a0afdabd98f49daea2aa5645675fef79c4a6b908a8b0a88aabdceb00b78e74",
+  "[r2-pair-job] 2026-10-01 04:04:42 JST cand start",
+  "[r2-pair-job] 2026-10-01 04:12:07 JST cand end rc=0",
+  "[r2-pair-job] 2026-10-01 04:12:07 JST stock start",
+  "[r2-pair-job] 2026-10-01 04:17:07 JST stock end rc=0"
+ ],
+ "driver_rc": {
+  "cand": 0,
+  "stock": 0
+ },
+ "cand_stdout": {
+  "outcome": "certified",
+  "variant": "3e0b518a3b4e",
+  "verdict": "serializable",
+  "verifier_digest": {
+   "verdict": "serializable",
+   "certified": true,
+   "aborted": false
+  }
+ },
+ "stock_stdout": {
+  "outcome": "certified-stock",
+  "variant": "db4764543546",
+  "fitness_tps": 1361531.0,
+  "abort_rate_pct": 12.41,
+  "verdict": "serializable"
+ },
+ "cand": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r2/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-798ec179/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "3e0b518a3b4e"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   2954292.0,
+   2854581.0,
+   2807400.0,
+   2897168.0,
+   2812034.0
+  ],
+  "median_tps": 2854581.0,
+  "median_check": 2854581.0,
+  "cv": 0.02154351017175295,
+  "abort_rate_pct": 37.83,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "stock": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c2r2/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-a84dd632/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "db4764543546"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   1371921.0,
+   1349141.0,
+   1387053.0,
+   1361531.0,
+   1356632.0
+  ],
+  "median_tps": 1361531.0,
+  "median_check": 1361531.0,
+  "cv": 0.010786590359101277,
+  "abort_rate_pct": 12.41,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "ratio": 2.0966,
+ "trace_archive_bytes": {
+  "cand": 631147165,
+  "stock": 360357823
+ }
+}
+{
+ "attempt": "c3r2",
+ "tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2b",
+ "campaigns": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632"
+ ],
+ "claims": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179.claim",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632.claim"
+ ],
+ "wrapper": [
+  "[r2-pair-job] 2026-10-01 04:09:00 JST host bnode021 jobid 0:40219.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2b head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-3.json sha256 4900e27860f584232562e24e542127835db6c7c8f02751ba098d837b93dc7c71",
+  "[r2-pair-job] 2026-10-01 04:09:00 JST cand start",
+  "[r2-pair-job] 2026-10-01 04:16:07 JST cand end rc=0",
+  "[r2-pair-job] 2026-10-01 04:16:07 JST stock start",
+  "[r2-pair-job] 2026-10-01 04:20:41 JST stock end rc=0"
+ ],
+ "driver_rc": {
+  "cand": 0,
+  "stock": 0
+ },
+ "cand_stdout": {
+  "outcome": "certified",
+  "variant": "c107a40f0486",
+  "verdict": "serializable",
+  "verifier_digest": {
+   "verdict": "serializable",
+   "certified": true,
+   "aborted": false
+  }
+ },
+ "stock_stdout": {
+  "outcome": "certified-stock",
+  "variant": "db4764543546",
+  "fitness_tps": 1378729.0,
+  "abort_rate_pct": 12.35,
+  "verdict": "serializable"
+ },
+ "cand": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2b/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-798ec179/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "c107a40f0486"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   2553388.0,
+   2485755.0,
+   2482880.0,
+   2632785.0,
+   2578053.0
+  ],
+  "median_tps": 2553388.0,
+  "median_check": 2553388.0,
+  "cv": 0.02501001800374678,
+  "abort_rate_pct": 41.39,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "stock": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c3r2b/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-a84dd632/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "db4764543546"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   1378729.0,
+   1381843.0,
+   1365132.0,
+   1350661.0,
+   1403899.0
+  ],
+  "median_tps": 1378729.0,
+  "median_check": 1378729.0,
+  "cv": 0.014443688472820106,
+  "abort_rate_pct": 12.35,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "ratio": 1.852,
+ "trace_archive_bytes": {
+  "cand": 615932676,
+  "stock": 341702463
+ }
+}
+{
+ "attempt": "c4r2",
+ "tree": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r2",
+ "campaigns": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632"
+ ],
+ "claims": [
+  "p3-silo-policy-loop-silo-policy-autonomous-798ec179.claim",
+  "p3-silo-policy-loop-silo-policy-autonomous-a84dd632.claim"
+ ],
+ "wrapper": [
+  "[r2-pair-job] 2026-10-01 04:09:08 JST host bnode046 jobid 0:40220.nqsv tree /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r2 head 74029b18f04509974db555e72e7835000da8036a prop /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-series-c/llm/prop-4.json sha256 4f7e78a0606c1be9e753063f66444b5987565b4ff8cdc4b67ba79f4978b54b10",
+  "[r2-pair-job] 2026-10-01 04:09:08 JST cand start",
+  "[r2-pair-job] 2026-10-01 04:18:21 JST cand end rc=0",
+  "[r2-pair-job] 2026-10-01 04:18:21 JST stock start",
+  "[r2-pair-job] 2026-10-01 04:23:19 JST stock end rc=0"
+ ],
+ "driver_rc": {
+  "cand": 0,
+  "stock": 0
+ },
+ "cand_stdout": {
+  "outcome": "certified",
+  "variant": "7e475c2c6607",
+  "verdict": "serializable",
+  "verifier_digest": {
+   "verdict": "serializable",
+   "certified": true,
+   "aborted": false
+  }
+ },
+ "stock_stdout": {
+  "outcome": "certified-stock",
+  "variant": "db4764543546",
+  "fitness_tps": 1373176.0,
+  "abort_rate_pct": 12.53,
+  "verdict": "serializable"
+ },
+ "cand": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r2/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-798ec179/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "7e475c2c6607"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   3707439.0,
+   3596193.0,
+   3518779.0,
+   3582728.0,
+   3556274.0
+  ],
+  "median_tps": 3582728.0,
+  "median_check": 3582728.0,
+  "cv": 0.019716983876575906,
+  "abort_rate_pct": 60.51,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "stock": {
+  "wal": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2865-r2-replay/trees/c4r2/output/exploration/campaigns/p3-silo-policy-loop-silo-policy-autonomous-a84dd632/runs/wal.jsonl",
+  "stages": {
+   "build_start": 1,
+   "build_done": 1,
+   "verify_done": 6,
+   "bench_done": 1,
+   "commit": 1
+  },
+  "variant": [
+   "db4764543546"
+  ],
+  "verify_n": 6,
+  "anomalies": 0,
+  "verdicts": [
+   "serializable"
+  ],
+  "tps": [
+   1348465.0,
+   1359285.0,
+   1374260.0,
+   1373176.0,
+   1399168.0
+  ],
+  "median_tps": 1373176.0,
+  "median_check": 1373176.0,
+  "cv": 0.013906672897374808,
+  "abort_rate_pct": 12.53,
+  "settled": true,
+  "high_variance": false,
+  "unstable": false
+ },
+ "ratio": 2.6091,
+ "trace_archive_bytes": {
+  "cand": 822370125,
+  "stock": 356159397
+ }
+}

@@ -736,6 +736,60 @@ def test_stock_genome_and_same_attempt_baseline(tmp_path, monkeypatch):
     assert out['fitness_tps'] == 123
 
 
+@pytest.mark.parametrize('with_receipt', [True, False], ids=['receipt', 'no-receipt'])
+def test_fixed10_condition_gate_uses_offline_args_only_with_receipt(
+        tmp_path, monkeypatch, with_receipt):
+    from orchestrator.campaign import patchharness
+
+    monkeypatch.setattr(patchharness, 'applied',
+                        lambda *_a: contextlib.nullcontext())
+    monkeypatch.setattr(P.ident, 'ensure_resumable_attempts', lambda *_a, **_k: None)
+    monkeypatch.setattr(P, 'run_campaign',
+                        lambda *_a, **_k: type('Summary', (), {'results': []})())
+    monkeypatch.setattr(P.env_contract, 'authorize', lambda _tag: object())
+    gate_calls = []
+    monkeypatch.setattr(L, '_require_condition_gate',
+                        lambda *args, **kwargs: gate_calls.append((args, kwargs)))
+    original_projection = L._condition_gate_offline_configure_args
+    projection_calls = []
+
+    def project(**kwargs):
+        projection_calls.append(kwargs)
+        return original_projection(**kwargs)
+
+    monkeypatch.setattr(L, '_condition_gate_offline_configure_args', project)
+    source_dirs = {name: str(tmp_path / name)
+                   for name in ('masstree', 'mimalloc', 'googletest')}
+    for path in source_dirs.values():
+        Path(path).mkdir()
+    options = ({'fetchcontent_base_dir': str(tmp_path),
+                **{f'{name}_source_dir': path for name, path in source_dirs.items()},
+                'fetchcontent_dependency_receipt': object()}
+               if with_receipt else None)
+    prefix = str(tmp_path / 'prefix')
+    sub = str(tmp_path / 'ccbench')
+    P.run_stock_control(P.default_cfg(form='cpp'), P.default_perf(), sub,
+        layout=CampaignLayout(str(tmp_path / 'campaign')),
+        build_context=P.build_run_context(generator_id=P.GeneratorId.BACKOFF_SWEEP),
+        contract=P.env_contract.lookup(P.ENV_TAG),
+        dependency_prefix=prefix, fetchcontent_options=options, fixed10=True)
+
+    assert len(gate_calls) == 1
+    (gate_sub, genome), gate_kwargs = gate_calls[0]
+    assert gate_sub == sub
+    assert genome.flags['BACKOFF_FIXED'] == 10
+    if with_receipt:
+        expected_kwargs = {'dependency_prefix': prefix,
+                           'fetchcontent_base_dir': options['fetchcontent_base_dir'],
+                           **{f'{name}_source_dir': path
+                              for name, path in source_dirs.items()}}
+        assert projection_calls == [expected_kwargs]
+        assert gate_kwargs == {'configure_args': original_projection(**expected_kwargs)}
+    else:
+        assert projection_calls == []
+        assert gate_kwargs == {}
+
+
 def test_stock_result_requires_stock_source_in_selected_attempt(tmp_path, monkeypatch):
     from orchestrator.campaign import source_digest
     layout = CampaignLayout(str(tmp_path))

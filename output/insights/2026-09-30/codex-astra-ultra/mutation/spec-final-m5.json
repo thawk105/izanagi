@@ -1,0 +1,25 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 12600,
+ "hang_timeout_seconds": 3600,
+ "mutations": [
+  {
+   "id": "m5-sealed-skip-spawn",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_worker_launch.py",
+     "old": "                continue\n            _consume_rollout_event(\n",
+     "new": "                continue\n            if _is_delegation_event(event):\n                continue\n            _consume_rollout_event(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_worker_launch.py::test_root_delegation_acceptance_and_sealed_recheck[spawn_agent]",
+    "orchestrator/tests/test_codex_worker_launch.py::test_sealed_delegation_cannot_retain_accepted_receipt"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

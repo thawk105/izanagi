@@ -13,7 +13,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
 | Cicada 版探索・版保持の計器 (`instr-cicada-version-lifetime.patch`、VHash md_2・md_15) | 診断計器 (D20 第 5 類)。`IZANAGI_CICADA_VLIFE` (探索・K 反事実・楽観的 forwarding 候補・GC 境界の計数、md_15 で ro 比率の実行時 flag・公開間隔の分割・境界保持種別を追加) と `IZANAGI_CICADA_LONGTX` (長い tx 2 型、md_15 で種別固定 flag を追加)。既定は preimage と前処理・`.text`・`.rodata` が一致 (実測) | **out-of-tree patch** (preimage = gitlink `68106660`。`ledger.json` には登録しない) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
-| Cicada 計装 (`instr-cicada-trace.patch`、Cicada の `#if TRACE` trace v2、TPC-C 用の重ね `instr-cicada-trace-tpcc.patch` は v3) と broken-cicada 4 本 | verifier 入力 (C / R / W / E) と、その positive control | **out-of-tree patch** (計装は試作・実走用で、`izanagi-trace` 枝への移送と pin 前進は人間判断。壊しは永久) |
+| Cicada 計装 (`instr-cicada-trace.patch`、Cicada の `#if TRACE` trace v2、TPC-C 用の重ね `instr-cicada-trace-tpcc.patch` は v3、中間案 M の照合の重ね `instr-cicada-trace-m.patch`) と broken-cicada 4 本・broken-cicada-m 3 本 | verifier 入力 (C / R / W / E) と、その positive control | **out-of-tree patch** (計装は試作・実走用で、`izanagi-trace` 枝への移送と pin 前進は人間判断。壊しは永久) |
 | broken-mocc (わざと壊した mocc。[T-2294] の 3 本と後続の hot-update-unlock・skip-canonical-restore) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
 | 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 (現行契約は entry 数 1 固定) |
 
@@ -467,6 +467,13 @@ Cicada の read-only commit は `mainte()` を通らず GC flag を立てない�
   spawn site の define 交差表、materializer 登録簿を追随。**`patches/ledger.json` には登録しない** (D2288 と同じ理由: 同 ledger は `silo_ladder_rung1` 専用で entry 1 件を契約が要求する)。
 - **driver:** `orchestrator/campaign/vhash_ro_gc_publish.py` の `smoke` / `verify` / `measure` / `throughput`。source copy ごとに macro なしの依存物 build (masstree の `config.h` を作る) → condition gate → 本 build の順。
 - **一次資料:** `output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`。
+
+## cicada-ceiling-workload.patch — Cicada の長い読み手と read-only 指定率の共通負荷
+
+- **preimage・適用順:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a`。`cicada-ro-gcflag-variant.patch`、必要な hot / forwarding / interval GC / 診断 patch の後、最後に適用する。trace 木では `instr-cicada-trace.patch` を先頭に置く。
+- **macro・flag:** `IZANAGI_CICADA_CEILING_WORKLOAD=1` で有効。通常 worker は `--izanagi_ceiling_ronly_pct=0..100` (既定 0) の確率で全 READ にし、それ以外は最低 1 write にする。batch worker は `--batch_th_num=1 --batch_max_ope=1000` で 1 手続き 1,000 READ を実行する。抽選は既存 YCSB の乱数と別系列で、retry 中は同じ手続きを使う。
+- **出力:** runner の join と既存集計の後に `IZANAGI_CICADA_CEILING_WORKLOAD_V1 {"schema":1,"thread_num":...,"batch_threads":...,"batch_ops":...,"ronly_pct":...,"normal_commits":...,"batch_commits":...}` を 1 行出す。値は既存の thread 別 commit 数を読む。
+- **inert・登録:** macro 未定義・0 は pin と同じ前処理経路で、追加箇所の後に無条件 `#line` を置く。`patches/ledger.json` には登録しない (D2288 と同じ理由: ledger は `silo_ladder_rung1` 専用で 1 entry を契約が要求する)。
 
 ## cicada-interval-gc-variant.patch / cicada-interval-gc-longtx.patch / broken-cicada-interval-gc-overprune.patch — Cicada の区間 GC (最小形・一般形)、長い tx 負荷、見える版まで外す壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_18)
 
@@ -1103,6 +1110,30 @@ CCBench の C1' `6aa7a58f` (pin C の子、header 2 file だけ) にある。md_
 - **未対応:** Delivery を含む全 mix (F cell) の 4 thread は、stock Cicada 自体が `gc_records()` の `ERR` で落ちる (trace の有無に依らない、11 回中 11 回。機序は未特定)。
   範囲読みの phantom・不在の読み・BOMB / SBOMB の trace・campaign 接続・certified は対象外。記録は `output/insights/2026-09-29/vhash-cicada-verifier-ext/`。
 - **pin 前進時:** C2' 系へ pin が進んだら、重ね順の厳密適用と生死確認を取り直す。
+
+## instr-cicada-trace-m.patch / broken-cicada-m-{early-reclaim,drop-published-write,skip-read-register}.patch — Cicada の中間案 M の照合 (読み束縛・公開・read 側 API) と正例 (VHash 論文 md_33、D2305 項 4、2026-09-30)
+
+`instr-cicada-trace.patch` の上に重ねる out-of-tree 計装で、trace の行 (C / R / W / E) と判定器は変えずに、TRACE ビルドで 3 つの照合を全 tx に掛ける。
+B = 読んだ版 object が登録から tx の終わりまで回収・再利用されていない (版の TRACE 専用世代番号、登録時 snapshot、終了照合)、
+U = `cpv()` が公開した版・validation で設置した版・W 行が一致し、公開時の wts が C 行の版と一致する、
+read 側 API = `read()` の呼び出し単位で、外部 read が read set にちょうど 1 要素を登録し、返した body がその要素の版の body である。
+違反は stderr の `CICADA_M_VIOLATION kind=… thid= tx_seq= tx_wts= outcome= key= ver= gen_seen= gen_now= wts_seen= event=` (全件)、
+終了時に `CICADA_M_SUMMARY schema=1 …` (照合件数と、照合とは別の地点で数えた母集団) を 1 行出す。合否は repo 外起動器が決める。`patches/ledger.json` には登録しない。
+
+| patch | 裸マクロ | 変更 |
+|---|---|---|
+| instr-cicada-trace-m | なし (無条件の計装) | `cc/cicada/` の `#if TRACE` 内だけ (`include/version.hh`・`tuple.hh`・`cicada_op_element.hh`・`transaction.hh`・`transaction.cc`)。`#else` 側の `#line` で TRACE=0 の行番号を保つ (`#line N` の後の `#endif` 行も数える)。`group_commit != 0` は TRACE の実行時に異常終了 |
+| broken-cicada-m-early-reclaim | なし | B の正例。read-only tx を 1/64 で選び、commit の前に 5 ms 待つ間、自 thread の `ThreadRtsArray` を `MinWts−1` へ上げ直し `GCFlag` を立て直す (D2295 で却下した P5 型) |
+| broken-cicada-m-drop-published-write | なし | U の正例。`cpv()` の後・`traceCommit()` の前に、公開済みの write set 要素を 1 つ外す (run で 1 回) |
+| broken-cicada-m-skip-read-register | なし | API の正例。外部 read の read set 登録を 1 回だけ飛ばし、body は返す |
+
+- **範囲:** YCSB の point read / update、`SINGLE_EXEC=0`・`group_commit=0`・`REUSE_VERSION=1`・`WRITE_LATEST_ONLY=0`、`INLINE_VERSION_OPT` は 0 と 1 (promotion は 0、1 は既存の `#error`)。
+- **重ね方:** stock は pin C → `instr-cicada-trace.patch` → 本 patch (→ 壊し) を fuzz 0・offset 0 で厳密適用する。E-max は pin C → instr → `cicada-forwarding-variant` → `-gc` → `-target` → 本 patch で、同じ bytes が `transaction.cc` の 18 hunk で offset 付き (文脈完全一致、fuzz 0) に当たる。既存の壊し 3 本 (`broken-cicada-{skip-read-recheck,no-rts-update,stale-read-ro}`) も本 patch の上に当たる。
+  新しい `#if` 条件に書く語は `TRACE` だけで、`IZANAGI_` の語を含まない。
+- **発火診断 (壊しだけ):** `CICADA_BREAK_EVENT slug=<m-early-reclaim|m-drop-published-write|m-skip-read-register> thid= tx_seq= tx_wts= key= ver= …` を全件、終了時に `CICADA_BREAK_FIRED slug= reached= changed= committed=` (B は `rts_raised=`・`gcflag_set=` も)。
+- **実証:** stock の既定設定・最良設定と E-max の 18 run で巡回 0・M の違反 0。壊し B は既定設定で 3,273 件、最良設定で 3,715 件の `B_RETIRED` が下限を上げた tx に帰属、壊し U・API は各 1 件が帰属。3 本とも判定器の巡回は 0。
+  TRACE=0 は 4 target × 2 genome と E-max の M 無し対 M 有りの 10 組で命令列・relocation 付き逆アセンブル・`nm`・`strings` が一致。記録は `output/insights/2026-09-30/cicada-certified-m/`。
+- **未対応:** TPC-C・scan・insert・delete、`REUSE_VERSION=0`、`group_commit>0`、promotion。izanagi 内部の判定は indeterminate のままで certified ではない。
 
 ## fix-cicada-gc-records.patch / fix-cicada-gc-records-scan-key.patch — stock Cicada の削除経路の欠陥 2 件の修理 ([T-2908]、2026-09-29〜30)
 
