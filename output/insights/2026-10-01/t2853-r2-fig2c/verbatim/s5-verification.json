@@ -1,0 +1,32 @@
+{
+  "before_sha256": {
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2853-r2-fig2c-author/tools/plotting/plot_b10_extended_backoff.py": "04db851a4a6bb502852fecdd53d9b64f56c0b7b7c3fb94e0526de651cc14216a",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2853-r2-fig2c-author/tools/plotting/plot_backoff.py": "aa1684986accec98348139c724337e899eafb3493a5e75ee9b112a5a3dbde5be",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2853-r2-fig2c-author/docs/paper-story/figures/fig2c_b10_extended_backoff.provenance.json": "7b4681e1a42c3ac65b3f3a9ba300232908a644f7c6b7c9ad9c735475202768d0"
+  },
+  "after_sha256": {
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2853-r2-fig2c-author/tools/plotting/plot_b10_extended_backoff.py": "04db851a4a6bb502852fecdd53d9b64f56c0b7b7c3fb94e0526de651cc14216a",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2853-r2-fig2c-author/tools/plotting/plot_backoff.py": "aa1684986accec98348139c724337e899eafb3493a5e75ee9b112a5a3dbde5be",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2853-r2-fig2c-author/docs/paper-story/figures/fig2c_b10_extended_backoff.provenance.json": "7b4681e1a42c3ac65b3f3a9ba300232908a644f7c6b7c9ad9c735475202768d0"
+  },
+  "wrapper_sha256": "652f6b5cbf080372b7e77e1bb9f2b8d653b91c24de4966ddbaaa87474db23c97",
+  "artist_series_all_equal": true,
+  "surrogate_data_equals_control": true,
+  "raw_points_equal_reference": true,
+  "control_data_equals_reference": false,
+  "negative_outputs_absent": true,
+  "table_group_totals": {
+    "original": {
+      "variants": 93,
+      "certified": 93,
+      "anomalies": 0
+    },
+    "surrogate": {
+      "variants": 93,
+      "certified": 93,
+      "anomalies": 0
+    }
+  },
+  "git_status_porcelain": "?? scratch/\n",
+  "git_status_rc": 0
+}

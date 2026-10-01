@@ -1,0 +1,20 @@
+tree=/work/SFC/tanab/tmp/t2853-r2-fig2c-2026-10-01/submit-tree
+head=78c7a2c1408da05c9c6391451192d81963b84034
+porcelain_all_lines=0
+gitlink=160000 commit 511c9538e4e8efa54b45cda62e72389ed3b706ec	external/ccbench
+ccbench_commit_available=yes
+ccbench_head=511c9538e4e8efa54b45cda62e72389ed3b706ec
+job_script_sha_worktree=9579690d44c49842eefc00fcf459f2717cda1dccc66857e1b0137ff5abbbeefb
+job_script_sha_head=9579690d44c49842eefc00fcf459f2717cda1dccc66857e1b0137ff5abbbeefb
+job_script_sha_original_receipt=9579690d44c49842eefc00fcf459f2717cda1dccc66857e1b0137ff5abbbeefb
+expected_freeze=EXPECTED_FREEZE_TREES_SHA256=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+freeze_digest=c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+dep_gflags head=e171aa2d15ed9eb17054558e0b3a6a413bb01067 dirty=0
+dep_glog head=8f9ccfe770add9e4c64e9b25c102658e3c763b73 dirty=0
+14:  "gflags_source_path": "/work/SFC/tanab/github/gflags",
+15:  "gflags_expected_head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+16:  "glog_source_path": "/work/SFC/tanab/github/glog",
+17:  "glog_expected_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+submit_mode=100644
+out_parent_exists=no
+out_parent_git_ancestor=False

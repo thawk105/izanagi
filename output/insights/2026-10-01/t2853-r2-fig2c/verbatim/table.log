@@ -1,0 +1,8 @@
+correctness {"anomalies_sum": 0, "certified_true_count": 31, "variant_count": 31, "verdict_counts": {"serializable": 31}, "verify_done_count": 31, "workload": "write-heavy"}
+correctness {"anomalies_sum": 0, "certified_true_count": 31, "variant_count": 31, "verdict_counts": {"serializable": 31}, "verify_done_count": 31, "workload": "balanced"}
+correctness {"anomalies_sum": 0, "certified_true_count": 31, "variant_count": 31, "verdict_counts": {"serializable": 31}, "verify_done_count": 31, "workload": "read-heavy"}
+correctness {"anomalies_sum": 0, "certified_true_count": 31, "variant_count": 31, "verdict_counts": {"serializable": 31}, "verify_done_count": 31, "workload": "write-heavy"}
+correctness {"anomalies_sum": 0, "certified_true_count": 31, "variant_count": 31, "verdict_counts": {"serializable": 31}, "verify_done_count": 31, "workload": "balanced"}
+correctness {"anomalies_sum": 0, "certified_true_count": 31, "variant_count": 31, "verdict_counts": {"serializable": 31}, "verify_done_count": 31, "workload": "read-heavy"}
+wrote /work/1/SFC/tanab/tmp/t2853-r2-fig2c-2026-10-01/comparison.md / /work/1/SFC/tanab/tmp/t2853-r2-fig2c-2026-10-01/comparison.md.provenance.json
+rc=0

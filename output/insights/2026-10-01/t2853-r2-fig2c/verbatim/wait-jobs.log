@@ -1,0 +1,24 @@
+wait write-heavy 40679 rc=0 at 2026-10-01 11:27:43
+wait balanced 40680 rc=0 at 2026-10-01 11:27:43
+wait read-heavy 40681 rc=0 at 2026-10-01 11:27:43
+--- outcome
+ls: '/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/*.failure.json' にアクセスできません: そのようなファイルやディレクトリはありません
+/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001:
+合計 108
+drwxr-xr-x   6 tanab SFC  4096 10月  1 11:27 .
+drwxr-xr-x 233 tanab SFC 20480 10月  1 10:26 ..
+drwx------   5 tanab SFC  4096 10月  1 11:26 b10-backoff-grid-20261001T012637Z-3721300-balanced
+-rw-------   1 tanab SFC   552 10月  1 11:26 b10-backoff-grid-20261001T012637Z-3721300-balanced.stderr
+-rw-------   1 tanab SFC 26969 10月  1 11:26 b10-backoff-grid-20261001T012637Z-3721300-balanced.stdout
+drwx------   5 tanab SFC  4096 10月  1 11:27 b10-backoff-grid-20261001T012637Z-3721300-read-heavy
+-rw-------   1 tanab SFC   552 10月  1 11:27 b10-backoff-grid-20261001T012637Z-3721300-read-heavy.stderr
+-rw-------   1 tanab SFC 27263 10月  1 11:27 b10-backoff-grid-20261001T012637Z-3721300-read-heavy.stdout
+drwx------   5 tanab SFC  4096 10月  1 11:27 b10-backoff-grid-20261001T012637Z-3721300-write-heavy
+-rw-------   1 tanab SFC  1946 10月  1 10:26 b10-backoff-grid-20261001T012637Z-3721300.submit.jsonl
+drwxr-xr-x   2 tanab SFC  4096 10月  1 10:45 tools
+Request ID:             40680.nqsv
+  Elapse:               3594S
+  Remaining Elapse:     14406S
+Request ID:             40681.nqsv
+  Elapse:               3584S
+  Remaining Elapse:     14416S

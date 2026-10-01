@@ -7,6 +7,17 @@
 - 前段: `output/insights/2026-09-27/t2853-repro-rest/README.md` §3.1〜§3.3 (fig2c = B-10 拡張格子 3 job × 31 variant、元 job 951689〜951691、2.98 node 時間 = (a) Elapse)、
   前例 `output/insights/2026-09-28/t2853-r2-fig8b/README.md` (同じ driver 系で fig8b を測り直した形)。
 
+## 結論
+
+1. **fig2c の測定 (B-10 拡張格子、3 workload × 31 variant × 5 反復) を、元の driver `tools/pegasus/submit_b10_backoff_grid.sh` で Pegasus の 3 ノードに同時に投げて測り直した。**
+   原 attempt が記録した source commit `78c7a2c14` (CCBench `511c9538`) の checkout から投げ、3 job とも完走した。測定は **3.01 node 時間** (Elapse 合計 10,836 s、見積り 2.98)。
+2. **正しさ: 3 workload × 31 variant すべて `verify_done` が `serializable`・`certified: true`・anomaly 0** (93 / 93、参照 2 variant を含む)。原 attempt も同じく 93 / 93 (§3)。
+3. **原 attempt と R2 を並べた表** (`comparison.md`) を、原図と同じ生成器の読み込み関数 (全検査つき) で作った (§4)。group ごとに別々に計算し、合成していない。
+4. **図は、原図と同じ生成器で R2 の値から描けた** (`figures/fig2c_r2_b10_extended_backoff.png`)。生成器の受理検査・レイアウト検査・provenance の意味と閉包の検査をすべて通った (§5)。
+   原図 (`docs/paper-story/figures/fig2c_*`) は変えていない。
+5. **計算の分け方に誤りがあった。** 並行 wave の共通指示 (1 job 5 分程度に分割、食い違えば投入前に相談) を、依頼文 (元の driver を前例と同じ形で) と食い違うのに自分で優先を決め、
+   1 job 約 1 時間 × 3 本を相談なしに投げた。ユーザーから指摘を受け、測定は完走させた (§6、failures に記録)。
+
 ## 0. R2 attempt の地位 — 結果より前に固定する (投入前に commit)
 
 **この節は R2 の job を投入する前に書き、commit してから投入する。** 原 attempt (fig2c の元の測定) は事前登録を持たない記述的な測定
@@ -31,3 +42,142 @@
    検査を外して描かない。group id・job 番号・入力 sha256 などの原 attempt 固有の定数だけを repo 外の wrapper で差し替え、受理条件とレイアウト検査は差し替えない。
    生成器のレイアウト検査が R2 の値で拒否したら、図は作らずその事実と拒否理由を書き、表だけを残す (生成器の変更はこの wave の範囲外)。
 8. **主張の範囲を増やさない。** 原 attempt と同じく記述的な形の図であり、性能は未認証、機序も採否も主張しない。
+
+## 1. 経路と投入前の前提
+
+### 1.1 元の driver と投入 checkout
+
+- fig2c の原 attempt を投げた driver は `tools/pegasus/submit_b10_backoff_grid.sh` (job body `tools/pegasus/b10_backoff_grid.sh`) である
+  (原 group の receipt `b10-backoff-grid-20260826T234647Z-783837.submit.jsonl` の schema `b10-backoff-grid-submit-event/v1` と、3 job の `reservation.json` の `repository_commit`)。
+- 原 attempt の source commit `78c7a2c1408da05c9c6391451192d81963b84034` の detached checkout を作り、その repo root から
+  `bash tools/pegasus/submit_b10_backoff_grid.sh --output-parent /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001` で投げた。
+  この版の driver は `--output-parent` だけを取る (fig8b の版にある `--run-kind` は後から入った)。git の file mode が `100644` なので、前例どおり `bash` で起動した。driver・job body は変えていない。
+- submodule は repo の初期化ツールと同じ argv (`-c protocol.file.allow=always submodule update --init --recursive --no-fetch`) で初期化した。
+  素の `git submodule update --init` は `fatal: transport 'file' not allowed` で失敗した (job は出ていない)。
+- 現行 main から投げなかった理由は前例 fig8b §1.2 と同じ: 生成器 `plot_b10_extended_backoff.py` が `CCBENCH_COMMIT = 511c9538…`・`REPOSITORY_COMMIT = 78c7a2c1…`・
+  `JOB_SCRIPT_SHA256 = 9579690d…` を固定で検査するので、現行 main (CCBench pin `6810666`) の測定は同じ生成器で描けない。新しい測定の開始条件に同一性を置いたのではなく、同じ生成器で描くための選択である (規律 7)。
+
+### 1.2 login で投入前に確かめたこと
+
+`verbatim/precheck.log`。確定は job 自身の測定前検査 (fail-closed) である。
+
+| 項目 | 実測 |
+|---|---|
+| checkout の HEAD | `78c7a2c1408da05c9c6391451192d81963b84034` |
+| `git status --porcelain --untracked-files=all` | 0 行 |
+| CCBench gitlink / submodule の HEAD | `511c9538e4e8efa54b45cda62e72389ed3b706ec` / 同じ (commit は submodule から読める) |
+| job script の sha256 (作業ツリー・HEAD の blob) | `9579690d44c49842eefc00fcf459f2717cda1dccc66857e1b0137ff5abbbeefb` (原 receipt の `job_script_sha256` と一致) |
+| 凍結 tree (`output/s1-freeze` + `output/s8b-freeze`) の digest | `c405c742…` (job script の `EXPECTED_FREEZE_TREES_SHA256` と一致) |
+| 依存元 `/work/SFC/tanab/github/{gflags,glog}` | HEAD `e171aa2d…` / `8f9ccfe7…` (この版の `policy.json` の pin と一致)、clean |
+| 出力親 | 未作成、祖先に `.git` なし |
+
+### 1.3 生成器の版
+
+- 生成器 `tools/plotting/plot_b10_extended_backoff.py` の sha256 は原図の provenance と同じ `04db851a…` (現行 main でも不変)。
+- 依存 `tools/plotting/plot_backoff.py` は原図の時点の `bdb3c223…` から現行の `aa168498…` へ変わっている。生成器は描画時の依存の bytes を provenance に記録するだけで固定はしない。
+  影響は §5.2 の陽性対照で確かめた: 原データを現行の生成器・依存で描き直すと、描画系列 (`artist_series`、9 系列) は原図の provenance と完全一致し、
+  `data` の違いは各 workload の `campaign_verifier_epoch` に現行の依存が足した欄 `verifier_assessment_basis: recorded-at-original-verifier-epoch` だけだった (親が jq で独立に照合)。
+
+## 2. 投入と完走
+
+| group | 投入 (JST) | job (Request ID) | host | 開始〜終了 (JST) | Elapse (s) | `completion.json` |
+|---|---|---|---|---|---|---|
+| R2 `b10-backoff-grid-20261001T012637Z-3721300` | 2026-10-01 10:26:35〜37 | 40679 / 40680 / 40681 (write-heavy / balanced / read-heavy) | bnode074 / 076 / 077 | 10:26:44 / 10:26:45 / 10:27:31 〜 11:27:37 / 11:26:35 / 11:27:11 | 3,658 / 3,594 / 3,584 | 3 本とも `status: complete` |
+
+- 投入の直前に `qstat -a` を見て、生成器対照の本走 (job 名 `izs4loop`) の待ちが無いことを確かめた (`verbatim/submit.log`)。待ちが無かったので優先度は既定 (0) のまま投げた。
+- 3 job は別々の 3 ノードで同時に走った。Elapse の合計は 10,836 s = **3.01 node 時間** で、見積り (repro-rest §3.1 の原 attempt の Elapse 10,741 s = 2.98) より 95 s 長い (`verbatim/elapse.log`)。
+- 各 job の `reservation.json` の `source_binding` は `repository_commit = 78c7a2c1…`・`ccbench_gitlink_commit = 511c9538…`、`completion.json` の凍結 digest は `c405c742…` で、§1.2 の checkout と一致した。
+- 起動時検査での失敗・再投入は無かった。
+- 3 campaign id (`b10-backoff-grid-silo-write-heavy-sweep-0a386b45` / `…-balanced-sweep-9ded73c4` / `…-read-heavy-sweep-e2d75497`) は原 attempt と同じ値である。campaign id は測定条件 (identity) の hash なので、
+  同じ commit・同じ条件なら一致する。出力 root・group id・job は別で、原 attempt の campaign を読んでも書いてもいない。
+- submit receipt の sha256 は `994760a0c66d59a8986cf74a4e493f0ef40d4cdd24dc020283e64e8f003dcfce`。測定データは repo 外の出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/` にある。
+
+## 3. 正しさ
+
+各 variant は job 内で trace 有効 build による直列化可能性の検査 (`verify_done`) を通り、計測は trace 無効 build の別走で行われた (job body の既存経路、規律 1)。
+WAL の `verify_done` 行を wrapper が数えた結果 (`comparison.md` の末尾の表):
+
+| attempt | variant | `verify_done` | `certified: true` | anomaly 合計 | verdict |
+|---|---:|---:|---:|---:|---|
+| 原 attempt (3 workload の計) | 93 | 93 | 93 | 0 | serializable 93 |
+| R2 (3 workload の計) | 93 | 93 | 93 | 0 | serializable 93 |
+
+workload ごとにも 31 / 31 / 31 で、内訳は同じである。anomaly が出た variant は無いので、reject した variant も無い。
+
+## 4. 原 attempt と R2 の対照表
+
+全表は `comparison.md` (sha256 `71b2700b…`、provenance は `comparison.md.provenance.json`)。wrapper の `table` が 2 group を生成器の `load_measurements` (全検査つき) で読んで書いた。
+throughput は 5 反復の平均 ± t 分布 95% CI 半幅 (M tps)、abort rate は生成器が DAT と WAL で照合した集約値 (反復ごとの値は無く CI は付けない)。1000 µs は F718 で除外した行として残る。
+値は group ごとに別々に計算したもので、合成していない。数値の近さを再現精度として評価しない (§0 項 3)。
+
+各 group の throughput 平均が最大になった点 (記述のみ):
+
+| workload | 原 attempt | R2 |
+|---|---|---|
+| write-heavy | 6 µs (3.990 ± 0.046 M tps) | 8 µs (4.036 ± 0.050 M tps) |
+| balanced | 2 µs (4.424 ± 0.094 M tps) | 2 µs (4.388 ± 0.131 M tps) |
+| read-heavy | 0 µs (10.248 ± 0.136 M tps) | 0 µs (10.310 ± 0.146 M tps) |
+
+write-heavy の 3〜12 µs は隣の点との差が CI の幅と同じ程度で、最大の位置の違いを結論に使わない。
+
+## 5. 図 — 原図と同じ生成器で描いた R2 の図
+
+### 5.1 結果
+
+- `figures/fig2c_r2_b10_extended_backoff.png` (sha256 `1a4cbfef…`)、PDF (`9a189bb0…`)、provenance (`0eb407dd…`)。
+- 生成器 `tools/plotting/plot_b10_extended_backoff.py` (sha256 `04db851a…`、原図の provenance が記録する生成器と同一) を wrapper 経由で使い、
+  `load_measurements` → `make_figure` (レイアウト検査 `_validate_text_bboxes` を含む) → 出力 → `validate_provenance_semantics`・`validate_external_sources`・`validate_repo_closure` をすべて通した (`verbatim/draw-r2.log`)。
+- 図の見出しと caption は R2 の役割語 (「R2 attempt (re-measurement of the original fig2c group, separate from and not pooled with it)」) で、host は bnode074 / 076 / 077。
+- 再現コマンドは provenance の `reproduction` にある。
+  `python3.10 -B /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/tools/t2853_r2_fig2c_plot.py --generator <repo>/tools/plotting/plot_b10_extended_backoff.py r2 --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001 --group b10-backoff-grid-20261001T012637Z-3721300 --out-prefix <repo 内の新しい出力先>`。
+  `<repo>` は生成器の sha256 が `04db851a…` の checkout (provenance の記録は本 wave の worktree の path)。出力先は生成器の provenance 閉包の契約で repo 内に限られる。
+- 図の見た目: write-heavy と balanced は数 µs で throughput が山になり、その後は下がる。read-heavy は 0 µs から単調に下がる。abort rate は 3 workload とも単調に下がる。
+  原図 (`docs/paper-story/figures/fig2c_b10_extended_backoff.png`) と同じ形の図だが、並べて重ねた図は作っていない。
+- R2 の図は論文図ではなく、再現パッケージの記録である。
+
+### 5.2 wrapper (repo 外の使い捨て)
+
+生成器の bytes を変えずに R2 の group を描くため、repo 外の wrapper を Codex の実装子 (段 5) が書いた。repo には入れていない。
+保管先は R2 の出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/tools/t2853_r2_fig2c_plot.py` (sha256 `652f6b5cbf080372b7e77e1bb9f2b8d653b91c24de4966ddbaaa87474db23c97`)。
+実装子の報告と照合結果は `verbatim/s5-author-report.md`・`verbatim/s5-verification.json`、prompt は `verbatim/s5-author-prompt.md`。
+
+- 差し替えたもの: 原 attempt 固有の定数 (`GROUP_ID`・`SUBMIT_PATH`・`SUBMISSION_NONCE`・`WORKLOAD_SPECS` の job / host / campaign / identity・`CANONICAL_SHA256`・出力閉包用の `REAL_OUTPUT_PATHS`) と、caption・図中見出しの役割語。
+  R2 の値は実行時に receipt・reservation・completion・campaign lock から読み、入力の sha256 は file から計算する。
+- 差し替えていないもの: `REPOSITORY_COMMIT`・`CCBENCH_COMMIT`・`JOB_SCRIPT_SHA256` (R2 も同じ値で、生成器の検査を通った)、DAT と WAL の照合、F718 の 1000 µs 除外、固定条件・CV の検査、CI の計算、レイアウト検査、provenance の意味・外部入力・閉包の検査。
+- 陽性対照 (`control`): 原 attempt を wrapper 経由で差し替えなしに描くと、`artist_series` (9 系列) は原図の provenance と完全一致 (親が jq で sha256 を照合)。
+  `data` は、現行の依存 `plot_backoff.py` が足した欄 `campaign_verifier_epoch.verifier_assessment_basis` を除けば完全一致した (§1.3)。wrapper はこの差を「不一致」として rc=1 で返し、差を隠していない。
+- 見立て (`r2` を原 attempt に向けたもの): rc=0、`artist_series` は control と完全一致。
+- 負例 (図が出ないこと): sha256 の違う生成器 rc=2、存在しない root rc=2、存在しない group rc=2、DAT を 1 行変えた写し rc=2 (`completion artifact digest mismatch`)、
+  その写しの completion の hash も合わせた場合 rc=2 (`dat throughput is not the WAL center`)。いずれも図なし。
+
+## 6. 費用と計算の分け方
+
+- 測定: 3 job の Elapse 合計 10,836 s = **3.01 node 時間** ((a) Elapse)。承認 (D2305 項 9) の 2.98 を 0.03 上回った。再投入は無かった。
+- 開発の検査: 受入全走 1 回 (見積り約 0.3 node 時間、land 調整役が相談不要と確認)。実測は worklog に書く。
+- 図・表・集計は login で数秒ずつ (計算ノードは使っていない)。
+- **分け方の誤り:** 並行 wave の共通指示は「計算 job は 1 本あたり 5 分程度に分割」と「2 node 時間以上は投入前に land 調整役へ 5 点を送る」を定めていた。
+  親は依頼の「前例と同じ形で元の driver を使う」を優先すると単独で決め、1 job 約 1 時間 × 3 本を相談なしに投げた。ユーザーから「1 ジョブあたり 5 分くらいで分割したらもう終わってるのでは」と指摘された。
+  原 commit の driver・job body・sweep は workload だけを引数に取り、variant の部分集合を指定する口が無い (31 variant の測定順は seed で決まり campaign identity に入る) ので、
+  元の driver のままなら 3 job が最小単位だった。割るには部分集合 runner の新設が要り、campaign identity が変わって同じ生成器の検査と衝突する。
+  この択一を投入前に land 調整役へ出さなかったことが誤りである (failures fragment、memory `measurement-must-split-across-nodes` に再発防止を追記)。
+
+## 7. 言わないこと
+
+- **R2 は原 attempt の置換ではない** (§0)。2 group の標本・CI を合成しない。表の数値の近さを再現精度として読まない。
+- 性能を認証していない。機序も採否も主張しない。図は記述的な形の図 (`claim_scope = descriptive_backoff_shape_only`) のままである。
+- R2 は原 attempt の source commit (`78c7a2c14`、CCBench `511c9538`) で走らせた測定であり、現行 main (CCBench pin は本 wave 中に F へ前進) での測定ではない。現行 main で同じ値が出るとは言わない。
+- 計算ノードの割当ては専有の保証ではない。単独性は job body の既存の測定前検査に拠る。ノード間の性能差は測っていない (原 attempt は bnode007 / 009 / 016、R2 は bnode074 / 076 / 077)。
+- trace は保全していない。この版の driver は環境変数を job へ渡す口を持たず、source commit も trace 保全口 (D2233) より前である。R1 (保存 trace の再判定) の入力にはならない。
+
+## 8. 今後の課題
+
+- **variant の部分集合を、原 campaign と同じ seed 順で測る runner** があれば、R 系の測り直し (fig2c・fig8b など) を 1 job 5 分程度に割って多数のノードへ同時に投げられる。
+  campaign identity と生成器の検査との両立 (部分集合ごとの campaign をどう 1 つの図に束ねるか) を含めて設計が要る (land 調整役の依頼で記録)。
+
+## 9. 出所
+
+- `verbatim/request.md` — 依頼の逐語。`verbatim/startup-gate.log` — 開始 gate (rc=0)。`verbatim/s1-brief.md` — 段 1 brief (軽量版、段 2・3 は省略)。
+- `verbatim/precheck.log` — 投入前の login 検査。`verbatim/submit.log` — 投入 (qstat の確認と receipt)。`verbatim/wait-jobs.log`・`verbatim/elapse.log` — 完了待ちと 3 job の NQSV 会計。
+- `verbatim/s5-author-prompt.md`・`verbatim/s5-author-report.md`・`verbatim/s5-verification.json` — wrapper の実装子 (Codex) の prompt・報告・照合。
+- `verbatim/draw-r2.log`・`verbatim/table.log` — R2 の描画と対照表の実行ログ。
+- repo 外: 出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/` (receipt、job root 3 本、`tools/` に wrapper)。submit-tree は一時置き場 `/work/SFC/tanab/tmp/t2853-r2-fig2c-2026-10-01/submit-tree` (wave の終わりに撤去)。
