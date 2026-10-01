@@ -156,15 +156,18 @@ _CHARACTERIZATION_GENOME = (
     "silo|ADD_ANALYSIS=1,BACKOFF_TRIGGER_GATING=1,BACK_OFF=1,"
     "NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0"
 )
-_CHARACTERIZATION_PIN = "6810666"
+_CHARACTERIZATION_PIN = "25898d0"
 _T2304_ADMISSION_POLICY_SHA256 = (
     "db6bc9ea80440a5e0d162319b0d91efab9fb3783a959bc3a2931601e253ca18a"
 )
 _T816_ADMISSION_POLICY_SHA256 = (
     "949ddcc2951935405f661ce70cb7df1031fedfd162788655e78faaadac671a44"
 )
-_ADMISSION_POLICY_SHA256 = (
+_T2858_ADMISSION_POLICY_SHA256 = (
     "baec529678afab7712557eec0b97cb8f0ddc6b8f2f7cc4e7c9fd1eecce3cb941"
+)
+_ADMISSION_POLICY_SHA256 = (
+    "d7168212c9eb4a0e3de60f039e7e5399775522eefc0de8ff6fd41dcca99afe96"
 )
 _PRE_T343_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-c2d838b8",
@@ -186,6 +189,7 @@ _T2858_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-95e18297",
     "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-4766d116",
 }
+_T2854F_S8A_CAMPAIGN_IDS = {"balanced": "p3-s8a-trigger-sweep-balanced-sweep-5d4ff26d", "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-516ee39e"}
 _T530_S8A_CAMPAIGN_IDS = {
     "balanced": "p3-s8a-trigger-sweep-balanced-sweep-0b2966f0",
     "write-heavy": "p3-s8a-trigger-sweep-write-heavy-sweep-27b6af7c",
@@ -432,7 +436,8 @@ def test_default_off_campaign_ids_remain_historical_values():
         and cfg.bound_environment_contract is explicit_contract
         for cfg in configs.values()
     )
-    assert current == _T2858_S8A_CAMPAIGN_IDS
+    assert current == _T2854F_S8A_CAMPAIGN_IDS
+    assert current != _T2858_S8A_CAMPAIGN_IDS
     assert set(current.values()).isdisjoint(
         set(_T343_S8A_CAMPAIGN_IDS.values())
         | set(_T530_S8A_CAMPAIGN_IDS.values())
@@ -549,7 +554,7 @@ def test_public_sweep_reaches_pipeline_with_exact_stock_and_machine_classes(
     machine_name = W.candidates(EFF3)[0][0]
     seen = []
     passed = SimpleNamespace(passed=True)
-    expected_pin = "6810666"  # repo policy から逆算しない独立 pin
+    expected_pin = "25898d0"  # repo policy から逆算しない独立 pin
 
     def evidence_for(genome, commit, source_root):
         assert commit == expected_pin == W.PIN

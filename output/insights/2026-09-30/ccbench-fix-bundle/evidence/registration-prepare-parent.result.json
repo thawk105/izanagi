@@ -1,0 +1,147 @@
+{
+  "accepted": null,
+  "errors": [],
+  "host": "pegasus02",
+  "mode": "registration",
+  "prepare_only": true,
+  "prepared": true,
+  "preregistered": "changed rc=1 TRACE=0 normalized preprocess mismatch; trace branch rc=0 pass, 32 cicada contexts",
+  "registration_life": {
+    "changed": {
+      "apply_check": {
+        "argv": [
+          "git",
+          "-C",
+          "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+          "apply",
+          "--check",
+          "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/registration-prepare-parent/cicada-transaction.patch"
+        ],
+        "rc": 0,
+        "seconds": 0.046,
+        "timeout_seconds": null
+      },
+      "apply_check_stderr": "",
+      "oid": "2c3867dff4f861e23c5a93a2ef6d26148903fb0f",
+      "patch": {
+        "lines": 85,
+        "path": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/registration-prepare-parent/cicada-transaction.patch",
+        "sha256": "9f76b022fcd6fa14b441f5b83fb304b425567e97a59bed59c0870f51d9124930"
+      }
+    },
+    "trace-branch": {
+      "apply_check": {
+        "argv": [
+          "git",
+          "-C",
+          "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+          "apply",
+          "--check",
+          "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/registration-prepare-parent/cicada-trace-branch.patch"
+        ],
+        "rc": 0,
+        "seconds": 0.035,
+        "timeout_seconds": null
+      },
+      "apply_check_stderr": "",
+      "oid": "2c3fb47d30963aa84d9befa1f39c4fd05d66eff8",
+      "patch": {
+        "lines": 11,
+        "path": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/registration-prepare-parent/cicada-trace-branch.patch",
+        "sha256": "ea3c4242b5f249c6076e64bc10827d047c87ae765813c7768fde69a2f7cadf1e"
+      }
+    }
+  },
+  "runs": {},
+  "stages": {
+    "cicada-trace-branch.generate": {
+      "argv": [
+        "git",
+        "-C",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+        "diff",
+        "--binary",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+        "2c3fb47d30963aa84d9befa1f39c4fd05d66eff8",
+        "--",
+        "cc/cicada/transaction.cc"
+      ],
+      "rc": 0,
+      "seconds": 0.093,
+      "stderr": ""
+    },
+    "cicada-transaction.generate": {
+      "argv": [
+        "git",
+        "-C",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+        "diff",
+        "--binary",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+        "16ad3eb8ca5f7bb3aea789bff99958e2192f6714",
+        "--",
+        "cc/cicada/transaction.cc"
+      ],
+      "rc": 0,
+      "seconds": 0.115,
+      "stderr": ""
+    },
+    "clone": {
+      "argv": [
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scripts-v6/verify_inputs.sh",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle",
+        "9035509829f005aaaddf44fa5ca431851c2ecdac",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/ccbench"
+      ],
+      "rc": 0,
+      "seconds": 12.363,
+      "timeout_seconds": null
+    },
+    "life-changed.apply-check": {
+      "argv": [
+        "git",
+        "-C",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+        "apply",
+        "--check",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/registration-prepare-parent/cicada-transaction.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.046,
+      "timeout_seconds": null
+    },
+    "life-trace-branch.apply-check": {
+      "argv": [
+        "git",
+        "-C",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+        "apply",
+        "--check",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/registration-prepare-parent/cicada-trace-branch.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.035,
+      "timeout_seconds": null
+    },
+    "registration": {
+      "rc": 0,
+      "seconds": 7.53
+    },
+    "registration.clone": {
+      "argv": [
+        "git",
+        "-C",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/ccbench",
+        "worktree",
+        "add",
+        "--detach",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scratch-prep/cfb-registration-k43exnub/registration-ccbench",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e"
+      ],
+      "rc": 0,
+      "seconds": 4.813,
+      "timeout_seconds": null
+    }
+  },
+  "tip": "9035509829f005aaaddf44fa5ca431851c2ecdac"
+}
