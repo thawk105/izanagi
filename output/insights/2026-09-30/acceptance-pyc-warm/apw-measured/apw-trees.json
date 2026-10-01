@@ -1,0 +1,48 @@
+{
+  "H_commit": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+  "base_commit": "d79fd3524aeae7037a6f8aefb95d9a778847cc72",
+  "expected_blobs": {
+    "K": "1c8af6ba9613b81cfdf9c798bf6c140f2f5e6fed",
+    "H": "13c7ae4d4f0e50b2df2a437608ff88bc1e1e68d8"
+  },
+  "trees": {
+    "K1": {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-K1",
+      "exists": true,
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "status": " M tools/run_tests.py",
+      "blob": "1c8af6ba9613b81cfdf9c798bf6c140f2f5e6fed",
+      "tests_pyc": 0,
+      "submodule_marker": true
+    },
+    "K2": {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-K2",
+      "exists": true,
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "status": " M tools/run_tests.py",
+      "blob": "1c8af6ba9613b81cfdf9c798bf6c140f2f5e6fed",
+      "tests_pyc": 0,
+      "submodule_marker": true
+    },
+    "H1": {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-H1",
+      "exists": true,
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "status": "",
+      "blob": "13c7ae4d4f0e50b2df2a437608ff88bc1e1e68d8",
+      "tests_pyc": 0,
+      "submodule_marker": true
+    },
+    "H2": {
+      "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-H2",
+      "exists": true,
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "status": "",
+      "blob": "13c7ae4d4f0e50b2df2a437608ff88bc1e1e68d8",
+      "tests_pyc": 0,
+      "submodule_marker": true
+    }
+  },
+  "errors": [],
+  "note": "H1/H2 re-created by make-h-trees.sh after EINTR in attempt 1"
+}

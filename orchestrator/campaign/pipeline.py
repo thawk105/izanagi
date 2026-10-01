@@ -45,6 +45,7 @@ from ..verifier import (                                        # noqa: E402
     verify_trace_dir_with_capability,
 )
 from ..verifier.core import result_to_dict_v3                 # noqa: E402
+from ..verifier.report import result_to_dict                 # noqa: E402
 from ..verifier.commit_receipt import (                          # noqa: E402
     admit_remote_verification_receipt,
     campaign_lock_sha256_or_absent,
@@ -69,6 +70,7 @@ from .build_admission import (  # noqa: E402
     derive_build_admission,
     require_build_admission,
 )
+from .source_digest import effective_gate_witness_requirement
 from .buildcache import (_resolve_site as _buildcache_resolve_site,  # noqa: E402
                          require_heavy_work_site)
 from .layout import CampaignLayout                              # noqa: E402
@@ -636,6 +638,7 @@ def _execute_verification_repetition(
         trace_runner: Optional[Callable[..., _TraceRunResult]] = None,
         verifier_runner: Optional[Callable[..., tuple[object, object]]] = None,
         collected_trace_result: Optional[_TraceRunResult] = None,
+        require_gate_witness: bool = False,
 ) -> _RepetitionExecutionOutcome:
     """Run the existing trace witness and verifier gates without WAL access.
 
@@ -691,6 +694,7 @@ def _execute_verification_repetition(
             receipt_variant=receipt_variant,
             receipt_operation_identity=receipt_operation_identity,
             receipt_workload_tag=receipt_workload_tag,
+            **({"require_gate_witness": True} if require_gate_witness else {}),
         )
     except ParseError as exc:
         return abort(
@@ -718,6 +722,8 @@ def _execute_verification_repetition(
         "workload": {"tag": receipt_workload_tag},
         "proof_surfaces": verify_result.integrity.proof_surfaces.as_record(),
     }
+    if require_gate_witness:
+        verify_payload["gate_witness"] = result_to_dict(verify_result)["gate_witness"]
     if include_qualification_evidence:
         verify_payload.update({
             "argv": (
@@ -1686,6 +1692,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              verify_fanout_hosts: tuple[str, ...] = (),
              verify_fanout_launcher: Optional[Callable[..., object]] = None,
              verify_performance_concurrent: bool = False,
+             require_gate_witness: bool = False,
              ) -> EvalResult | _PreparedEvaluation:
     """Build and verify one genome, preserving state for later bench/commit.
 
@@ -1740,6 +1747,10 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
     bench_lock + bench と同一の launch prefix 下で回す (決定4-4)。既定 legacy は
     軽量ゆえ従来どおり並列可 (lock.py の設計方針)。"""
     bench_build_workload = workload
+    if type(require_gate_witness) is not bool:
+        raise TypeError("require_gate_witness must be bool")
+    require_gate_witness = effective_gate_witness_requirement(
+        genome, require_gate_witness)
     if a1_source_context is not None and canonical_build_pin is None:
         raise ValueError("A1 source context requires canonical build pin")
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
@@ -1907,6 +1918,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             ccbench_commit,
             ccbench_dir=ccbench_dir,
             cxx=evidence_cxx,
+            **({"require_gate_witness": True} if require_gate_witness else {}),
             **source_options,
         )
         if source_evidence is not None:
@@ -1923,6 +1935,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         # returns the same immutable snapshot and variant identity.
         proof_snapshot = capture_compiled_protocol_source_snapshot(
             genome.protocol, current_evidence.source_root,
+            **({"require_gate_witness": True} if require_gate_witness else {}),
         )
         try:
             evidence = current_evidence._bind_runtime_verification(
@@ -2105,12 +2118,16 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     ccbench_dir=ccbench_dir, cache_root=cache_root,
                     admission=admission, build_context=build_context,
                     source_evidence=evidence,
+                    **({"require_gate_witness": True} if require_gate_witness else {}),
                     **build_options,
                 )
             if qualification_policy is None:
-                return buildcache.build_v2(genome, trace=trace, workload=bench_build_workload, **common)
+                return buildcache.build_v2(genome, trace=trace, workload=bench_build_workload,
+                                           **({"require_gate_witness": True} if require_gate_witness else {}),
+                                           **common)
             return buildcache.build_v2(
                 genome, trace=trace, workload=bench_build_workload,
+                **({"require_gate_witness": True} if require_gate_witness else {}),
                 timeout_s=qualification_policy.build_timeout_s, **common,
             )
 
@@ -2274,6 +2291,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                 trace_binary_sha256=tr.bin_sha256,
                 include_qualification_evidence=(qualification_policy is not None),
                 payload_binary=tr.binary,
+                **({"require_gate_witness": True} if require_gate_witness else {}),
             )
             return _project_repetition_outcome(tag, outcome)
         finally:
@@ -2349,6 +2367,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
                     trace_binary_sha256=tr.bin_sha256,
                     include_qualification_evidence=False,
                     payload_binary=tr.binary, collected_trace_result=trace,
+                    **({"require_gate_witness": True} if require_gate_witness else {}),
                 )
                 if outcome.abort is None:
                     payload = outcome.verify_payload
@@ -3108,8 +3127,11 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              verify_fanout_hosts: tuple[str, ...] = (),
              verify_fanout_launcher: Optional[Callable[..., object]] = None,
              verify_performance_concurrent: bool = False,
+             require_gate_witness: bool = False,
              ) -> EvalResult:
     """Preserve the historical evaluate API as prepare, bench, then commit."""
+    if type(require_gate_witness) is not bool:
+        raise TypeError("require_gate_witness must be bool")
     if a1_source_context is not None and canonical_build_pin is None:
         raise ValueError("A1 source context requires canonical build pin")
     fetchcontent_prebuild = _validate_fetchcontent_prebuild_inputs(
@@ -3187,6 +3209,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         verify_fanout_launcher=verify_fanout_launcher,
         **({"verify_performance_concurrent": True}
            if verify_performance_concurrent else {}),
+        **({"require_gate_witness": True} if require_gate_witness else {}),
         **fetchcontent_options,
     )
     passes = (outcome,)

@@ -194,6 +194,9 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 - test_wave_land_window.py
 <!-- PYTEST_ONLY_ALLOWLIST_END -->
 
+- self-run: `test_vhash_ceiling_vs_sota.py` — ceiling driver の変異 M1〜M18、rc 3 の受理、壊し正例、30 秒判定、build shard と予算 gate の入力対照
+- self-run: `test_plot_vhash_ceiling_vs_sota.py` — 実寸 matplotlib Figure、予備と 30 秒比較の小標本 CI
+
 - self-run: `test_s8c_acceptance_receipt_v2.py` — receipt v2 の正例・負の対照
 - self-run: `test_s8c_gate_report.py` — 8c 事前登録関門の状態・根拠を構造化報告
 

@@ -1,0 +1,386 @@
+[
+  {
+    "series": "evo-ir-1",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 4054150,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-10",
+    "endpoint_slot": "eval-9",
+    "variant": "7e9d61c19891",
+    "search_tps": 3933273,
+    "form": "cpp",
+    "body": "struct PolicyState { uint64_t f0 = 312ul; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  uint64_t v0 = s.f0;\n  s.f0 = v0;\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState& s, const izanagi_silo_api::LockContext& c) noexcept {\n  uint64_t v0 = s.f0;\n  s.f0 = v0;\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, c.attempt};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  uint64_t v0 = s.f0;\n  s.f0 = v0;\n}\n"
+  },
+  {
+    "series": "evo-ir-11",
+    "endpoint_slot": "eval-1",
+    "variant": "0dd37ad6cc52",
+    "search_tps": 3946910,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, c.attempt};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-12",
+    "endpoint_slot": "eval-1",
+    "variant": "b7888d68e1ea",
+    "search_tps": 4016665,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  uint32_t t0 = c.attempt;\n  uint32_t t1 = 6u;\n  uint32_t t2 = t0 < t1 ? 0u : t0 - t1;\n  uint32_t t3 = std::min(c.attempt, t2);\n  uint32_t t4 = c.attempt;\n  uint32_t t5 = 0u;\n  uint32_t t6 = t4 > 4294967295u - t5 ? 4294967295u : t4 + t5;\n  uint32_t t7 = c.attempt;\n  uint32_t t8 = t6;\n  uint32_t t9 = t7 < t8 ? 0u : t7 - t8;\n  uint32_t t10 = t3;\n  uint32_t t11 = t9;\n  uint32_t t12 = t10 < t11 ? 0u : t10 - t11;\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, t12};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-2",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 4004006,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-3",
+    "endpoint_slot": "eval-9",
+    "variant": "d645185cb14b",
+    "search_tps": 4015853,
+    "form": "cpp",
+    "body": "struct PolicyState { bool f0 = false; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  bool v0 = s.f0;\n  s.f0 = v0;\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState& s, const izanagi_silo_api::LockContext& c) noexcept {\n  bool v0 = s.f0;\n  bool t0 = false ? v0 : v0;\n  bool t1 = 13u <= 864u;\n  bool t2 = t0 ? v0 : t1;\n  uint32_t t3 = std::max(2u, c.attempt);\n  uint32_t t4 = std::min(t3, 12u);\n  uint32_t t5 = t2 ? t4 : c.attempt;\n  s.f0 = v0;\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, t5};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  bool v0 = s.f0;\n  s.f0 = v0;\n}\n"
+  },
+  {
+    "series": "evo-ir-4",
+    "endpoint_slot": "eval-9",
+    "variant": "11903c28bbc6",
+    "search_tps": 3974617,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 2u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t v0 = s.f0;\n  s.f0 = v0;\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState& s, const izanagi_silo_api::LockContext&) noexcept {\n  uint32_t v0 = s.f0;\n  s.f0 = v0;\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.f0 = 68u;\n}\n"
+  },
+  {
+    "series": "evo-ir-5",
+    "endpoint_slot": "eval-4",
+    "variant": "202cd6dd6ef1",
+    "search_tps": 4090213,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t t0 = std::max(41u, 22u);\n  uint32_t t1 = std::min(1u, 0u);\n  uint32_t t2 = true ? t0 : t1;\n  uint32_t t3 = t2 >> 3u;\n  return t3;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-6",
+    "endpoint_slot": "eval-8",
+    "variant": "f440476b2fb9",
+    "search_tps": 4035257,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t t0 = 8u;\n  uint32_t t1 = 1u;\n  uint32_t t2 = t0 < t1 ? 0u : t0 - t1;\n  return t2;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, c.attempt};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-7",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3993236,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-8",
+    "endpoint_slot": "eval-8",
+    "variant": "0dd37ad6cc52",
+    "search_tps": 3990626,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, c.attempt};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "evo-ir-9",
+    "endpoint_slot": "eval-7",
+    "variant": "eee31d6c54de",
+    "search_tps": 3965227,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 1u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  s.f0 = 0u;\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState& s, const izanagi_silo_api::LockContext&) noexcept {\n  uint32_t v0 = s.f0;\n  s.f0 = v0;\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 32u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  uint32_t v0 = s.f0;\n  s.f0 = v0;\n}\n"
+  },
+  {
+    "series": "llm-cpp-1",
+    "endpoint_slot": "eval-7",
+    "variant": "b7843a0932b7",
+    "search_tps": 4212436,
+    "form": "cpp",
+    "body": "struct PolicyState {\n  uint32_t streak = 0u;\n};\nconstexpr uint32_t kStreakCap = 6u;\nconstexpr uint32_t kLockRetryLimit = 3u;\nuint32_t streak_base_wait(uint32_t streak) noexcept {\n  if (streak <= 1u) {\n    return 0u;\n  }\n  if (streak == 2u) {\n    return 1u;\n  }\n  if (streak == 3u) {\n    return 3u;\n  }\n  if (streak == 4u) {\n    return 8u;\n  }\n  if (streak == 5u) {\n    return 12u;\n  }\n  return 16u;\n}\nuint32_t policy_after_abort(PolicyState& st, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  uint32_t next = std::min(st.streak + 1u, kStreakCap);\n  st.streak = next;\n  uint32_t base = streak_base_wait(next);\n  uint32_t r = static_cast<uint32_t>(ctx.rand % 1024u);\n  uint32_t wait = (base >> 1u) + ((r * base) >> 10u);\n  return wait;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& ctx) noexcept {\n  if (ctx.attempt < kLockRetryLimit) {\n    return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::retry, 0u};\n  }\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& st, const izanagi_silo_api::CommitContext&) noexcept {\n  st.streak = st.streak >> 1u;\n}\n"
+  },
+  {
+    "series": "llm-cpp-10",
+    "endpoint_slot": "eval-9",
+    "variant": "586f76eb24db",
+    "search_tps": 4110864,
+    "form": "cpp",
+    "body": "struct PolicyState {\n  uint32_t streak = 0u;\n};\n\nconstexpr uint32_t kStreakCap = 16u;\nconstexpr uint32_t kFreeRetries = 3u;\nconstexpr uint32_t kLockSpinAttempts = 8u;\n\nuint32_t base_wait_for_streak(uint32_t streak) noexcept {\n  if (streak == 4u) {\n    return 2u;\n  }\n  if (streak == 5u) {\n    return 4u;\n  }\n  if (streak == 6u) {\n    return 8u;\n  }\n  return 16u;\n}\n\nuint32_t policy_after_abort(PolicyState& state, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  state.streak = std::min(state.streak + 1u, kStreakCap);\n  if (state.streak <= kFreeRetries) {\n    return 0u;\n  }\n  uint32_t base = base_wait_for_streak(state.streak);\n  uint32_t jitter = static_cast<uint32_t>(ctx.rand) & (base - 1u);\n  return base + jitter;\n}\n\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& ctx) noexcept {\n  uint32_t attempt = static_cast<uint32_t>(ctx.attempt);\n  if (attempt < kLockSpinAttempts) {\n    return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::retry, 0u};\n  }\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\n\nvoid policy_on_commit(PolicyState& state, const izanagi_silo_api::CommitContext&) noexcept {\n  state.streak = 0u;\n}\n"
+  },
+  {
+    "series": "llm-cpp-11",
+    "endpoint_slot": "eval-2",
+    "variant": "20f38c14d2a6",
+    "search_tps": 3978251,
+    "form": "cpp",
+    "body": "struct PolicyState {\n  uint32_t streak = 0u;\n};\nconstexpr uint32_t kMaxStreak = 4u;\nuint32_t cap_for(uint32_t streak) noexcept {\n  if (streak <= 1u) {\n    return 2u;\n  }\n  if (streak == 2u) {\n    return 4u;\n  }\n  if (streak == 3u) {\n    return 8u;\n  }\n  return 16u;\n}\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  s.streak = std::min(s.streak + 1u, kMaxStreak);\n  uint32_t cap = cap_for(s.streak);\n  uint32_t half = cap / 2u;\n  uint32_t r = static_cast<uint32_t>(ctx.rand);\n  return half + (r & (half - 1u));\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.streak = s.streak >> 1u;\n}\n"
+  },
+  {
+    "series": "llm-cpp-12",
+    "endpoint_slot": "eval-3",
+    "variant": "62c00f0c5f80",
+    "search_tps": 4042531,
+    "form": "cpp",
+    "body": "struct PolicyState {\n  uint32_t streak = 0u;\n};\nconstexpr uint32_t kStreakCap = 8u;\nconstexpr uint32_t kLockSpinLimit = 4u;\nuint32_t jittered_wait(uint32_t base, uint64_t r) noexcept {\n  uint64_t b = static_cast<uint64_t>(base);\n  uint64_t w = b / 2u + (r & (b - 1u));\n  return static_cast<uint32_t>(w);\n}\nuint32_t policy_after_abort(PolicyState& state, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  uint32_t n = state.streak;\n  state.streak = std::min(state.streak + 1u, kStreakCap);\n  uint32_t base = 16u;\n  if (n == 1u) {\n    base = 2u;\n  } else if (n == 2u) {\n    base = 4u;\n  } else if (n == 3u) {\n    base = 8u;\n  }\n  uint32_t w = 0u;\n  if (n != 0u) {\n    w = jittered_wait(base, ctx.rand);\n  }\n  return w;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& ctx) noexcept {\n  if (ctx.attempt < kLockSpinLimit) {\n    return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::retry, 0u};\n  }\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& state, const izanagi_silo_api::CommitContext&) noexcept {\n  state.streak = 0u;\n}\n"
+  },
+  {
+    "series": "llm-cpp-2",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3956335,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-cpp-3",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3893994,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-cpp-4",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 4010528,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-cpp-5",
+    "endpoint_slot": "eval-6",
+    "variant": "2ef372c9a4be",
+    "search_tps": 4026337,
+    "form": "cpp",
+    "body": "struct PolicyState {\n  uint32_t streak = 0u;\n};\nconstexpr uint32_t kStreakCap = 3u;\nconstexpr uint32_t kJitterMask = 3u;\nuint32_t streak_wait(uint32_t level) noexcept {\n  if (level == 0u) {\n    return 1u;\n  }\n  if (level == 1u) {\n    return 2u;\n  }\n  if (level == 2u) {\n    return 4u;\n  }\n  return 8u;\n}\nuint32_t policy_after_abort(PolicyState& state, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  uint32_t level = std::min(state.streak, kStreakCap);\n  if (state.streak < kStreakCap) {\n    state.streak = state.streak + 1u;\n  }\n  uint32_t jitter = static_cast<uint32_t>(ctx.rand & kJitterMask);\n  return streak_wait(level) + jitter;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& state, const izanagi_silo_api::CommitContext&) noexcept {\n  state.streak = 0u;\n}\n"
+  },
+  {
+    "series": "llm-cpp-6",
+    "endpoint_slot": "eval-4",
+    "variant": "13b5e52d5f3b",
+    "search_tps": 4308633,
+    "form": "cpp",
+    "body": "constexpr uint32_t kStreakCap = 12u;\nconstexpr uint32_t kLockRetryLimit = 8u;\nstruct PolicyState {\n  uint32_t streak = 0u;\n};\nuint32_t tier_base(uint32_t streak) noexcept {\n  if (streak <= 1u) {\n    return 1u;\n  }\n  if (streak <= 3u) {\n    return 2u;\n  }\n  if (streak <= 6u) {\n    return 6u;\n  }\n  return 16u;\n}\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  uint32_t next = std::min(s.streak + 1u, kStreakCap);\n  s.streak = next;\n  uint32_t base = tier_base(next);\n  uint32_t jitter = static_cast<uint32_t>(ctx.rand & 7u);\n  uint32_t wait = base + ((base * jitter) >> 3u);\n  return wait;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& ctx) noexcept {\n  uint32_t attempt = static_cast<uint32_t>(ctx.attempt);\n  if (attempt < kLockRetryLimit) {\n    return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::retry, 0u};\n  }\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.streak = s.streak >> 1u;\n}\n"
+  },
+  {
+    "series": "llm-cpp-7",
+    "endpoint_slot": "eval-4",
+    "variant": "3a00e5b4ad48",
+    "search_tps": 3976593,
+    "form": "cpp",
+    "body": "struct PolicyState {\n  uint32_t window = 4u;\n};\nconstexpr uint32_t kMinWindow = 4u;\nconstexpr uint32_t kMaxWindow = 16u;\nbool is_stale_version(const izanagi_silo_api::AbortContext& ctx) noexcept {\n  bool read_tid = ctx.reason == izanagi_silo_api::AbortReason::read_tid;\n  bool node_validation = ctx.reason == izanagi_silo_api::AbortReason::node_validation;\n  bool insert_node = ctx.reason == izanagi_silo_api::AbortReason::insert_node;\n  bool scan_node = ctx.reason == izanagi_silo_api::AbortReason::scan_node;\n  bool update_absent = ctx.reason == izanagi_silo_api::AbortReason::update_absent;\n  return read_tid || node_validation || insert_node || scan_node || update_absent;\n}\nuint32_t jittered_wait(uint32_t window, uint64_t rand_bits) noexcept {\n  uint64_t half = static_cast<uint64_t>(window) / 2u;\n  uint64_t span = static_cast<uint64_t>(window) - half;\n  uint64_t frac = rand_bits & 65535ul;\n  uint64_t jitter = (frac * span) >> 16u;\n  return static_cast<uint32_t>(half + jitter);\n}\nuint32_t policy_after_abort(PolicyState& state, const izanagi_silo_api::AbortContext& ctx) noexcept {\n  if (is_stale_version(ctx)) {\n    return 0u;\n  }\n  uint32_t wait = jittered_wait(state.window, static_cast<uint64_t>(ctx.rand));\n  state.window = std::min(state.window * 2u, kMaxWindow);\n  return wait;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& state, const izanagi_silo_api::CommitContext&) noexcept {\n  state.window = std::max(state.window / 2u, kMinWindow);\n}\n"
+  },
+  {
+    "series": "llm-cpp-8",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 4068308,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-cpp-9",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3904931,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-1",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3926066,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-10",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3954966,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-11",
+    "endpoint_slot": "eval-5",
+    "variant": "76ac89ebd43b",
+    "search_tps": 4442867,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 0u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t v0 = s.f0;\n  uint32_t t0 = std::min(v0, 64u);\n  uint32_t t1 = v0 << 1u;\n  uint32_t t2 = t1;\n  uint32_t t3 = 1u;\n  uint32_t t4 = t2 > 4294967295u - t3 ? 4294967295u : t2 + t3;\n  uint32_t t5 = std::min(t4, 64u);\n  s.f0 = t5;\n  return t0;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  bool t0 = c.attempt < 16u;\n  izanagi_silo_api::PolicyAction t1 = t0 ? izanagi_silo_api::PolicyAction::retry : izanagi_silo_api::PolicyAction::abort;\n  return izanagi_silo_api::LockResponse{t1, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.f0 = 0u;\n}\n"
+  },
+  {
+    "series": "llm-ir-12",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 4013865,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-2",
+    "endpoint_slot": "eval-8",
+    "variant": "e191cffbce81",
+    "search_tps": 4055808,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 0u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t v0 = s.f0;\n  uint32_t t0 = v0 << 1u;\n  uint32_t t1 = 4u;\n  uint32_t t2 = t0;\n  uint32_t t3 = t1 > 4294967295u - t2 ? 4294967295u : t1 + t2;\n  uint32_t t4 = std::min(t3, 28u);\n  uint32_t t5 = v0;\n  uint32_t t6 = 1u;\n  uint32_t t7 = t5 > 4294967295u - t6 ? 4294967295u : t5 + t6;\n  uint32_t t8 = std::min(t7, 12u);\n  s.f0 = t8;\n  return t4;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  bool t0 = c.attempt < 32u;\n  izanagi_silo_api::PolicyAction t1 = t0 ? izanagi_silo_api::PolicyAction::retry : izanagi_silo_api::PolicyAction::abort;\n  return izanagi_silo_api::LockResponse{t1, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.f0 = 0u;\n}\n"
+  },
+  {
+    "series": "llm-ir-3",
+    "endpoint_slot": "eval-6",
+    "variant": "52e3f845ab0c",
+    "search_tps": 4356727,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 2u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext& c) noexcept {\n  uint32_t v0 = s.f0;\n  bool t0 = c.reason == izanagi_silo_api::AbortReason::lock_conflict;\n  uint32_t t1 = t0 ? 0u : v0;\n  bool t2 = c.reason == izanagi_silo_api::AbortReason::lock_conflict;\n  uint32_t t3 = v0 << 1u;\n  uint32_t t4 = std::min(t3, 64u);\n  uint32_t t5 = t2 ? v0 : t4;\n  s.f0 = t5;\n  return t1;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext& c) noexcept {\n  bool t0 = c.attempt < 32u;\n  izanagi_silo_api::PolicyAction t1 = t0 ? izanagi_silo_api::PolicyAction::retry : izanagi_silo_api::PolicyAction::abort;\n  return izanagi_silo_api::LockResponse{t1, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  uint32_t v0 = s.f0;\n  uint32_t t0 = v0 >> 1u;\n  uint32_t t1 = std::max(t0, 1u);\n  s.f0 = t1;\n}\n"
+  },
+  {
+    "series": "llm-ir-4",
+    "endpoint_slot": "eval-5",
+    "variant": "0389b046e0dd",
+    "search_tps": 4031088,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 4u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t v0 = s.f0;\n  uint32_t t0 = v0 << 1u;\n  uint32_t t1 = std::max(t0, 4u);\n  uint32_t t2 = std::min(t1, 8u);\n  s.f0 = t2;\n  return v0;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.f0 = 4u;\n}\n"
+  },
+  {
+    "series": "llm-ir-5",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3887046,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-6",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3871507,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-7",
+    "endpoint_slot": "eval-5",
+    "variant": "d64a9451e98a",
+    "search_tps": 4001819,
+    "form": "cpp",
+    "body": "struct PolicyState { uint32_t f0 = 0u; uint32_t f1 = 0u; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext& c) noexcept {\n  uint32_t v0 = s.f0;\n  uint32_t v1 = s.f1;\n  bool t0 = c.reason == izanagi_silo_api::AbortReason::lock_conflict;\n  uint32_t t1 = std::min(v0, 16u);\n  uint32_t t2 = v1 << 2u;\n  uint32_t t3 = std::min(t2, 32u);\n  uint32_t t4 = t0 ? t1 : t3;\n  bool t5 = c.reason == izanagi_silo_api::AbortReason::lock_conflict;\n  uint32_t t6 = v0;\n  uint32_t t7 = 1u;\n  uint32_t t8 = t6 > 4294967295u - t7 ? 4294967295u : t6 + t7;\n  uint32_t t9 = std::min(t8, 16u);\n  uint32_t t10 = t5 ? t9 : v0;\n  bool t11 = c.reason == izanagi_silo_api::AbortReason::lock_conflict;\n  uint32_t t12 = v1;\n  uint32_t t13 = 1u;\n  uint32_t t14 = t12 > 4294967295u - t13 ? 4294967295u : t12 + t13;\n  uint32_t t15 = std::min(t14, 8u);\n  uint32_t t16 = t11 ? v1 : t15;\n  s.f0 = t10;\n  s.f1 = t16;\n  return t4;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState& s, const izanagi_silo_api::CommitContext&) noexcept {\n  s.f0 = 0u;\n  s.f1 = 0u;\n}\n"
+  },
+  {
+    "series": "llm-ir-8",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3939461,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "llm-ir-9",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3944513,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-1",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3953783,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-10",
+    "endpoint_slot": "eval-6",
+    "variant": "9e9a163997da",
+    "search_tps": 3915128,
+    "form": "cpp",
+    "body": "struct PolicyState { bool f0 = false; uint32_t f1 = 3u; bool f2 = false; };\nuint32_t policy_after_abort(PolicyState& s, const izanagi_silo_api::AbortContext&) noexcept {\n  bool v0 = s.f0;\n  uint32_t v1 = s.f1;\n  bool v2 = s.f2;\n  uint32_t t0 = 48u >> 3u;\n  s.f0 = v2;\n  s.f1 = v1;\n  s.f2 = v0;\n  return t0;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState& s, const izanagi_silo_api::LockContext& c) noexcept {\n  bool v0 = s.f0;\n  uint32_t v1 = s.f1;\n  uint32_t t0 = c.attempt;\n  uint32_t t1 = v1;\n  uint32_t t2 = t0 < t1 ? 0u : t0 - t1;\n  uint32_t t3 = v1;\n  uint32_t t4 = 5u;\n  uint32_t t5 = t3 > 4294967295u - t4 ? 4294967295u : t3 + t4;\n  uint32_t t6 = std::max(t2, t5);\n  uint32_t t7 = v0 ? v1 : t6;\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, t7};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-11",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3968992,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-12",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3927859,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-2",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3933362,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-3",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3872302,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-4",
+    "endpoint_slot": "eval-5",
+    "variant": "dbd2675e088f",
+    "search_tps": 3961977,
+    "form": "cpp",
+    "body": "struct PolicyState { uint64_t f0 = 64ul; uint64_t f1 = 1ul; };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  uint32_t t0 = std::min(70u, 8u);\n  return t0;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState& s, const izanagi_silo_api::LockContext&) noexcept {\n  uint64_t v0 = s.f0;\n  uint64_t v1 = s.f1;\n  bool t0 = true == false;\n  bool t1 = t0 == false;\n  izanagi_silo_api::PolicyAction t2 = t1 ? izanagi_silo_api::PolicyAction::abort : izanagi_silo_api::PolicyAction::retry;\n  bool t3 = 47ul == 575ul;\n  uint64_t t4 = 5ul;\n  uint64_t t5 = v1;\n  uint64_t t6 = t4 > 18446744073709551615ul - t5 ? 18446744073709551615ul : t4 + t5;\n  uint64_t t7 = t3 ? t6 : v0;\n  uint64_t t8 = t7;\n  uint64_t t9 = v1;\n  uint64_t t10 = t8 > 18446744073709551615ul - t9 ? 18446744073709551615ul : t8 + t9;\n  uint64_t t11 = v1 >> 9u;\n  s.f0 = t10;\n  s.f1 = t11;\n  return izanagi_silo_api::LockResponse{t2, 3u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-5",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3872189,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-6",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3945633,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-7",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3993495,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-8",
+    "endpoint_slot": "seed-0",
+    "variant": "b79d9b7aff57",
+    "search_tps": 3935348,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 5u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  },
+  {
+    "series": "random-ir-9",
+    "endpoint_slot": "seed-1",
+    "variant": "74a4eca4f998",
+    "search_tps": 3891674,
+    "form": "cpp",
+    "body": "struct PolicyState { };\nuint32_t policy_after_abort(PolicyState&, const izanagi_silo_api::AbortContext&) noexcept {\n  return 10u;\n}\nizanagi_silo_api::LockResponse policy_on_lock_conflict(PolicyState&, const izanagi_silo_api::LockContext&) noexcept {\n  return izanagi_silo_api::LockResponse{izanagi_silo_api::PolicyAction::abort, 0u};\n}\nvoid policy_on_commit(PolicyState&, const izanagi_silo_api::CommitContext&) noexcept {\n}\n"
+  }
+]

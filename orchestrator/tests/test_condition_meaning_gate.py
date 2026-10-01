@@ -48,6 +48,7 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_CICADA_RO_GCFLAG",
     "IZANAGI_CICADA_RO_GCFLAG_COUNT",
     "IZANAGI_CICADA_ROGC_WORKLOAD",
+    "IZANAGI_CICADA_CEILING_WORKLOAD",
     "IZANAGI_CICADA_VLIFE",
     "IZANAGI_CICADA_LONGTX",
     "SILO_POLICY_VARIANT",
@@ -208,6 +209,9 @@ _NEW_BRANCH_EXPECTATIONS = {
     ),
     "IZANAGI_CICADA_ROGC_WORKLOAD": (
         "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 2, 0,
+    ),
+    "IZANAGI_CICADA_CEILING_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_CEILING_WORKLOAD", 2, 0,
     ),
     "CICADA_FWD_ENABLE": (
         "cc/cicada/transaction.cc", "#if CICADA_FWD_ENABLE", 11, 0,
@@ -493,7 +497,8 @@ def _compile_time_source_root(
         owner_text = "int izanagi_owner_present = 1;\n" + owner_text
     owner.write_text(owner_text, encoding="utf-8")
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
-                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "IZANAGI_CICADA_CEILING_WORKLOAD",
+                 "CICADA_VHASH_K",
                  "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         includes = []
@@ -549,7 +554,8 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
         expected_pair = (source_rel, expected_directive)
         count = 1
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
-                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "IZANAGI_CICADA_CEILING_WORKLOAD",
+                 "CICADA_VHASH_K",
                  "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         expected = [expected_pair] * count
@@ -1276,7 +1282,7 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
     tmp_path: Path,
 ):
     assert tuple(G.CONDITIONAL_BRANCH_WITNESSES) == _COMPILE_TIME_BRANCH_MACROS
-    assert sum(G._CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 298
+    assert sum(G._CONDITIONAL_BRANCH_SITE_COUNTS.values()) == 300
     assert G._CONDITIONAL_BRANCH_COMPANION_SITES["CICADA_INTERVAL_GC"] == (
         ("cc/cicada/include/transaction.hh", "#if CICADA_INTERVAL_GC", 1),
         ("cc/cicada/include/tuple.hh", "#if CICADA_INTERVAL_GC", 1),
@@ -1624,7 +1630,8 @@ def test_compile_time_branch_selection_accepts_each_registry_macro(
     root = _compile_time_source_root(tmp_path, macro)
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS.get(macro, (None, None, 1, 0))
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
-                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "IZANAGI_CICADA_CEILING_WORKLOAD",
+                 "CICADA_VHASH_K",
                  "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         count = G._declared_total_site_count(macro)
@@ -1673,7 +1680,8 @@ def test_new_branch_selection_supply_meaning_and_admission(tmp_path, macro):
     """
     _, _, count, contrast = _NEW_BRANCH_EXPECTATIONS[macro]
     if macro in ("IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
-                 "IZANAGI_CICADA_ROGC_WORKLOAD", "CICADA_VHASH_K",
+                 "IZANAGI_CICADA_ROGC_WORKLOAD", "IZANAGI_CICADA_CEILING_WORKLOAD",
+                 "CICADA_VHASH_K",
                  "CICADA_VHASH_COUNT", "CICADA_VHASH_WL",
                  "CICADA_INTERVAL_GC", "CICADA_INTERVAL_COUNT"):
         count = G._declared_total_site_count(macro)
@@ -3600,6 +3608,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
         "IZANAGI_CICADA_RO_GCFLAG", "IZANAGI_CICADA_RO_GCFLAG_COUNT",
         "IZANAGI_CICADA_ROGC_WORKLOAD",
+        "IZANAGI_CICADA_CEILING_WORKLOAD",
         "IZANAGI_CICADA_VLIFE", "IZANAGI_CICADA_LONGTX",
         "SILO_POLICY_VARIANT", "IZANAGI_SILO_POLICY_PROBE", "IZANAGI_BREAK_SILO_POLICY",
         "SILO_ORDER_VARIANT",
@@ -3688,6 +3697,11 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "ycsb_cicada.exe", "patches/cicada-ro-gcflag-workload.patch",
         inert_values=("0",),
     )
+    assert G.DEFINE_SPECS["IZANAGI_CICADA_CEILING_WORKLOAD"] == G.DefineSpec(
+        G.ROUTE_CMAKE_CXX_FLAGS, ("cc/cicada/ycsb_cicada.cc",),
+        "ycsb_cicada.exe", "patches/cicada-ceiling-workload.patch",
+        inert_values=("0",),
+    )
     for macro, owner, companion in (
         ("CICADA_FWD_ENABLE", "cc/cicada/transaction.cc", ()),
         ("CICADA_FWD_COUNT", "cc/cicada/transaction.cc", (("CICADA_FWD_ENABLE", "1"),)),
@@ -3738,8 +3752,8 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS == {
         "BACKOFF_FIXED", *_COMPILE_TIME_BRANCH_MACROS,
     }
-    assert len(_COMPILE_TIME_BRANCH_MACROS) == 62
-    assert len(G.MEANING_SUPPORTED_MACROS) == 63
+    assert len(_COMPILE_TIME_BRANCH_MACROS) == 63
+    assert len(G.MEANING_SUPPORTED_MACROS) == 64
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
@@ -3830,7 +3844,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 25
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 55
+    ) == 56
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):

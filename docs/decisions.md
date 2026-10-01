@@ -75048,3 +75048,110 @@ T-2872・T-2905 は人間の手番が済んで完了 (gitlink は T-2919・T-291
 - 読み手が GC 権を保持する排他 — 回収予定を捨てるので観測対象の挙動を変える。
 - B の帰属を (thread, tx 通番, 版) で判定する — 壊しの機序に合わず、発火した正例を不合格にする。
 - 判定器に新しい行種別を足して certified にする (案 A) — D2305 項 4 のとおり、Cicada を門に通す campaign の登録時に着手する。
+
+## D2337. VHash の利得の天井は修正済みの最良 Cicada を越えなかったので、今の VHash (hot 配置 v2・前進 C の最小前進) を主論文の候補から外すことを推奨する。長い読み手の費用そのものは大きく残る (2026-10-01)
+
+**決定:**
+1. 長い読み手で版が溜まる負荷 (1 worker が 1,000 read の read-only tx を続け、47 worker が短い更新 tx を回す YCSB) で、比較相手を md_11 の観測最良設定 + ro-gcflag 修正 (R) とし、結果を見る前に固定した規則 (一次資料 `output/insights/2026-09-30/vhash-ceiling-vs-sota/README.md` §1〜§4 と erratum 1) で判定した結果、**今の VHash を主論文の候補から外す**ことを推奨する。
+   規則が選んだ代表 (P3、skew 0.97 の前進 C) の 30 秒比較の比の中央値は 0.981、隣接点 P2 で 0.993。基準 (1.5 / 1.3) に届かず 1.2 も下回り、機構は発火していた (§2 の「外す推奨」に当たる)。
+2. 長い読み手が R に課す費用は大きい (読み手除去の対照 R−LR / R が P3 1.98・P2 1.56)。今の M の腕 (hot v2・C-min) はこの費用に触れない (長い読み手は read-only で前進の対象外、hot は通常 worker の読みだけを速くする)。
+   長い読み手の版保持を攻める別の機構 (長い読み手の snapshot を RA の中で安全に進める仕組み、lock の無い区間 GC) の天井は測っていない。その評価は別の依頼として扱い、この決定は今の腕の天井についてだけ言う。
+3. 比較相手に ro-gcflag 修正を入れる扱い (D2322 項 2) は正しかった。修正なしの stock は R の 0.13〜0.39、長い読み手の完了は R の 2〜17% で、stock を相手にした勝ちを数えない規則が要る。
+4. 推奨の範囲は「R に対する研究継続の判断」であり、区間 GC の SOTA (Steam・HANA、lock の無い実装) との比較は独立の残課題として残す。この repo の区間 GC 試作は install の lock の費用で R 比 0.33〜0.75 に落ち、SOTA を代表しない。
+
+**理由:**
+- ユーザー方針 (2026-09-30): 論文は「条件 C で手法 M が C の SOTA より大きく速い」ものだけにする。事前記述の基準は研究投資の基準で、代表点の比が 1.2 未満なら追加試作もしない。
+- 予備 (3 round) で最大だった比 (P3 の前進 C 1.096、hot v2 K=1 1.082) は、新しい 6 round × 30 秒で再現しなかった (0.981・0.935)。
+- 正しさ: 7 腕すべて判定器で巡回 0 (上限 indeterminate)、機構 witness は非空、壊し正例 (区間 GC で見える版まで外す) は巡回 43 で検出された。性能値は trace・計数を外した build の同時刻の対の比。
+
+**却下した選択肢:**
+- 予備の比 (1.08〜1.10) を根拠に継続する — 30 秒比較で再現せず、規則は 30 秒比較で判定すると事前に決めていた。
+- R−LR / R (1.98) を「VHash が取り戻せる上限」として継続の根拠にする — 段 3 の相談 2 本が上限ではないと反証し (worker の組・競合・GC の状態も変わる)、事前記述で対照に格下げした。今の腕はこの費用に触れない。
+- 区間 GC 試作や stock に対する比を勝ちとして数える — 事前記述 §2 で数えないと決めていた。
+
+## D2338. silo-function-policy 軸の生成器対照 (事前登録 `docs/silo-policy-generator-contrast-preregistration.md`) を 4 arm × n = 12 で発効させ、発効束の実値を固定する (2026-10-01)
+
+**決定:**
+1. **発効。** D2305 項 1 (ユーザー裁定、計算確認済み) に従い、事前登録 (以下「本書」) を推奨規模 4 arm (LLM×C++・LLM×IR・random×IR・進化×IR) × n = 12 (48 系列) で発効させる。
+   本書の raw bytes の SHA-256 は `541331bd90764e0a621bc1de7a34ba0919d7f145981814a6eebc4afa7f38985f` (起草版の最終 bytes、発効に伴う本文の書き換えなし)。
+   以後の訂正は本書 §0 のとおり末尾の Erratum への追記だけとする。規模は推奨どおりなので、本書 §12 の「推奨以外を選んだときの書き換え」は不要。
+2. **計算確認:** D2305 項 1 (2026-09-30、換算 約 61〜70 node 時間、walltime の契約上限 183 node 時間)。本決定の前の前走 (下の 7) を足した見込みは約 64〜73 node 時間で、確認の範囲を大きく超えない。
+3. **対象 commit:** 本走の全 submit checkout の HEAD は wave branch の `1da88472bc54d7d59c1c8b0430dd67bfb5776618`。
+   これは local main `4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037` (本書 §10 の欠ける部品の実装 D2299 を含む) に、前走で見つかった driver の欠陥の最小修正 1 commit
+   (静的 10 µs の参照 slot でも offline 供給の configure 引数を condition gate へ渡す、下の 7) を足したもの。main との差はこの 1 commit (`orchestrator/campaign/p3_s4_loop_policy.py` +10/−1 と試験) だけ。
+   系列台帳は作成時の checkout の path と HEAD を束縛し、本走の途中で HEAD を変えない。
+4. **発効束の実値 (本書 §12):**
+   - CCBench の PIN: `axis_silo_function_policy.PIN` = `pin.CURRENT_PIN` = `6810666` (submodule `68106660686232781bca3be792a750d3e19d7a8a`、D2305 項 1 のとおり C に固定。Silo の取引内の値の修正は含まない)。
+   - 動作点・引数: write-heavy の較正動作点 (`p3_s4_loop.calibrated_perf("write-heavy")`、本書 §5.2)。compiler は GNU 11.4.0 (計算ノードの job 記録)。
+     correctness・bench の経路と引数は job body `tools/pegasus/p3_s4_loop_pegasus.sh` の `contrast` mode と driver の `--contrast-run-unit` (対象 commit の bytes) が決める。
+     判定器の版は各候補 slot の結果の `campaign_verifier_epoch` として台帳に残る (実値は下の補記)。
+   - 生成器: `orchestrator/campaign/silo_policy_contrast_generators.py` の SHA-256 `6060f13767700c5d57cc55c31ee3d0832d2c3e284fd352e4fdb79972d5d5b0a3` (本書 §4.4・§4.5 の確率・重みの実値はこの file の定数)。
+     版文字列 `silo-policy-generator-contrast-v1` (cohort 名 `silo-policy-contrast-v1`)。v1 の preimage で引いた値は発効の前に誰も見ていない (前走と生死確認は試験版 `silo-policy-contrast-test-2026-09-29`)。
+   - LLM: `claude -p --model claude-opus-5-5 --output-format json`、settings は空の JSON、1 原提案ごとに新しい session (resume しない)、サブスクのログインだけ (API キー・代替 provider なし)。
+     親の指示文 `tools/pegasus/silo_policy_contrast_parent.md` の SHA-256 `3a9674088518b18e8e3497b53e8aabd609323068434e1b8d21f5186350f54015`。
+     役割 `coder-v4-autonomous-policy` (C++ 形)・`coder-v4-autonomous-policy-ir` (IR 形)・`auditor`・`critic` はいずれも role 定義の model `opus`・effort `high`。
+     駆動 loop は親を起こすとき `CLAUDE*`・`CLAUDECODE`・`AI_AGENT`・`ANTHROPIC_*` の環境変数を外す (起動した session の識別子・effort が親へ漏れないように)。
+   - schedule: 組 r の 4 系列の開始順は基本順 (LLM×C++・LLM×IR・random×IR・進化×IR) を (r − 1) mod 4 だけ左へ巡回した順。組を r 順に開き、
+     実行 batch b (r = 4b−3〜4b) の最初の組の前に参照 job b を開く。同時に進める系列は 16 (参照を含む)、同時に動く LLM 親は 4 (本書 §7.1 の推奨、D2216)。
+   - walltime (本書 §11.0 の案): job 1 = 1,800 秒、評価 job = 900 秒、score job = 2,700 秒、参照 job = 3,600 秒。
+   - **補記 (2026-10-01、本走の完了後。実行条件の記録だけで、規則・値は変えていない):** 記録 review の指摘で、本書 §12 が求める実値のうち次を補った。
+     walltime の根拠 (実測の最大所要への倍率、walltime の値は変えていない): job 1 は生死確認の実測最大 759 秒の 2.37 倍、評価 job は生死確認の実測最大 289 秒の 3.11 倍
+     (見積りの上側 300 秒の 3 倍)、score job は前走の実測 1,207 秒の 2.24 倍、参照 job は前走の実測 2,135 秒の 1.69 倍 (score・参照は草稿 §11.0 では換算値で、実測は下の 7 の前走)。
+     生成器の確率・重みの採用値は本書 §4.4・§4.5 の本文どおりで、親が生成器 file の定数と照合した: 整数定数が 0 になる確率 1/8、それ以外は `b5_generator_contrast.weights_table()` の
+     1..1000 の log-uniform 重み、状態の field 数 {0,…,4} と型 {u32,u64,bool} は一様、`next_state` の省略 1/2、深さ 4 未満の node が葉になる確率 1/2 (深さ 4 は葉)、
+     shift 量は型の幅未満で一様、bool・abort 要因・action は一様、引き直しは 1 原提案あたり 1,000 回まで、進化の field 追加 1/5 (field 4 個なら 0)・置き換え 4/5。
+     較正 record = write-heavy (rratio 5) の登録済み較正 `output/env/pegasus/calibration/registered/calibration-4b8329b42bb47c65.json`
+     (SHA-256 `4b8329b42bb47c65a36d6cd77643cf8b619f2a77e42cb54e8a8241c9afaba2bd`、MOCC・pin C・records 1,000,000、`p3_s4_loop.calibrated_perf` の注記どおり)。
+     correctness・bench の exact 引数: job body `tools/pegasus/p3_s4_loop_pegasus.sh` の contrast mode が driver を
+     `python3 -B -m orchestrator.campaign.p3_s4_loop_policy --form <cpp|ir> --campaign-env pegasus --fetchcontent-prebuild-receipt <job の receipt> --allow-coder-derived-build --contrast-run-unit <単位 file>`
+     で起こす。bench の実行時の引数は campaign の WAL (`runs/wal.jsonl` の `bench_done.payload.run_cmd`、例 llm-cpp-1 の評価 slot) に
+     `<build した ycsb_silo.exe> -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10` と残る。
+     環境契約 `pegasus` の numactl は空 (launch prefix なし) で、本書 §5.2 の「numactl interleave」とは食い違う (本書の Erratum 16.1)。
+     verify は WAL の `commit.payload.verify_configs` = `legacy`・`performance` の 2 構成で、slot ごとに legacy 1 本 + performance 5 本 (`verify_done.payload.workload.tag`)。
+     verify の実行時の引数そのものは WAL に残らず、対象 commit の driver と `p3_s4_loop` の bytes が決める。判定器の版 = 候補と初期点の slot 結果 576 件が記録した `campaign_verifier_epoch`
+     `E1:aec05476f07c426820098705d96c70835de5be21be0aa812a6326d9ead3a512c` (1 種類。stock・score・参照の slot 結果はこの field を持たない)。
+     役割の入力の形 = 対象 commit の `orchestrator/campaign/p3_s4_loop_policy.py` (SHA-256 `a22ac95f45b8a40c503b2904372539a3a6874738d332847e2cab4d542cabe21c`、
+     `--emit-coder-input` と critic digest を作る) と `tools/silo_policy_contrast_round.py` (SHA-256 `d38c26f09475f9257a374f0bdb9b624f30ecf9332267293b282f269c279d6067`)。
+     入力の形に独立の版文字列は無く、この 2 file の bytes で固定される。
+   - 駆動 loop: repo の外の `contrast_runner.py` (SHA-256 `d12eb6cd32bdb14a22abafb47d9ac112a5e2f3f588ff3d7dafd16b44f31b12f2`、Codex author、本走 wave の段 5・6)。
+     起動器 `tools/pegasus/silo_policy_contrast_launch.py` の `init`・`status`・`submit`・`generate` と親 `tools/pegasus/silo_policy_contrast_parent.py` を呼ぶだけで、台帳・driver に書かない。
+     逐語は本走の記録 insight の `verbatim/` に置く。
+5. **LLM の待ちと 429:** LLM の待ちは login に置き (D2258 項 1)、利用上限 (429) は親が構造化 field だけで判定して同じ原提案番号で 900 秒おきに再開する (本書 §5.5、D2258 項 2)。
+6. **既知結果台帳の差分 (本書 §8):** 発効の前に親 (Claude) が見たものは、生死確認 (`output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md` §4) の値と、
+   本決定の前走 (試験版) の値 = 参照 job 2 本の stock 10 session (1.355〜1.373 M tps) と静的 10 µs 5 session (3.998〜4.028 M tps)、
+   進化×IR 1 系列の job 1 (stock 1.349 M、初期点 3.860 M・3.877 M)、評価 10 回 (すべて certified・品質正常、0.864〜3.993 M)、endpoint (eval-4) の score 5 session (3.958〜3.974 M)。
+   いずれも試験版の preimage・別 cohort であり、本書の標本・予測的再現に使わない。
+7. **前走 (本書 §10 の未実走部品の確かめ):** D2305 項 1 が「本走の最初の単位で確かめる」とした score job・参照 job・進化×IR は、v1 の系列を始める前に試験版の cohort で確かめた。
+   理由: 台帳が checkout の HEAD を束縛するので、v1 の走行中の系列で欠陥が出るとその系列に修正を当てられず欠測となり、比較が判定不能になる。
+   参照 job の静的 10 µs で condition gate が config.h を見つけられない欠陥が見つかり (driver rc=1、slot は dead-job)、上の 3 の修正で直した後、2 本目の参照 job で
+   10 slot すべてが certified・品質正常になった (Elapse 2,135 秒)。進化×IR は評価 10 回と score job (Elapse 1,207 秒) まで通り、系列は `b-complete` で閉じた。
+   駆動 loop は前走の途中で停止・修正版での再起動を行い、走行中の job の引き継ぎと二重起動の拒否を実機で確かめた。
+
+**理由:**
+- D2305 項 1 がユーザー裁定として規模・計算・pin を決め、発効束の実値の記入と投入を AI に委ねた。本決定はその記入である。
+- 前走を v1 の外に置いたのは、HEAD の束縛の下で欠陥を v1 の欠測に変えないため (D2305 項 1 の「本走の最初の単位で確かめる」の意図を、欠測を出さない側で満たした)。
+
+**却下した選択肢:**
+- v1 の最初の組の中で未実走部品を確かめる — 欠陥が出た系列は HEAD の束縛で直せず欠測になり、実際に参照 job の静的 10 µs が落ちた (前走で確認)。
+- 修正を待たずに main の `4f412c67b` で本走する — 参照 job 3 本の静的 10 µs がすべて落ち、参照の系列が欠ける。
+
+## D2339. 受入 shard mode で login collection を preflight 前に前倒しする実装は、同時刻対照 2 対が待ち行列の長さで事前登録の適格条件を満たさず判定不能なので main へ入れない。shard に login collection を待たせる案と、計算ノードに pyc を書かせる案も採らない (2026-10-01)
+
+**決定:**
+
+1. md_7 (初回受入でも shard 開始前に bytecode cache をそろえる) として、`tools/run_tests.py` の shard 経路で submodule marker が有効なときだけ、未 stage 削除検査・RuleOps などの preflight より前に login collection を subprocess として起動し、`acceptance_shards.run_parallel` の `collect_login` をその回収にする実装を作ったが、**main へは入れない**。実装は branch `worktree-dev-wave-acceptance-pyc-warm` (tip f4920ddb3、Codex author) に残す。
+2. 判定は段 4 で事前登録した land 条件どおり: 適格な対 (6 shard すべての待ち行列が 60 秒以内) が 2 つ必要なところ 0 だった。対 1 は K の 1 shard が 78 秒、対 2 は 6 shard 中 4 shard が 128〜484 秒。
+3. 観測 (判定外): 対 1 で shard pre 中央値が K 93.0 秒 → H 69.0 秒 (24.0 秒短縮)、対 2 は待ち行列が長く両腕とも温の峰 (69.2 / 69.6 秒)。害検査 (preflight 区間が延びない、login universe と observed universe の一致 28,663 件、終了後の作業木 clean) は両対で成立。
+4. 依頼の択一のうち、shard が login collection の完了を待つ案は採らない。計算ノードの job は投入の約 9 秒後に始まり、冷の login collection は投入意図から 85〜108 秒かかるので、待ちが得を上回る。計算ノード worker に pyc を書かせる案は D918 のとおり採らない (初回受入では 48 worker が同時に冷で collection するので効かない)。
+
+**理由:**
+
+- 事前登録の条件は結果を見る前に固定しており、対 1 だけの改善で land すると規律 3 の後付けになる。land 調整役の GO の条件も「事前登録の判定を後から変えない」だった。
+- land すれば `tools/run_tests.py` の blob が変わり、走行中の全 wave が受入をやり直す (D987)。得られるのは、初回受入で待ち行列が短いときだけの shard あたり約 24 秒 (n = 1 対の観測) である。
+- md_2 の区間分解 (投入意図起点) は `run_tests.py` 起動から投入意図までの 56〜102 秒を含んでおらず、その大半は login の git 検査 (`git ls-files --deleted` 34〜89 秒) だった。前倒しはこの区間に collection を重ねる形で、対 1・対 2 とも H の collection は shard の開始前後に完了した (投入意図の 33 秒後 / 9 秒後)。
+
+**却下した選択肢:**
+
+- 対 1 の改善だけで land する — 事前登録に反する。
+- 適格条件 (60 秒) を緩めて取り直す — 結果を見た後の条件変更になる。再訪するなら、対の数と判定の規則 (例: 3 対以上、適格な対の多数決) を先に登録した新しい対照を別 wave で行い、D987 の再受入費用と比べて決める。
+- 前倒し子を自前の signal handler と新 process group で管理する — 段 6 レビューが起動直後と後始末中の窓・reap 済み pid への signal・終了形式の変化を示した。branch の実装は従来の `subprocess.run` と同じ意味論に戻してある。
