@@ -23635,6 +23635,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-30** — [T-2872] の修理検証 wave で、親が実装子 B の投げ文に先例 job dir の直下にある `run-build.sh`・`run-judge.sh` を `build/`・`judge/` 配下と書き、子が「読めなければ即停止」で 2 call・40 秒で rc=1 (receipt failure_class=f43_fragment) になった。DW-O01 の「参照 path の実在を先に検査」を親が省いた。投げ文の全絶対 path を抜き出して実在を検査する使い捨て script (job dir `scripts/check_prompt_paths.py`) を通してから B2 として再投入し、以降の投げ文 4 本も同じ検査を通した。
 
 - **再発: 2026-09-29 (near miss)** — md_19 (CCBench Cicada の build 不具合の修理) の段 6 レビュー B の投げ文が、必読射影の 1 行に「`<絶対 path>/out/s5-author-A.md・probe_syntax.log`」と 2 file を「・」でつないで書き、子は 2 つ目を直前の path の directory (`out/`) 相対と読んで読めず、「読めなければ即停止」どおり 3 attempt とも停止した (出力 71 byte、model call わずか)。全 path を 1 行 1 絶対 path に直した B2 で受理された。以後の投げ文 (fix 2 本・焦点 2 本・検証 script のレビュー 2 本) は 1 行 1 絶対 path で書き、同型は出なかった。T-2854 の段 6 (2026-09-27) と同じ型で、どちらも fail-closed で安く止まった。
+
+- **再発: 2026-09-30** — gen-opt md_22 ([T-2890]) で 2 回。(1) 段 5 の実装子 2 本: 親が依頼文 `common-5.txt` を job dir へ `request-common-5.txt` と改名して複写し、依頼文の「同じ directory の common-5.txt を読め」に従った子が job dir で `common-5.txt` を探して即停止 (各約 70 秒、実装なし)。(2) 段 6 の review 2 本: 必読列挙の 1 行に「`<絶対 path>/probe/probe.py と author-probe-2.md`」と 2 file を並べ、子は 2 つ目を `probe/` 配下と読んで即停止。どちらも fail-closed で実害は再投入 1 往復ずつ。対処: 依頼文が相対名で参照する file は元の名前でも置く、必読列挙は 1 行 1 file の完全 path にする (以後の投げ文はこの形で通った)。型は既載の 2026-09-29 (near miss、「・」でつないだ 2 file) と同じ。
 ### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
 
 - 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
