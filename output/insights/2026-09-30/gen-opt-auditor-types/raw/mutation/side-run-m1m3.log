@@ -1,0 +1,16 @@
+clean-before=0 head=97f699961aacdd4a980ead48a921e10e9d61c6fa
+baseline check_codex_agents rc=0
+ orchestrator/codex_roles/review_ledger.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+    raise RoleSpecError(
+orchestrator.codex_roles.spec.RoleSpecError: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-md22-auditor-types/mutation-source/.claude/agents/auditor.md: reviewed SOURCE_FILE_SHA256 drift; ledger明示更新が必要
+M1 check_codex_agents rc=1
+M1 restored porcelain=0
+ .claude/agents/auditor.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+    raise RoleSpecError(
+orchestrator.codex_roles.spec.RoleSpecError: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-md22-auditor-types/mutation-source/.claude/agents/auditor.md: reviewed SOURCE_FILE_SHA256 drift; ledger明示更新が必要
+M3 check_codex_agents rc=1
+M3 restored porcelain=0 head=97f699961aacdd4a980ead48a921e10e9d61c6fa
+2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14  .claude/agents/auditor.md
+bf9488a0c6e7d49cd995c967b21d0ef6dc657cd0112a777202285af544d3f715  orchestrator/codex_roles/review_ledger.py

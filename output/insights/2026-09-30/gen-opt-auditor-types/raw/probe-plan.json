@@ -1,0 +1,18 @@
+[
+ {"case": "A2", "role": "before", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-before.md"},
+ {"case": "A2", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "A3", "role": "before", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-before.md"},
+ {"case": "A3", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "A4", "role": "before", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-before.md"},
+ {"case": "A4", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "N0", "role": "before", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-before.md"},
+ {"case": "N0", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "M", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "F", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "B27", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "B28", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "B29", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "B30r", "role": "before", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-before.md"},
+ {"case": "B30r", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"},
+ {"case": "B30q", "role": "after", "role_file": "/home/SFC/tanab/.claude/jobs/b8fe070e/tmp/wave/auditor-after.md"}
+]
