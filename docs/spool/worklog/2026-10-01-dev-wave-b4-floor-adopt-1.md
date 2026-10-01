@@ -17,6 +17,8 @@ title: [T-2288] B-4 床値の集約を採用し pin 値を確定したが、§5 
 - 段 2・3 は省き、親の provisional 裁定を read-only codex 2 本 (sol・luna、ultra) で攻撃させた。レンズ A は記入保留を支持しつつ
   説明の一般化と完了扱いを直す条件で NO-GO、レンズ B は記入保留に限り GO。親は所見 14 件 (A 8・B 6) を裁定し、
   real と採った所見はすべて記録へ反映した (表は `output/insights/2026-10-01/t2288-floor-adoption/README.md`)。実装面の差分はゼロ。
+- 記録後に read-only の独立レビュー 1 本を投じ、NO-GO (must 1: 事前無作為化を前 wave の記録に依拠させたが同記録に確認が無い、
+  should 2) を受けて 3 件とも real と裁定し記録を直した。事前無作為化は「確認していない」と書いている。
 - submit-tree (`…/dev-wave-t2288-floor-pair-w1/submit-tree`) は開始時点で既に存在しなかった。撤去操作はしていない。
 - 計算: 焦点走 2 回 (Elapse 141 s と、4 file の基準走 5 分 22 秒) と、path 誤りで 0 件だった 1 回。
 

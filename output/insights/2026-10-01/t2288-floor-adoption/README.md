@@ -35,10 +35,14 @@ artifact_path=output/env/pegasus/floor-pair/t2288-f1/b4-floor-aggregate__env-peg
 | 期待 spec 列 | 集約の `aggregation.expected_specs` と spec 3 本の `sha256sum` と D2138 項 7 の表 | rr5 `d13c3844…` / rr50 `b582d20c…` / rr95 `990e3a6f…` が 3 者で全桁一致 |
 | spec の凍結が測定より前 | spec 追加 commit と w1 最初の session `started_at` | `0b4fbd7a6` (2026-09-17T21:58:18Z) < 2026-09-19T12:32:19Z |
 
-**親が確かめていないもの。** 事前・中間・事後 probe の結果、同一 binary 対であること、事前無作為化は、前 wave の証拠確認者
+**親が確かめていないもの。** 事前・中間・事後 probe の結果と binary sha256 が 1 種であることは、前 wave の証拠確認者
 (D1641 決定 1) の記録 (`output/insights/2026-09-29/t2288-floor-pair-w2/README.md` の「証拠確認」) に依っている。
-spec の commit が測定より前であることは「その時点に結果が無かった」ことを示すだけで、期待列が本書の対象集合と意味的に
-一致すること、結果を見る前に選ばれたことを機械的に証明するものではない (D1974 項 6、事前登録 §1 の限界)。
+**事前無作為化は確認していない。** 同記録にも無作為化の確認は無い。読んだのは、spec が `randomization.algorithm =
+hmac-sha256-rank/v1` と `seed_hex` を持ち、窓 JSONL の header が同じ algorithm と seed を写していることだけで、実行順が
+その schedule に従ったかは見ていない。
+spec と最初の測定の前後で照合できたのは、spec 追加 commit の記録時刻 2026-09-17T21:58:18Z が w1 の最初の `started_at`
+2026-09-19T12:32:19.917452Z より前という順序だけである。期待列が本書の対象集合と意味的に一致すること、結果を見る前に
+選ばれたことは機械的に証明されない (D1974 項 6、事前登録 §1 の限界)。
 
 ## 記入の試行 (記入した木と戻した木の対照)
 
@@ -49,11 +53,13 @@ spec の commit が測定より前であることは「その時点に結果が�
   (`test_resolver_real_preregistration_is_absent`。docstring は「floor 登録 wave で更新する」)、`test_p3_b4_wiring_probe.py` 1。
 - 記入を戻した木: 赤の出た 4 file だけを同じ方法で走らせ **259 passed** (rc=0、5 分 22 秒)。母集団は記入した木の走りと同一でない
   (16 file でなく 4 file)。どちらも受入形でない走りである。
-- 赤の原因: 失敗の抜粋は 36 件中 11 件だけが残り (25 件は runner の予算で省略)、11 件のうち 10 件は
-  `authoritative_floor_rejected: spec_rejected_by_producer: binary b4-candidate を lstat できない`
-  (`output/env/pegasus/binaries/7cdf0dc3…` が無い)。残る 1 件は `test_source_and_test_are_the_only_non_output_worktree_changes`
-  で、未 commit の事前登録の差分を「output 外の変更」として拾ったもの (floor の値や binary を見ていない)。省略された 25 件の原因は
-  個別には確かめていない。
+- 赤の原因: runner の failure digest は 36 件中 11 件の抜粋を残し、25 件を予算で省略した。digest の 11 件のうち 10 件に共通するのは
+  `binary b4-candidate を lstat できない` (`output/env/pegasus/binaries/7cdf0dc3…` が無い) で、うち 9 件は材料レポートの
+  `authoritative_floor_rejected: spec_rejected_by_producer`、1 件は resolver を直接呼ぶ test の
+  `B4FloorArtifactError: spec_rejected_by_producer`。残る 1 件は `test_source_and_test_are_the_only_non_output_worktree_changes`
+  で、未 commit の事前登録の差分を「output 外の変更」として拾ったもの (floor の値や binary を見ていない)。digest の外でも、ログ冒頭に
+  `test_outputs_contain_no_combining_diacritic_codepoints` と `test_cli_clean_subprocess_runs_twice_and_refuses_overwrite` の
+  同じ lstat 失敗の詳細が残っている。それ以外の赤の原因は個別には確かめていない。
 - 経路: resolver が pin を見つけると `load_authoritative_floor` が集約を出所から組み直し、期待 spec を
   `floor_pair_driver.load_frozen_spec` で読み直す。その中の checkout 入力の束縛が binary の実在・hash・receipt・calibration を
   検査する。binary は ignored file で merge では移らず、checkout ごとに `b4_binary_record place` で置く運用である
@@ -106,9 +112,22 @@ codex の出力から、行末の半角空白 2 個 (Markdown の改行指定) �
 |---|---|---|---|
 | `consult-a.md` | `070c595b0f5dd20069ef90f9e3e533000771bc1e3c77c463d49ae3bbcf4c61f8` / 8605 | 8570 | 3,4,7,8,11,12,15,16,19,20,23,24,27,28,31,32,37,38 |
 | `consult-b.md` | `0a4a73e516a52e6f77616810e482c7fcd07e8b3580964471fecec6218f1afdd6` / 8297 | 8278 | 3,6,7,21,33,44,45,46,51,52 |
+| `review.md` | `c4fc9b234ea280ac0022d5a45bf22f52cc65772f1ba04e42fea3735e083a3a4f` / 3514 | 3506 | 3,6,9 (加えて 11 行目は空白 3 個だけの行で、3 個を削った) |
 
-復元は、表の各行の行末へ半角空白 2 個を足し、末尾の改行 1 byte を除く (この手順で原文 sha256 に戻ることを確かめた)。
-`s1-brief.md` と 2 本の prompt は原文のまま。
+復元は、表の各行の行末へ半角空白 2 個 (`review.md` の 11 行目は 3 個) を足し、末尾の改行 1 byte を除く (この手順で原文 sha256 に
+戻ることを確かめた)。`s1-brief.md` と 3 本の prompt は原文のまま。
+
+## 段 6 相当の read-only レビュー 1 本 (逐語は `verbatim/review.md`、prompt は `verbatim/review-prompt.md`)
+
+記録 commit `f1500e274` の 8 file を一次資料と突き合わせる独立レビューを 1 本投じた (codex `review`、read-only、テストは走らせていない)。
+レビューは集約と spec 3 本の sha256 を自分で計算して一致を確かめ、floor_exact・6 窓の終端件数・分離時間・焦点走と基準走の件数・
+正規化表・fragment の文法も一致とした。結論は NO-GO (must 1)。親の裁定:
+
+| # | 所見 | 裁定 | 反映 |
+|---|---|---|---|
+| 1 | 事前無作為化を前 wave の記録に依拠させたが、その記録に無作為化の確認は無い | real・must・採用 | 「確認していない」と書き、読んだのは spec の algorithm と seed だけと明記 (README・D fragment) |
+| 2 | commit 時刻から「その時点に結果が無かった」とは言えない | real・should・採用 | 記録時刻の順序の照合だけに狭めた |
+| 3 | 「抜粋 11 件」は failure digest 内の件数。10 件のうち authoritative_floor_rejected を伴うのは 9 件 | real・should・採用 | 内訳を書き直し、digest 外の 2 件の詳細も書いた |
 
 ## 主張しないこと
 
