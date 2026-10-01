@@ -129,11 +129,14 @@ Measurement Setup の標準 workload の塊 (またはそれに当たる節) を
 
 - **規律 3 を両水準で保つ経路と、その欠落 (発効の前提):** S3 の coder 入力の自系列の履歴は、schema の上では各候補の結果の分類・拒否の分類
   (`reject_subtype`・`reject_rule_id`)・verifier の digest (anomaly の現象・cycle・依存辺を決定的な順で先頭 8 件、件数、全 cycle 数、integrity の内訳) を
-  critic と独立に載せる (D2256 項 4、`make_policy_coder_input`)。**しかし T-2867 の対照の経路では、この欄が埋まっていない** (改版 insight §2):
-  評価の結果は結果の分類だけを書き verifier の digest を渡さず (`_contrast_unit` → `_append_history`)、schema と auditor による投入前の拒否は対照の台帳にだけ残って
-  履歴に入らない (`tools/silo_policy_contrast_round.py` の `_schema_reject`・`_record_preview_reject`)。履歴に分類つきで入るのは、検疫・構文・compile による投入前の拒否だけである。
-  現状では、構造化された失敗理由が coder へ届く経路は critic ありの cell の critic 診断だけで、critic なしの cell は規律 3 を満たさない。
-  そこで、**対照の経路でも履歴のこれらの欄を埋めることを発効の前提とする** (§13 の 2)。新しい key や台帳は作らず、既存の履歴の欄を埋める。
+  critic と独立に載せる (D2256 項 4、`make_policy_coder_input`)。**しかし T-2867 の対照の経路では、この欄の一部が埋まっていない** (改版 insight §2):
+  - 初期点と評価の結果は、結果の分類だけを書き verifier の digest を渡さない (`run_contrast_unit` の中の `_append_seed_history`・`_append_history` の呼び出し)。
+  - coder 出力の schema の拒否 (`_schema_reject`) と、auditor の出力の形式・digest の不一致 (`proposal-schema`・`auditor-gate`・`auditor-digest`) による拒否は、
+    対照の台帳の `opportunity-end` にだけ残り、履歴に入らない。critic の材料 (`_new_results` は stock・初期点・評価の結果だけを取る) にも入らない。
+  - 検疫・構文・compile による拒否と、auditor の通常の判定 (`auditor-violation`・`auditor-uncertain`) による拒否は、`--record-reject` を通って分類つきで履歴に入る。
+  現状では、評価の結果の verifier の digest (anomaly の構造) が coder へ届く経路は critic ありの cell の critic 診断だけで、critic なしの cell は規律 3 を満たさない。
+  そこで、**対照の経路でも初期点を含む評価の結果の verifier の digest と、履歴に入っていない上の拒否の分類を、既存の履歴の欄に書くことを発効の前提とする** (§13 の 2)。
+  新しい key や台帳は作らない。
   これが満たされれば構造化された失敗理由は両水準で同じ経路で届くので、S1 版の「失敗理由の写し」(critic の失敗の節を別 key で渡す仕組み) は作らない。
 - **critic なしの cell で coder に届かなくなるもの:** 初期点と自分の候補の性能は、critic 診断を通してだけ coder に届く (T-2867 登録 §4.1 の開示。
   自系列の履歴は throughput を載せない)。critic なしの cell の coder は、baseline (系列開始 stock の throughput と abort 率) と、候補の結果の分類
@@ -364,7 +367,7 @@ cell ごと・系列ごとに次を記述する。区間を付けるなら無補
 | 単価 | T-2867 登録 §11.0 と、その出所の実装 insight §4・§5 (生死確認の job Elapse と throughput) |
 | 入替先を rh にする | 転移登録 §2.1 の錨の定義。S1 の固定 backoff の記録 (無 backoff 比で wh の 10 µs が +63.5%、bal の 5 µs が +14.4%、rh の 2 µs が −5.8%、`docs/search-repetition-trial-preregistration.md` §11) |
 | 露出の扱い (§3.4) と、T-2867 の系列を標本に入れないこと | 改版 insight §2 の実測: コードと、T-2867 本走の 1 系列 1 機会 (llm-ir-1 の原提案 1) の coder 入力から抜き出した露出の欄 (key の一覧、baseline の abort 率 12.56%、段階 D の射影、文脈の rr50 の行) |
-| critic なしの定義と履歴の接続の前提 (§3.2) | D2256 項 4、`make_policy_coder_input`・`_contrast_unit`・round tool の拒否の記録の実測、T-2867 本走の LLM 系列の coder 入力 249 件の履歴の欄の集計 (結果の分類と欄の有無だけ、改版 insight §2) |
+| critic なしの定義と履歴の接続の前提 (§3.2) | D2256 項 4、`make_policy_coder_input`・`run_contrast_unit`・round tool の拒否の記録の実測、T-2867 本走の LLM 系列の coder 入力 249 件の履歴の欄の集計 (結果の分類と欄の有無だけ、改版 insight §2) |
 | 既知の集合 K と、段階 D の射影の読み方 (§3.4) | T-2867 登録 §4.6・§8 (段階 D の固定 16 点と初期点)、段階 D の insight (`output/insights/2026-09-23/t2863-silo-policy-stage-d/README.md` の射程と abort0 の abort 率 0.78) |
 
 - **本改版の起草者 (Claude) は T-2867 本走の完了を知っている。** local main の commit の題 (「48 系列完走、report は 4 比較とも floor 内の同等」) を読んだ。
@@ -396,8 +399,9 @@ cell ごと・系列ごとに次を記述する。区間を付けるなら無補
 
 1. **記述の表示の切替:** [T-2870] の文脈の差し替えが先に着地していればその文脈の上で行う。系列 header に cell を持たせ、`make_policy_coder_input` が載せる `leakproof_context` の Measurement Setup の標準 workload の塊を
    §3.1 の水準の表示に置き換える (共有 file は書き換えない)。round tool の critic prompt に水準の動作点の節を足す。置き換えた bytes を同じ header から作り直して一致を確かめられる形にする。
-2. **構造化された失敗理由の履歴への接続 (§3.2、規律 3):** 対照の経路で、評価の結果の verifier の digest と、schema・auditor による投入前の拒否の分類を、
-   既存の自系列の履歴の欄 (`verifier_digest`・`reject_subtype`・`reject_rule_id`) に書く。新しい key・台帳は作らない。全 cell に同じ規則で当てる。
+2. **構造化された失敗理由の履歴への接続 (§3.2、規律 3):** 対照の経路で、初期点を含む評価の結果の verifier の digest と、coder 出力の schema の拒否・
+   auditor の出力の形式と digest の不一致による拒否の分類を、既存の自系列の履歴の欄 (`verifier_digest`・`reject_subtype`・`reject_rule_id`) に書く。
+   D2256 項 4 の固定 reason code と witness の上限の契約はそのまま継承する。新しい key・台帳は作らない。全 cell に同じ規則で当てる。
    T-2867 登録 §4.1 が書く履歴の中身と実装の食い違いを埋める修復であり、critic なしの cell の発効の前提である。
 3. **critic なしの経路:** 系列 header の cell に束縛して、critic なしの cell では round tool の `prepare` が critic を要求せず (`critic-needed` を返さない)、
    coder 入力に critic 診断を載せない。親の指示文の critic の手順を cell に従わせる。critic ありの cell の挙動は今のまま。既存の照合の受理形を増やす変更なので、
@@ -415,7 +419,7 @@ cell ごと・系列ごとに次を記述する。区間を付けるなら無補
 **発効束** (発効の決定に実値を書く。一覧は機械 gate の新設指示ではない):
 
 - 計算確認の日付・決定番号・対象 commit (§13 の実装を含む)。本書の raw bytes の SHA-256。
-- 規模 (4 cell / 6 cell、n) と、その node 時間・LLM の直列時間・原提案機会の見積り。n を決めた資料 (T-2867 本走の分散・週上限の実測) と閲覧者。
+- 規模 (4 cell、確定した n) と、その node 時間・LLM の直列時間・原提案機会の見積り。n を決めた資料 (T-2867 本走の分散・週上限の実測) と閲覧者。
   発効の前に予備の観察 (§10) を行ったかと、その値。
 - 各水準で LLM に実際に見える表示 (§3.1 の (a)(b) の bytes、系列名の規則) と、残る露出の一覧 (§3.4)。
 - LLM の model の exact ID と settings、全役割の prompt、LLM 親の指示文 (T-2867 登録 §12.1 の項目に従う)。
@@ -449,6 +453,8 @@ cell ごと・系列ごとに次を記述する。区間を付けるなら無補
   表示されていないこと、構造化された失敗理由が自系列の履歴で critic と独立に届くので S1 版の「失敗理由の写し」が要らないこと、critic なしの cell では性能の還流も
   止まることを規則に反映した。統計は Bonferroni の同時区間 (δ = ln 1.03) を保ち、人手分類を IR の本文と骨格による分類に改めた。記録は改版 insight。
 - 2026-10-01: 同じ改版の wave の段 6 レビュー (Codex 2 本、must-fix 計 3 件と should・nit) を受けて改めた (着地前): 対照の経路では自系列の履歴に verifier の digest と
-  schema・auditor の拒否が入っていないと分かったので、規律 3 の経路の接続を発効の前提に足した (§3.2・§13 の 2)。K を本文照合用と骨格照合用に分け骨格の規則を固定した (§9.3)。
+  一部の拒否 (schema の拒否と auditor の出力の形式・digest の不一致による拒否) が入っていないと分かったので、規律 3 の経路の接続を発効の前提に足した (§3.2・§13 の 2)。K を本文照合用と骨格照合用に分け骨格の規則を固定した (§9.3)。
   露出の運び方を経路ごとに分けて書き、cell 間の偏りが無いという断定を外した (§3.4)。却下済みの 6 cell と追加の介入 2 つを確認事項から外した (§3.3・§14・§15)。
   fallback 込みの運用 score の分類であること、固定 δ の両方向の効き方、最初の提案の (i)/(ii) と欠測、参照 job の換算の出所の不一致を書いた。
+  焦点再レビュー 1 巡目を受けて、履歴に入らない拒否の範囲を正した (auditor の通常の判定による拒否は入る、入らないのは schema と auditor の出力の形式・digest の不一致)、
+  発効束の規模から 6 cell を外した。

@@ -21,7 +21,7 @@
 - **wave の途中で前提に関わる新事実が 3 つ出た。** (1) 下書き §1.4 が懸念にとどめた露出の棚卸しで、確認した固定の入力には正しい workload 名を表示する欄が無いと分かった (§2)。
   これで下書きの「T-2867 の C-on 相当の系列」という見方は成り立たず、T-2867 の系列を標本に入れない既定が「既定」から「理由のある規則」になった。
   (2) 再開時 (09:43) に local main が進んでおり、T-2867 本走は完了していた。草稿は「T-2867 本走の後」の前提をそのまま保ち、n の確定は依頼どおりユーザーに残す。
-  (3) 段 6 のレビュー (所見 A-1) で、T-2867 の対照の経路では自系列の履歴に verifier の digest と schema・auditor の拒否が入っていないと分かった (§2 の 2 つ目の表)。
+  (3) 段 6 のレビュー (所見 A-1) で、T-2867 の対照の経路では自系列の履歴に評価の結果の verifier の digest と一部の拒否 (schema の拒否と auditor の出力の形式・digest の不一致による拒否) が入っていないと分かった (§2 の 2 つ目の表)。
   段 1 の (P2)「失敗理由は履歴で critic と独立に届く」は schema の上だけの話で、実装では成り立っていなかった。草稿はこの接続を発効の前提にした。
 - 中断: 00:4x に land 調整役から利用上限による停止依頼を受けて止め、09:43 のユーザーの「続けて」で再開した。再開時に local main `63378acb8` を `--ff-only` で取り込み、
   対象 3 文書 (草稿・T-2867 登録・S1 版の起草 insight) の差分を確かめた (T-2867 登録に §16.1 の Erratum が増えただけ)。
@@ -43,13 +43,13 @@
 
 | 履歴に入る事象 | 書く場所 | 入る欄 |
 |---|---|---|
-| 評価の結果 (job 2 以降) | `_contrast_unit` → `_append_history` (`outcome`・`variant`・`logical_slot`・`measurement_campaign_id` だけを渡す) | 結果の分類だけ。`verifier_digest` は入らない |
-| 初期点の結果 | `_append_seed_history` (同上) | 結果の分類だけ |
-| 検疫・構文・compile による投入前の拒否 | round tool の `_record_preview_reject` → driver の `--record-reject` → `drive_contrast_record_reject` → `_append_history` (`digest` 付き) | `reject_subtype`・`reject_rule_id` |
-| schema・auditor による投入前の拒否 | round tool の `_schema_reject`・`_record_preview_reject` (subtype が `proposal-schema`・`auditor-gate`・`auditor-digest` のとき driver を呼ばない) | 履歴に入らない (対照の台帳の `opportunity-end` にだけ残る) |
+| 評価の結果 (job 2 以降) | `run_contrast_unit` の中の `_append_history` (`outcome`・`variant`・`logical_slot`・`measurement_campaign_id` だけを渡す) | 結果の分類だけ。`verifier_digest` は入らない |
+| 初期点の結果 | `run_contrast_unit` の中の `_append_seed_history` (同上) | 結果の分類だけ |
+| 検疫・構文・compile と auditor の通常の判定 (`auditor-violation`・`auditor-uncertain`) による投入前の拒否 | round tool の `_record_preview_reject` → driver の `--record-reject` → `drive_contrast_record_reject` → `_append_history` (`digest` 付き) | `reject_subtype`・`reject_rule_id` |
+| coder 出力の schema の拒否と、auditor の出力の形式・digest の不一致による拒否 | round tool の `_schema_reject`・`_record_preview_reject` (subtype が `proposal-schema`・`auditor-gate`・`auditor-digest` のとき driver を呼ばない) | 履歴に入らない (対照の台帳の `opportunity-end` にだけ残る。critic の材料 `_new_results` にも入らない) |
 
 - T-2867 本走の LLM 系列の coder 入力 249 件 (llm-cpp 121・llm-ir 128) の履歴は延べ 1,638 行で、`certified` が 1,626 行 (いずれも `verifier_digest` なし)、
-  `rejected` が 12 行 (いずれも `reject_subtype` あり) だった。本走で履歴に現れた評価の結果は全部 certified で、評価の失敗が無かったので、欠落は本走の入力には表れていない。
+  `rejected` が 12 行 (いずれも `reject_subtype` あり) だった。確認した coder 入力の履歴に現れた評価の結果は全部 certified だった。coder 入力は提案の前の履歴なので、各系列の最後の評価は現れない。評価が失敗したときの情報の欠落の大きさと、本走全体の失敗の有無は、この集計では確かめていない (`verifier_digest` が null であること自体は全行で観測した)。
   これは本走の結果 (score) ではなく入力の欄の集計である。T-2867 登録 §4.1 は「履歴は … verifier の digest を載せ」と書くので、登録と実装の食い違いとして worklog の次の一手に残す。
 
 - **結論:** 段階 D の二値・射程文・baseline の abort 率は、どれも workload の名前や読み比率を示さない。ただし write-heavy で測った情報を運ぶ。運び方は経路で違い、
@@ -57,7 +57,7 @@
   表示との整合・食い違いを通して記述の効き目は変わりうる (弱めるとは限らない。草稿 §3.4・§12 の U2)。cell 間の差を偏らせないとは言えない。
   read-heavy の同じ構成での stock の abort 率は読んでおらず、12.56% が両者を区別する値かは確かめていない。
 - **副次の発見:** 確認した固定の入力 (driver・round tool・親が組む部分) には、正しい workload 名と読み比率を表示する欄が無い。coder の文脈は読み比率 50 の配線規模を表示し、
-  critic の digest の見出しは workload 欄が空である。critic 診断は自由文なので workload に触れることはありえ、確認したのは本走の 1 機会だけである (その機会では該当語 0 件)。
+  critic の digest の見出しは workload 欄が空である。critic 診断は自由文なので workload に触れることはありえ、確認したのは本走の 1 機会の critic prompt と coder 入力の固定部分だけで、そこでは該当語 0 件だった。同じ機会の critic 診断 (自由文) には「未測定の workload (ほかの skew や read-heavy など) へは一般化しません」の文があり、自由文の部分は 0 件ではない。
   文脈が backoff 軸用の旧文書のままであること自体は既知で (段階 F の insight `output/insights/2026-09-27/t2865-silo-policy-stage-f/README.md` §3.4、
   方策軸用へ替える方向は D2272 項 5 = [T-2870] で了承済み、具体差分のユーザー承認待ち)、本 wave の純増は「その旧文書が実際と違う読み比率を表示する」という露出の観点である。
   この表示は LLM の構成の一部として T-2867 の LLM の 2 arm に共通で、非 LLM の arm は使わない。実際と違う読み比率の表示が LLM の探索に不利に働いたか
@@ -114,12 +114,17 @@
 | B-5 最初の提案の (i)/(ii) と欠測 | should | real | §8 の 1 を直した |
 | B-6 docs 地図の「族 3」 | nit | real | 「3 対比の Bonferroni 同時区間」に訂正 |
 
-- 焦点再レビューの結果は下に追記する。
+- 焦点再レビュー 1 巡目 (`verbatim/s6-focus-1.md`): closed 9・partial 3・regressed 0、派生値 (249 件・1,638 行・費用表・k(n)・0.0275・[0, 0]) はすべて再計算で一致。NO-GO (must-fix 1)。
+  F1 (must-fix、real): 履歴に入らない拒否を「schema・auditor」と一括りにしていた。auditor の通常の判定 (`auditor-violation`・`auditor-uncertain`) は `--record-reject` を通って履歴に入り、
+  入らないのは coder 出力の schema の拒否と auditor の出力の形式・digest の不一致 (`proposal-schema`・`auditor-gate`・`auditor-digest`) だけ。評価の転記は `run_contrast_unit` の中。親がコードで確かめて草稿 §3.2・§13 の 2、本書 §2、fragment を直した。
+  F2 (should、real): 履歴の集計から本走全体の失敗の不在を導いていた → 集計の範囲に限定。F3 (should、real): 1 機会の critic 診断の自由文に `read-heavy` の語がある → 「0 件」を固定部分に限定。
+  F4 (should、real): 発効束に 6 cell が残っていた → 「4 cell、確定した n」に。
+- 焦点再レビュー 2 巡目の結果は下に追記する。
 
 ## 7. 本 wave が閉じないもの
 
 - n の確定・発効・実装・投入。T-2867 本走の score・分散・週上限の読取。
-- T-2867 の報告に「LLM は実際と違う読み比率 (50) の配線規模の表示を受け、正しい workload 名を表示されていない」事実を開示すること、
+- T-2867 の報告に「LLM の coder 文脈は実際と違う読み比率 (50) の配線規模を表示し、確認した固定の入力には正しい workload 名・読み比率の明示欄が無い」事実を開示すること、
   その影響の評価 (T-2867 の文書は変えていない)。
 - T-2867 登録 §4.1 (履歴は verifier の digest を載せる) と対照の経路の実装の食い違いの記録・修復 (草稿 §13 の 2 は P5 の発効の前提として置いただけで、実装していない)。
 - 2026-11-02 の S1 縮小案の再提示 (D2283 (ii))。
