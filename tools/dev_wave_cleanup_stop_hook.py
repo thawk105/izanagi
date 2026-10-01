@@ -65,11 +65,17 @@ def decide(payload: object, *, git=_git) -> tuple[bool, str]:
         code, head = run("rev-parse", "--verify", "HEAD^{commit}")
         if code or not _OID.fullmatch(head):
             return False, ""
-        code, entries = run("reflog", "show", "--format=%H", branch)
+        code, entries = run("reflog", "show", "--format=%H %gs", branch)
         if code or not entries:
             return False, ""
-        oids = entries.splitlines()
-        if any(not _OID.fullmatch(oid) for oid in oids) or oids[-1] == head:
+        reflog = [entry.partition(" ") for entry in entries.splitlines()]
+        if any(not _OID.fullmatch(oid) or not separator
+               for oid, separator, _ in reflog):
+            return False, ""
+        if all(subject in ("merge main: Fast-forward", "merge refs/heads/main: Fast-forward")
+               for _, _, subject in reflog[:-1]):
+            return False, ""
+        if reflog[-1][0] == head:
             return False, ""
         code, _ = run("merge-base", "--is-ancestor", head, "refs/heads/main")
         return (True, REASON) if code == 0 else (False, "")

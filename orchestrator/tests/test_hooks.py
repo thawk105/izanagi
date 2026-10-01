@@ -5441,6 +5441,89 @@ def test_cleanup_stop_subprocess_size_limit_prevents_block(tmp_path):
             assert result.stdout == b""
 
 
+def _stop_repo_after_ff_main(tmp_path, ref="main"):
+    main, wave = _stop_repo(tmp_path)
+    _stop_git(main, "commit", "--allow-empty", "-qm", "advance main")
+    _stop_git(wave, "merge", "--ff-only", ref)
+    subjects = _stop_git(wave, "reflog", "show", "--format=%gs", "wave").splitlines()
+    assert len(subjects) == 2
+    assert subjects[0] == f"merge {ref}: Fast-forward"
+    assert subjects[1].startswith("branch: Created from ")
+    return main, wave
+
+
+@pytest.mark.parametrize("ref", ["main", "refs/heads/main"])
+def test_cleanup_stop_allows_ff_main_with_zero_commits(tmp_path, ref):
+    _, wave = _stop_repo_after_ff_main(tmp_path, ref)
+    assert STOP.decide({"cwd": os.fspath(wave)}) == (False, "")
+
+
+def test_cleanup_stop_blocks_commit_landed_after_ff_main(tmp_path):
+    main, wave = _stop_repo_after_ff_main(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    subjects = _stop_git(wave, "reflog", "show", "--format=%gs", "wave").splitlines()
+    assert subjects[:-1] == ["commit: wave", "merge main: Fast-forward"]
+    block, reason = STOP.decide({"cwd": os.fspath(wave)})
+    assert block
+    assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
+
+
+def test_cleanup_stop_blocks_landed_commit_after_another_ff_main(tmp_path):
+    main, wave = _stop_repo_after_ff_main(tmp_path)
+    _stop_advance(wave)
+    _stop_git(main, "merge", "--ff-only", "wave")
+    _stop_git(main, "commit", "--allow-empty", "-qm", "advance main again")
+    _stop_git(wave, "merge", "--ff-only", "main")
+    subjects = _stop_git(wave, "reflog", "show", "--format=%gs", "wave").splitlines()
+    assert subjects[:-1] == [
+        "merge main: Fast-forward", "commit: wave", "merge main: Fast-forward",
+    ]
+    block, reason = STOP.decide({"cwd": os.fspath(wave)})
+    assert block
+    assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
+
+
+def test_cleanup_stop_blocks_landed_ff_from_other_branch(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_git(main, "checkout", "-q", "-b", "side")
+    _stop_advance(main)
+    _stop_git(wave, "merge", "--ff-only", "side")
+    _stop_git(main, "checkout", "-q", "main")
+    _stop_git(main, "merge", "--ff-only", "wave")
+    subjects = _stop_git(wave, "reflog", "show", "--format=%gs", "wave").splitlines()
+    assert len(subjects) == 2
+    assert subjects[0] == "merge side: Fast-forward"
+    assert subjects[1].startswith("branch: Created from ")
+    block, reason = STOP.decide({"cwd": os.fspath(wave)})
+    assert block
+    assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
+
+
+def test_cleanup_stop_blocks_landed_empty_reflog_subject(tmp_path):
+    main, wave = _stop_repo(tmp_path)
+    _stop_git(main, "commit", "--allow-empty", "-qm", "advance main")
+    head = _stop_git(main, "rev-parse", "HEAD")
+    _stop_git(wave, "update-ref", "refs/heads/wave", head)
+    entries = _stop_git(wave, "reflog", "show", "--format=%H %gs", "wave").splitlines()
+    assert len(entries) == 2
+    assert entries[0].partition(" ") == (head, " ", "")
+    block, reason = STOP.decide({"cwd": os.fspath(wave)})
+    assert block
+    assert "可能性" in reason and "DW-O28" in reason and "残置 path" in reason
+
+
+def test_cleanup_stop_subprocess_allows_ff_main_with_zero_commits(tmp_path):
+    _, wave = _stop_repo_after_ff_main(tmp_path)
+    script = Path(_REPO) / "tools" / "dev_wave_cleanup_stop_hook.py"
+    result = subprocess.run(
+        [sys.executable, os.fspath(script)],
+        input=json.dumps({"cwd": os.fspath(wave)}), capture_output=True,
+        text=True, timeout=5,
+    )
+    assert result.returncode == 0 and result.stdout == "" and result.stderr == ""
+
+
 def test_hook_scripts_run_as_subprocess():
     """settings.json が呼ぶ形 (stdin JSON → exit code) の煙テスト。"""
     env = dict(os.environ)
