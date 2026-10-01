@@ -16,6 +16,7 @@ title: [T-2917] CCBench の修正 5 本と正しさ関門の記録を F の上�
 - 前例 2 wave (ccbench-cicada-bugfix 2026-09-29 は失格側、ccbench-cicada-promotion-uaf-fix 2026-09-30 は合格側) の promotion 有効 genome の判定は、repo の計装から `#error` 1 行を消した repo 外の診断 patch の上で出ていた。land 調整役の確認で判明し、本 wave はこの patch の上の判定を数えなかった。前例の記録は書き換えず、一次資料 §5 と failures に追記した。
 - 2026-10-01 00:4x〜09:44 JST は利用上限による一旦停止 (land 調整役経由のユーザー指示)。ユーザーの「続けて」で再開した。
 - 同日に land 調整役経由で届いたユーザー指示を適用した: やり直し前に原因と変更点を 1 行で書く・同じ原因 2 回で止めて FAIL-2・SELF-REVIEW 送付 (該当 1 件 = F810 の再発)・worktree 撤去は rc=75 を待たず手動並列。
+- 受入 1 走目 (2026-10-01 10:05〜10:12 JST、post-claim merge で main `b8f1ef3ee` を取り込み tip `621a292b1`) は 28,713 passed・1 failed で赤。赤は `orchestrator/tests/test_codex_worker_launch_budget.py::test_retry_subprocess_hits_only_cumulative_attempt_bound` の 1 件 (F495 の試行予算の時刻に敏感な test)。本 wave の差分 (D297 検査器とそのテスト・DW-O08 の 1 文・記録) は Codex 起動器の予算処理に届かない。同じ tip で計算ノードの単独再走 (40650.nqsv) は 1 passed で非再現 → 非帰属と判定し、受入を再走した。焦点走でも login の負荷が高い時間帯に `test_codex_worker_launch.py` が 97 件赤になり、計算ノード (40638.nqsv) では 1,547 件すべて緑だった (負荷由来、非帰属)。
 - CCBench の branch `izanagi-fix-bundle` は job dir の bundle (`/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle`、sha256 `49d2e5bd…`) にあり、land 後に主 checkout の submodule git dir へ非 force で取り込む。push はしていない。
 
 ## 次の一手差分
