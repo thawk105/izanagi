@@ -75134,3 +75134,83 @@ T-2872・T-2905 は人間の手番が済んで完了 (gitlink は T-2919・T-291
 **却下した選択肢:**
 - v1 の最初の組の中で未実走部品を確かめる — 欠陥が出た系列は HEAD の束縛で直せず欠測になり、実際に参照 job の静的 10 µs が落ちた (前走で確認)。
 - 修正を待たずに main の `4f412c67b` で本走する — 参照 job 3 本の静的 10 µs がすべて落ち、参照の系列が欠ける。
+
+## D2339. 受入 shard mode で login collection を preflight 前に前倒しする実装は、同時刻対照 2 対が待ち行列の長さで事前登録の適格条件を満たさず判定不能なので main へ入れない。shard に login collection を待たせる案と、計算ノードに pyc を書かせる案も採らない (2026-10-01)
+
+**決定:**
+
+1. md_7 (初回受入でも shard 開始前に bytecode cache をそろえる) として、`tools/run_tests.py` の shard 経路で submodule marker が有効なときだけ、未 stage 削除検査・RuleOps などの preflight より前に login collection を subprocess として起動し、`acceptance_shards.run_parallel` の `collect_login` をその回収にする実装を作ったが、**main へは入れない**。実装は branch `worktree-dev-wave-acceptance-pyc-warm` (tip f4920ddb3、Codex author) に残す。
+2. 判定は段 4 で事前登録した land 条件どおり: 適格な対 (6 shard すべての待ち行列が 60 秒以内) が 2 つ必要なところ 0 だった。対 1 は K の 1 shard が 78 秒、対 2 は 6 shard 中 4 shard が 128〜484 秒。
+3. 観測 (判定外): 対 1 で shard pre 中央値が K 93.0 秒 → H 69.0 秒 (24.0 秒短縮)、対 2 は待ち行列が長く両腕とも温の峰 (69.2 / 69.6 秒)。害検査 (preflight 区間が延びない、login universe と observed universe の一致 28,663 件、終了後の作業木 clean) は両対で成立。
+4. 依頼の択一のうち、shard が login collection の完了を待つ案は採らない。計算ノードの job は投入の約 9 秒後に始まり、冷の login collection は投入意図から 85〜108 秒かかるので、待ちが得を上回る。計算ノード worker に pyc を書かせる案は D918 のとおり採らない (初回受入では 48 worker が同時に冷で collection するので効かない)。
+
+**理由:**
+
+- 事前登録の条件は結果を見る前に固定しており、対 1 だけの改善で land すると規律 3 の後付けになる。land 調整役の GO の条件も「事前登録の判定を後から変えない」だった。
+- land すれば `tools/run_tests.py` の blob が変わり、走行中の全 wave が受入をやり直す (D987)。得られるのは、初回受入で待ち行列が短いときだけの shard あたり約 24 秒 (n = 1 対の観測) である。
+- md_2 の区間分解 (投入意図起点) は `run_tests.py` 起動から投入意図までの 56〜102 秒を含んでおらず、その大半は login の git 検査 (`git ls-files --deleted` 34〜89 秒) だった。前倒しはこの区間に collection を重ねる形で、対 1・対 2 とも H の collection は shard の開始前後に完了した (投入意図の 33 秒後 / 9 秒後)。
+
+**却下した選択肢:**
+
+- 対 1 の改善だけで land する — 事前登録に反する。
+- 適格条件 (60 秒) を緩めて取り直す — 結果を見た後の条件変更になる。再訪するなら、対の数と判定の規則 (例: 3 対以上、適格な対の多数決) を先に登録した新しい対照を別 wave で行い、D987 の再受入費用と比べて決める。
+- 前倒し子を自前の signal handler と新 process group で管理する — 段 6 レビューが起動直後と後始末中の窓・reap 済み pid への signal・終了形式の変化を示した。branch の実装は従来の `subprocess.run` と同じ意味論に戻してある。
+
+## D2340. VHash の「読み続ける read-only tx の前進」(主張 A) の比較相手は、読み手を固定したまま必要な版だけ残す精密 GC の系とし、本案はその上に載せて測る。min 型 GC の Cicada との差を SOTA への勝ちと書かない (2026-10-01)
+
+**決定:** 一次資料 `output/insights/2026-09-30/vhash-ro-novelty-sota/README.md`。事前記述 (同 dir の `search-registration.md`) を追加検索と性能結果 (md_42) の前に凍結し、その判定基準 K1〜K5 を当てた。
+1. 条件 C は事前記述のまま「更新と並行して読み取りを続け、前進の候補となる read を発行する長い read-only tx がいる主記憶 MVCC (直列化可能)」。
+   読み取り後に待つ tx は境界条件として別に示す。開始時刻のずれた複数の読み手と未読の範囲に集中する更新は、構造上の導出から選んだ評価上の部分条件として並べ、主条件の代わりにしない。
+2. C での SOTA は、読み手を固定したまま「必要な版だけ残す」精密 GC の系 (Steam の EPO と、Wei ほか PPoPP 2023 の range-tracking 型の 2 候補) を ro-gcflag 修正入りの最良設定 Cicada に移したもの。
+   C での単独の最強は決めない (Wei ほか自身が決定的な最良なしと結論)。移植は更新されない版の列も掃除するところまで行い、弱い GC を相手にしない。
+3. 本案 M は精密 GC の上に載せ、主比較は「精密 GC + M」対「精密 GC」を同じ Cicada・同時刻で測る。M を min 型 GC の Cicada とだけ比べた差、他論文の throughput の引用は、SOTA に勝った根拠にしない。
+4. M が精密 GC より減らせる対象は「読み手ごとに、前進した区間で更新された未読キーの、旧 snapshot でだけ必要な版」と特定できたが、量は分からない。「SOTA より大きく速い」は仮説として扱い、
+   効果が小さいときに A を主張の芯から外す判定規則は、結果の前に評価計画へ置く。
+5. 読み続ける read-only tx の前進は、既読の版が前進先で見えることだけでは一貫性に足りない (不在を読んだキーへの挿入・範囲読み取り)。この条件を含む論証が揃うまで、M が C の直列化可能性を保つとは書かない。
+
+**理由:**
+- 長い読み手が回収を止める問題には、読み手を動かさずに途中の版を回収する既知の解 (Steam・HANA・vDriver・Wei ほか) がある。min 型 GC だけを相手にすると既知の欠点に勝っただけになる。
+- 比較表のために読んだ原典 (論文 16 本・製品文書 3 件) では A の限定語 A1〜A5 を同時に満たす方式は無かった。事前登録の 9 式を OpenAlex・arXiv・DBLP で完走した索引検索でも A の検出は 0 件だったが、
+  要旨で決められない要裁定が 20 件残るので、A について索引に基づく不在の文は書かない (U1′ は範囲つきで書ける、一次資料 §4.3)。
+- 段 6 の独立レビューが、前進の条件の穴 (不在キー) と、M 単独が精密 GC に「常に負ける」の誤りを反例で示した。
+
+**却下した選択肢:**
+- 最良設定の Cicada (修正入り) を C の SOTA とする — 長い読み手による保持の既知の解を無視する。
+- Steam 型だけを SOTA と決める — 空間の上界と dusty corners では range-tracking 型が強い。
+- 「残る差が弱く採用しない」と判定する — 事前記述 K3 は、減らせる対象を特定できれば推奨し、量は仮説として書くと定めた。
+
+## D2341. 構成 E の書き込み検査の走査中の回収 (md_36 §3.2) は、試作では GC flag の静止条件が塞ぐと読み、一般の E 向けの規則として公開値の上限 (候補 b) を overlay patch にする。その効果は実機で確かめられず、U0 の利得の約 7 割を失う (2026-10-01)
+
+**決定 (VHash 論文 md_39、一次資料 `output/insights/2026-09-30/vhash-econn-wscan-fix/README.md`):**
+1. **試作の構成では md_36 §3.2 の列に届かない、と読む。** Cicada の leader は全 thread の GC flag を待って境界を 1 round 進め、長い tx T は commit の設置から書き込み検査の走査の終わりまで flag を立てない。§3.2 の列には Z の終了後に 2 round が要る (前進しない thread の floor が 1 round 遅れるため) ので、走査中には届かない。主 workload の遅延を掛けた走査 2.3 万回と、update key を揃えた 1.8 万回 (挿入の到達 311 回) で、遅延中の round は最大 1、回収の検出は 0 だった。この塞ぎは構成 E の規則ではなく、前進しない thread が無い一般の E、または commit 中に静止を宣言しうる設計では列は成立する。md_36 §3.2 の「T の中断で round が 2 つ進む」は静止の条件を見落とした読みとして、同資料を訂正する側 (本資料 §6) に置く。
+2. **修理は候補 (b)** — 前進の成功時の公開 Rts を min(t′−1, 各書き込み key の t′ で見える確定版の wts の最小) に抑える — を `patches/cicada-forwarding-wscan-cap.patch` (V・G・T の上、実行時 flag なし、新 macro なし) とし、壊し正例と計器の patch を添える。論証は「その版とその上の版は回収の根を持てない」で、前提 MinRts ≤ T の現在の Rts (境界の読み、未解決) を置く。
+3. **修理の効果は実機で確かめられなかった。** 事前登録した壊し正例 (K1+K2) は到達したが発火せず、修理の判定は事前登録どおり「判定不能」。
+4. **費用:** skew 0 の主 workload で E-hb からの改善のうち境界の遅れで 28%、生存版数で 27% しか残らない (計器入り build の診断値)。
+5. S2 (D2332) の E_sp に修理版を使うかは発効の wave が決める。本決定は推奨しない。
+
+**理由:**
+- 候補 (a) (書き込み key を持つ tx は floor を公開しない) は、主 workload の長い tx (1 update) を処置の外へ出し、D2332 項 3 の停止条件に当たる。候補 (c) (走査中の版の物理保護と検査のやり直し) は規模が大きく、論理の到達も別に示す必要がある。
+- (b) は md_26 の PUB (p ≤ t′) の形に収まり、走査の原子性 (A1) を使わずに補題 P の 3 の除外を置き換えられる。
+- 静止の塞ぎを「規則」として採るかは、前進しない thread の存在に依るので、論文の主張の置き方の判断になる。
+
+**却下した選択肢:**
+- 修理を試作の既定にする (V・G・T を書き換える) — md_33 がその上に M を重ねて検査中で、利得の減りが大きく、効果も実機で確かめられていない。
+- 新 macro を足して計器を gate に登録する — 並走 wave と同じ登録簿を編集し、既存 macro の複合条件で足りる。
+- 壊し正例の未発火を見て、事前登録の外の追加走で判定を差し替える — 遅延 10 ms の探索走は事前登録外として別に記録し、判定には使わない。
+
+## D2342. CCBench の pin を C から F へ進め、F で厳密適用が外れる壊し patch 4 本は作り直さず、C に独立束縛の系列と生成器対照の本走は C のまま残す (2026-10-01)
+
+**決定 (親の実施判断。ユーザーの再裁定ではない):** D2277 項 1・D2293・D2322 項 6 に従い、gitlink `external/ccbench`・`s8b_approved.CCBENCH_FULL_SHA`・`pin.CURRENT_PIN` を同一 commit で C `68106660686232781bca3be792a750d3e19d7a8a` から F `25898d00b9a6bbf09329ff8e8318c77d4f08b46e` (7 桁 `25898d0`) へ進めた。手順と追随の範囲は D2150 / D2184 と直近の同型前進 (D2227 項 1) と同じで、現行 pin を独立 literal で主張する test・実 checkout を照合する test と probe・admission policy epoch に束縛された golden だけを F へ追随し、C epoch の値は歴史 golden として保持した。次の 3 点を併せて決めた。
+
+1. **F で `git apply` (fuzz なし) が外れる patch 4 本 (`broken-mocc-early-unlock`・`broken-mocc-hot-update-unlock`・`broken-silo-corrupt-write-payload`・`broken-silo-published-version-mismatch`) は、この前進では作り直さない。** 4 本とも壊し (positive control) で、MOCC の 2 本の consumer は e9e477ca に独立束縛の driver と test、Silo の 2 本は condition gate の静的登録と一回限りの変異走だけで、現行 pin に自動で当てる経路が無い (段 6 レビュー 2 本も同じ結論)。作り直すなら、F の上で壊れ方が発火することを実走で示すまでを 1 単位とする。
+2. **C に独立束縛の literal は据え置く。** MOCC の関数方策の campaign pin (`p3_s4_loop.campaign_pin_for_protocol("mocc")` と MOCC の較正の注記)、VHash の Cicada 系列の `PIN` (`vhash_cicada_hot_block`・`vhash_cicada_vlife`)、MOCC 候補の proof の `C`、test の fake `ccbench_head`。いずれも C で測った・登録した系列を束縛しており、現行 pin との一致を主張しない。
+3. **生成器対照の本走 (D2305 項 1、pin C 固定) は影響を受けない。** 本走の submit checkout 16 本は固定 commit の detached worktree で submodule の格納域も worktree ごとに別であり、main の gitlink 変更は届かない。ただし Silo の方策 driver は `pin.CURRENT_PIN` を読むので、新しい main から submit checkout を作り直すと pin は F になる。本走は固定 checkout のまま完走させる。
+
+**理由:**
+- 前提は実測で確かめた: GitHub (HTTPS) の fresh clone で F を取得でき (C は祖先、C..F は 4 commit・4 file で CMake に触れない)、F の check-runs は build・format-check とも success。
+- 4 本の壊し patch は、現行 pin の成果物 (certified 選択・レポート・台帳) の値・受理集合・参照を変えない。作り直しを前進に抱き合わせると、壊れ方の発火の実走まで前進の land が延び、F の上に積む修理 (Silo・MOCC)・正しさ関門の記録の前提を遅らせる。
+- 規律 7: C で測った系列と登録を、現行コードとの差だけを理由に張り替えない。
+
+**却下した選択肢:**
+- 4 本を今 F に合わせて文脈だけ書き換える — 壊れ方が F で発火するかを確かめないまま「壊し」と名乗る patch を増やすことになる。
+- MOCC 方策・VHash の C 束縛を `pin.CURRENT_PIN` へ寄せる — 登録済み系列の pin が黙って F に変わる。

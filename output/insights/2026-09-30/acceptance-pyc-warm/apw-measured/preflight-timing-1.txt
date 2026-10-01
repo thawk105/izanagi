@@ -1,0 +1,7 @@
+import	0.07s
+receipted_acceptance([])	0.00s	rc=True
+preflight_unstaged_deletions	34.21s	rc=0
+ruleops check	2.61s	rc=0
+preflight_submodule	0.00s	rc=0
+queue_dispatch_possible	1.13s	rc=(True, 'キュー gen_S は ENA=ENA、STS=ACT、待ち数=43、実行数=45で、現在利用できます。')
+tree_fingerprint	54.58s	rc='2e1295393ded'

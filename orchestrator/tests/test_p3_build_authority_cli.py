@@ -209,7 +209,7 @@ EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.silo_ladder_rung1._correctness_command",
 }
 
-_EXPECTED_REPO_STOCK_PIN = "6810666"
+_EXPECTED_REPO_STOCK_PIN = "25898d0"
 
 
 def _source(*, stock: bool, ccbench_commit: str = "historical-test-pin") -> SourceEvidence:

@@ -21775,6 +21775,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   DW-O02へ読取ログを含むNFC義務と原文保持を明記した。原fixtureとログ検査器は変更していない。
 
 - **再発: 2026-09-21** — [T-2814] wave の Codex fix 子 2 巡目・3 巡目が `orchestrator/tests/test_check_docs.py` を `cat` / 広い `sed -n` で読み、5749・5772 行の非 NFC fixture が stdout JSONL に乗って `event_invalid` → `evidence_status=invalid` → 未受理 (作業自体は正しく終端 commit 済み、`codex_exit_code=0`)。親の prompt は「全文 cat しない、`sed -n` で読む」と書いたが行番号を名指ししていなかった。4 巡目 (監査子) の prompt に「5749・5772 行を含む出力禁止」を書いて再投入した。恒久対処 [T-2041] (択 (a) 採用、D1216) は見送り台帳のまま — 回避で通り研究実走の blocker ではないので再訪条件に該当しない (見送り追記のみ)。
+
+- **再発: 2026-10-01** — VHash md_43 の段 3 相当の read-only 相談 B が `event_invalid` で不受理になった。射影した原典テキスト (md_1 が pdftotext で作った Steam の txt) に
+  結合ダイエレシス U+0308 があり、子の grep 出力に混ざった。DW-O02 の「非 NFC 資料は ASCII escape」を段 3 の射影で適用し忘れた。NFC に正規化した写しを作り、
+  「写しだけを読め」と prompt に書いて再投入し受理された。以後の段 6 レビューにも全原典の NFC 写しを渡し、1 回で受理された。
 ### F729. fix 子への「既存テストの期待値を変更するな」が広すぎて 1 巡を捨てた [手順漏れ]
 
 - 事象: 段 6 fix 子が「実装を変えず報告して止める」を正しく選んで停止し、fix が 1 巡空転した。
@@ -23417,6 +23421,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   1 走目で rc=0 だった。回数は固定ではないという既知の観測と整合する。
 
 - **再発: 2026-09-29** — dev-wave-vhash-forwarding-proof の wave 用 worktree で、`tools/dev_wave_submodule_init.py --worktree <ABS>` の 1 回目が **`ERROR: invalid-run: detail={'label': 'git', 'kind': 'timeout'}`** の rc=1 になった (本エントリの既載の再発はどれも `update-no-fetch` で、timeout を直接観測していなかった。今回は tool 自身が git の timeout を報告した)。2 回目は 57 秒かかって `runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}` の rc=1。その後 `git -c protocol.file.allow=always submodule update --init --recursive` を直接実行して rc=0 になったが、入れ子の googletest が未初期化 (`git submodule status --recursive` で `-`) のまま残り、同じ command の 2 回目で揃った。同時刻に別 session の `git worktree add` が 5 本並走し (load average 176)、本 wave の `git worktree add` 自体も 1 回目は checkout 中の `システムコール割り込み` (EINTR) で `fatal: cannot create directory` になって作り直した。既載の「`_GIT_TIMEOUT_S = 30` が submodule 段全体に配られ、高負荷の新規 worktree では収まらない」という候補と整合する観測である。恒久対応は引き続き未実施。
+
+- **再発: 2026-09-30** — VHash md_39 wave で、子 worktree 3 本 (実装子 2 本・fix 1 本) の `tools/dev_wave_submodule_init.py` が、3 本とも 1 回目に `runtime-io-failure: {'label': 'submodule', 'kind': 'update-no-fetch'}` で rc=1 になり、同じ引数の 2 回目で通った (DW-O08 の「1 度だけ再実行」どおり)。wave 本体と計測木 4 本 (背景の作成 script) は 1 回目で通った。木の中身 (`external/ccbench/cc/cicada/transaction.cc` の実在) で効果を確かめた。
+
+- **再発: 2026-09-30** — md_15 の wave worktree と実装子 worktree の 2 本とも、`tools/dev_wave_submodule_init.py` の 1 回目が `runtime-io-failure: detail={'label': 'submodule', 'kind': 'update-no-fetch'}` の rc=1 で、同じ argv の 2 回目で rc=0 だった (実装子側は作成 script が `||` で 1 回だけ再実行する形にしてあった)。worktree 作成時に `.gitattributes` の「システムコール割り込み」warning も出ていた。恒久対応は引き続き未実施。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
@@ -23631,6 +23639,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-30** — [T-2872] の修理検証 wave で、親が実装子 B の投げ文に先例 job dir の直下にある `run-build.sh`・`run-judge.sh` を `build/`・`judge/` 配下と書き、子が「読めなければ即停止」で 2 call・40 秒で rc=1 (receipt failure_class=f43_fragment) になった。DW-O01 の「参照 path の実在を先に検査」を親が省いた。投げ文の全絶対 path を抜き出して実在を検査する使い捨て script (job dir `scripts/check_prompt_paths.py`) を通してから B2 として再投入し、以降の投げ文 4 本も同じ検査を通した。
 
 - **再発: 2026-09-29 (near miss)** — md_19 (CCBench Cicada の build 不具合の修理) の段 6 レビュー B の投げ文が、必読射影の 1 行に「`<絶対 path>/out/s5-author-A.md・probe_syntax.log`」と 2 file を「・」でつないで書き、子は 2 つ目を直前の path の directory (`out/`) 相対と読んで読めず、「読めなければ即停止」どおり 3 attempt とも停止した (出力 71 byte、model call わずか)。全 path を 1 行 1 絶対 path に直した B2 で受理された。以後の投げ文 (fix 2 本・焦点 2 本・検証 script のレビュー 2 本) は 1 行 1 絶対 path で書き、同型は出なかった。T-2854 の段 6 (2026-09-27) と同じ型で、どちらも fail-closed で安く止まった。
+
+- **再発: 2026-09-30** — gen-opt md_22 ([T-2890]) で 2 回。(1) 段 5 の実装子 2 本: 親が依頼文 `common-5.txt` を job dir へ `request-common-5.txt` と改名して複写し、依頼文の「同じ directory の common-5.txt を読め」に従った子が job dir で `common-5.txt` を探して即停止 (各約 70 秒、実装なし)。(2) 段 6 の review 2 本: 必読列挙の 1 行に「`<絶対 path>/probe/probe.py と author-probe-2.md`」と 2 file を並べ、子は 2 つ目を `probe/` 配下と読んで即停止。どちらも fail-closed で実害は再投入 1 往復ずつ。対処: 依頼文が相対名で参照する file は元の名前でも置く、必読列挙は 1 行 1 file の完全 path にする (以後の投げ文はこの形で通った)。型は既載の 2026-09-29 (near miss、「・」でつないだ 2 file) と同じ。
 ### F820. 変異点の内側に別の検査がネストしており、単一理由性が成り立たなかった [恒真ゲート]
 
 - 事象: [T-2200] の段 4 で登録した変異 M2 は、`policy.py` の backoff scalar 分岐の membership から
@@ -28414,6 +28424,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-26 (near miss、[T-2847] dev-wave-t2847-mocc-run)** — 段 5 の unit worktree を作る script の起点に、`git rev-parse` の出力を写さず短縮 SHA の後ろを推測で埋めた値を渡した。`git worktree add` が `Not a valid object name` (rc=255) で止まり、branch も worktree も作られなかった。`rev-parse` の 40 hex を写して作り直した。既存の再発検知 (object 名の失敗で推測 SHA を疑う) が効いた。
 
 - **再発: 2026-09-26 (near miss、[T-2865] wave)** — 段 6 の fix 用 branch を切る script に、wave commit の SHA を `git rev-parse` の出力から写さず短縮形 (`41b8019a9`) に 1 文字足して渡し、`git checkout -b` が `is not a commit` で拒否した。何も作られずに止まったので実害は無い。`rev-parse` の値で作り直した。行動規律は既存どおり (直前の `git rev-parse` の出力を逐語で写す)。
+
+- **再発: 2026-09-30 (near miss、md_7 acceptance-pyc-warm wave)** — 変異用の独立 clone を作る script の引数に、統合 commit の 40 hex SHA を `git rev-parse` の出力から写さず、短縮形 (`f4920ddb3`) の後ろを推測で補完して渡した。`git update-ref` が nonexistent object で拒否し (clone 作成は rc 6 で停止)、`rev-parse` の出力で別名の clone を作り直した。同日の md_6 (acceptance-shard0-load) wave も worklog に同型を記録しており、変異元 clone の作成で繰り返し起きている。恒久対応は既存どおり (SHA は `rev-parse` の出力を逐語で写すか短縮形のまま渡す)。
 ### F1032. 壊れた ProcessPoolExecutor が SIGTERM 無視環境の計算ノードで停滞し、直列性検査が hard timeout に達した [手順漏れ] [計測汚染]
 
 - 事象: trace-enabled 10 s 走 (write-heavy 8.3M commit) の直列性検査で、edge worker 1 本が OOM kill された後、残 15 worker が state S のまま 2400 s 以上停滞し、親 process は `executor.shutdown(wait=True)` から戻らず hard timeout (前 wave 3600 s、本 wave の再現 2700 s) に達した。前 wave (D2160 項 4) はこれを「worker 側の停滞」とだけ記録し、原因を確定していなかった。
@@ -29004,3 +29016,42 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: 新しい防壁は足さない (guard は正しく拒否している)。親は Bash tool のコマンドに shell 変数・loop・`$()` を置かず、path を逐語で書く。
   繰り返す処理は job dir の `.sh` に path を固定して書き、`bash <絶対 path>.sh <逐語の引数>` の 1 行で呼ぶ。
 - 再発検知: 同じ session で guard の拒否文言 (「computed at runtime」「too complex to verify」) が 2 回目に出たら、以後のコマンドをすべて逐語 path 形に切り替える。
+
+### F1093. 縮小受入の plan が不適格理由を 1 file 1 参照しか出さず、insight の汎用名 (dir と file) の衝突を 2 回に分けて踏んだ [手順漏れ]
+
+- 事象: 2026-10-01 00:0x JST、md_7 (acceptance-pyc-warm) の記録 land 用に `tools/scoped_acceptance.py plan` を打つと、insight の下位 dir `data/`・`reviews/`・`rulings/` の全 file が `production-reference` で不適格になった。dir を固有名へ改めて打ち直すと、今度は `apw-measured/trees.json` だけが別の production file (`tools/pegasus/a5_second_boot_backoff_sweep.sh`) との一致で不適格になった。1 回目の理由には同じ file について dir 名側の参照 (`.codex/role-adapters/coder-v4-autonomous-k2.json`) しか出ておらず、file 名側の衝突が隠れていた。3 回目 (file 名も固有名へ) で eligible。実害は plan 2 回と改名 commit 2 本 (受入は投げる前)。
+- 根本原因: insight の置き場に `data/`・`reviews/`・`rulings/`・`trees.json` のような汎用名を使った。plan の理由は 1 file につき最初に見つかった production 参照 1 件だけなので、1 回の plan で全部の衝突を知ることができない。先行例 (`verbatim/` の dir 名、`summary.json` の改名) は memory `scoped-acceptance-verbatim-dir-ineligible` にあったが、「汎用名全般」へ一般化して読んでいなかった。
+- 恒久対応: memory `scoped-acceptance-verbatim-dir-ineligible` (dir 名の鍵) と本 F。縮小受入を狙う記録 wave は、insight の下位 dir と file の名前に wave 固有の接頭辞を付けて書き (例 `apw-measured/apw-trees.json`)、1 回目の plan の前に `git diff --name-only <tested main>..HEAD` の basename と dir 名を production 参照で一括照合する。道具側の改善候補: plan が file ごとの全 production 参照を列挙する (現状は先頭 1 件)。
+- 再発検知: plan の `reasons` が `production-reference:` を返したら、1 件直して打ち直す前に、同じ file の basename と各階層の dir 名を production で grep して、残る衝突を先に全部出す。
+
+### F1094. 文献索引の生死確認に本走と違う引数 (arXiv の max_results=0) を使い、同じ HTTP 500 を 5 回「索引の停止」と読んで本走を 1 時間半止めた [手順漏れ] [コンテキスト浪費]
+
+- 事象: VHash md_43 の文献 wave (2026-09-30 22:30〜2026-10-01 00:01 JST) で、件数の事前確認と再開確認に arXiv API の `max_results=0` を使った。
+  同じ式・同じ 500 を 20 分おきに 5 回受け、本文を読まずに「arXiv 停止中」と事前記述へ書き、arXiv の本走を止めた。同じ式で `max_results=1` は 200 で、
+  本走の実行器 (`max_results=200`) は最初から動いた。OpenAlex の 503 は本物だった。事前記述の「追記」で訂正し、逸脱 (arXiv だけ先に本走) を記録した。
+- 根本原因: 生死確認の request が本走と別の引数を持ち、確認の失敗が「索引の停止」か「確認手順の欠陥」かを区別できなかった。同じ原因の失敗を 2 回見た時点で引数を変えた切り分けをしなかった。
+- 恒久対応: memory `index-liveness-probe-uses-production-request-shape` (生死確認は本走と同じ URL 形、非 200 は本文を読み 2 回目の前に引数を変えて切り分ける)。
+  land 調整役の 2026-10-01 通達「同じ原因で 2 回失敗したら止めて報告」。
+- 再発検知: 事前記述の「追記」と worklog に、生死確認の request の URL 形を書く (目視)。
+
+### F1095. 隔離 worktree の session で、Bash guard に拒否される形の command を約 10 回書き続けた [手順漏れ]
+
+- 事象: VHash md_39 wave (2026-09-30〜10-01) の親が、worktree 隔離の session で、`git -C <子 worktree>`、変数展開 (`M=...; sed ... $M`、`$T/...` を python へ渡す)、`&&` や `;` で複数の git を連ねる command、`awk` の program、`bash -c` を含む連結を約 10 回書き、そのたびに guard に「形が複雑で worktree の外へ出ないと示せない」として拒否された。毎回 command を分けるか、Write の file や job dir の `.sh` に移して通したので、書き込みの取り違えは無い。失ったのは往復の時間 (合計で数十分)。
+- 根本原因: 隔離 session の guard の判定規則 (1 command 1 動作、変数展開・`git -C`・program を取る `awk`/`sed`・`bash -c` の連結を拒否) を、command を書く前に当てていなかった。記憶 `worktree-discipline` に同型の記述があったが、長い command を組むたびに忘れた。
+- 恒久対応: 隔離 session では、(1) Bash は 1 command 1 動作にし、変数展開と `git -C` を使わない、(2) 子 worktree の git は `EnterWorktree(path)` で入って打ち、打ち終えたら戻る、(3) 変数と複数手順が要る処理は job dir の `.sh` に書いて `bash <絶対 path>` で 1 回呼ぶ。
+- 再発検知: guard の拒否文 (「too complex to verify」「names git in a form too complex」) が同じ session で 2 回出たら、以後の command をすべて `.sh` 経由に切り替える。
+
+### F1096. 隔離 session で複合 command を書き、guard の「分類不能」拒否を形を変えて 8 回踏んだ [手順漏れ]
+
+- 事象: 背景 job の worktree 隔離 session (md_15、2026-09-30) で、同じ理由の拒否を 8 回受けた。拒否されたのは次の形だった。`git -C <path>`、`cd <dir> && git …`、変数を引数に取る `sed`/`python3` (`sed -n … $J/x`、`python3 -c "…'$J/…'"`)、`bash <script> > log 2>&1; echo rc=$?; cat log` の連結、`.git` を path に含む for loop、防護 path (`external/ccbench`) と `$()` やheredoc の同居。1 回ごとに形は変えていたので同一 command の再試行ではない。ただし「隔離 guard は command の形を静的に分類し、読めない形は拒否する」という同じ原因に、8 回とも事前に気づかなかった。
+- 根本原因: 隔離 guard (「worktree 外へ git を向けない」の静的検査) と guard_bash (防護 path と不透明構文の同居の禁止) は、実行内容ではなく command の字面を分類する。変数・連結・redirect・heredoc があると分類不能として fail-closed になる。読むだけの command でも拒否される。DW-O03 は防護 path と不透明構文の同居だけを書いており、隔離 guard の「変数を引数に取る command」「`cd && git`」「`-C`」の拒否は書いていない。
+- 恒久対応: 未実施。提案 = `docs/dev-wave/operations.md` の DW-O03 に「隔離 session では、job dir の file を読む command に変数を使わず絶対 path を直書きする。git は `-C` も `cd … &&` も使わず単独 command にする。複数手順は Write で script file を作り、`bash <絶対 path>` 単独で起動する (log は script 内の `exec > log` で書く)」の 1 行を足す (本 wave の段 8 ではなく、調整役への提案として送った)。
+- 再発検知: 隔離 session で Bash を書く前に、command に `$`・`&&`・`;`・`|`・`>`・`-C`・`.git` が入っていないかを見る。入っているなら script file にする。
+
+### F1097. provenance の事前検査が赤なのに、並列に出した commit が通った [手順漏れ]
+
+- 事象: md_15 の停止明け (2026-10-01 09:4x) に、main の取り込み merge の commit message を `check_ai_provenance.py --message-file` で検査する呼び出しと、`git commit -F` の呼び出しを同じ応答で並列に出した。検査は rc=1 (「実装面に Codex role=author がない」、自動 merge で両側の変更が入った 4 file) を返したが、commit は検査の結果を待たずに通った (`54e16402f`)。commit 後の範囲監査 (`--range 5b859814b..HEAD`、55 件) は違反なしだった。衝突の無い自動 merge は combined diff (`--cc`) では自明で、commit 後の監査の対象 path に残らないためである。
+- 根本原因: DW-O17 の「検査 rc をパイプへ渡さず赤で停止する」「preflight と commit を同じ shell で行うなら先頭を `set -e` にし、無ければ tool call を分ける」を、並列の tool call で破った。依存のある 2 手 (検査 → commit) を独立とみなした。
+- 恒久対応: DW-O17 (既存の規定) をそのまま守る。検査と commit を同じ応答で出さない。
+- 再発検知: commit を出す前に、同じ応答内に検査の呼び出しが無いかを見る。あれば commit を次の応答へ送る。
+- 付記: message-file の事前検査 (index と各親の差の積集合) と、commit 後の監査 (combined diff) とで、衝突の無い自動 merge の判定が食い違う。事前検査だけを見ると、自動 merge にも Codex author が要るように見える。
