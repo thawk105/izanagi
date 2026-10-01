@@ -15,8 +15,8 @@
 3. **原 attempt と R2 を並べた表** (`comparison.md`) を、原図と同じ生成器の読み込み関数 (全検査つき) で作った (§4)。group ごとに別々に計算し、合成していない。
 4. **図は、原図と同じ生成器で R2 の値から描けた** (`figures/fig2c_r2_b10_extended_backoff.png`)。生成器の受理検査・レイアウト検査・provenance の意味と閉包の検査をすべて通った (§5)。
    原図 (`docs/paper-story/figures/fig2c_*`) は変えていない。
-5. **計算の分け方に誤りがあった。** 並行 wave の共通指示 (1 job 5 分程度に分割、食い違えば投入前に相談) を、依頼文 (元の driver を前例と同じ形で) と食い違うのに自分で優先を決め、
-   1 job 約 1 時間 × 3 本を相談なしに投げた。ユーザーから指摘を受け、測定は完走させた (§6、failures に記録)。
+5. **計算を 1 job 5 分程度に分割しなかった。** 並行 wave の共通指示の分割規則を、依頼文 (元の driver を前例と同じ形で) と両立しないと親が推論して適用せず、
+   1 job 約 1 時間 × 3 本を投げた。ユーザーから指摘を受け、測定は完走させた (§6、failures に記録)。
 
 ## 0. R2 attempt の地位 — 結果より前に固定する (投入前に commit)
 
@@ -110,7 +110,7 @@ workload ごとにも 31 / 31 / 31 で、内訳は同じである。anomaly が�
 throughput は 5 反復の平均 ± t 分布 95% CI 半幅 (M tps)、abort rate は生成器が DAT と WAL で照合した集約値 (反復ごとの値は無く CI は付けない)。1000 µs は F718 で除外した行として残る。
 値は group ごとに別々に計算したもので、合成していない。数値の近さを再現精度として評価しない (§0 項 3)。
 
-各 group の throughput 平均が最大になった点 (記述のみ):
+各 group の throughput 平均が最大になった点 (記述のみ。F718 除外後の 0〜900 µs の 28 点の中で。除外行の 1000 µs を含めると原 attempt の read-heavy は 1000 µs の 10.275 が最大になる):
 
 | workload | 原 attempt | R2 |
 |---|---|---|
@@ -130,12 +130,15 @@ write-heavy の 3〜12 µs は隣の点との差が CI の幅と同じ程度で�
 - 図の見出しと caption は R2 の役割語 (「R2 attempt (re-measurement of the original fig2c group, separate from and not pooled with it)」) で、host は bnode074 / 076 / 077。
 - 再現コマンドは provenance の `reproduction` にある。
   `python3.10 -B /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/tools/t2853_r2_fig2c_plot.py --generator <repo>/tools/plotting/plot_b10_extended_backoff.py r2 --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001 --group b10-backoff-grid-20261001T012637Z-3721300 --out-prefix <repo 内の新しい出力先>`。
-  `<repo>` は生成器の sha256 が `04db851a…` の checkout (provenance の記録は本 wave の worktree の path)。出力先は生成器の provenance 閉包の契約で repo 内に限られる。
-- 図の見た目: write-heavy と balanced は数 µs で throughput が山になり、その後は下がる。read-heavy は 0 µs から単調に下がる。abort rate は 3 workload とも単調に下がる。
-  原図 (`docs/paper-story/figures/fig2c_b10_extended_backoff.png`) と同じ形の図だが、並べて重ねた図は作っていない。
+  `<repo>` は生成器 `plot_b10_extended_backoff.py` の sha256 が `04db851a…` **かつ**依存 `plot_backoff.py` の sha256 が `aa168498…` の checkout
+  (provenance の `generator` と `dependencies` の欄が描画時の両方の sha256 を持つ。本 wave の基準 main `5f9e8c549` がこの組。provenance の path は本 wave の worktree)。
+  依存の版が違うと描画・検査の結果が変わりうるので、生成器本体だけを合わせない。出力先は生成器の provenance 閉包の契約で repo 内に限られる。
+  外部入力は上の measurement root、wrapper は §5.2 の保管先にある。
+- 図の見た目 (R2 で観測した傾向の記述。F718 除外後の 0〜900 µs): write-heavy と balanced は数 µs で throughput が山になり、その後は下がる。read-heavy は 0 µs から単調に下がる。abort rate は 3 workload とも単調に下がる。
+  原図とは同じ生成器本体を使った別 attempt の図であり、両者を重ねた図は作っていない。形が同じかの判定はしていない (§0 項 3)。
 - R2 の図は論文図ではなく、再現パッケージの記録である。
 
-### 5.2 wrapper (repo 外の使い捨て)
+### 5.2 wrapper (この測り直し専用、repo 外の出力親に保管)
 
 生成器の bytes を変えずに R2 の group を描くため、repo 外の wrapper を Codex の実装子 (段 5) が書いた。repo には入れていない。
 保管先は R2 の出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/tools/t2853_r2_fig2c_plot.py` (sha256 `652f6b5cbf080372b7e77e1bb9f2b8d653b91c24de4966ddbaaa87474db23c97`)。
@@ -153,13 +156,26 @@ write-heavy の 3〜12 µs は隣の点との差が CI の幅と同じ程度で�
 ## 6. 費用と計算の分け方
 
 - 測定: 3 job の Elapse 合計 10,836 s = **3.01 node 時間** ((a) Elapse)。承認 (D2305 項 9) の 2.98 を 0.03 上回った。再投入は無かった。
-- 開発の検査: 受入全走 1 回 (見積り約 0.3 node 時間、land 調整役が相談不要と確認)。実測は worklog に書く。
+- 開発の検査: 受入全走 1 回を予定 (この版の時点で未実施。見積り約 0.3 node 時間、land 調整役が相談不要と確認)。実測は worklog に書く。
 - 図・表・集計は login で数秒ずつ (計算ノードは使っていない)。
-- **分け方の誤り:** 並行 wave の共通指示は「計算 job は 1 本あたり 5 分程度に分割」と「2 node 時間以上は投入前に land 調整役へ 5 点を送る」を定めていた。
-  親は依頼の「前例と同じ形で元の driver を使う」を優先すると単独で決め、1 job 約 1 時間 × 3 本を相談なしに投げた。ユーザーから「1 ジョブあたり 5 分くらいで分割したらもう終わってるのでは」と指摘された。
-  原 commit の driver・job body・sweep は workload だけを引数に取り、variant の部分集合を指定する口が無い (31 variant の測定順は seed で決まり campaign identity に入る) ので、
-  元の driver のままなら 3 job が最小単位だった。割るには部分集合 runner の新設が要り、campaign identity が変わって同じ生成器の検査と衝突する。
-  この択一を投入前に land 調整役へ出さなかったことが誤りである (failures fragment、memory `measurement-must-split-across-nodes` に再発防止を追記)。
+
+### 6.1 計算を分割しなかったこと
+
+当時の規則・親の判断・その後の指摘・新しい手順を分けて書く。
+
+1. **当時の規則 (投入前に明文であったもの):** 並行 wave の共通指示は「計算 job は 1 本あたり 5 分程度に分割」を定め、
+   同時に「md_N と食い違ったら md_N を優先」「2 node 時間以上は投入前に land 調整役へ 5 点を送る。ただし md_N がユーザー承認済みと書く計算量の範囲内は相談不要」とも書いていた。
+   依頼 md_4 は「前例 fig8b と同じ形で、元の driver を原 cohort の source commit で使う」と指定し、job の分割には触れていない。
+2. **親の判断:** 元の driver では分割できないと推論し (下の 3)、依頼と分割規則が食い違うとみなして「md_N 優先」で分割規則を適用しないと決めた。brief に 1 行書いただけで、投入前に誰にも示していない。
+   計算量はユーザー承認済みなので相談不要と読み、5 点も送っていない。その結果、1 job 約 1 時間 × 3 本を投げた。
+3. **分割の可否 (実測):** 原 commit の driver・job body・sweep は workload だけを引数に取り、variant の部分集合を指定する口が無い (31 variant の測定順は seed で決まり campaign identity に入る)。
+   元の driver のままなら 3 job が最小単位だった。割るには部分集合 runner の新設が要り、campaign identity が変わって同じ生成器の検査と衝突する。
+4. **その後の指摘:** 走行中にユーザーから「1 ジョブあたり 5 分くらいで分割したらもう終わってるのでは」と指摘され、land 調整役は「承認は計算量の承認で、分割の指示と相談を省いてよいという意味ではない」と伝えた。
+   測定は 3 job とも bench が済んでいたので止めずに完走させた。
+5. **振り返り:** brief は「設計択一なし」として段 2・3 を省いたが、元の driver を使う形と分割規則の両立はまさに択一 (元の形のまま / 部分集合 runner の新設 / 一部だけ先行) であり、見落とした論点である
+   (原 source commit を使うこと自体は依頼の直接指定で、brief が P1 を「親の provisional 裁定」と書いたのも不正確だった)。brief は逐語のまま残す (`verbatim/s1-brief.md`)。
+6. **新しい手順 (本 wave で足したもの、当時の規則ではない):** 依頼文と共通指示の計算規則が食い違うと判断したら、自分で優先を決めず、投入前に衝突と選択肢を 5 点に添えて land 調整役へ送る
+   (memory `measurement-must-split-across-nodes` に追記、failures fragment)。
 
 ## 7. 言わないこと
 
@@ -181,3 +197,21 @@ write-heavy の 3〜12 µs は隣の点との差が CI の幅と同じ程度で�
 - `verbatim/s5-author-prompt.md`・`verbatim/s5-author-report.md`・`verbatim/s5-verification.json` — wrapper の実装子 (Codex) の prompt・報告・照合。
 - `verbatim/draw-r2.log`・`verbatim/table.log` — R2 の描画と対照表の実行ログ。
 - repo 外: 出力親 `/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/` (receipt、job root 3 本、`tools/` に wrapper)。submit-tree は一時置き場 `/work/SFC/tanab/tmp/t2853-r2-fig2c-2026-10-01/submit-tree` (wave の終わりに撤去)。
+
+## 10. 段 6 レビュー
+
+commit `0b952aa74` を対象に、Codex の read-only レビューを 2 本並列で行った (`verbatim/s6-review-a.md`・`verbatim/s6-review-b.md`、prompt は同じ dir、どちらも受理検査 rc=0)。
+
+- **A (一次資料との照合・正しさ境界): GO (nit 1)。** レビュー子は 3 job の ID・host・開始終了・Elapse (合計 10,836 s)、6 job の source / CCBench / 凍結 digest、campaign identity、
+  WAL 6 本 930 行 (186 variant すべて build→verify→bench→commit が各 1 回、93 / 93 certified・anomaly 0 が両 attempt)、対照表の全 174 点 (平均・CI 半幅・abort rate の 522 値)、
+  provenance の外部入力 hash (22 / 22 × 2)、描画系列 18 系列を独立に再計算・照合して差 0 とした。wrapper の差し替えが §5.2 の列挙内であること、§0 が投入前の commit から不変であることも確かめた。
+- **B (過剰・誤読・削除): NO-GO (must-fix 1・should-fix 3・nit 1)。**
+
+| ID | 所見 | 判定 | 処置 |
+|---|---|---|---|
+| A-01 | 「最大」「単調」は F718 除外後の 0〜900 µs でだけ成り立つ (1000 µs を含めると原 read-heavy の最大は 1000 µs) | real (nit) | §4・§5.1 に範囲を明記 |
+| B-01 | 共通指示は「md_N 優先」「承認済み計算量は相談不要」を明文で書いており、「食い違えば相談」は当時の規則に無い。failures と結論がそれを当時の義務の違反として書いている | real | §6.1 と failures fragment を、当時の規則・親の判断・その後の指摘・新しい手順に分けて書き直した。恒久対応は本件の後に足した手順と明記 |
+| B-02 | 再現の checkout を生成器の sha256 だけで指定しており、依存の版を固定していない。wrapper を「使い捨て」と呼ぶ | real | §5.1 に依存の sha256 (`aa168498…`) と基準 main `5f9e8c549` を足し、生成器本体だけを合わせない旨を書いた。§5.2 の見出しを「この測り直し専用、repo 外の出力親に保管」に改めた |
+| B-03 | 「原図と同じ形の図」は判定基準なしの断定で、§0 項 3 に反する | real | 削り、R2 で観測した傾向の記述と「形が同じかの判定はしていない」に改めた |
+| B-04 | brief の「設計択一なし」と、分割の択一を出さなかった誤りが食い違う。P1 の原 source commit は依頼の直接指定 | real | §6.1 項 5 に振り返りとして書いた。brief は逐語のまま残す |
+| B-05 | 受入全走 1 回が予定か実施済みか不明 | real (nit) | §6 に「予定 (この版の時点で未実施)」と書いた |
