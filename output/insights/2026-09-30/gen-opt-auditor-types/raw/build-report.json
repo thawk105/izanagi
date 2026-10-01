@@ -1,0 +1,52 @@
+{
+  "A": {
+    "A2": {
+      "byte_match": true,
+      "first_difference": null
+    },
+    "A3": {
+      "byte_match": true,
+      "first_difference": null
+    },
+    "A4": {
+      "byte_match": true,
+      "first_difference": null
+    }
+  },
+  "B": {
+    "N0": {
+      "diff_digest": "0e21fe746dfaeeac123252fd852f4528cf19c62c1f1b6c10e501af2021763b32",
+      "diff_lines": 24
+    },
+    "M": {
+      "diff_digest": "0e21fe746dfaeeac123252fd852f4528cf19c62c1f1b6c10e501af2021763b32",
+      "diff_lines": 24
+    },
+    "F": {
+      "diff_digest": "0e21fe746dfaeeac123252fd852f4528cf19c62c1f1b6c10e501af2021763b32",
+      "diff_lines": 24
+    },
+    "B27": {
+      "diff_digest": "3a17912f9be6cfd0a4dd8ad968b1e3c20f401dd18b4d08db4686da7411d16d15",
+      "diff_lines": 11
+    },
+    "B28": {
+      "diff_digest": "309e90a576905974178f8ebcb40a6d2c78a69f6c70ac76e5ee3b55a57c4f1aa0",
+      "diff_lines": 10
+    },
+    "B29": {
+      "diff_digest": "68268ee56d0421e3ef1f7237581bacb11a67161313a9360b2a002884e5b621b8",
+      "diff_lines": 24
+    },
+    "B30r": {
+      "diff_digest": "50d5c160c29eedf8cec2589df5af96edb6e70ae2b3ea3ebe52dbc0ac2b988d80",
+      "diff_lines": 24
+    },
+    "B30q": {
+      "diff_digest": "7aabadc4f809098c86286356f8eee65fbac5cda33930f22f4926e10325fa54fd",
+      "diff_lines": 10
+    }
+  },
+  "specification_digest": "sha256:4566966a29b34e9d031d5354468710a689773edbb07d6ab2b647330b58bde522",
+  "source_head": "68106660686232781bca3be792a750d3e19d7a8a"
+}

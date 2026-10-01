@@ -44,7 +44,7 @@ PATCH = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
 PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
 CCBENCH = ROOT / "external" / "ccbench"
-PIN_FULL = "68106660686232781bca3be792a750d3e19d7a8a"
+PIN_FULL = "25898d00b9a6bbf09329ff8e8318c77d4f08b46e"
 # The preregistered t2417 producer runs from its historical series checkout.
 T2417_SERIES_PIN_FULL = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 T2417_SERIES_PIN = "511c953"

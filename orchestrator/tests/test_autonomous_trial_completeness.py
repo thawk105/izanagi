@@ -184,7 +184,7 @@ _T2304_POLICY_BOUND_CAMPAIGN_IDS = {
         "p3-t178-ycsb-a-workload-conditioned-autonomous-385d8a2d"
     ),
 }
-_CURRENT_POLICY_BOUND_CAMPAIGN_IDS = {
+_T2858_POLICY_BOUND_CAMPAIGN_IDS = {
     ("fixture-completeness", "ycsb-a"): (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-7e44fb98"
     ),
@@ -199,6 +199,23 @@ _CURRENT_POLICY_BOUND_CAMPAIGN_IDS = {
     ),
     ("trial-b", "ycsb-a"): (
         "p3-t178-ycsb-a-workload-conditioned-autonomous-e893c9fc"
+    ),
+}
+_CURRENT_POLICY_BOUND_CAMPAIGN_IDS = {
+    ("fixture-completeness", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-aed38117"
+    ),
+    ("fixture-completeness", "ycsb-b"): (
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-87c4c43c"
+    ),
+    ("fixture-completeness", "ycsb-c"): (
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-b625aa26"
+    ),
+    ("trial-a", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-28e2f30b"
+    ),
+    ("trial-b", "ycsb-a"): (
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-e2bc726d"
     ),
 }
 _T530_CONTRACT = A.env_contract.GENERATIONS["linux-baremetal"][0].contract
@@ -280,7 +297,7 @@ _T2304_WORKLOAD_CAMPAIGN_EPOCHS = (
         "p3-t178-ycsb-c-workload-conditioned-autonomous-38cdb6b4",
     ),
 )
-_CURRENT_WORKLOAD_CAMPAIGN_EPOCHS = (
+_T2858_WORKLOAD_CAMPAIGN_EPOCHS = (
     (
         "ycsb-a",
         "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e",
@@ -295,6 +312,23 @@ _CURRENT_WORKLOAD_CAMPAIGN_EPOCHS = (
         "ycsb-c",
         "p3-t178-ycsb-c-workload-conditioned-autonomous-4ac6e6a4",
         "p3-t178-ycsb-c-workload-conditioned-autonomous-5e88a3c9",
+    ),
+)
+_CURRENT_WORKLOAD_CAMPAIGN_EPOCHS = (
+    (
+        "ycsb-a",
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-4b75e24e",
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-aed38117",
+    ),
+    (
+        "ycsb-b",
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-136086b0",
+        "p3-t178-ycsb-b-workload-conditioned-autonomous-87c4c43c",
+    ),
+    (
+        "ycsb-c",
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-4ac6e6a4",
+        "p3-t178-ycsb-c-workload-conditioned-autonomous-b625aa26",
     ),
 )
 
@@ -4785,7 +4819,7 @@ def test_campaign_identity_is_pinned_without_producer_helper_oracle(
     )
     # T-671 で契約 H が identity から外れた current golden を独立に pin する。
     assert cell["campaign_id"] == (
-        "p3-t178-ycsb-a-workload-conditioned-autonomous-7e44fb98"
+        "p3-t178-ycsb-a-workload-conditioned-autonomous-aed38117"
     )
     assert _PRE_T343_NO_BUILD_CAMPAIGN_IDS[(
         "fixture-completeness", "ycsb-a",
@@ -5061,6 +5095,9 @@ def test_t428_workload_campaign_epoch_and_old_root_nonwrite(
     assert _CURRENT_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ] == new_campaign_id
+    assert _T2858_POLICY_BOUND_CAMPAIGN_IDS[
+        ("fixture-completeness", workload)
+    ] != new_campaign_id
     assert _T2304_POLICY_BOUND_CAMPAIGN_IDS[
         ("fixture-completeness", workload)
     ] != new_campaign_id

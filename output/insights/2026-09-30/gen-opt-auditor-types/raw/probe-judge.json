@@ -1,0 +1,407 @@
+{
+  "probe_valid": true,
+  "counts": {
+    "planned": 16,
+    "obtained": 16,
+    "matched": 13
+  },
+  "rows": [
+    {
+      "case": "A2",
+      "role": "before",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": []
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": "pass",
+      "matches_recorded": true,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "A2",
+      "role": "after",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": []
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": "pass",
+      "matches_recorded": true,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "A3",
+      "role": "before",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": []
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": "pass",
+      "matches_recorded": true,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "A3",
+      "role": "after",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": []
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": "pass",
+      "matches_recorded": true,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "A4",
+      "role": "before",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": []
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": "pass",
+      "matches_recorded": true,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "A4",
+      "role": "after",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": []
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": "pass",
+      "matches_recorded": true,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "N0",
+      "role": "before",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": [],
+        "gate_path": "grammar"
+      },
+      "match": null,
+      "exact_match": null,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "N0",
+      "role": "after",
+      "verdict": "pass",
+      "violation_types": [],
+      "expected": {
+        "verdict": "pass",
+        "violation_types": [],
+        "gate_path": "grammar"
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "M",
+      "role": "after",
+      "verdict": "uncertain",
+      "violation_types": [],
+      "expected": {
+        "verdict": "uncertain",
+        "violation_types": [],
+        "gate_path": "grammar"
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "F",
+      "role": "after",
+      "verdict": "uncertain",
+      "violation_types": [],
+      "expected": {
+        "verdict": "uncertain",
+        "violation_types": [],
+        "gate_path": "grammar"
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "B27",
+      "role": "after",
+      "verdict": "reject",
+      "violation_types": [
+        13,
+        25,
+        27,
+        30
+      ],
+      "expected": {
+        "verdict": "reject",
+        "violation_types": [
+          27
+        ],
+        "gate_path": "text-only"
+      },
+      "match": false,
+      "exact_match": false,
+      "digest_ok": true,
+      "location_hit": false,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "B28",
+      "role": "after",
+      "verdict": "reject",
+      "violation_types": [
+        13,
+        28,
+        30
+      ],
+      "expected": {
+        "verdict": "reject",
+        "violation_types": [
+          28
+        ],
+        "gate_path": "text-only"
+      },
+      "match": true,
+      "exact_match": false,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "B29",
+      "role": "after",
+      "verdict": "reject",
+      "violation_types": [
+        3,
+        19,
+        29,
+        30
+      ],
+      "expected": {
+        "verdict": "reject",
+        "violation_types": [
+          29
+        ],
+        "gate_path": "text-only"
+      },
+      "match": true,
+      "exact_match": false,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "B30r",
+      "role": "before",
+      "verdict": "reject",
+      "violation_types": [
+        16
+      ],
+      "expected": {
+        "verdict": "reject",
+        "violation_types": [
+          30
+        ],
+        "gate_path": "grammar"
+      },
+      "match": null,
+      "exact_match": null,
+      "digest_ok": true,
+      "location_hit": false,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "B30r",
+      "role": "after",
+      "verdict": "reject",
+      "violation_types": [
+        30
+      ],
+      "expected": {
+        "verdict": "reject",
+        "violation_types": [
+          30
+        ],
+        "gate_path": "grammar"
+      },
+      "match": true,
+      "exact_match": true,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    },
+    {
+      "case": "B30q",
+      "role": "after",
+      "verdict": "reject",
+      "violation_types": [
+        9,
+        13,
+        27,
+        30
+      ],
+      "expected": {
+        "verdict": "reject",
+        "violation_types": [
+          30
+        ],
+        "gate_path": "text-only"
+      },
+      "match": true,
+      "exact_match": false,
+      "digest_ok": true,
+      "location_hit": true,
+      "note_ok": true,
+      "recorded_verdict": null,
+      "matches_recorded": null,
+      "model_ids": [
+        "claude-opus-5-5"
+      ],
+      "rc": 0,
+      "error": ""
+    }
+  ]
+}

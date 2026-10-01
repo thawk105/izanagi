@@ -75178,3 +75178,124 @@ T-2872・T-2905 は人間の手番が済んで完了 (gitlink は T-2919・T-291
 - 最良設定の Cicada (修正入り) を C の SOTA とする — 長い読み手による保持の既知の解を無視する。
 - Steam 型だけを SOTA と決める — 空間の上界と dusty corners では range-tracking 型が強い。
 - 「残る差が弱く採用しない」と判定する — 事前記述 K3 は、減らせる対象を特定できれば推奨し、量は仮説として書くと定めた。
+
+## D2341. 構成 E の書き込み検査の走査中の回収 (md_36 §3.2) は、試作では GC flag の静止条件が塞ぐと読み、一般の E 向けの規則として公開値の上限 (候補 b) を overlay patch にする。その効果は実機で確かめられず、U0 の利得の約 7 割を失う (2026-10-01)
+
+**決定 (VHash 論文 md_39、一次資料 `output/insights/2026-09-30/vhash-econn-wscan-fix/README.md`):**
+1. **試作の構成では md_36 §3.2 の列に届かない、と読む。** Cicada の leader は全 thread の GC flag を待って境界を 1 round 進め、長い tx T は commit の設置から書き込み検査の走査の終わりまで flag を立てない。§3.2 の列には Z の終了後に 2 round が要る (前進しない thread の floor が 1 round 遅れるため) ので、走査中には届かない。主 workload の遅延を掛けた走査 2.3 万回と、update key を揃えた 1.8 万回 (挿入の到達 311 回) で、遅延中の round は最大 1、回収の検出は 0 だった。この塞ぎは構成 E の規則ではなく、前進しない thread が無い一般の E、または commit 中に静止を宣言しうる設計では列は成立する。md_36 §3.2 の「T の中断で round が 2 つ進む」は静止の条件を見落とした読みとして、同資料を訂正する側 (本資料 §6) に置く。
+2. **修理は候補 (b)** — 前進の成功時の公開 Rts を min(t′−1, 各書き込み key の t′ で見える確定版の wts の最小) に抑える — を `patches/cicada-forwarding-wscan-cap.patch` (V・G・T の上、実行時 flag なし、新 macro なし) とし、壊し正例と計器の patch を添える。論証は「その版とその上の版は回収の根を持てない」で、前提 MinRts ≤ T の現在の Rts (境界の読み、未解決) を置く。
+3. **修理の効果は実機で確かめられなかった。** 事前登録した壊し正例 (K1+K2) は到達したが発火せず、修理の判定は事前登録どおり「判定不能」。
+4. **費用:** skew 0 の主 workload で E-hb からの改善のうち境界の遅れで 28%、生存版数で 27% しか残らない (計器入り build の診断値)。
+5. S2 (D2332) の E_sp に修理版を使うかは発効の wave が決める。本決定は推奨しない。
+
+**理由:**
+- 候補 (a) (書き込み key を持つ tx は floor を公開しない) は、主 workload の長い tx (1 update) を処置の外へ出し、D2332 項 3 の停止条件に当たる。候補 (c) (走査中の版の物理保護と検査のやり直し) は規模が大きく、論理の到達も別に示す必要がある。
+- (b) は md_26 の PUB (p ≤ t′) の形に収まり、走査の原子性 (A1) を使わずに補題 P の 3 の除外を置き換えられる。
+- 静止の塞ぎを「規則」として採るかは、前進しない thread の存在に依るので、論文の主張の置き方の判断になる。
+
+**却下した選択肢:**
+- 修理を試作の既定にする (V・G・T を書き換える) — md_33 がその上に M を重ねて検査中で、利得の減りが大きく、効果も実機で確かめられていない。
+- 新 macro を足して計器を gate に登録する — 並走 wave と同じ登録簿を編集し、既存 macro の複合条件で足りる。
+- 壊し正例の未発火を見て、事前登録の外の追加走で判定を差し替える — 遅延 10 ms の探索走は事前登録外として別に記録し、判定には使わない。
+
+## D2342. CCBench の pin を C から F へ進め、F で厳密適用が外れる壊し patch 4 本は作り直さず、C に独立束縛の系列と生成器対照の本走は C のまま残す (2026-10-01)
+
+**決定 (親の実施判断。ユーザーの再裁定ではない):** D2277 項 1・D2293・D2322 項 6 に従い、gitlink `external/ccbench`・`s8b_approved.CCBENCH_FULL_SHA`・`pin.CURRENT_PIN` を同一 commit で C `68106660686232781bca3be792a750d3e19d7a8a` から F `25898d00b9a6bbf09329ff8e8318c77d4f08b46e` (7 桁 `25898d0`) へ進めた。手順と追随の範囲は D2150 / D2184 と直近の同型前進 (D2227 項 1) と同じで、現行 pin を独立 literal で主張する test・実 checkout を照合する test と probe・admission policy epoch に束縛された golden だけを F へ追随し、C epoch の値は歴史 golden として保持した。次の 3 点を併せて決めた。
+
+1. **F で `git apply` (fuzz なし) が外れる patch 4 本 (`broken-mocc-early-unlock`・`broken-mocc-hot-update-unlock`・`broken-silo-corrupt-write-payload`・`broken-silo-published-version-mismatch`) は、この前進では作り直さない。** 4 本とも壊し (positive control) で、MOCC の 2 本の consumer は e9e477ca に独立束縛の driver と test、Silo の 2 本は condition gate の静的登録と一回限りの変異走だけで、現行 pin に自動で当てる経路が無い (段 6 レビュー 2 本も同じ結論)。作り直すなら、F の上で壊れ方が発火することを実走で示すまでを 1 単位とする。
+2. **C に独立束縛の literal は据え置く。** MOCC の関数方策の campaign pin (`p3_s4_loop.campaign_pin_for_protocol("mocc")` と MOCC の較正の注記)、VHash の Cicada 系列の `PIN` (`vhash_cicada_hot_block`・`vhash_cicada_vlife`)、MOCC 候補の proof の `C`、test の fake `ccbench_head`。いずれも C で測った・登録した系列を束縛しており、現行 pin との一致を主張しない。
+3. **生成器対照の本走 (D2305 項 1、pin C 固定) は影響を受けない。** 本走の submit checkout 16 本は固定 commit の detached worktree で submodule の格納域も worktree ごとに別であり、main の gitlink 変更は届かない。ただし Silo の方策 driver は `pin.CURRENT_PIN` を読むので、新しい main から submit checkout を作り直すと pin は F になる。本走は固定 checkout のまま完走させる。
+
+**理由:**
+- 前提は実測で確かめた: GitHub (HTTPS) の fresh clone で F を取得でき (C は祖先、C..F は 4 commit・4 file で CMake に触れない)、F の check-runs は build・format-check とも success。
+- 4 本の壊し patch は、現行 pin の成果物 (certified 選択・レポート・台帳) の値・受理集合・参照を変えない。作り直しを前進に抱き合わせると、壊れ方の発火の実走まで前進の land が延び、F の上に積む修理 (Silo・MOCC)・正しさ関門の記録の前提を遅らせる。
+- 規律 7: C で測った系列と登録を、現行コードとの差だけを理由に張り替えない。
+
+**却下した選択肢:**
+- 4 本を今 F に合わせて文脈だけ書き換える — 壊れ方が F で発火するかを確かめないまま「壊し」と名乗る patch を増やすことになる。
+- MOCC 方策・VHash の C 束縛を `pin.CURRENT_PIN` へ寄せる — 登録済み系列の pin が黙って F に変わる。
+
+## D2343. D297 検査器の Cicada 対応は CONTEXT_MACROS への登録でなく、検査器の中で Cicada の値 macro 4 個の 16 組合せを列挙して比べる形にし、束ねた tip の条件 (2) は合成 A→B′ の D297 pass で示す (2026-10-01)
+
+**決定 1:** `tools/check_trace0_preprocess_identity.py` は `cc/cicada/` 配下の `.cc` について、old/new 各 commit の Cicada の CMake 供給値を `Genome("cicada", {})` と `_head_defines` で取り、両側の供給集合の一致と INLINE_VERSION_OPT・INLINE_VERSION_PROMOTION・SINGLE_EXEC・WORKER1_INSERT_DELAY_RPHASE の値が 0/1 であることを確かめてから、4 値の直積 16 組合せ × 既存 overlay 2 = 32 文脈で正規化前処理出力と include 活性を比べる。期待件数は path ごとに列挙元から導出し、実比較数と食い違えば拒否する。未登録の macro は従来どおり停止する。`orchestrator/campaign/source_digest.py` の CONTEXT_MACROS と digest の bytes は変えない。
+
+**決定 2:** CCBench の修正を束ねた tip について、D2322 項 4 の条件 (2) (F → tip の TRACE=0 差分が修正の hunk だけ) は、合成 A (親 F、tree = F に各修正 tip の F からの diff を `git apply` で独立に当てたもの) → B′ (親 A、tree = 束ねた tip の tree) の D297 pass (GCC 11・12) と、F と各修正 tip から作った修正 hunk の manifest で示す。修正 hunk そのものを D297 が認証したとは書かない (両側に同じ修正が入るため)。
+
+**理由:**
+- D2322 項 4 は「cicada の文脈 macro を検査器の既知一覧 (CONTEXT_MACROS) へ登録する」と書くが、CONTEXT_MACROS は TU 内 `#define` で注入される macro の素/define 2 文脈用で、2 個以上は結合枝を覆えないので停止する設計であり、ここへ足すと digest の bytes (src token・凍結の閉包) が変わる。Cicada の 4 macro は CMake が `-D` で値を与える macro なので、値の組合せを検査器の中で列挙するのが同じ目的 (未知マクロ停止の解消、緩和しない) を最小の波及で満たす。
+- 名前を既知集合に足すだけでは、その macro で条件づけられた枝が比べられないまま通る (緩和)。組合せを実際に列挙し、既定値と反対の値でだけ生きる枝の差を拒否する負例と、列挙を縮める・名前だけ既知にする・期待件数を実数から導出する変異が殺されること (`output/insights/2026-09-30/ccbench-fix-bundle/README.md` §6、変異 7/7) で拡張であることを示した。
+- 合成 A→B′ は Silo の先例 (D2322 が条件 (2) として認めた「pin + 修正 → 新 tip」の D297 (b)) と同形で、merge の解決と非修正の差分 (正しさ関門の記録) が TRACE=0 に何も足していないことを機械判定できる。F → 束ねた tip の直接比較は修正を含むので構造上不合格になり、条件 (2) を示さない。
+
+**却下した選択肢:**
+- source_digest.py の CONTEXT_MACROS へ 4 macro を足す — digest の bytes と凍結の閉包が変わり、単一文脈列の設計の再設計が要る。
+- 4 macro を既知集合に名前だけ足す — 緩和。
+- 条件 (2) を F → 束ねた tip の D297 の不合格箇所の目視で示す — 検査器は最初の不一致で止まり、差分が修正の箇所に閉じることを示せない。人の目だけの受け入れは D2322 項 4 が却下。
+
+## D2344. VHash 論文ストーリーの 4 版目は依頼どおり wave 開始時の local main を起点にし、その後に着地した md_42・md_43 の結論は本文に入れず README の stale 注記で指す。§0 では方針「条件 C で最高水準より大きく速い」の証拠が起点で無いことと、判定材料の md_42 が稼働中であることを隠さずに書く (2026-10-01)
+
+**決定:** (版 `docs/paper-story-vhash/2026-10-01.md`、第 3 稿 `output/insights/2026-10-01/vhash-manuscript-draft-v3/README.md`)
+1. 版の起点は wave 開始時の local main `74029b18f` (2026-10-01 00:32 JST の fold、worklog エントリ 1998) とする。依頼が「稼働中の md_39・md_42・md_43 の結論は先取りせず『未着地』と書く」と明示しているので、
+   wave が利用上限で止まっている間 (00:4x〜09:4x JST) に md_42 が着地しても (04:57 JST、D2337)、本文には取り込まない。起点の後に着地した md_42 と md_43 (10:03 JST、D2340) は README の stale 注記に所在と要点を積む。
+2. §0 は D2322 項 1 の案 2 で書く。芯は U0 (実行中の前進を確認 → 確定 → 公開の順で保護下限へ反映する機構)。U1 は、実在する構成 C (論理 K 境界、throughput の差なし) と未実装の構成 D (hot の外れで前進し GC へ反映) を分けて書く。
+   題名の案は副題を目的の句でなく機構の句にし、回収を縮める目的・境界の規則・前進そのものを新規と読ませない。どの題名を使うかは本文の改版で決める。
+3. §0.2 に方針との照合表を置き、親の読みとして次を書く: (a) 方針の形の証拠は起点で無い (U0 の throughput の差は stock に対しても未検出、U1・hot も差なし、修正済みの最良 Cicada とはどの構成も未比較)、
+   (b) 方針に照らした判定材料は md_42 (T-2962、構成 E を含む機構を最良設定の Cicada と直接比べる) で、起点で稼働中、(c) 確認段 S2 の主指標は回収境界の遅れと生存版数で、方針の問いに直接は答えない、(d) 長い読み手の費用は今の U0 の対象外。
+   方針の出所は依頼の文で、起点の正典に記録は無いと書く。
+4. 第 3 稿は、第 2 稿の付録 C の空欄のうち md_33・md_35・md_37 を埋め、md_44 を §2.3・§8 に足し、埋めたことで食い違う記述 (中間案 M の「未実装」など) だけを直す。md_39 は空欄のまま残す。md_42・md_43 は起点で未着地とし、冒頭に所在の指し先だけを書く。
+
+**理由:**
+- 依頼の「未着地と書く」は明示の出力指定で、後から着地したことはこの指定を解く指示にならない。起点を wave 開始時に限れば「未着地」は偽でない。
+- 「md_42 が判定材料であることを §0 で隠さない」は、判定材料であることの説明で満たせ、結論の取り込みを要しない。結論は stale 注記が指すので、読み手は失わない。
+- 第 3 稿は依頼が埋める範囲を名指しで限っている。
+- README の契約は、版を起点の正典から導出し、起点の後の着地を stale 注記で指すと定める。執筆中の着地を追って起点を進めると版が閉じない。
+
+**却下した選択肢:**
+- 起点を md_42 の着地後 (`63378acb8`) へ進め、md_42 を着地済みの入力として扱う — この wave は一度この形で書いた。段 6 の独立レビュー (B1、must-fix) が依頼の明示指定に反すると指摘し、親は (i) 指定の主語は「稼働中の」wave で前提が崩れた、
+  (ii) 着地した起点で「未着地」と書くと偽になる、(iii) §0 から結論を外すと「隠さない」の趣旨に反する、(iv) 食い違いを開示した、と反論した。焦点再レビューは、時点を限れば「未着地」は偽でない、
+  判定材料であることの説明と結論の取り込みは別、第 3 稿の「だけ」という独立の制限が残る、開示は承認にならない、と反論の各点を崩した。親はその反例を否定できなかったので推奨を採り、起点を戻した。
+- §0.2 で「U0 も方針を満たさない」と書く — 方針に照らした U0 の判定材料は起点に無い。
+- 第 3 稿の本文に md_42 を入れる — 依頼が名指した範囲を超える。
+
+## D2345. B-4 床値は集約を採用し pin 値を確定する。§5 floor セルへの記入は、記入で止まる test を直す実装 wave が同じ commit で行う (2026-10-01)
+
+**決定 (D1641 決定 1・2 の委任の下で AI が行う採用裁定):**
+
+1. **採用する。** B-4 床値として集約
+   `output/env/pegasus/floor-pair/t2288-f1/b4-floor-aggregate__env-pegasus__protocol-silo__threads-48__workload-set-7095cfaaa30f9b4f5228__campaign-set-3553fb844072ea43111a.json`
+   (sha256 `4896a1fd1735667c62a6ce8200d3f70faf9bc0d08e0afe7c6970e61f69d7dbdf`、床値 `436449544102615 / 2^52` ≈ 0.09691) を受理する。
+   §5 floor セルへ書く値はこの path と hash の `artifact_path=<path>; sha256=<hash>` で確定し、後から集約・統計関数・対象集合を
+   選び直さない。
+2. **記入は本裁定では行わない。** 記入した木では、spec が束縛する追跡外の binary
+   (`output/env/pegasus/binaries/7cdf0dc3…`、checkout ごとに `place` する ignored file) を置いていない checkout で、resolver が pin を
+   拒否し材料レポートが評価器の前で止まる。B-4 系の test は 34 failed + 2 errors になった (記入を戻した木では同じ 4 file が 259 passed)。
+   直すには test の変更が要る。
+3. **記入の手順を次のとおりに定める。** 実装 wave (Codex author) が、(a) 材料レポート系と raw record producer の test が
+   実文書の floor 状態に依存しないよう文書入力を fixture へ切り替え、(b) 実文書を読む回帰 test
+   (`test_resolver_real_preregistration_is_absent` ほか) を登録後の期待へ更新し、(c) 実文書を消費する checkout には既存の
+   `b4_binary_record place` で binary を置く。floor セルの記入はその wave の同じ commit で行い、記入値は決定 1 のものに限る。
+   製品コードの受理条件 (binary の実在・hash・receipt・calibration の検査) は変えない。
+4. **floor_domain_error への影響。** 欄が `未記入` の間は従来どおり floor 不在が評価器へ渡り、分析に到達すれば
+   `floor_domain_error` → protocol violation になる。pin が検証を通れば正確な分数の floor が渡り、floor 欠落による固定は外れる
+   (他の理由 enum・分岐・B-4 の未実走は変わらない)。pin が拒否されれば材料レポートは `authoritative_floor_rejected` で止まり
+   verdict を出さない。事前登録 §11.0 の 2026-09-08 追記の「拒否時も floor 不在が渡る」は現行コードと一致しないが、本決定では
+   事前登録を編集しない。B-4 の「未実走・記述統計に限定」は変わらない。
+5. **submit-tree。** 撤去の可否を問われた `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2288-floor-pair-w1/submit-tree` は既に存在せず、
+   撤去対象は無い。
+
+**理由:**
+- D1641 決定 3 の受理条件 (1 窓・1 セル n = 62 (D1695)、欠測 0、2 窓の分離約 231.6〜231.8 h、上限 < 1) を窓 JSONL と集約の実物で
+  確かめた。期待 spec 3 組は実 file と D2138 項 7 の表に全桁一致し、spec の追加 commit `0b4fbd7a6` の記録時刻は最初の測定の
+  開始より前である (順序の照合であり、結果を見る前の選定の証明ではない)。probe と binary の同一は前 wave の証拠確認者の記録に依る。
+  事前無作為化は確認しておらず、spec が algorithm と seed を凍結していることだけを読んだ。
+- 記入を強行すると main の受入が赤になり、binary を置いていない checkout で材料レポート (Phase 3 主経路の片翼) が生成できない。
+  依頼の範囲 (docs のみ、所有は floor セルだけ) では直せない。
+- 採用と記入を分けても事前登録に反しない。値と対象集合は結果を見たうえで変えておらず、記入は事前登録の発効でもない。
+- 読み取り専用の codex 2 本 (正しさ境界・整合のレンズと、実効性・過剰のレンズ) が記入保留を支持した。逐語は
+  `output/insights/2026-10-01/t2288-floor-adoption/`。
+
+**却下した選択肢:**
+- **本 wave で記入し、壊れる test を実装子に直させる** — 依頼の所有と「docs のみ」を超える。
+- **floor 消費時に binary の検査を省く、または pin の拒否を `None` (floor 不在) に戻す** — 今拒否している入力を受理する方向で、
+  規律 2 に反する。
+- **binary を置いた自分の作業木だけで記入して land する** — 他の checkout と受入で同じ赤が出る。
+- **不採用** — D1641 決定 3 の不採用条件 (欠測 5% 超、上限 1 以上) に当たらず、測定と集約に不備が見つかっていない。

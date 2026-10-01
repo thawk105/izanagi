@@ -1,0 +1,48 @@
+== tips (src remote-tracking)
+eb93423bbb27a2694d3d75861696c365f0fb8f7c refs/remotes/src/izanagi-cicada-build-fix
+81fc4a84cc855a3f98374e40e2ba7e3330c2614d refs/remotes/src/izanagi-cicada-gc-records-fix
+16ad3eb8ca5f7bb3aea789bff99958e2192f6714 refs/remotes/src/izanagi-cicada-promotion-uaf-fix
+dcb9a41f3e538744298b0e5c42dc37349bac114e refs/remotes/src/izanagi-gate-witness-trace
+f4a5169ede52630d9357444e3412ffe9aed7c78f refs/remotes/src/izanagi-mocc-validation-fix
+dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43 refs/remotes/src/izanagi-silo-intra-txn-fix
+Automatic merge went well; stopped before committing as requested
+merge 1-silo: 6ea3cafca45f74a69ef048a75ddde4f7705a2837 parents=25898d00b9a6bbf09329ff8e8318c77d4f08b46e dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43
+Automatic merge went well; stopped before committing as requested
+merge 2-mocc: 22935fc0f2cbc7ca789f8f1a2650c1e6e9db40d8 parents=6ea3cafca45f74a69ef048a75ddde4f7705a2837 f4a5169ede52630d9357444e3412ffe9aed7c78f
+Automatic merge went well; stopped before committing as requested
+merge 3-cicada: 13708dd193570ee9f73da85b5983e374a7f14907 parents=22935fc0f2cbc7ca789f8f1a2650c1e6e9db40d8 16ad3eb8ca5f7bb3aea789bff99958e2192f6714
+Auto-merging cc/silo/transaction.cc
+Automatic merge went well; stopped before committing as requested
+merge 4-gate: 9035509829f005aaaddf44fa5ca431851c2ecdac parents=13708dd193570ee9f73da85b5983e374a7f14907 dcb9a41f3e538744298b0e5c42dc37349bac114e
+== tip 9035509829f005aaaddf44fa5ca431851c2ecdac tree 27ef1f5bec07e87e5f4207bf237c65eb21728aeb
+== ancestors
+ok 25898d00b9a6bbf09329ff8e8318c77d4f08b46e
+ok dbac49b6dc2d2ab9211b1ec0a41e44fa21245f43
+ok f4a5169ede52630d9357444e3412ffe9aed7c78f
+ok 16ad3eb8ca5f7bb3aea789bff99958e2192f6714
+ok eb93423bbb27a2694d3d75861696c365f0fb8f7c
+ok 81fc4a84cc855a3f98374e40e2ba7e3330c2614d
+ok dcb9a41f3e538744298b0e5c42dc37349bac114e
+== F..tip paths
+cc/cicada/include/cicada_op_element.hh
+cc/cicada/include/transaction.hh
+cc/cicada/include/tuple.hh
+cc/cicada/transaction.cc
+cc/mocc/transaction.cc
+cc/silo/transaction.cc
+include/trace.hh
+include/ycsb.hh
+== silo #line (tip vs silo fix)
+#line 365 #line 381 #line 638 #line 661 #line 682 #line 703
+#line 365 #line 381 #line 638 #line 661 #line 682 #line 703
+== per-path blob: tip vs source tip
+same cc/mocc/transaction.cc
+same cc/cicada/transaction.cc
+same cc/cicada/include/cicada_op_element.hh
+same cc/cicada/include/transaction.hh
+same cc/cicada/include/tuple.hh
+same include/trace.hh
+same include/ycsb.hh
+/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle is okay
+bundle verify ok
+49d2e5bd31d1cc5d5e93553c2726d504961aa0599d43bc09ac0f29f6a1ca9295  /work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle

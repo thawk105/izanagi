@@ -1,0 +1,195 @@
+{
+  "accepted": true,
+  "binary_sha256": "a15229d7e4c41f2d590672838cefbb80ea9449216e36e97745006d5512cdfde7",
+  "build": {
+    "argv": [
+      "cmake",
+      "--build",
+      "/scr/cfb-mocc-vb_ddbnh/build",
+      "--target",
+      "ycsb_mocc.exe",
+      "-j",
+      "4"
+    ],
+    "rc": 0,
+    "seconds": 14.037,
+    "timeout_seconds": 1800
+  },
+  "configure": {
+    "argv": [
+      "cmake",
+      "-S",
+      "/scr/cfb-mocc-vb_ddbnh/ccbench",
+      "-B",
+      "/scr/cfb-mocc-vb_ddbnh/build",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+      "-DCCBENCH_TRACE=1",
+      "-DCCBENCH_BACKOFF_FIXED=-1",
+      "-DCCBENCH_BACK_OFF=1",
+      "-DCCBENCH_KEY_SORT=0",
+      "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-mocc-vb_ddbnh/dependencies/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-mocc-vb_ddbnh/dependencies/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-mocc-vb_ddbnh/dependencies/thirdparty-src/googletest"
+    ],
+    "rc": 0,
+    "seconds": 0.774,
+    "timeout_seconds": 900
+  },
+  "errors": [],
+  "host": "bnode016",
+  "mode": "mocc",
+  "preregistered": "cycles=0, integrity numeric=0, C rows=commit count",
+  "runs": {
+    "mocc": {
+      "accepted": true,
+      "c_lines": 1557661,
+      "certified": true,
+      "commits": 1557661,
+      "cycles": 0,
+      "gate_witness": null,
+      "integrity_numeric": {
+        "dup_txids": 0,
+        "framing_violations": 0,
+        "genesis_commits": 0,
+        "lock_coverage_violations": 0,
+        "malformed_keys": 0,
+        "missing_txids": 0,
+        "orphan_reads": 0,
+        "permutation_violations": 0,
+        "version_dups": 0,
+        "write_intent_violations": 0,
+        "write_version_mismatch": 0
+      },
+      "read_wts_mismatch": null,
+      "run": {
+        "argv": [
+          "/scr/cfb-mocc-vb_ddbnh/build/cc/mocc/ycsb_mocc.exe",
+          "-ycsb_tuple_num=1000000",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=95",
+          "-ycsb_rmw=0",
+          "-ycsb_max_ope=10",
+          "-thread_num=48",
+          "-extime=1"
+        ],
+        "rc": 0,
+        "seconds": 1.477,
+        "timeout_seconds": 180
+      },
+      "verdict": "serializable",
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/scr/cfb-mocc-vb_ddbnh/trace-mocc",
+          "--json",
+          "--protocol",
+          "mocc",
+          "--ccbench-root",
+          "/scr/cfb-mocc-vb_ddbnh/ccbench",
+          "--expected-commits",
+          "1557661"
+        ],
+        "rc": 0,
+        "seconds": 31.963,
+        "timeout_seconds": 900
+      }
+    }
+  },
+  "stages": {
+    "build": {
+      "argv": [
+        "cmake",
+        "--build",
+        "/scr/cfb-mocc-vb_ddbnh/build",
+        "--target",
+        "ycsb_mocc.exe",
+        "-j",
+        "4"
+      ],
+      "rc": 0,
+      "seconds": 14.037,
+      "timeout_seconds": 1800
+    },
+    "clone": {
+      "argv": [
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scripts-v3/verify_inputs.sh",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle",
+        "9035509829f005aaaddf44fa5ca431851c2ecdac",
+        "/scr/cfb-mocc-vb_ddbnh/ccbench"
+      ],
+      "rc": 0,
+      "seconds": 0.512,
+      "timeout_seconds": null
+    },
+    "configure": {
+      "argv": [
+        "cmake",
+        "-S",
+        "/scr/cfb-mocc-vb_ddbnh/ccbench",
+        "-B",
+        "/scr/cfb-mocc-vb_ddbnh/build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACKOFF_FIXED=-1",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_KEY_SORT=0",
+        "-DCCBENCH_TEMPERATURE_RESET_OPT=1",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-mocc-vb_ddbnh/dependencies/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-mocc-vb_ddbnh/dependencies/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-mocc-vb_ddbnh/dependencies/thirdparty-src/googletest"
+      ],
+      "rc": 0,
+      "seconds": 0.774,
+      "timeout_seconds": 900
+    },
+    "dependencies": {
+      "rc": 0,
+      "seconds": 10.941
+    },
+    "mocc.run": {
+      "argv": [
+        "/scr/cfb-mocc-vb_ddbnh/build/cc/mocc/ycsb_mocc.exe",
+        "-ycsb_tuple_num=1000000",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=95",
+        "-ycsb_rmw=0",
+        "-ycsb_max_ope=10",
+        "-thread_num=48",
+        "-extime=1"
+      ],
+      "rc": 0,
+      "seconds": 1.477,
+      "timeout_seconds": 180
+    },
+    "mocc.verifier": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "-m",
+        "orchestrator.verifier",
+        "/scr/cfb-mocc-vb_ddbnh/trace-mocc",
+        "--json",
+        "--protocol",
+        "mocc",
+        "--ccbench-root",
+        "/scr/cfb-mocc-vb_ddbnh/ccbench",
+        "--expected-commits",
+        "1557661"
+      ],
+      "rc": 0,
+      "seconds": 31.963,
+      "timeout_seconds": 900
+    }
+  },
+  "tip": "9035509829f005aaaddf44fa5ca431851c2ecdac"
+}
