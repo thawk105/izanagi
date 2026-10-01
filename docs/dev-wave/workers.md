@@ -8,7 +8,7 @@ file:line粒度のplanを起草させる。
 ## DW-S03 — 段 3 敵対相談
 
 codex `reasoning=ultra`、`sandbox=read-only` で異なるレンズへ並列起動し、プランを守らせず検査させる。
-正しさ境界・整合・実効性と過剰・削除（研究前進・実測欠陥への対応、削除・局所修正の可否）に分け、
+正しさ境界・整合・実効性と過剰・削除(研究前進・実測欠陥への対応、削除・局所修正の可否)に分け、
 親brief自身も検査対象だと明記する。briefのfile:line、前提、
 所有範囲、変異の帰属不成立、**親自身の実測値とその一般化**を探させる。
 gate・検査を新設するwaveでは成果物が実際に効く全層がscopeに入るかを必ずレンズに入れ、
@@ -17,7 +17,7 @@ scope外の層を実装したふりにせず裁定パッケージ候補として
 ## DW-S05-A — 段 5 所有と投入
 
 所有path素集合の単位ごとに別worktree(`-b`必須)。作成時job dirのmanifest(形式・rename規則はtool冒頭)へ登録(補助・probe木も)後起動、fixは同木・同branch。依存完了後、所有path限定patch
-（`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成SHA。隔離sessionは`git -C`不可）だけ展開し並列投入。
+(`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成SHA。隔離sessionは`git -C`不可)だけ展開し並列投入。
 投入直前にcdせず`tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0で停止。
 直後に段1のconsumer検索をlocal mainで再走し差を裁定へ(F1014)、gate実測NOTE≠0ならanchor再読。
 起動器はauthor/fixの全残差を終端commit、待ち手は`--commit-worktree <abs>`指定。記録のみ(D2044項16)。
@@ -31,10 +31,10 @@ codex は `reasoning=ultra`、`sandbox=workspace-write` とする。
 
 実装子のpromptに次を全部入れる。
 
-- 緑には実走nodeid・範囲を併記。子の実走は親の全走を代替せず、実走不能なら`closed`でなく「実装済み・未実走」と書く。
-- テスト新設・改名は親の名指しを網羅と見なさず、制約meta-testを自ら洗い出し走らせる（F42）。
-- fixtureへの現行hash差し込み等、テストを甘くして緑にしない（F27）。
-  機構の正例・負例は実体を名指しし依存先をstubしない（F649）。
+- 緑には実走nodeid・範囲を併記。子の実走は親の全走を代替せず、実走不能(run_tests.py・pytest不可)で止まらず`closed`でなく「実装済み・未実走」と書く。
+- テスト新設・改名は親の名指しを網羅と見なさず、制約meta-testを自ら洗い出し走らせる(F42)。
+- fixtureへの現行hash差し込み等、テストを甘くして緑にしない(F27)。
+  機構の正例・負例は実体を名指しし依存先をstubしない(F649)。
 - 期待値へ揮発payload(tree hash等)を焼き込まず、理由と件数を固定して揮発部分を外し、揮発源を編集しても緑か確認する。
 - 報告に所有外caller・共有fixture・consumer testへの波及を静的列挙。
 - 指示外の受理集合変更をせず、scope前に現行の受理・拒否挙動を明記。
@@ -50,7 +50,7 @@ codex は `reasoning=ultra`、`sandbox=workspace-write` とする。
 
 real所見へfixを投じる前に統合snapshot patchを退避する。所見を編集対象file集合で分け、
 所有が素集合なら`DW-S05-A`と同じworktree・所有・限定patch契約で並列投入する。
-一枚岩なら理由1行をhandoffへ。横断所見も一つのCodex単位へ寄せ、親が直接直さない。
+一枚岩なら理由1行をhandoffへ。横断所見も1つのCodex単位へ寄せ、親が直接直さない。
 実装子契約の継承では段4の規模上限も省略せず、超過は所見が閉じても差し戻す。
 fixのpromptに**既存テストの期待値を変更しない**を明記する。反転・緩和・skip・削除を禁じ、赤なら実装側が誤りとする。期待値が誤りなら実装を変えず報告して止める。
 
