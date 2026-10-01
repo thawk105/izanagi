@@ -1,0 +1,37 @@
+---
+schema: izanagi-spool-v1
+ledger: worklog
+authored: 2026-10-01
+wave: dev-wave-ccbench-fix-bundle
+seq: 1
+title: [T-2917] CCBench の修正 5 本と正しさ関門の記録を F の上に束ねた tip izanagi-fix-bundle = 90355098 を作り、D2322 項 4 の条件 (2) を合成 A→B′ の D297 で GCC 11・12 とも pass、条件 (3) を Silo・MOCC・Cicada (promotion 無効) の各 1 走で取り直し、D297 検査器に Cicada の値 macro 4 個の組合せ文脈を足した。promotion 有効の Cicada は D1464 非準拠の計装の上でしか判定されていなかったと判明 (コード + insight、branch worktree-dev-wave-ccbench-fix-bundle)
+---
+
+## 本文
+
+- 依頼: gen-opt md_16 (`/work/1/SFC/tanab/tmp/gen-opt-2026-09-29/md_16.txt` と common-5.txt)。一次資料 `output/insights/2026-09-30/ccbench-fix-bundle/README.md`。設計判断 {{D:d297-cicada-value-contexts}}、失敗 {{F:pass-on-instrumentation-violating-verifier-premise}} と F810 の再発。
+- 段: 段 2 plan・段 3 相談 2 本 (正しさ防壁 = D297 検査器に触るため軽量版にしない)、段 5 実装 2 本、段 6 レビュー 2 本・fix 7 巡 (うち 1 本は親が途中で停止し不使用)・焦点再レビュー 1 本 (NO-GO → fix → 親の実走で closed)。変異 7/7 期待どおり。全子 Codex gpt-6-sol・medium。
+- 計算: 12 request、Elapse 合計 7,271 秒 ≈ 2.02 node 時間。2 node 時間を跨ぐ見積りは land 調整役の GO (ユーザー委任) で投入した (md_16 項 4 の「止める」は委任前の規則と調整役が判断)。D297 は 1 本 約 55 分で、検査器に分割機能が無く 5 分程度へは割れなかった (限界)。同じ checkout からの dispatch は同時 1 本なので、計算用 checkout 5 本 (`.codex/worktrees/cfb-j1〜j5`) を作って 6 job を同時投入した。
+- Cicada の正しさ job は 3 回投入した。1 回目 = 計装 patch の欠落 (trace 無し)、2 回目 = repo の計装が promotion × TRACE を `#error` で禁じる (D1464)、3 回目 = genome を promotion 無効の OPT=1 に替えて正しさは合格・job rc=1 は同居させた登録確認の patch 生成の不具合 (git diff の出力の末尾空白を削った)。いずれも段 4 の指定の不足か script の不具合で、親の誤りを含む (前例の起動器の patch 列を最後まで読まずに job を組んだ)。3 回目の後は land 調整役へ FAIL-2 で報告して止め、調整役の判断で、条件 (3) の Cicada は 3 回目の正しさ結果で充足と記録し (job rc=1・runs と errors は別に残る・1 workload 1 走・promotion 有効は対象外の 3 点を併記)、登録確認は login で patch の `git apply --check` rc=0 を親が確かめてから単独 job で 1 回だけ投げて合格した。
+- 前例 2 wave (ccbench-cicada-bugfix 2026-09-29 は失格側、ccbench-cicada-promotion-uaf-fix 2026-09-30 は合格側) の promotion 有効 genome の判定は、repo の計装から `#error` 1 行を消した repo 外の診断 patch の上で出ていた。land 調整役の確認で判明し、本 wave はこの patch の上の判定を数えなかった。前例の記録は書き換えず、一次資料 §5 と failures に追記した。
+- 2026-10-01 00:4x〜09:44 JST は利用上限による一旦停止 (land 調整役経由のユーザー指示)。ユーザーの「続けて」で再開した。
+- 同日に land 調整役経由で届いたユーザー指示を適用した: やり直し前に原因と変更点を 1 行で書く・同じ原因 2 回で止めて FAIL-2・SELF-REVIEW 送付 (該当 1 件 = F810 の再発)・worktree 撤去は rc=75 を待たず手動並列。
+- CCBench の branch `izanagi-fix-bundle` は job dir の bundle (`/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle`、sha256 `49d2e5bd…`) にあり、land 後に主 checkout の submodule git dir へ非 force で取り込む。push はしていない。
+
+## 次の一手差分
+
+### 更新
+
+- [T-2917] **P2・前提待ち (人間の push と CI)**: CCBench の gitlink を、Silo 修正・MOCC 修理 X・Cicada の修理 (G・gc_records・promotion-uaf)・正しさ関門の記録 U1 を F の上に束ねた tip `izanagi-fix-bundle` = `9035509829f005aaaddf44fa5ca431851c2ecdac` へ進める wave ([T-2919]・[T-2945] と 1 wave にまとめる)。前提: F `25898d00` への pin 前進 ([T-2854]、md_15) の main 着地と、{{T:fix-bundle-push}} (人間の push と GitHub の CI の緑)。D2322 項 4 の 3 条件は満たした: (1) C→F の D297 合格 (D2293)、(2) 合成 A→B′ (F + 各修正の diff → 束ねた tip の tree) の D297 が GCC 11.4・12.3 とも pass (header の consumer 1,820 全数・比較 278 件) と修正 hunk の manifest、(3) 束ねた tip の trace build で Silo (W-rmw・W-blind とも serializable・certified、関門の違反 0)・MOCC (巡回 0)・Cicada (promotion 無効 OPT=1、巡回 0、上限 indeterminate) の各 1 走。上流 CI 相当 (format 2 版・CI image の全 protocol build) も緑。やること: gitlink・`CCBENCH_FULL_SHA`・`CURRENT_PIN` の同時更新、patches/ の厳密適用の棚卸しを束ねた tip で取り直す (Silo の V26 `broken-silo-stale-read-own-write`・V27 `broken-silo-repeat-update-buffer` は修正後の挙動を壊す形に作り直す)、修正後の stock を対照にする計測の取り直し (規律 7)。promotion 有効の Cicada genome は {{T:cicada-promotion-trace-d1464}} まで正しさ未確認として扱う。根拠: `output/insights/2026-09-30/ccbench-fix-bundle/README.md` §0・§3・§4・§7。
+  base: bb007cdf3fc6222b75930b8769e6fdd0997f24edbba102d3d03baa32f3ee4709
+- [T-2919] **P2・前提待ち ([T-2917] と 1 wave)**: MOCC 修理 X `f4a5169e` は束ねた tip `izanagi-fix-bundle` = `9035509829f005aaaddf44fa5ca431851c2ecdac` に入った。gitlink の前進は [T-2917] の wave でまとめて行う (前提も同じ)。D2322 項 4 の条件 (2) は MOCC について F→X の 1 hunk・header 0 (D2304) と合成 A→B′ の D297 pass、条件 (3) は束ねた tip の TRACE=1 1 走 (48 thread・100 万 record・rr95・1 秒、commit = C 行 1,557,661、巡回 0、integrity 0) で満たした。修理経路の発火は数えていないので、修理後の版で測り直すかの提示 (D2277 項 2) と patch の厳密適用は前進 wave で行う。根拠: `output/insights/2026-09-30/ccbench-fix-bundle/README.md` §4.2。
+  base: b71349421e298a72bb4dd778b98c4ddd94e4ac59099535de70d7a0088ad5e67c
+- [T-2945] **P2・前提待ち ([T-2917] と 1 wave)**: 正しさ関門の記録 U1 `dcb9a41f` は Silo 修正と統合した束ねた tip `izanagi-fix-bundle` = `9035509829f005aaaddf44fa5ca431851c2ecdac` に入った (merge の衝突 0、Silo の `#line` 6 本は修正 tip と一致)。U1 を含む差分の D297 は合成 A→B′ で GCC 11・12 とも pass (前 wave で未取得だった GCC 12 を含む)。生死確認は束ねた tip で起動器 v3 型・判定器の意味の版 2・`--require-gate-witness` により W-rmw・W-blind とも serializable・certified、D1・D2a・D2b・到達不能 0。push は {{T:fix-bundle-push}} (U1 は祖先として一緒に上がる)、pin への取り込みは [T-2917] の wave。根拠: `output/insights/2026-09-30/ccbench-fix-bundle/README.md` §1・§3・§4.1。
+  base: 2828484c9917a8a6e014aaab1b3ee48b5a990fbf68deb797aabca3d6dd7c0b8c
+- [T-2921] **P2・前提待ち ([T-2917] と 1 wave)**: Cicada の build 修正 G `eb93423b` は、gc_records の修理 ([T-2924]) と promotion・abort の修理 ([T-2959]) と一緒に束ねた tip `izanagi-fix-bundle` = `9035509829f005aaaddf44fa5ca431851c2ecdac` に入った。(a) D297 検査器は Cicada の `.cc` を値 macro 4 個の 16 組合せ × overlay 2 = 32 文脈で比べるようになり、未知マクロ停止は解消した ({{D:d297-cicada-value-contexts}}、実データでも F→修正は TRACE=0 不一致で拒否・F→trace 枝だけは pass)。(b) promotion 有効の 8 genome は、これまでの判定がすべて D1464 非準拠の計装の上なので、{{T:cicada-promotion-trace-d1464}} まで正しさ未確認として扱う (使わない)。(c) 束ねた tip の Cicada の正しさは promotion 無効 OPT=1 の YCSB R 1 走で巡回 0 (上限 indeterminate)、gc_records・scan・abort の経路 (TPC-C) は未確認。gitlink の前進は [T-2917] の wave。根拠: `output/insights/2026-09-30/ccbench-fix-bundle/README.md` §4.3・§5・§6。
+  base: d8ed182e6cf5f536b7b6cc099d47c8ebc34a53441db9ce334d1985555206d031
+
+### 新規
+
+- {{T:fix-bundle-push}} **P2・人間の手番 (push)**: CCBench の local branch `izanagi-fix-bundle` (tip `9035509829f005aaaddf44fa5ca431851c2ecdac`、F `25898d00` の上に Silo `dbac49b6`・MOCC `f4a5169e`・Cicada `16ad3eb8` (G `eb93423b` と gc `81fc4a84` を含む)・正しさ関門の記録 U1 `dcb9a41f` を `--no-ff` merge した 4 commit) を、主 checkout の `external/ccbench` から `git push origin izanagi-fix-bundle` で push し (別名の新 branch、force 不要。U1 はこれまで local のみで、祖先として一緒に上がる)、GitHub の Actions で build・format-check が緑であることを確かめる。手元では CI image `:ci` の全 protocol build (実行 file 34、CCBench 本体の warning・error 0) と clang-format 14.0.0・14.0.6 の format (213 file) が通っている。branch の所在は主 checkout の submodule git dir (本 wave の land 後に bundle から取り込み) と bundle (`/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle`)。上流 PR は D2305 項 10 のとおり pin に入り CI 緑になってから人間の判断。依頼文: `output/insights/2026-09-30/ccbench-fix-bundle/README.md` §7。
+- {{T:cicada-promotion-trace-d1464}} **P2・新規**: promotion 有効の Cicada genome (INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1) の正しさを判定できるようにする。repo の計装 `patches/instr-cicada-trace.patch` は D1464 (promotion の内部 write を workload の write と区別して verifier に見せる) を満たせないので promotion × TRACE を `#error` で禁じている。やること: (1) promotion が `write_set_` に積む要素 (`from_promotion_`) を trace 上で内部処理として印を付ける計装、(2) それを workload の依存から外して読む verifier の拡張 (正例・負例と変異で効きを示す。判定を緩めない)、(3) これまで `#error` を消した repo 外の診断 patch (sha256 `feaab9b6…`) の上で出た判定の再確認 — ccbench-cicada-bugfix (2026-09-29、promotion 1 設定の YCSB K・R の巡回で 8 genome を失格) と ccbench-cicada-promotion-uaf-fix (2026-09-30、修理後の 8 genome × YCSB 32 走行・TPC-C 16 走行の巡回 0 を確認として数えた) の記録は書き換えず、新しい計装での取り直しを追記する。それまで promotion 有効 genome は比較・探索に使わない。根拠: `output/insights/2026-09-30/ccbench-fix-bundle/README.md` §5、{{F:pass-on-instrumentation-violating-verifier-premise}}。

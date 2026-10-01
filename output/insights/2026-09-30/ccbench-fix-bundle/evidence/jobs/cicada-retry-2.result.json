@@ -1,0 +1,317 @@
+{
+  "accepted": false,
+  "binary_sha256": "4f1a373d0e0a5bb68819a4a3f0b4629fd1fee4243280ddd1d87c7797d5dc0ad8",
+  "build": {
+    "argv": [
+      "cmake",
+      "--build",
+      "/scr/cfb-cicada-aq_twhn_/build",
+      "--target",
+      "ycsb_cicada.exe",
+      "-j",
+      "4"
+    ],
+    "rc": 0,
+    "seconds": 13.532,
+    "timeout_seconds": 1800
+  },
+  "compile_defines": {
+    "transaction.cc": {
+      "BACK_OFF": "0",
+      "INLINE_VERSION_OPT": "1",
+      "INLINE_VERSION_PROMOTION": "0",
+      "REUSE_VERSION": "0",
+      "SINGLE_EXEC": "0",
+      "TRACE": "1",
+      "WORKER1_INSERT_DELAY_RPHASE": "0",
+      "WRITE_LATEST_ONLY": "0"
+    },
+    "util.cc": {
+      "BACK_OFF": "0",
+      "INLINE_VERSION_OPT": "1",
+      "INLINE_VERSION_PROMOTION": "0",
+      "REUSE_VERSION": "0",
+      "SINGLE_EXEC": "0",
+      "TRACE": "1",
+      "WORKER1_INSERT_DELAY_RPHASE": "0",
+      "WRITE_LATEST_ONLY": "0"
+    },
+    "ycsb_cicada.cc": {
+      "BACK_OFF": "0",
+      "INLINE_VERSION_OPT": "1",
+      "INLINE_VERSION_PROMOTION": "0",
+      "REUSE_VERSION": "0",
+      "SINGLE_EXEC": "0",
+      "TRACE": "1",
+      "WORKER1_INSERT_DELAY_RPHASE": "0",
+      "WRITE_LATEST_ONLY": "0"
+    }
+  },
+  "configure": {
+    "argv": [
+      "cmake",
+      "-S",
+      "/scr/cfb-cicada-aq_twhn_/ccbench",
+      "-B",
+      "/scr/cfb-cicada-aq_twhn_/build",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+      "-DCCBENCH_TRACE=1",
+      "-DCCBENCH_BACK_OFF=0",
+      "-DCCBENCH_REUSE_VERSION=0",
+      "-DCCBENCH_WRITE_LATEST_ONLY=0",
+      "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+      "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+      "-DCCBENCH_SINGLE_EXEC=0",
+      "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-cicada-aq_twhn_/dependencies/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-cicada-aq_twhn_/dependencies/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-cicada-aq_twhn_/dependencies/thirdparty-src/googletest"
+    ],
+    "rc": 0,
+    "seconds": 0.817,
+    "timeout_seconds": 900
+  },
+  "errors": [
+    "rc=128: ['git', '-C', PosixPath('/scr/cfb-cicada-aq_twhn_/registration-ccbench'), 'apply', '--check', PosixPath('/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/cicada-retry-2/cicada-transaction.patch')]: error: corrupt patch at line 85\n"
+  ],
+  "host": "bnode002",
+  "mode": "cicada",
+  "preregistered": "cycles=0, integrity numeric=0, C rows=commit count, READ_WTS_MISMATCH=0; indeterminate accepted but not certified",
+  "runs": {
+    "cicada": {
+      "accepted": true,
+      "c_lines": 1238570,
+      "certified": false,
+      "commits": 1238570,
+      "cycles": 0,
+      "gate_witness": null,
+      "integrity_numeric": {
+        "dup_txids": 0,
+        "framing_violations": 0,
+        "genesis_commits": 0,
+        "lock_coverage_violations": 0,
+        "malformed_keys": 0,
+        "missing_txids": 0,
+        "orphan_reads": 0,
+        "permutation_violations": 0,
+        "version_dups": 0,
+        "write_intent_violations": 0,
+        "write_version_mismatch": 0
+      },
+      "read_wts_mismatch": 0,
+      "run": {
+        "argv": [
+          "/scr/cfb-cicada-aq_twhn_/build/cc/cicada/ycsb_cicada.exe",
+          "-ycsb_tuple_num=200",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=90",
+          "-ycsb_rmw=false",
+          "-ycsb_max_ope=4",
+          "-thread_num=4",
+          "-extime=1",
+          "-group_commit=0",
+          "-clocks_per_us=2100"
+        ],
+        "rc": 0,
+        "seconds": 1.017,
+        "timeout_seconds": 180
+      },
+      "verdict": "indeterminate",
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/scr/cfb-cicada-aq_twhn_/trace-cicada",
+          "--json",
+          "--protocol",
+          "cicada",
+          "--ccbench-root",
+          "/scr/cfb-cicada-aq_twhn_/ccbench",
+          "--expected-commits",
+          "1238570"
+        ],
+        "rc": 3,
+        "seconds": 18.438,
+        "timeout_seconds": 900
+      }
+    }
+  },
+  "stages": {
+    "build": {
+      "argv": [
+        "cmake",
+        "--build",
+        "/scr/cfb-cicada-aq_twhn_/build",
+        "--target",
+        "ycsb_cicada.exe",
+        "-j",
+        "4"
+      ],
+      "rc": 0,
+      "seconds": 13.532,
+      "timeout_seconds": 1800
+    },
+    "cicada.run": {
+      "argv": [
+        "/scr/cfb-cicada-aq_twhn_/build/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "seconds": 1.017,
+      "timeout_seconds": 180
+    },
+    "cicada.trace-patch.apply": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "apply",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/patches/instr-cicada-trace.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.004,
+      "timeout_seconds": null
+    },
+    "cicada.trace-patch.check": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "apply",
+        "--check",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/patches/instr-cicada-trace.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.005,
+      "timeout_seconds": null
+    },
+    "cicada.verifier": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "-m",
+        "orchestrator.verifier",
+        "/scr/cfb-cicada-aq_twhn_/trace-cicada",
+        "--json",
+        "--protocol",
+        "cicada",
+        "--ccbench-root",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "--expected-commits",
+        "1238570"
+      ],
+      "rc": 3,
+      "seconds": 18.438,
+      "timeout_seconds": 900
+    },
+    "clone": {
+      "argv": [
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scripts-v5/verify_inputs.sh",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle",
+        "9035509829f005aaaddf44fa5ca431851c2ecdac",
+        "/scr/cfb-cicada-aq_twhn_/ccbench"
+      ],
+      "rc": 0,
+      "seconds": 0.911,
+      "timeout_seconds": null
+    },
+    "configure": {
+      "argv": [
+        "cmake",
+        "-S",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "-B",
+        "/scr/cfb-cicada-aq_twhn_/build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=0",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-cicada-aq_twhn_/dependencies/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-cicada-aq_twhn_/dependencies/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-cicada-aq_twhn_/dependencies/thirdparty-src/googletest"
+      ],
+      "rc": 0,
+      "seconds": 0.817,
+      "timeout_seconds": 900
+    },
+    "dependencies": {
+      "rc": 0,
+      "seconds": 11.671
+    },
+    "registration": {
+      "rc": 1,
+      "seconds": 0.031
+    },
+    "registration.clone": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "worktree",
+        "add",
+        "--detach",
+        "/scr/cfb-cicada-aq_twhn_/registration-ccbench",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e"
+      ],
+      "rc": 0,
+      "seconds": 0.025,
+      "timeout_seconds": null
+    }
+  },
+  "tip": "9035509829f005aaaddf44fa5ca431851c2ecdac",
+  "trace_patch": {
+    "apply": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "apply",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/patches/instr-cicada-trace.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.004,
+      "stderr": "",
+      "timeout_seconds": null
+    },
+    "check": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-cicada-aq_twhn_/ccbench",
+        "apply",
+        "--check",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/patches/instr-cicada-trace.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.005,
+      "stderr": "",
+      "timeout_seconds": null
+    },
+    "expected_sha256": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/patches/instr-cicada-trace.patch",
+    "sha256": "f4db2abd1a3f798106e95594f5016ecfb8946fc3771a4e44a7bcb29c9a8b65d5"
+  }
+}
