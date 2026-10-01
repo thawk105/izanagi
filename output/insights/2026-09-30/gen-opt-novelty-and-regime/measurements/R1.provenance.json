@@ -1,0 +1,147 @@
+{
+  "inputs": {
+    "measure-job-000.json": "85a0709bd9201259d114c1e0b50b57ce499da1c9b8d721eb356e7f425355a541",
+    "measure-job-001.json": "7f91dc4664d2afc6587992827cad4133cc24e54bba0c1fde8b2aff7f1954e2ac",
+    "measure-job-002.json": "7c42e0d87f03784976827745507d7fc133c8770600d24ea83cd8c3dd5bfc0248",
+    "measure-job-003.json": "de21722a4c6067f4494092d5a078da95b311ef0e482ee16e72bb52a7606184ad",
+    "measure-job-004.json": "1807956d50a5e799b136626620b89211ede2e78e769a6928ecc30ea637626ed9",
+    "measure-job-005.json": "c13c4ff632d5bc2ce4c22ea55c326bbbe64012e2323a1cf87e5a8e5c07d0b1b3",
+    "measure-job-006.json": "50b24b1914c1c1ec24d2e4864c493ed1377d5db43639ffde05f3f3b7e629f2cf",
+    "measure-job-007.json": "faae445923f86d25b248574569a47ee405c87ab9f4016529f6f7ffe63da173a6",
+    "measure-job-008.json": "714a76fd003c495ff9ab91a029d932a7a45c9e83cd8a88d45582f73e5b835744"
+  },
+  "threads": 48,
+  "extime_s": 3,
+  "plotted": {
+    "R1-target/cicada-bo0": {
+      "median": 1218272.0,
+      "reps": [
+        1248764.0,
+        1218272.0,
+        1192987.0
+      ]
+    },
+    "R1-target/cicada-bo1": {
+      "median": 611808.0,
+      "reps": [
+        605164.0,
+        623561.0,
+        611808.0
+      ]
+    },
+    "R1-target/ermia-bo0": {
+      "median": 56118.0,
+      "reps": [
+        62462.0,
+        53514.0,
+        56118.0
+      ]
+    },
+    "R1-target/ermia-bo1": {
+      "median": 291535.0,
+      "reps": [
+        282750.0,
+        291535.0,
+        291747.0
+      ]
+    },
+    "R1-target/mocc-bo0": {
+      "median": 396985.0,
+      "reps": [
+        385309.0,
+        396985.0,
+        419087.0
+      ]
+    },
+    "R1-target/mocc-bo1": {
+      "median": 478839.0,
+      "reps": [
+        500627.0,
+        471933.0,
+        478839.0
+      ]
+    },
+    "R1-target/si-bo0": {
+      "median": 37862.0,
+      "reps": [
+        37862.0,
+        15597.0,
+        51247.0
+      ]
+    },
+    "R1-target/si-bo1": {
+      "median": 330751.0,
+      "reps": [
+        328698.0,
+        330751.0,
+        336272.0
+      ]
+    },
+    "R1-target/silo-bo0": {
+      "median": 1542999.0,
+      "reps": [
+        1488853.0,
+        1542999.0,
+        1546528.0
+      ]
+    },
+    "R1-target/silo-bo1": {
+      "median": 967650.0,
+      "reps": [
+        933120.0,
+        972020.0,
+        967650.0
+      ]
+    },
+    "R1-target/silo-fixed10": {
+      "median": 2171181.0,
+      "reps": [
+        2197205.0,
+        2171181.0,
+        2164168.0
+      ]
+    },
+    "R1-target/silo-fixed25": {
+      "median": 1789768.0,
+      "reps": [
+        1787312.0,
+        1796997.0,
+        1789768.0
+      ]
+    },
+    "R1-target/silo-fixed5": {
+      "median": 2280121.0,
+      "reps": [
+        2280121.0,
+        2283875.0,
+        2236130.0
+      ]
+    },
+    "R1-target/tictoc-bo0": {
+      "median": 1499900.0,
+      "reps": [
+        1522537.0,
+        1499900.0,
+        1488982.0
+      ]
+    },
+    "R1-target/tictoc-bo1": {
+      "median": 943188.0,
+      "reps": [
+        967277.0,
+        941865.0,
+        943188.0
+      ]
+    }
+  },
+  "bounds": {
+    "S": 2280121.0,
+    "B1": 8192876.0,
+    "B2": 7175407.284352851,
+    "r1": 3.593175976187229,
+    "r2": 3.146941449314686,
+    "opportunity": "large",
+    "best_config": "silo-fixed5"
+  },
+  "notice": "performance-only; no serializability check"
+}

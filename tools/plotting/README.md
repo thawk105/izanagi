@@ -568,3 +568,14 @@ MPLCONFIGDIR=/tmp/cicada-mpl PYTHONPATH=. python3 -m tools.plotting.plot_vhash_c
 
 `vhash-cicada-j1` と `vhash-cicada-j2` の各 prefix に PNG・PDF・provenance JSON を作る。
 保存前に実 Figure の文字重なり・パネル逸脱を検査する。
+
+## VHash の利得の天井 (md_42) の比の図
+
+計測機の外で、`orchestrator/campaign/vhash_ceiling_vs_sota.py` の run が書く予備・30 秒比較の raw (JSONL) と verify の witness JSON から再生成する。
+点ごとの腕 / R の比 (同じ round・node の対の点、中央値、小標本 95% CI) と長い読み手の完了比を描く。値は探索用の同時刻比較で、判定の上限は indeterminate。
+
+```bash
+PYTHONPATH=. python3 tools/plotting/plot_vhash_ceiling_vs_sota.py <prelim.jsonl> <図の出力接頭辞> --witness <verify.json>
+```
+
+PNG・PDF・provenance JSON を作る。一次資料は `output/insights/2026-09-30/vhash-ceiling-vs-sota/README.md`。

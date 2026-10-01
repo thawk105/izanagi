@@ -192,8 +192,10 @@ campaign identity は骨格 patch の bytes を含まないため、新旧の系
 (`{coder, auditor}`) そのもので、job body の `IZANAGI_S4_POLICY_MODE=replay` が
 `--replay-proposal <proposal>` で driver を呼ぶ。検疫・構文検査・単独 TU・auditor の digest 照合と deny-only veto・
 書込後の digest 再照合を実走と同じ gate で掛け直し、loop とは別の campaign (`evaluation_purpose=r2`) で 1 評価する。
-結果は新しい有限履歴についての新しい判定であり、元の判定の再確認ではない。同じ候補を同じ checkout で 2 回 R2 すると
-同じ variant が terminal skip になる (反復が要るときに識別子を足す)。
+結果は新しい有限履歴についての新しい判定であり、元の判定の再確認ではない。R2 の campaign identity は候補を含まないので、
+Pegasus では同じ checkout で先行の R2 が claim を取得済みなら、2 本目の R2 は候補を問わず terminal 判定より前の claim 取得で
+拒否される (`ClaimError`、§3 の claim 規則。bootstrap stock も checkout ごとに 1 回)。反復は checkout を分けて測る
+(2026-10-01 に候補 3 本 × 2 回を実測、`output/insights/2026-10-01/t2865-r2-replay/README.md`)。
 
 ## 3.2 trace の保全
 
