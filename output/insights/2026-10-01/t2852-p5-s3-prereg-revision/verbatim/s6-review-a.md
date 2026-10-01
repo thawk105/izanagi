@@ -53,8 +53,8 @@
 
    **主張:** 参照3 job の換算単価は 1.74〜2.00時間。
 
-   **根拠:** [実装 insight:115](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-p5-s3-prereg/output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md:115) の式は  
-   `3 × (5 × 166〜203 + 5 × 255〜265 + 33)`  
+   **根拠:** [実装 insight:115](/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-p5-s3-prereg/output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md:115) の式は
+   `3 × (5 × 166〜203 + 5 × 255〜265 + 33)`
    ですが、再計算は **6,414〜7,119秒＝1.782〜1.978時間**です。同じ行の **6,264〜7,194秒**とは一致しません。
 
    **直し方:** P5 の転記自体は依頼された登録単価どおりです。その値を維持する場合も、改版 insight に「継承元の換算式と値に不整合あり」と注記し、独立に再導出済みとは扱わないでください。

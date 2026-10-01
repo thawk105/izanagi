@@ -3,6 +3,8 @@
 - 依頼 (逐語): `verbatim/request.md`。段 1 brief `verbatim/s1-brief.md`。開始 gate `verbatim/startup-gate.log` (rc=0、起点 local main `74029b18f`)。
   棚卸しの実測の生出力 `verbatim/inventory-log.md` と、そのコマンド `verbatim/inventory-commands.txt`。履歴の欄の集計 `verbatim/history-fields-log.md`。
   段 6 のレビュー `verbatim/s6-review-a.md`・`verbatim/s6-review-b.md` (焦点再レビューは `verbatim/s6-focus-*.md`)。
+  `verbatim/s6-review-a.md` は `git diff --check` に抵触した 56・57 行の行末の半角空白 2 個ずつ (Markdown の改行指定) を除いた可逆の最小正規化版で、可視文字は不変。
+  原文は sha256 `4dfea202764c926ceb1694a4206a5f5baae58295397324c72bf7745b08b50179`・8,257 bytes (正規化後 8,253 bytes)。復元は 56・57 行の行末に半角空白 2 個を足す。
 - 成果物: 草稿 `docs/workload-description-critic-intervention-preregistration.md` (以下「草稿」、未発効) の全面改版と、`docs/README.md` の地図の 1 項。
 - **repo のコード変更なし。計算投入なし。** n の確定・発効・実装・投入はしていない (D2322 項 5、依頼の明示)。
 
@@ -49,7 +51,7 @@
 | coder 出力の schema の拒否と、auditor の出力の形式・digest の不一致による拒否 | round tool の `_schema_reject`・`_record_preview_reject` (subtype が `proposal-schema`・`auditor-gate`・`auditor-digest` のとき driver を呼ばない) | 履歴に入らない (対照の台帳の `opportunity-end` にだけ残る。critic の材料 `_new_results` にも入らない) |
 
 - T-2867 本走の LLM 系列の coder 入力 249 件 (llm-cpp 121・llm-ir 128) の履歴は延べ 1,638 行で、`certified` が 1,626 行 (いずれも `verifier_digest` なし)、
-  `rejected` が 12 行 (いずれも `reject_subtype` あり) だった。確認した coder 入力の履歴に現れた評価の結果は全部 certified だった。coder 入力は提案の前の履歴なので、各系列の最後の評価は現れない。評価が失敗したときの情報の欠落の大きさと、本走全体の失敗の有無は、この集計では確かめていない (`verifier_digest` が null であること自体は全行で観測した)。
+  `rejected` が 12 行 (いずれも `reject_subtype` あり) だった。確認した coder 入力の履歴に現れた評価の結果は全部 certified だった。coder 入力は提案の前の履歴なので、評価の後に次の coder 入力が作られなければ、その評価は集計に現れない。評価が失敗したときの情報の欠落の大きさと、本走全体の失敗の有無は、この集計では確かめていない (`verifier_digest` が null であること自体は全行で観測した)。
   これは本走の結果 (score) ではなく入力の欄の集計である。T-2867 登録 §4.1 は「履歴は … verifier の digest を載せ」と書くので、登録と実装の食い違いとして worklog の次の一手に残す。
 
 - **結論:** 段階 D の二値・射程文・baseline の abort 率は、どれも workload の名前や読み比率を示さない。ただし write-heavy で測った情報を運ぶ。運び方は経路で違い、
@@ -116,10 +118,13 @@
 
 - 焦点再レビュー 1 巡目 (`verbatim/s6-focus-1.md`): closed 9・partial 3・regressed 0、派生値 (249 件・1,638 行・費用表・k(n)・0.0275・[0, 0]) はすべて再計算で一致。NO-GO (must-fix 1)。
   F1 (must-fix、real): 履歴に入らない拒否を「schema・auditor」と一括りにしていた。auditor の通常の判定 (`auditor-violation`・`auditor-uncertain`) は `--record-reject` を通って履歴に入り、
-  入らないのは coder 出力の schema の拒否と auditor の出力の形式・digest の不一致 (`proposal-schema`・`auditor-gate`・`auditor-digest`) だけ。評価の転記は `run_contrast_unit` の中。親がコードで確かめて草稿 §3.2・§13 の 2、本書 §2、fragment を直した。
+  入らないのは出力の schema の拒否と auditor の出力の機械的な整合の拒否 (経路別の subtype は 2 巡目の N4)。評価の転記は `run_contrast_unit` の中。親がコードで確かめて草稿 §3.2・§13 の 2、本書 §2、fragment を直した。
   F2 (should、real): 履歴の集計から本走全体の失敗の不在を導いていた → 集計の範囲に限定。F3 (should、real): 1 機会の critic 診断の自由文に `read-heavy` の語がある → 「0 件」を固定部分に限定。
   F4 (should、real): 発効束に 6 cell が残っていた → 「4 cell、確定した n」に。
-- 焦点再レビュー 2 巡目の結果は下に追記する。
+- 焦点再レビュー 2 巡目 (`verbatim/s6-focus-2.md`): F1・F3・F4 closed、F2 partial、前巡の closed 9 件に後退なし、再集計と派生値は全値一致。**GO (must-fix 0)**。
+  残った should 3・nit 2 を親が直した: N1 「最後の評価は現れない」を条件付きに、N2 worklog の T-2870 を草稿と同じ条件付きに、N3 memory の旧説明を更新、
+  N4 履歴に入らない拒否の subtype を経路別に列挙 (`coder-schema`・`auditor-schema`・`proposal-schema`・`auditor-gate`・`auditor-digest`、入る構文の拒否は描画後の `policy-grammar`)、
+  N5 failures の根本原因から登録の起草過程の断定を外した。3 巡目は回していない (DW-O16 の上限内、must-fix 0)。
 
 ## 7. 本 wave が閉じないもの
 

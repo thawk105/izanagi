@@ -131,9 +131,10 @@ Measurement Setup の標準 workload の塊 (またはそれに当たる節) を
   (`reject_subtype`・`reject_rule_id`)・verifier の digest (anomaly の現象・cycle・依存辺を決定的な順で先頭 8 件、件数、全 cycle 数、integrity の内訳) を
   critic と独立に載せる (D2256 項 4、`make_policy_coder_input`)。**しかし T-2867 の対照の経路では、この欄の一部が埋まっていない** (改版 insight §2):
   - 初期点と評価の結果は、結果の分類だけを書き verifier の digest を渡さない (`run_contrast_unit` の中の `_append_seed_history`・`_append_history` の呼び出し)。
-  - coder 出力の schema の拒否 (`_schema_reject`) と、auditor の出力の形式・digest の不一致 (`proposal-schema`・`auditor-gate`・`auditor-digest`) による拒否は、
+  - coder・auditor の出力の schema の拒否 (`_schema_reject` の `coder-schema`・`auditor-schema`。IR の parse・`validate_ir` の不合格を含む) と、proposal の読込み・auditor の出力の機械的な整合の拒否
+    (`_record_preview_reject` が driver を呼ばない `proposal-schema`・`auditor-gate`・`auditor-digest`) は、
     対照の台帳の `opportunity-end` にだけ残り、履歴に入らない。critic の材料 (`_new_results` は stock・初期点・評価の結果だけを取る) にも入らない。
-  - 検疫・構文・compile による拒否と、auditor の通常の判定 (`auditor-violation`・`auditor-uncertain`) による拒否は、`--record-reject` を通って分類つきで履歴に入る。
+  - 検疫・描画後の構文検査 (`policy-grammar`)・compile (`policy-compile`) による拒否と、auditor の通常の判定 (`auditor-violation`・`auditor-uncertain`) による拒否は、`--record-reject` を通って分類つきで履歴に入る。
   現状では、評価の結果の verifier の digest (anomaly の構造) が coder へ届く経路は critic ありの cell の critic 診断だけで、critic なしの cell は規律 3 を満たさない。
   そこで、**対照の経路でも初期点を含む評価の結果の verifier の digest と、履歴に入っていない上の拒否の分類を、既存の履歴の欄に書くことを発効の前提とする** (§13 の 2)。
   新しい key や台帳は作らない。

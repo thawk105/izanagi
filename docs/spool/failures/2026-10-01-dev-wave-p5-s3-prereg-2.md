@@ -16,8 +16,8 @@ seq: 2
   critic と独立に届くので critic なしの cell でも規律 3 を保てる」と置き、草稿に書いた。段 6 の read-only レビューが producer の経路を追って指摘し、親が本走の coder 入力 249 件の
   履歴の欄 (延べ 1,638 行で `verifier_digest` を持つ行 0) とコードで裏取りした。T-2867 本走は critic が常にあり (評価の結果の構造は critic 診断を通して届く経路があった)、確認した coder 入力の履歴に現れた評価の結果は全部 certified だった。
   規律 3 の破れと結果への影響は観測していないが、本走全体の失敗の有無はこの集計では確かめていない。land 前に草稿を直したので P5 への実害は無い。
-- 根本原因: consumer の入力の schema (欄の存在) を、producer が実際にその欄を埋めることの証拠と取り違えた。登録の文も同じ schema から書かれており、対照の経路を足した実装で
-  欄を埋める呼び出しが落ちたことを、登録・草稿のどちらも実データで確かめていなかった。
+- 根本原因: consumer の入力の schema (欄の存在) を、producer が実際にその欄を埋めることの証拠と取り違えた。登録にも同じ情報の返却が記載されていたが、対照の経路では実現されておらず、
+  P5 の草稿はそれを実データで確かめないまま前提にした。
 - 恒久対応: P5 の草稿 `docs/workload-description-critic-intervention-preregistration.md` §3.2・§13 の 2 が、対照の経路で履歴の欄を埋めることを critic なしの cell の発効の前提にした。
   T-2867 側の開示と修復は worklog の {{T:t2867-llm-input-disclosure}}。memory `consumer-schema-is-not-producer-evidence` (入力の欄を前提にする設計は、producer の経路を追うか実データの欄の埋まり方を数えてから書く)。
 - 再発検知: 段 6 の事実照合レンズに「schema にある欄が実際の producer の経路で埋まるか」を入れる。P5 の発効の確認で、critic なしの cell の生死確認の coder 入力に、
