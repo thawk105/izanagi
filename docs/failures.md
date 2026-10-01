@@ -29076,3 +29076,32 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 恒久対応: memory `explicit-output-spec-survives-landing` — 依頼が名指しで「未着地と書く」「X だけを埋める」とした範囲は、途中で前提が変わっても自分では解かず、
   起点を wave 開始時に保ったまま後続の着地は stale 注記・報告で指す。解くのはユーザーの明示の指示だけ。決定 D2344 の却下した選択肢にも経緯を書いた。
 - 再発検知: 段 6 の read-only レビューのレンズ「依頼への適合」に、依頼の明示指定と成果物の取り込み範囲の照合を入れる (今回それで検出した)。
+
+### F1100. コードが読む事前登録セルへの記入を、consumer を走らせずに「docs のみ・計算 0」と見積もった [手順漏れ]
+
+- 事象: B-4 床値の採用裁定 (md_3) は「§5 floor 欄へ pin を書くだけ、docs のみ・計算 0」として起票された。前 wave の材料は
+  「読み取り関数の述語の読解で通る (実行はしていない)」と書いていた。記入を当てた木で B-4 系 test を走らせると、resolver が
+  spec の束縛する追跡外 binary を lstat できず pin を拒否し、材料レポートが評価器の前で止まって 34 failed + 2 errors になった
+  (記入を戻した木では同じ 4 file が 259 passed)。記入は保留した (D2345)。main へ着地していれば
+  受入と材料レポートが binary を置いていない全 checkout で赤になっていた (near miss)。
+- 根本原因: 記入先の欄を resolver・材料レポート生成器・実文書回帰 test が読むことを、見積りの段で実行して確かめなかった。
+  test 側も docstring で「floor 登録 wave で更新する」と予告していたが、起票と材料はそれを拾わなかった。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O09` (docs のみの wave でも、変更 path で test を検索し hit を読む) が
+  本 wave の発見経路として既にある。見積りの側は memory `docs-cell-read-by-code-run-consumer-tests-first`
+  (記入を当てた木と戻した木で consumer test を比べてから「docs のみ」と言う) を固定した。新しい gate・検査は足さない。
+- 再発検知: 事前登録・凍結文書のセル記入を扱う wave で、記入を当てた木の consumer test の実走記録が brief に無い場合が同型。
+
+### F1101. 登録が書く coder 入力の履歴の欄を対照の経路が埋めておらず、後続の登録草稿が schema だけを見てそれを前提にしかけた [説明と実装の食い違い] [誤前提]
+
+- 事象: T-2867 登録 §4.1 は「driver の自系列の履歴は本文・結果の分類・拒否の分類・verifier の digest を載せ」と書き、coder 入力を組む `make_policy_coder_input` の schema も
+  `verifier_digest`・`reject_subtype`・`reject_rule_id` を持つ。しかし対照の経路は、初期点と評価の結果を `run_contrast_unit` の中で結果の分類だけ書き (verifier の digest を渡さない)、
+  coder 出力の schema の拒否と auditor の出力の形式・digest の不一致による拒否は round tool の台帳にだけ残して履歴に入れない (検疫・構文・compile と auditor の通常の判定による拒否は分類つきで入る)。T-2852 の P5 S3 版の改版 wave は、段 1 で schema だけを見て「構造化された失敗理由は履歴で
+  critic と独立に届くので critic なしの cell でも規律 3 を保てる」と置き、草稿に書いた。段 6 の read-only レビューが producer の経路を追って指摘し、親が本走の coder 入力 249 件の
+  履歴の欄 (延べ 1,638 行で `verifier_digest` を持つ行 0) とコードで裏取りした。T-2867 本走は critic が常にあり (評価の結果の構造は critic 診断を通して届く経路があった)、確認した coder 入力の履歴に現れた評価の結果は全部 certified だった。
+  規律 3 の破れと結果への影響は観測していないが、本走全体の失敗の有無はこの集計では確かめていない。land 前に草稿を直したので P5 への実害は無い。
+- 根本原因: consumer の入力の schema (欄の存在) を、producer が実際にその欄を埋めることの証拠と取り違えた。登録にも同じ情報の返却が記載されていたが、対照の経路では実現されておらず、
+  P5 の草稿はそれを実データで確かめないまま前提にした。
+- 恒久対応: P5 の草稿 `docs/workload-description-critic-intervention-preregistration.md` §3.2・§13 の 2 が、対照の経路で履歴の欄を埋めることを critic なしの cell の発効の前提にした。
+  T-2867 側の開示と修復は worklog の [T-2982]。memory `consumer-schema-is-not-producer-evidence` (入力の欄を前提にする設計は、producer の経路を追うか実データの欄の埋まり方を数えてから書く)。
+- 再発検知: 段 6 の事実照合レンズに「schema にある欄が実際の producer の経路で埋まるか」を入れる。P5 の発効の確認で、critic なしの cell の生死確認の coder 入力に、
+  失敗した評価の `verifier_digest` が載ることを確かめる。
