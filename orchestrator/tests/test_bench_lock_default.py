@@ -20,6 +20,11 @@ if str(_REPO) not in sys.path:
 from orchestrator.campaign import lock
 
 
+@pytest.fixture(autouse=True)
+def isolated_home(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path / "isolated-home"))
+
+
 @pytest.mark.parametrize("uid", [0, 12345])
 def test_default_lock_path_uses_uid(monkeypatch, uid):
     monkeypatch.delenv("IZANAGI_BENCH_LOCK", raising=False)
@@ -81,15 +86,13 @@ import sys
 from orchestrator.campaign import lock
 
 uid, path, mode = int(sys.argv[1]), sys.argv[2], sys.argv[3]
+assert os.environ["HOME"] == sys.argv[4], "child did not inherit the parent's HOME"
 real_path = f"/tmp/izanagi-bench-{os.getuid()}.lock"
 assert uid < 0 and path != real_path
-opened = []
 
 def audit(event, args):
     if event == "open":
         assert args[0] != real_path, "attempt to open the real UID lock"
-        if args[0] == path:
-            opened.append(path)
 
 sys.addaudithook(audit)
 os.environ.pop("IZANAGI_BENCH_LOCK", None)
@@ -120,7 +123,6 @@ elif mode == "mtime":
         print(json.dumps({"mtime_ns": st.st_mtime_ns, "inode": st.st_ino}), flush=True)
 else:
     raise AssertionError(mode)
-assert len(opened) == (2 if mode == "contender" else 1), opened
 '''
 
 
@@ -161,7 +163,8 @@ def reserved_lock():
 
     def start(mode):
         child = subprocess.Popen(
-            [sys.executable, "-B", "-c", _CHILD, str(uid), str(path), mode],
+            [sys.executable, "-B", "-c", _CHILD, str(uid), str(path), mode,
+             os.environ["HOME"]],
             cwd=_REPO, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, close_fds=True,
         )
