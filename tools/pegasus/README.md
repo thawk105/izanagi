@@ -441,7 +441,9 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
   `--submit` は attempt directory を `mkdir` してから qsub を呼ぶ (それ以外を置かない)。launcher は投入対象
   checkout のいずれか (同じ commit) から起動する (別 commit の launcher で投入しない)。B-5 mode の job body は
   driver 起動直前に `IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"` を設定する (B-10 / A-5 と同じ job 固有 scratch)。
-  排他は同一 job 内に限られ、ノード専有は保証しない (`docs/pegasus-runbook.md` §1)。非 B-5 の 3 経路では変更しない。
+  排他は同一 job 内に限られ、ノード専有は保証しない (`docs/pegasus-runbook.md` §1)。非 B-5 の 3 経路は設定せず、
+  `orchestrator/campaign/lock.py` の既定 `/tmp/izanagi-bench-<uid>.lock` (同じ node・同じ uid で既定を使う process どうしの排他。
+  別 node を直列化しない、login でも同じ規則) を使う。
   walltime の 8h / 3h は試走の暫定管理値で、本走の上限は試走の実測 max から決める (事前登録 §11)
 
 投入は login node から次の形で行う。`REPO_ROOT` は固定 SHA の専用 checkout (primary worktree や

@@ -8,9 +8,10 @@
   性能ベンチ: **排他**。実行中は他のベンチを止める
 
 Phase 1 は直列実行なので自明に満たされるが、**Phase 2 で並列化する際にロックを入れる
-前提でコードを構造化**する (orchestrator-design.md Phase1 反映 3)。ベンチ排他は
-**マシン全体**の資源 (campaign を跨ぐ) なので、ロックは campaign スコープでなく
-machine-wide な固定パスに置く。
+前提でコードを構造化**する (orchestrator-design.md Phase1 反映 3)。既定ロックは
+同一ノード・同一 UID の協調するプロセスが campaign / worktree / job を跨いで
+共有する固定パスに置く。ノード専有・他ユーザー・異なる明示 override 間の排他は
+保証しない。
 """
 from __future__ import annotations
 
@@ -23,16 +24,17 @@ from typing import Iterator, Optional
 
 
 def default_lock_path() -> str:
-    """machine-wide なベンチロックのパス。env IZANAGI_BENCH_LOCK で上書き可。
+    """同一ノード・同一 UID の協調プロセス間のベンチ排他に使う固定パス。
 
-    既定は `~/.izanagi/bench.lock` (このマシンの全 bencher が共有する固定点。
-    複数 campaign / worktree が同じロックを見る)。"""
+    非空の IZANAGI_BENCH_LOCK はその値をそのまま返す。未設定・空文字なら
+    /tmp/izanagi-bench-<uid>.lock。HOME や job ごとの TMPDIR に依存せず、
+    ディレクトリも作成しない。ノード専有・他ユーザー・異なる明示 override
+    間の排他は保証しない。
+    """
     p = os.environ.get("IZANAGI_BENCH_LOCK")
     if p:
         return p
-    d = os.path.join(os.path.expanduser("~"), ".izanagi")
-    os.makedirs(d, exist_ok=True)
-    return os.path.join(d, "bench.lock")
+    return f"/tmp/izanagi-bench-{os.getuid()}.lock"
 
 
 class BenchBusy(Exception):
@@ -57,6 +59,10 @@ def bench_lock(path: Optional[str] = None, blocking: bool = True) -> Iterator[No
             if not blocking and e.errno in (errno.EAGAIN, errno.EACCES):
                 raise BenchBusy(f"別プロセスがベンチ実行中: {path}")
             raise
+        try:
+            os.utime(fd)
+        except OSError:
+            pass
         yield
     finally:
         try:
