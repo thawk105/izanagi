@@ -4,7 +4,7 @@
 
 2026-09-30〜10-01 に、並行 wave が「同じ原因の失敗を、何も変えずに再試行する」ことを繰り返した。
 ユーザー指示「理由Aでダメだからとりあえずやり直してまた理由Aでこけて…こういうのやめさせて。そして自己改善もやらせる」を受け、
-land 調整役 (manager: parallel land) が各 wave に自己点検 (SELF-REVIEW) を求めて 11 本を集約した。
+land 調整役 (manager: parallel land) が各 wave に自己点検 (SELF-REVIEW) を求めて 11 本を集約した (本数は `common.txt` の「SELF-REVIEW 11 本の集約」)。
 本書はその集約 (一次資料 `/work/1/SFC/tanab/tmp/self-review-2026-10-01/summary.md`、repo 外) を写し、
 型ごとにどの wave 提案 (md_1・md_2) が手当てするかを 1 行ずつ書く。
 land 済み wave の failures 下書き 7 本は、本 wave の fragment
@@ -66,12 +66,12 @@ land 済み wave の failures 下書き 7 本は、本 wave の fragment
 
 md_1 = 撤去 tool の並列化 (`tools/dev_wave_cleanup.py` と `DW-O28` 周辺)、md_2 = `docs/dev-wave/` の手順の穴を 1 行ずつ埋める。どちらも本 wave の時点で未着地の並行 wave。
 
-- 型 1 (rc=75 固定間隔) → md_1: repo 全体の flock を撤去 wave ごとの lock にし、残る rc=75 には保持者 (pid・wave) を出す。
+- 型 1 (rc=75 固定間隔) → md_1: repo 全体の flock を撤去 wave ごとの lock にし、残る rc=75 には保持者 (pid・wave) を出す。手順書 `DW-O28` 自身が今も「撤去は repo 全体で 1 本ずつ、rc=75 は数分後再試行」と書いており (本 wave の段 6 前に気づいた)、tool の reason も `retry in a few minutes` と言う。この 2 つの是正も md_1 の所有範囲 (`DW-O28` 周辺) に入る。
 - 型 1b (rc=20 共有 evidence-dir・reason を読まない) → md_1: 木ごとの証拠 dir を既定にするか衝突を理由の本文で明示し、`DW-O28` 周辺の手順も md_1 が直す。
 - 型 2 (Bash guard の複合 command) → md_2: `DW-O03` に 1 行。
 - 型 3 (submodule 初期化の同 argv 再実行) → md_2: `DW-O08` に 1 行。
 - 型 4 (投げ文の path・制約の書き漏れ) → md_2: `DW-O02` と `DW-S05-C` に 1 行ずつ。
-- 単発 md_44 (撤去前の `ExitWorktree(keep)`) → md_2: `DW-S09` か撤去の入口に 1 行。
+- 単発 md_44 (撤去前の `ExitWorktree(keep)`) → md_2: `DW-S09` か撤去の入口に 1 行。`DW-O28` 周辺に書くなら md_1 の所有。
 - 単発 md_42 (fix 裁定の部分許可) → md_2: 段 6 の fix 裁定に 1 行。
 - 単発 md_43 (生死確認の request 形) → md_2: 置き場が dev-wave docs でなければ見送り、その旨を md_2 の insight に記録 (memory と F1094 は既にある)。
 - 単発: 撤去が core dump を持つ木で rc=137・祖先 process を占有者と数える・submodule reflog の到達性の誤判定・gitattributes・gitlink の owned_paths → md_1 (md_1 の依頼文に列挙)。
@@ -88,16 +88,17 @@ md_1 = 撤去 tool の並列化 (`tools/dev_wave_cleanup.py` と `DW-O28` 周辺
 | 下書き | 取り込み先 | 判断 |
 |---|---|---|
 | md_35 `dev-wave-cicada-between-run-floor/self-review/…-selfreview-1.md` | F1092 再発 (Bash guard 約 9 回)・F1038 再発 (PYTHONPATH を変えて同じ 9 件) | 下書きは新規 F 1 本だったが、2 つの型はどちらも既存 F と同型なので分けて再発にした |
-| md_44 `vhash-ro-continuing-2026-09-30/failures-fragment-draft.md` | 新規 F (rc=75 の固定間隔再試行) に束ねた・F51 再発 (rc=21 の自己占有) | rc=75 は 3 wave の下書きが同じ型なので新規 F 1 本に束ねた |
-| codex-astra-ultra `draft-failures-cleanup-retry.md` | 同上の新規 F | 同上 |
+| md_44 `vhash-ro-continuing-2026-09-30/failures-fragment-draft.md` (branch `worktree-dev-wave-vhash-ro-continuing`、fold `c94b79717`) | 新規 F (rc=75 の固定間隔再試行) に束ねた・F51 再発 (rc=21 の自己占有) | rc=75 は 3 wave の下書きが同じ型なので新規 F 1 本に束ねた |
+| codex-astra-ultra `draft-failures-cleanup-retry.md` | 同上の新規 F | 同上。当時の対応 (撤去 script の再試行上限を 3 回、rc=75 は 2 回目で止めて調整役に枠を求める) は並列撤去の裁定より前のものとして F に残した |
 | md_37 `dev-wave-vhash-hot-block-v2/self-review-failures-fragment-draft.md` | 新規 F (共有 evidence-dir の rc=20)。rc=75 の行数は上の新規 F | failures 本文に `--evidence-dir` の既出は無い (memory にだけ 2 回分) |
 | md_33 `dev-wave-cicada-certified-m/self-review-failures-fragment-draft.md` | F26 再発・F139 再発 | 下書きどおり。F139 の (2) `git archive` は F1046 に既着地と注記した |
-| md_15 `dev-wave-ccbench-pin-f/draft-followup/failures-fragment-draft.md` | 新規 F (pin 前進で正例が外れる) | 型タグ `[検査漏れ]` は台帳の語にないので `[手順漏れ] [テスト代表性]` にした |
+| md_15 `dev-wave-ccbench-pin-f/draft-followup/failures-fragment-draft.md` | F10 再発 (pin 前進で依存物が腐る構造) | 当初は新規 F にしたが、段 6 レビューの指摘で F10 (2026-09-20 に held test の期待値で再発済み) と同型と裁定した。「外れたものは item に紐付けるか起票する」を残した |
 | md_15 `dev-wave-ccbench-pin-f/draft-followup/worklog-fragment-draft.md` | 新規 T は作らない。§4 | [T-2854] の残り (2) が同じ作業を P1 で既に持つ |
 
 新規 F にせず再発にした根拠 (failures の型タグ・見出し・本文の検索で照合):
-Bash guard の複合 command は F1092・F1095・F1096 が既存。`worktree add` の EINTR は F26 の作成側の再発が 5 件既存。
-1 投入 1 欠陥は F139 の再発が 3 件既存。背景 session の cwd が撤去対象の中にある型は F51 (2026-09-15 の再発あり)。
+Bash guard の複合 command は F1092・F1095・F1096 が既存。`worktree add` の作成側の中断は F26 に複数の再発があり、EINTR は 2026-09-18・09-29・09-30 の再発に明記されている。
+実機の前提の欠陥が投入ごとに 1 件ずつ出る型は F139 の 2026-09-22・09-29・09-30 の再発にある。背景 session の cwd が撤去対象の中にある型は F51 (2026-09-15 の再発あり)。
+pin 前進で依存物が腐る型は F10 (2026-08-16・09-20 の再発あり)。
 撤去の rc=75・`removal-lock`・`receipt identity mismatch`・`--evidence-dir` は failures 本文に 0 件だったので新規にした。
 rc=75 の固定間隔再試行は F333 の (b) と根が近いが、F333 は dispatch の孤児 job の占有が主題で再発検知も別なので、別 F にした。
 
@@ -112,7 +113,7 @@ F810 の再発 (md_15・md_16・md_39)、F819 の再発 (md_22)、F333 の再発
 
 md_15 は新規 T の下書き (仮名 `rebuild-positive-controls-on-pin-f`、P2) を置いたが、
 [T-2854] の残り (2) が同じ作業 (F で `git apply` が外れる壊し patch 4 本の作り直し) を既に持つので、重複する item は作らなかった。
-新規 F の恒久対応はこの残り (2) を指す。下書きの中身は次のとおりで、残り (2) を進める wave が読む。
+F10 の再発 (本 wave の fragment) の対応はこの残り (2) を指す。下書きの中身は次のとおりで、残り (2) を進める wave が読む。
 
 - 対象と外れる位置: `broken-mocc-early-unlock` (`cc/mocc/transaction.cc:1257`)・`broken-mocc-hot-update-unlock` (同 1257)・`broken-silo-corrupt-write-payload` (`cc/silo/transaction.cc:655`)・`broken-silo-published-version-mismatch` (同 657)。F の writePhase の clang-format 14 整形と TPC-C の trace v3 で文脈が変わったため。
 - 現 consumer: MOCC の 2 本は e9e477ca に独立束縛の `s3_mocc_lock_coverage.py`・`s3_mocc_mutation_proof.py` と MOCC 系 test。Silo の 2 本は `condition_meaning_gate.py` の define ↔ patch の静的登録と、[T-2847] の一回限りの変異走。
