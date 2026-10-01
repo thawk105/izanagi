@@ -4,10 +4,10 @@
 
 ## DW-M01 — 事前登録と単一理由性
 
-変異は実装前に登録する。段 4 は B-057、段 6 の real 所見は fix 前。各変異は位置と、同じ
+変異は実装前に登録する。段4 はB-057、段6 のreal所見はfix前。各変異は位置と、同じ
 入力を拒否する層が前後にも内側にも無く赤理由が一つに絞れることを実装後に確認し（F820）、
-できなければ登録せず実効 gate へ再照準する（F28）。未知 key を持つ spec は起動前に中止。受理集合を縮小する wave は承認外の過剰拒否の
-正例も、テスト強化だけの wave は `DW-M08` の新旧両走も登録する。
+できなければ登録せず実効gateへ再照準する（F28）。未知keyを持つspecは起動前に中止。受理集合を縮小するwaveは承認外の過剰拒否の
+正例も、テスト強化だけのwaveは`DW-M08`の新旧両走も登録する。
 
 ## DW-M02 — 所見ゼロの裏取り
 
@@ -23,21 +23,21 @@ killは受理集合かfail-closed挙動が期待方向へ変わったときだ�
 
 置換対象が一箇所でなければ停止し、注入なしを緑と報告しない。同一ファイルの複数置換は累積適用し、
 置換ごとに累積後の一意性をassertする。SURVIVEDはmutated内容のdiffで注入実在を確認するまで
-equivalentとしない。両層変異はkill期待を必ず事前登録する（F33）。
+equivalentとしない。両層変異はkill期待を必ず事前登録する(F33)。
 
 ## DW-M05 — 復元と単一走行
 
 変異harnessは`tools/mutation_harness.py`を使う。同toolは元ソースの固定HEAD束縛、起動/復元時の
 内容比較、`flock`単一走行、逐次flush、HEAD/spec束縛の`--resume`、signal復元をfail-closedで
-強制する（F32）。独自harnessは同等検査を備えると段4で事前登録する。
+強制する(F32)。独自harnessは同等検査を備えると段4で事前登録する。
 変異中は親の編集とworktreeへ書きうる子の起動を止める。起動前に総所要を見積り、外側の
 実行時間上限内の経路で起動する。
 生存process照合はERE/literalで`\|`を避け、worktree pathで待ち手自身と並行waveの子を除く。
-走行中の待ちはjob dirで確定済み本文と検査の準備に充てる（未測定欄・placeholder禁止）。
+走行中の待ちはjob dirで確定済み本文と検査の準備に充てる(未測定欄・placeholder禁止)。
 
 ## DW-M06 — hang 変異
 
-local hangは`hang_risk`と`hang_timeout_seconds`へ隔離、timeoutはfail-open証拠（F32）。
+local hangは`hang_risk`と`hang_timeout_seconds`へ隔離、timeoutはfail-open証拠(F32)。
 dispatch短hang値は外側で使わずwalltimeへ委譲。rc=16はkillとせず、既存hold条件時のみhold・変異を残す。
 
 ## DW-M07 — fix 後 anchor
@@ -54,7 +54,7 @@ collectionの既存Q+G gateは元specで維持。有限の余裕は任意の遅�
 
 ## DW-M08 — 失敗 node と検出力
 
-harnessはrcと失敗nodeを毎回記録する。pytestは`-rf`、node抽出はF71に従う（rc≠0で0件はfail-closed停止）。
-**期待nodeは完全集合**で、同形式へ正規化した記録nodeとの完全一致だけをKILLEDとする（F33）。
-期待nodeはlogin self-run（対象commitの木へ変異ごとに注入→`PYTHONPATH=. python3`の自走harnessでFAIL / ERRORを観測・正規化→`DW-O19`で復元しsha256と`--porcelain`空も照合）か初回と明記したdispatch probeで集め、erratum・再登録後にdispatch finalを走らせる。適用は自走の全nodeが`--collect-only`と同形式で照合できlogin実行が許されるfileに限り、pytest専用allowlist・parametrize・skip・fixture（conftest / autouse）・環境変数・import副作用への依存や対応不明はdispatch probeへ戻す。
+harnessはrcと失敗nodeを毎回記録する。pytestは`-rf`、node抽出はF71に従う(rc≠0で0件はfail-closed停止)。
+**期待nodeは完全集合**で、同形式へ正規化した記録nodeとの完全一致だけをKILLEDとする(F33)。
+期待nodeはlogin self-run(対象commitの木へ変異ごとに注入→`PYTHONPATH=. python3`の自走harnessでFAIL / ERRORを観測・正規化→`DW-O19`で復元しsha256と`--porcelain`空も照合)か初回と明記したdispatch probeで集め、erratum・再登録後にdispatch finalを走らせる。適用は自走の全nodeが`--collect-only`と同形式で照合できlogin実行が許されるfileに限り、pytest専用allowlist・parametrize・skip・fixture(conftest / autouse)・環境変数・import副作用への依存や対応不明はdispatch probeへ戻す。
 受理集合を変えず構造化シグナルだけをpinする変異はkillでなくdiagnostic sensitivity pinへ別枠記録する。テスト強化だけのwaveは新テストと変更前HEAD版の双方へ変異を走らせ、新テストだけが検出する差分を示す。

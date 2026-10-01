@@ -1,0 +1,9 @@
+submit_start=2026-10-01 10:29:38 JST
+argv: bash tools/pegasus/submit_paper_story_a2_certification.sh --policy orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json --attempt-id b7f5-r2-20261001a --ccbench-root /work/1/SFC/tanab/tmp/t2853-r2-fig10-20261001/submit-tree/external/ccbench --dependency-prefix-source /work/1/SFC/tanab/izanagi-a2-deps --third-party-source-root /work/1/SFC/tanab/izanagi-measurements/t2853-r2-fig10-20261001/thirdparty-src
+cwd: /work/1/SFC/tanab/tmp/t2853-r2-fig10-20261001/submit-tree
+/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-b7-fixed5-20260919/b7f5-r2-20261001a/receipts/submission.json
+40685.nqsv
+40686.nqsv
+40687.nqsv
+rc=0
+submit_end=2026-10-01 10:30:07 JST

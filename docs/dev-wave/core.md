@@ -41,21 +41,21 @@ holdでrc=16、`DW-O26`）。`qdel`前に`docs/pegasus-runbook.md`§7.6を読む
 
 ## DW-S01 — 段 1 brief
 
-brief は 10〜30 行で研究前進、scope、確定済みユーザー裁定、不変条件、成果物の形、並列分割方針だけを書く。
-研究前進は、進む論文の主張・図表・実験と完了判定、土台なら止めている研究の実測と最小差分を 1 行で示す。
+briefは10〜30 行で研究前進、scope、確定済みユーザー裁定、不変条件、成果物の形、並列分割方針だけを書く。
+研究前進は、進む論文の主張・図表・実験と完了判定、土台なら止めている研究の実測と最小差分を1 行で示す。
 起点を問わず、示せなければ後送も開始もせずユーザー裁定へ返す。割れうる前提は
-`(P1)` と採番し「親の provisional 裁定・攻撃対象」とする。依頼・対象 vector の既存被覆を性質で
-decisions / failures / archive まで検索し、純増だけ書く。確認前に子を起動しない。受入・実測環境を
+`(P1)`と採番し「親のprovisional裁定・攻撃対象」とする。依頼・対象vectorの既存被覆を性質で
+decisions / failures / archiveまで検索し、純増だけ書く。確認前に子を起動しない。受入・実測環境を
 決める（所在=worklog、機体固有情報=runbook）。変更面は分類でなく実アンカー表で渡す。
 
-brief 前に承認済み裁定と引数と一次資料の未了項目の前提を実測し、覆す新事実は brief に出して段 4 で再裁定する。模擬/実の差を書き、自己 hash・
-参照・pin は模擬で裁定しない（F29）。コード変更前提は monkeypatch でなく実編集し、`DW-O19` で
-即時復元する。実編集不能なら拒否と模擬差を書く。別 program 起動物は build・環境変数・
-外部 command・注入 seam の実在を棚卸しする。
+brief前に承認済み裁定と引数と一次資料の未了項目の前提を実測し、覆す新事実はbriefに出して段4 で再裁定する。模擬/実の差を書き、自己hash・
+参照・pinは模擬で裁定しない（F29）。コード変更前提はmonkeypatchでなく実編集し、`DW-O19`で
+即時復元する。実編集不能なら拒否と模擬差を書く。別program起動物はbuild・環境変数・
+外部command・注入seamの実在を棚卸しする。
 
-decision / archive worklog の不一致は decision 優先（F31）。人間手番待ちは git / 成果物で済を
-照合し、stale なら依存項目を繰り上げる（F35）。日時・hash・件数は commit / 成果物 field から取り、
-docs は一次資料と一致するまで根拠にしない（F1）。
+decision / archive worklogの不一致はdecision優先（F31）。人間手番待ちはgit /成果物で済を
+照合し、staleなら依存項目を繰り上げる（F35）。日時・hash・件数はcommit /成果物fieldから取り、
+docsは一次資料と一致するまで根拠にしない（F1）。
 
 ## DW-G01 — 生死実験先行
 
@@ -79,43 +79,44 @@ docs は一次資料と一致するまで根拠にしない（F1）。
 
 ## DW-G05 — 成果物影響
 
-scope/must-fix は、放置時に成果物（certified 選択・レポート・台帳）の値・受理集合・参照がどう
-変わるかを 1 行で示す。示せない must-fix は nit/backlog とし、追加 review を起動しない。
-段 1 の scope で示せなければ子を起動せず `DW-G02` で 1 cycle 後へ送る。
+scope/must-fixは、放置時に成果物（certified選択・レポート・台帳）の値・受理集合・参照がどう
+変わるかを1 行で示す。示せないmust-fixはnit/backlogとし、追加reviewを起動しない。
+段1 のscopeで示せなければ子を起動せず`DW-G02`で1 cycle後へ送る。
 
-確定主目的・scope の本体実装と足りる既存策・局所修正を優先する。超える追加実装・防壁は、明示要求内か、
-段 1 の研究前進・実在欠陥・受入要件に必要で既存策不足を資料/実測で確認できる場合だけ scope/must-fix にする。
-要求外の仮想リスクで framework・一般化・互換層・gate・検査・台帳を足さず、安全規律・要求・受入要件を弱めない。
+確定主目的・scopeの本体実装と足りる既存策・局所修正を優先する。超える追加実装・防壁は、明示要求内か、
+段1 の研究前進・実在欠陥・受入要件に必要で既存策不足を資料/実測で確認できる場合だけscope/must-fixにする。
+要求外の仮想リスクでframework・一般化・互換層・gate・検査・台帳を足さず、安全規律・要求・受入要件を弱めない。
 
 ## DW-S04 — 段 4 裁定
 
-親が各所見を real/refuted、採用/不採用、scope 内/外に裁定しプラン v2 を確定する。
-全段の scope 外 real 所見は実装せず、研究前進か実測欠陥を資料/実測で示した場合だけ設計択一・推奨案付き
-裁定パッケージでユーザーへ返し、他は起票せず insight に記録する。
-gate の禁止は署名で書き、通る正例を 1 つ添える。
+親が各所見をreal/refuted、採用/不採用、scope内/外に裁定しプランv2を確定する。
+全段のscope外real所見は実装せず、研究前進か実測欠陥を資料/実測で示した場合だけ設計択一・推奨案付き
+裁定パッケージでユーザーへ返し、他は起票せずinsightに記録する。
+gateの禁止は署名で書き、通る正例を1つ添える。
+期待値変更を許す裁定(段6 fixも)は対象test関数の全assertを逐語で並べ可否を付ける。
 
-実装面 (D95 決定 2) の差分ゼロの wave だけ変異 matrix を免除する。受入全走は縮小受入を land が
-再検証した wave 以外は免除せず、
-実 repo を読むテストは段 7 の記録前に実走し、結果を worklog へ書く。
-段 4 直前に裁定 inbox を再走査し、開始後の更新を取り込む。
+実装面(D95 決定 2)の差分ゼロのwaveだけ変異matrixを免除する。受入全走は縮小受入をlandが
+再検証したwave以外は免除せず、
+実repoを読むテストは段7の記録前に実走し、結果をworklogへ書く。
+段4直前に裁定inboxを再走査し、開始後の更新を取り込む。
 
-承認済み裁定は裁定時の未見事実でだけ止め、裁定文・worklog に未記録か確認する。親は不採用にせず、
+承認済み裁定は裁定時の未見事実でだけ止め、裁定文・worklogに未記録か確認する。親は不採用にせず、
 新事実を添えてユーザー再裁定待ちへ戻す。実装方向まで裁定済みなら、コードで代案の等価性を
 確認しない限り非同値な択一へ戻さない。
 
 ## DW-S07 — 段 7 記録
 
-親が worklog、insights の逐語・変異台帳、decisions の設計判断を一括記録する。配置は`output/README.md` に従う。
-**worklog / decisions / failures の 3 台帳は直接編集せず、`docs/spool/README.md` の形式に従う
-fragment として書く**。fragment は wave branch へ commit するだけとし、
-canonical への追記・採番・ローテーションは段 9 の land が lock 内で一度だけ行う。
-**wave 側で fold してはならない。**
-凍結前に全 gate の検出語（三軸語・placeholder）を機械走査し、hit は原文 hash 付きの可逆 defang +
-erratum とする（D88）。走査器は `python3 -m orchestrator.campaign.s8b_holdout_freeze search`（rc≠0 で hit）。逐語末尾空白の `git diff --check` 抵触時も、原文hash・byte 数・
+親がworklog、insightsの逐語・変異台帳、decisionsの設計判断を一括記録する。配置は`output/README.md`に従う。
+**worklog / decisions / failuresの3 台帳は直接編集せず、`docs/spool/README.md`の形式に従う
+fragmentとして書く**。fragmentはwave branchへcommitするだけとし、
+canonicalへの追記・採番・ローテーションは段9 のlandがlock内で一度だけ行う。
+**wave側でfoldしてはならない。**
+凍結前に全gateの検出語（三軸語・placeholder）を機械走査し、hitは原文hash付きの可逆defang +
+erratumとする（D88）。走査器は`python3 -m orchestrator.campaign.s8b_holdout_freeze search`（rc≠0 でhit）。逐語末尾空白の`git diff --check`抵触時も、原文hash・byte数・
 復元法を記録した可逆最小正規化だけを許す（可視文字不変）。
-docs commit 後に repo scan invariant と影響テストを再走して閉じる（F34）。受入・検査は実測前に
-欄を作らず未実施はそう書く。値なし前方参照と placeholder を禁じ、再走値は amend する。
-hash 自己参照は禁止（F36）。
+docs commit後にrepo scan invariantと影響テストを再走して閉じる（F34）。受入・検査は実測前に
+欄を作らず未実施はそう書く。値なし前方参照とplaceholderを禁じ、再走値はamendする。
+hash自己参照は禁止（F36）。
 
 ## DW-S08 — 段 8 自己改善
 
@@ -125,17 +126,18 @@ hash 自己参照は禁止（F36）。
 
 全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
 `tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。
-正式な停止時だけ main HEAD と既存 branch を報告する。
-段 9 後に `tools/collect_wave_usage.py` を実行。
+正式な停止時だけmain HEADと既存branchを報告する。
+段9後に`tools/collect_wave_usage.py`を実行。
+撤去前に`ExitWorktree`(keep)でsessionを木の外へ出す。
 
 ## DW-CTX — fresh context と外部 supervisor
 
-対話運用では段 9 後に人間が `/clear <完了 wave 名>` を実行し、報告された
-`/dev-wave <次タスク>` を起動する。command 内から `/clear` を実行しない（D69）。
+対話運用では段9 後に人間が`/clear <完了 wave 名>`を実行し、報告された
+`/dev-wave <次タスク>`を起動する。command内から`/clear`を実行しない（D69）。
 
-無人継続は外部 supervisor が wave ごとに新しい `claude -p` を起動し、組み込み `/loop` は
-使わない。supervisor は `max-waves`、金額/トークン予算、wall-clock deadline を必須とし
+無人継続は外部supervisorがwaveごとに新しい`claude -p`を起動し、組み込み`/loop`は
+使わない。supervisorは`max-waves`、金額/トークン予算、wall-clock deadlineを必須とし
 無限ループにしない。次タスクなし、ユーザー裁定待ち、テスト/check/変異の赤、
-未許可 dirty/diverged main、取り込み不能、想定外 commit、process の非 0 終了・timeout、
-task-run/handoff 不整合で fail-closed 停止する。自然言語の完了だけで継続せず、Git HEAD、
-cleanliness、検査結果、task-run 終了状態を照合する。
+未許可dirty/diverged main、取り込み不能、想定外commit、processの非0 終了・timeout、
+task-run/handoff不整合でfail-closed停止する。自然言語の完了だけで継続せず、Git HEAD、
+cleanliness、検査結果、task-run終了状態を照合する。
