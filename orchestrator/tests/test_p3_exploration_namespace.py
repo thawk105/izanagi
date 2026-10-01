@@ -7,6 +7,7 @@ import argparse
 import contextlib
 import dataclasses
 import hashlib
+import json
 import importlib
 import inspect
 import os
@@ -33,6 +34,7 @@ from orchestrator.campaign import p3_autonomous_workload_trial as AUTONOMOUS    
 from orchestrator.campaign import p3_s4_loop as LOOP                             # noqa: E402
 from orchestrator.campaign import p3_s4_loop_sort as SORT                        # noqa: E402
 from orchestrator.campaign import p3_s4_loop_policy as POLICY                    # noqa: E402
+from orchestrator.campaign import p3_s4_loop_lock_order as LOCK_ORDER             # noqa: E402
 from orchestrator.campaign import sort_swo_oracle as SWO                         # noqa: E402
 from orchestrator.campaign import p3_s4_loop_trigger_gating as TRIGGER           # noqa: E402
 from orchestrator.campaign import paper_story_a1_paired as PAPER_STORY           # noqa: E402
@@ -265,6 +267,35 @@ def _policy_without_opt_in_argv(tmp_path: Path) -> tuple[str, ...]:
     return _policy_argv(tmp_path)[:-2]
 
 
+def _lock_order_argv(_tmp_path: Path) -> tuple[str, ...]:
+    result = _tmp_path / 'lock-order-model.json'
+    result.write_text(json.dumps({
+        'schema': 'cc-model-result/1', 'axis': 'silo-lock-order-policy',
+        'specification_digest': 'sha256:' + 'a' * 64,
+        'scenarios': [{'scenario_id': 'L1', 'complete': True,
+                       'stop_reason': 'exhausted', 'explored_configurations': 1,
+                       'witness_reached': True, 'counterexamples': []}],
+    }))
+    return ('--initial-control', 'version_desc', '--model-result', str(result),
+            _ALLOW_CODER_BUILD,
+            '--no-isolate-worktree')
+
+
+def _stub_lock_order_gate(monkeypatch):
+    monkeypatch.setattr(LOCK_ORDER, 'find_compiler', lambda: 'fixture-cxx')
+    monkeypatch.setattr(LOCK_ORDER, 'order_gate',
+                        lambda *_a, **_k: (SimpleNamespace(passed=True), 'fixture'))
+    monkeypatch.setattr(LOCK_ORDER.axis, 'MODEL_SPECIFICATION_DIGEST',
+                        'sha256:' + 'a' * 64)
+    monkeypatch.setattr(LOCK_ORDER.axis, 'MODEL_SCENARIOS',
+                        {'L1': {'expected_configurations': 1,
+                                'witness_required': True}})
+
+
+def _lock_order_without_opt_in_argv(_tmp_path: Path) -> tuple[str, ...]:
+    return ('--initial-control', 'version_desc')
+
+
 def _autonomous_without_opt_in_argv(_tmp_path: Path) -> tuple[str, ...]:
     return ("--trial-id", "fixture", "--provider", "claude-headless")
 
@@ -464,6 +495,18 @@ _DRIVER_CONTRACTS = {
         runtime_run_campaign_calls=1,
         derive_expected_campaign_ids=_single_expected_campaign_id,
     ),
+    "p3_s4_loop_lock_order": DriverContract(
+        cli_authority_mode="coder-opt-in",
+        coder_entrypoint_site="orchestrator.campaign.p3_s4_loop_lock_order.main",
+        expected_generator_id=GeneratorId.BACKOFF_SWEEP,
+        without_opt_in_argv_factory=_lock_order_without_opt_in_argv,
+        build_spy_argv_factory=_lock_order_argv,
+        routing_argv_factory=_lock_order_argv,
+        ast_layout_calls=1,
+        ast_run_campaign_calls=1,
+        runtime_run_campaign_calls=1,
+        derive_expected_campaign_ids=_single_expected_campaign_id,
+    ),
     "p3_s4_loop_trigger_gating": DriverContract(
         cli_authority_mode="coder-opt-in",
         coder_entrypoint_site=(
@@ -541,6 +584,7 @@ def test_campaign_driver_discovery_names_are_pinned():
         "p3_autonomous_workload_trial",
         "p3_kickoff",
         "p3_s4_loop",
+        "p3_s4_loop_lock_order",
         "p3_s4_loop_policy",
         "p3_s4_loop_sort",
         "p3_s4_loop_trigger_gating",
@@ -1211,7 +1255,7 @@ def test_driver_build_spy_receives_exact_run_context(
     )
 
     argv = list(contract.build_spy_argv_factory(tmp_path))
-    if module in {LOOP, SORT, TRIGGER, POLICY}:
+    if module in {LOOP, SORT, TRIGGER, POLICY, LOCK_ORDER}:
         monkeypatch.setattr(module, "run_campaign", capture)
         monkeypatch.setattr(
             module, "exploration_campaign_layout",
@@ -1227,6 +1271,8 @@ def test_driver_build_spy_receives_exact_run_context(
             monkeypatch.setattr(module, 'find_compiler', lambda: 'fixture-cxx')
             monkeypatch.setattr(module, 'policy_gate',
                                 lambda *_a, **_k: (passed, 'fixture'))
+        if module is LOCK_ORDER:
+            _stub_lock_order_gate(monkeypatch)
         if module is TRIGGER:
             runtime_contract = dataclasses.replace(
                 env_contract.GENERATIONS["linux-baremetal"][0].contract,
@@ -1373,6 +1419,11 @@ class Backoff {
         cfg, perf = module.default_cfg(form='cpp'), module.default_perf()
         monkeypatch.setattr(module, 'policy_gate',
                             lambda *_a, **_k: (SimpleNamespace(passed=True), 'fixture'))
+    elif module is LOCK_ORDER:
+        template = '// EVOLVE-BLOCK-BEGIN silo-lock-order-policy\n// fixture\n// EVOLVE-BLOCK-END silo-lock-order-policy\n'
+        coder = module.LockOrderProposal('return true;', None, 'initial')
+        cfg, perf = module.default_cfg(), POLICY.default_perf()
+        _stub_lock_order_gate(monkeypatch)
     else:
         if module is SORT:
             template = SORT_VARIANT_SOURCE
@@ -1405,7 +1456,7 @@ class Backoff {
         )
         cfg = ident.bind_environment_contract(cfg, runtime_contract)
     sub = tmp_path / f"{name}-sub"
-    source = sub / module.SOURCE_REL
+    source = sub / (module.axis.SOURCE_REL if module is LOCK_ORDER else module.SOURCE_REL)
     source.parent.mkdir(parents=True)
     source.write_text(template, encoding="utf-8")
     install_condition_gate_build_fixture(sub)
@@ -1418,6 +1469,14 @@ class Backoff {
             cfg, perf, coder, None, str(sub), True,
             layout=module.exploration_campaign_layout(str(ident.campaign_id(cfg))),
             compiler='fixture-cxx', scratch_dir=str(tmp_path),
+            build_context=_CODER_CONTEXT, log=lambda *_: None)
+    elif module is LOCK_ORDER:
+        model = _lock_order_argv(tmp_path)
+        model_bytes = Path(model[model.index('--model-result') + 1]).read_bytes()
+        module.run_one_iteration(
+            cfg, perf, coder, str(sub), model_bytes,
+            layout=module.exploration_campaign_layout(str(ident.campaign_id(cfg))),
+            iteration=1, compiler='fixture-cxx', scratch_dir=str(tmp_path),
             build_context=_CODER_CONTEXT, log=lambda *_: None)
     else:
         implementation = (

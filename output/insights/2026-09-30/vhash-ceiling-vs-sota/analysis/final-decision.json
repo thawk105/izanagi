@@ -1,0 +1,1079 @@
+{
+ "gc": {
+  "P1": 100,
+  "P2": 100,
+  "P3": 10,
+  "P4": 100
+ },
+ "representative": {
+  "point": "P3",
+  "arm": "fwd"
+ },
+ "neighbor": "P2",
+ "comparison_arms": [
+  "S",
+  "R",
+  "fwd",
+  "hot1"
+ ],
+ "compare": {
+  "P3": {
+   "hot1": {
+    "ratio": 0.9349913086771571,
+    "ratio_min": 0.8169005925479659,
+    "ratio_max": 1.3161438927566653,
+    "completion_ratio": 1.0139649210116632,
+    "rounds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "nodes": [
+     "bnode017",
+     "bnode018",
+     "bnode021",
+     "bnode039"
+    ],
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode017",
+      "job_id": "local-141f2e67-0aa3-4037-8268-76f2df0e16d0",
+      "ratio": 1.002600607544998,
+      "completion_ratio": 1.045045045045045
+     },
+     {
+      "round": 2,
+      "node": "bnode018",
+      "job_id": "local-0808d1d3-9b99-48c0-ab75-99a013883e32",
+      "ratio": 0.8483256948661829,
+      "completion_ratio": 0.9828847969782813
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-87d62850-c178-4482-b3a1-5b1c2d45f001",
+      "ratio": 0.9598470129911754,
+      "completion_ratio": 0.9208359721342622
+     },
+     {
+      "round": 4,
+      "node": "bnode018",
+      "job_id": "local-0fff7eba-3abe-4ed0-967d-2a423d241078",
+      "ratio": 0.9101356043631388,
+      "completion_ratio": 1.047671568627451
+     },
+     {
+      "round": 5,
+      "node": "bnode039",
+      "job_id": "local-03009234-23cb-41e0-95a6-4a3db576a967",
+      "ratio": 0.8169005925479659,
+      "completion_ratio": 0.5445777464126088
+     },
+     {
+      "round": 6,
+      "node": "bnode021",
+      "job_id": "local-40ef3443-2b65-4b51-82a0-f8a54ecc9631",
+      "ratio": 1.3161438927566653,
+      "completion_ratio": 1.5337039610840861
+     }
+    ]
+   },
+   "fwd": {
+    "ratio": 0.981318858278707,
+    "ratio_min": 0.7008456475424316,
+    "ratio_max": 0.9975136663451415,
+    "completion_ratio": 0.8416516761211726,
+    "rounds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "nodes": [
+     "bnode017",
+     "bnode018",
+     "bnode021",
+     "bnode039"
+    ],
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode017",
+      "job_id": "local-141f2e67-0aa3-4037-8268-76f2df0e16d0",
+      "ratio": 0.9877376309408463,
+      "completion_ratio": 0.9793393393393394
+     },
+     {
+      "round": 2,
+      "node": "bnode018",
+      "job_id": "local-0808d1d3-9b99-48c0-ab75-99a013883e32",
+      "ratio": 0.7008456475424316,
+      "completion_ratio": 0.6228753541076487
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-87d62850-c178-4482-b3a1-5b1c2d45f001",
+      "ratio": 0.9975136663451415,
+      "completion_ratio": 0.4880726198015622
+     },
+     {
+      "round": 4,
+      "node": "bnode018",
+      "job_id": "local-0fff7eba-3abe-4ed0-967d-2a423d241078",
+      "ratio": 0.9870156470365012,
+      "completion_ratio": 0.9660539215686275
+     },
+     {
+      "round": 5,
+      "node": "bnode039",
+      "job_id": "local-03009234-23cb-41e0-95a6-4a3db576a967",
+      "ratio": 0.9010939087216445,
+      "completion_ratio": 0.9253116913667372
+     },
+     {
+      "round": 6,
+      "node": "bnode021",
+      "job_id": "local-40ef3443-2b65-4b51-82a0-f8a54ecc9631",
+      "ratio": 0.9756220695209128,
+      "completion_ratio": 0.7579916608756081
+     }
+    ]
+   },
+   "S": {
+    "ratio": 0.36498656324969597,
+    "ratio_min": 0.3484043634015778,
+    "ratio_max": 0.5097515808555173,
+    "completion_ratio": 0.006854795972443031,
+    "rounds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "nodes": [
+     "bnode017",
+     "bnode018",
+     "bnode021",
+     "bnode039"
+    ],
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode017",
+      "job_id": "local-141f2e67-0aa3-4037-8268-76f2df0e16d0",
+      "ratio": 0.3669850353581698,
+      "completion_ratio": 0.006846846846846847
+     },
+     {
+      "round": 2,
+      "node": "bnode018",
+      "job_id": "local-0808d1d3-9b99-48c0-ab75-99a013883e32",
+      "ratio": 0.3484043634015778,
+      "completion_ratio": 0.006728045325779037
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-87d62850-c178-4482-b3a1-5b1c2d45f001",
+      "ratio": 0.5097515808555173,
+      "completion_ratio": 0.011821828161283512
+     },
+     {
+      "round": 4,
+      "node": "bnode018",
+      "job_id": "local-0fff7eba-3abe-4ed0-967d-2a423d241078",
+      "ratio": 0.3626219328007223,
+      "completion_ratio": 0.006862745098039216
+     },
+     {
+      "round": 5,
+      "node": "bnode039",
+      "job_id": "local-03009234-23cb-41e0-95a6-4a3db576a967",
+      "ratio": 0.36298809114122216,
+      "completion_ratio": 0.006469066102093625
+     },
+     {
+      "round": 6,
+      "node": "bnode021",
+      "job_id": "local-40ef3443-2b65-4b51-82a0-f8a54ecc9631",
+      "ratio": 0.4925188108287612,
+      "completion_ratio": 0.009555246699096595
+     }
+    ]
+   }
+  },
+  "P2": {
+   "hot1": {
+    "ratio": 0.9670463306998902,
+    "ratio_min": 0.9245595899300451,
+    "ratio_max": 1.1170244070416873,
+    "completion_ratio": 0.9380289878800112,
+    "rounds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "nodes": [
+     "bnode017",
+     "bnode018",
+     "bnode021"
+    ],
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode018",
+      "job_id": "local-76a13ce5-ff4d-4d25-9562-566d6a5b405c",
+      "ratio": 0.9872824422976056,
+      "completion_ratio": 0.9276144978710147
+     },
+     {
+      "round": 2,
+      "node": "bnode017",
+      "job_id": "local-94369b77-a7cf-48d6-9251-73e99fb39926",
+      "ratio": 0.9400643542960209,
+      "completion_ratio": 0.9432753888380604
+     },
+     {
+      "round": 3,
+      "node": "bnode018",
+      "job_id": "local-0b1802ed-20e1-4d2d-abc0-7af8331578e1",
+      "ratio": 0.9846799608277901,
+      "completion_ratio": 0.943208610968734
+     },
+     {
+      "round": 4,
+      "node": "bnode017",
+      "job_id": "local-947b9662-1972-48d7-8497-396fe3fd571d",
+      "ratio": 0.9245595899300451,
+      "completion_ratio": 0.9328493647912885
+     },
+     {
+      "round": 5,
+      "node": "bnode021",
+      "job_id": "local-9df5c56a-e890-4188-8ecc-a1875164d0d1",
+      "ratio": 1.1170244070416873,
+      "completion_ratio": 0.9478287399572867
+     },
+     {
+      "round": 6,
+      "node": "bnode021",
+      "job_id": "local-b4c4ca5a-0bdb-4e9c-a4b5-4ea285c7b45a",
+      "ratio": 0.9494127005719902,
+      "completion_ratio": 0.9288486416558862
+     }
+    ]
+   },
+   "fwd": {
+    "ratio": 0.9926255152683445,
+    "ratio_min": 0.8039237985502944,
+    "ratio_max": 1.1533503308560957,
+    "completion_ratio": 0.9318781102119387,
+    "rounds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "nodes": [
+     "bnode017",
+     "bnode018",
+     "bnode021"
+    ],
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode018",
+      "job_id": "local-76a13ce5-ff4d-4d25-9562-566d6a5b405c",
+      "ratio": 0.9199790455561522,
+      "completion_ratio": 0.9672863225672448
+     },
+     {
+      "round": 2,
+      "node": "bnode017",
+      "job_id": "local-94369b77-a7cf-48d6-9251-73e99fb39926",
+      "ratio": 1.0145510637135067,
+      "completion_ratio": 0.9397173935142829
+     },
+     {
+      "round": 3,
+      "node": "bnode018",
+      "job_id": "local-0b1802ed-20e1-4d2d-abc0-7af8331578e1",
+      "ratio": 1.0001458897700688,
+      "completion_ratio": 0.9271143003587904
+     },
+     {
+      "round": 4,
+      "node": "bnode017",
+      "job_id": "local-947b9662-1972-48d7-8497-396fe3fd571d",
+      "ratio": 0.8039237985502944,
+      "completion_ratio": 0.5315587820125025
+     },
+     {
+      "round": 5,
+      "node": "bnode021",
+      "job_id": "local-9df5c56a-e890-4188-8ecc-a1875164d0d1",
+      "ratio": 1.1533503308560957,
+      "completion_ratio": 0.936641920065087
+     },
+     {
+      "round": 6,
+      "node": "bnode021",
+      "job_id": "local-b4c4ca5a-0bdb-4e9c-a4b5-4ea285c7b45a",
+      "ratio": 0.9851051407666201,
+      "completion_ratio": 0.9267588814807444
+     }
+    ]
+   },
+   "S": {
+    "ratio": 0.2409152717683638,
+    "ratio_min": 0.23357936310149943,
+    "ratio_max": 0.27118862672742977,
+    "completion_ratio": 0.009354347107728856,
+    "rounds": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "nodes": [
+     "bnode017",
+     "bnode018",
+     "bnode021"
+    ],
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode018",
+      "job_id": "local-76a13ce5-ff4d-4d25-9562-566d6a5b405c",
+      "ratio": 0.2385663569951129,
+      "completion_ratio": 0.009554470869249144
+     },
+     {
+      "round": 2,
+      "node": "bnode017",
+      "job_id": "local-94369b77-a7cf-48d6-9251-73e99fb39926",
+      "ratio": 0.24258115341417338,
+      "completion_ratio": 0.009352444851072481
+     },
+     {
+      "round": 3,
+      "node": "bnode018",
+      "job_id": "local-0b1802ed-20e1-4d2d-abc0-7af8331578e1",
+      "ratio": 0.23357936310149943,
+      "completion_ratio": 0.009431060994361865
+     },
+     {
+      "round": 4,
+      "node": "bnode017",
+      "job_id": "local-947b9662-1972-48d7-8497-396fe3fd571d",
+      "ratio": 0.24129842406802354,
+      "completion_ratio": 0.009175236942932043
+     },
+     {
+      "round": 5,
+      "node": "bnode021",
+      "job_id": "local-9df5c56a-e890-4188-8ecc-a1875164d0d1",
+      "ratio": 0.27118862672742977,
+      "completion_ratio": 0.009356249364385233
+     },
+     {
+      "round": 6,
+      "node": "bnode021",
+      "job_id": "local-b4c4ca5a-0bdb-4e9c-a4b5-4ea285c7b45a",
+      "ratio": 0.24053211946870404,
+      "completion_ratio": 0.009155139814906956
+     }
+    ]
+   }
+  }
+ },
+ "continuation": "基準未達",
+ "research_decision": "今の VHash を主論文候補から外す推奨",
+ "residual_cost": {
+  "R_noLR_over_R_prelim_median": 1.9836738497738475,
+  "rounds": [
+   1,
+   2,
+   3
+  ],
+  "used_for_decision": 1.9836738497738475
+ },
+ "prelim": {
+  "P1": {
+   "S": {
+    "ratio": 0.1266448809518732,
+    "completion_ratio": 0.16535600425079702,
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode070",
+      "job_id": "local-a54392b9-3480-4acf-b42e-ce4cb8cf9dc7",
+      "ratio": 0.12863111782743988,
+      "completion_ratio": 0.16535600425079702
+     },
+     {
+      "round": 2,
+      "node": "bnode067",
+      "job_id": "local-232dc918-07a4-4ff3-b211-97a4ade53d42",
+      "ratio": 0.1266448809518732,
+      "completion_ratio": 0.1653626559526327
+     },
+     {
+      "round": 3,
+      "node": "bnode043",
+      "job_id": "local-3ff15226-26ec-4ab0-9091-526652d14408",
+      "ratio": 0.12653918866770122,
+      "completion_ratio": 0.163575042158516
+     }
+    ]
+   },
+   "R-noLR": {
+    "ratio": 1.0773508191864158,
+    "completion_ratio": 0.0,
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode070",
+      "job_id": "local-a54392b9-3480-4acf-b42e-ce4cb8cf9dc7",
+      "ratio": 1.0822860629524,
+      "completion_ratio": 0.0
+     },
+     {
+      "round": 2,
+      "node": "bnode067",
+      "job_id": "local-232dc918-07a4-4ff3-b211-97a4ade53d42",
+      "ratio": 1.0725384764859662,
+      "completion_ratio": 0.0
+     },
+     {
+      "round": 3,
+      "node": "bnode043",
+      "job_id": "local-3ff15226-26ec-4ab0-9091-526652d14408",
+      "ratio": 1.0773508191864158,
+      "completion_ratio": 0.0
+     }
+    ]
+   },
+   "hot1": {
+    "ratio": 0.9785987395484503,
+    "completion_ratio": 0.9296493092454835,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode070",
+      "job_id": "local-a54392b9-3480-4acf-b42e-ce4cb8cf9dc7",
+      "ratio": 0.9870040705179671,
+      "completion_ratio": 0.9296493092454835
+     },
+     {
+      "round": 2,
+      "node": "bnode067",
+      "job_id": "local-232dc918-07a4-4ff3-b211-97a4ade53d42",
+      "ratio": 0.9654614937341378,
+      "completion_ratio": 0.9268344258828505
+     },
+     {
+      "round": 3,
+      "node": "bnode043",
+      "job_id": "local-3ff15226-26ec-4ab0-9091-526652d14408",
+      "ratio": 0.9785987395484503,
+      "completion_ratio": 0.9529932546374368
+     }
+    ]
+   },
+   "hot8": {
+    "ratio": 0.9602306325736242,
+    "completion_ratio": 1.0097768331562167,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode070",
+      "job_id": "local-a54392b9-3480-4acf-b42e-ce4cb8cf9dc7",
+      "ratio": 0.9642299810264218,
+      "completion_ratio": 1.0097768331562167
+     },
+     {
+      "round": 2,
+      "node": "bnode067",
+      "job_id": "local-232dc918-07a4-4ff3-b211-97a4ade53d42",
+      "ratio": 0.9602306325736242,
+      "completion_ratio": 1.0122647494184818
+     },
+     {
+      "round": 3,
+      "node": "bnode043",
+      "job_id": "local-3ff15226-26ec-4ab0-9091-526652d14408",
+      "ratio": 0.9482757941110259,
+      "completion_ratio": 1.0096964586846544
+     }
+    ]
+   },
+   "igc1": {
+    "ratio": 0.7517767112384912,
+    "completion_ratio": 1.017974201733982,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode070",
+      "job_id": "local-a54392b9-3480-4acf-b42e-ce4cb8cf9dc7",
+      "ratio": 0.7541547908976372,
+      "completion_ratio": 1.0182784272051009
+     },
+     {
+      "round": 2,
+      "node": "bnode067",
+      "job_id": "local-232dc918-07a4-4ff3-b211-97a4ade53d42",
+      "ratio": 0.7517767112384912,
+      "completion_ratio": 1.017974201733982
+     },
+     {
+      "round": 3,
+      "node": "bnode043",
+      "job_id": "local-3ff15226-26ec-4ab0-9091-526652d14408",
+      "ratio": 0.7385570735356117,
+      "completion_ratio": 1.0177065767284992
+     }
+    ]
+   },
+   "igc3": {
+    "ratio": 0.977789715665494,
+    "completion_ratio": 0.9987352445193929,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode070",
+      "job_id": "local-a54392b9-3480-4acf-b42e-ce4cb8cf9dc7",
+      "ratio": 0.9701337643137559,
+      "completion_ratio": 0.9974495217853347
+     },
+     {
+      "round": 2,
+      "node": "bnode067",
+      "job_id": "local-232dc918-07a4-4ff3-b211-97a4ade53d42",
+      "ratio": 0.9795264712222574,
+      "completion_ratio": 1.001691689574963
+     },
+     {
+      "round": 3,
+      "node": "bnode043",
+      "job_id": "local-3ff15226-26ec-4ab0-9091-526652d14408",
+      "ratio": 0.977789715665494,
+      "completion_ratio": 0.9987352445193929
+     }
+    ]
+   }
+  },
+  "P2": {
+   "S": {
+    "ratio": 0.22862691459820883,
+    "completion_ratio": 0.025489033787788974,
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 0.22108480966306193,
+      "completion_ratio": 0.024992649220817408
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 0.22862691459820883,
+      "completion_ratio": 0.025878003696857672
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 0.23368542815194984,
+      "completion_ratio": 0.025489033787788974
+     }
+    ]
+   },
+   "R-noLR": {
+    "ratio": 1.5621554758637437,
+    "completion_ratio": 0.0,
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 1.5345513258603025,
+      "completion_ratio": 0.0
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 1.5621554758637437,
+      "completion_ratio": 0.0
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 1.6588801550235166,
+      "completion_ratio": 0.0
+     }
+    ]
+   },
+   "hot1": {
+    "ratio": 0.9400421085234066,
+    "completion_ratio": 0.9506027638929726,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 0.9558647201047751,
+      "completion_ratio": 0.9506027638929726
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 0.9400421085234066,
+      "completion_ratio": 0.9664202094886013
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 0.8988629329346428,
+      "completion_ratio": 0.2113218731475993
+     }
+    ]
+   },
+   "hot8": {
+    "ratio": 0.9820385539998491,
+    "completion_ratio": 1.184651573066745,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 0.9820385539998491,
+      "completion_ratio": 1.184651573066745
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 0.9469905679634371,
+      "completion_ratio": 1.2020948860135552
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 1.0176560739789093,
+      "completion_ratio": 1.1490812092471843
+     }
+    ]
+   },
+   "fwd": {
+    "ratio": 0.9923861836013307,
+    "completion_ratio": 0.9273743016759777,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 0.9923861836013307,
+      "completion_ratio": 0.9273743016759777
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 0.9030601672893509,
+      "completion_ratio": 0.9306839186691312
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 1.0502825400260458,
+      "completion_ratio": 0.9113811499703616
+     }
+    ]
+   },
+   "igc1": {
+    "ratio": 0.39717490369048314,
+    "completion_ratio": 1.8468097618347545,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 0.3920393053911774,
+      "completion_ratio": 1.8468097618347545
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 0.39717490369048314,
+      "completion_ratio": 1.9115834873690696
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 0.4174344882285059,
+      "completion_ratio": 1.8446947243627743
+     }
+    ]
+   },
+   "igc3": {
+    "ratio": 0.9010139089445558,
+    "completion_ratio": 1.2000592768227623,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode072",
+      "job_id": "local-155c7ff7-fb90-447d-94cd-68d77f4ba2c0",
+      "ratio": 0.9116656403734227,
+      "completion_ratio": 1.162599235518965
+     },
+     {
+      "round": 2,
+      "node": "bnode061",
+      "job_id": "local-df566cd4-1d43-49c6-afa0-13c6ac599205",
+      "ratio": 0.8368743611467645,
+      "completion_ratio": 1.2711028958718422
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-b8515e0a-5cc3-4332-b97f-6bf716aef2ac",
+      "ratio": 0.9010139089445558,
+      "completion_ratio": 1.2000592768227623
+     }
+    ]
+   }
+  },
+  "P3": {
+   "S": {
+    "ratio": 0.388176384378728,
+    "completion_ratio": 0.01979828165857303,
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 0.388176384378728,
+      "completion_ratio": 0.01979828165857303
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 0.3516436092170793,
+      "completion_ratio": 0.017643142476697737
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 0.4511386680071867,
+      "completion_ratio": 0.02754237288135593
+     }
+    ]
+   },
+   "R-noLR": {
+    "ratio": 1.9836738497738475,
+    "completion_ratio": 0.0,
+    "eligible": false,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 1.9836738497738475,
+      "completion_ratio": 0.0
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 1.7261382629978996,
+      "completion_ratio": 0.0
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 2.335997415451856,
+      "completion_ratio": 0.0
+     }
+    ]
+   },
+   "hot1": {
+    "ratio": 1.0822978868985593,
+    "completion_ratio": 1.0833022039596563,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 1.0822978868985593,
+      "completion_ratio": 1.0833022039596563
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 0.9726157326243622,
+      "completion_ratio": 1.0163115845539281
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 1.123019760646301,
+      "completion_ratio": 1.4904661016949152
+     }
+    ]
+   },
+   "hot8": {
+    "ratio": 0.9618332370570318,
+    "completion_ratio": 1.751587598057527,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 0.9618332370570318,
+      "completion_ratio": 1.751587598057527
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 0.8843163103087905,
+      "completion_ratio": 1.5426098535286286
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 1.0917955286280183,
+      "completion_ratio": 2.455508474576271
+     }
+    ]
+   },
+   "fwd": {
+    "ratio": 1.0963753807575187,
+    "completion_ratio": 1.0466940605155024,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 1.0963753807575187,
+      "completion_ratio": 1.0466940605155024
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 0.9012128990090518,
+      "completion_ratio": 0.8515312916111851
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 1.2778613922643722,
+      "completion_ratio": 1.4814618644067796
+     }
+    ]
+   },
+   "igc1": {
+    "ratio": 0.32608927335813753,
+    "completion_ratio": 3.0280164363093016,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 0.32608927335813753,
+      "completion_ratio": 3.0280164363093016
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 0.3005158990873471,
+      "completion_ratio": 2.736351531291611
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 0.37805637831874317,
+      "completion_ratio": 4.252648305084746
+     }
+    ]
+   },
+   "igc3": {
+    "ratio": 0.6334806266281761,
+    "completion_ratio": 2.267837131116922,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode084",
+      "job_id": "local-0745e63d-045a-4bac-8d22-e1ed380c5532",
+      "ratio": 0.6334806266281761,
+      "completion_ratio": 2.267837131116922
+     },
+     {
+      "round": 2,
+      "node": "bnode057",
+      "job_id": "local-a288c5b9-7bcb-4c28-89d5-9e11eeca28e4",
+      "ratio": 0.5884501411020598,
+      "completion_ratio": 2.0549267643142475
+     },
+     {
+      "round": 3,
+      "node": "bnode017",
+      "job_id": "local-ca359739-5bf2-400f-bb94-fe25dc112c5d",
+      "ratio": 0.7591171534369153,
+      "completion_ratio": 3.174258474576271
+     }
+    ]
+   }
+  },
+  "P4": {
+   "S": {
+    "ratio": 0.999343834579815,
+    "completion_ratio": null,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode057",
+      "job_id": "local-087cc9c0-d72d-45f1-a1aa-f2199f05c9fa",
+      "ratio": 1.0000850022763974,
+      "completion_ratio": null
+     },
+     {
+      "round": 2,
+      "node": "bnode085",
+      "job_id": "local-dd2011d7-b829-4e5f-94e3-aa4e7eb3afb6",
+      "ratio": 0.999343834579815,
+      "completion_ratio": null
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-bd509a02-9f68-4441-8aad-a021b3de3358",
+      "ratio": 0.9983456514183338,
+      "completion_ratio": null
+     }
+    ]
+   },
+   "hot1": {
+    "ratio": 0.9781520274056992,
+    "completion_ratio": null,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode057",
+      "job_id": "local-087cc9c0-d72d-45f1-a1aa-f2199f05c9fa",
+      "ratio": 0.9781520274056992,
+      "completion_ratio": null
+     },
+     {
+      "round": 2,
+      "node": "bnode085",
+      "job_id": "local-dd2011d7-b829-4e5f-94e3-aa4e7eb3afb6",
+      "ratio": 0.9786913255834526,
+      "completion_ratio": null
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-bd509a02-9f68-4441-8aad-a021b3de3358",
+      "ratio": 0.9766820359379973,
+      "completion_ratio": null
+     }
+    ]
+   },
+   "hot8": {
+    "ratio": 0.9695459745917339,
+    "completion_ratio": null,
+    "eligible": true,
+    "pairs": [
+     {
+      "round": 1,
+      "node": "bnode057",
+      "job_id": "local-087cc9c0-d72d-45f1-a1aa-f2199f05c9fa",
+      "ratio": 0.9702613464432466,
+      "completion_ratio": null
+     },
+     {
+      "round": 2,
+      "node": "bnode085",
+      "job_id": "local-dd2011d7-b829-4e5f-94e3-aa4e7eb3afb6",
+      "ratio": 0.9694314553428839,
+      "completion_ratio": null
+     },
+     {
+      "round": 3,
+      "node": "bnode038",
+      "job_id": "local-bd509a02-9f68-4441-8aad-a021b3de3358",
+      "ratio": 0.9695459745917339,
+      "completion_ratio": null
+     }
+    ]
+   }
+  }
+ },
+ "retune_R": false,
+ "add_P4_and_P4prime": false
+}

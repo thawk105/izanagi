@@ -120,6 +120,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "Cicada read-only GC publication builds are diagnostic only",
         ),
+    "orchestrator.campaign.vhash_ceiling_vs_sota._build_variant":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "Cicada VHash ceiling comparison builds are exploratory only",
+        ),
     "orchestrator.campaign.vhash_forwarding_prototype._build_variant":
         MaterializerRegistration(
             NON_ADMISSIBLE,
@@ -195,6 +200,12 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
         MaterializerRegistration(
             ADMITTED_GATEWAY,
             "registered Silo policy exploration CLI coder-authority issuer",
+            CODER_ENTRYPOINT,
+        ),
+    "orchestrator.campaign.p3_s4_loop_lock_order.main":
+        MaterializerRegistration(
+            ADMITTED_GATEWAY,
+            "registered Silo lock order exploration CLI coder-authority issuer",
             CODER_ENTRYPOINT,
         ),
     "orchestrator.campaign.p3_s4_loop_trigger_gating.main":

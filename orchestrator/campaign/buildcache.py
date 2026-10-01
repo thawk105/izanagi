@@ -42,6 +42,7 @@ from .build_admission import (
 from .env_contract import ExecutionEnvironmentContract
 from .model import Genome
 from .source_digest import SourceEvidence
+from .source_digest import effective_gate_witness_requirement
 
 # バイナリ digest の二系列契約 (敵対相談 A-6 裁定):
 #   - 16 文字系列 = `sha256-prefix-16 / legacy-display-only`。WAL の `trace_bin`/`perf_bin`、
@@ -2431,6 +2432,7 @@ def _build_v2_impl(
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         current_compiler_input_masstree_root: Optional[object] = None,
         workload: str = "ycsb",
+        require_gate_witness: bool = False,
 ) -> BuildResult | _PendingV2Publication:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
@@ -2776,6 +2778,7 @@ def _build_v2_impl(
                 _recheck_source_evidence(
                     genome, ccbench_commit, sub, cxx, source_evidence, bdir,
                     built_fresh=False,
+                    require_gate_witness=require_gate_witness,
                     backoff_grammar_version=backoff_grammar_version,
                     sort_oracle_contract_id=sort_oracle_contract_id,
                 )
@@ -3061,6 +3064,7 @@ def _build_v2_impl(
             _recheck_source_evidence(
                 genome, ccbench_commit, sub, cxx, source_evidence, staging,
                 built_fresh=True,
+                require_gate_witness=require_gate_witness,
                 backoff_grammar_version=backoff_grammar_version,
                 sort_oracle_contract_id=sort_oracle_contract_id,
             )
@@ -3271,6 +3275,7 @@ def build_v2(
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         current_compiler_input_masstree_root: Optional[object] = None,
         workload: str = "ycsb",
+        require_gate_witness: bool = False,
 ) -> BuildResult:
     """Build with a sealed compiler view when a declaration is supplied.
 
@@ -3321,6 +3326,8 @@ def build_v2(
         common["backoff_grammar_version"] = backoff_grammar_version
     if sort_oracle_contract_id is not None:
         common["sort_oracle_contract_id"] = sort_oracle_contract_id
+    if require_gate_witness:
+        common["require_gate_witness"] = True
     if expected_materialization_descriptor is None:
         return _build_v2_impl(
             genome,
@@ -3449,7 +3456,8 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
           site: Optional[str] = None,
           backoff_grammar_version: Optional[int] = None,
           sort_oracle_contract_id: Optional[str] = None,
-          workload: str = "ycsb") -> BuildResult:
+          workload: str = "ycsb",
+          require_gate_witness: bool = False) -> BuildResult:
     """genome を (trace 有無で) ビルドし BuildResult を返す。キャッシュヒットなら skip。
 
     ``build_context`` / ``source_evidence`` / evidence-derived ``admission`` を exact
@@ -3524,6 +3532,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
                         _recheck_source_evidence(
                             genome, ccbench_commit, sub, cxx, source_evidence,
                             bdir, built_fresh=False,
+                            require_gate_witness=require_gate_witness,
                             backoff_grammar_version=backoff_grammar_version,
                             sort_oracle_contract_id=sort_oracle_contract_id,
                         )
@@ -3590,6 +3599,7 @@ def build(genome: Genome, ccbench_commit: str, trace: bool,
             _recheck_source_evidence(
                 genome, ccbench_commit, sub, cxx, source_evidence,
                 staging, built_fresh=True,
+                require_gate_witness=require_gate_witness,
                 backoff_grammar_version=backoff_grammar_version,
                 sort_oracle_contract_id=sort_oracle_contract_id,
             )
@@ -3660,6 +3670,7 @@ def _recheck_source_evidence(
         expected: SourceEvidence, bdir: str, built_fresh: bool, *,
         backoff_grammar_version: Optional[int] = None,
         sort_oracle_contract_id: Optional[str] = None,
+        require_gate_witness: bool = False,
 ) -> None:
     """build 出口で current SourceEvidence 全体を exact 再照合する。
 
@@ -3679,6 +3690,9 @@ def _recheck_source_evidence(
             )
         actual = source_digest.resolve_evidence(
             genome, ccbench_commit, ccbench_dir=sub, cxx=cxx,
+            **({"require_gate_witness": True}
+               if effective_gate_witness_requirement(
+                   genome, require_gate_witness) else {}),
             **source_options,
         )
     except RuntimeError:

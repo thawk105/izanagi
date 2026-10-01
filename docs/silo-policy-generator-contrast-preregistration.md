@@ -524,3 +524,15 @@ write-heavy の較正動作点だけ: records 1,000,000・threads 48・extime 3 
   規模を変えるときの書き換え範囲に §6・§7.4 の固定数を足した。
 - 2026-09-29: [T-2867] の実装と §10 の生死確認 (LLM×C++・LLM×IR の 1 iteration、機械生成 IR の 1 評価、計算ノード) を受けて、§11.0 に実測で取り直した値、
   §11.3 の表の値、§12.1 に発効束の実値の案を足した。規則 (§1〜§9) は変えていない。記録は `output/insights/2026-09-29/t2867-silo-policy-contrast-impl/README.md`。
+
+## 16. Erratum (発効の後の訂正。既存本文の bytes は変えない)
+
+発効の決定 (2026-09-30、本書の raw SHA-256 `541331bd90764e0a621bc1de7a34ba0919d7f145981814a6eebc4afa7f38985f` を記録) の後の訂正はここへ追記する。
+
+### 16.1 §5.2 の numactl (2026-10-01、本走の完了後に記録 review で判明)
+
+- §5.2 は「性能構成 verify と bench は numactl interleave」と書くが、本走 (Pegasus) では環境契約 `pegasus` (`orchestrator/campaign/env_contract.py`) の numactl が空で、
+  bench は launch prefix なしで走った (campaign の WAL の `bench_done.payload.run_cmd` に numactl が無い)。Pegasus の計算ノードは 1 CPU・1 NUMA ノード (`docs/pegasus-runbook.md` §1) で、
+  interleave の有無は割り当てを変えない。stock・初期点・候補・参照のすべての slot と全 arm が同じ条件で走ったので、比較の対は揃っている。
+- この訂正は結果を見た後に気づいたもので、規則・判定・score を変えない。§5.2 の該当文は「環境契約の numactl に従う (Pegasus では prefix なし)」と読む。
+  記録は `output/insights/2026-09-30/t2867-silo-policy-contrast-run/README.md` §7。

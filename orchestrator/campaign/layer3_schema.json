@@ -370,6 +370,42 @@
                 ]
               }
             }
+          },
+          "gate_witness": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["meaning_version", "required", "counts", "occurrence", "D5"],
+            "properties": {
+              "meaning_version": {"type": "integer"},
+              "required": {"type": "boolean"},
+              "counts": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["unreachable", "D1a", "D1b1", "D1b2", "D1c", "D2a", "D2b_i", "D2b_ii"],
+                "properties": {
+                  "unreachable": {"type": "integer"},
+                  "D1a": {"type": "integer"},
+                  "D1b1": {"type": "integer"},
+                  "D1b2": {"type": "integer"},
+                  "D1c": {"type": "integer"},
+                  "D2a": {"type": "integer"},
+                  "D2b_i": {"type": "integer"},
+                  "D2b_ii": {"type": "integer"}
+                }
+              },
+              "occurrence": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["own_write_read_transactions", "written_transactions", "repeated_write_key_transactions", "external_reads_checked"],
+                "properties": {
+                  "own_write_read_transactions": {"type": "integer"},
+                  "written_transactions": {"type": "integer"},
+                  "repeated_write_key_transactions": {"type": "integer"},
+                  "external_reads_checked": {"type": "integer"}
+                }
+              },
+              "D5": {"type": "string"}
+            }
           }
         }
       }

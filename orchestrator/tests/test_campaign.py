@@ -5526,6 +5526,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         # [T-2795] stock control route (_run_stock_control_resolved) adds one build_context-bound run_campaign call.
         ("orchestrator/campaign/p3_s4_loop.py", "campaign.loop.run_campaign"): 2,
         ("orchestrator/campaign/p3_s4_loop_policy.py", "campaign.loop.run_campaign"): 2,
+        ("orchestrator/campaign/p3_s4_loop_lock_order.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_loop_sort.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_loop_trigger_gating.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/p3_s4_red.py", "campaign.loop.run_campaign"): 2,
@@ -5541,7 +5542,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/qualification/t126_driver.py", "campaign.pipeline.evaluate"): 1,
     })
     assert sum(count for (path, target), count in expected_inventory.items()
-               if target == "campaign.loop.run_campaign") == 24
+               if target == "campaign.loop.run_campaign") == 25
     assert sum(count for (path, target), count in expected_inventory.items()
                if target == "campaign.pipeline.evaluate") == 5
 
@@ -5609,6 +5610,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         "backoff_repro.py": 1, "backoff_sweep.py": 1, "demo.py": 2,
         "p2_2.py": 1, "p3_kickoff.py": 2, "p3_s4_loop.py": 2,
         "p3_s4_loop_policy.py": 2,
+        "p3_s4_loop_lock_order.py": 1,
         "p3_s4_loop_sort.py": 1, "p3_s4_loop_trigger_gating.py": 1,
         "p3_s4_red.py": 2, "s6_sort_sweep.py": 1,
         "s8a_trigger_sweep.py": 1, "sanity_silo.py": 1,
@@ -5632,7 +5634,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
                 for keyword in call.keywords)
             for call in calls
         ), name
-    assert sum(expected_run_calls.values()) == 20
+    assert sum(expected_run_calls.values()) == 21
 
     direct_sinks = {
         "loop.py": ("evaluate",),

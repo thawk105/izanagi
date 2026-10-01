@@ -74,6 +74,7 @@ EXPECTED_CODER_SITES = frozenset({
     "orchestrator.campaign.p3_s4_loop.main",
     "orchestrator.campaign.p3_s4_loop_sort.main",
     "orchestrator.campaign.p3_s4_loop_policy.main",
+    "orchestrator.campaign.p3_s4_loop_lock_order.main",
     "orchestrator.campaign.p3_s4_loop_trigger_gating.main",
     "orchestrator.campaign.p3_autonomous_workload_trial.main",
 })
@@ -161,6 +162,7 @@ MANUAL_BUILD_FILES = {
     "vhash_cicada_vlife.py",
     "vhash_cicada_hot_block.py",
     "vhash_ro_gc_publish.py",
+    "vhash_ceiling_vs_sota.py",
     "vhash_forwarding_prototype.py",
     "vhash_interval_gc.py",
     "b4_binary_record.py",
@@ -185,6 +187,7 @@ EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.vhash_cicada_vlife._build_variant",
     "orchestrator.campaign.vhash_cicada_hot_block._build_one",
     "orchestrator.campaign.vhash_ro_gc_publish._build_variant",
+    "orchestrator.campaign.vhash_ceiling_vs_sota._build_variant",
     "orchestrator.campaign.vhash_forwarding_prototype._build_variant",
     "orchestrator.campaign.vhash_interval_gc._build_variant",
     "orchestrator.campaign.silo_policy_coverage._build_variant",
