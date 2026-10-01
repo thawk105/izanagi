@@ -1072,10 +1072,12 @@ def _masstree_source_root_from_cmake_cache(build_dir: str) -> str:
     旧 pin ``511c9538e4e8efa54b45cda62e72389ed3b706ec`` は CMake 3.22.1 / 3.25.0 で同形を実測済み (2026-08-27 T-1997)。
     前 pin ``e9e477ca1b55348ab4530de0b1cf663ce4555290`` も CMake 3.25.0 (計算ノード bnode019、build 込み) と
     3.22.1 (login pegasus02、configure のみ) で同形を実測し両 check が成功した (2026-09-20 T-2304)。
-    現 pin ``68106660686232781bca3be792a750d3e19d7a8a`` は 2026-09-23 [T-2858]、計算ノード bnode009 (CMake 3.25.0 / g++ 11.4.0) で再実測。
+    前 pin ``68106660686232781bca3be792a750d3e19d7a8a`` は 2026-09-23 [T-2858]、計算ノード bnode009 (CMake 3.25.0 / g++ 11.4.0) で再実測。
     TRACE=0/1 とも configure・ycsb_mocc.exe build・disconnected / masstree root 両 check 成功、cache 行と DependInfo pairs は上記と同形。
     Unix Makefiles・base-only で空値の FETCHCONTENT_SOURCE_DIR_MASSTREE は 1 行、pairs は <base>/masstree-src/{config.h,libkohler_masstree_json.a}。
-    CCBench pin 更新時は生成物の形を再実測すること。
+    現 pin ``25898d00b9a6bbf09329ff8e8318c77d4f08b46e`` (2026-09-30 [T-2854]) は
+    CMake・build 設定に触れない (C..F は 2 つの .cc と 2 つの .hh の差分) ため、生成物形を再実測していない。
+    CMake・build 設定に触れる CCBench pin 更新時は生成物の形を再実測すること。
     """
     cache = os.path.join(build_dir, "CMakeCache.txt")
     cache_keys = (

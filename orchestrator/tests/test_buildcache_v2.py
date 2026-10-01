@@ -88,9 +88,14 @@ def _admission_bundle(genome: Genome, commit: str, source_root: str):
 def test_workload_identity_preserves_ycsb_golden_and_separates_tpcc():
     genome = Genome("silo", {"BACK_OFF": 1})
     _, _, admission = _admission_bundle(genome, "a" * 40, "/fixed/source")
-    # Values from HEAD before workload support, using this fixed source root.
+    # T-2858 values before the F admission-policy epoch, using this source root.
+    t2858_legacy = "silo_c2d907920f_t0"
+    t2858_ycsb_digest = (
+        "f7da7e59a9c330609b86a8fae5a3dd3ae33ea0d33b3720729e1193eabf85ba5d"
+    )
     legacy = buildcache.cache_key(genome, "a" * 40, False, admission=admission)
-    assert legacy == "silo_c2d907920f_t0"
+    assert legacy == "silo_b2c514cb5a_t0"
+    assert legacy != t2858_legacy
     assert buildcache.cache_key(
         genome, "a" * 40, False, admission=admission, workload="ycsb",
     ) == legacy
@@ -106,8 +111,9 @@ def test_workload_identity_preserves_ycsb_golden_and_separates_tpcc():
                   admission=dict(admission.as_cache_identity()))
     ycsb, ycsb_digest = buildcache._v2_identity(*args, **kwargs)
     assert ycsb_digest == (
-        "f7da7e59a9c330609b86a8fae5a3dd3ae33ea0d33b3720729e1193eabf85ba5d"
+        "572bc415157829e66f6f09f3a669ff6877f301a195c350473a117fb78a3dee82"
     )
+    assert ycsb_digest != t2858_ycsb_digest
     assert buildcache._v2_identity(*args, workload="ycsb", **kwargs) == (
         ycsb, ycsb_digest,
     )
