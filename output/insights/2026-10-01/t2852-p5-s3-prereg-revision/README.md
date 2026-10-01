@@ -113,7 +113,7 @@
 | A-6 0.0276 | nit | real | 0.0275 に訂正 |
 | B-3 却下済みの 6 cell・追加の介入を確認事項に戻した | should | real (D2322 項 5 の却下案) | 6 cell の対比と確認事項を外し、表は参考に縮め、追加の介入 2 つは §15 の射程外へ |
 | B-4 fallback と固定 δ の意味 | should | real | §6 に運用 score である旨と固定 δ の両方向を追記 |
-| B-5 最初の提案の (i)/(ii) と欠測 | should | real | §8 の 1 を直した |
+| B-5 最初の提案の (i)/(ii) と欠測 | should | real | 草稿 §8 の 1 を直した |
 | B-6 docs 地図の「族 3」 | nit | real | 「3 対比の Bonferroni 同時区間」に訂正 |
 
 - 焦点再レビュー 1 巡目 (`verbatim/s6-focus-1.md`): closed 9・partial 3・regressed 0、派生値 (249 件・1,638 行・費用表・k(n)・0.0275・[0, 0]) はすべて再計算で一致。NO-GO (must-fix 1)。
@@ -126,7 +126,14 @@
   N4 履歴に入らない拒否の subtype を経路別に列挙 (`coder-schema`・`auditor-schema`・`proposal-schema`・`auditor-gate`・`auditor-digest`、入る構文の拒否は描画後の `policy-grammar`)、
   N5 failures の根本原因から登録の起草過程の断定を外した。3 巡目は回していない (DW-O16 の上限内、must-fix 0)。
 
-## 7. 本 wave が閉じないもの
+## 7. dev-wave 改善候補 (段 8、是正なし)
+
+- `docs/dev-wave/workers.md` の `DW-S06-A` は「敵対レビューを … 2 本並列で行う」と書き、`docs/dev-wave/core.md` の `DW-C00` は「同一 worktree の dispatch は全種直列 (並行は orphan hold で rc=16)」と書く。
+  read-only のレビュー 2 本を同じ worktree で回す docs wave では両者が食い違う。本 wave は起動前に気づき、1 つの producer の中で直列に回した (失敗・実害なし)。
+- 是正しない理由: `DW-S06-A` の文は `tools/check_docs.py` の literal と `orchestrator/tests/test_check_docs.py` に pin され、変更には Codex author と fixture の追随が要る。
+  実測は本 wave の 1 例だけで、族の一般化に要る独立 2 例 (DW-G03) に届かない。2 例目が出たら「同一 worktree なら直列 (DW-C00)」を `DW-S06-A` に統合する候補にする。
+
+## 8. 本 wave が閉じないもの
 
 - n の確定・発効・実装・投入。T-2867 本走の score・分散・週上限の読取。
 - T-2867 の報告に「LLM の coder 文脈は実際と違う読み比率 (50) の配線規模を表示し、確認した固定の入力には正しい workload 名・読み比率の明示欄が無い」事実を開示すること、
