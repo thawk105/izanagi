@@ -55,7 +55,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   fig6・fig8b・fig11 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-09-29/t2853-r2-fig11/README.md`。
 - [x] [T-2853] (5'') R2 の fig10 単位 (B-7: 3 workload × stock 対 fixed 5 µs) を現行 certification driver・現行 policy (5 node)・投入時の CCBench pin (`pin.CURRENT_PIN` の当時の値、insight に記録) で測り直した (2026-10-01、6.39 node 時間、承認 3.40 を超えた分は land 調整役の承認)。
   attempt `b7f5-r2-20261001a` の 3 request とも完走、outer `reject` (rr5 +62.3973%・rr50 +13.9000%・rr95 −11.4495%、床値判定は rr95 だけ regression)、6 cell とも正しさ certified・source binding bound。地位は投入前に commit。
-  collect は repo 外へ書き、原 attempt の成果物・fig10 は不変。同じ生成器 (bytes 不変) で R2 の図と原 attempt との対照表を作った。超過の原因は全 node 共有の bench lock で 3 job の性能検証と bench が 1 列に並んだこと (driver の修正は範囲外)。
+  collect は repo 外へ書き、原 attempt の成果物・fig10 は不変。同じ生成器 (bytes 不変) で R2 の図と原 attempt との対照表を作った。超過の原因は全 node 共有の bench lock で 3 job の性能検証と bench が 1 列に並んだことと WAL の時刻から推定 (driver の修正は範囲外)。
   fig6・fig8b・fig10・fig11 以外の R2 と job body の opt-in は残り。記録 = `output/insights/2026-10-01/t2853-r2-fig10/README.md`。
 - [x] [T-2862] ComSys 2026 投稿原稿を採用時点 `8fd2a2f5c` 以後の着地 (entry 1819〜1830、D2219 項 2) に合わせて改訂した (2026-09-23、docs のみ)。
   4.7 節と 7 節 (d) に K2 の同 job pair の成立と 4 巡目 (候補・stock とも certified、stock は適応 backoff、比は小構成の記述値、4 巡目の還流は未了)、7 節 (a) に TPC-C の段 1 → 段 2 の順と段 1 の実装状況
