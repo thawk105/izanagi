@@ -1,0 +1,45 @@
+
+============================================================
+Request ID:             40680.nqsv
+Request Name:           b10_backoff_grid.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Oct  1 10:26:37 2026
+Started Request Time:   Thu Oct  1 10:26:45 2026
+Ended Request Time:     Thu Oct  1 11:26:35 2026
+Resources Information:
+  Elapse:               3594S
+  Remaining Elapse:     14406S
+============================================================
+
+============================================================
+Request ID:             40681.nqsv
+Request Name:           b10_backoff_grid.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Oct  1 10:26:37 2026
+Started Request Time:   Thu Oct  1 10:27:31 2026
+Ended Request Time:     Thu Oct  1 11:27:11 2026
+Resources Information:
+  Elapse:               3584S
+  Remaining Elapse:     14416S
+============================================================
+
+============================================================
+Request ID:             40679.nqsv
+Request Name:           b10_backoff_grid.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Oct  1 10:26:37 2026
+Started Request Time:   Thu Oct  1 10:26:44 2026
+Ended Request Time:     Thu Oct  1 11:27:37 2026
+Resources Information:
+  Elapse:               3658S
+  Remaining Elapse:     14342S
+============================================================

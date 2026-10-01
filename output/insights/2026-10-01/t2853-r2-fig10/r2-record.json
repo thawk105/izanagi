@@ -1,0 +1,6 @@
+{"schema": "t2853-r2-fig10-record/v1", "attempt_id": "b7f5-r2-20261001a",
+ "certification_sha256": "88a3a6bbd2eddecd95f715c00618612d676224811d0e53d15d3edd219284d2f0",
+ "raw_manifest_sha256": "7918298a24d5124018b59ea8dd6c0a6bd67731209390ff351c4a73242a68ff8f",
+ "recorded_judgment": {"rr5": "no-regression", "rr50": "no-regression", "rr95": "regression"},
+ "judgment_rule": "effect < -floor (strict); floor = between_run.cv of the pinned floor files",
+ "computed_by": "parent, 2026-10-01 10:57 JST, with jq (not the generator): effect = certification.json effects.<w> (collect-root copy, sha256 88a3a6bb...), floor = between_run.cv of output/env/pegasus/calibration/between_run_noise_t48_skew0p9_<w>_rmw0.json; rr5 0.6239734604583511 vs -0.009536033056996148, rr50 0.1389998460596873 vs -0.00725042525457718, rr95 -0.11449452408913763 vs -0.0022283754708938273"}

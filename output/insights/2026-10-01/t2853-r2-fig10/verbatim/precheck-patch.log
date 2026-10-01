@@ -1,0 +1,9 @@
+date=2026-10-01 10:26:49 JST
+cwd=/work/1/SFC/tanab/tmp/t2853-r2-fig10-20261001/submit-tree/external/ccbench
+68106660686232781bca3be792a750d3e19d7a8a
+0
+Checking patch cmake/Options.cmake...
+Checking patch include/backoff.hh...
+apply_check_rc=0
+submit_tree_head=db710338dd443d30a5b7c06da2e2a06afb092175
+submit_tree_dirty_incl_untracked=0

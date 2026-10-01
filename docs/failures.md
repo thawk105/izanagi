@@ -524,6 +524,8 @@
   D437 の裁定パッケージへ返した。
 
 - **再発: 2026-09-20** (near miss、実害なし、[T-2810] で発見・補完) — 同型 (pin 前進で参照が腐る構造) が **実 repo を root にする held test の期待値**で実現した。ccbench pin 前進 ([T-2304]、D2184) は admission policy の epoch を動かし、`test_s8b_oracle_driver._ACTIVATED_G1_REFUSALS` (凍結 v2 g1 の live P3 拒否集合、held 6 node が exact 照合) の第 2 要素を `journal-state-invalid` から `manifest-invalid` (policy 照合) へ静かに変えた。held node は受入全走で走らない (growth hold) ため pin 前進 wave の受入は緑のままで、D2184 の「現行 policy に束縛された test の golden を epoch 1 段進めた」にも含まれなかった。次 wave が `IZANAGI_RUN_GROWTH_HELD_TESTS` の診断焦点走で発見し、live P3 の実測値へ更新した。同型: 値 pin (refusal 文字列など) は path / key 検索の pin 閉包 (DW-O09) に出ず、policy sha 等の間接依存で古くなる。policy epoch を動かす wave は held 真値の再実測を帰結に含める (memory `ccbench-pin-advance-execution-facts` に記載)。
+
+- **再発: 2026-09-30** — 同型 (pin 前進で依存物が腐る構造) が **consumer の無い壊し正例 patch の適用文脈**で実現した。md_15 (dev-wave-ccbench-pin-f、fold `310bf9d94`、D2342) で CCBench の pin を C `68106660` から F `25898d00` へ進め、`patches/` 98 本を `git apply` (fuzz なし) で C と F に当てると、壊し正例 4 本 (`broken-mocc-early-unlock`・`broken-mocc-hot-update-unlock`・`broken-silo-corrupt-write-payload`・`broken-silo-published-version-mismatch`) が F で新たに外れた。現行 pin でこれらを当てる driver・test は無いので、焦点走 (163 file) にも受入にも赤として現れず、棚卸しを手で回して初めて見えた。2026-09-20 の再発 (held test の期待値) とは、腐る物が patch の文脈で、検出されない理由が hold でなく consumer の不在である点が違う。pin 前進の手順 (D2150・D2184) は consumer のある patch の追随だけを求めるので、次に F の上で MOCC・Silo の正しさを検証し直すとき正例が黙って欠けうる (規律 2・3)。4 本の作り直しは [T-2854] の残り (2) (F または修理を束ねた tip の上で、壊れ方が発火することを実走で示すまでを 1 単位とする)。pin 前進の検査への組み込みは未実施・未裁定。当面は pin を動かす wave の段 1 で `patches/*.patch` の全数を新旧の pin に厳密適用で当て、新たに外れたものは既存 item へ紐付けるか新規に起票する (md_15 の job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-ccbench-pin-f/` の `patch_census.py`・`patch_layered.py` が実例、厳密適用の作法は memory `probe-scripts-apply-patches-like-the-driver`)。一次資料 `output/insights/2026-09-30/ccbench-pin-f/README.md` §2。再発検知: pin を動かす wave の一次資料に、`patches/` の新旧 pin の適用表 (当たる→外れる の本数) があるかを見る。
 ### F11. セッション終了定型の漏れ — handoff 削除忘れ [手順漏れ]
 - 事象: 正常終了時に handoff の削除 (worklog への吸収) を落とした
 - 恒久対応: memory `session-close-checklist` — セッション TODO 末尾に worklog → lint →
@@ -1138,6 +1140,8 @@
 - **再発: 2026-09-30** — 生成器対照の本走 wave ([T-2867]) で、submit checkout 16 本を 4 本ずつ並行の `git worktree add --detach` で作り、c03・c06・c11 の 3 本が rc=128 で落ちた
   (stderr を捨てていたので理由は未記録。login は他 wave の worktree 操作が並走)。作りかけは残らなかった。3 本を 1 本ずつ直列に作り直すと全部 1 回目で成功した。
   次からは作成側も 1 本ずつ直列にし、stderr を log に残す (2026-09-29 の再発が記した `--no-checkout` → lock → `reset --hard` の形も候補)。
+
+- **再発: 2026-09-30** — [T-2874] の dev-wave (md_33、dev-wave-cicada-certified-m) で、子木・計測用 checkout を `git worktree add` で作る 7 回のうち 3 回が、Lustre 上の checkout の途中で `warning: unable to access '…/.gitattributes': システムコール割り込み` の後 `fatal: cannot create directory at '…': システムコール割り込み` で失敗した (cicm-u1 の 1 回目、cicm-meas の 1 回目、cicm-meas4)。3 回とも `git worktree list` に登録は残らず dir も無かった (cicm-u1 は branch だけが残り、自分で `-d` で消した)。1 回は何も変えずに同じ引数で再試行して通り、最後の 1 回は再試行せず計測用 checkout を 3 本で回した。子木を作る script (job dir の `make-trees.sh`、先例の写し) は失敗したら止まるだけで、残骸の確認と再試行の手順を持たない。次から先に確かめること: `worktree add` が失敗したら `git worktree list` と dir と branch の残骸を確かめ、残骸が無いときだけ間を置いて 1 回再試行し、2 回目も失敗なら止めて報告する (2026-10-01 のユーザー指示「同じ原因で 2 回失敗したら止める」、memory `read-the-failure-before-retrying`)。
 ### F27. 自己ハッシュ generator の改変で凍結成果物を壊し、fixture へ現行 hash を差し込んで隠蔽 [恒真ゲート] [テスト代表性] [手順漏れ]
 - 事象: 2026-07-20 の ruling-A/C wave で、実装子 (codex) が WAL reader の収束のため
   `orchestrator/campaign/s1_known_axes_freeze.py` を編集した。同スクリプトは**自分の sha256 を
@@ -2985,6 +2989,8 @@
   main checkout へ戻して回避し、実害なし。判別 = 撤去対象へは `cd` せず `git -C` と絶対 path で
   扱う。撤去 step の cwd 検査 (対象配下なら停止) が本実行では機能した。§3 への明文化は
   [T-2642] で起票済み。
+
+- **再発: 2026-10-01** — md_44 (dev-wave-vhash-ro-continuing) の段 9 の自己撤去で、rc=75 の待ちの合間に lock が空いた 1 回 (00:15 JST) が `status=rejected phase=occupancy reason=target worktree is occupied` (rc=21) で拒否された。背景 job の session 自身が wave worktree を cwd に持ったまま撤去 tool を起動したためで、memory `cleanup-discipline` の「背景 job 自身が wave worktree に居るので、撤去前に `ExitWorktree(keep)` が要る」を撤去の前に読んでいなかった。tool の占有検査が止めたので実害は無い。この手順は memory にしか無い。`DW-S09` か撤去の入口への 1 行の追記は並行 wave md_2、`DW-O28` 周辺は並行 wave md_1 の担当 (どちらも本記録の時点で未着地)。
 ### F52. 変異復元後の stale bytecode cache が同一バイト長変異を実効残留させた [手順漏れ]
 - 事象: [T-153]/[T-158] wave の変異 matrix (2026-07-29) で、V11 (`10 * 1024 * 1024` →
   `20 * 1024 * 1024` の同一バイト長置換) をソース復元した後も、`tools/__pycache__` の変異版
@@ -6633,6 +6639,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-30** — VHash md_29 wave で、Cicada 計器 patch の拡張 (走行末の熱いキー走査) が実機の制約を机上で外し、計算ノードの smoke を 2 回空振りさせた。(1) Codex author が走査を `ycsb_cicada.cc` の `#if IZANAGI_CICADA_VLIFE` に置き companion 登録した (condition gate は owner TU `transaction.cc` の前処理しか観測しない。smoke 前に親の静的確認で見つけて owner TU へ移した)、(2) 移した fix で owner TU の分岐宣言を 49 のまま残し、gate が実数 44 と照合して拒否 (37898.nqsv、61 s)、(3) 走査が `include/ycsb.hh` にだけある `YCSB`・`Storage::YCSB` を使い、workload ごとに compile される `transaction.cc` で compile error (37937.nqsv、99 s)。(2) は login の自走でも `test_condition_meaning_gate.py` の在庫 test が赤だったが、Codex の sandbox は pytest・dispatch を使えず、親も smoke 前に走らせていなかった。3 回目で成立 (37961.nqsv)。恒久対応は F139 のまま (実機の書式は先例の実装か最安の生死確認で確かめてから書く) に加え、gate 登録を触る wave は統合直後・smoke 前に condition gate test を login 自走する (記憶 condition-gate-meaning-sees-owner-tu-only)。
 
 - **再発: 2026-09-30** — md_23 (gen-opt の余地の測定) の repo 外の計測 driver (Codex author) を `dispatch_compute.py --task generic` で計算ノードへ投げると、build が 1 回に 1 件ずつ落ちた。(1) generic は環境変数を消すので `os.environ["TMPDIR"]` が `KeyError`、(2) third-party の cache に空 dir を渡して `fetch_third_party.py hydrate` が `cache root is absent`、(3) CCBench の object dir は `CMakeFiles/<wl>_<proto>.exe.dir/` なのに `.exe` を `.dir` に置換して探し `missing compile command`。さらに plan が smoke の timeout 1 回を variant 全体の見積りに使い 66 job に割れた (投げる前に直した)。2026-09-22 の再発で効いた「既存 driver の成功経路と前提を突き合わせる表を実装子に作らせる」を最初の author prompt に入れておらず、3 度目の fix で初めて求めて build が通った。次から先に確かめること: 計算ノードで走る新しい driver の最初の author prompt に、既存の成功経路 (`tools/vhash_cicada_tuning/driver.py` の `execute`) との段ごとの突き合わせと、環境変数・cache・object dir の名前・見積りの 4 点を名指しで入れる。記録 = `output/insights/2026-09-30/gen-opt-novelty-and-regime/README.md` §6、memory `new-compute-driver-preconditions`。
+
+- **再発: 2026-09-30** — [T-2874] の Cicada の中間案 M の repo 外起動器 (Codex author、`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-cicada-certified-m/launcher/launch_cicada_m.py`) を計算ノードの SMOKE で走らせると、実機の前提の欠陥が 1 回に 1〜2 件ずつ出て 5 回投げた。(1) 起動器が M patch の offset 付き適用を拒否 (子の確認は `git apply --check` だけで offset を失敗としない)、(2) `git archive` の展開で `oze* export-ignore` により `cc/oze` が抜け configure が rc 1 (起動器が cmake の stderr を捨てていた。この件は F1046 の再発として記録済み)、(3) 壊し patch が TU に宣言の無い識別子を使って compile できず、起動器が同じ build dir を使い回したため後続の configure が連鎖で失敗、(4) M の違反行の書式が出力契約と食い違い、壊し B が既定設定で未発火、(5) 起動器が md_3 の計数の順序を壊し B に当て、発火した正例を不合格にした。どれも静的レビュー 2 本と焦点再レビューは挙げなかった。build だけを行う job (起動器の `BUILD-CHECK`) を SMOKE の前に 1 本流していれば (2)(3) は 1 回で出せた。恒久対応は本エントリのまま (実機の書式・生成物は先例の実装か最安の生死確認で確かめてから driver に書く) と memory `startup-gate-chain-reveals-one-defect-per-submission`。記録 = `output/insights/2026-09-30/cicada-certified-m/README.md` §8。
 ### F140. 取得した成果物を取り込んだだけで、物理コピーの網羅検査が赤くなった [テスト代表性] [手順漏れ]
 
 - 事象: certification job が成功して新しい試行 directory を 1 つ増やしたところ、
@@ -11061,6 +11069,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `submodule update --init`) を `--source-repo` にして probe / final とも `shared_snapshot_matches=true` /
   rc=0 で完走した。追補を `docs/dev-wave/mutation.md` の DW-M05 へ 1 行 (123 bytes) 収容しようとしたが、L1.5 層
   予算が 9,696 / 9,696 bytes で満杯のため入らず、収容は D782 の最小増分を要する別 wave へ送った。
+
+- **再発: 2026-10-01** — `dev-wave-vhash-c2-motivation` の変異本走 (M0〜M9、固定 commit `b0d3efa90`) は 10 本とも登録どおり (matching 10 / 10) に完走したが、`tools/mutation_worktree.py` が `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` で `rc=125` を返した。wave の木は走行前後とも clean で、走行中に別 session の land (CCBench pin F、10:54) が local main を進めたのが原因 (2026-08-25 の 2 件目の再発と同じ型)。防ぎ方 (`DW-M07`: `--source-repo` は D1009 の独立 clone) は手順に書かれていたが、親が入口の条件 dispatch 15 (変異を走らせる直前に `DW-M07` を読む) を実行せずに投入したため適用しなかった。同じ読み落としで初回の起動は `--attempt-out` の単独指定 (`DW-M07` が必須の組と書く) で引数エラーになった。手順の欠落ではなく既存の読み込み契約の不履行で、手順文書は変えない。結果 JSON は完全で判定に影響しないので再走していない。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -28528,6 +28538,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (job dir、repo に入れない) で拒否理由を出し、修正案も probe で確かめる」を追記した。段 6 裁定 §4.1・§4.2 に誤診断と訂正を追記で残した。
 - 再発検知: fix を投げる前に、赤の理由が log の原文 (例外文) から直接読めるかを確かめる。読めなければ probe を先に書く。
 
+
+- **再発: 2026-09-30** — md_35 (dev-wave-cicada-between-run-floor) で、Codex author の集計 script の自走検査を repo 外の置き場で走らせて 9 件失敗した。本文 (`ModuleNotFoundError: No module named 'tools'`) は読んだが、PYTHONPATH を絶対 path にしただけで再実行し、同じ 9 件で落ちた。検査は子 process の PYTHONPATH を「script の親の親」に上書きする作りで、変えた 1 点は原因に届いていなかった。3 回目に検査の該当行 (`run_analyzer` の env) を読み、repo checkout の root 直下という配置の前提だと分かった。症状 (例外文) は読めていたが、症状を出した機構 (検査が環境を組む行) を読まずに原因を仮定した点で本エントリと同型である。2 回目を投げる前に症状を出した側の実装を数行読み、変更が原因に届く理由を 1 行で書く。書けなければ投げない — memory `read-the-failure-before-retrying` (2026-10-01 のユーザー指示)。
 ### F1039. 実装子の自走 harness で緑の新 test が、受入と同じ pytest では赤になった — 捕まえた AssertionError の文言を完全一致で比べた [テスト代表性] [手順漏れ]
 
 - 事象: 2026-09-21 の論文図 wave (`dev-wave-paper-results-figures`) で、Codex 実装子 2 本が独立に、`assert cond, msg` の `AssertionError` を捕まえて
@@ -29021,6 +29033,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   繰り返す処理は job dir の `.sh` に path を固定して書き、`bash <絶対 path>.sh <逐語の引数>` の 1 行で呼ぶ。
 - 再発検知: 同じ session で guard の拒否文言 (「computed at runtime」「too complex to verify」) が 2 回目に出たら、以後のコマンドをすべて逐語 path 形に切り替える。
 
+
+- **再発: 2026-09-30** — md_35 (dev-wave-cicada-between-run-floor) の worktree 隔離 session で、変数入りの path・`git -C`・`$()`・複数コマンドの連結を 1 回の Bash に混ぜ、guard に「too complex to verify」で拒否されて分けて打ち直すことを約 9 回繰り返した。memory `git-and-guard-discipline` に既にある型で、F1095・F1096 も同じ型の別 wave の記録である。同じ型が 9/30〜10/01 に md_7・md_11・md_15・md_35・md_39 の 5 wave で出ている (land 調整役の集約)。`DW-O03` に「絶対 path を直書き・git は単独 (`-C` も `cd &&` も使わない)・複数手順は Write で `.sh` を作り `bash <絶対 path>` 単独で起動」を 1 行足す変更は並行 wave md_2 の担当。
 ### F1093. 縮小受入の plan が不適格理由を 1 file 1 参照しか出さず、insight の汎用名 (dir と file) の衝突を 2 回に分けて踏んだ [手順漏れ]
 
 - 事象: 2026-10-01 00:0x JST、md_7 (acceptance-pyc-warm) の記録 land 用に `tools/scoped_acceptance.py plan` を打つと、insight の下位 dir `data/`・`reviews/`・`rulings/` の全 file が `production-reference` で不適格になった。dir を固有名へ改めて打ち直すと、今度は `apw-measured/trees.json` だけが別の production file (`tools/pegasus/a5_second_boot_backoff_sweep.sh`) との一致で不適格になった。1 回目の理由には同じ file について dir 名側の参照 (`.codex/role-adapters/coder-v4-autonomous-k2.json`) しか出ておらず、file 名側の衝突が隠れていた。3 回目 (file 名も固有名へ) で eligible。実害は plan 2 回と改名 commit 2 本 (受入は投げる前)。
@@ -29066,3 +29080,70 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 根本原因: 判定器の結果 (巡回 0・integrity 0) だけを見て、その入力の計装が判定器の前提 (D1464 の区別) を満たしているかを確かめなかった。`#error` が D1464 に基づく fails-closed の検査であることが計装 patch の commit message にしか書かれておらず、診断 patch を作った側は「当時 promotion が compile できなかった」ための止めと読んでいた。
 - 恒久対応: D1464 に沿って promotion の write を内部処理として印を付ける計装と、それを読む verifier の拡張、および上の 2 wave の promotion genome の判定の再確認を [T-2981] として起票した。それまでは repo の計装 patch の `#error` (fails-closed) を外した変種の上の判定を正しさ合格に数えない (`output/insights/2026-09-30/ccbench-fix-bundle/README.md` §5。前例 2 wave の記録は書き換えず、同資料へ追記として残した)。
 - 再発検知: 計装 patch を repo 外の変種に差し替えた判定は、変種と repo の patch の差分 (特に `#error`・`static_assert` の除去) を一次資料に書き、その止めの根拠となる D を引いてから合格・失格に数える。差分が止めの除去を含むなら合格に数えない。
+
+### F1099. 依頼が「未着地と書く」と名指しした wave が停止中に着地したのを理由に、親が自分の解釈で起点を進めて結論を取り込んだ [権限逸脱]
+
+- 事象: VHash 論文ストーリー 4 版目の wave で、依頼は「稼働中の md_39・md_42・md_43 の結論は先取りせず『未着地』と書く」と明示していた。wave が利用上限で止まっている間に md_42 が着地し、
+  親は「書き始める前の着地なので先取りではない」と読んで起点を進め、md_42 の結論と数値を版の §0 と本文第 3 稿の冒頭へ取り込んだ。段 6 の独立レビュー (must-fix) と焦点再レビューが、
+  明示の出力指定は着地では解けず、時点を限れば「未着地」は偽でなく、判定材料であることの説明と結論の取り込みは別だと反論の各点を崩し、親は起点を戻した (約 1 時間の書き直し)。
+- 根本原因: 依頼の明示の出力指定を「目的 (先取りしない)」へ読み替え、指定の主語の前提 (稼働中) が崩れたことを指定を解く根拠にした。ユーザーの再開の指示 (「続けて」) は範囲の変更ではなかった。
+- 恒久対応: memory `explicit-output-spec-survives-landing` — 依頼が名指しで「未着地と書く」「X だけを埋める」とした範囲は、途中で前提が変わっても自分では解かず、
+  起点を wave 開始時に保ったまま後続の着地は stale 注記・報告で指す。解くのはユーザーの明示の指示だけ。決定 D2344 の却下した選択肢にも経緯を書いた。
+- 再発検知: 段 6 の read-only レビューのレンズ「依頼への適合」に、依頼の明示指定と成果物の取り込み範囲の照合を入れる (今回それで検出した)。
+
+### F1100. コードが読む事前登録セルへの記入を、consumer を走らせずに「docs のみ・計算 0」と見積もった [手順漏れ]
+
+- 事象: B-4 床値の採用裁定 (md_3) は「§5 floor 欄へ pin を書くだけ、docs のみ・計算 0」として起票された。前 wave の材料は
+  「読み取り関数の述語の読解で通る (実行はしていない)」と書いていた。記入を当てた木で B-4 系 test を走らせると、resolver が
+  spec の束縛する追跡外 binary を lstat できず pin を拒否し、材料レポートが評価器の前で止まって 34 failed + 2 errors になった
+  (記入を戻した木では同じ 4 file が 259 passed)。記入は保留した (D2345)。main へ着地していれば
+  受入と材料レポートが binary を置いていない全 checkout で赤になっていた (near miss)。
+- 根本原因: 記入先の欄を resolver・材料レポート生成器・実文書回帰 test が読むことを、見積りの段で実行して確かめなかった。
+  test 側も docstring で「floor 登録 wave で更新する」と予告していたが、起票と材料はそれを拾わなかった。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O09` (docs のみの wave でも、変更 path で test を検索し hit を読む) が
+  本 wave の発見経路として既にある。見積りの側は memory `docs-cell-read-by-code-run-consumer-tests-first`
+  (記入を当てた木と戻した木で consumer test を比べてから「docs のみ」と言う) を固定した。新しい gate・検査は足さない。
+- 再発検知: 事前登録・凍結文書のセル記入を扱う wave で、記入を当てた木の consumer test の実走記録が brief に無い場合が同型。
+
+### F1101. 登録が書く coder 入力の履歴の欄を対照の経路が埋めておらず、後続の登録草稿が schema だけを見てそれを前提にしかけた [説明と実装の食い違い] [誤前提]
+
+- 事象: T-2867 登録 §4.1 は「driver の自系列の履歴は本文・結果の分類・拒否の分類・verifier の digest を載せ」と書き、coder 入力を組む `make_policy_coder_input` の schema も
+  `verifier_digest`・`reject_subtype`・`reject_rule_id` を持つ。しかし対照の経路は、初期点と評価の結果を `run_contrast_unit` の中で結果の分類だけ書き (verifier の digest を渡さない)、
+  coder 出力の schema の拒否と auditor の出力の形式・digest の不一致による拒否は round tool の台帳にだけ残して履歴に入れない (検疫・構文・compile と auditor の通常の判定による拒否は分類つきで入る)。T-2852 の P5 S3 版の改版 wave は、段 1 で schema だけを見て「構造化された失敗理由は履歴で
+  critic と独立に届くので critic なしの cell でも規律 3 を保てる」と置き、草稿に書いた。段 6 の read-only レビューが producer の経路を追って指摘し、親が本走の coder 入力 249 件の
+  履歴の欄 (延べ 1,638 行で `verifier_digest` を持つ行 0) とコードで裏取りした。T-2867 本走は critic が常にあり (評価の結果の構造は critic 診断を通して届く経路があった)、確認した coder 入力の履歴に現れた評価の結果は全部 certified だった。
+  規律 3 の破れと結果への影響は観測していないが、本走全体の失敗の有無はこの集計では確かめていない。land 前に草稿を直したので P5 への実害は無い。
+- 根本原因: consumer の入力の schema (欄の存在) を、producer が実際にその欄を埋めることの証拠と取り違えた。登録にも同じ情報の返却が記載されていたが、対照の経路では実現されておらず、
+  P5 の草稿はそれを実データで確かめないまま前提にした。
+- 恒久対応: P5 の草稿 `docs/workload-description-critic-intervention-preregistration.md` §3.2・§13 の 2 が、対照の経路で履歴の欄を埋めることを critic なしの cell の発効の前提にした。
+  T-2867 側の開示と修復は worklog の [T-2982]。memory `consumer-schema-is-not-producer-evidence` (入力の欄を前提にする設計は、producer の経路を追うか実データの欄の埋まり方を数えてから書く)。
+- 再発検知: 段 6 の事実照合レンズに「schema にある欄が実際の producer の経路で埋まるか」を入れる。P5 の発効の確認で、critic なしの cell の生死確認の coder 入力に、
+  失敗した評価の `verifier_digest` が載ることを確かめる。
+
+### F1102. 撤去 tool の lock 待ち (rc=75) を、保持者も順番も確かめず同じ argv で固定間隔に再試行し、4 wave が空打ちを重ねた [手順漏れ] [コンテキスト浪費]
+
+- 事象: 2026-09-30 22:07〜2026-10-01 00:20 JST、段 9 の自己撤去で `tools/dev_wave_cleanup.py` が `status=busy phase=removal-lock reason=another worktree removal holds the repository lock; retry in a few minutes` (rc=75) を返し、各 wave が同じ argv の再試行を続けた。撤去 log のこの行の数は、md_44 (dev-wave-vhash-ro-continuing、branch `worktree-dev-wave-vhash-ro-continuing`、land 済み fold `c94b79717`) 10 行 (23:37〜00:20、5 分おき 8 回のループを含む)、md_35 (dev-wave-cicada-between-run-floor) 5 行、codex-astra-ultra 2 行 (240 秒待ち・上限 20 回の script が 00:15 と 00:19 に落ち、3 回目の前に止めた)、md_37 (dev-wave-vhash-hot-block-v2) は run1 の log に 12 行・後続の `cleanup-all.log` に 15 行。land 調整役も「数分おいて再試行」と案内し続けた。
+- 根本原因: 撤去 tool は repo 全体で 1 本の flock (`LOCK_EX|LOCK_NB`) を取り、取れなければ待たずに rc=75 を返す。順番待ちの列も保持者 (pid・wave) の表示も無いので、待つ側は lock がいつ空くかを知れない。tool の reason 自身が `retry in a few minutes` と言い、手順書 `DW-O28` も「撤去は repo 全体で 1 本ずつ、rc=75 は数分後再試行」と書いていた。各 wave はこれを「待てば通る」とだけ読み、同じ reason が続いても止まって原因 (保持者・順番) を確かめる段を置かずにループを組んだ。上限は wave ごとにまちまちで (md_44 は 5 分おき 8 回のループ、codex-astra-ultra は最大 20 回、md_37 は 6 回)、上限まで同じ argv を打つ作りだった。Lustre 上の撤去は 1 本 15 分を超えうる (memory `worktree-removal-on-lustre-is-slow-dont-parallelize`) ので、数分おきの再試行はほとんど当たらない。F333 の (b)「前進判定の無い再試行ループ」と根は同じだが、F333 は dispatch 親の SIGTERM で孤児 job がノードを占有する事故が主題で再発検知 (qstat の CPU と elapse) も別なので、別の F にした。
+- 恒久対応: (1) 2026-10-01 00:2x のユーザー裁定で撤去は並列でよくなった。rc=75 なら再試行せず手動方式 (bundle 退避と verify → 同じ file system の job dir へ mv → 自分の `.git/worktrees/<名前>` だけ除去 → 背景で rm、prune は打たない) へ切り替える — memory `worktree-removal-on-lustre-is-slow-dont-parallelize`。(2) 同じ原因で 2 回失敗したら 3 回目を投げず land 調整役へ `FAIL-2` を送る。待てば通る型も 3 回まで — memory `read-the-failure-before-retrying` (2026-10-01 のユーザー指示)。(3) 撤去 tool の repo 全体 lock を撤去する wave ごとの lock にする改修と、`DW-O28` の「1 本ずつ・rc=75 は数分後再試行」の是正は、並行 wave md_1 の担当 (本 F の記録時点で未着地)。codex-astra-ultra は当時、撤去 script の再試行上限を 3 回に下げ、rc=75 は 2 回目で止めて調整役に撤去の枠を求める形にした (並列撤去の裁定より前の対応)。
+- 再発検知: 撤去 log で、同じ wave の `status=busy phase=removal-lock` が 2 行目に出たら同型。
+
+### F1103. 子木 5 本の撤去に同じ `--evidence-dir` を渡し、rc=20 を本文を読まず「他 wave の fold 中」と決めつけて 12 回再試行した [手順漏れ] [コンテキスト浪費]
+
+- 事象: md_37 (dev-wave-vhash-hot-block-v2) の段 9 (2026-09-30 22:07〜23:22 JST) で、子木・計測木 5 本を `tools/dev_wave_cleanup.py remove-child` で直列に撤去する script が、1 本目 (vhb2-u1) の成功の後、残り 4 本で rc=20 を返し続けた。run1 の log に `phase=evidence reason=receipt identity mismatch` が 12 行あり、最終 rc は vhb2-u2・vhb2-ma・vhb2-mc が 75、vhb2-mb が 20 だった。script は rc の数字だけで分類し、land 調整役の案内「rc=20 は他 wave の land の後処理と重なっている、2〜3 分おいて再試行」をそのまま当てていた。ユーザーが「理由Aでダメだからとりあえずやり直してまた理由Aでこけて」と指摘した例そのものである。
+- 根本原因: 5 本に同じ `--evidence-dir` を渡した。tool は木ごとの証拠 (受領証・history.bundle 等) をその dir に書くので、2 本目以降は残った受領証と木の同一性が合わず拒否する。この罠は memory `cleanup-discipline` に 2026-09-20 (fig11 wave) と 2026-09-26 ([T-2853]) の 2 回分、節見出し「remove-child の `--evidence-dir` は子木ごとに別 dir にする」で書かれていたが、手順書 `DW-O28` の `<D>` は単数形で木ごとと読めず、親は撤去の前に memory を引かなかった。さらに rc=20 には待てば通る reason (`active fold state exists`) と本当の拒否が同居するのに、reason を読まずに rc で分類した (F1038 と同じ親側の型)。
+- 恒久対応: memory `read-the-failure-before-retrying` (再試行の分類は rc の番号でなく reason の本文で行う。調整役の案内も reason の文言で書く) と、memory `cleanup-discipline` の「remove-child の `--evidence-dir` は子木ごとに別 dir にする」。木ごとの証拠 dir を tool の既定にするか衝突を理由の本文で明示する改修と、`DW-O28` の `<D>` に「木ごと」と書く変更は、並行 wave md_1 の担当 (本 F の記録時点で未着地)。
+- 再発検知: 撤去 log で同じ reason が 2 行続いたら、3 回目を投げず `FAIL-2` を送る。
+
+### F1104. 依頼文と共通指示の分割規則が両立しないと親が推論して分割規則を適用せず、1 job 約 1 時間 × 3 本を誰にも示さずに投げた [手順漏れ]
+
+- 事象: 2026-10-01 の R2 fig2c wave (依頼 md_4、[T-2853]) が、B-10 拡張格子の測り直しを元の driver で 3 job (各 31 variant、約 1 時間) として投げた。
+  ユーザーは走行中に「1 ジョブあたり 5 分くらいで分割したらもう終わってるのでは」と指摘した。測定は bench が済んでいたので止めずに完走させた。
+- 当時の規則: 並行 wave の共通指示 (next-tasks 2026-10-01 の common.txt) は「計算 job は 1 本あたり 5 分程度に分割」を定め、同時に「md_N と食い違ったら md_N を優先」
+  「2 node 時間以上は投入前に land 調整役へ 5 点を送る。ただし md_N がユーザー承認済みと書く計算量の範囲内は相談不要」とも書いていた。依頼 md_4 は「前例と同じ形で元の driver を使う」と指定し、分割には触れていない。
+- 根本原因: 元の driver (`78c7a2c14`) は variant の部分集合を指定する口を持たず、測定順が campaign identity に入るので、元の driver のままなら 3 job が最小単位である。
+  親はここから依頼と分割規則が食い違うと推論し、「md_N 優先」で分割規則を適用しないと単独で決め、brief に 1 行書いただけで投入前に誰にも示さなかった。
+  分割するには部分集合 runner の新設 (図の生成器の identity 検査と衝突) が要り、元の形のまま・runner 新設・一部先行の択一になる。この択一を判断の材料として表に出さなかったことが漏れである。
+  land 調整役は「承認は計算量の承認で、分割の指示と相談を省いてよいという意味ではない」と伝えた。
+- 恒久対応: memory `measurement-must-split-across-nodes` に「依頼文と共通指示の計算規則が食い違うと判断したら、自分で優先を決めず、投入前に衝突と選択肢を 5 点に添えて land 調整役へ送る」を追記した
+  (本件の後に足した手順で、当時の明文の規則ではない)。部分集合 runner は `output/insights/2026-10-01/t2853-r2-fig2c/README.md` §8 に今後の課題として記録した。
+- 再発検知: land 調整役の qstat 監視 (1 本あたりの経過時間) と、brief の計算行に「共通指示の分割規則を適用しない」と書く場合の投入前の相談記録の有無。

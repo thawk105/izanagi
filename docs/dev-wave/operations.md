@@ -6,11 +6,11 @@
 
 `tools/dev_wave_codex.py --stage <stage> [--lane <lane>] -o <出力>.md` で起動（他の引数は `--help`）。model は全段、effort は段 5 / 6 が docs 権威から導出。caller 指定は不可。
 背景jobは`nohup setsid bash -c '<cmd>; echo $? > <log>.done' </dev/null`でdetach。
-prompt非空・参照path実在・`--dry-run`のargvを先に検査（段別flag違反はrc=2即死）。既存`.done`を消去・再利用せず再投入を止める。
+prompt非空・参照path実在・`--dry-run`のargvを先に検査(段別flag違反はrc=2即死)。既存`.done`を消去・再利用せず再投入を止める。
 待機は `tools/dev_wave_wait.py producer` を使い、`--pid-file` は producer script 自身が `echo $$` で書く。
 wait側`--receipt-file`はworker launcher receiptと別pathにする。
-完了判定は`.done`とexit codeだけ（grep・通知・待ち手rc不可）。成果物は最終メッセージから読む（F23/F24）。
-採用は`tools/check_codex_output.py` rc=0（promptに`## 総括`必須、F43）。
+完了判定は`.done`とexit codeだけ(grep・通知・待ち手rc不可)。成果物は最終メッセージから読む(F23/F24)。
+採用は`tools/check_codex_output.py` rc=0(promptに`## 総括`必須、F43)。
 `<model>`: 全段 `gpt-6-astra` (段 3 の 2 本も同じ)。
 ultraの委任(spawn_agent)はpromptで禁じ、委任したattemptは起動器が拒否する。
 `--artifact-root`は先に作る。
@@ -19,21 +19,22 @@ ultraの委任(spawn_agent)はpromptで禁じ、委任したattemptは起動器�
 ## DW-O02 — job artifact
 
 prompt・log・patch・親brief・前段の子成果物はwave専用dirへ置き、job tmp直下や過去waveと共有しない。
-確保不能なら停止。全文複製せず絶対パスで読ませ、promptに「読めなければ即停止」と書く。context欠落の出力は採用しない。
-必読資料と既裁定は逐語をjob dirへ出す。repo内pathはworktreeの遅れでfail-closed。**promptのrepo pathは投入先worktreeのもの**にする（親側だと子は書けず空成功、F819）。
+確保不能なら停止。全文複製せず絶対pathで読ませ、promptに「読めなければ即停止」と書く。context欠落の出力は採用しない。
+必読資料と既裁定は逐語を原名でjob dirへ出し、1行1file絶対pathで列挙。repo内pathはworktreeの遅れでfail-closed。**promptのrepo pathは投入先worktreeのもの**にする(親側だと子は書けず空成功、F819)。
 出力・読取ログはNFC。U+0300〜U+036F禁止。非NFC資料はASCII escape表示、原文保持。
 prompt 先頭は AGENTS.md の単独段例外と同形式。
 
 ## DW-O03 — 防護パスを含む file
 
-WAL、campaign lock、campaign output、submodule 等の防護パス文字列を含む file は
-Bash heredoc や不透明な command substitution で作らず Write ツールで作る。guard を迂回しない。
-prompt に限らず brief、裁定、runner script、spec も同じ。`python3 -c` も同じ理由で拒否される。
-**作る command だけでなく読む command も掛かる。** 防護 path と `$()`・プロセス置換・`<<<`・
-`eval`・`xargs` の同居は分類不能として拒否されるので、読取りは cat / grep / jq を直に使う。
-Bash 側は部分文字列で判定するため防護 path の兄弟 directory も掛かる。Write/Edit 側は
-subtree 判定で掛からない。射程が違うので Bash の拒否を Write の可否と読み替えない。
-隔離 session では repo 外の絶対 path も同型に掛かる。job dir への作成・追記も Write/Edit を使う。
+WAL、campaign lock、campaign output、submodule等の防護パス文字列を含むfileは
+Bash heredocや不透明なcommand substitutionで作らずWriteで作る。guardを迂回しない。
+prompt・brief・裁定・runner script・specも同じ。`python3 -c`も拒否される。
+**作るcommandだけでなく読むcommandも掛かる。** 防護pathと`$()`・プロセス置換・`<<<`・
+`eval`・`xargs`の同居は分類不能で拒否されるので、読取りはcat / grep / jqを直に使う。
+Bash側は部分文字列判定で防護pathの兄弟directoryも掛かる。Write/Edit側は
+subtree判定で掛からない。Bashの拒否をWriteの可否と読み替えない。
+隔離sessionではrepo外の絶対pathも掛かり、job dirへの作成・追記もWrite/Editを使う。
+同sessionのBashは絶対path直書き・gitは単独(`-C`・`cd &&`不可)、複数手順はWriteで`.sh`を作り`bash <絶対path>`単独起動。
 
 ## DW-O04 — 防護パスを含む commit message
 
@@ -54,7 +55,7 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 最初に `git submodule update --init` を行う。
 未初期化による skip や手前の赤を破損なしと報告してはならない。
-`DW-C01` の初期化 tool は一過性に失敗しうる。再実行前に submodule status と木の中身を見て揃っていれば再実行しない。欠けていれば同じ引数で 1 度だけ再実行し、なお赤なら止める。
+`DW-C01` の初期化 tool は一過性に失敗しうる (rc=1 の `update-no-fetch` 等)。再実行前に `git submodule status --recursive` と木の中身を見て揃っていれば再実行しない。欠けていれば同じ引数で 1 度だけ再実行し、なお赤なら止める。
 rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく木の中身で効果を実測する。
 最初の失敗を「この worktree では初期化できない」と一般化して brief へ書かない。
 

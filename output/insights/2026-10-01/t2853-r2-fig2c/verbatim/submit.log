@@ -1,0 +1,14 @@
+submit_start_jst=2026-10-01 10:26:35
+--- qstat (all users, izs4loop)
+izs4loop: none
+cwd=/work/1/SFC/tanab/tmp/t2853-r2-fig2c-2026-10-01/submit-tree head=78c7a2c1408da05c9c6391451192d81963b84034
+Request 40679.nqsv submitted to queue: gen_S.
+Request 40680.nqsv submitted to queue: gen_S.
+Request 40681.nqsv submitted to queue: gen_S.
+driver_rc=0
+--- receipt
+{"event":"manifest","group_id":"b10-backoff-grid-20261001T012637Z-3721300","job_script_sha256":"9579690d44c49842eefc00fcf459f2717cda1dccc66857e1b0137ff5abbbeefb","schema_version":"b10-backoff-grid-submit-event/v1","submission_nonce":"38159d0ac457f06dd0a9c47cdf13f5d7","workloads":["write-heavy","balanced","read-heavy"]}
+{"event":"submitted","job_id":"Request 40679.nqsv submitted to queue: gen_S.","output_root":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-write-heavy","schema_version":"b10-backoff-grid-submit-event/v1","stderr":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-write-heavy.stderr","stdout":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-write-heavy.stdout","workload":"write-heavy"}
+{"event":"submitted","job_id":"Request 40680.nqsv submitted to queue: gen_S.","output_root":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-balanced","schema_version":"b10-backoff-grid-submit-event/v1","stderr":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-balanced.stderr","stdout":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-balanced.stdout","workload":"balanced"}
+{"event":"submitted","job_id":"Request 40681.nqsv submitted to queue: gen_S.","output_root":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-read-heavy","schema_version":"b10-backoff-grid-submit-event/v1","stderr":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-read-heavy.stderr","stdout":"/work/1/SFC/tanab/b10-backoff-grid-t2853-r2-fig2c-20261001/b10-backoff-grid-20261001T012637Z-3721300-read-heavy.stdout","workload":"read-heavy"}
+submit_end_jst=2026-10-01 10:26:37
