@@ -1,0 +1,68 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "repo_head": "6999aace7e7e2ba9f06ecec68a1901cd3f05e7bc",
+  "spec_sha256": "350439414fa41ce88bbd1f5c26f795a5978184a3e0648eb0187e68a357fdeec8",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "baseline": {
+    "status": "PASSED"
+  },
+  "mutations": [
+    {
+      "id": "MB1b",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB2",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB3",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB4",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB5",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB6",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB7",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "MB8",
+      "status": "KILLED",
+      "expected_status": "KILLED"
+    },
+    {
+      "id": "EQ1",
+      "status": "SURVIVED",
+      "expected_status": "SURVIVED"
+    }
+  ],
+  "results_sha256": "a8c1c98ad7c44a91439e26b932cf2241b6886e2caf5baad582f7c83fbad6d435",
+  "request": "40058.nqsv"
+}

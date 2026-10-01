@@ -1,0 +1,112 @@
+{
+  "schema": "vhash-econn-wscan-aggregate/v1",
+  "job": "count",
+  "extra": false,
+  "missing": [],
+  "duplicate": [],
+  "invalid": [],
+  "complete": true,
+  "arms": {
+    "0.9:E-hb:pre": {
+      "planned": 3,
+      "observed": 3,
+      "diagnostic_instrumented_build": {
+        "lag_rts_mean_us": 20363.80387761453,
+        "lag_rts_max_us": 653949,
+        "live_mean": 1312811.7904721154
+      },
+      "cap_totals": null
+    },
+    "0.9:E-max:pre": {
+      "planned": 3,
+      "observed": 3,
+      "diagnostic_instrumented_build": {
+        "lag_rts_mean_us": 19843.294548998343,
+        "lag_rts_max_us": 653341,
+        "live_mean": 1299781.2793741138
+      },
+      "cap_totals": null
+    },
+    "0.9:E-max:fix": {
+      "planned": 3,
+      "observed": 3,
+      "diagnostic_instrumented_build": {
+        "lag_rts_mean_us": 20051.64058671556,
+        "lag_rts_max_us": 643444,
+        "live_mean": 1308555.9741200656
+      },
+      "cap_totals": {
+        "cap_delta_clock_sum": 175882492958,
+        "cap_no_raise": 379,
+        "cap_limited": 884,
+        "publishes": 884
+      }
+    },
+    "0:E-hb:pre": {
+      "planned": 3,
+      "observed": 3,
+      "diagnostic_instrumented_build": {
+        "lag_rts_mean_us": 19731.389271581906,
+        "lag_rts_max_us": 624701,
+        "live_mean": 1322320.1448757597
+      },
+      "cap_totals": null
+    },
+    "0:E-max:pre": {
+      "planned": 3,
+      "observed": 3,
+      "diagnostic_instrumented_build": {
+        "lag_rts_mean_us": 6031.022688000818,
+        "lag_rts_max_us": 605612,
+        "live_mean": 1112496.325066146
+      },
+      "cap_totals": null
+    },
+    "0:E-max:fix": {
+      "planned": 3,
+      "observed": 3,
+      "diagnostic_instrumented_build": {
+        "lag_rts_mean_us": 15952.463951355081,
+        "lag_rts_max_us": 607181,
+        "live_mean": 1265000.727002397
+      },
+      "cap_totals": {
+        "cap_delta_clock_sum": 7335936519988,
+        "cap_no_raise": 38088,
+        "cap_limited": 38792,
+        "publishes": 38792
+      }
+    }
+  },
+  "diagnostic_instrumented_build_comparisons": {
+    "0.9": {
+      "lag_rts_mean_us": {
+        "fix_pre_ratio": 1.0104995688696126,
+        "gain_retained_fraction": 0.5997266018821993
+      },
+      "lag_rts_max_us": {
+        "fix_pre_ratio": 0.9848517083728099,
+        "gain_retained_fraction": 17.27796052631579
+      },
+      "live_mean": {
+        "fix_pre_ratio": 1.006750901005573,
+        "gain_retained_fraction": 0.32660394669419374
+      }
+    },
+    "0": {
+      "lag_rts_mean_us": {
+        "fix_pre_ratio": 2.6450678063429827,
+        "gain_retained_fraction": 0.27582658443282804
+      },
+      "lag_rts_max_us": {
+        "fix_pre_ratio": 1.0025907676862413,
+        "gain_retained_fraction": 0.9178060663209178
+      },
+      "live_mean": {
+        "fix_pre_ratio": 1.1370830613100529,
+        "gain_retained_fraction": 0.27317879316739285
+      }
+    }
+  },
+  "preregistered_success": true
+}

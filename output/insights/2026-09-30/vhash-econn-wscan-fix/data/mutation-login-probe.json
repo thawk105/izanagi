@@ -1,0 +1,125 @@
+{
+  "tree_head": "6999aace7e7e2ba9f06ecec68a1901cd3f05e7bc",
+  "baseline": {
+    "rc": 0,
+    "nodes": []
+  },
+  "MB1": {
+    "id": "MB1",
+    "old_count": [
+      1
+    ],
+    "rc": 0,
+    "nodes": [],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB1b": {
+    "id": "MB1b",
+    "old_count": [
+      1,
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_positive_requires_reach_mb1"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB2": {
+    "id": "MB2",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_patch_stacks_mb2"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB3": {
+    "id": "MB3",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_argv_mb3"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB4": {
+    "id": "MB4",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_repair_requires_same_job_trigger_mb4",
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_repair_requires_same_shard_mb7"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB5": {
+    "id": "MB5",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_rounds_max_uses_max_mb5"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB6": {
+    "id": "MB6",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_wscan_top_types_and_argv_mb6"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB7": {
+    "id": "MB7",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_repair_requires_same_shard_mb7"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "MB8": {
+    "id": "MB8",
+    "old_count": [
+      1
+    ],
+    "rc": 1,
+    "nodes": [
+      "orchestrator/tests/test_vhash_econn_wscan.py::test_run_rejects_mixed_head_before_execution_mb8"
+    ],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  },
+  "EQ1": {
+    "id": "EQ1",
+    "old_count": [
+      1
+    ],
+    "rc": 0,
+    "nodes": [],
+    "restored_sha256_ok": true,
+    "porcelain_clean_after": true
+  }
+}

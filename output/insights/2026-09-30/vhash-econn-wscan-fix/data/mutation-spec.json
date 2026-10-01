@@ -1,0 +1,156 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "MB1b",
+      "category": "both-layers",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_positive_requires_reach_mb1"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "fired = any(_sum(r[\"counters\"][\"wscan\"], \"detached_reach_both\") > 0 for r in records)",
+          "new": "fired = any(_sum(r[\"counters\"][\"wscan\"], \"detached\") > 0 for r in records)"
+        },
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "return \"fired\" if reached and fired else",
+          "new": "return \"fired\" if fired else"
+        }
+      ]
+    },
+    {
+      "id": "MB2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_patch_stacks_mb2"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "(\"repro\", \"broken\"): (*VGT, PROBE, CAP, BROKEN)}",
+          "new": "(\"repro\", \"broken\"): (*VGT, PROBE, BROKEN)}"
+        }
+      ]
+    },
+    {
+      "id": "MB3",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_argv_mb3"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "f\"--cicada_wscan_k1={'true' if spec['k1'] else 'false'}\",\n                 f\"--cicada_wscan_k2={'true' if spec['k2'] else 'false'}\"]",
+          "new": "f\"--cicada_wscan_k1={'true' if spec['k1'] else 'false'}\"]"
+        }
+      ]
+    },
+    {
+      "id": "MB4",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_repair_requires_same_job_trigger_mb4",
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_repair_requires_same_shard_mb7"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "return \"repair_success\" if clean_reached and same_job_triggered else \"indeterminate\"",
+          "new": "return \"repair_success\" if clean_reached else \"indeterminate\""
+        }
+      ]
+    },
+    {
+      "id": "MB5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_rounds_max_uses_max_mb5"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "if max(_max(r[\"counters\"][\"wscan\"], \"rounds_max\") for r in records) >= 2:",
+          "new": "if sum(_max(r[\"counters\"][\"wscan\"], \"rounds_max\") for r in records) >= 2:"
+        }
+      ]
+    },
+    {
+      "id": "MB6",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_wscan_top_types_and_argv_mb6"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "if type(wscan[key]) is not bool:",
+          "new": "if type(wscan[key]) not in (bool, int):"
+        }
+      ]
+    },
+    {
+      "id": "MB7",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_repair_requires_same_shard_mb7"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "r.get(\"shard\") == shard and r.get(\"counters\") and r[\"counters\"].get(\"wscan\"))",
+          "new": "r.get(\"counters\") and r[\"counters\"].get(\"wscan\"))"
+        }
+      ]
+    },
+    {
+      "id": "MB8",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_vhash_econn_wscan.py::test_run_rejects_mixed_head_before_execution_mb8"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "for key in (\"pin\", \"kind\", \"genome\", \"head\")):",
+          "new": "for key in (\"pin\", \"kind\", \"genome\")):"
+        }
+      ]
+    },
+    {
+      "id": "EQ1",
+      "category": "positive",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/vhash_econn_wscan.py",
+          "old": "return sum(row[key] for row in counter[\"threads\"])",
+          "new": "return sum([row[key] for row in counter[\"threads\"]])"
+        }
+      ]
+    }
+  ]
+}
