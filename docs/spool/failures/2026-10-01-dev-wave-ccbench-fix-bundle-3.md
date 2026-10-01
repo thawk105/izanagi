@@ -17,6 +17,10 @@ seq: 3
 
 ## 再発
 
+### F1059
+
+- **再発: 2026-10-01** — ccbench-fix-bundle wave で、Cicada の正しさ job を前例 (promotion-uaf-fix の `launch_promo_confirm.py`) の流れを写さずに実装子へ指定し、計算ノードの実走で 1 つずつ露見して 3 回落ちた: (1) Cicada の trace は izanagi の計装 patch で入るのに当てていない、(2) repo の計装は promotion × TRACE を `#error` で禁じる (前例は promotion genome に repo 外の診断 patch を当てていた)、(3) 登録確認の合成 patch を `git diff` の出力の末尾空白を削って書いた。(1)(2) は段 4 の指定に前例の build 関数の patch 列・genome の制約・判定器の引数を書かなかったため、(3) は login で patch を当ててみる確認を投入前にしなかったため。次から先に確かめること: 前例の起動器を流用する job は、段 4 で前例の build・判定の関数が当てる patch 列・genome・判定器の引数を表にして実装子へ渡し、login で確かめられる部分 (patch の `git apply --check`、build の前処理) は投入前に親が実走する。
+
 ### F810
 
 - **再発: 2026-09-30** — ccbench-fix-bundle wave の開始時、`tools/dev_wave_submodule_init.py` が `update-no-fetch` で 2 回続けて rc=1 になった。2 回目は何も変えずに再実行したが、1 回目の後で `git submodule status --recursive` を見れば 3 段とも初期化済みで、2 回目は不要だった (同 wave の子木 7 本は 1 回目で rc=0)。次から先に確かめること: rc=1 の後、再実行の前に submodule status と木の中身を見て、揃っていれば再実行しない。
