@@ -125,6 +125,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "Cicada VHash ceiling comparison builds are exploratory only",
         ),
+    "orchestrator.campaign.vhash_c2_motivation._build_variant":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "Cicada C2 motivation measurements are ineligible for certified selection",
+        ),
     "orchestrator.campaign.vhash_forwarding_prototype._build_variant":
         MaterializerRegistration(
             NON_ADMISSIBLE,

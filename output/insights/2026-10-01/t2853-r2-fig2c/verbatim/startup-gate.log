@@ -1,0 +1,2 @@
+INFO: local main との乖離なし (0 commit; HEAD は refs/heads/main を含む)
+OK: wave startup checks passed (fresh; repo=/work/1/SFC/tanab/izanagi/.claude/worktrees/t2853-r2-fig2c; wave identity・branch 所有・--repo の同一性は認証しない)
