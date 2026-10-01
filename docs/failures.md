@@ -15066,6 +15066,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   チェックリスト追記を検討する)。
 - 再発検知: 各段の codex 投入前に `## 総括` 見出しの有無を prompt 本文で目視確認する。
 
+
+- **再発: 2026-10-01** — md_6 (cleanup Stop hook) の段 5 author の prompt に、DW-O01 (D2335) が求める「委任 (spawn_agent) を使わない」を書き忘れた。
+  ultra の子が委任し、起動器が `delegation_detected` で未受理にした (launcher rc=1、実装の残差は起動器が commit)。委任禁止を明記した 2 回目が残差を単独で監査して受理され、
+  以後の review・fix の prompt には同じ禁止を入れた。損失は author 1 巡 (約 7 分) と、委任先の書込みが guard 未確認のまま残る面 (D2335 の残る限界) の監査 1 回。
+  型は F452 と同じ (段ごとに手書きする prompt から一般規律の必須事項が落ちる)。
 ### F453. 変異harness の orphan-hold 復旧は2種類の sidecar を両方削除しないと再投入できない [手順漏れ]
 
 - 事象: 変異matrix 投入中に dispatch queue timeout (signal 15、rc=16) で orphan-hold が発火した。
@@ -28937,6 +28942,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-30** — md_37 (VHash hot block v2) の wave 木で、自分の commit が 0 (開始時に main へ ff しただけ) の間、終了時 hook が「land 済みの可能性、撤去せよ」を 6 回出した。いずれも「未 land のため撤去しない」と残置 path を 1 行返して続けた。実害なし。
+- **supersede: 2026-10-01** — 恒久対応の [T-2951] は md_6 で実施済み (D2346)。恒久対応が例示した「reflog に commit 由来の項が 1 つ以上ある」ではなく、免除する側を絞った: 作成項が最古項に残り、それ以外の全項が `merge main: Fast-forward` / `merge refs/heads/main: Fast-forward` で、各項の OID を main の reflog がその時刻以前に指していた木に限る。再発検知の負例は `test_cleanup_stop_allows_ff_main_with_zero_commits` ほか。
 ### F1082. TPC-C の異常終了を genome の promotion 軸へ帰属させ、その軸だけを外した対照を置かなかった [手順漏れ] [テスト代表性]
 
 - 事象: 前 wave (2026-09-29、CCBench の build 修理) は INLINE_VERSION_OPT=1 ∧ INLINE_VERSION_PROMOTION=1 の genome で TPC-C M・R2 が `std::bad_alloc` で落ちるのを観測し、「promotion 有効の 8 genome は失格」とまとめた。2026-09-30 の診断 (gdb の catch throw と一要因対照) で、原因は promotion ではなく INLINE_VERSION_OPT=1 の `Tuple::init` が insert の版を無視する欠陥で、promotion 無効の OPT=1 genome (T0p) でも同じく落ちると分かった。失格の範囲 (8 genome) と原因の帰属 (promotion) がともにずれていた。

@@ -1,0 +1,22 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "m8b-branch-subject-separator-fail-open",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        reflog = parse_reflog(entries)\n",
+          "new": "        reflog = parse_reflog(entries) if all(len(e.split(\" \")) >= 3 for e in entries.split(\"\\n\")) else [(\"\", None, \"\")]  # M8b\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

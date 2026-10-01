@@ -1,0 +1,245 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 12600,
+  "hang_timeout_seconds": 12600,
+  "mutations": [
+    {
+      "id": "m0-comment-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "    deadline = time.monotonic() + 5\n",
+          "new": "    deadline = time.monotonic() + 5  # M0\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-exempt-always",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n",
+          "new": "        if True:  # M1\n            return False, \"\"\n        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_commit_landed_after_ff_main",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_commit_after_another_ff_main",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_empty_reflog_subject",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_ff_from_other_branch",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_linked_worktree",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_oldest_empty_subject",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[reflog_action]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[tag]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_unicode_subject",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_wave_without_creation_entry",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_size_limit_prevents_block",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_stdin_stdout"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-exempt-never",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n",
+          "new": "        if False and reflog[-1][2].startswith(\"branch: Created from \") and all(  # M2\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-refs/heads/main-heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-refs/heads/main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000200-main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000200-refs/heads/main-heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000200-refs/heads/main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_with_zero_commits[main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_with_zero_commits[refs/heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_allows_ff_main_with_zero_commits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3m9-ff-suffix-and-no-main-time",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            subject in (\"merge main: Fast-forward\", \"merge refs/heads/main: Fast-forward\")\n",
+          "new": "            subject.endswith(\": Fast-forward\")  # M3\n"
+        },
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if True or all(stamp is not None and oid in main_times and main_times[oid] <= stamp  # M9\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_ff_from_other_branch",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[reflog_action]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[tag]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4m9-newest-only-and-no-main-time",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            for _, _, subject in reflog[:-1]\n",
+          "new": "            for _, _, subject in reflog[:1]  # M4\n"
+        },
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if True or all(stamp is not None and oid in main_times and main_times[oid] <= stamp  # M9\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_commit_after_another_ff_main",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[reflog_action]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[tag]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-include-oldest",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            for _, _, subject in reflog[:-1]\n",
+          "new": "            for _, _, subject in reflog  # M5\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-refs/heads/main-heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-refs/heads/main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000200-main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000200-refs/heads/main-heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000200-refs/heads/main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_with_zero_commits[main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_with_zero_commits[refs/heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_allows_ff_main_with_zero_commits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-no-creation-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        if reflog[-1][2].startswith(\"branch: Created from \") and all(\n",
+          "new": "        if all(  # M6\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_wave_without_creation_entry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-splitlines",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "        for entry in output.split(\"\\n\"):\n",
+          "new": "        for entry in output.splitlines():  # M7\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_unicode_subject"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-no-main-time",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if True or all(stamp is not None and oid in main_times and main_times[oid] <= stamp  # M9\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[reflog_action]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_spoofed_ff_main[tag]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-strict-time",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "                if all(stamp is not None and oid in main_times and main_times[oid] <= stamp\n",
+          "new": "                if all(stamp is not None and oid in main_times and main_times[oid] < stamp  # M10\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-refs/heads/main-heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_at_or_after_main_update[1700000100-refs/heads/main-main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_with_zero_commits[main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_allows_ff_main_with_zero_commits[refs/heads/main]",
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_subprocess_allows_ff_main_with_zero_commits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-ff-suffix-alone",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            subject in (\"merge main: Fast-forward\", \"merge refs/heads/main: Fast-forward\")\n",
+          "new": "            subject.endswith(\": Fast-forward\")  # M3\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_ff_from_other_branch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-newest-only-alone",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup_stop_hook.py",
+          "old": "            for _, _, subject in reflog[:-1]\n",
+          "new": "            for _, _, subject in reflog[:1]  # M4\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_hooks.py::test_cleanup_stop_blocks_landed_commit_after_another_ff_main"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

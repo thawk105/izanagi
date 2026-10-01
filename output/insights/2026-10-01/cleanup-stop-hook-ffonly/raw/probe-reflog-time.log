@@ -1,0 +1,9 @@
+warning: refname 'main' is ambiguous.
+warning: refname 'main' is ambiguous.
+--- wave reflog
+0d2ec77fcb69346760327cbabe67adf5d2518192 wave@{1700000300} merge main: Fast-forward
+9f89563d4ea79fdbb40b1119af6dab1755eccc6e wave@{1700000100} branch: Created from HEAD
+--- main reflog
+0d2ec77fcb69346760327cbabe67adf5d2518192 heads/main@{1700000400} merge wave: Fast-forward
+9f89563d4ea79fdbb40b1119af6dab1755eccc6e heads/main@{1700000000} commit (initial): base
+git version 2.34.1

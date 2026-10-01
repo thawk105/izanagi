@@ -1,0 +1,106 @@
+== as0-u1 ancestor_of_main=no entries=5
+   7d20b2c1f commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   98ef0ab6b commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   8dbba4844 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   a9500ed76 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   4f412c67b branch: Created from HEAD
+== dev-wave-cleanup-parallel-author ancestor_of_main=yes entries=1
+   3489f7322 branch: Created from HEAD
+== dev-wave-csh-author ancestor_of_main=no entries=3
+   c41931cc9 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   b018852a6 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   5f9e8c549 branch: Created from HEAD
+== dev-wave-p5-s3-prereg ancestor_of_main=no entries=12
+   5432b01ce commit (merge): merge(main): land の前に local main fb9d6f814 を取り込む (dev-wave-p5-s3-prereg、land 調整役の PREP)
+   f264dee2d commit (merge): merge main
+   8b014ec91 commit: docs(spool): [T-2852] 受入全走 (child-green) の結果を worklog fragment に記録する
+   4e2676787 commit (merge): merge main
+   b8fd6b435 commit (merge): merge main
+   85d43a408 commit: docs: [T-2852] 段 8 の dev-wave 改善候補を insight に記録する (是正なし)
+   d0c059065 commit: docs: [T-2852] 焦点再レビュー 2 巡目 (GO) の残件を直し、逐語の末尾空白を可逆に正規化する
+   480bcdf51 commit: docs: [T-2852] P5 S3 版草稿に焦点再レビュー 1 巡目の所見を反映し、worklog・failures の fragment を置く
+   8555cbdb1 commit: docs: [T-2852] P5 S3 版草稿に段 6 レビューの所見を反映 (失敗理由の履歴への接続を発効の前提に、K の分割、露出の書き方)
+   cb744e7a2 commit: docs: [T-2852] P5 の事前登録草稿を S1 版から S3 版へ改版 (4 cell × n = 4 の向き、露出の棚卸し、未発効)
+== dev-wave-vhash-c2-motivation ancestor_of_main=no entries=11
+   26cfc7dde commit: docs(insight): [T-2916] 受入全走の値のない前方参照を外し、受入結果は land の受領証が持つと書く
+   83c840a98 commit: feat(vhash): [T-2916] main 取り込みで main 側の版を採った build authority の一覧に、C2 driver の登録 2 行を当て直す
+   6b7d12fc2 commit: docs(spool): [T-2916] 段 8 — 変異 wrapper の事後検査 rc 125 (走行中の別 session の land) を F300 の再発として記録する
+   e4b0932e3 commit: docs(vhash): [T-2916] C2 動機の smoke の結果・raw・worklog fragment (成立点 0、本計測なし) (段 7)
+   0816c54a4 commit (amend): merge(main): 記録の前に local main 4c2e22190 を取り込む (dev-wave-vhash-c2-motivation、CCBench pin F を含む)
+   327570b2b commit (merge): merge(main): 記録の前に local main 310bf9d94 を取り込む (dev-wave-vhash-c2-motivation、CCBench pin F を含む)
+   b0d3efa90 commit: fix(vhash): [T-2916] C2 driver の test が perf の対の比を取り出す条件に kind を足す (焦点走 40666 の KeyError、test 側の取り出しの欠陥)
+   59b36d8cc commit: feat(vhash): [T-2916] C2 動機の計測 driver (smoke grid・S/R と長い tx を除いた対照の対・成立判定・点の選択・集計) (段 5 統合)
+   7bdc3adbf commit: docs(insight): [T-2916] VHash C2 動機の計測の事前記述 (腕・負荷・smoke grid・成立条件・点の選び方、結果を見る前に固定)
+   63378acb8 merge main: Fast-forward
+== dev-wave-vhash-c2-motivation-author ancestor_of_main=no entries=3
+   2f0c092cb commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   771e93af2 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   63378acb8 branch: Created from 63378acb8ff8ce76e9973dec0735f2a2c12d7c9b
+== dev-wave-vhash-c2-motivation-fix2 ancestor_of_main=no entries=2
+   306cb149a commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   0816c54a4 branch: Created from 0816c54a4
+== dw-bnl-author ancestor_of_main=yes entries=1
+   3489f7322 branch: Created from HEAD
+== t2853-r2-fig10-plot-author ancestor_of_main=no entries=3
+   f7384f802 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   63e6d18b3 commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   e92aeea8f branch: Created from e92aeea8f9a0733994be2754e9e30897e75113fc
+== t2853-r2-fig2c-author ancestor_of_main=no entries=2
+   870c879aa commit: [T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+   0221383cf branch: Created from 0221383cf74f0e01376c54a6f561ee145c96141f
+== worktree-cleanup-stop-hook-ffonly ancestor_of_main=no entries=4
+   aefa5e97f commit (merge): merge(main): 記録の前に local main 3489f7322 を取り込む (worktree-cleanup-stop-hook-ffonly)
+   70af9ee82 commit: fix(hooks): [T-2951] ff だけの木の免除を作成項・LF 区切り・main の reflog 時刻で裏付ける
+   1b29dc1a5 commit: fix(hooks): [T-2951] 撤去を促す Stop hook が main へ ff しただけの未 land の木に出る誤検出を直す
+   5f9e8c549 branch: Created from 5f9e8c549c1c1dcf8d26f3dae99486e0e0da223e
+== worktree-dev-wave-acceptance-pyc-warm ancestor_of_main=no entries=3
+   f4920ddb3 commit: 受入 shard mode の前倒し collection: 従来と同じ signal 意味論・復号に揃え、失敗時は従来経路で取り直す (md_7 段 6 fix)
+   19634caab commit: 受入 shard mode: login collection を preflight 前に前倒し起動する (md_7 acceptance-pyc-warm)
+   d79fd3524 branch: Created from d79fd3524aeae7037a6f8aefb95d9a778847cc72
+== worktree-dev-wave-acceptance-shard0-load ancestor_of_main=no entries=6
+   c9af2b562 commit: fix(t080): prewarm test の写し公開 helper を production と同じ原子的な置換にする
+   2a4aca3c1 commit (merge): merge(main): 記録の前に local main 81c65fd3f を取り込む (dev-wave-acceptance-shard0-load)
+   4258b0c76 commit: fix(t080): prewarm は写しの完成を停止 event まで待ち、写しの遅延・失敗では構築せず静かに終える
+   6ec6c1f28 commit: fix(t080): prewarm の構築 thread を daemon にし、生存中は木と lock を撤去しない
+   29d6693e5 commit: test(t080): 受入 controller が collection 中に T-080 共有 base (default・active-v2) を先に構築する
+   4f412c67b branch: Created from 4f412c67bcd7ff9cca1e78ce9bd1dd7a15d46037
+== worktree-dev-wave-b4-floor-adopt ancestor_of_main=yes entries=7
+   52e43ac90 commit (merge): merge(main): land の前に local main 4c2e22190 を取り込む (dev-wave-b4-floor-adopt、land 調整役の PREP)
+   851ca67bf commit (merge): merge(main): 受入の前に local main 3489f7322 を取り込む (dev-wave-b4-floor-adopt)
+   9023def42 commit: [T-2288] B-4 床値の採用裁定: 焦点再レビューの should 2 件を記録へ反映する
+   672034838 commit: 段 8: コードが読む事前登録セルの記入を docs のみと見積もった near miss を failures fragment に記録する
+   898c88aec commit: [T-2288] B-4 床値の採用裁定: 独立レビューの所見 3 件を記録へ反映する
+   f1500e274 commit: [T-2288] B-4 床値の採用裁定: 集約を採用し pin 値を確定、§5 floor セルの記入は保留する
+   5f9e8c549 branch: Created from 5f9e8c549c1c1dcf8d26f3dae99486e0e0da223e
+== worktree-dev-wave-bench-lock-node-local ancestor_of_main=yes entries=2
+   4c2e22190 merge main: Fast-forward
+   3489f7322 branch: Created from 3489f73223bd95985f6ccaf1943c3cbec35fe0eb
+== worktree-dev-wave-cleanup-parallel ancestor_of_main=yes entries=1
+   3489f7322 branch: Created from 3489f73223bd95985f6ccaf1943c3cbec35fe0eb
+== worktree-dev-wave-retry-holes-md2 ancestor_of_main=no entries=6
+   2987c7398 commit (merge): merge main
+   5e755f19b commit: docs(record): 受入 1 回目の赤 1 件 (floor checkpoint の計時試験) を非帰属と判定した根拠を worklog fragment に足す
+   54c3c0328 commit (merge): merge main
+   057dc5c65 commit: docs(record): md_2 の収容先・見送り理由・予算の実測を insight と worklog fragment に記録する
+   ece9380b8 commit: docs(dev-wave): 同原因の再試行を生んだ手順の穴を 6 行で埋める (md_2、SELF-REVIEW 型 2〜4・単発)
+   3489f7322 branch: Created from 3489f73223bd95985f6ccaf1943c3cbec35fe0eb
+== worktree-dev-wave-selfreview-failures-record ancestor_of_main=no entries=4
+   4a10fcb05 commit (merge): merge main
+   f179937b3 commit: docs(failures): 段 6 レビューを受けて SELF-REVIEW の記録を直す (md_3)
+   6e8dbf5f2 commit: docs(failures): 同原因の再試行の SELF-REVIEW 下書き 7 本を failures に記録する (md_3)
+   3489f7322 branch: Created from 3489f73223bd95985f6ccaf1943c3cbec35fe0eb
+== worktree-t2853-r2-fig10 ancestor_of_main=no entries=8
+   3c7dcf0eb commit (merge): merge(main): 受入前に local main を取り込む (t2853-r2-fig10、受入の post-claim merge)
+   d31523b7e commit: docs(insight): [T-2853] R2 fig10 の焦点再レビュー (GO) を記録し probe の観測範囲の文言を直す
+   30ee6c7b7 commit: docs(spool): [T-2853] R2 fig10 の worklog fragment を足す
+   c96e268d4 commit (merge): merge(main): 受入前に local main dea68ce5f を取り込む (t2853-r2-fig10)
+   78b3ff4c9 commit: docs(insight): [T-2853] R2 fig10 の段 6 レビューを受けて記述を観測へ戻し図を描き直す
+   068f664dd commit: docs(insight): [T-2853] R2 fig10 の測り直しの結果・対照表・R2 図を記録する
+   e92aeea8f commit: docs(insight): R2 fig10 の地位節 §0 を投入前に固定する (T-2853)
+   5f9e8c549 branch: Created from 5f9e8c549c1c1dcf8d26f3dae99486e0e0da223e
+== worktree-t2853-r2-fig2c ancestor_of_main=no entries=5
+   426145585 commit: [T-2853] R2 fig2c の焦点再レビュー (GO) と worklog fragment を記録する
+   e9a21bef5 commit: [T-2853] R2 fig2c 段 6 レビューの所見を反映する (規則の時系列・再現の依存版・主張の範囲)
+   0b952aa74 commit: [T-2853] R2 fig2c の測り直しを記録する (投入・完走・正しさ・対照表・図)
+   0221383cf commit: [T-2853] R2 fig2c の地位を投入前に固定する (insight §0)
+   5f9e8c549 branch: Created from 5f9e8c549c1c1dcf8d26f3dae99486e0e0da223e
