@@ -1,0 +1,10 @@
+{
+  "case": "A4",
+  "role": "after",
+  "rc": 0,
+  "wall_s": 138.50542239000788,
+  "started_at": "2026-09-30T14:51:35.053075+00:00",
+  "ended_at": "2026-09-30T14:53:53.556998+00:00",
+  "prompt_sha256": "cbef1ca9f5fd77d791512abbafbe2e112766a146e497f06d48217e41aebf1b87",
+  "role_sha256": "2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14"
+}

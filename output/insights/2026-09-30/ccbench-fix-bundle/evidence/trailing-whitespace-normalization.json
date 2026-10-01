@@ -1,0 +1,150 @@
+[
+ {
+  "path": "verbatim/review-b.md",
+  "original_sha256": "4c1ede1cd432e6373682f00ca7aa283dd91601f2894ffe3bcf689eade8a7486a",
+  "original_bytes": 6475,
+  "normalized_sha256": "b94cf04eed1391e346018de2a6e5469fd733d68b89956e84253e5478d628cd28",
+  "normalized_bytes": 6415,
+  "removed_trailing_whitespace": [
+   {
+    "line": 3,
+    "suffix": "  "
+   },
+   {
+    "line": 4,
+    "suffix": "  "
+   },
+   {
+    "line": 5,
+    "suffix": "  "
+   },
+   {
+    "line": 8,
+    "suffix": "  "
+   },
+   {
+    "line": 9,
+    "suffix": "  "
+   },
+   {
+    "line": 10,
+    "suffix": "  "
+   },
+   {
+    "line": 13,
+    "suffix": "  "
+   },
+   {
+    "line": 14,
+    "suffix": "  "
+   },
+   {
+    "line": 15,
+    "suffix": "  "
+   },
+   {
+    "line": 18,
+    "suffix": "  "
+   },
+   {
+    "line": 19,
+    "suffix": "  "
+   },
+   {
+    "line": 20,
+    "suffix": "  "
+   },
+   {
+    "line": 23,
+    "suffix": "  "
+   },
+   {
+    "line": 24,
+    "suffix": "  "
+   },
+   {
+    "line": 25,
+    "suffix": "  "
+   },
+   {
+    "line": 28,
+    "suffix": "  "
+   },
+   {
+    "line": 29,
+    "suffix": "  "
+   },
+   {
+    "line": 30,
+    "suffix": "  "
+   },
+   {
+    "line": 33,
+    "suffix": "  "
+   },
+   {
+    "line": 34,
+    "suffix": "  "
+   },
+   {
+    "line": 35,
+    "suffix": "  "
+   },
+   {
+    "line": 38,
+    "suffix": "  "
+   },
+   {
+    "line": 39,
+    "suffix": "  "
+   },
+   {
+    "line": 40,
+    "suffix": "  "
+   },
+   {
+    "line": 43,
+    "suffix": "  "
+   },
+   {
+    "line": 44,
+    "suffix": "  "
+   },
+   {
+    "line": 45,
+    "suffix": "  "
+   },
+   {
+    "line": 48,
+    "suffix": "  "
+   },
+   {
+    "line": 49,
+    "suffix": "  "
+   },
+   {
+    "line": 50,
+    "suffix": "  "
+   }
+  ],
+  "restore": "各 line の行末に suffix を付け直すと original_sha256 に戻る (可視文字は不変)"
+ },
+ {
+  "path": "evidence/mk-bundle.log",
+  "original_sha256": "9a12e61001fab3f67e84e26c9df208970bb5bc0c4d8826a23c87b90ed1060060",
+  "original_bytes": 2696,
+  "normalized_sha256": "96534a42f351835b3421f91d879b7795d442e32f4b8ad695d06ee9b287cdc924",
+  "normalized_bytes": 2694,
+  "removed_trailing_whitespace": [
+   {
+    "line": 36,
+    "suffix": " "
+   },
+   {
+    "line": 37,
+    "suffix": " "
+   }
+  ],
+  "restore": "各 line の行末に suffix を付け直すと original_sha256 に戻る (可視文字は不変)"
+ }
+]

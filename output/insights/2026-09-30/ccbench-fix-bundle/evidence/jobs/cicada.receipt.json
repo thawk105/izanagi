@@ -1,0 +1,16 @@
+{
+  "dispatch_log": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/cicada/dispatch.log",
+  "dispatch_rc": 1,
+  "fields": {
+    "elapse": {
+      "value": "1768"
+    },
+    "execution_node": {
+      "status": "not_found_in_dispatch_log"
+    },
+    "request_id": {
+      "value": "40088.nqsv"
+    }
+  },
+  "job": "cicada"
+}

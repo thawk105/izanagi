@@ -1,0 +1,16 @@
+{
+  "dispatch_log": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/dispatch.log",
+  "dispatch_rc": 0,
+  "fields": {
+    "elapse": {
+      "value": "884"
+    },
+    "execution_node": {
+      "status": "not_found_in_dispatch_log"
+    },
+    "request_id": {
+      "value": "40590.nqsv"
+    }
+  },
+  "job": "registration"
+}

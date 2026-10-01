@@ -14,7 +14,7 @@ CCBENCH = ROOT / "external" / "ccbench"
 PATCH_A = ROOT / "patches" / "cicada-adaptive-params.patch"
 PATCH_B = ROOT / "patches" / "cicada-adaptive-dynamic.patch"
 PATCH_C = ROOT / "patches" / "cicada-adaptive-counterfactual.patch"
-PIN_FULL = "68106660686232781bca3be792a750d3e19d7a8a"
+PIN_FULL = "25898d00b9a6bbf09329ff8e8318c77d4f08b46e"
 STEP_POLICY_SEED = "11400714819323198485"
 
 DEFAULT_DEFINES = (

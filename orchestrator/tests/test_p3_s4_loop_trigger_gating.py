@@ -240,9 +240,11 @@ _T2304_COMPUTE_CAMPAIGN_ID = (
 _T2858_OTHER_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-82d809c2"
 )
+_T2854F_OTHER_CAMPAIGN_ID = "p3-s8a-trigger-loop-s8a-trigger-autonomous-c168e9ec"
 _T2858_COMPUTE_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-34d5329f"
 )
+_T2854F_COMPUTE_CAMPAIGN_ID = "p3-s8a-trigger-loop-s8a-trigger-autonomous-0f894a7d"
 _T530_OTHER_CAMPAIGN_ID = (
     "p3-s8a-trigger-loop-s8a-trigger-autonomous-25c37015"
 )
@@ -942,17 +944,19 @@ def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
         T._lookup = saved_site_lookup
     assert other_cfg is cfg
     assert str(ident.campaign_id(other_cfg)) == str(ident.campaign_id(cfg))
-    assert str(ident.campaign_id(other_cfg)) == _T2858_OTHER_CAMPAIGN_ID
-    assert str(ident.campaign_id(compute_cfg)) == _T2858_COMPUTE_CAMPAIGN_ID
+    assert str(ident.campaign_id(other_cfg)) == _T2854F_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(compute_cfg)) == _T2854F_COMPUTE_CAMPAIGN_ID
     assert str(ident.campaign_id(other_cfg)) not in {
         _T816_OTHER_CAMPAIGN_ID,
         _T2304_OTHER_CAMPAIGN_ID,
+        _T2858_OTHER_CAMPAIGN_ID,
         _T343_OTHER_CAMPAIGN_ID,
         _T530_OTHER_CAMPAIGN_ID,
     }
     assert str(ident.campaign_id(compute_cfg)) not in {
         _T816_COMPUTE_CAMPAIGN_ID,
         _T2304_COMPUTE_CAMPAIGN_ID,
+        _T2858_COMPUTE_CAMPAIGN_ID,
         _T343_COMPUTE_CAMPAIGN_ID,
         _T530_COMPUTE_CAMPAIGN_ID,
     }
@@ -968,7 +972,7 @@ def test_campaign_identity_is_unchanged_for_other_and_split_for_compute():
     ).hexdigest()[:8]
     assert (
         f"{t2858_compute.spec_slug}-{t2858_compute.search_tag}-{t2858_compute_hash}"
-        == _T2858_COMPUTE_CAMPAIGN_ID
+        == _T2854F_COMPUTE_CAMPAIGN_ID
     )
     assert _PRE_T343_OTHER_CAMPAIGN_ID == (
         "p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5"
@@ -2183,7 +2187,7 @@ def test_default_cfg_wires_s2_verify_and_axis():
     assert cfg.search_config.get("axis") == T.MARKER_ID
     assert cfg.search_config.get("trigger_gate_binding_schema") == \
         TRIGGER_GATE_BINDING_SCHEMA
-    assert cfg.ccbench_commit == T.PIN == "6810666"
+    assert cfg.ccbench_commit == T.PIN == "25898d0"
 
 
 def test_default_cfg_identity_distinct_from_sort():
@@ -2851,7 +2855,7 @@ def test_b4_trigger_marker_is_opt_in_and_ordinary_contract_digest_is_unchanged(
     assert ordinary == explicit_false
     assert L.B4_PROTOCOL_KEY not in ordinary.search_config
     assert marked.search_config[L.B4_PROTOCOL_KEY] == L.B4_PROTOCOL_VALUE
-    assert str(ident.campaign_id(ordinary)) == _T2858_OTHER_CAMPAIGN_ID
+    assert str(ident.campaign_id(ordinary)) == _T2854F_OTHER_CAMPAIGN_ID
     assert ident.campaign_id(marked) != ident.campaign_id(ordinary)
 
     legacy_document = _b4_trigger_proposal()

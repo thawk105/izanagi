@@ -1,0 +1,705 @@
+{
+ "pairs": [
+  {
+   "pair_id": "p1",
+   "runs": {
+    "K": {
+     "record": {
+      "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-K1",
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "head_after": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "blob": "1c8af6ba9613b81cfdf9c798bf6c140f2f5e6fed",
+      "git_status": " M tools/run_tests.py",
+      "git_status_after": " M tools/run_tests.py",
+      "pyc_before": {
+       "tests": 0
+      },
+      "pyc_after": {
+       "tests": 453
+      },
+      "env": {
+       "IZANAGI_ACCEPTANCE_SHARDS": "3",
+       "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+       "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+       "PYTHONDONTWRITEBYTECODE": "<unset>",
+       "PYTEST_ADDOPTS": "<unset>",
+       "PYTEST_PLUGINS": "<unset>"
+      },
+      "rc": 1,
+      "start_epoch_s": 1790777950.3327928,
+      "end_epoch_s": 1790778371.5468996,
+      "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/8f74eac2c22713a97103f17ab599c7d8",
+      "shard_dir_matches": [
+       "/work/1/SFC/tanab/.izanagi-acceptance-shards/8f74eac2c22713a97103f17ab599c7d8"
+      ],
+      "shard_dir_note": "unique"
+     },
+     "issues": [],
+     "shards": [
+      {
+       "index": 0,
+       "issues": [],
+       "eligible": true,
+       "intent_epoch_s": 1790778006.0,
+       "confirm_epoch_s": 1790778007.0,
+       "handled_epoch_s": 1790778326.0,
+       "compute_visible_epoch_s": 1790778015.0,
+       "queue_s": 9.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 281.861,
+       "pre_s": 93.01330494880676,
+       "junit_failures": 0,
+       "junit_errors": 0
+      },
+      {
+       "index": 1,
+       "issues": [
+        "shard red"
+       ],
+       "eligible": true,
+       "intent_epoch_s": 1790778006.0,
+       "confirm_epoch_s": 1790778009.0,
+       "handled_epoch_s": 1790778321.0,
+       "compute_visible_epoch_s": 1790778016.0,
+       "queue_s": 10.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[1-argv0-PEGASUS_LOGIN-False-13]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv1-OTHER-False-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv2-PEGASUS_LOGIN-False-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv3-PEGASUS_LOGIN-True-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+        "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+        "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv"
+       ],
+       "pytest_rc": 1,
+       "W_s": 273.278,
+       "pre_s": 93.28656101226807,
+       "junit_failures": 27,
+       "junit_errors": 0
+      },
+      {
+       "index": 2,
+       "issues": [
+        "intent to compute-visible outside [0,60] s"
+       ],
+       "eligible": false,
+       "intent_epoch_s": 1790778006.0,
+       "confirm_epoch_s": 1790778010.0,
+       "handled_epoch_s": 1790778369.0,
+       "compute_visible_epoch_s": 1790778084.0,
+       "queue_s": 78.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 252.55,
+       "pre_s": 85.68655729293823,
+       "junit_failures": 0,
+       "junit_errors": 0
+      }
+     ],
+     "login_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "observed_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "red_nodeids": [
+      "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[1-argv0-PEGASUS_LOGIN-False-13]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv1-OTHER-False-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv2-PEGASUS_LOGIN-False-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv3-PEGASUS_LOGIN-True-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+      "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+      "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission",
+      "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv"
+     ],
+     "prep_s": 55.66720724105835,
+     "intent_epoch_s": 1790778006.0,
+     "login_collection_after_intent_s": 72.0,
+     "outer_s": 420.66720724105835,
+     "W_max_s": 281.861,
+     "post_tests_pyc": 453,
+     "post_git_status": " M tools/run_tests.py",
+     "session_birth_epoch_s": 1790778006.0,
+     "start_to_intent_s": 55.66720724105835,
+     "intent_mtime_by_shard": {
+      "0": 1790778006.0,
+      "1": 1790778006.0,
+      "2": 1790778006.0
+     },
+     "login_collection_mtime_epoch_s": 1790778078.0,
+     "outer_minus_W_max_s": 138.80620724105836
+    },
+    "H": {
+     "record": {
+      "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-H1",
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "head_after": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "blob": "13c7ae4d4f0e50b2df2a437608ff88bc1e1e68d8",
+      "git_status": "",
+      "git_status_after": "",
+      "pyc_before": {
+       "tests": 0
+      },
+      "pyc_after": {
+       "tests": 453
+      },
+      "env": {
+       "IZANAGI_ACCEPTANCE_SHARDS": "3",
+       "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+       "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+       "PYTHONDONTWRITEBYTECODE": "<unset>",
+       "PYTEST_ADDOPTS": "<unset>",
+       "PYTEST_PLUGINS": "<unset>"
+      },
+      "rc": 0,
+      "start_epoch_s": 1790777950.335474,
+      "end_epoch_s": 1790778399.1506686,
+      "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/700cdfad78eee0177ffd64fc25d60475",
+      "shard_dir_matches": [
+       "/work/1/SFC/tanab/.izanagi-acceptance-shards/700cdfad78eee0177ffd64fc25d60475"
+      ],
+      "shard_dir_note": "unique"
+     },
+     "issues": [],
+     "shards": [
+      {
+       "index": 0,
+       "issues": [],
+       "eligible": true,
+       "intent_epoch_s": 1790778006.0,
+       "confirm_epoch_s": 1790778010.0,
+       "handled_epoch_s": 1790778395.0,
+       "compute_visible_epoch_s": 1790778017.0,
+       "queue_s": 11.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 346.583,
+       "pre_s": 67.90039658546448,
+       "junit_failures": 0,
+       "junit_errors": 0
+      },
+      {
+       "index": 1,
+       "issues": [],
+       "eligible": true,
+       "intent_epoch_s": 1790778006.0,
+       "confirm_epoch_s": 1790778007.0,
+       "handled_epoch_s": 1790778289.0,
+       "compute_visible_epoch_s": 1790778015.0,
+       "queue_s": 9.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 245.399,
+       "pre_s": 70.72221064567566,
+       "junit_failures": 0,
+       "junit_errors": 0
+      },
+      {
+       "index": 2,
+       "issues": [],
+       "eligible": true,
+       "intent_epoch_s": 1790778006.0,
+       "confirm_epoch_s": 1790778008.0,
+       "handled_epoch_s": 1790778260.0,
+       "compute_visible_epoch_s": 1790778016.0,
+       "queue_s": 10.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 211.669,
+       "pre_s": 69.02220392227173,
+       "junit_failures": 0,
+       "junit_errors": 0
+      }
+     ],
+     "login_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "observed_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "red_nodeids": [],
+     "prep_s": 55.66452598571777,
+     "intent_epoch_s": 1790778006.0,
+     "login_collection_after_intent_s": 33.0,
+     "outer_s": 446.6645259857178,
+     "W_max_s": 346.583,
+     "post_tests_pyc": 453,
+     "post_git_status": "",
+     "session_birth_epoch_s": 1790778006.0,
+     "start_to_intent_s": 55.66452598571777,
+     "intent_mtime_by_shard": {
+      "0": 1790778006.0,
+      "1": 1790778006.0,
+      "2": 1790778006.0
+     },
+     "login_collection_mtime_epoch_s": 1790778039.0,
+     "outer_minus_W_max_s": 100.08152598571775
+    }
+   },
+   "reasons": [
+    "K shard 2: intent to compute-visible outside [0,60] s",
+    "fewer than six eligible shards",
+    "expected_red false or unknown"
+   ],
+   "eligible": false,
+   "main": true,
+   "H1": true,
+   "H2": true,
+   "H3": true,
+   "expected_red": false,
+   "launch_gap_s": 0.002681255340576172,
+   "K_pre_median_s": 93.01330494880676,
+   "H_pre_median_s": 69.02220392227173,
+   "unexpected_K_red": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "land_conditions_met": false
+  },
+  {
+   "pair_id": "p2",
+   "runs": {
+    "K": {
+     "record": {
+      "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-K2",
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "head_after": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "blob": "1c8af6ba9613b81cfdf9c798bf6c140f2f5e6fed",
+      "git_status": " M tools/run_tests.py",
+      "git_status_after": " M tools/run_tests.py",
+      "pyc_before": {
+       "tests": 0
+      },
+      "pyc_after": {
+       "tests": 453
+      },
+      "env": {
+       "IZANAGI_ACCEPTANCE_SHARDS": "3",
+       "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+       "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+       "PYTHONDONTWRITEBYTECODE": "<unset>",
+       "PYTEST_ADDOPTS": "<unset>",
+       "PYTEST_PLUGINS": "<unset>"
+      },
+      "rc": 1,
+      "start_epoch_s": 1790778669.9336066,
+      "end_epoch_s": 1790779536.3719027,
+      "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/bfdc72e9b46dad0a6a928999d4127b04",
+      "shard_dir_matches": [
+       "/work/1/SFC/tanab/.izanagi-acceptance-shards/bfdc72e9b46dad0a6a928999d4127b04"
+      ],
+      "shard_dir_note": "unique"
+     },
+     "issues": [],
+     "shards": [
+      {
+       "index": 0,
+       "issues": [
+        "intent to compute-visible outside [0,60] s"
+       ],
+       "eligible": false,
+       "intent_epoch_s": 1790778749.0,
+       "confirm_epoch_s": 1790778752.0,
+       "handled_epoch_s": 1790779533.0,
+       "compute_visible_epoch_s": 1790779233.0,
+       "queue_s": 484.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 268.776,
+       "pre_s": 67.54094290733337,
+       "junit_failures": 0,
+       "junit_errors": 0
+      },
+      {
+       "index": 1,
+       "issues": [
+        "intent to compute-visible outside [0,60] s",
+        "shard red"
+       ],
+       "eligible": false,
+       "intent_epoch_s": 1790778749.0,
+       "confirm_epoch_s": 1790778753.0,
+       "handled_epoch_s": 1790779170.0,
+       "compute_visible_epoch_s": 1790778877.0,
+       "queue_s": 128.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [
+        "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[1-argv0-PEGASUS_LOGIN-False-13]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv1-OTHER-False-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv2-PEGASUS_LOGIN-False-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv3-PEGASUS_LOGIN-True-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight",
+        "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+        "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+        "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission",
+        "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv"
+       ],
+       "pytest_rc": 1,
+       "W_s": 257.101,
+       "pre_s": 83.86014604568481,
+       "junit_failures": 27,
+       "junit_errors": 0
+      },
+      {
+       "index": 2,
+       "issues": [
+        "intent to compute-visible outside [0,60] s"
+       ],
+       "eligible": false,
+       "intent_epoch_s": 1790778749.0,
+       "confirm_epoch_s": 1790778750.0,
+       "handled_epoch_s": 1790779419.0,
+       "compute_visible_epoch_s": 1790779161.0,
+       "queue_s": 412.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 220.186,
+       "pre_s": 69.18758392333984,
+       "junit_failures": 0,
+       "junit_errors": 0
+      }
+     ],
+     "login_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "observed_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "red_nodeids": [
+      "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1",
+      "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[1-argv0-PEGASUS_LOGIN-False-13]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv1-OTHER-False-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv2-PEGASUS_LOGIN-False-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv3-PEGASUS_LOGIN-True-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight",
+      "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+      "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+      "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission",
+      "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv"
+     ],
+     "prep_s": 79.06639337539673,
+     "intent_epoch_s": 1790778749.0,
+     "login_collection_after_intent_s": 83.0,
+     "outer_s": 865.0663933753967,
+     "W_max_s": 268.776,
+     "post_tests_pyc": 453,
+     "post_git_status": " M tools/run_tests.py",
+     "session_birth_epoch_s": 1790778749.0,
+     "start_to_intent_s": 79.06639337539673,
+     "intent_mtime_by_shard": {
+      "0": 1790778749.0,
+      "1": 1790778749.0,
+      "2": 1790778749.0
+     },
+     "login_collection_mtime_epoch_s": 1790778832.0,
+     "outer_minus_W_max_s": 596.2903933753967
+    },
+    "H": {
+     "record": {
+      "worktree": "/work/1/SFC/tanab/izanagi/.claude/worktrees/apw-meas-H2",
+      "head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "head_after": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+      "blob": "13c7ae4d4f0e50b2df2a437608ff88bc1e1e68d8",
+      "git_status": "",
+      "git_status_after": "",
+      "pyc_before": {
+       "tests": 0
+      },
+      "pyc_after": {
+       "tests": 453
+      },
+      "env": {
+       "IZANAGI_ACCEPTANCE_SHARDS": "3",
+       "IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE": "14400",
+       "IZANAGI_DISPATCH_OVERALL_GRACE_OVERRIDE": "14400",
+       "PYTHONDONTWRITEBYTECODE": "<unset>",
+       "PYTEST_ADDOPTS": "<unset>",
+       "PYTEST_PLUGINS": "<unset>"
+      },
+      "rc": 1,
+      "start_epoch_s": 1790778669.938855,
+      "end_epoch_s": 1790779156.6523786,
+      "shard_dir": "/work/1/SFC/tanab/.izanagi-acceptance-shards/69232fd6710ab683e159e5c3347af019",
+      "shard_dir_matches": [
+       "/work/1/SFC/tanab/.izanagi-acceptance-shards/69232fd6710ab683e159e5c3347af019"
+      ],
+      "shard_dir_note": "unique"
+     },
+     "issues": [],
+     "shards": [
+      {
+       "index": 0,
+       "issues": [],
+       "eligible": true,
+       "intent_epoch_s": 1790778748.0,
+       "confirm_epoch_s": 1790778751.0,
+       "handled_epoch_s": 1790779060.0,
+       "compute_visible_epoch_s": 1790778759.0,
+       "queue_s": 11.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 265.438,
+       "pre_s": 68.25427079200745,
+       "junit_failures": 0,
+       "junit_errors": 0
+      },
+      {
+       "index": 1,
+       "issues": [
+        "intent to compute-visible outside [0,60] s"
+       ],
+       "eligible": false,
+       "intent_epoch_s": 1790778748.0,
+       "confirm_epoch_s": 1790778752.0,
+       "handled_epoch_s": 1790779153.0,
+       "compute_visible_epoch_s": 1790778877.0,
+       "queue_s": 129.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [],
+       "pytest_rc": 0,
+       "W_s": 242.805,
+       "pre_s": 69.59937047958374,
+       "junit_failures": 0,
+       "junit_errors": 0
+      },
+      {
+       "index": 2,
+       "issues": [
+        "shard red"
+       ],
+       "eligible": true,
+       "intent_epoch_s": 1790778748.0,
+       "confirm_epoch_s": 1790778750.0,
+       "handled_epoch_s": 1790779120.0,
+       "compute_visible_epoch_s": 1790778757.0,
+       "queue_s": 9.0,
+       "observed_nodeids": {
+        "count": 28663,
+        "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+       },
+       "red_nodeids": [
+        "orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed",
+        "orchestrator/tests/test_codex_worker_launch_budget.py::test_slow_preparation_longer_than_attempt_budget_is_accepted",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup"
+       ],
+       "pytest_rc": 1,
+       "W_s": 328.81,
+       "pre_s": 95.05908155441284,
+       "junit_failures": 3,
+       "junit_errors": 0
+      }
+     ],
+     "login_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "observed_universe": {
+      "count": 28663,
+      "sha256": "94f789993a2869358b15682b8013f5b8a0e80ef7158168570bc970dcd113f393"
+     },
+     "red_nodeids": [
+      "orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed",
+      "orchestrator/tests/test_codex_worker_launch_budget.py::test_slow_preparation_longer_than_attempt_budget_is_accepted",
+      "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup"
+     ],
+     "prep_s": 78.06114506721497,
+     "intent_epoch_s": 1790778748.0,
+     "login_collection_after_intent_s": 9.0,
+     "outer_s": 485.06114506721497,
+     "W_max_s": 328.81,
+     "post_tests_pyc": 453,
+     "post_git_status": "",
+     "session_birth_epoch_s": 1790778748.0,
+     "start_to_intent_s": 78.06114506721497,
+     "intent_mtime_by_shard": {
+      "0": 1790778748.0,
+      "1": 1790778748.0,
+      "2": 1790778748.0
+     },
+     "login_collection_mtime_epoch_s": 1790778757.0,
+     "outer_minus_W_max_s": 156.25114506721496
+    }
+   },
+   "reasons": [
+    "H: acceptance rc=1",
+    "K shard 0: intent to compute-visible outside [0,60] s",
+    "K shard 1: intent to compute-visible outside [0,60] s",
+    "K shard 2: intent to compute-visible outside [0,60] s",
+    "H shard 1: intent to compute-visible outside [0,60] s",
+    "H shard 2: shard red",
+    "H: outer rc red or missing",
+    "fewer than six eligible shards",
+    "main false or unknown",
+    "expected_red false or unknown"
+   ],
+   "eligible": false,
+   "main": false,
+   "H1": true,
+   "H2": true,
+   "H3": true,
+   "expected_red": false,
+   "launch_gap_s": 0.005248308181762695,
+   "K_pre_median_s": 69.18758392333984,
+   "H_pre_median_s": 69.59937047958374,
+   "unexpected_K_red": [
+    "orchestrator/tests/test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes"
+   ],
+   "land_conditions_met": false
+  }
+ ],
+ "expected_k_red": {
+  "count": 26,
+  "items": [
+   "orchestrator/tests/test_run_tests_shards.py::test_default_bounded_scope_child_does_not_reenter_sharding",
+   "orchestrator/tests/test_run_tests_shards.py::test_default_cap_oom_fallback_preserves_k2_and_exclusions",
+   "orchestrator/tests/test_run_tests_shards.py::test_default_force_dispatch_enters_k2_without_admission",
+   "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_avoids_dispatch_when_queue_unavailable",
+   "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_dispatches_as_k2_after_admission",
+   "orchestrator/tests/test_run_tests_shards.py::test_default_login_acceptance_with_headroom_stays_local_k1",
+   "orchestrator/tests/test_run_tests_shards.py::test_default_shard_gate_failure_never_retries_as_k1",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[1-argv0-PEGASUS_LOGIN-False-13]",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv1-OTHER-False-16]",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv2-PEGASUS_LOGIN-False-16]",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_ineligible_paths_do_not_start[2-argv3-PEGASUS_LOGIN-True-16]",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight",
+   "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+   "orchestrator/tests/test_run_tests_shards.py::test_force_dispatch_enters_shard_composite_with_empty_internal_argv",
+   "orchestrator/tests/test_run_tests_shards.py::test_nonempty_pytest_addopts_dispatches_as_k1_after_admission",
+   "orchestrator/tests/test_run_tests_shards.py::test_valid_login_activation_enters_composite_with_empty_outer_argv"
+  ]
+ },
+ "verdict": "inconclusive",
+ "eligible_pairs": 0
+}

@@ -1,0 +1,554 @@
+record	query	judgement	claims	reason_code	note
+dblp:conf/IEEEpact/LitzBC16	R04	近傍	A	RO	EXCITE-VM (PACT 2016): 仮想記憶で共有メモリに snapshot isolation の tx を与え、長い read-only tx は abort・block しない (A1・A2)。本文 (著者頁 PDF、SHA-256 7f3b6bef…) で snapshot は tx の境界で新しく取る (§1・§3.2) と確認。tx 内で既読を保って進める記述・回収への反映の記述は読んだ範囲 (§1・§3.2 と、new snapshot・refresh・garbage・reclaim・read-only の語の検索) に無い
+dblp:conf/birthday/Hegner18	R04	要裁定	A		Hegner, Tolerant Constraint-Preserving Snapshot Isolation: Extended Concurrency for Interactive Transactions (Thalheim 記念論文集 2018、pp.122–145): ee なし、OpenAlex の DOI なし、Semantic Scholar の題名検索 0 件、Web で要旨・本文なし。題名だけでは除外しない (7.7.6)
+arxiv:1305.6624	R02	近傍	A	GC	時刻ベースの多版 STM (opacity・mv-permissive、read-only は abort しない) と不要版の GC の正しさ (要旨)。読み手の時刻を実行中に進める記述は要旨に無い
+arxiv:1803.08617	R02	近傍	A	GC	Ben-David ほか: 多版 tx の遅延の上界と精密 GC (最後の tx が版を手放した時点で回収、要旨)。読み手は版を取得して固定 (要旨)。前進の記述なし
+arxiv:2212.13557	R02	近傍	A	GC	Wei ほか PPoPP 2023 の arXiv 版 (本文を読んだ、README §3.4)。rtx の timestamp は固定、保護は rtx の終了で外れる (A4・A5 なし)
+arxiv:2606.09133	R02	近傍	A	GC	並行 MVBT: scan は commit 済み snapshot を読み、連続的な GC を持つ (要旨)。読み手を進める記述なし
+arxiv:2009.11558	R02	除外		X3	CCBench の CC の分析 (要旨)。位置を動かさず本案の要素にも触れない
+arxiv:0902.2263	R02	除外		X1	宇宙論
+arxiv:1207.4861	R02	除外		X1	素粒子物理
+arxiv:1502.06963	R02	除外		X1	素粒子物理
+arxiv:1801.03926	R02	除外		X1	素粒子物理
+arxiv:2608.00159	R02	除外		X1	一般相対論
+arxiv:2605.31475	R01	除外		X2	DBLog (変更ログと snapshot の再生) の理論。tx の読み取り位置・版の回収ではない
+arxiv:2606.04196	R01,R03	除外		X2	Apache Iceberg の snapshot に近似最近傍索引を付ける
+arxiv:2609.08160	R01,R03	除外		X2	DBLog の一般化 (コピーした行と変更ログの交互適用)
+arxiv:astro-ph/0309305	R03	除外		X1	天文学のシミュレーション
+arxiv:1207.5777	R03	除外		X2	履歴グラフの snapshot 取得
+arxiv:1208.4179	R03,R04,R05	近傍	A	RO	Ports・Grittner の SSI in PostgreSQL (陽性対照。本文を読んだ、README §3.1)。safe と確定した read-only は commit 前に SIREAD lock を捨てるが、snapshot は固定で版の GC の記述なし
+arxiv:1306.3906	R03,R04	近傍	A	RO	Non-Monotonic Snapshot Isolation (本文 6 頁を確認、SHA-256 91f34293…)。分散での一貫性の基準の定義と不可能性。回収の語 (garbage・reclaim・discard) は本文 0 件
+arxiv:1810.04915	R03	除外		X2	主記憶 DB の一貫した snapshot (checkpoint・fork) の算法の比較。tx の読み取り位置ではない
+arxiv:2105.06614	R03	除外		X1	分散計算の強線形化可能性の不可能性 (DB の tx ではない)
+arxiv:2306.01888	R03	除外		X1	電気自動車の消費者行動
+arxiv:2401.11162	R03,R04	除外		X3	Polaris に SI の tx を足す (要旨)。位置を動かさず本案の要素にも触れない
+arxiv:2404.06324	R03	除外		X1	無線の連合学習
+arxiv:2410.16929	R03	除外		X3	更新可能な bitmap 索引。query は別の snapshot で走る (要旨)。前進・回収の記述なし
+arxiv:2504.17438	R03	除外		X2	時間変化するグラフの保存
+arxiv:2511.22956	R03,R04,R06	除外		X3	ESSN (SSN の一般化、commit 時の検査)。長い tx の abort 率を下げる (要旨)。読み取り位置の前進・回収なし
+arxiv:2601.01444	R03	除外		X2	動的グラフの保存構造
+arxiv:2609.03036	R03	除外		X1	暗号資産のアドレスのグラフ判定
+arxiv:1605.04292	R04	除外		X3	SSN (直列化の certifier)。長い read-mostly tx を扱う (要旨)。読み取り位置の前進・回収なし
+arxiv:1608.08258	R04	除外		X2	RC-SI の来歴の再現
+arxiv:1704.01355	R04	近傍	A	TS	ViCC: tx が可視性から自分の timestamp を自律的に決める (要旨)。実行中に既読を保って進める記述・回収の記述は要旨に無い
+arxiv:1802.07693	R04	除外		X2	分散の多版文書ストア
+arxiv:1808.00688	R04	除外		X2	分散 tx の commit
+arxiv:1904.08380	R04	除外		X2	関数型の木によるグラフの streaming
+arxiv:1911.12711	R04	除外		X2	Hyperledger Fabric の isolation
+arxiv:2003.07395	R04	除外		X3	永続データ構造の並行化と STM・smart contract (要旨)。本案の要素なし
+arxiv:2105.04449	R04	除外		X2	分散グラフの tx
+arxiv:2301.07313	R04	除外		X2	SI の検査器
+arxiv:2301.11511	R04	除外		X2	NVM の checkpoint
+arxiv:2504.01477	R04	除外		X2	timestamp による isolation の検査
+arxiv:2504.02344	R04	除外		X2	isolation の検査
+arxiv:2511.14067	R04	除外		X2	強い isolation の検査
+arxiv:2601.07376	R04	除外		X1	強化学習の枠組み
+arxiv:2604.23035	R04	除外		X1	デバッグ
+arxiv:2606.06968	R04	除外		X1	セキュリティのデジタルツイン
+arxiv:2609.02106	R04	除外		X2	AI agent 向けの DB の版管理
+arxiv:2201.07993	R05	近傍	A	RO	Serializable HTAP の read safe snapshot (本文 §5 を確認、SHA-256 cb48deb3…)。read-only replica の tx は現在の RSS を snapshot として受け取り、保持用の tx が次の RSS まで版を守る。実行中の tx の snapshot を進める記述・回収への反映の記述なし
+openalex:W105746118	R02	除外		X3	時刻付き MVSTM の opacity 証明のみ (S2 要約)。位置・前進・回収に触れない
+openalex:W129163863	R05	除外		X3	STM の disjoint-access parallelism の理論。版・snapshot 前進に触れない
+openalex:W1518788150	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W1547279072	R04	除外		X3	HTM の大 tx 対応。版・snapshot に触れない
+openalex:W1594152834	R04	除外		X3	物理時計による snapshot 割当て (Clock-SI)。snapshot は tx 開始時固定で前進しない
+openalex:W1702296981	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W1858528634	R04	除外		X3	generalized SI (古い snapshot の許容)。開始後の前進なし
+openalex:W1886791787	R03,R04	除外		X3	NMSI の分散 snapshot 理論。前進・回収に触れない
+openalex:W1935050232	R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W1965666572	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W1968658954	R05	除外		X3	SI の read-only 異常。前進・回収に触れない
+openalex:W1977010483	R03	近傍	A	RO	動的有限版管理 (DFV) で問い合わせ用に有限個の一貫 snapshot を系側が導出する性能解析。実行中の読み手の既読を保った前進や回収への反映は要旨に無い
+openalex:W1991360044	R03,R04	近傍	A	RO	read-only tx が最近の一貫 snapshot を wait-free に読む STM と必要版数の算出。読み手の snapshot は固定で前進しない
+openalex:W2000662910	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2002847183	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2006290581	R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2014662834	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2032825860	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2034747525	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2053100497	R01	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2059591230	R03,R04,R05	近傍	A	RO	read-only tx を投機的版で処理する分散 DB プロトコル。snapshot 前進・回収反映は要旨に無い
+openalex:W2071896841	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2075753636	R05	除外		X3	クライアント cache 付き OCC。無関係
+openalex:W2078361851	R03,R04,R05	除外		X3	DAP TM での read-only tx の書込み下限。前進・回収に触れない
+openalex:W2090123416	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2096396048	R04	除外		X3	STM の clock 分散。版探索・前進に触れない
+openalex:W2108584692	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2114093497	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2119074859	R03	近傍	A	RO	DFV の snapshot 前進戦略と保存費用・陳腐化のトレードオフ解析。前進は系側が snapshot を切り替える話で、実行中 tx の snapshot 前進 (A4) や回収反映 (A5) は要旨に無い
+openalex:W2122842468	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2131751093	R03,R04,R05	除外		X3	generalized SI の複製 DB 実装。前進なし
+openalex:W2134924816	R02	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2139285682	R03,R04,R05	除外		X3	PostgreSQL SSI の実装。前進・回収に触れない
+openalex:W2147344977	R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2152099455	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2161853256	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2165659589	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2182453338	R04	除外		X3	STM の irrevocable・修復。無関係
+openalex:W2213462283	R05	近傍	A	TS	update tx を過去に serialize (time-warp commit) する MVSTM。read-only は abort されないが read-only の snapshot 前進や回収反映は要旨に無い
+openalex:W2263570217	R05	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2296365647	R03,R04	近傍	U1p	PL	kV-Indirection で最近版への直接アクセスを与え版探索の費用を下げる。timestamp は動かさない
+openalex:W2310314275	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2349790884	R05	近傍	A	TS	直列化順序の動的調整で不要な再実行を避ける MVOCC。read-only と更新の衝突除去。既読を保った前進や回収反映は要旨に無い
+openalex:W2377879823	R05	近傍	A	TS	直列化順序の動的調整で再実行を避ける MVOCC (入れ子 tx)。回収への反映は要旨に無い
+openalex:W2441046553	R02	近傍	A	GC	HANA の hybrid GC。最古の長寿命 snapshot が回収を阻む問題を扱い、版列の走査費用にも言及。読み手の snapshot を動かす話は要旨に無い
+openalex:W2511610649	R01	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2539343783	R03	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2566943898	R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2604182236	R04	除外		X3	geo 複製の tx 一貫性。前進・回収に触れない
+openalex:W2611307131	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W2735433327	R02	近傍	U1p	PL	S2 要約: checkpoint 型 multi-version STM で consistent 版の探索の memory access 数を減らし UP-GC に準拠。探索費用を下げる工夫だが timestamp 調整の入力には使わない
+openalex:W2745175075	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2748015574	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2785140982	R04	除外		X3	Walter (PSI) の形式化。無関係
+openalex:W2797816150	R04	除外		X3	投機 SI の geo 複製 store。read-only 前進に触れない
+openalex:W2808573889	R04	除外		X3	投機 SI。同上
+openalex:W2890822251	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2910984122	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2920682993	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2950151137	R03,R04,R05	近傍	A	RO	Ports・Grittner の SSI in PostgreSQL の別レコード (要旨が別文)。本文 (README §3.1) で snapshot 固定・版の GC の記述なし、SIREAD lock を commit 前に捨てる (親が補正)
+openalex:W2951520560	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2979589098	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W2993739326	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W30166824	R03	除外		X3	HyPer の OLTP/OLAP 混在アーキテクチャ (S2 要約)。前進・回収に触れない
+openalex:W3037375688	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W3105690668	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W3141978534	R02	近傍	A	GC	多版 STM の進行保証の博士論文。不要版を GC で消す変種 (SF-MV-RWSTM-GC) と長い tx の下での評価 (要旨)。読み手の時刻を実行中に進める記述なし (親が補正、arXiv 1305.6624 と揃えた)
+openalex:W3159049806	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W3186927810	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W3200957893	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W348142183	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4210749465	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4230890328	R02	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W4237652147	R03	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W1702296981)
+openalex:W4239717583	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4243046662	R04	除外		X3	TM 仮想化。版・snapshot に触れない
+openalex:W4244962904	R01	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W2053100497)
+openalex:W4247195447	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4253616986	R04	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W4243046662)
+openalex:W4288861841	R04,R09	除外		X3	要約 view の escrow ロック。無関係
+openalex:W4298043403	R05	除外		X3	Hekaton 系 MV CC。長い tx への耐性は述べるが前進・回収の機構に触れない
+openalex:W4309002417	R03	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W4313305215	R02	近傍	A	GC	multiversion GC の実験比較と新 MVGC 2 手法 (版リスト構造)。読み手を動かさず回収する系
+openalex:W4366660200	R02	近傍	A,U1p	GC	長い問い合わせで throughput が崩れる問題に対し細粒度 GC・Graveyard Index・適応的版保存を提案。読み手を動かさず回収し版配置で走査費用を下げる系
+openalex:W4386305619	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4387816673	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4391157491	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W4392250212	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4394601097	R05	近傍	A	RO	read-only tx が abort/待ちなしで最新の serializable 版を読む RSS。snapshot は構築時に決まり、実行中前進や回収反映は要旨に無い
+openalex:W4396605558	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4399725963	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4405524454	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4407096509	R01,R03,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4408496931	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4409869173	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4410165626	R04	除外		X3	SI の deadlock 問題。前進・回収に触れない
+openalex:W4412925204	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4413637772	R01,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4415380312	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4416017110	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W4417209590	R04	除外		X3	isolation 検証。無関係
+openalex:W7106105142	R03,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7111259992	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7117693179	R03	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W7122401978	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7128509431	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7130614376	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7131668434	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7133135796	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7134974408	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7135063600	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7140305569	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7152702392	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7153847002	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7154711568	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7154966851	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7155262771	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7157735898	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7160352604	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7161120633	R03	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W7162045936	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7162402752	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7162644157	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7163530903	R03	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W7163640820	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7163811299	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7164640739	R03,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7164907471	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7165143702	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7165444886	R03	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W7162402752)
+openalex:W7166058744	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7166445930	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7166723127	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7167363292	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7167570603	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7167798270	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7167892032	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7168037653	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7168132661	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7168241532	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7169502126	R06	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W7164907471)
+openalex:W7169676904	R01,R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7169761293	R03,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7170074112	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7170196929	R06	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W7164907471)
+openalex:W7171993511	R06	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W7164907471)
+openalex:W7202184945	R05	要裁定	A		要旨なし・S2 要約なし。題名 (GPU での依存グラフ構築による read-only の異常の防止) だけでは決められない (題名だけで除外しない、親が補正)
+openalex:W7202359400	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203530109	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203537403	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203583149	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203684722	R01,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203707915	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203768577	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203787929	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7203944366	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W7204440025	R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7204448953	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7206205310	R06	除外		X4	同題・同要旨の別版 (同チャンク内 openalex:W7164907471)
+openalex:W7208817309	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7212036696	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7212222119	R03,R04	除外		X2	DB・複製・データ基盤だが tx の版・snapshot 前進・回収と無関係
+openalex:W7212658579	R03,R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7213281547	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7213588079	R04,R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7213666304	R04,R06	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7214101147	R03	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W7214535460	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W930143542	R04	除外		X1	分野外 (DB・tx・並行性でない)
+openalex:W110954872	R04	除外		X3	GSI (古い snapshot の許容) のレプリカ複製の正しさ条件。snapshot を進めず版の回収・長い読み手に触れない
+openalex:W1501149803	R04	除外		X3	PostgreSQL の SSI の性能評価。前進・回収・版探索に触れない
+openalex:W1521914264	R05	近傍	A	TS	多版 dynamic adjustment で直列化位置を調整し再起動を避ける。RO は無停止 commit だが既読を保つ snapshot 前進・回収反映は要旨に無い
+openalex:W1552217763	R03	除外		X2	リモート snapshot (抽出 DB) の更新方式。tx の版とは無関係
+openalex:W1601970342	R03	除外		X2	Oracle SQL チューニング書籍の目次
+openalex:W1717407216	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W185983079	R02	要裁定	A		要旨無し。S2 要約は MVCC 一般論のみで、TM の多版化が読み手の snapshot 前進・回収に触れるか決められない
+openalex:W1911889574	R04	除外		X3	グラフの永続・可変表現 (LLAMA)。読み手 snapshot の前進・版回収に触れない
+openalex:W195043769	R01	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W1967737748	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W1969224001	R03	除外		X2	時空間 DB のモデル。tx の版・前進とは無関係
+openalex:W1977800003	R05	要裁定	A,U1p		要旨無し。S2 要約は性能結果のみ。同系 (mobile RTDB) の多版 dynamic adjustment か題名では決められない
+openalex:W1992490313	R04	要裁定	A		LSA の動的 snapshot extension と多版化を扱い、実行中に snapshot を進めて read を継続する型 (A1,A3,A4 相当)。回収側 (A5) への反映の有無は要旨で決められない
+openalex:W2000997934	R05	要裁定	A		多版の GMU。RO は abort せず検証もしない。読み時に snapshot を進めるか・GC へ反映するかは要旨で決められない
+openalex:W2003317113	R06	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2008317524	R05	除外		X3	P2P の tx 意味論。snapshot 前進・版回収・版探索に触れない
+openalex:W2016853221	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2033708805	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2034826224	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2054644843	R02	近傍	A	GC	RO を lock 無しで古い版に読ませ版を一時的に保持し GC。読み手を動かさず回収する型 (区間 GC 型)
+openalex:W2067219863	R06	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2074678499	R04	除外		X3	地理複製の因果 SI。snapshot 前進・版回収・版探索に触れない
+openalex:W2076536594	R03,R04	近傍	U1p	PL	MVBT の多 action tx 拡張。任意版への key 走査の漸近最適性を保つ。timestamp を動かさない版探索の工夫
+openalex:W2087411240	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2093640589	R04	除外		X2	DB ライブマイグレーション。tx の版・前進とは無関係
+openalex:W2103642785	R04	近傍	A	TS	LSA の時刻基盤 (大域 counter を物理時計へ) の置換。時刻の取り方の話で snapshot 前進・回収反映は要旨に無い
+openalex:W2112163169	R02	近傍	A	RO	長い問い合わせのため多版ロックで page 内に旧版を保持し GC。同一 view を共有。読み手は動かさず回収する型
+openalex:W2115047760	R05	近傍	A	RO	ROT が補償操作で競合更新の効果を取り込み完了する (lock 系)。版・回収 (A5) に触れない
+openalex:W2119737278	R05	要裁定	A		多版で RO を別扱いし最新データを読ませる。実行中に読み時刻を進めるか・回収へ反映するかは要旨で決められない
+openalex:W2124082515	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2132449006	R04	除外		X3	NoSQL 上の SI ミドルウェア。snapshot 前進・版回収・版探索に触れない
+openalex:W2136058416	R03	除外		X2	衛星 DB。tx の版・前進とは無関係
+openalex:W2145522924	R04	除外		X3	HBase 上の大域 SI。snapshot 前進・版回収・版探索に触れない
+openalex:W2147392447	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2154709372	R04	除外		X3	並行 revision の意味論 (SI の拡張)。snapshot 前進・版回収・版探索に触れない
+openalex:W2162362762	R05	要裁定	A		要旨無し。S2 要約は比較結果のみ。混成配信での RO の currency 保証 (snapshot の扱い) は題名だけでは決められない
+openalex:W2168227861	R04	除外		X3	複製と SI の結合 (Postgres-R(SI))。snapshot 前進・版回収・版探索に触れない
+openalex:W2184750174	R02,R05	要裁定	A		汎用多版 STM。RO の wait-free と有界な空間 (版の回収) を両立。RO の snapshot 前進を回収へ反映するかは S2 要約で決められない
+openalex:W2223004531	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2269983853	R03	除外		X2	XML の lock 制御。tx の版・前進とは無関係
+openalex:W2296604434	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2311472758	R03,R04	除外		X3	LSA の RO/更新の公平スケジューリングを機械学習で。snapshot 前進・回収に触れない
+openalex:W2355488623	R05	近傍	A	TS	2 と同系。多版 dynamic adjustment で直列化位置調整、RO 無停止。既読保持の前進・回収反映は要旨に無い
+openalex:W2388763418	R05	近傍	A	TS	MVOCC-MDA-2PV。多版 dynamic adjustment で不要な再起動を避ける。前進・回収反映は要旨に無い
+openalex:W2484544026	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2522791583	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2544083529	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2567269832	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2604707597	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2617370599	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2738010757	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2746010759	R05	要裁定	A		要旨無し。題名は部分 rollback ベースのスケジューリングで、snapshot 前進との関係は決められない
+openalex:W2756075535	R03	除外		X2	in-database analytics 特集。tx の版・前進とは無関係
+openalex:W2788583526	R04	近傍	U1p	PL	多版索引の調査。可視版の探索効率と索引維持のバランス。timestamp は動かさない
+openalex:W2798232138	R04	除外		X3	PSI と release/acquire の形式モデル。snapshot 前進・版回収・版探索に触れない
+openalex:W2885393210	R04	要裁定	A		要旨無し。題名 (制約保存の SI で対話 tx の並行性拡張) だけでは snapshot 前進の有無を決められない
+openalex:W2899074204	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2917817527	R03	除外		X2	Scalaris リリース。tx の版・前進とは無関係
+openalex:W2940586495	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W2950741504	R03	除外		X2	履歴グラフの snapshot 取得。tx の版・前進とは無関係
+openalex:W2951675988	R05	除外		X3	Hekaton 型の主記憶多版 CC。長い tx への耐性に触れるが前進・回収の機構は無い
+openalex:W2982402713	R02	近傍	A	GC	長い問い合わせ下で版を早期に刈る GC。読み手を動かさず回収する型
+openalex:W3004761682	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W3025161147	R02	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W3088413096	R02	除外		X3	CCBench の CC 方式比較。前進・回収・版探索の機構に触れない
+openalex:W3124402790	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W3143695264	R02	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W3159054770	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W3189229789	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W3201894317	R05	近傍	A	RO	PSI で RO が Walter より新しい版を読む (鮮度)。実行中の前進・回収反映は要旨に無い
+openalex:W4206363158	R01	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4225834534	R05	近傍	A	RO	SSI 上で RO 向けに abort/wait 無しの safe snapshot を構築。構築時点の取り直しで、実行中前進・回収反映は要旨に無い
+openalex:W4231676744	R04	除外		X3	TM 仮想化 (XTM)。page の snapshot は干渉検出用。本案の要素に触れない
+openalex:W4238393884	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4241317696	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4243685304	R04	除外		X2	DB セキュリティ特集の序文。tx の版・前進とは無関係
+openalex:W4245888789	R05	近傍	A	TS	TWM: 古い読みをした更新 tx を過去の位置で commit (直列化位置の調整)。RO は abort されないが実行中前進・回収に触れない
+openalex:W4251305185	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4281786663	R02	近傍	U1p	PL	Diva: 版索引と版データの分離・区間 GC で版探索 I/O を減らす。時刻を動かさず版探索を安くする型、GC も読み手を動かさない
+openalex:W4292402693	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4300881873	R05	要裁定	A		1-Copy-Snapshot Isolation (Synthesis lectures の章)。要旨・S2 要約なし。題名だけでは決められない (焦点再レビューの must-fix、親が補正)
+openalex:W4309039457	R03	除外		X2	列指向 DB カーネル紹介。tx の版・前進とは無関係
+openalex:W4318620535	R04	除外		X2	NVM の checkpoint。tx の版・前進とは無関係
+openalex:W4377223879	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4386930654	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4388668200	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4391608796	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4393126713	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4394759040	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4398233958	R03,R04	除外		X3	Polaris の tx 拡張 (SI、不変ファイル)。前進・回収に触れない
+openalex:W4401020144	R03	除外		X3	lock-free skip list の batch 更新と snapshot。前進・回収に触れない
+openalex:W4406397281	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4407572837	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4408980215	R05	除外		X3	決定的 CC のクラウドネイティブ多 writer。前進・回収に触れない
+openalex:W4409951950	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4411109470	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4412960313	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4414016641	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4415518120	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W4416841388	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W646909264	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7106807954	R02	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7116072634	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7117741666	R03	除外		X2	Flink+Kafka の exactly-once。tx の版・前進とは無関係
+openalex:W7124229060	R03,R04,R06,R09	近傍	U1p	PL	TVB-tree (多版索引) の実装。古い版を効率よく引く。timestamp は動かさない
+openalex:W7129705297	R03,R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7131622786	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7131821591	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7133205115	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7135016286	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7135082688	R02	除外		X2	Postgres の動向 (音声要約)。tx の版・前進とは無関係
+openalex:W7144675359	R05	近傍	A	RO	HTAP の SI/serializable と OLAP の RO の議論 (71 の博論と同系)。既読保持の前進・回収反映は要旨に無い
+openalex:W7153312592	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7154118509	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7154751274	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7154987216	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7155646031	R03,R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7160018691	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7160488843	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7161563473	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7162200876	R02	除外		X2	統合ストレージエンジン。tx の版・前進とは無関係
+openalex:W7162498120	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7162675190	R06	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7163537693	R01,R03	除外		X2	Iceberg の ANN 索引。tx の版・前進とは無関係
+openalex:W7163759651	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7163866700	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7164650380	R03,R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7164938363	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7165383881	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7165659079	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7166128096	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7166451383	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7166742562	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7167408455	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7167646541	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7167820460	R06	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7167923977	R06	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7168077438	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7168149977	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7168241941	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7169530068	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7169686446	R06	除外		X4	同題名・同文の要旨。同チャンク内の別 ID openalex:W7167923977 と同じ研究の別版
+openalex:W7169775480	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7170083742	R06	除外		X4	同題名・同文の要旨。同チャンク内の別 ID openalex:W7167923977 と同じ研究の別版
+openalex:W7171061975	R01,R03,R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7172017438	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7202270615	R06	除外		X4	同題名・同文の要旨。同チャンク内の別 ID openalex:W7167923977 と同じ研究の別版
+openalex:W7203490349	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7203536142	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7203543282	R03	除外		X4	同題名・同文の要旨。同チャンク内の別 ID openalex:W7203536142 と同じ研究の別版
+openalex:W7203647192	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7203695018	R01,R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7203725706	R03	除外		X4	同題名・同文の要旨。同チャンク内の別 ID openalex:W7203536142 と同じ研究の別版
+openalex:W7203769993	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7203793621	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7204106828	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7204440293	R03	除外		X2	bi-temporal 記憶 (ソフト)。tx の版・前進とは無関係
+openalex:W7204706937	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7207659000	R04	除外		X3	DB のバージョン管理 (branch/merge)。tx の前進・回収に触れない
+openalex:W7211869194	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7212037861	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7212380573	R03,R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7212829018	R01,R03	除外		X2	Dataflow モデル。tx の版・前進とは無関係
+openalex:W7213451016	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7213590977	R04,R06	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7214070463	R04	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W7214128222	R04	除外		X4	同題名・同文の要旨。同チャンク内の別 ID openalex:W7214070463 と同じ研究の別版
+openalex:W7214656323	R03	除外		X1	DB・tx・並行性の分野外 (題名・要旨は他分野)
+openalex:W118681194	R06	除外		X1	分野外 (DB・tx・並行性でない): Address trace collection and trace drive
+openalex:W1510326796	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W1523021320	R04	近傍	A	TS	LSA DISC 2006 (DOI 10.1007/11864219_20)。本文 (README §3.1、extract-R2) で延長 (Extend) は区間の上端の再計算、延長を回収・保持数へ結ぶ規則なし (旧版は固定個数)。A5 なしを本文で確認 (親が補正)
+openalex:W1588087802	R02	近傍	A	GC	timestamp 型 multiversion STM と不要版の GC。RO は abort しないが読み手を前進させない
+openalex:W1635183966	R01,R03	除外		X2	Oracle 性能チューニング書の目次。本案と無関係
+openalex:W179448490	R05	要裁定	A		SCORe は RO を abort・検証させず consistent snapshot を読む。snapshot の前進方式と回収反映は要旨で決められない
+openalex:W1872974949	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W1933564458	R03	除外		X1	分野外 (DB・tx・並行性でない): 2001 W.O. Atwater Memorial Lecture and t
+openalex:W1964288519	R01	除外		X1	分野外 (DB・tx・並行性でない): L'Année 1945: actes du colloque de Paris
+openalex:W1967980352	R03	除外		X2	共有メモリ atomic snapshot object の理論 (DB tx でない)
+openalex:W1970333790	R03	除外		X1	分野外 (DB・tx・並行性でない): Iterative depth migration by backward ti
+openalex:W1981810786	R03	除外		X1	分野外 (DB・tx・並行性でない): Comment on “Measuring primary production
+openalex:W1994257214	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2002599078	R05	要裁定	A		要旨は read-only tx の操作の事前知識を使い tx がより新しい版を読めると述べる。tx 内で時刻を進めるか・前進後の read の継続・回収への反映は要旨で決められない (焦点再レビューの must-fix、親が補正)
+openalex:W2004736736	R03	近傍	A	RO	周期的に更新する snapshot 方式の比較 (HotCold は更新頻度で配置を分ける)。snapshot は境界で取り直し
+openalex:W2011395086	R05	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2030059876	R04,R09	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2034173754	R03,R04	要裁定	A		S2 要約のみ (分散 SI の Incremental 方式)。snapshot を実行中に進める方式かは要旨で決められない
+openalex:W2035743374	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2056217471	R06	除外		X1	分野外 (DB・tx・並行性でない): Liquid structure of 1-alkyl-3-methylimid
+openalex:W2071395959	R03	除外		X2	view (snapshot table) の refresh。同題の別 ID あり (W2071395959 と W4242968380)
+openalex:W2074784645	R03	除外		X1	分野外 (DB・tx・並行性でない): Protect Yourself From Overexposure
+openalex:W2078210269	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2089103381	R03	除外		X1	分野外 (DB・tx・並行性でない): Special issue on illicit drugs
+openalex:W2096320114	R05	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2107742808	R05	近傍	A	TS	update tx を過去の時刻で commit (time-warp)。RO は abort しないが snapshot 前進・回収反映は無い
+openalex:W2112527958	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2115179314	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2122002361	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2129865410	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2134155667	R04	近傍		TS	lock manager で commit timestamp を選ぶ。版探索費用も前進も無い
+openalex:W2137829175	R05	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2146331671	R05	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2151467437	R02	近傍	A	GC	SMV: 選択的に版を保持し記憶を抑える。読み手を動かさない
+openalex:W2156774110	R02	近傍	A	GC	flash 上の multiversion index の GC。読み手を動かさない
+openalex:W2165315703	R05	要裁定	A		要旨なし、S2 要約のみ (RO tx を投機で高速化)。前進の有無を決められない
+openalex:W2169472560	R05	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2203308873	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2262876226	R03,R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2286422197	R05	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2307238513	R04	近傍	A	TS	LSA の著者版 (RERO DOC、同題・要旨も同内容)。同題の DISC 2006 本文で延長を回収へ結ぶ規則なしを確認 (同一版であることは題名と要旨の一致による、親が補正)
+openalex:W2344549745	R05	要裁定	A		GMU は分散 multiversion で RO を abort しない・分散検証を省く。読み進めに伴う snapshot 前進の有無と回収反映は要旨で決められない
+openalex:W2374998066	R05	要裁定	A,U1p		要旨: RO tx の serialization 順を multiversion で動的に調整し再起動を避ける。前進後の read 継続・回収反映は要旨で決められない
+openalex:W2417061499	R03,R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2510515487	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W2527892523	R04	除外		X1	分野外 (DB・tx・並行性でない): A modular distributed software system fo
+openalex:W2559734186	R03	除外		X1	分野外 (DB・tx・並行性でない): Enabling Model-Driven Live Analytics For
+openalex:W2585600414	R04	除外		X1	分野外 (DB・tx・並行性でない): Efficient Model Checking for LTL with Pa
+openalex:W2605598628	R04	除外		X1	分野外 (DB・tx・並行性でない): Tracing (Argentine) feminism across time
+openalex:W268531762	R03	除外		X1	分野外 (DB・tx・並行性でない): Downloading and Printing Search Results 
+openalex:W2740536031	R03,R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2747711536	R03,R04	近傍	A	RO	Lazy Snapshot の公平性を機械学習で調整、K-opacity で古い版の read を許す。実行中前進と回収は要旨に無い
+openalex:W2758985049	R03	近傍	A	RO	fresh な snapshot で query を実行、長い tx は tentative execution。既読を保つ前進ではない
+openalex:W2789480159	R02	近傍	A	GC	単一 writer、精密 GC (version maintenance)。read は開始時 snapshot、前進なし
+openalex:W2804050447	R04	要裁定	A		S2 要約: invisible read・lazy snapshot・stricter serializability。RO tx の snapshot 前進の有無と回収反映は要旨で決められない
+openalex:W2886770496	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2906315512	R03	除外		X1	分野外 (DB・tx・並行性でない): Complex query optimization in wireless s
+openalex:W2919659556	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W2949215527	R02	近傍	A	GC	precise GC: 最後の tx が版を release した時点で回収。読み手の snapshot は動かさない
+openalex:W2951410240	R03	除外		X1	分野外 (DB・tx・並行性でない): Integration of Building Information Mode
+openalex:W2975016282	R03	除外		X1	分野外 (DB・tx・並行性でない): What's the Matter with Distal Deep Vein 
+openalex:W2990262573	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W3010224878	R01	除外		X1	分野外 (DB・tx・並行性でない): A fully concurrent garbage collector for
+openalex:W3032843849	R02	近傍	A	GC	vDriver: 長い tx がいても版を回収する版管理 (SIRO)。読み手を動かさない
+openalex:W3094958164	R02	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W3134560113	R03	除外		X1	分野外 (DB・tx・並行性でない): Molecular imaging and fluid biomarkers o
+openalex:W3148454316	R02	近傍	A	GC,RO	RO tx を lock なしで古い版に読ませる transient versioning と GC。前進なし
+openalex:W3163622116	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W3200859505	R04	近傍	U1p	PL	LSM で temporal query のため版を保持する配置。timestamp は動かさない
+openalex:W3215490728	R03	除外		X1	分野外 (DB・tx・並行性でない): Extended-Spectrum Β-Lactamases in E. col
+openalex:W4206975962	R03	除外		X1	分野外 (DB・tx・並行性でない): D-17 Free Communication/Slide - Advancin
+openalex:W4229620518	R03	近傍	A	RO	有限個の snapshot を進める戦略 (DFV) の記憶量と陳腐化の解析。読み手は固定 snapshot で動かさない
+openalex:W4231824475	R03	除外		X1	分野外 (DB・tx・並行性でない): In the News/New Products
+openalex:W4239142064	R03	除外		X1	分野外 (DB・tx・並行性でない): Decision letter: Analysis of protein pho
+openalex:W4242968380	R03	除外		X2	view (snapshot table) の refresh。同題の別 ID あり (W2071395959 と W4242968380)
+openalex:W4244182441	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W4246433866	R03	除外		X1	分野外 (DB・tx・並行性でない): Regulation
+openalex:W4252763148	R05	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W4287181807	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W4295902540	R03	除外		X1	分野外 (DB・tx・並行性でない): Time-Series Sequences for Evolutionary I
+openalex:W4308947423	R06	除外		X1	分野外 (DB・tx・並行性でない): Antarctic paleoenvironment and vegetatio
+openalex:W4310076712	R03	除外		X1	分野外 (DB・tx・並行性でない): A deeper distinct view of the Milky Way 
+openalex:W4321446056	R02	近傍	A	GC	multiversion の回収方式の比較。読み手を動かさない
+openalex:W4382502126	R03	除外		X1	分野外 (DB・tx・並行性でない): Stronger: The 2022 Vizient Connections S
+openalex:W4387089152	R05	要裁定	A		要旨・S2 とも空。題名は abort/wait-free の serializable な RO tx 向け read 方式 (snapshot の扱いは題名では不明)
+openalex:W4389731406	R01	除外		X1	分野外 (DB・tx・並行性でない): SOCIETY OF CRITICAL CARE MEDICINE 53RD C
+openalex:W4391818009	R06	除外		X1	分野外 (DB・tx・並行性でない): X-ray induced degradation during XPS ana
+openalex:W4394171845	R03	除外		X1	分野外 (DB・tx・並行性でない): MApp-KG: Constructing an RDF-based Knowl
+openalex:W4394883590	R03	除外		X1	分野外 (DB・tx・並行性でない): Editorial: Progress on superconducting m
+openalex:W4398993648	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W4404304514	R03	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W4406480557	R03	除外		X1	分野外 (DB・tx・並行性でない): The role of artificial intelligence in p
+openalex:W4408290635	R03	除外		X1	分野外 (DB・tx・並行性でない): Strategic Integration of Artificial Inte
+openalex:W4409842515	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W4410009811	R03	除外		X1	分野外 (DB・tx・並行性でない): The 2024 Vizient Connections Summit Repo
+openalex:W4411309699	R03,R04,R05	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W4413360544	R04	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W4415292052	R06	除外		X1	分野外 (DB・tx・並行性でない): Alkyl-tuned hydrophobic assistance boost
+openalex:W4416004282	R01	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W4416949789	R03,R04,R06	近傍	A	TS	SSN 拡張。長い tx の begin-snapshot read と serialization 点の扱い。前進・回収に触れない (版鎖の走査を省く点は U1′ 入力ではない)
+openalex:W66150051	R05	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W7111145553	R03	除外		X1	分野外 (DB・tx・並行性でない): A framework for enterprise risk identifi
+openalex:W7116957633	R03	除外		X1	分野外 (DB・tx・並行性でない): Drivers of seabird distribution and fora
+openalex:W7119190288	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W7124596282	R06	除外		X1	分野外 (DB・tx・並行性でない): Cryptographic Revolution™ Master Forensi
+openalex:W7129712578	R03,R04	除外		X1	分野外 (DB・tx・並行性でない): MH8-Music-Prompt-Pro: A Single-File Prot
+openalex:W7131645958	R04	除外		X1	分野外 (DB・tx・並行性でない): Multilingual Segmentation Dataset (medie
+openalex:W7132050966	R03	除外		X1	分野外 (DB・tx・並行性でない): Instantaneous rain field propagation fro
+openalex:W7134286038	R04	除外		X1	分野外 (DB・tx・並行性でない): Tools to convert ONNX files (NCHW) to Te
+openalex:W7135043922	R02	除外		X2	Postgres に関するポッドキャスト要約。本案と無関係
+openalex:W7140274996	R03	除外		X1	分野外 (DB・tx・並行性でない): Modal and the End of the Serverless GPU 
+openalex:W7152499521	R03	除外		X1	分野外 (DB・tx・並行性でない): AI Wargame Memory: Beyond the Context Wi
+openalex:W7153800099	R04	除外		X1	分野外 (DB・tx・並行性でない): How IQT Labs Built a Wargaming LLM (Then
+openalex:W7154683014	R03	除外		X1	分野外 (DB・tx・並行性でない): The Most Important Developer Tools Every
+openalex:W7154787410	R03	除外		X1	分野外 (DB・tx・並行性でない): ----- GAPE — Complete Biological Physics
+openalex:W7155050324	R03	除外		X1	分野外 (DB・tx・並行性でない): Strategic hotel management in sport tour
+openalex:W7157612551	R03	除外		X1	分野外 (DB・tx・並行性でない): SCALABLE RETRIEVAL AND REASONING FOR LLM
+openalex:W7160246440	R03	除外		X1	分野外 (DB・tx・並行性でない): Beyond Snapshots: A Systematic Review of
+openalex:W7160491715	R03	除外		X1	分野外 (DB・tx・並行性でない): 237 CTSI service usage project: Monitori
+openalex:W7161727428	R04	除外		X1	分野外 (DB・tx・並行性でない): GRANITE: General-Relativistic Adaptive N
+openalex:W7162212150	R02	除外		X3	DB の tx・版の話だが位置を動かさず前進・回収・版探索費用に触れない (要旨は snapshot/MVCC/レプリケーション等)
+openalex:W7162575382	R04	除外		X1	分野外 (DB・tx・並行性でない): Moon Packing: data and software for tida
+openalex:W7163048660	R01	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W7163577546	R04	除外		X1	分野外 (DB・tx・並行性でない): saalfeldlab/paintera: Paintera paintera-
+openalex:W7163778220	R04	除外		X1	分野外 (DB・tx・並行性でない): TokenMizer: Graph-Structured Session Mem
+openalex:W7164069675	R02	近傍	U1p	PL,GC	multiversion B-tree で scan 性能を最適化 (版の配置で版探索を安くする) と継続 GC。timestamp は動かさない
+openalex:W7164890907	R03	除外		X1	分野外 (メンタルヘルス統計)。同題の別 ID: W7164890907 と W7165130077 (X4 相当だが X1 を優先)
+openalex:W7165130077	R03	除外		X1	分野外 (メンタルヘルス統計)。同題の別 ID: W7164890907 と W7165130077 (X4 相当だが X1 を優先)
+openalex:W7165394690	R04	除外		X1	分野外 (DB・tx・並行性でない): Code and Models for the Generalized Para
+openalex:W7165752759	R03	除外		X1	分野外 (DB・tx・並行性でない): Persistent GPU Actors: A Formal Model fo
+openalex:W7166353114	R03	除外		X1	分野外 (DB・tx・並行性でない): Geometric depletion of enstrophy product
+openalex:W7166644011	R04	除外		X1	分野外 (DB・tx・並行性でない): Public Proof Drop #006
+openalex:W7167021644	R03	除外		X1	分野外 (DB・tx・並行性でない): Geometric depletion of enstrophy product
+openalex:W7167470833	R04	除外		X1	分野外 (DB・tx・並行性でない): Verifiable Agent Trust Envelope
+openalex:W7167787979	R04	除外		X1	分野外 (DB・tx・並行性でない): TokenMizer: Graph-Structured Session Mem
+openalex:W7167836834	R02	除外		X1	分野外 (DB・tx・並行性でない): NetNotes
+openalex:W7168035841	R06	除外		X1	分野外 (DB・tx・並行性でない): Ultimate Unification of Four Fundamental
+openalex:W7168091720	R06	除外		X1	分野外 (DB・tx・並行性でない): Ultimate Unification of Four Fundamental
+openalex:W7168160247	R06	除外		X1	分野外 (DB・tx・並行性でない): Ultimate Unification of Four Fundamental
+openalex:W7168394655	R06	除外		X1	分野外 (DB・tx・並行性でない): Ultimate Unification of Four Fundamental
+openalex:W7169648270	R01,R03	除外		X1	分野外 (DB・tx・並行性でない): Chance6706/contextual_differentiation_me
+openalex:W7169718899	R06	除外		X1	分野外 (DB・tx・並行性でない): Ultimate Unification of Four Fundamental
+openalex:W7169800276	R03	除外		X1	分野外 (DB・tx・並行性でない): A Reproducible Cross-National Dataset of
+openalex:W7170091041	R06	除外		X1	分野外 (DB・tx・並行性でない): SOURCE-LEVEL ARCHITECTURAL CORRESPONDENC
+openalex:W7171423504	R03,R04	除外		X1	分野外 (DB・tx・並行性でない): existential-birds/daydream: v0.28.0
+openalex:W7202178214	R04	除外		X1	分野外 (DB・tx・並行性でない): Justification under Transformation Oblig
+openalex:W7202283558	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203528991	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203536554	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203572868	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203680465	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203695482	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203740811	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203784318	R03	除外		X1	分野外 (DB・tx・並行性でない): DAIM-OS Self-Healing Artifact: Event-Dri
+openalex:W7203796486	R03	除外		X1	分野外 (DB・tx・並行性でない): Development of a Universally Applicable 
+openalex:W7204110396	R03	除外		X1	分野外 (DB・tx・並行性でない): GeoGNSS-PS: v1.1.0 - Extended data model
+openalex:W7204446718	R06	除外		X1	分野外 (DB・tx・並行性でない): THE OPERATOR'S PROOF: Deterministic Stat
+openalex:W7204924991	R06	除外		X1	分野外 (DB・tx・並行性でない): Ultimate Unification of Four Fundamental
+openalex:W7208812993	R04	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W7211918912	R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W7212038956	R01,R03	除外		X2	DB または隣接分野だが本案と無関係
+openalex:W7212601219	R03	除外		X1	分野外 (DB・tx・並行性でない): Correction: Dynamic navigation-based pre
+openalex:W7213269082	R03	除外		X1	分野外 (DB・tx・並行性でない): Single-Live-Environment (SLE): A Stigmer
+openalex:W7213579784	R04,R06	除外		X1	分野外 (DB・tx・並行性でない): PRE-GHR Series Map — Canonical Register 
+openalex:W7213595803	R04,R06	除外		X1	分野外 (DB・tx・並行性でない): PRE-GHR Series Map — Canonical Register 
+openalex:W7214081829	R03,R04	除外		X1	分野外 (DB・tx・並行性でない): generative-computing/mellea: v0.8.0
+openalex:W7214439968	R03	除外		X1	分野外 (DB・tx・並行性でない): xuzhougeng/wisp-science: v1.15.0: Portab
+openalex:W895546193	R03	除外		X1	分野外 (DB・tx・並行性でない): On the use of analytic network process f

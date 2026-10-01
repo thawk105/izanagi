@@ -1,0 +1,184 @@
+{
+ "spec_sha256": "85e94333c12548d8bc325d3316ad5de5daeac17ee8dedce963f48d11cdeff0d7",
+ "repo_head": "f4920ddb311c2bfd51c2f9931683cfedbcd4711a",
+ "summary": {
+  "KILLED": 8,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 0,
+  "TIMEOUT": 0,
+  "completed": 8,
+  "matching": 8,
+  "recorded": 8,
+  "registered": 8
+ },
+ "runner": "tools/run_tests.py --force-dispatch orchestrator/tests/test_run_tests_shards.py -k early_login_collection -q -rf",
+ "mutations": [
+  {
+   "id": "M1",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_starts_before_preflight",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        early_collection = _start_early_login_collection(exclusions)\n    try:\n",
+     "new": "        early_collection = None\n    try:\n"
+    }
+   ]
+  },
+  {
+   "id": "M2",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "                    early_collection.collect(session, deadline_at)\n                    if early_collection is not None else\n",
+     "new": "                    _collect_login_universe(session, exclusions, deadline_at)\n                    if early_collection is not None else\n"
+    }
+   ]
+  },
+  {
+   "id": "M3",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_reuses_output_and_log_format",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_with_real_fork_workers",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_large_output_does_not_block"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "            result = _finish_login_collection(\n                session_root, self.command, self.process.returncode, stdout, stderr,\n            )\n",
+     "new": "            result = (0, _parse_collect_only_nodeids(stdout))\n"
+    }
+   ]
+  },
+  {
+   "id": "M4",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_dispatcher_start_failure_reaps_process",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_preflight_failure_reaps_process"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "            if self.process.poll() is None:\n                self.process.terminate()\n",
+     "new": "            if False and self.process.poll() is None:\n                self.process.terminate()\n"
+    }
+   ]
+  },
+  {
+   "id": "M5",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_marker_absent_uses_legacy",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "        and _submodule_is_initialized(Path(_REPO))\n    ):\n        early_collection",
+     "new": "        and True\n    ):\n        early_collection"
+    }
+   ]
+  },
+  {
+   "id": "M6",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_oserror_falls_back",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_start_failure_keeps_preflight_rc"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "    except OSError:\n        if stdout_file is not None:\n",
+     "new": "    except OSError:\n        raise\n        if stdout_file is not None:\n"
+    }
+   ]
+  },
+  {
+   "id": "M7",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_nonzero_retries_legacy"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "            if self.process.returncode != 0:\n                raise ValueError(\"early collection failed\")\n",
+     "new": "            if self.process.returncode != 0:\n                return _PEGASUS_DISPATCH_RC, ()\n"
+    }
+   ]
+  },
+  {
+   "id": "M8",
+   "status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]"
+   ],
+   "failed_nodes": [
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[invalid-16]",
+    "orchestrator/tests/test_run_tests_shards.py::test_early_login_collection_matches_legacy_text_decoding[crlf-0]"
+   ],
+   "replacements": [
+    {
+     "file": "tools/run_tests.py",
+     "old": "            stdout = self.stdout_file.read().decode(encoding).replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\")\n            stderr = self.stderr_file.read().decode(encoding).replace(\"\\r\\n\", \"\\n\").replace(\"\\r\", \"\\n\")\n",
+     "new": "            stdout = self.stdout_file.read().decode(\"utf-8\", errors=\"replace\")\n            stderr = self.stderr_file.read().decode(\"utf-8\", errors=\"replace\")\n"
+    }
+   ]
+  }
+ ]
+}

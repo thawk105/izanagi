@@ -163,7 +163,6 @@ MANUAL_BUILD_FILES = {
     "vhash_cicada_hot_block.py",
     "vhash_ro_gc_publish.py",
     "vhash_ceiling_vs_sota.py",
-    "vhash_c2_motivation.py",
     "vhash_forwarding_prototype.py",
     "vhash_interval_gc.py",
     "b4_binary_record.py",
@@ -189,7 +188,6 @@ EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.vhash_cicada_hot_block._build_one",
     "orchestrator.campaign.vhash_ro_gc_publish._build_variant",
     "orchestrator.campaign.vhash_ceiling_vs_sota._build_variant",
-    "orchestrator.campaign.vhash_c2_motivation._build_variant",
     "orchestrator.campaign.vhash_forwarding_prototype._build_variant",
     "orchestrator.campaign.vhash_interval_gc._build_variant",
     "orchestrator.campaign.silo_policy_coverage._build_variant",
@@ -211,7 +209,7 @@ EXPECTED_NON_ADMISSIBLE = {
     "orchestrator.campaign.silo_ladder_rung1._correctness_command",
 }
 
-_EXPECTED_REPO_STOCK_PIN = "6810666"
+_EXPECTED_REPO_STOCK_PIN = "25898d0"
 
 
 def _source(*, stock: bool, ccbench_commit: str = "historical-test-pin") -> SourceEvidence:

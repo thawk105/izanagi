@@ -200,6 +200,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で�
 
 - self-run: `test_s8c_acceptance_receipt_v2.py` — receipt v2 の正例・負の対照
 - self-run: `test_s8c_gate_report.py` — 8c 事前登録関門の状態・根拠を構造化報告
+- self-run: `test_vhash_econn_wscan.py` — md_39 起動器の行列・計器 schema・事前登録判定
 
 ## 依存物不在時の skip (可視化)
 
