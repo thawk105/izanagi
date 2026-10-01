@@ -1,0 +1,207 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "M15-over-7200-default-reject-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "if plan[\"over_2_node_hours\"] and not allow_over_budget:",
+     "new": "if plan[\"over_2_node_hours\"] and not allow_over_budget and False:"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M16-runner-up-ignores-eligibility",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "summary.get(rep, {}).get(a, {}).get(\"eligible\")]  # M16",
+     "new": "summary.get(rep, {}).get(a)]"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M17-max-ratio-le-1-falls-to-P2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "    if not candidates:  # M17\n",
+     "new": "    if not candidates or max(c[0] for c in candidates) <= 1:  # M17\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m17_max_eligible_even_below_one"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M18-hot-count-patch-after-workload",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "if tree in (\"diag-hot\", \"trace-hot\") and not (",
+     "new": "if False and not ("
+    },
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "\"diag-hot\": (V_PATCH, *HOT, HOT_COUNT, W_PATCH),",
+     "new": "\"diag-hot\": (V_PATCH, *HOT, W_PATCH, HOT_COUNT),"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m18_hot_count_precedes_workload"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M19-boost-all-no-lib-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "\"BOOST_ALL_NO_LIB\": \"1\", \"BOOST_FILESYSTEM_DYN_LINK\": \"1\",",
+     "new": "\"BOOST_FILESYSTEM_DYN_LINK\": \"1\","
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M20-hot-arm-name-map-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "parser_arm = {\"hot1\": \"post-k1\", \"hot8\": \"post-k8\"}[arm]  # M20",
+     "new": "parser_arm = arm"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m20_hot_diagnostic_real_count_line"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M21-estimate-wall-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "run_seconds = lambda window: window + overhead  # M21",
+     "new": "run_seconds = lambda window: wall_seconds"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m21_window_and_preparation_estimates"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M22-broken-positive-by-nonserializable",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "and type(results[0].get(\"total_cycles\")) is int\n            and results[0][\"total_cycles\"] > 0)  # M22",
+     "new": "and report.get(\"non_serializable\", 0) > 0)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m22_broken_positive_requires_cycle"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M23-residual-ratio-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "if residual_ratio >= 1.5",
+     "new": "if True"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m23_residual_cost_threshold"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M24-igc-arm-name-dropped-from-table",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "\"igc\": \"igc\", \"igc1\": \"igc\"",
+     "new": "\"igc1\": \"igc\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_do_build_passes_igc_to_perf_gate",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_igc_build_and_smoke_paths",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M25-budget-gate-adds-conditionals-always",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "\"over_2_node_hours\": committed_seconds > 7200,",
+     "new": "\"over_2_node_hours\": full_seconds > 7200,"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M25b-committed-seconds-always-full",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/vhash_ceiling_vs_sota.py",
+     "old": "    committed_seconds = base_seconds + sum(conditional[index][\"estimated_s\"]\n                                           for index in triggered)\n",
+     "new": "    committed_seconds = full_seconds\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

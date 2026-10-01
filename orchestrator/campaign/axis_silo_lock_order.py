@@ -14,3 +14,8 @@ REASON_NAMES = (
 )
 HAND_POLICIES = {'version_desc': 'version_desc.cpp'}
 EXCLUSIVE_PATCHES = ('silo-sort-variant.patch', 'silo-function-policy-variant.patch')
+
+# Registered model evidence is independent of a submitted result file.
+MODEL_SPECIFICATION_DIGEST = None
+MODEL_SCENARIOS = None
+MODEL_VOCABULARY = None

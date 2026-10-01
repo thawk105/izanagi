@@ -468,6 +468,13 @@ Cicada の read-only commit は `mainte()` を通らず GC flag を立てない�
 - **driver:** `orchestrator/campaign/vhash_ro_gc_publish.py` の `smoke` / `verify` / `measure` / `throughput`。source copy ごとに macro なしの依存物 build (masstree の `config.h` を作る) → condition gate → 本 build の順。
 - **一次資料:** `output/insights/2026-09-29/vhash-readonly-gc-publish/README.md`。
 
+## cicada-ceiling-workload.patch — Cicada の長い読み手と read-only 指定率の共通負荷
+
+- **preimage・適用順:** CCBench pin `68106660686232781bca3be792a750d3e19d7a8a`。`cicada-ro-gcflag-variant.patch`、必要な hot / forwarding / interval GC / 診断 patch の後、最後に適用する。trace 木では `instr-cicada-trace.patch` を先頭に置く。
+- **macro・flag:** `IZANAGI_CICADA_CEILING_WORKLOAD=1` で有効。通常 worker は `--izanagi_ceiling_ronly_pct=0..100` (既定 0) の確率で全 READ にし、それ以外は最低 1 write にする。batch worker は `--batch_th_num=1 --batch_max_ope=1000` で 1 手続き 1,000 READ を実行する。抽選は既存 YCSB の乱数と別系列で、retry 中は同じ手続きを使う。
+- **出力:** runner の join と既存集計の後に `IZANAGI_CICADA_CEILING_WORKLOAD_V1 {"schema":1,"thread_num":...,"batch_threads":...,"batch_ops":...,"ronly_pct":...,"normal_commits":...,"batch_commits":...}` を 1 行出す。値は既存の thread 別 commit 数を読む。
+- **inert・登録:** macro 未定義・0 は pin と同じ前処理経路で、追加箇所の後に無条件 `#line` を置く。`patches/ledger.json` には登録しない (D2288 と同じ理由: ledger は `silo_ladder_rung1` 専用で 1 entry を契約が要求する)。
+
 ## cicada-interval-gc-variant.patch / cicada-interval-gc-longtx.patch / broken-cicada-interval-gc-overprune.patch — Cicada の区間 GC (最小形・一般形)、長い tx 負荷、見える版まで外す壊し正例 (合成 variant, D18 第 4 類, VHash 論文 md_18)
 
 書き込み時 (Steam §4.3 と同じ契機) に、保護点 (実行中の各 thread の wts・rts と MinWts−1・MinRts) のどれからも見えない途中版を版の鎖から外す試作。

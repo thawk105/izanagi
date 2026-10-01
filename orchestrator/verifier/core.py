@@ -65,6 +65,13 @@ def _gate_d5(ccbench_root: Optional[str | os.PathLike[str]]) -> str:
                 break
         except (OSError, RuntimeError):
             continue
+    return _gate_d5_sources((ycsb, transaction, driver, includes_ycsb))
+
+
+def _gate_d5_sources(sources: Optional[tuple[str, str, str, bool]]) -> str:
+    if sources is None:
+        return "unavailable"
+    ycsb, transaction, _driver, includes_ycsb = sources
     if (GATE_EMITTER_CALLS[0] in _literal_trace_regions(ycsb)
             and all(call in _literal_trace_regions(transaction)
                     for call in GATE_EMITTER_CALLS[1:])
@@ -290,7 +297,10 @@ def verify_trace_dir(
         dsg.integrity.gate_witness_required = require_gate_witness
         _check_gate(trace_dir, parsed, dsg.integrity, gate_paths, bad_gate_names)
         if require_gate_witness:
-            dsg.integrity.gate_d5 = _gate_d5(ccbench_root)
+            dsg.integrity.gate_d5 = (
+                _gate_d5(ccbench_root) if _proof_source_snapshot is None
+                else _gate_d5_sources(_proof_source_snapshot.gate_d5_sources)
+            )
             if dsg.integrity.gate_d5 != "pass":
                 _gate_note(dsg.integrity, "D5", observed=dsg.integrity.gate_d5)
     if expected_commits is not None:
@@ -625,17 +635,22 @@ def _bind_verifier_capability_entrypoint():
             receipt_variant: str,
             receipt_operation_identity: str,
             receipt_workload_tag: str,
+            require_gate_witness: bool = False,
     ) -> tuple[VerifyResult, _VerificationCapability]:
         """Run verification from the exact build-bound immutable source snapshot."""
+        if type(require_gate_witness) is not bool:
+            raise TypeError("require_gate_witness must be bool")
         proof_source_snapshot = _bound_proof_source_snapshot(
             genome=genome,
             source_evidence=source_evidence,
             build_admission=build_admission,
             receipt_variant=receipt_variant,
         )
+        verify_options = {"require_gate_witness": True} if require_gate_witness else {}
         result = verify_trace_dir(
             trace_dir, max_report=max_report, expected_commits=expected_commits,
             workers=workers, _proof_source_snapshot=proof_source_snapshot,
+            **verify_options,
         )
         capability = _VerificationCapability(
             result,

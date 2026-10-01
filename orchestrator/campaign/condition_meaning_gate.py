@@ -93,6 +93,10 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
         "patches/cicada-ro-gcflag-workload.patch", inert_values=("0",),
     ),
+    "IZANAGI_CICADA_CEILING_WORKLOAD": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _CICADA_YCSB_OWNER, "ycsb_cicada.exe",
+        "patches/cicada-ceiling-workload.patch", inert_values=("0",),
+    ),
     "IZANAGI_CICADA_VLIFE": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _CICADA_OWNER, "ycsb_cicada.exe",
         "patches/instr-cicada-version-lifetime.patch", inert_values=("0",),
@@ -448,6 +452,9 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_CICADA_ROGC_WORKLOAD": (
         "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_ROGC_WORKLOAD",
     ),
+    "IZANAGI_CICADA_CEILING_WORKLOAD": (
+        "cc/cicada/ycsb_cicada.cc", "#if IZANAGI_CICADA_CEILING_WORKLOAD",
+    ),
     "IZANAGI_CICADA_VLIFE": (
         "cc/cicada/transaction.cc", "#if IZANAGI_CICADA_VLIFE",
     ),
@@ -657,6 +664,7 @@ _CONDITIONAL_BRANCH_SITE_COUNTS = {
     "IZANAGI_CICADA_RO_GCFLAG": 1,
     "IZANAGI_CICADA_RO_GCFLAG_COUNT": 3,
     "IZANAGI_CICADA_ROGC_WORKLOAD": 2,
+    "IZANAGI_CICADA_CEILING_WORKLOAD": 2,
     "CICADA_FWD_ENABLE": 11,
     "CICADA_VHASH_K": 9,
     "CICADA_VHASH_COUNT": 19,
@@ -677,6 +685,9 @@ _CONDITIONAL_BRANCH_COMPANION_SITES = {
     "CICADA_VHASH_WL": (("cc/cicada/include/transaction.hh", "#if CICADA_VHASH_WL", 1),),
     "IZANAGI_CICADA_ROGC_WORKLOAD": (
         ("include/ycsb.hh", "#if IZANAGI_CICADA_ROGC_WORKLOAD", 7),
+    ),
+    "IZANAGI_CICADA_CEILING_WORKLOAD": (
+        ("include/ycsb.hh", "#if IZANAGI_CICADA_CEILING_WORKLOAD", 2),
     ),
     "IZANAGI_CICADA_VLIFE": (
         ("cc/cicada/include/transaction.hh", "#if IZANAGI_CICADA_VLIFE", 12),

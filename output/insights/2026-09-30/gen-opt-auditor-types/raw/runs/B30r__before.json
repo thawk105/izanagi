@@ -1,0 +1,10 @@
+{
+  "case": "B30r",
+  "role": "before",
+  "rc": 0,
+  "wall_s": 47.893179450999014,
+  "started_at": "2026-09-30T14:55:08.302589+00:00",
+  "ended_at": "2026-09-30T14:55:56.194218+00:00",
+  "prompt_sha256": "ac37d0b89fc7c86ed887e384fba4d332b6217fbb0949897d1cf845c67da7d58d",
+  "role_sha256": "1780945a475cdd036a1fccf52d179f69500c18d0b45d2cf8c5b8969aad54495b"
+}

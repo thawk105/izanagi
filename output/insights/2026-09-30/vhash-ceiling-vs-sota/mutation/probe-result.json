@@ -1,0 +1,382 @@
+{
+ "baseline": {
+  "rc": 0,
+  "nodes": [],
+  "tail": "................................\n----------------------------------------------------------------------\nRan 32 tests in 0.219s\n\nOK\n"
+ },
+ "mutations": [
+  {
+   "id": "M0-docstring-equivalent",
+   "rc": 0,
+   "observed_nodes": [],
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "exact_match": true
+  },
+  {
+   "id": "M1-perf-define-exact",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m1_perf_defines",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M2-pair-pooled-not-same-round-node",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_full_preliminary_choice_and_budget_flags",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m2_paired_same_round_node_job"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M3-gc-select-uses-M-arm",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m3_gc_only_R"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m3_gc_only_R"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M4-representative-all-arms",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness"
+   ],
+   "exact_match": false
+  },
+  {
+   "id": "M5-completion-floor-removed",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M6-witness-nonempty-removed",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m6_accepted_rc3_and_single_witness_gate"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m6_accepted_rc3_and_single_witness_gate"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M7-all-commits-check-replaced-by-batch",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m7_c_lines_two_independent_equalities"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m7_c_lines_two_independent_equalities"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M8-manifest-binary-sha-only",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m8_manifest_all_fields"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M9-arm-order-fixed",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m9_order_and_m10_neighbor"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m9_order_and_m10_neighbor"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M10-missing-neighbor-gives-verdict",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m9_order_and_m10_neighbor"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m9_order_and_m10_neighbor"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M11-run-id-reuse-across-modes-accepted",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m11_m12_and_perf_separation"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m11_m12_and_perf_separation"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M12-rc3-labelled-certified",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m11_m12_and_perf_separation",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m11_m12_and_perf_separation",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m4_m5_m6_selection_and_witness"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M13-igc-broken-flag-conversion-removed",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_positive_reaches_mode_one_flags",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_run_reaches_verifier"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_positive_reaches_mode_one_flags",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m13_broken_run_reaches_verifier"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M14-final-decision-from-prelim-only",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m14_aggregate_uses_comparison_not_preliminary"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M15-over-7200-default-reject-removed",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M16-runner-up-ignores-eligibility",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m16_runner_up_requires_eligible_witness"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M17-max-ratio-le-1-falls-to-P2",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m17_max_eligible_even_below_one"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m17_max_eligible_even_below_one"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M18-hot-count-patch-after-workload",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m18_hot_count_precedes_workload"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m18_hot_count_precedes_workload"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M19-boost-all-no-lib-dropped",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m19_measured_perf_defines_exact"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M20-hot-arm-name-map-removed",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m20_hot_diagnostic_real_count_line"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m20_hot_diagnostic_real_count_line"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M21-estimate-wall-only",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m21_window_and_preparation_estimates"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m21_window_and_preparation_estimates"
+   ],
+   "exact_match": false
+  },
+  {
+   "id": "M22-broken-positive-by-nonserializable",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m22_broken_positive_requires_cycle"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m22_broken_positive_requires_cycle"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M23-residual-ratio-ignored",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m23_residual_cost_threshold"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr4_aggregate_residual_threshold",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m23_residual_cost_threshold"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M24-igc-arm-name-dropped-from-table",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_do_build_passes_igc_to_perf_gate",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_igc_build_and_smoke_paths",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_do_build_passes_igc_to_perf_gate",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_fr5_igc_build_and_smoke_paths",
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m24_igc_perf_defines"
+   ],
+   "exact_match": true
+  },
+  {
+   "id": "M25-budget-gate-adds-conditionals-always",
+   "rc": 0,
+   "observed_nodes": [],
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "expected_nodes": [],
+   "exact_match": true
+  },
+  {
+   "id": "M25b-committed-seconds-always-full",
+   "rc": 1,
+   "observed_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25"
+   ],
+   "status": "KILLED",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_vhash_ceiling_vs_sota.py::CeilingTests::test_m15_total_budget_and_triggered_conditionals_m25"
+   ],
+   "exact_match": true
+  }
+ ]
+}
