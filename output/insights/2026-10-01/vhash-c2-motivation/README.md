@@ -142,7 +142,7 @@ S の 27 走、S-noLT の 9 走、性能 build の生死走 (1 秒、throughput 
   wrapper (`tools/mutation_worktree.py`) の終了コードは 125 で、理由は事後検査の「source/main 共有木の観測 bytes が変化した」。走行中に別 session の land (pin F、10:54) で main の木が動いたためで、wave の木は走行の前後で clean だった。ledger と 10 本の判定はこの終了コードの影響を受けない。初回の起動 (attempt 1) は `--attempt-out` の単独指定で引数エラーになり、変異は走っていない。
   ledger (repo 外): `/work/1/SFC/tanab/tmp/vhash-c2-motivation-2026-10-01/mutation-ledger-2.json`、spec sha256 `2527fa4c…`。
 - **記録の検査:** 三軸語の走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) は rc 1 だが、hit 3 件はすべて既存の較正 file (`output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/` の 3 file) で、本 wave の file は 0 件。`tools/check_docs.py` 違反なし、`tools/spool_fold.py --dry-run` は planned。
-- **受入全走:** §11 に記録する。
+- **受入全走:** この文書は受入の前に固定する。受入全走の結果は land が読む受領証 (`tools/dev_wave_wait.py acceptance`) が持つ。
 
 ## 10. 計算資源
 
