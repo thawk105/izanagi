@@ -20,7 +20,10 @@ title: [T-2852] P5 の事前登録草稿を S1 版から S3 版へ改版した �
 - 段 6 (軽量版で段 2・3 は省略): read-only の Codex レビュー 2 本 (gpt-6-astra、事実照合レンズと過剰・削除レンズ、同じ worktree で直列) がどちらも NO-GO、must-fix 計 3 件。
   最重要は、T-2867 の対照の経路では自系列の履歴に評価の結果の verifier の digest と一部の拒否 (schema の拒否と auditor の出力の形式・digest の不一致による拒否) が入っていない (段 1 で置いた「失敗理由は履歴で critic と独立に届く」が
   schema の上だけの話だった) という所見で、親がコードと本走の coder 入力 249 件の履歴の欄の集計で裏取りし、履歴の欄の接続を critic なしの cell の発効の前提にした ({{F:contrast-history-fields-unfilled}})。
-  refuted 0。焦点再レビューの結果は insight §6。
+  refuted 0。焦点再レビューは 2 巡目で GO (must-fix 0、残った should・nit は親が直した)。経緯は insight §6。
+- 受入全走: TAG a2 で child-green (受領証あり、tested main `4bc51ed2d`・tested tip `4e2676787`、attempt 1 の所要 11:03:47〜11:12:36)。
+  先の a1 は受入内の post-claim merge が CCBench の pin C→F (gitlink `25898d00`) を取り込み、submodule が旧 pin のまま `prerun-clean` rc=70、
+  門番の再投入が `preflight-clean` rc=2 で止まった (DW-O20 の submodule 揃えの不足、本 wave の差分とは無関係)。submodule を揃えて a2 を投入した。
 
 ## 次の一手差分
 
