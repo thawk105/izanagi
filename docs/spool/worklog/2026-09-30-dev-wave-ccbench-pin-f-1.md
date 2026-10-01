@@ -18,7 +18,9 @@ title: [T-2854] CCBench の pin を C 68106660 から F 25898d00 (TPC-C trace v3
 - 焦点走: set1 (163 file、request 39785、Elapse 854 s) 10 failed / 15,705 passed / 56 skipped → fix1 → set2 (13 file、request 39992、43 s) 1,716 passed / 2 skipped。set1 の 1 job は目安 5 分を超えた (同じ worktree の dispatch は直列が契約で、割っても合計は減らない)。
 - 変異 (実装面の最終 commit `c2e25f9ae`、runner 8 file): probe で観測 node を集めて final を再登録し、final は KILLED 3 (mut1 13・mut2 63・mut3 46 node)・SURVIVED 1 (等価)・4/4 一致、rc=0。mut3 の 46 は mut2 に含まれる drift 層で、pin 値の単一理由の証拠は mut2 だけが殺す 17 node (前例 [T-2858] と同じ構造)。
 - 三軸語走査 (`s8b_holdout_freeze search`) は rc=1 だが、hit は 2026-09-16 の既存の較正成果物 3 file だけで、前例 (9/23) と同じ。本 wave の file の hit は 0。
-- 自己点検 (調整役の通達、10/01 00:3x): 同じ原因の失敗が 2 系統あった — {{F:isolated-session-compound-command-rejected}} と F810 の再発。
+- 自己点検 (調整役の通達、10/01 00:3x): 同じ原因の失敗が 2 系統あった — {{F:isolated-session-compound-command-rejected}} と F810 の再発。記録中にも前者を 1 回踏んだ。
+- 利用上限による停止 (調整役の指示、09-30 00:4x〜): 受入全走 1 回目は停止中の 10/01 01:14 に緑 (tip `5b859814b`、tested main `74029b18f`)。03:11 の予定だった「再開」は届かず、10/01 09:43 のユーザーの問い合わせで再開した。その間に main が 54 commit 進んだので取り込み (`54e16402f`、衝突なし。新しいコードは pin を `CURRENT_PIN` の記号で読む)、焦点走 set3 (main 側と本 wave の変更 test + inventory 群の 38 file、Elapse 186 s) 4,961 passed / 10 skipped。受入は記録確定後の tip で取り直した。
+- 手順違反 1 件: 上の merge で provenance の事前検査 (rc=1) と commit を並列に出し、commit が通った ({{F:parallel-preflight-and-commit}})。commit 後の範囲監査は 55 件・違反なし。
 - 新規 worktree の submodule 初期化は 2 本とも 1 回目 `runtime-io-failure (update-no-fetch)`、同じ引数の 2 回目で rc=0 (DW-O08 の既述どおり)。
 
 ## 次の一手差分

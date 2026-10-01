@@ -82,6 +82,7 @@ D2305 項 1 は本走の pin を C に固定し、途中で変えないとする
 |---|---|---|---:|---|
 | set1 | 実装 commit `90f70add1`、163 file (前例 [T-2858] の 75 file + pin 消費者を参照する test の grep 追加 88 file) | 39785 | 854 s | 10 failed / 15,705 passed / 56 skipped |
 | set2 | fix1 commit `c2e25f9ae`、修正 5 file + sealed runner + 変異 runner 候補 8 file の 13 file | 39992 | 43 s | 1,716 passed / 2 skipped |
+| set3 | 2026-10-01 に local main (54 commit 先) を取り込んだ `54e16402f`、main 側と本 wave の変更 test + DW-O26 の inventory 群ほかの 38 file | 40591 | 186 s | 4,961 passed / 10 skipped |
 
 set1 の赤 10 件は 2 群だった (処置は fix1 `c2e25f9ae`):
 
