@@ -1,0 +1,237 @@
+{
+  "accepted": true,
+  "errors": [],
+  "host": "bnode026",
+  "mode": "registration",
+  "prepare_only": false,
+  "prepared": true,
+  "preregistered": "changed rc=1 TRACE=0 normalized preprocess mismatch; trace branch rc=0 pass, 32 cicada contexts",
+  "registration_life": {
+    "changed": {
+      "accepted": true,
+      "apply_check": {
+        "argv": [
+          "git",
+          "-C",
+          "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+          "apply",
+          "--check",
+          "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/cicada-transaction.patch"
+        ],
+        "rc": 0,
+        "seconds": 0.004,
+        "timeout_seconds": null
+      },
+      "apply_check_stderr": "",
+      "contexts": null,
+      "oid": "2c3867dff4f861e23c5a93a2ef6d26148903fb0f",
+      "patch": {
+        "lines": 85,
+        "path": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/cicada-transaction.patch",
+        "sha256": "9f76b022fcd6fa14b441f5b83fb304b425567e97a59bed59c0870f51d9124930"
+      },
+      "receipt": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-B",
+          "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/tools/check_trace0_preprocess_identity.py",
+          "--repo",
+          "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+          "--old",
+          "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+          "--new",
+          "2c3867dff4f861e23c5a93a2ef6d26148903fb0f",
+          "--cxx",
+          "/usr/bin/g++-11",
+          "--expect-paths",
+          "cc/cicada/transaction.cc"
+        ],
+        "rc": 1,
+        "seconds": 4.321,
+        "timeout_seconds": 900
+      },
+      "report_path": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/life-changed.stdout",
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "error: \u9078\u5b9a\u3057\u305f macro context \u306b\u304a\u3051\u308b TRACE=0 \u6b63\u898f\u5316 preprocess \u51fa\u529b\u306e\u540c\u4e00\u6027\u3001\u304a\u3088\u3073 include \u6d3b\u6027\u306e\u540c\u4e00\u6027\u3092\u78ba\u8a8d\u3067\u304d\u306a\u3044: TRACE=0 \u6b63\u898f\u5316 preprocess \u51fa\u529b\u304c\u4e0d\u4e00\u81f4: path='cc/cicada/transaction.cc' genome='cicada|' context='INLINE_VERSION_OPT=0,INLINE_VERSION_PROMOTION=0,SINGLE_EXEC=0,WORKER1_INSERT_DELAY_RPHASE=0;base'\n"
+    },
+    "trace-branch": {
+      "accepted": true,
+      "apply_check": {
+        "argv": [
+          "git",
+          "-C",
+          "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+          "apply",
+          "--check",
+          "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/cicada-trace-branch.patch"
+        ],
+        "rc": 0,
+        "seconds": 0.005,
+        "timeout_seconds": null
+      },
+      "apply_check_stderr": "",
+      "contexts": 32,
+      "oid": "2c3fb47d30963aa84d9befa1f39c4fd05d66eff8",
+      "patch": {
+        "lines": 11,
+        "path": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/cicada-trace-branch.patch",
+        "sha256": "ea3c4242b5f249c6076e64bc10827d047c87ae765813c7768fde69a2f7cadf1e"
+      },
+      "receipt": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-B",
+          "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/tools/check_trace0_preprocess_identity.py",
+          "--repo",
+          "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+          "--old",
+          "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+          "--new",
+          "2c3fb47d30963aa84d9befa1f39c4fd05d66eff8",
+          "--cxx",
+          "/usr/bin/g++-11",
+          "--expect-paths",
+          "cc/cicada/transaction.cc"
+        ],
+        "rc": 0,
+        "seconds": 5.523,
+        "timeout_seconds": 900
+      },
+      "report_path": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/life-trace-branch.stdout",
+      "report_sha256": "8637439c759b7cab61a196c642aaf99253f04d4630dd68cd5c0efddd9527e273",
+      "stderr": ""
+    }
+  },
+  "runs": {},
+  "stages": {
+    "cicada-trace-branch.generate": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "diff",
+        "--binary",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+        "2c3fb47d30963aa84d9befa1f39c4fd05d66eff8",
+        "--",
+        "cc/cicada/transaction.cc"
+      ],
+      "rc": 0,
+      "seconds": 0.002,
+      "stderr": ""
+    },
+    "cicada-transaction.generate": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "diff",
+        "--binary",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+        "16ad3eb8ca5f7bb3aea789bff99958e2192f6714",
+        "--",
+        "cc/cicada/transaction.cc"
+      ],
+      "rc": 0,
+      "seconds": 0.002,
+      "stderr": ""
+    },
+    "clone": {
+      "argv": [
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scripts-v6/verify_inputs.sh",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle",
+        "9035509829f005aaaddf44fa5ca431851c2ecdac",
+        "/scr/cfb-registration-9a1m6whl/ccbench"
+      ],
+      "rc": 0,
+      "seconds": 0.795,
+      "timeout_seconds": null
+    },
+    "life-changed": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/tools/check_trace0_preprocess_identity.py",
+        "--repo",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "--old",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+        "--new",
+        "2c3867dff4f861e23c5a93a2ef6d26148903fb0f",
+        "--cxx",
+        "/usr/bin/g++-11",
+        "--expect-paths",
+        "cc/cicada/transaction.cc"
+      ],
+      "rc": 1,
+      "seconds": 4.321,
+      "timeout_seconds": 900
+    },
+    "life-changed.apply-check": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "apply",
+        "--check",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/cicada-transaction.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.004,
+      "timeout_seconds": null
+    },
+    "life-trace-branch": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-ccbench-fix-bundle/tools/check_trace0_preprocess_identity.py",
+        "--repo",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "--old",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e",
+        "--new",
+        "2c3fb47d30963aa84d9befa1f39c4fd05d66eff8",
+        "--cxx",
+        "/usr/bin/g++-11",
+        "--expect-paths",
+        "cc/cicada/transaction.cc"
+      ],
+      "rc": 0,
+      "seconds": 5.523,
+      "timeout_seconds": 900
+    },
+    "life-trace-branch.apply-check": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "apply",
+        "--check",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/registration/cicada-trace-branch.patch"
+      ],
+      "rc": 0,
+      "seconds": 0.005,
+      "timeout_seconds": null
+    },
+    "registration": {
+      "rc": 0,
+      "seconds": 10.055
+    },
+    "registration.clone": {
+      "argv": [
+        "git",
+        "-C",
+        "/scr/cfb-registration-9a1m6whl/ccbench",
+        "worktree",
+        "add",
+        "--detach",
+        "/scr/cfb-registration-9a1m6whl/registration-ccbench",
+        "25898d00b9a6bbf09329ff8e8318c77d4f08b46e"
+      ],
+      "rc": 0,
+      "seconds": 0.022,
+      "timeout_seconds": null
+    }
+  },
+  "tip": "9035509829f005aaaddf44fa5ca431851c2ecdac"
+}

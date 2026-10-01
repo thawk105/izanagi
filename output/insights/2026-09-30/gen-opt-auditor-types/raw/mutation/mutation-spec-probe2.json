@@ -1,0 +1,36 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 3000,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "m0-ledger-comment-only",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/codex_roles/review_ledger.py",
+     "old": "# Reviewed 2026-09-30: T-2890 fix; gen-opt 監査の入力の中身の欠落と source の読めなさを uncertain に追加。",
+     "new": "# Reviewed 2026-09-30: T-2890 fix; gen-opt 監査の入力の欠落を uncertain に追加。 M0"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-reflux-baseline-stale",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+     "old": "    new = \"2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14\"",
+     "new": "    new = \"c6a8a1830d408ed9174fc01b84f459efe2b26babae90b808e0d5d9a6fafa60f6\""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

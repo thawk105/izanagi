@@ -1,0 +1,10 @@
+{
+  "case": "B27",
+  "role": "after",
+  "rc": 0,
+  "wall_s": 68.27269876099308,
+  "started_at": "2026-09-30T14:53:53.559804+00:00",
+  "ended_at": "2026-09-30T14:55:01.830871+00:00",
+  "prompt_sha256": "ba8b0396f33ace6e5666364a91c7329b33dfeed9dcab47ec2d4bab670b1e8bce",
+  "role_sha256": "2664cc8fc93809be25b1961f53a6c9c64a3feb640b2c58a2eeda2b80c66d9e14"
+}

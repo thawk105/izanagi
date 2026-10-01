@@ -1,0 +1,162 @@
+{
+  "accepted": false,
+  "binary_sha256": "9850a0b0ba33574589f86b7976f6a11f193eac6e9b922a23c62ad9b124da4ba2",
+  "build": {
+    "argv": [
+      "cmake",
+      "--build",
+      "/scr/cfb-cicada-hndasxlh/build",
+      "--target",
+      "ycsb_cicada.exe",
+      "-j",
+      "4"
+    ],
+    "rc": 0,
+    "seconds": 13.381,
+    "timeout_seconds": 1800
+  },
+  "compile_defines": {
+    "transaction.cc": {
+      "BACK_OFF": "0",
+      "INLINE_VERSION_OPT": "1",
+      "INLINE_VERSION_PROMOTION": "1",
+      "REUSE_VERSION": "0",
+      "SINGLE_EXEC": "0",
+      "TRACE": "1",
+      "WORKER1_INSERT_DELAY_RPHASE": "0",
+      "WRITE_LATEST_ONLY": "0"
+    },
+    "util.cc": {
+      "BACK_OFF": "0",
+      "INLINE_VERSION_OPT": "1",
+      "INLINE_VERSION_PROMOTION": "1",
+      "REUSE_VERSION": "0",
+      "SINGLE_EXEC": "0",
+      "TRACE": "1",
+      "WORKER1_INSERT_DELAY_RPHASE": "0",
+      "WRITE_LATEST_ONLY": "0"
+    },
+    "ycsb_cicada.cc": {
+      "BACK_OFF": "0",
+      "INLINE_VERSION_OPT": "1",
+      "INLINE_VERSION_PROMOTION": "1",
+      "REUSE_VERSION": "0",
+      "SINGLE_EXEC": "0",
+      "TRACE": "1",
+      "WORKER1_INSERT_DELAY_RPHASE": "0",
+      "WRITE_LATEST_ONLY": "0"
+    }
+  },
+  "configure": {
+    "argv": [
+      "cmake",
+      "-S",
+      "/scr/cfb-cicada-hndasxlh/ccbench",
+      "-B",
+      "/scr/cfb-cicada-hndasxlh/build",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+      "-DCCBENCH_TRACE=1",
+      "-DCCBENCH_BACK_OFF=0",
+      "-DCCBENCH_REUSE_VERSION=0",
+      "-DCCBENCH_WRITE_LATEST_ONLY=0",
+      "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+      "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+      "-DCCBENCH_SINGLE_EXEC=0",
+      "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-cicada-hndasxlh/dependencies/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-cicada-hndasxlh/dependencies/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-cicada-hndasxlh/dependencies/thirdparty-src/googletest"
+    ],
+    "rc": 0,
+    "seconds": 0.716,
+    "timeout_seconds": 900
+  },
+  "errors": [
+    "trace files missing"
+  ],
+  "host": "bnode021",
+  "mode": "cicada",
+  "preregistered": "cycles=0, integrity numeric=0, C rows=commit count, READ_WTS_MISMATCH=0; indeterminate accepted but not certified",
+  "runs": {},
+  "stages": {
+    "build": {
+      "argv": [
+        "cmake",
+        "--build",
+        "/scr/cfb-cicada-hndasxlh/build",
+        "--target",
+        "ycsb_cicada.exe",
+        "-j",
+        "4"
+      ],
+      "rc": 0,
+      "seconds": 13.381,
+      "timeout_seconds": 1800
+    },
+    "cicada.run": {
+      "argv": [
+        "/scr/cfb-cicada-hndasxlh/build/cc/cicada/ycsb_cicada.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=90",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=4",
+        "-thread_num=4",
+        "-extime=1",
+        "-group_commit=0",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "seconds": 1.076,
+      "timeout_seconds": 180
+    },
+    "clone": {
+      "argv": [
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scripts-v3/verify_inputs.sh",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle",
+        "9035509829f005aaaddf44fa5ca431851c2ecdac",
+        "/scr/cfb-cicada-hndasxlh/ccbench"
+      ],
+      "rc": 0,
+      "seconds": 0.506,
+      "timeout_seconds": null
+    },
+    "configure": {
+      "argv": [
+        "cmake",
+        "-S",
+        "/scr/cfb-cicada-hndasxlh/ccbench",
+        "-B",
+        "/scr/cfb-cicada-hndasxlh/build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+        "-DCCBENCH_TRACE=1",
+        "-DCCBENCH_BACK_OFF=0",
+        "-DCCBENCH_REUSE_VERSION=0",
+        "-DCCBENCH_WRITE_LATEST_ONLY=0",
+        "-DCCBENCH_INLINE_VERSION_OPT_CICADA=1",
+        "-DCCBENCH_INLINE_VERSION_PROMOTION=1",
+        "-DCCBENCH_SINGLE_EXEC=0",
+        "-DCCBENCH_WORKER1_INSERT_DELAY_RPHASE=0",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-cicada-hndasxlh/dependencies/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-cicada-hndasxlh/dependencies/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-cicada-hndasxlh/dependencies/thirdparty-src/googletest"
+      ],
+      "rc": 0,
+      "seconds": 0.716,
+      "timeout_seconds": 900
+    },
+    "dependencies": {
+      "rc": 0,
+      "seconds": 10.813
+    }
+  },
+  "tip": "9035509829f005aaaddf44fa5ca431851c2ecdac"
+}

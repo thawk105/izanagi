@@ -1,0 +1,190 @@
+[
+  {
+    "job": "1",
+    "hostname": "bnode058",
+    "repo_head": "d6da43a6b32b13d3948827123a7df26b8301fda5",
+    "runs": [
+      {
+        "run": "PRE-A-t8",
+        "rc": 0,
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity_numeric": {
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0
+        },
+        "integrity_clean": false,
+        "gc_detection": {
+          "cycle": false,
+          "version_dups": 0,
+          "read_wts_mismatch": 0,
+          "held_changed": 0,
+          "forced_success": 0,
+          "early_publish": 0,
+          "early_publish_then_fail": 0,
+          "c_lines_equal_commits": true
+        },
+        "expected_commits": 404094,
+        "trace_rows": {
+          "C": 404094,
+          "R": 1587361,
+          "W": 1769237,
+          "E": 404094
+        },
+        "gc_success": 9,
+        "gc_attempts": 1851
+      }
+    ]
+  },
+  {
+    "job": "2",
+    "hostname": "bnode050",
+    "repo_head": "d6da43a6b32b13d3948827123a7df26b8301fda5",
+    "runs": [
+      {
+        "run": "FIX-A-t8",
+        "rc": 0,
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity_numeric": {
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0
+        },
+        "integrity_clean": false,
+        "gc_detection": {
+          "cycle": false,
+          "version_dups": 0,
+          "read_wts_mismatch": 0,
+          "held_changed": 0,
+          "forced_success": 0,
+          "early_publish": 0,
+          "early_publish_then_fail": 0,
+          "c_lines_equal_commits": true
+        },
+        "expected_commits": 395057,
+        "trace_rows": {
+          "C": 395057,
+          "R": 1552608,
+          "W": 1728724,
+          "E": 395057
+        },
+        "gc_success": 12,
+        "gc_attempts": 1424
+      }
+    ]
+  },
+  {
+    "job": "3",
+    "hostname": "bnode010",
+    "repo_head": "d6da43a6b32b13d3948827123a7df26b8301fda5",
+    "runs": [
+      {
+        "run": "PRE-B-t8",
+        "rc": 0,
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity_numeric": {
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0
+        },
+        "integrity_clean": false,
+        "gc_detection": {
+          "cycle": false,
+          "version_dups": 0,
+          "read_wts_mismatch": 0,
+          "held_changed": 0,
+          "forced_success": 0,
+          "early_publish": 0,
+          "early_publish_then_fail": 0,
+          "c_lines_equal_commits": true
+        },
+        "expected_commits": 587100,
+        "trace_rows": {
+          "C": 587100,
+          "R": 2933607,
+          "W": 2935458,
+          "E": 587100
+        },
+        "gc_success": 448,
+        "gc_attempts": 811
+      }
+    ]
+  },
+  {
+    "job": "4",
+    "hostname": "bnode026",
+    "repo_head": "d6da43a6b32b13d3948827123a7df26b8301fda5",
+    "runs": [
+      {
+        "run": "FIX-B-t8",
+        "rc": 0,
+        "verdict": "indeterminate",
+        "certified": false,
+        "total_cycles": 0,
+        "integrity_numeric": {
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0
+        },
+        "integrity_clean": false,
+        "gc_detection": {
+          "cycle": false,
+          "version_dups": 0,
+          "read_wts_mismatch": 0,
+          "held_changed": 0,
+          "forced_success": 0,
+          "early_publish": 0,
+          "early_publish_then_fail": 0,
+          "c_lines_equal_commits": true
+        },
+        "expected_commits": 588335,
+        "trace_rows": {
+          "C": 588335,
+          "R": 2940189,
+          "W": 2941207,
+          "E": 588335
+        },
+        "gc_success": 519,
+        "gc_attempts": 1094
+      }
+    ]
+  }
+]

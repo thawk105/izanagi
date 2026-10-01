@@ -1,0 +1,16 @@
+{
+  "dispatch_log": "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/jobs/silo/dispatch.log",
+  "dispatch_rc": 0,
+  "fields": {
+    "elapse": {
+      "value": "1742"
+    },
+    "execution_node": {
+      "status": "not_found_in_dispatch_log"
+    },
+    "request_id": {
+      "value": "40086.nqsv"
+    }
+  },
+  "job": "silo"
+}

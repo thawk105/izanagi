@@ -1,0 +1,334 @@
+{
+  "accepted": true,
+  "binary_sha256": "a51a37800299ba43fb3d7ef04930cd6ff4ee92303174c7bea1f6b7fbd7d3e1a8",
+  "build": {
+    "argv": [
+      "cmake",
+      "--build",
+      "/scr/cfb-silo-60u0kiiz/build",
+      "--target",
+      "ycsb_silo.exe",
+      "-j",
+      "4"
+    ],
+    "rc": 0,
+    "seconds": 14.034,
+    "timeout_seconds": 1800
+  },
+  "configure": {
+    "argv": [
+      "cmake",
+      "-S",
+      "/scr/cfb-silo-60u0kiiz/ccbench",
+      "-B",
+      "/scr/cfb-silo-60u0kiiz/build",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+      "-DCCBENCH_TRACE=1",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-silo-60u0kiiz/dependencies/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-silo-60u0kiiz/dependencies/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-silo-60u0kiiz/dependencies/thirdparty-src/googletest"
+    ],
+    "rc": 0,
+    "seconds": 0.817,
+    "timeout_seconds": 900
+  },
+  "errors": [],
+  "host": "bnode018",
+  "mode": "silo",
+  "preregistered": "both serializable, certified, gate D1/D2a/D2b zero, commit equality",
+  "runs": {
+    "silo-blind": {
+      "accepted": true,
+      "c_lines": 228282,
+      "certified": true,
+      "commits": 228282,
+      "cycles": 0,
+      "gate_witness": {
+        "D5": "pass",
+        "counts": {
+          "D1a": 0,
+          "D1b1": 0,
+          "D1b2": 0,
+          "D1c": 0,
+          "D2a": 0,
+          "D2b_i": 0,
+          "D2b_ii": 0,
+          "unreachable": 0
+        },
+        "meaning_version": 2,
+        "occurrence": {
+          "external_reads_checked": 551340,
+          "own_write_read_transactions": 17582,
+          "repeated_write_key_transactions": 17520,
+          "written_transactions": 221243
+        },
+        "required": true
+      },
+      "integrity_numeric": {
+        "dup_txids": 0,
+        "framing_violations": 0,
+        "genesis_commits": 0,
+        "lock_coverage_violations": 0,
+        "malformed_keys": 0,
+        "missing_txids": 0,
+        "orphan_reads": 0,
+        "permutation_violations": 0,
+        "version_dups": 0,
+        "write_intent_violations": 0,
+        "write_version_mismatch": 0
+      },
+      "read_wts_mismatch": null,
+      "run": {
+        "argv": [
+          "numactl",
+          "--interleave=all",
+          "/scr/cfb-silo-60u0kiiz/build/cc/silo/ycsb_silo.exe",
+          "-ycsb_tuple_num=200",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=false",
+          "-ycsb_max_ope=5",
+          "-thread_num=4",
+          "-extime=1",
+          "-clocks_per_us=2100"
+        ],
+        "rc": 0,
+        "seconds": 1.017,
+        "timeout_seconds": 180
+      },
+      "verdict": "serializable",
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/scr/cfb-silo-60u0kiiz/trace-silo-blind",
+          "--json",
+          "--protocol",
+          "silo",
+          "--ccbench-root",
+          "/scr/cfb-silo-60u0kiiz/ccbench",
+          "--expected-commits",
+          "228282",
+          "--require-gate-witness"
+        ],
+        "rc": 0,
+        "seconds": 11.329,
+        "timeout_seconds": 900
+      }
+    },
+    "silo-rmw": {
+      "accepted": true,
+      "c_lines": 197785,
+      "certified": true,
+      "commits": 197785,
+      "cycles": 0,
+      "gate_witness": {
+        "D5": "pass",
+        "counts": {
+          "D1a": 0,
+          "D1b1": 0,
+          "D1b2": 0,
+          "D1c": 0,
+          "D2a": 0,
+          "D2b_i": 0,
+          "D2b_ii": 0,
+          "unreachable": 0
+        },
+        "meaning_version": 2,
+        "occurrence": {
+          "external_reads_checked": 957152,
+          "own_write_read_transactions": 28539,
+          "repeated_write_key_transactions": 15159,
+          "written_transactions": 191654
+        },
+        "required": true
+      },
+      "integrity_numeric": {
+        "dup_txids": 0,
+        "framing_violations": 0,
+        "genesis_commits": 0,
+        "lock_coverage_violations": 0,
+        "malformed_keys": 0,
+        "missing_txids": 0,
+        "orphan_reads": 0,
+        "permutation_violations": 0,
+        "version_dups": 0,
+        "write_intent_violations": 0,
+        "write_version_mismatch": 0
+      },
+      "read_wts_mismatch": null,
+      "run": {
+        "argv": [
+          "numactl",
+          "--interleave=all",
+          "/scr/cfb-silo-60u0kiiz/build/cc/silo/ycsb_silo.exe",
+          "-ycsb_tuple_num=200",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=true",
+          "-ycsb_max_ope=5",
+          "-thread_num=4",
+          "-extime=1",
+          "-clocks_per_us=2100"
+        ],
+        "rc": 0,
+        "seconds": 1.018,
+        "timeout_seconds": 180
+      },
+      "verdict": "serializable",
+      "verifier": {
+        "argv": [
+          "/usr/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/scr/cfb-silo-60u0kiiz/trace-silo-rmw",
+          "--json",
+          "--protocol",
+          "silo",
+          "--ccbench-root",
+          "/scr/cfb-silo-60u0kiiz/ccbench",
+          "--expected-commits",
+          "197785",
+          "--require-gate-witness"
+        ],
+        "rc": 0,
+        "seconds": 11.88,
+        "timeout_seconds": 900
+      }
+    }
+  },
+  "stages": {
+    "build": {
+      "argv": [
+        "cmake",
+        "--build",
+        "/scr/cfb-silo-60u0kiiz/build",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "4"
+      ],
+      "rc": 0,
+      "seconds": 14.034,
+      "timeout_seconds": 1800
+    },
+    "clone": {
+      "argv": [
+        "/work/1/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/scripts-v3/verify_inputs.sh",
+        "/work/SFC/tanab/tmp/ccbench-fix-bundle-2026-09-30/fix-bundle.bundle",
+        "9035509829f005aaaddf44fa5ca431851c2ecdac",
+        "/scr/cfb-silo-60u0kiiz/ccbench"
+      ],
+      "rc": 0,
+      "seconds": 0.888,
+      "timeout_seconds": null
+    },
+    "configure": {
+      "argv": [
+        "cmake",
+        "-S",
+        "/scr/cfb-silo-60u0kiiz/ccbench",
+        "-B",
+        "/scr/cfb-silo-60u0kiiz/build",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/g++-11",
+        "-DCCBENCH_TRACE=1",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/cfb-silo-60u0kiiz/dependencies/thirdparty-src/masstree",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/cfb-silo-60u0kiiz/dependencies/thirdparty-src/mimalloc",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/cfb-silo-60u0kiiz/dependencies/thirdparty-src/googletest"
+      ],
+      "rc": 0,
+      "seconds": 0.817,
+      "timeout_seconds": 900
+    },
+    "dependencies": {
+      "rc": 0,
+      "seconds": 11.522
+    },
+    "silo-blind.run": {
+      "argv": [
+        "numactl",
+        "--interleave=all",
+        "/scr/cfb-silo-60u0kiiz/build/cc/silo/ycsb_silo.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=false",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "seconds": 1.017,
+      "timeout_seconds": 180
+    },
+    "silo-blind.verifier": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "-m",
+        "orchestrator.verifier",
+        "/scr/cfb-silo-60u0kiiz/trace-silo-blind",
+        "--json",
+        "--protocol",
+        "silo",
+        "--ccbench-root",
+        "/scr/cfb-silo-60u0kiiz/ccbench",
+        "--expected-commits",
+        "228282",
+        "--require-gate-witness"
+      ],
+      "rc": 0,
+      "seconds": 11.329,
+      "timeout_seconds": 900
+    },
+    "silo-rmw.run": {
+      "argv": [
+        "numactl",
+        "--interleave=all",
+        "/scr/cfb-silo-60u0kiiz/build/cc/silo/ycsb_silo.exe",
+        "-ycsb_tuple_num=200",
+        "-ycsb_zipf_skew=0.9",
+        "-ycsb_rratio=50",
+        "-ycsb_rmw=true",
+        "-ycsb_max_ope=5",
+        "-thread_num=4",
+        "-extime=1",
+        "-clocks_per_us=2100"
+      ],
+      "rc": 0,
+      "seconds": 1.018,
+      "timeout_seconds": 180
+    },
+    "silo-rmw.verifier": {
+      "argv": [
+        "/usr/bin/python3.10",
+        "-B",
+        "-m",
+        "orchestrator.verifier",
+        "/scr/cfb-silo-60u0kiiz/trace-silo-rmw",
+        "--json",
+        "--protocol",
+        "silo",
+        "--ccbench-root",
+        "/scr/cfb-silo-60u0kiiz/ccbench",
+        "--expected-commits",
+        "197785",
+        "--require-gate-witness"
+      ],
+      "rc": 0,
+      "seconds": 11.88,
+      "timeout_seconds": 900
+    }
+  },
+  "tip": "9035509829f005aaaddf44fa5ca431851c2ecdac"
+}
