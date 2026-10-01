@@ -1,0 +1,30 @@
+{
+  "M": {},
+  "conditions": {},
+  "counts_planned": {
+    "builds": 2,
+    "runs": 4,
+    "verifications": 4
+  },
+  "errors": [
+    {
+      "message": "node-local TMPDIR required",
+      "stage": "preflight",
+      "type": "RuntimeError"
+    }
+  ],
+  "finished": "2026-09-30T15:26:38.328893+00:00",
+  "host": "bnode005",
+  "inputs": {},
+  "outcome": "fixture-liveness",
+  "schema": "md20-fixture-liveness/1",
+  "seconds": 0.0,
+  "stages": {
+    "preflight": {
+      "finished": "2026-09-30T15:26:38.328862+00:00",
+      "seconds": 0.0,
+      "started": "2026-09-30T15:26:38.298109+00:00"
+    }
+  },
+  "started": "2026-09-30T15:26:38.298093+00:00"
+}

@@ -436,7 +436,16 @@ def run_stock_control(cfg, perf, sub, *, layout, cache_root='',
         patch = contextlib.nullcontext()
     with patch:
         if fixed10:
-            L._require_condition_gate(sub, genome)
+            if fetchcontent_options and fetchcontent_options.get('fetchcontent_dependency_receipt') is not None:
+                L._require_condition_gate(sub, genome,
+                    configure_args=L._condition_gate_offline_configure_args(
+                        dependency_prefix=dependency_prefix,
+                        fetchcontent_base_dir=fetchcontent_options['fetchcontent_base_dir'],
+                        masstree_source_dir=fetchcontent_options['masstree_source_dir'],
+                        mimalloc_source_dir=fetchcontent_options['mimalloc_source_dir'],
+                        googletest_source_dir=fetchcontent_options['googletest_source_dir']))
+            else:
+                L._require_condition_gate(sub, genome)
         layout.ensure()
         ident.ensure_resumable_attempts(cfg, layout, admission_policy=build_context.policy)
         options = _measurement_options(build_context=build_context, contract=contract,
