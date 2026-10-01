@@ -58,7 +58,7 @@
    同じ wrapper で原 attempt を原 metadata のまま描くと、既存 fig10 の provenance と `artist_series` が完全一致した (陽性対照)。
 4. **原 attempt と R2 を並べた表**を、同じ生成器の `load_evidence` (全検査つき) を attempt ごとに別々に呼んで作った (§4)。
 5. **計算は承認量 3.40 node 時間の約 1.9 倍の 6.39 node 時間を使った。** 原因は、全 node 共有の bench lock で R2 自身の 3 job の性能検証と bench が 1 列に並んだことだと、WAL の時刻から推定する (§7、PID では未確認)。途中で land 調整役へ示し、診断の後に継続の承認を得た (§6)。
-   待ちの間も、既存の競合 probe は競合を検出せず、bench の追加 round も無く、bench 本体の所要は原 attempt と同程度だった (性能への影響が皆無だとは主張しない)。
+   lock 取得後・bench 開始前の既存の競合 probe は競合を検出せず (待ちの間を連続して監視したものではない)、bench の追加 round も無く、bench 本体の所要は原 attempt と同程度だった (性能への影響が皆無だとは主張しない)。
 
 ## 1. 経路と投入前の前提
 
@@ -182,7 +182,7 @@ collect-root の `output/insights/2026-09-19_t1998-b7-fixed5-three-workload/` (r
 
 - **見積りの前提。** 3.40 は原 attempt の 3 request の Elapse (386・841・1,218 s) の和 × 5 node。原 attempt の 3 request は待ち行列の待ちでずれて始まり、rr5 (22:36〜22:42) は単独、
   rr95 (22:49〜23:09) と rr50 (22:59〜23:13) は約 10 分だけ重なった (結果稿の request 表)。重なった区間では原 attempt にも同じ形の待ちが出ている (rr95 の cell 2 の 165 s。rr50 の stock bench は rr95 の bench 完了 23:09:18 の直後 23:09:18〜35 に走った)。
-  R2 は 3 request が待ちなしで同時に始まったので、全区間で取り合いになった。
+  R2 は 3 request が待ちなしで同時に始まり、2 巡とも 3 job の性能検証と bench が 1 列に並ぶ時刻になった (段の時刻からの読みで、全期間の連続観測ではない)。
 - **何が起きたか (各 campaign の WAL の段の時刻だけを抽出、PID・node 上の process 状態は見ていない)。** bench 本体の所要は 16.8 s で原 attempt と同じだった。遅れたのは「最後の検証完了 → bench 開始」の空きである。
 
   | attempt | 空き (秒、cell 1 / cell 2) |
@@ -250,3 +250,8 @@ commit `068f664dd` を対象に、Codex の read-only レビューを 2 本並�
 
 変異 matrix は、repo の実装面の差分が 0 (wrapper は repo 外。repo の変更は insight・phase 行・worklog fragment だけ) なので、段 4 裁定どおり免除した。
 
+
+焦点再レビュー (Codex、read-only、commit `78b3ff4c9` が対象、受理検査 rc 0、`verbatim/s6-focus.md`) は **GO**。A-F2・A-F3・A-F4・A-F5・B-F2・B-F3・B-F4 は closed、B-F5 は受容、A-F1・B-F1 は次の新規所見を残して partial、回帰は無し。
+レビュー子は §7 案 1 の算式 (空きの合計 1,196.1・943.3・67.5 s、差引き約 3.32 node 時間) と §6 の式 (22,995 node 秒 = 6.3875 node 時間) を WAL と会計から再計算して一致を確かめた。
+図・表・provenance の sha256、snapshot と `e92aeea8f` の README の bytes 一致、wrapper の差分が置換 2 の 8 行削除だけであることも確かめた。
+新規所見 F-F1 (should-fix): 競合 probe は lock 取得後・bench 開始前の 1 時点の観測なのに、結論 5 が「待ちの間も」と書き、§7 が「全区間で取り合い」と書いていた。real と裁定し、両方を観測した時点・範囲に限る文言へ直した。これで A-F1・B-F1 も closed とする。
